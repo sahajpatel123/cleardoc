@@ -1,7 +1,19 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  experimental: {
+    serverComponentsExternalPackages: ["firebase-admin", "pdfjs-dist"],
+  },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Prevent pdfjs canvas dependency issues
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        canvas: false,
+      }
+    }
+    return config
+  },
+}
 
-export default nextConfig;
+export default nextConfig
