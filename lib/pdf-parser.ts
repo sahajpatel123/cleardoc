@@ -1,5 +1,10 @@
-// Server-side PDF text extraction using pdfjs-dist
-// Images (PNG/JPG) return a placeholder — users should describe the content via context
+/**
+ * Server-side document text extraction.
+ *
+ * Uses `pdf-parse` instead of `pdfjs-dist` — pdf-parse is a pure Node.js library
+ * with zero browser dependencies (no DOMMatrix, Canvas, etc.) and works correctly
+ * in Vercel serverless functions.
+ */
 
 export async function extractTextFromBuffer(
   buffer: Buffer,
@@ -9,8 +14,6 @@ export async function extractTextFromBuffer(
     return extractPdfText(buffer)
   }
 
-  // For image files, we can't do OCR server-side without a dedicated service.
-  // Return a clear message so Claude knows what happened.
   if (mimeType.startsWith("image/")) {
     return extractImageText(buffer, mimeType)
   }
@@ -19,52 +22,35 @@ export async function extractTextFromBuffer(
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
-  // Dynamic import to avoid SSR issues with the canvas dependency
-  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs")
+  // Dynamic import — pdf-parse has a quirk where it tries to load a test file
+  // at module init time; dynamic import avoids that at build time.
+  // pdf-parse v2 exports as named or default depending on the bundler
+  const mod = await import("pdf-parse")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfParse: (buf: Buffer, opts?: { max?: number }) => Promise<{ text: string; numpages: number }> = (mod as any).default ?? mod
 
-  // Use the legacy build without a worker for server-side Node.js
-  const pdf = await pdfjsLib.getDocument({
-    data: new Uint8Array(buffer),
-    useWorkerFetch: false,
-    isEvalSupported: false,
-    useSystemFonts: true,
-  }).promise
+  const data = await pdfParse(buffer, {
+    // Cap pages to avoid token overrun on very large documents
+    max: 50,
+  })
 
-  const totalPages = pdf.numPages
-  const textParts: string[] = []
+  const text = data.text?.trim() ?? ""
 
-  // Cap at 50 pages to avoid token overrun
-  const pagesToRead = Math.min(totalPages, 50)
-
-  for (let pageNum = 1; pageNum <= pagesToRead; pageNum++) {
-    const page = await pdf.getPage(pageNum)
-    const content = await page.getTextContent()
-    const pageText = content.items
-      .map((item) => ("str" in item ? (item.str as string) : ""))
-      .join(" ")
-    textParts.push(`[Page ${pageNum}]\n${pageText}`)
+  if (!text || text.replace(/\s/g, "").length < 50) {
+    return `[This appears to be a scanned PDF with no extractable text. The document contains ${data.numpages} page(s). Please describe the document contents in the context field above for accurate analysis.]`
   }
 
-  const fullText = textParts.join("\n\n")
-
-  if (!fullText.trim() || fullText.replace(/\s/g, "").length < 50) {
-    return `[This appears to be a scanned PDF with no extractable text. The document contains ${totalPages} page(s). Please describe the document contents in the context field above for accurate analysis.]`
-  }
-
-  return fullText
+  // pdf-parse returns all text as one block — add page count info for context
+  return `[Document: ${data.numpages} page(s)]\n\n${text}`
 }
 
 async function extractImageText(
   buffer: Buffer,
   mimeType: string
 ): Promise<string> {
-  // Convert to base64 for potential future vision API integration
   const base64 = buffer.toString("base64")
   const dataUrl = `data:${mimeType};base64,${base64}`
-
-  // For now, return a placeholder with the image data URL embedded
-  // In production, you'd call a vision API here
-  return `[IMAGE_DOCUMENT:${dataUrl}]\n\nNote: This is an image file. Please describe what the document says in the context field for more accurate analysis. The image has been uploaded for reference.`
+  return `[IMAGE_DOCUMENT:${dataUrl}]\n\nNote: This is an image file. Please describe what the document says in the context field for more accurate analysis.`
 }
 
 export function getFileMimeType(filename: string): string {

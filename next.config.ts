@@ -1,12 +1,7 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["firebase-admin", "pdfjs-dist"],
-  turbopack: {
-    resolveAlias: {
-      canvas: "./empty-module.js",
-    },
-  },
+  serverExternalPackages: ["firebase-admin", "pdf-parse"],
 }
 
 export default nextConfig
