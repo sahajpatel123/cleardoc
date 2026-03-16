@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* ── Force light mode — prevent Tailwind v4 dark mode auto-detection ──── */
+:root {
+  color-scheme: light only;
+}
+
+/* Kill any dark-mode overrides from Tailwind preflight */
+@media (prefers-color-scheme: dark) {
+  html, body { background: #FAFAF8 !important; color: #18130E !important; }
+}
+
 /* ── Design Tokens ─────────────────────────────────────────────────────── */
 :root {
   --bg:            #FAFAF8;

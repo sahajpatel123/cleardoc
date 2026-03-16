@@ -34,10 +34,13 @@ export default function Navbar() {
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? "bg-white/90 backdrop-blur-xl border-b shadow-sm"
-            : "bg-transparent"
+            ? "backdrop-blur-xl border-b shadow-sm"
+            : "border-b"
         }`}
-        style={{ borderColor: scrolled ? "#E8E2D9" : "transparent" }}
+        style={{
+          background: scrolled ? "rgba(250,250,248,0.92)" : "rgba(250,250,248,0.85)",
+          borderColor: "#E8E2D9",
+        }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
