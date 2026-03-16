@@ -6,17 +6,44 @@
 import admin from "firebase-admin"
 import type { AnalysisResult, UserProfile, Analysis } from "./types"
 
-function getAdminDb() {
-  if (admin.apps.length === 0) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      }),
-    })
+/**
+ * Robustly parse the Firebase private key from environment variable.
+ * Handles all common Vercel copy-paste formats:
+ *   - literal \n characters  →  real newlines
+ *   - surrounding quotes     →  stripped
+ *   - already has newlines   →  left as-is
+ */
+function parsePrivateKey(raw: string | undefined): string {
+  if (!raw) return ""
+  // Strip surrounding double or single quotes (common copy-paste mistake in Vercel UI)
+  let key = raw.trim().replace(/^["']|["']$/g, "")
+  // If the key doesn't yet contain real newlines, convert literal \n sequences
+  if (!key.includes("\n")) {
+    key = key.replace(/\\n/g, "\n")
   }
+  return key
+}
+
+function initAdminApp() {
+  if (admin.apps.length > 0) return admin.app()
+  return admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: parsePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
+    }),
+  })
+}
+
+function getAdminDb() {
+  initAdminApp()
   return admin.firestore()
+}
+
+/** Exported so API routes can use admin.auth() without re-initializing */
+export function getAdminAuth() {
+  initAdminApp()
+  return admin.auth()
 }
 
 export async function adminGetUserProfile(uid: string): Promise<UserProfile | null> {

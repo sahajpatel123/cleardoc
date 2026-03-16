@@ -5,8 +5,8 @@ import {
   adminGetUserProfile,
   adminDecrementFreeUse,
   adminSaveAnalysis,
+  getAdminAuth,
 } from "@/lib/firestore-admin"
-import admin from "firebase-admin"
 
 // Rate limiting — simple in-memory store (use Redis in prod)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -24,18 +24,6 @@ function checkRateLimit(ip: string): boolean {
   if (entry.count >= limit) return false
   entry.count++
   return true
-}
-
-// Initialize Firebase Admin (for server-side token verification)
-function getAdminApp() {
-  if (admin.apps.length > 0) return admin.apps[0]!
-  return admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-  })
 }
 
 export async function POST(req: NextRequest) {
@@ -74,8 +62,7 @@ export async function POST(req: NextRequest) {
     let uid: string | null = null
     if (idToken) {
       try {
-        const adminApp = getAdminApp()
-        const decoded = await admin.auth(adminApp).verifyIdToken(idToken)
+        const decoded = await getAdminAuth().verifyIdToken(idToken)
         uid = decoded.uid
       } catch {
         return NextResponse.json(
