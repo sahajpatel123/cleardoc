@@ -111,7 +111,7 @@ function AnalysisPreview() {
         }}>
 
         {/* ── Top chrome bar ── */}
-        <div className="relative px-5 pt-4 pb-3 flex items-center justify-between"
+        <div className="relative px-4 pt-3 pb-2.5 flex items-center justify-between"
           style={{ background: "linear-gradient(135deg, #1C1510 0%, #2E1E12 100%)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           {/* Window dots */}
           <div className="flex items-center gap-1.5">
@@ -140,22 +140,22 @@ function AnalysisPreview() {
         </div>
 
         {/* ── Verdict banner ── */}
-        <div className="px-5 py-4 border-b"
+        <div className="px-4 py-3 border-b"
           style={{ background: "linear-gradient(135deg, #FFFBEB 0%, #FFF8E1 100%)", borderColor: "rgba(217,119,6,0.15)" }}>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center"
                 style={{ background: "rgba(217,119,6,0.12)", border: "1px solid rgba(217,119,6,0.2)" }}>
-                <AlertCircle className="w-4 h-4" style={{ color: "#D97706" }} />
+                <AlertCircle className="w-3.5 h-3.5" style={{ color: "#D97706" }} />
               </div>
               <div>
                 <p className="text-xs font-black uppercase tracking-wider" style={{ color: "#D97706" }}>Suspicious Document</p>
-                <p className="text-[10px]" style={{ color: "#92714A" }}>3 issues require your attention</p>
+                <p className="text-[10px]" style={{ color: "#92714A" }}>3 issues · likely unenforceable as written</p>
               </div>
             </div>
             {/* Score ring */}
-            <div className="relative w-12 h-12">
-              <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
+            <div className="relative w-10 h-10">
+              <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
                 <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(217,119,6,0.12)" strokeWidth="3" />
                 <motion.circle cx="18" cy="18" r="14" fill="none" stroke="#D97706" strokeWidth="3"
                   strokeLinecap="round" strokeDasharray="88"
@@ -164,25 +164,22 @@ function AnalysisPreview() {
                   transition={{ duration: 1.2, delay: 1.0, ease: EASE }} />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[11px] font-black" style={{ color: "#D97706" }}>62</span>
+                <span className="text-[10px] font-black" style={{ color: "#D97706" }}>62</span>
               </div>
             </div>
           </div>
-          <p className="text-[11px] leading-relaxed" style={{ color: "#6B5E52" }}>
-            This notice contains illegal clauses and is likely <strong style={{ color: "#92400E" }}>unenforceable</strong> as written. Review all flags before responding.
-          </p>
         </div>
 
         {/* ── Red flags ── */}
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between mb-2.5">
+        <div className="px-3 py-2.5">
+          <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#A89484" }}>Red Flags Detected</p>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
               style={{ background: "#FEF2F2", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
               3 found
             </span>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {flags.map(({ sev, issue, source, expl }, i) => {
               const c = sevCfg[sev]
               const Icon = c.Icon
@@ -202,7 +199,7 @@ function AnalysisPreview() {
                   {/* Left severity stripe */}
                   <div className="absolute left-0 top-0 bottom-0 w-0.5 rounded-l-xl"
                     style={{ background: c.color }} />
-                  <div className="pl-4 pr-3 py-2.5">
+                  <div className="pl-3.5 pr-2.5 py-2">
                     <div className="flex items-start gap-2.5">
                       <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5"
                         style={{ background: c.bg, border: `1px solid ${c.border}` }}>
@@ -243,9 +240,9 @@ function AnalysisPreview() {
         </div>
 
         {/* ── Response letter snippet ── */}
-        <div className="mx-4 mb-3 rounded-xl border overflow-hidden"
+        <div className="mx-3 mb-2 rounded-xl border overflow-hidden"
           style={{ borderColor: "rgba(37,99,235,0.15)" }}>
-          <div className="flex items-center justify-between px-3 py-2"
+          <div className="flex items-center justify-between px-3 py-1.5"
             style={{ background: "#EFF6FF", borderBottom: "1px solid rgba(37,99,235,0.1)" }}>
             <div className="flex items-center gap-1.5">
               <Mail className="w-3 h-3" style={{ color: "#2563EB" }} />
@@ -263,20 +260,18 @@ function AnalysisPreview() {
               {copied ? <><CheckCircle className="w-2.5 h-2.5" /> Copied!</> : <><Copy className="w-2.5 h-2.5" /> Copy</>}
             </motion.button>
           </div>
-          <div className="px-3 py-2.5" style={{ background: "white" }}>
+          <div className="px-3 py-2" style={{ background: "white" }}>
             <p className="text-[10px] font-mono leading-relaxed" style={{ color: "#4A3F35" }}>
-              Dear [Landlord Name],<br />
-              <span style={{ color: "#A89484" }}>
-                I am writing to formally dispute the notice dated October 12, 2024. Per California Civil Code §1946, a minimum of 30 days&apos; written notice is required...
-              </span>
+              Dear [Landlord Name],{" "}
+              <span style={{ color: "#A89484" }}>I am writing to formally dispute the notice dated October 12, 2024. Per California Civil Code §1946, a minimum of 30 days&apos; written notice is required...</span>
             </p>
           </div>
         </div>
 
         {/* ── Next steps ── */}
-        <div className="px-4 pb-4">
+        <div className="px-3 pb-3">
           <div className="rounded-xl border overflow-hidden" style={{ borderColor: "rgba(5,150,105,0.15)" }}>
-            <div className="flex items-center gap-2 px-3 py-2"
+            <div className="flex items-center gap-2 px-3 py-1.5"
               style={{ background: "#ECFDF5", borderBottom: "1px solid rgba(5,150,105,0.1)" }}>
               <Sparkles className="w-3 h-3" style={{ color: "#059669" }} />
               <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#059669" }}>
@@ -294,7 +289,7 @@ function AnalysisPreview() {
                 <motion.div key={i}
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                   transition={{ delay: 1.4 + i * 0.1 }}
-                  className="flex items-center gap-2.5 px-3 py-2">
+                  className="flex items-center gap-2.5 px-3 py-1.5">
                   <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-[9px] font-black"
                     style={{ background: "#ECFDF5", color: "#059669", border: "1px solid rgba(5,150,105,0.2)" }}>
                     {i + 1}
@@ -312,18 +307,18 @@ function AnalysisPreview() {
       <motion.div
         animate={{ y: [0, -7, 0] }}
         transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -top-5 -right-3 flex items-center gap-2.5 rounded-2xl px-4 py-2.5"
+        className="absolute -top-4 -right-2 flex items-center gap-2 rounded-2xl px-3 py-2"
         style={{
           background: "white",
           border: "1px solid rgba(24,19,14,0.08)",
           boxShadow: "0 8px 28px rgba(24,19,14,0.12)",
         }}>
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center"
           style={{ background: "linear-gradient(135deg, #FEF0E6, #FFE4CC)" }}>
-          <Zap className="w-4 h-4" style={{ color: "#E8651A" }} />
+          <Zap className="w-3.5 h-3.5" style={{ color: "#E8651A" }} />
         </div>
         <div>
-          <p className="text-xs font-black" style={{ color: "#18130E" }}>Ready in 12s</p>
+          <p className="text-[11px] font-black" style={{ color: "#18130E" }}>Ready in 12s</p>
           <div className="flex items-center gap-1 mt-0.5">
             <motion.div animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 1.2, repeat: Infinity }}
               className="w-1.5 h-1.5 rounded-full" style={{ background: "#28C840" }} />
@@ -336,18 +331,18 @@ function AnalysisPreview() {
       <motion.div
         animate={{ y: [0, 6, 0] }}
         transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
-        className="absolute -bottom-5 -left-3 flex items-center gap-2.5 rounded-2xl px-4 py-2.5"
+        className="absolute -bottom-4 -left-2 flex items-center gap-2 rounded-2xl px-3 py-2"
         style={{
           background: "white",
           border: "1px solid rgba(24,19,14,0.08)",
           boxShadow: "0 8px 28px rgba(24,19,14,0.12)",
         }}>
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center"
           style={{ background: "linear-gradient(135deg, #ECFDF5, #D1FAE5)" }}>
-          <Shield className="w-4 h-4" style={{ color: "#059669" }} />
+          <Shield className="w-3.5 h-3.5" style={{ color: "#059669" }} />
         </div>
         <div>
-          <p className="text-xs font-black" style={{ color: "#18130E" }}>100% Private</p>
+          <p className="text-[11px] font-black" style={{ color: "#18130E" }}>100% Private</p>
           <p className="text-[10px] font-medium" style={{ color: "#A89484" }}>Deleted after 30 days</p>
         </div>
       </motion.div>
@@ -407,7 +402,7 @@ function HomeContent() {
     <div style={{ background: "#FAFAF8", minHeight: "100vh" }}>
 
       {/* ─── HERO ─────────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center pt-16 pb-12 overflow-hidden">
+      <section className="relative min-h-screen flex items-center pt-16 pb-4 overflow-hidden">
         {/* Background blobs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full"
@@ -420,7 +415,7 @@ function HomeContent() {
 
         <motion.div style={{ y: heroParallax }}
           className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-20 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12 items-center">
 
             {/* LEFT: Copy */}
             <div className="text-center lg:text-left">
@@ -428,8 +423,8 @@ function HomeContent() {
               <motion.h1
                 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, ease: EASE }}
-                className="font-black leading-[1.04] tracking-tight mb-5"
-                style={{ fontSize: "clamp(2.8rem, 5.5vw, 5rem)", fontFamily: "var(--font-syne,'Syne',sans-serif)", color: "#18130E" }}>
+                className="font-black leading-[1.04] tracking-tight mb-4"
+                style={{ fontSize: "clamp(2.2rem, 4vw, 3.75rem)", fontFamily: "var(--font-syne,'Syne',sans-serif)", color: "#18130E" }}>
                 They sent you a
                 <br />
                 <span className="relative inline-block">
@@ -451,7 +446,7 @@ function HomeContent() {
               <motion.p
                 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.15, ease: EASE }}
-                className="text-lg leading-relaxed mb-4 max-w-xl"
+                className="text-base leading-relaxed mb-3 max-w-xl"
                 style={{ color: "#6B5E52" }}>
                 Upload any scary official document. Get plain English, red flags,
                 a ready-to-send response letter, and your exact next steps.{" "}
@@ -461,7 +456,7 @@ function HomeContent() {
               {/* Rotating doc type */}
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-                className="flex items-center gap-2 mb-8 justify-center lg:justify-start h-7 overflow-hidden">
+                className="flex items-center gap-2 mb-5 justify-center lg:justify-start h-7 overflow-hidden">
                 <span className="text-sm" style={{ color: "#A89484" }}>Works on:</span>
                 <div className="relative h-7 flex items-center overflow-hidden">
                   <AnimatePresence mode="wait">
@@ -479,7 +474,7 @@ function HomeContent() {
               <motion.div
                 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.25, ease: EASE }}
-                className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-8">
+                className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-5">
                 <motion.button whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }}
                   onClick={scrollToUpload} className="btn-primary text-base">
                   <Shield className="w-5 h-5" />
@@ -513,7 +508,7 @@ function HomeContent() {
 
             {/* RIGHT: Analysis Preview */}
             <div className="flex justify-center lg:justify-end">
-              <div className="relative py-10 px-6">
+              <div className="relative py-7 px-5">
                 <AnalysisPreview />
               </div>
             </div>
