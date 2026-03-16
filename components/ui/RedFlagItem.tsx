@@ -1,76 +1,39 @@
 import type { RedFlag } from "@/lib/types"
 import { AlertTriangle, AlertCircle, Info } from "lucide-react"
 
-interface Props {
-  flag: RedFlag
-  index: number
-}
+interface Props { flag: RedFlag; index: number }
 
-const severityConfig = {
-  high: {
-    icon: AlertTriangle,
-    badge: "bg-red-500/15 text-red-400 border-red-500/30",
-    border: "border-red-500/30",
-    bg: "bg-red-500/5",
-    dot: "bg-red-500",
-    label: "HIGH",
-    iconColor: "text-red-400",
-  },
-  medium: {
-    icon: AlertCircle,
-    badge: "bg-amber-400/15 text-amber-400 border-amber-400/30",
-    border: "border-amber-400/30",
-    bg: "bg-amber-400/5",
-    dot: "bg-amber-400",
-    label: "MEDIUM",
-    iconColor: "text-amber-400",
-  },
-  low: {
-    icon: Info,
-    badge: "bg-blue-400/15 text-blue-400 border-blue-400/30",
-    border: "border-blue-400/30",
-    bg: "bg-blue-400/5",
-    dot: "bg-blue-400",
-    label: "LOW",
-    iconColor: "text-blue-400",
-  },
+const cfg = {
+  high:   { Icon: AlertTriangle, badge: "tag-red",    border: "rgba(220,38,38,0.15)",   bg: "#FEF9F9", dot: "#DC2626", label: "HIGH" },
+  medium: { Icon: AlertCircle,   badge: "tag-orange",  border: "rgba(232,101,26,0.15)",  bg: "#FFFBF8", dot: "#E8651A", label: "MED" },
+  low:    { Icon: Info,          badge: "tag-warm",    border: "rgba(37,99,235,0.12)",   bg: "#F8FAFF", dot: "#2563EB", label: "LOW" },
 }
 
 export default function RedFlagItem({ flag, index }: Props) {
-  const config = severityConfig[flag.severity]
-  const Icon = config.icon
-
+  const c = cfg[flag.severity]
+  const Icon = c.Icon
   return (
     <div
-      className={`rounded-xl border ${config.border} ${config.bg} p-4 transition-all hover:border-opacity-60`}
-      style={{ animationDelay: `${index * 80}ms` }}
+      className="rounded-xl border p-4 transition-all hover:shadow-sm"
+      style={{ borderColor: c.border, background: c.bg, animationDelay: `${index * 70}ms` }}
     >
       <div className="flex items-start gap-3">
-        <div className={`mt-0.5 shrink-0 p-1.5 rounded-lg ${config.bg} border ${config.border}`}>
-          <Icon className={`w-3.5 h-3.5 ${config.iconColor}`} />
+        <div className="shrink-0 mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center border"
+          style={{ background: "white", borderColor: c.border }}>
+          <Icon className="w-3.5 h-3.5" style={{ color: c.dot }} />
         </div>
-
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-2">
-            <h4 className="font-semibold text-white text-sm">{flag.issue}</h4>
-            <span
-              className={`text-xs font-bold tracking-wider px-2 py-0.5 rounded-full border ${config.badge}`}
-            >
-              {config.label}
-            </span>
+            <h4 className="font-bold text-sm" style={{ color: "#18130E" }}>{flag.issue}</h4>
+            <span className={`tag ${c.badge} !text-[10px] !py-0.5 !px-2`}>{c.label}</span>
           </div>
-
-          {/* Source text */}
           {flag.source_text && (
-            <blockquote className="text-xs text-slate-500 italic border-l-2 border-white/10 pl-3 mb-2 line-clamp-3">
+            <blockquote className="text-xs italic border-l-2 pl-3 mb-2 line-clamp-3"
+              style={{ color: "#A89484", borderColor: "#E8E2D9" }}>
               &ldquo;{flag.source_text}&rdquo;
             </blockquote>
           )}
-
-          {/* Explanation */}
-          <p className="text-sm text-slate-300 leading-relaxed">
-            {flag.explanation}
-          </p>
+          <p className="text-sm leading-relaxed" style={{ color: "#4A3F35" }}>{flag.explanation}</p>
         </div>
       </div>
     </div>
