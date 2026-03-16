@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getUserProfile } from "@/lib/firestore"
+import { adminGetUserProfile } from "@/lib/firestore-admin"
 import admin from "firebase-admin"
 
 function getAdminApp() {
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   try {
     const adminApp = getAdminApp()
     const decoded = await admin.auth(adminApp).verifyIdToken(idToken)
-    const profile = await getUserProfile(decoded.uid)
+    const profile = await adminGetUserProfile(decoded.uid)
 
     return NextResponse.json({
       freeUsesRemaining: profile?.freeUsesRemaining ?? 0,

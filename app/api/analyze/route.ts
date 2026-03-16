@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { extractTextFromBuffer, getFileMimeType } from "@/lib/pdf-parser"
 import { analyzeDocument } from "@/lib/claude"
-import { getUserProfile, decrementFreeUse, saveAnalysis } from "@/lib/firestore"
+import {
+  adminGetUserProfile,
+  adminDecrementFreeUse,
+  adminSaveAnalysis,
+} from "@/lib/firestore-admin"
 import admin from "firebase-admin"
 
 // Rate limiting — simple in-memory store (use Redis in prod)
@@ -83,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     // Check usage limits
     if (uid) {
-      const profile = await getUserProfile(uid)
+      const profile = await adminGetUserProfile(uid)
       if (profile && profile.plan !== "pro" && profile.freeUsesRemaining <= 0) {
         return NextResponse.json(
           { error: "FREE_LIMIT_REACHED" },
@@ -107,14 +111,14 @@ export async function POST(req: NextRequest) {
     // Save analysis and update usage
     let analysisId: string | null = null
     if (uid) {
-      analysisId = await saveAnalysis({
+      analysisId = await adminSaveAnalysis({
         userId: uid,
         documentName: file.name,
         documentType: context || "Unknown",
-        storageUrl: "", // skip Storage upload for now — add later
+        storageUrl: "",
         result,
       })
-      await decrementFreeUse(uid)
+      await adminDecrementFreeUse(uid)
     }
 
     return NextResponse.json({ result, analysisId })

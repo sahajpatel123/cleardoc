@@ -14,7 +14,8 @@ const googleProvider = new GoogleAuthProvider()
 
 export async function signInWithGoogle(): Promise<User> {
   const result = await signInWithPopup(auth, googleProvider)
-  await createUserProfile(result.user.uid, result.user.email ?? "")
+  // createUserProfile failure must not break the auth flow — user is already signed in
+  try { await createUserProfile(result.user.uid, result.user.email ?? "") } catch {}
   return result.user
 }
 

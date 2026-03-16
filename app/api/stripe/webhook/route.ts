@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { stripe } from "@/lib/stripe"
-import { getUserByStripeCustomerId, updateUserStripe } from "@/lib/firestore"
+import { adminGetUserByStripeCustomerId, adminUpdateUserStripe } from "@/lib/firestore-admin"
 import Stripe from "stripe"
 
 export async function POST(req: NextRequest) {
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
           session.subscription as string
         )
 
-        await updateUserStripe(userId, {
+        await adminUpdateUserStripe(userId, {
           stripeCustomerId: session.customer as string,
           stripeSubscriptionId: subscription.id,
           plan: "pro",
@@ -48,11 +48,11 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.updated": {
         const sub = event.data.object as Stripe.Subscription
         const customerId = sub.customer as string
-        const user = await getUserByStripeCustomerId(customerId)
+        const user = await adminGetUserByStripeCustomerId(customerId)
         if (!user) break
 
         const isActive = sub.status === "active" || sub.status === "trialing"
-        await updateUserStripe(user.uid, {
+        await adminUpdateUserStripe(user.uid, {
           stripeSubscriptionId: sub.id,
           plan: isActive ? "pro" : "free",
           subscriptionStatus: isActive ? "active" : "inactive",
@@ -63,10 +63,10 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription
         const customerId = sub.customer as string
-        const user = await getUserByStripeCustomerId(customerId)
+        const user = await adminGetUserByStripeCustomerId(customerId)
         if (!user) break
 
-        await updateUserStripe(user.uid, {
+        await adminUpdateUserStripe(user.uid, {
           plan: "free",
           subscriptionStatus: "cancelled",
         })

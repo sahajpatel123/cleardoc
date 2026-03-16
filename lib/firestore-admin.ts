@@ -1,0 +1,120 @@
+/**
+ * Server-side Firestore helpers using Firebase Admin SDK.
+ * Use these in API routes — they bypass security rules and require no user auth context.
+ * Never import this file in client components.
+ */
+import admin from "firebase-admin"
+import type { AnalysisResult, UserProfile, Analysis } from "./types"
+
+function getAdminDb() {
+  if (admin.apps.length === 0) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      }),
+    })
+  }
+  return admin.firestore()
+}
+
+export async function adminGetUserProfile(uid: string): Promise<UserProfile | null> {
+  const db = getAdminDb()
+  const snap = await db.collection("users").doc(uid).get()
+  if (!snap.exists) return null
+  const data = snap.data()!
+  return {
+    ...data,
+    createdAt: data.createdAt?.toDate?.() ?? new Date(),
+  } as UserProfile
+}
+
+export async function adminCreateUserProfile(uid: string, email: string) {
+  const db = getAdminDb()
+  const ref = db.collection("users").doc(uid)
+  const existing = await ref.get()
+  if (existing.exists) return
+  await ref.set({
+    email,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    plan: "free",
+    subscriptionStatus: "inactive",
+    freeUsesRemaining: 1,
+  })
+}
+
+export async function adminDecrementFreeUse(uid: string) {
+  const db = getAdminDb()
+  const ref = db.collection("users").doc(uid)
+  const snap = await ref.get()
+  if (!snap.exists) return
+  const current = snap.data()?.freeUsesRemaining ?? 0
+  await ref.update({ freeUsesRemaining: Math.max(0, current - 1) })
+}
+
+export async function adminSaveAnalysis(params: {
+  userId: string
+  documentName: string
+  documentType: string
+  storageUrl: string
+  result: AnalysisResult
+}): Promise<string> {
+  const db = getAdminDb()
+  const ref = await db.collection("analyses").add({
+    ...params,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  })
+  return ref.id
+}
+
+export async function adminUpdateUserStripe(
+  uid: string,
+  data: {
+    stripeCustomerId?: string
+    stripeSubscriptionId?: string
+    plan?: "free" | "pro"
+    subscriptionStatus?: "active" | "inactive" | "cancelled"
+  }
+) {
+  const db = getAdminDb()
+  await db.collection("users").doc(uid).update(data)
+}
+
+export async function adminGetUserByStripeCustomerId(
+  customerId: string
+): Promise<{ uid: string; profile: UserProfile } | null> {
+  const db = getAdminDb()
+  const snap = await db
+    .collection("users")
+    .where("stripeCustomerId", "==", customerId)
+    .limit(1)
+    .get()
+  if (snap.empty) return null
+  const docSnap = snap.docs[0]
+  const data = docSnap.data()
+  return {
+    uid: docSnap.id,
+    profile: {
+      ...data,
+      createdAt: data.createdAt?.toDate?.() ?? new Date(),
+    } as UserProfile,
+  }
+}
+
+export async function adminGetUserAnalyses(uid: string): Promise<Analysis[]> {
+  const db = getAdminDb()
+  const snap = await db
+    .collection("analyses")
+    .where("userId", "==", uid)
+    .orderBy("createdAt", "desc")
+    .get()
+  return snap.docs.map((d) => {
+    const data = d.data()
+    return {
+      id: d.id,
+      ...data,
+      createdAt: data.createdAt?.toDate?.() ?? new Date(),
+    } as Analysis
+  })
+}
