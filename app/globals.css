@@ -121,6 +121,14 @@ h1, h2, h3, h4, h5, h6 {
   from { width: 0%; }
   to   { width: 100%; }
 }
+@keyframes marqueeLeft {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes marqueeRight {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
 
 /* ── Utility classes ───────────────────────────────────────────────────── */
 .animate-fade-up    { animation: fadeUp 0.65s cubic-bezier(0.22,1,0.36,1) forwards; }
@@ -129,7 +137,11 @@ h1, h2, h3, h4, h5, h6 {
 .animate-float      { animation: float 7s ease-in-out infinite; }
 .animate-float-b    { animation: floatB 9s ease-in-out infinite; }
 .animate-pulse-glow { animation: pulseGlow 2.5s ease-in-out infinite; }
-.animate-spin-slow  { animation: rotateSlow 20s linear infinite; }
+.animate-spin-slow    { animation: rotateSlow 20s linear infinite; }
+.animate-marquee-left  { animation: marqueeLeft  24s linear infinite; }
+.animate-marquee-right { animation: marqueeRight 32s linear infinite; }
+.marquee-wrapper:hover .animate-marquee-left,
+.marquee-wrapper:hover .animate-marquee-right { animation-play-state: paused; }
 
 /* ── Gradient text ─────────────────────────────────────────────────────── */
 .gradient-text {

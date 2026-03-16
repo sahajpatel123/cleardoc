@@ -11,6 +11,8 @@ import {
   ArrowRight, Shield, FileText, AlertTriangle, Mail,
   CheckCircle, Star, ChevronDown, Zap, Lock, TrendingUp,
   XCircle, AlertCircle, Copy, ChevronRight, Sparkles,
+  HeartPulse, Home, Activity, Landmark, Plane, Scale,
+  CreditCard, Building2, Receipt, FileWarning, Car,
 } from "lucide-react"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -33,11 +35,22 @@ const STEPS = [
   { n: "03", title: "Get your full analysis",desc: "Plain English, red flags, response letter, and next steps in under 30 seconds." },
 ]
 
-const USE_CASES = [
-  { icon: "🏥", label: "Insurance denials" }, { icon: "🏠", label: "Landlord disputes" },
-  { icon: "💊", label: "Medical bills" },     { icon: "🏛️", label: "IRS letters" },
-  { icon: "✈️", label: "Visa rejections" },   { icon: "💳", label: "Debt collection" },
-  { icon: "⚖️", label: "Legal notices" },     { icon: "🏦", label: "Bank disputes" },
+const USE_CASES_ROW1 = [
+  { Icon: HeartPulse, color: "#DC2626", bg: "#FEF2F2", label: "Insurance Denials"  },
+  { Icon: Home,       color: "#D97706", bg: "#FFFBEB", label: "Landlord Disputes"  },
+  { Icon: Activity,   color: "#2563EB", bg: "#EFF6FF", label: "Medical Bills"      },
+  { Icon: Landmark,   color: "#E8651A", bg: "#FEF0E6", label: "IRS Letters"        },
+  { Icon: Plane,      color: "#7C3AED", bg: "#F5F3FF", label: "Visa Rejections"    },
+  { Icon: Scale,      color: "#059669", bg: "#ECFDF5", label: "Legal Notices"      },
+]
+
+const USE_CASES_ROW2 = [
+  { Icon: CreditCard,  color: "#DC2626", bg: "#FEF2F2", label: "Debt Collection"    },
+  { Icon: Building2,   color: "#2563EB", bg: "#EFF6FF", label: "Bank Disputes"      },
+  { Icon: FileWarning, color: "#D97706", bg: "#FFFBEB", label: "Contract Disputes"  },
+  { Icon: Shield,      color: "#059669", bg: "#ECFDF5", label: "Consumer Rights"    },
+  { Icon: Receipt,     color: "#E8651A", bg: "#FEF0E6", label: "Billing Errors"     },
+  { Icon: Car,         color: "#7C3AED", bg: "#F5F3FF", label: "Auto Claims"        },
 ]
 
 function InView({ children, className = "", delay = 0 }: {
@@ -522,19 +535,44 @@ function HomeContent() {
         </motion.div>
       </section>
 
-      {/* ─── USE CASES STRIP ─────────────────────────────────────────── */}
-      <section className="py-10 border-y overflow-hidden" style={{ borderColor: "#E8E2D9", background: "white" }}>
-        <InView><p className="section-label text-center mb-6">Used by people fighting</p></InView>
-        <div className="flex gap-3 justify-center flex-wrap px-4">
-          {USE_CASES.map(({ icon, label }, i) => (
-            <InView key={label} delay={i * 0.04}>
-              <motion.span whileHover={{ scale: 1.05, y: -2 }}
-                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium cursor-default"
-                style={{ background: "#F9F6F1", border: "1px solid #E8E2D9", color: "#4A3F35" }}>
-                <span className="text-base">{icon}</span>{label}
-              </motion.span>
-            </InView>
-          ))}
+      {/* ─── USE CASES MARQUEE ───────────────────────────────────────── */}
+      <section className="py-12 border-y overflow-hidden" style={{ borderColor: "#E8E2D9", background: "white" }}>
+        <InView><p className="section-label text-center mb-8">Used by people fighting</p></InView>
+
+        {/* Row 1 — scrolls left */}
+        <div className="marquee-wrapper relative mb-3 overflow-hidden"
+          style={{ WebkitMaskImage: "linear-gradient(90deg, transparent, black 100px, black calc(100% - 100px), transparent)", maskImage: "linear-gradient(90deg, transparent, black 100px, black calc(100% - 100px), transparent)" }}>
+          <div className="flex gap-3 animate-marquee-left" style={{ width: "max-content" }}>
+            {[...USE_CASES_ROW1, ...USE_CASES_ROW1].map(({ Icon, color, bg, label }, i) => (
+              <div key={i}
+                className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl shrink-0 cursor-default select-none"
+                style={{ background: bg, border: `1px solid ${color}28` }}>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: color + "18" }}>
+                  <Icon className="w-4 h-4" style={{ color }} />
+                </div>
+                <span className="text-sm font-semibold whitespace-nowrap" style={{ color: "#2E261E" }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Row 2 — scrolls right */}
+        <div className="marquee-wrapper relative overflow-hidden"
+          style={{ WebkitMaskImage: "linear-gradient(90deg, transparent, black 100px, black calc(100% - 100px), transparent)", maskImage: "linear-gradient(90deg, transparent, black 100px, black calc(100% - 100px), transparent)" }}>
+          <div className="flex gap-3 animate-marquee-right" style={{ width: "max-content" }}>
+            {[...USE_CASES_ROW2, ...USE_CASES_ROW2].map(({ Icon, color, bg, label }, i) => (
+              <div key={i}
+                className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl shrink-0 cursor-default select-none"
+                style={{ background: bg, border: `1px solid ${color}28` }}>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: color + "18" }}>
+                  <Icon className="w-4 h-4" style={{ color }} />
+                </div>
+                <span className="text-sm font-semibold whitespace-nowrap" style={{ color: "#2E261E" }}>{label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

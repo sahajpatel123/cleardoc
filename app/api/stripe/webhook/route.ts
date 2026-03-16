@@ -3,8 +3,6 @@ import { stripe } from "@/lib/stripe"
 import { getUserByStripeCustomerId, updateUserStripe } from "@/lib/firestore"
 import Stripe from "stripe"
 
-export const config = { api: { bodyParser: false } }
-
 export async function POST(req: NextRequest) {
   const rawBody = await req.text()
   const sig = req.headers.get("stripe-signature")
