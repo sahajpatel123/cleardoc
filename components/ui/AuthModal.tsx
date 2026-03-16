@@ -21,7 +21,16 @@ export default function AuthModal({ onClose, onSuccess, mode = "signup" }: Props
   const handleGoogle = async () => {
     setLoading(true); setError("")
     try { await signInWithGoogle(); onSuccess() }
-    catch { setError("Google sign-in failed. Please try again.") }
+    catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : ""
+      if (msg.includes("popup-closed-by-user") || msg.includes("cancelled-popup-request")) {
+        // user closed the popup — not a real error
+      } else if (msg.includes("unauthorized-domain")) {
+        setError("This domain isn't authorized. Contact support.")
+      } else {
+        setError("Google sign-in failed. Please try again.")
+      }
+    }
     finally { setLoading(false) }
   }
 
@@ -34,9 +43,10 @@ export default function AuthModal({ onClose, onSuccess, mode = "signup" }: Props
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Authentication failed"
       if (msg.includes("email-already-in-use")) setError("Account exists. Sign in instead.")
-      else if (msg.includes("wrong-password") || msg.includes("user-not-found")) setError("Incorrect email or password.")
+      else if (msg.includes("wrong-password") || msg.includes("user-not-found") || msg.includes("invalid-credential")) setError("Incorrect email or password.")
       else if (msg.includes("weak-password")) setError("Password must be at least 6 characters.")
-      else setError(msg)
+      else if (msg.includes("too-many-requests")) setError("Too many attempts. Please wait a moment and try again.")
+      else setError("Authentication failed. Please check your details and try again.")
     } finally { setLoading(false) }
   }
 
