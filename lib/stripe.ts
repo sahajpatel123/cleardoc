@@ -1,8 +1,11 @@
 import Stripe from "stripe"
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-02-25.clover",
-})
+// Lazy-initialize so a missing env var at module-load time doesn't 404 the route
+export function getStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not set")
+  return new Stripe(key, { apiVersion: "2026-02-25.clover" })
+}
 
 export async function createCheckoutSession(params: {
   userId: string
@@ -40,6 +43,6 @@ export async function createCheckoutSession(params: {
     sessionParams.customer_email = userEmail
   }
 
-  const session = await stripe.checkout.sessions.create(sessionParams)
+  const session = await getStripe().checkout.sessions.create(sessionParams)
   return session.url!
 }
