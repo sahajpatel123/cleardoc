@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createCheckoutSession } from "@/lib/stripe"
-import { getUserProfile } from "@/lib/firestore"
-import admin from "firebase-admin"
-
-function getAdminApp() {
-  if (admin.apps.length > 0) return admin.apps[0]!
-  return admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-  })
-}
+import { adminGetUserProfile, getAdminAuth } from "@/lib/firestore-admin"
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,11 +10,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const adminApp = getAdminApp()
-    const decoded = await admin.auth(adminApp).verifyIdToken(idToken)
+    const decoded = await getAdminAuth().verifyIdToken(idToken)
     const uid = decoded.uid
 
-    const profile = await getUserProfile(uid)
+    const profile = await adminGetUserProfile(uid)
     if (!profile) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
