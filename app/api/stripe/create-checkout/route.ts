@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createCheckoutSession } from "@/lib/stripe"
-import { adminGetUserProfile, getAdminAuth } from "@/lib/firestore-admin"
+import { adminGetUserProfile, adminCreateUserProfile, getAdminAuth } from "@/lib/firestore-admin"
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,9 +13,15 @@ export async function POST(req: NextRequest) {
     const decoded = await getAdminAuth().verifyIdToken(idToken)
     const uid = decoded.uid
 
-    const profile = await adminGetUserProfile(uid)
+    // Auto-create profile if missing (Google sign-in users may not have one yet
+    // if the client-side write was blocked by Firestore security rules)
+    let profile = await adminGetUserProfile(uid)
     if (!profile) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      await adminCreateUserProfile(uid, decoded.email ?? "")
+      profile = await adminGetUserProfile(uid)
+    }
+    if (!profile) {
+      return NextResponse.json({ error: "Failed to create user profile" }, { status: 500 })
     }
 
     const url = await createCheckoutSession({

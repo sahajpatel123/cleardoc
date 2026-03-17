@@ -3,6 +3,7 @@ import { extractTextFromBuffer, getFileMimeType } from "@/lib/pdf-parser"
 import { analyzeDocument } from "@/lib/claude"
 import {
   adminGetUserProfile,
+  adminCreateUserProfile,
   adminDecrementFreeUse,
   adminSaveAnalysis,
   getAdminAuth,
@@ -60,10 +61,12 @@ export async function POST(req: NextRequest) {
 
     // Verify Firebase ID token
     let uid: string | null = null
+    let userEmail = ""
     if (idToken) {
       try {
         const decoded = await getAdminAuth().verifyIdToken(idToken)
         uid = decoded.uid
+        userEmail = decoded.email ?? ""
       } catch {
         return NextResponse.json(
           { error: "Invalid authentication token." },
@@ -72,9 +75,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check usage limits
+    // Check usage limits — auto-create profile if missing
     if (uid) {
-      const profile = await adminGetUserProfile(uid)
+      let profile = await adminGetUserProfile(uid)
+      if (!profile) {
+        await adminCreateUserProfile(uid, userEmail)
+        profile = await adminGetUserProfile(uid)
+      }
       if (profile && profile.plan !== "pro" && profile.freeUsesRemaining <= 0) {
         return NextResponse.json(
           { error: "FREE_LIMIT_REACHED" },
