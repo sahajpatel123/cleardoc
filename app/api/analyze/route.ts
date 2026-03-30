@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
-import { extractTextFromBuffer, getFileMimeType } from "@/lib/pdf-parser"
-import { analyzeDocument } from "@/lib/claude"
+import { extractDocumentFromBuffer, getFileMimeType } from "@/lib/pdf-parser"
+import {
+  analyzeDocument,
+  CLAUDE_INVALID_JSON_ERROR_MESSAGE,
+} from "@/lib/claude"
+import type { UserProfile } from "@/lib/types"
 import {
   adminGetUserProfile,
   adminCreateUserProfile,
@@ -9,38 +13,11 @@ import {
   getAdminAuth,
 } from "@/lib/firestore-admin"
 
-// Rate limiting — simple in-memory store (use Redis in prod)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now()
-  const windowMs = 60 * 60 * 1000 // 1 hour
-  const limit = 10
-
-  const entry = rateLimitMap.get(ip)
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + windowMs })
-    return true
-  }
-  if (entry.count >= limit) return false
-  entry.count++
-  return true
-}
+// PRODUCTION RATE LIMITING: Use Upstash Redis with @upstash/ratelimit
+// https://github.com/upstash/ratelimit
+// Current: rate limiting is DISABLED. Do not deploy without implementing this.
 
 export async function POST(req: NextRequest) {
-  // Rate limit check
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0] ??
-    req.headers.get("x-real-ip") ??
-    "unknown"
-
-  if (!checkRateLimit(ip)) {
-    return NextResponse.json(
-      { error: "Too many requests. Please try again in an hour." },
-      { status: 429 }
-    )
-  }
-
   try {
     const formData = await req.formData()
     const file = formData.get("file") as File | null
@@ -75,14 +52,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check usage limits — auto-create profile if missing
+    // Free tier: one-time quota. Pro users skip all free-use checks and are never decremented here.
+    let userProfile: UserProfile | null = null
     if (uid) {
       let profile = await adminGetUserProfile(uid)
       if (!profile) {
         await adminCreateUserProfile(uid, userEmail)
         profile = await adminGetUserProfile(uid)
       }
-      if (profile && profile.plan !== "pro" && profile.freeUsesRemaining <= 0) {
+      userProfile = profile
+      if (profile && profile.plan === "free" && profile.freeUsesRemaining <= 0) {
         return NextResponse.json(
           { error: "FREE_LIMIT_REACHED" },
           { status: 402 }
@@ -90,34 +69,63 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Extract text from document
     const buffer = Buffer.from(await file.arrayBuffer())
     const mimeType = getFileMimeType(file.name)
-    const documentText = await extractTextFromBuffer(buffer, mimeType)
+    if (mimeType === "application/octet-stream") {
+      return NextResponse.json(
+        { error: "Unsupported file type." },
+        { status: 400 }
+      )
+    }
 
-    // Call Claude API
-    const result = await analyzeDocument({
-      documentText,
-      userContext: context || undefined,
-      documentName: file.name,
-    })
+    const extracted = await extractDocumentFromBuffer(buffer, mimeType)
 
-    // Save analysis and update usage
+    let result
+    if (extracted.kind === "text") {
+      result = await analyzeDocument({
+        mode: "text",
+        documentText: extracted.text,
+        userContext: context || undefined,
+        documentName: file.name,
+      })
+    } else {
+      result = await analyzeDocument({
+        mode: "vision",
+        mediaType: extracted.mediaType,
+        base64Data: extracted.base64Data,
+        userContext: context || undefined,
+        documentName: file.name,
+      })
+    }
+
     let analysisId: string | null = null
     if (uid) {
       analysisId = await adminSaveAnalysis({
         userId: uid,
         documentName: file.name,
         documentType: context || "Unknown",
-        storageUrl: "",
         result,
       })
-      await adminDecrementFreeUse(uid)
+      if (userProfile?.plan === "free") {
+        await adminDecrementFreeUse(uid)
+      }
     }
 
     return NextResponse.json({ result, analysisId })
   } catch (err) {
     console.error("[analyze] Error:", err)
+    if (
+      err instanceof Error &&
+      err.message === CLAUDE_INVALID_JSON_ERROR_MESSAGE
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Analysis failed: model returned unexpected output. Please retry.",
+        },
+        { status: 500 }
+      )
+    }
     const message =
       err instanceof Error ? err.message : "Analysis failed. Please try again."
     return NextResponse.json({ error: message }, { status: 500 })

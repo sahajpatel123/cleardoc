@@ -84,15 +84,31 @@ export async function adminSaveAnalysis(params: {
   userId: string
   documentName: string
   documentType: string
-  storageUrl: string
   result: AnalysisResult
 }): Promise<string> {
+  // storageUrl: file storage not yet implemented. Do not add copy claiming 30-day retention.
   const db = getAdminDb()
   const ref = await db.collection("analyses").add({
     ...params,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   })
   return ref.id
+}
+
+export async function adminGetUserAnalysis(
+  uid: string,
+  analysisId: string
+): Promise<Analysis | null> {
+  const db = getAdminDb()
+  const docSnap = await db.collection("analyses").doc(analysisId).get()
+  if (!docSnap.exists) return null
+  const data = docSnap.data()!
+  if (data.userId !== uid) return null
+  return {
+    id: docSnap.id,
+    ...data,
+    createdAt: data.createdAt?.toDate?.() ?? new Date(),
+  } as Analysis
 }
 
 export async function adminUpdateUserStripe(
@@ -129,6 +145,9 @@ export async function adminGetUserByStripeCustomerId(
   }
 }
 
+// REQUIRES Firestore composite index: userId ASC + createdAt DESC
+// Create at: Firebase Console → Firestore → Indexes → Add index
+// Collection: analyses | Fields: userId ASC, createdAt DESC
 export async function adminGetUserAnalyses(uid: string): Promise<Analysis[]> {
   const db = getAdminDb()
   const snap = await db

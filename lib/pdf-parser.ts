@@ -1,21 +1,39 @@
 /**
- * Server-side document text extraction using pdf2json.
+ * Server-side document handling using pdf2json for PDFs.
  *
  * pdf2json uses its own parser engine (@xmldom/xmldom) and has ZERO dependency
  * on pdfjs-dist, DOMMatrix, Canvas, or any other browser API.
  * It works correctly in Vercel serverless functions.
+ *
+ * Images are returned as vision payloads (base64 + media type) for Claude's
+ * native image API — not as placeholder text.
  */
 
-export async function extractTextFromBuffer(
+export type VisionMediaType = "image/png" | "image/jpeg" | "image/webp"
+
+export type ExtractDocumentResult =
+  | { kind: "text"; text: string }
+  | {
+      kind: "vision"
+      mediaType: VisionMediaType
+      base64Data: string
+    }
+
+export async function extractDocumentFromBuffer(
   buffer: Buffer,
   mimeType: string
-): Promise<string> {
+): Promise<ExtractDocumentResult> {
   if (mimeType === "application/pdf") {
-    return extractPdfText(buffer)
+    const text = await extractPdfText(buffer)
+    return { kind: "text", text }
   }
 
-  if (mimeType.startsWith("image/")) {
-    return extractImageText(buffer, mimeType)
+  if (mimeType === "image/png" || mimeType === "image/jpeg" || mimeType === "image/webp") {
+    return {
+      kind: "vision",
+      mediaType: mimeType,
+      base64Data: buffer.toString("base64"),
+    }
   }
 
   throw new Error(`Unsupported file type: ${mimeType}`)
@@ -73,15 +91,6 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
 
     parser.parseBuffer(buffer)
   })
-}
-
-async function extractImageText(
-  buffer: Buffer,
-  mimeType: string
-): Promise<string> {
-  const base64 = buffer.toString("base64")
-  const dataUrl = `data:${mimeType};base64,${base64}`
-  return `[IMAGE_DOCUMENT:${dataUrl}]\n\nNote: This is an image file. Please describe what the document says in the context field for more accurate analysis.`
 }
 
 export function getFileMimeType(filename: string): string {

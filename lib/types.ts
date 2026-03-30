@@ -35,7 +35,7 @@ export interface Analysis {
   createdAt: Date
   documentName: string
   documentType: string
-  storageUrl: string
+  storageUrl?: string
   result: AnalysisResult
 }
 

@@ -5,6 +5,10 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
+/** Thrown when JSON.parse fails; API route maps this to a user-safe message. */
+export const CLAUDE_INVALID_JSON_ERROR_MESSAGE =
+  "Claude returned invalid JSON. Raw output logged."
+
 const SYSTEM_PROMPT = `You are ClearDoc's analysis engine — simultaneously a consumer rights attorney, insurance specialist, tenant rights advocate, medical billing expert, and immigration lawyer. You are direct, opinionated, and unfailingly on the side of the individual against institutions.
 
 Your job is to analyze official documents and give people exactly what they need to fight back. Never be vague. Never hedge unnecessarily. If something is wrong, say it clearly. If they're being manipulated, name it explicitly.
@@ -60,41 +64,99 @@ Rules for overall verdict:
 - "suspicious": something feels off, tactics are questionable, or terms are unusually unfavorable
 - "likely_illegal": document contains requests or terms that appear to violate laws or regulations`
 
-export async function analyzeDocument(params: {
-  documentText: string
-  userContext?: string
-  documentName?: string
-}): Promise<AnalysisResult> {
-  const { documentText, userContext, documentName } = params
+export type AnalyzeDocumentParams =
+  | {
+      mode: "text"
+      documentText: string
+      userContext?: string
+      documentName?: string
+    }
+  | {
+      mode: "vision"
+      mediaType: "image/png" | "image/jpeg" | "image/webp"
+      base64Data: string
+      userContext?: string
+      documentName?: string
+    }
 
-  const userMessage = [
-    userContext ? `Context from user: ${userContext}\n` : "",
-    documentName ? `Document filename: ${documentName}\n` : "",
-    "--- DOCUMENT TEXT BEGINS ---\n",
-    documentText.slice(0, 80000), // cap at ~80k chars to stay in context window
-    "\n--- DOCUMENT TEXT ENDS ---",
-  ]
-    .filter(Boolean)
-    .join("\n")
-
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 4000,
-    temperature: 0,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userMessage }],
-  })
-
-  const raw =
-    response.content[0].type === "text" ? response.content[0].text : ""
-
-  // Strip any accidental markdown fences
+function parseAnalysisResponse(raw: string): AnalysisResult {
   const cleaned = raw
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/```\s*$/i, "")
     .trim()
 
-  const parsed: AnalysisResult = JSON.parse(cleaned)
-  return parsed
+  try {
+    return JSON.parse(cleaned) as AnalysisResult
+  } catch {
+    console.error("[claude] Invalid JSON from model. Raw output:", raw)
+    throw new Error(CLAUDE_INVALID_JSON_ERROR_MESSAGE)
+  }
+}
+
+export async function analyzeDocument(
+  params: AnalyzeDocumentParams
+): Promise<AnalysisResult> {
+  if (params.mode === "text") {
+    const { documentText, userContext, documentName } = params
+
+    const userMessage = [
+      userContext ? `Context from user: ${userContext}\n` : "",
+      documentName ? `Document filename: ${documentName}\n` : "",
+      "--- DOCUMENT TEXT BEGINS ---\n",
+      documentText.slice(0, 80000),
+      "\n--- DOCUMENT TEXT ENDS ---",
+    ]
+      .filter(Boolean)
+      .join("\n")
+
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4000,
+      temperature: 0,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userMessage }],
+    })
+
+    const raw =
+      response.content[0].type === "text" ? response.content[0].text : ""
+    return parseAnalysisResponse(raw)
+  }
+
+  const { mediaType, base64Data, userContext, documentName } = params
+
+  const instructionText = [
+    userContext ? `Context from user: ${userContext}\n` : "",
+    documentName ? `Document filename: ${documentName}\n` : "",
+    "The attached image is an official document. Analyze it according to the system instructions. Return ONLY valid JSON matching the schema described in those instructions — no markdown fences or preamble.",
+  ]
+    .filter(Boolean)
+    .join("\n")
+
+  const userContent = [
+    {
+      type: "image" as const,
+      source: {
+        type: "base64" as const,
+        media_type: mediaType,
+        data: base64Data,
+      },
+    },
+    {
+      type: "text" as const,
+      text: instructionText,
+    },
+  ]
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 4000,
+    temperature: 0,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: userContent }],
+  })
+
+  const raw =
+    response.content[0].type === "text" ? response.content[0].text : ""
+  return parseAnalysisResponse(raw)
 }

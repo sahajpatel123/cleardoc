@@ -94,7 +94,6 @@ export async function saveAnalysis(params: {
   userId: string
   documentName: string
   documentType: string
-  storageUrl: string
   result: AnalysisResult
 }): Promise<string> {
   const ref = await addDoc(collection(db, "analyses"), {
@@ -118,6 +117,28 @@ export async function getAnalysis(id: string): Promise<Analysis | null> {
   } as Analysis
 }
 
+/** Returns the analysis only if it belongs to `uid`. */
+export async function getUserAnalysis(
+  uid: string,
+  analysisId: string
+): Promise<Analysis | null> {
+  const snap = await getDoc(doc(db, "analyses", analysisId))
+  if (!snap.exists()) return null
+  const data = snap.data()
+  if (data.userId !== uid) return null
+  return {
+    id: snap.id,
+    ...data,
+    createdAt:
+      data.createdAt instanceof Timestamp
+        ? data.createdAt.toDate()
+        : new Date(),
+  } as Analysis
+}
+
+// REQUIRES Firestore composite index: userId ASC + createdAt DESC
+// Create at: Firebase Console → Firestore → Indexes → Add index
+// Collection: analyses | Fields: userId ASC, createdAt DESC
 export async function getUserAnalyses(uid: string): Promise<Analysis[]> {
   const q = query(
     collection(db, "analyses"),

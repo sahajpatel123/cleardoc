@@ -19,6 +19,6 @@ export async function GET(req: NextRequest) {
       subscriptionStatus: profile?.subscriptionStatus ?? "inactive",
     })
   } catch {
-    return NextResponse.json({ freeUsesRemaining: 0, plan: "free" })
+    return NextResponse.json({ error: "Invalid token" }, { status: 401 })
   }
 }
