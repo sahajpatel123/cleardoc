@@ -13,10 +13,10 @@ ClearDoc is an AI-powered document analysis tool that helps everyday people figh
 - **Framework**: Next.js 14 (App Router, TypeScript strict)
 - **Styling**: Tailwind CSS v4 (`@import "tailwindcss"` — NO config file needed)
 - **AI**: Anthropic Claude API (`claude-sonnet-4-20250514`, temp=0, max_tokens=4000)
-- **PDF Parsing**: pdfjs-dist (legacy build, server-side only)
+- **PDF Parsing**: pdf2json (server-side text extraction; serverless-safe)
 - **Auth**: Firebase Authentication (Email/Password + Google OAuth)
 - **Database**: Firebase Firestore
-- **File Storage**: Firebase Storage (future — currently skipped)
+- **File Storage**: Not wired in app code — optional `storageUrl` on analyses reserved for future use
 - **Payments**: Stripe (subscriptions + webhooks)
 - **Admin**: firebase-admin for server-side token verification
 - **Fonts**: Syne (display/headings) + DM Sans (body) from next/font/google
@@ -31,6 +31,7 @@ ClearDoc is an AI-powered document analysis tool that helps everyday people figh
   globals.css                       — Global styles (Tailwind v4 import)
   /analyze
     page.tsx                        — Results page (4-panel analysis output)
+    /[id]/page.tsx                  — View a saved analysis from dashboard
   /dashboard
     page.tsx                        — User history & account dashboard
   /pricing
@@ -60,7 +61,7 @@ ClearDoc is an AI-powered document analysis tool that helps everyday people figh
   firebase-auth.ts                  — Auth helpers (signIn, signOut, etc.)
   firestore.ts                      — All Firestore read/write helpers
   claude.ts                         — Claude API wrapper + system prompt
-  pdf-parser.ts                     — PDF text extraction (pdfjs-dist)
+  pdf-parser.ts                     — PDF text extraction (pdf2json); image → vision payload for Claude
   stripe.ts                         — Stripe client + checkout helper
 
 /context
@@ -68,7 +69,6 @@ ClearDoc is an AI-powered document analysis tool that helps everyday people figh
 
 /hooks
   useAuth.ts                        — Re-exports useAuth from AuthContext
-  useUsage.ts                       — Tracks free uses remaining
 ```
 
 ---
@@ -95,7 +95,7 @@ ClearDoc is an AI-powered document analysis tool that helps everyday people figh
   createdAt: Timestamp
   documentName: string
   documentType: string  // user-provided context
-  storageUrl: string    // Firebase Storage path (empty for now)
+  storageUrl?: string   // optional; reserved when file storage is implemented
   result: AnalysisResult
 }
 ```
@@ -182,14 +182,14 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ### API Routes
 - All analyze/stripe routes use firebase-admin to verify ID tokens
-- Rate limiting: 10 req/IP/hour (in-memory — use Redis for production scale)
+- Rate limiting: **disabled** in code — production must use e.g. Upstash Redis (`@upstash/ratelimit`); see `app/api/analyze/route.ts` comment block
 - Max file size: 10MB
 - Claude API called server-side only (API key never exposed)
 
 ### Analysis Flow
 1. User uploads file → stored in sessionStorage as base64
 2. `/analyze` page reconstructs file and POSTs to `/api/analyze`
-3. API extracts text (pdfjs-dist), calls Claude, saves to Firestore
+3. API extracts text (pdf2json) or sends images to Claude vision, calls Claude, saves to Firestore
 4. Result returned to client and rendered in 4 cards
 
 ---
@@ -225,8 +225,8 @@ stripe listen --forward-to localhost:3000/api/stripe/webhook
 ---
 
 ## Known Limitations / Future Work
-- Image PDFs (scans) have no OCR — user must describe content via context field
-- Rate limiting is in-memory (use Redis/Upstash for multi-instance production)
-- Firebase Storage upload skipped (storageUrl is empty string) — add for doc history
+- Scanned PDFs with no extractable text: user should add context; consider OCR later
+- Production rate limiting not implemented (see API route comments)
+- Optional Firebase Storage / `storageUrl` for persisted file blobs — not implemented in app
 - Non-English documents: Claude handles them but note the limitation in UI
 - Document chunking for very long docs: currently capped at 80k chars to Claude
