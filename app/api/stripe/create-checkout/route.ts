@@ -1,33 +1,31 @@
 import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@/auth"
 import { createCheckoutSession } from "@/lib/stripe"
-import { adminGetUserProfile, adminCreateUserProfile, getAdminAuth } from "@/lib/firestore-admin"
+import { getOrCreateUser, getUserById } from "@/lib/db"
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   try {
-    const { idToken } = await req.json()
-
-    if (!idToken) {
+    const session = await auth()
+    if (!session?.user?.id || !session.user.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const decoded = await getAdminAuth().verifyIdToken(idToken)
-    const uid = decoded.uid
+    const userId = session.user.id
+    const email = session.user.email
 
-    // Auto-create profile if missing (Google sign-in users may not have one yet
-    // if the client-side write was blocked by Firestore security rules)
-    let profile = await adminGetUserProfile(uid)
+    await getOrCreateUser(userId, email)
+    const profile = await getUserById(userId)
     if (!profile) {
-      await adminCreateUserProfile(uid, decoded.email ?? "")
-      profile = await adminGetUserProfile(uid)
-    }
-    if (!profile) {
-      return NextResponse.json({ error: "Failed to create user profile" }, { status: 500 })
+      return NextResponse.json(
+        { error: "Failed to load user profile" },
+        { status: 500 }
+      )
     }
 
     const url = await createCheckoutSession({
-      userId: uid,
+      userId,
       userEmail: profile.email,
-      stripeCustomerId: profile.stripeCustomerId,
+      stripeCustomerId: profile.stripeCustomerId ?? undefined,
     })
 
     return NextResponse.json({ url })

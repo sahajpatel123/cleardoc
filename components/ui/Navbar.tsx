@@ -2,13 +2,12 @@
 
 import Link from "next/link"
 import { useAuth } from "@/context/AuthContext"
-import { signOut } from "@/lib/firebase-auth"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Shield, LogOut, LayoutDashboard, Zap, Menu, X } from "lucide-react"
 
 export default function Navbar() {
-  const { user, profile } = useAuth()
+  const { user, profile, signOut } = useAuth()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)

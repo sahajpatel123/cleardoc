@@ -125,11 +125,8 @@ export default function PricingPage() {
     if (!user) { setShowAuth(true); return }
     setLoading(true)
     try {
-      const token = await user.getIdToken()
       const res = await fetch("/api/stripe/create-checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken: token }),
       })
       const data = await res.json()
       if (data.url) window.location.href = data.url

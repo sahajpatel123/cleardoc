@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import { Syne, DM_Sans } from "next/font/google"
 import "./globals.css"
-import { AuthProvider } from "@/context/AuthContext"
+import { auth } from "@/auth"
+import { Providers } from "@/components/Providers"
 import Navbar from "@/components/ui/Navbar"
 import Footer from "@/components/ui/Footer"
 
@@ -37,19 +38,21 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const session = await auth()
+
   return (
     <html lang="en" className={`${syne.variable} ${dmSans.variable}`}>
       <body className="bg-[#0A0A0F] text-white antialiased min-h-screen flex flex-col">
-        <AuthProvider>
+        <Providers session={session}>
           <Navbar />
           <main className="flex-1 pt-16">{children}</main>
           <Footer />
-        </AuthProvider>
+        </Providers>
       </body>
     </html>
   )

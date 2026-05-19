@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getStripe } from "@/lib/stripe"
-import { adminGetUserByStripeCustomerId, adminUpdateUserStripe } from "@/lib/firestore-admin"
+import {
+  getUserByStripeCustomerId,
+  upgradeUserToPro,
+  updateUserSubscriptionByCustomerId,
+  cancelSubscriptionForCustomer,
+} from "@/lib/db"
 import Stripe from "stripe"
 
 export async function POST(req: NextRequest) {
@@ -30,17 +35,15 @@ export async function POST(req: NextRequest) {
         const userId = session.metadata?.userId ?? session.client_reference_id
         if (!userId) break
 
-        // Retrieve subscription details
         const subscription = await getStripe().subscriptions.retrieve(
           session.subscription as string
         )
 
-        await adminUpdateUserStripe(userId, {
-          stripeCustomerId: session.customer as string,
-          stripeSubscriptionId: subscription.id,
-          plan: "pro",
-          subscriptionStatus: "active",
-        })
+        await upgradeUserToPro(
+          userId,
+          session.customer as string,
+          subscription.id
+        )
         break
       }
 
@@ -48,11 +51,11 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.updated": {
         const sub = event.data.object as Stripe.Subscription
         const customerId = sub.customer as string
-        const user = await adminGetUserByStripeCustomerId(customerId)
+        const user = await getUserByStripeCustomerId(customerId)
         if (!user) break
 
         const isActive = sub.status === "active" || sub.status === "trialing"
-        await adminUpdateUserStripe(user.uid, {
+        await updateUserSubscriptionByCustomerId(customerId, {
           stripeSubscriptionId: sub.id,
           plan: isActive ? "pro" : "free",
           subscriptionStatus: isActive ? "active" : "inactive",
@@ -63,18 +66,14 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription
         const customerId = sub.customer as string
-        const user = await adminGetUserByStripeCustomerId(customerId)
+        const user = await getUserByStripeCustomerId(customerId)
         if (!user) break
 
-        await adminUpdateUserStripe(user.uid, {
-          plan: "free",
-          subscriptionStatus: "cancelled",
-        })
+        await cancelSubscriptionForCustomer(customerId)
         break
       }
 
       default:
-        // Unhandled event type — just acknowledge
         break
     }
   } catch (err) {

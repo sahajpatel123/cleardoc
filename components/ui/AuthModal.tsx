@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Shield, Mail, Lock } from "lucide-react"
-import { signInWithGoogle, signInWithEmail, signUpWithEmail } from "@/lib/firebase-auth"
+import { X, Shield } from "lucide-react"
+import { signIn } from "next-auth/react"
 
 interface Props {
   onClose: () => void
@@ -12,42 +12,24 @@ interface Props {
 }
 
 export default function AuthModal({ onClose, onSuccess, mode = "signup" }: Props) {
-  const [tab, setTab] = useState<"signin" | "signup">(mode)
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
   const handleGoogle = async () => {
-    setLoading(true); setError("")
-    try { await signInWithGoogle(); onSuccess() }
-    catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : ""
-      if (msg.includes("popup-closed-by-user") || msg.includes("cancelled-popup-request")) {
-        // user closed the popup — not a real error
-      } else if (msg.includes("unauthorized-domain")) {
-        setError("This domain isn't authorized. Contact support.")
-      } else {
-        setError("Google sign-in failed. Please try again.")
-      }
-    }
-    finally { setLoading(false) }
-  }
-
-  const handleEmail = async (e: React.FormEvent) => {
-    e.preventDefault(); setLoading(true); setError("")
+    setLoading(true)
+    setError("")
     try {
-      if (tab === "signup") await signUpWithEmail(email, password)
-      else await signInWithEmail(email, password)
-      onSuccess()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Authentication failed"
-      if (msg.includes("email-already-in-use")) setError("Account exists. Sign in instead.")
-      else if (msg.includes("wrong-password") || msg.includes("user-not-found") || msg.includes("invalid-credential")) setError("Incorrect email or password.")
-      else if (msg.includes("weak-password")) setError("Password must be at least 6 characters.")
-      else if (msg.includes("too-many-requests")) setError("Too many attempts. Please wait a moment and try again.")
-      else setError("Authentication failed. Please check your details and try again.")
-    } finally { setLoading(false) }
+      const res = await signIn("google", { redirect: false })
+      if (res?.error) {
+        setError("Google sign-in failed. Please try again.")
+      } else if (res?.ok) {
+        onSuccess()
+      }
+    } catch {
+      setError("Google sign-in failed. Please try again.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -65,7 +47,6 @@ export default function AuthModal({ onClose, onSuccess, mode = "signup" }: Props
         className="relative w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
         style={{ background: "white", border: "1px solid #E8E2D9" }}
       >
-        {/* Top accent */}
         <div className="absolute top-0 left-0 right-0 h-0.5"
           style={{ background: "linear-gradient(90deg, transparent, #E8651A, transparent)" }} />
 
@@ -76,21 +57,19 @@ export default function AuthModal({ onClose, onSuccess, mode = "signup" }: Props
         </button>
 
         <div className="p-8">
-          {/* Icon + title */}
           <div className="text-center mb-8">
             <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
               style={{ background: "#FEF0E6" }}>
               <Shield className="w-7 h-7" style={{ color: "#E8651A" }} />
             </div>
             <h2 className="text-2xl font-black mb-2" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
-              {tab === "signup" ? "Create your free account" : "Welcome back"}
+              {mode === "signup" ? "Create your free account" : "Welcome back"}
             </h2>
             <p className="text-sm" style={{ color: "#6B5E52" }}>
-              {tab === "signup" ? "Get 1 free document analysis. No credit card required." : "Sign in to access your analyses."}
+              {mode === "signup" ? "Get 1 free document analysis. No credit card required." : "Sign in to access your analyses."}
             </p>
           </div>
 
-          {/* Google */}
           <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
             onClick={handleGoogle} disabled={loading}
             className="w-full flex items-center justify-center gap-3 font-medium py-3 px-4 rounded-2xl mb-4 border transition-all"
@@ -104,58 +83,16 @@ export default function AuthModal({ onClose, onSuccess, mode = "signup" }: Props
             Continue with Google
           </motion.button>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex-1 h-px" style={{ background: "#E8E2D9" }} />
-            <span className="text-xs" style={{ color: "#A89484" }}>or</span>
-            <div className="flex-1 h-px" style={{ background: "#E8E2D9" }} />
-          </div>
-
-          {/* Tabs */}
-          <div className="flex rounded-2xl p-1 mb-4" style={{ background: "#F2EDE6" }}>
-            {(["signup", "signin"] as const).map(t => (
-              <motion.button key={t} onClick={() => { setTab(t); setError("") }}
-                className="flex-1 py-2 text-sm font-semibold rounded-xl transition-all"
-                style={tab === t
-                  ? { background: "#E8651A", color: "white", boxShadow: "0 2px 8px rgba(232,101,26,0.3)" }
-                  : { color: "#6B5E52" }}>
-                {t === "signup" ? "Sign up" : "Sign in"}
-              </motion.button>
-            ))}
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleEmail} className="space-y-3">
-            <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#A89484" }} />
-              <input type="email" placeholder="Email address" value={email}
-                onChange={e => setEmail(e.target.value)} required
-                className="input-field !pl-10" />
-            </div>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#A89484" }} />
-              <input type="password" placeholder="Password" value={password}
-                onChange={e => setPassword(e.target.value)} required minLength={6}
-                className="input-field !pl-10" />
-            </div>
-
-            <AnimatePresence>
-              {error && (
-                <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="text-xs px-3 py-2 rounded-xl"
-                  style={{ background: "#FEF2F2", color: "#991B1B", border: "1px solid rgba(220,38,38,0.15)" }}>
-                  {error}
-                </motion.p>
-              )}
-            </AnimatePresence>
-
-            <motion.button type="submit" disabled={loading}
-              whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-              className="w-full btn-primary justify-center !rounded-2xl !py-3.5">
-              {loading ? "Please wait..." : tab === "signup" ? "Create account & analyze" : "Sign in"}
-            </motion.button>
-          </form>
+          <AnimatePresence>
+            {error && (
+              <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="text-xs px-3 py-2 rounded-xl"
+                style={{ background: "#FEF2F2", color: "#991B1B", border: "1px solid rgba(220,38,38,0.15)" }}>
+                {error}
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
     </div>

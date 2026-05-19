@@ -6,15 +6,19 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
-    "firebase": "^12.10.0",
-    "firebase-admin": "^13.7.0",
+    "@auth/prisma-adapter": "^2.7.4",
+    "@prisma/client": "^6.19.0",
+    "@upstash/ratelimit": "^2.0.7",
+    "@upstash/redis": "^1.35.8",
     "framer-motion": "^12.36.0",
     "lucide-react": "^0.577.0",
     "next": "16.1.6",
+    "next-auth": "5.0.0-beta.30",
     "pdf2json": "^3.2.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -28,6 +32,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "prisma": "^6.19.0",
     "tailwindcss": "^4",
     "typescript": "^5.9.3"
   }

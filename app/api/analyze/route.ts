@@ -1,34 +1,50 @@
 import { NextRequest, NextResponse } from "next/server"
+import { Ratelimit } from "@upstash/ratelimit"
+import { Redis } from "@upstash/redis"
 import { extractDocumentFromBuffer, getFileMimeType } from "@/lib/pdf-parser"
 import {
   analyzeDocument,
   CLAUDE_INVALID_JSON_ERROR_MESSAGE,
 } from "@/lib/claude"
-import type { UserProfile } from "@/lib/types"
+import { auth } from "@/auth"
 import {
-  adminGetUserProfile,
-  adminCreateUserProfile,
-  adminDecrementFreeUse,
-  adminSaveAnalysis,
-  getAdminAuth,
-} from "@/lib/firestore-admin"
-
-// PRODUCTION RATE LIMITING: Use Upstash Redis with @upstash/ratelimit
-// https://github.com/upstash/ratelimit
-// Current: rate limiting is DISABLED. Do not deploy without implementing this.
+  getOrCreateUser,
+  getUserById,
+  decrementFreeUse,
+  saveAnalysis,
+} from "@/lib/db"
 
 export async function POST(req: NextRequest) {
   try {
+    if (
+      process.env.UPSTASH_REDIS_REST_URL &&
+      process.env.UPSTASH_REDIS_REST_TOKEN
+    ) {
+      const ratelimit = new Ratelimit({
+        redis: Redis.fromEnv(),
+        limiter: Ratelimit.slidingWindow(10, "1 h"),
+      })
+      const ip =
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+        req.headers.get("x-real-ip") ??
+        "anonymous"
+      const { success } = await ratelimit.limit(ip)
+      if (!success) {
+        return NextResponse.json(
+          { error: "Too many requests" },
+          { status: 429 }
+        )
+      }
+    }
+
     const formData = await req.formData()
     const file = formData.get("file") as File | null
     const context = (formData.get("context") as string) ?? ""
-    const idToken = (formData.get("idToken") as string) ?? ""
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
-    // Validate file size (10MB)
     if (file.size > 10 * 1024 * 1024) {
       return NextResponse.json(
         { error: "File too large. Maximum size is 10MB." },
@@ -36,32 +52,20 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Verify Firebase ID token
-    let uid: string | null = null
-    let userEmail = ""
-    if (idToken) {
-      try {
-        const decoded = await getAdminAuth().verifyIdToken(idToken)
-        uid = decoded.uid
-        userEmail = decoded.email ?? ""
-      } catch {
-        return NextResponse.json(
-          { error: "Invalid authentication token." },
-          { status: 401 }
-        )
-      }
-    }
+    const session = await auth()
+    const userId = session?.user?.id ?? null
+    const userEmail = session?.user?.email ?? ""
 
     // Free tier: one-time quota. Pro users skip all free-use checks and are never decremented here.
-    let userProfile: UserProfile | null = null
-    if (uid) {
-      let profile = await adminGetUserProfile(uid)
-      if (!profile) {
-        await adminCreateUserProfile(uid, userEmail)
-        profile = await adminGetUserProfile(uid)
-      }
-      userProfile = profile
-      if (profile && profile.plan === "free" && profile.freeUsesRemaining <= 0) {
+    let userProfile = null as Awaited<ReturnType<typeof getUserById>>
+    if (userId && userEmail) {
+      await getOrCreateUser(userId, userEmail)
+      userProfile = await getUserById(userId)
+      if (
+        userProfile &&
+        userProfile.plan === "free" &&
+        userProfile.freeUsesRemaining <= 0
+      ) {
         return NextResponse.json(
           { error: "FREE_LIMIT_REACHED" },
           { status: 402 }
@@ -99,15 +103,16 @@ export async function POST(req: NextRequest) {
     }
 
     let analysisId: string | null = null
-    if (uid) {
-      analysisId = await adminSaveAnalysis({
-        userId: uid,
-        documentName: file.name,
-        documentType: context || "Unknown",
-        result,
-      })
+    if (userId) {
+      const created = await saveAnalysis(
+        userId,
+        file.name,
+        context || "Unknown",
+        result
+      )
+      analysisId = created.id
       if (userProfile?.plan === "free") {
-        await adminDecrementFreeUse(uid)
+        await decrementFreeUse(userId)
       }
     }
 

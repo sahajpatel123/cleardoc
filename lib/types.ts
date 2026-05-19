@@ -1,3 +1,5 @@
+import type { Analysis as PrismaAnalysis } from "@prisma/client"
+
 export interface RedFlag {
   issue: string
   severity: "high" | "medium" | "low"
@@ -19,25 +21,14 @@ export interface AnalysisResult {
   overall_verdict: "legitimate" | "suspicious" | "likely_illegal"
 }
 
-export interface UserProfile {
-  email: string
-  createdAt: Date
-  plan: "free" | "pro"
-  stripeCustomerId?: string
-  stripeSubscriptionId?: string
-  subscriptionStatus: "active" | "inactive" | "cancelled"
+/** Plan fields synced from /api/usage (Prisma User). */
+export interface UserPlanProfile {
+  plan: string
   freeUsesRemaining: number
+  subscriptionStatus: string
 }
 
-export interface Analysis {
-  id: string
-  userId: string
-  createdAt: Date
-  documentName: string
-  documentType: string
-  storageUrl?: string
-  result: AnalysisResult
-}
+export type Analysis = PrismaAnalysis
 
 export interface UploadState {
   file: File | null

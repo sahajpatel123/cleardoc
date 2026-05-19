@@ -4,8 +4,7 @@ import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/context/AuthContext"
-import { getUserAnalyses } from "@/lib/firestore"
-import type { Analysis } from "@/lib/types"
+import type { Analysis, AnalysisResult } from "@/lib/types"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Shield,
@@ -45,14 +44,17 @@ function DashboardContent() {
   const [upgraded, setUpgraded] = useState(false)
 
   useEffect(() => {
-    if (searchParams.get("upgraded") === "true") setUpgraded(true)
+    if (searchParams.get("upgraded") === "true") {
+      queueMicrotask(() => setUpgraded(true));
+    }
   }, [searchParams])
 
   useEffect(() => {
     if (authLoading) return
     if (!user) { router.push("/"); return }
-    getUserAnalyses(user.uid)
-      .then(setAnalyses)
+    fetch("/api/analyses")
+      .then((r) => (r.ok ? r.json() : Promise.resolve([])))
+      .then((data: Analysis[]) => setAnalyses(Array.isArray(data) ? data : []))
       .finally(() => setLoadingHistory(false))
   }, [user, authLoading, router])
 
@@ -231,7 +233,8 @@ function DashboardContent() {
           ) : (
             <div className="space-y-3">
               {analyses.map((analysis, idx) => {
-                const vc = VERDICT_CONFIG[analysis.result.overall_verdict]
+                const ar = analysis.result as unknown as AnalysisResult
+                const vc = VERDICT_CONFIG[ar.overall_verdict]
                 const VIcon = vc.Icon
                 return (
                   <motion.div

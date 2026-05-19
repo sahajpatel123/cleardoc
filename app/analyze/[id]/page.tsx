@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
-import { getUserAnalysis } from "@/lib/firestore"
 import { motion } from "framer-motion"
 import ResultCard from "@/components/ui/ResultCard"
 import RedFlagItem from "@/components/ui/RedFlagItem"
@@ -80,27 +79,32 @@ export default function AnalyzeByIdPage() {
         : undefined
 
   useEffect(() => {
-    if (authLoading) return
+    if (authLoading) {
+      return
+    }
     if (!user) {
       router.replace("/")
       return
     }
     if (!analysisId) {
-      setNotFound(true)
-      setLoading(false)
+      queueMicrotask(() => {
+        setNotFound(true)
+        setLoading(false)
+      })
       return
     }
 
     let cancelled = false
     ;(async () => {
       try {
-        const analysis = await getUserAnalysis(user.uid, analysisId)
+        const res = await fetch(`/api/analyses/${analysisId}`)
         if (cancelled) return
-        if (!analysis) {
+        if (!res.ok) {
           setNotFound(true)
           setResult(null)
         } else {
-          setResult(analysis.result)
+          const analysis = await res.json()
+          setResult(analysis.result as AnalysisResult)
         }
       } catch {
         if (!cancelled) setNotFound(true)

@@ -23,10 +23,8 @@ export default function PricingModal({ onClose }: { onClose: () => void }) {
     if (!user) return
     setLoading(true); setError("")
     try {
-      const token = await user.getIdToken()
       const res = await fetch("/api/stripe/create-checkout", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken: token }),
+        method: "POST",
       })
       const data = await res.json()
       if (data.url) window.location.href = data.url
@@ -62,7 +60,7 @@ export default function PricingModal({ onClose }: { onClose: () => void }) {
           {/* Badge */}
           <div className="flex justify-center mb-6">
             <span className="tag tag-orange">
-              <Zap className="w-3 h-3" /> YOU'VE USED YOUR FREE ANALYSIS
+              <Zap className="w-3 h-3" /> YOU&apos;VE USED YOUR FREE ANALYSIS
             </span>
           </div>
 

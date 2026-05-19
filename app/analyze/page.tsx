@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
@@ -13,7 +13,7 @@ import PricingModal from "@/components/ui/PricingModal"
 import type { AnalysisResult, LoadingStage } from "@/lib/types"
 import {
   FileText, AlertTriangle, Mail, ArrowRight, CheckCircle,
-  XCircle, AlertCircle, RotateCcw, Shield, LayoutDashboard,
+  XCircle, AlertCircle, RotateCcw, LayoutDashboard,
 } from "lucide-react"
 
 const VERDICT = {
@@ -31,26 +31,17 @@ const cardVariants = {
 
 export default function AnalyzePage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [stage, setStage] = useState<LoadingStage>("uploading")
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showPricing, setShowPricing] = useState(false)
-  const [analysisId, setAnalysisId] = useState<string | null>(null)
 
-  useEffect(() => {
-    const raw = sessionStorage.getItem("pendingAnalysis")
-    if (!raw) { router.push("/"); return }
-    const pending: PendingAnalysis = JSON.parse(raw)
-    sessionStorage.removeItem("pendingAnalysis")
-    runAnalysis(pending)
-  }, [])
-
-  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
-
-  const runAnalysis = async (pending: PendingAnalysis) => {
+  // Run analysis – memoised; internal delay helper defined locally
+  const runAnalysis = useCallback(async (pending: PendingAnalysis) => {
+    const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
     try {
-      setStage("uploading"); await sleep(700)
+      setStage("uploading"); await delay(700)
       const bs = atob(pending.fileBase64)
       const bytes = new Uint8Array(bs.length)
       for (let i = 0; i < bs.length; i++) bytes[i] = bs.charCodeAt(i)
@@ -59,9 +50,8 @@ export default function AnalyzePage() {
       const fd = new FormData()
       fd.append("file", file)
       fd.append("context", pending.context)
-      if (user) { const t = await user.getIdToken(); fd.append("idToken", t) }
 
-      setStage("reading"); await sleep(900)
+      setStage("reading"); await delay(900)
       setStage("analyzing")
       const res = await fetch("/api/analyze", { method: "POST", body: fd })
       const data = await res.json()
@@ -71,15 +61,26 @@ export default function AnalyzePage() {
         throw new Error(data.error ?? "Analysis failed")
       }
 
-      setStage("preparing"); await sleep(700)
+      setStage("preparing"); await delay(700)
       setResult(data.result)
-      setAnalysisId(data.analysisId ?? null)
       setStage("done")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.")
       setStage("idle")
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (authLoading) return
+    const raw = sessionStorage.getItem("pendingAnalysis")
+    if (!raw) { router.push("/"); return }
+    const pending: PendingAnalysis = JSON.parse(raw)
+    sessionStorage.removeItem("pendingAnalysis")
+    // Run analysis asynchronously to avoid sync state updates inside effect
+    ;(async () => {
+      await runAnalysis(pending)
+    })()
+  }, [authLoading, router, runAnalysis])
 
   if (stage !== "done" && stage !== "idle") return <LoadingAnalysis stage={stage} />
 

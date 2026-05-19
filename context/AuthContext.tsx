@@ -1,14 +1,26 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState } from "react"
-import { User, onAuthStateChanged, auth } from "@/lib/firebase-auth"
-import { getUserProfile } from "@/lib/firestore"
-import type { UserProfile } from "@/lib/types"
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react"
+import { useSession, signIn, signOut } from "next-auth/react"
+import type { UserPlanProfile } from "@/lib/types"
 
 interface AuthContextValue {
-  user: User | null
-  profile: UserProfile | null
+  user: {
+    id: string
+    email: string
+    name?: string | null
+    image?: string | null
+  } | null
+  profile: UserPlanProfile | null
   loading: boolean
+  signInWithGoogle: () => Promise<void>
+  signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
 
@@ -16,47 +28,76 @@ const AuthContext = createContext<AuthContextValue>({
   user: null,
   profile: null,
   loading: true,
+  signInWithGoogle: async () => {},
+  signOut: async () => {},
   refreshProfile: async () => {},
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: session, status } = useSession()
+  const [profile, setProfile] = useState<UserPlanProfile | null>(null)
 
-  const loadProfile = async (u: User) => {
-    try {
-      const p = await getUserProfile(u.uid)
-      setProfile(p)
-    } catch {
+  const refreshProfile = useCallback(async () => {
+    if (!session?.user?.id) {
       setProfile(null)
+      return
     }
-  }
-
-  const refreshProfile = async () => {
-    if (user) await loadProfile(user)
-  }
+    const res = await fetch("/api/usage")
+    if (!res.ok) {
+      setProfile(null)
+      return
+    }
+    const data = (await res.json()) as {
+      error?: string
+      freeUsesRemaining?: number
+      plan?: string
+      subscriptionStatus?: string
+    }
+    if (data.error) {
+      setProfile(null)
+      return
+    }
+    setProfile({
+      plan: data.plan ?? "free",
+      freeUsesRemaining: data.freeUsesRemaining ?? 0,
+      subscriptionStatus: data.subscriptionStatus ?? "inactive",
+    })
+  }, [session?.user?.id])
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      setUser(u)
-      if (u) {
-        await loadProfile(u)
-      } else {
-        setProfile(null)
-      }
-      setLoading(false)
-    })
-    return unsubscribe
-  }, [])
+    if (status === "authenticated") {
+      // Refresh user profile for authenticated session
+      refreshProfile()
+    } else {
+      // Clear profile when not authenticated
+      setProfile(null)
+    }
+  }, [status, refreshProfile])
+
+  const user =
+    session?.user?.id && session.user.email
+      ? {
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.name,
+          image: session.user.image,
+        }
+      : null
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading: status === "loading",
+        signInWithGoogle: () => signIn("google"),
+        signOut: () => signOut({ callbackUrl: "/" }),
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
 }
 
-export function useAuth() {
-  return useContext(AuthContext)
-}
+export const useAuth = () => useContext(AuthContext)

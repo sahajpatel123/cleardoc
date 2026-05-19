@@ -71,9 +71,9 @@ export default function UploadZone({ onFileSelect, file, onClear, disabled }: Pr
             </motion.button>
           </motion.div>
         ) : (
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           <motion.div key="dropzone" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            {...(getRootProps() as any)}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+            {...getRootProps()}
             className={`rounded-2xl border-2 border-dashed transition-all duration-300 cursor-pointer group ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
             style={{
               borderColor: isDragReject ? "#DC2626" : isDragActive ? "#E8651A" : "#E8E2D9",

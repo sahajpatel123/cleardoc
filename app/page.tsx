@@ -388,7 +388,12 @@ function HomeContent() {
 
   useEffect(() => {
     const p = searchParams.get("auth")
-    if (p === "signin" || p === "signup") { setAuthMode(p); setShowAuth(true) }
+    if (p === "signin" || p === "signup") {
+      queueMicrotask(() => {
+        setAuthMode(p);
+        setShowAuth(true);
+      });
+    }
   }, [searchParams])
 
   const scrollToUpload = () => uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })

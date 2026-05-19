@@ -1,24 +1,17 @@
-import { NextRequest, NextResponse } from "next/server"
-import { adminGetUserProfile, getAdminAuth } from "@/lib/firestore-admin"
+import { NextResponse } from "next/server"
+import { auth } from "@/auth"
+import { getUserById } from "@/lib/db"
 
-export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization")
-  const idToken = authHeader?.replace("Bearer ", "")
-
-  if (!idToken) {
+export async function GET() {
+  const session = await auth()
+  if (!session?.user?.id) {
     return NextResponse.json({ freeUsesRemaining: 0, plan: "free" })
   }
 
-  try {
-    const decoded = await getAdminAuth().verifyIdToken(idToken)
-    const profile = await adminGetUserProfile(decoded.uid)
-
-    return NextResponse.json({
-      freeUsesRemaining: profile?.freeUsesRemaining ?? 0,
-      plan: profile?.plan ?? "free",
-      subscriptionStatus: profile?.subscriptionStatus ?? "inactive",
-    })
-  } catch {
-    return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-  }
+  const user = await getUserById(session.user.id)
+  return NextResponse.json({
+    freeUsesRemaining: user?.freeUsesRemaining ?? 0,
+    plan: user?.plan ?? "free",
+    subscriptionStatus: user?.subscriptionStatus ?? "inactive",
+  })
 }
