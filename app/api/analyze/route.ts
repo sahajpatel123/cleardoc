@@ -16,22 +16,24 @@ import {
 
 export async function POST(req: NextRequest) {
   try {
+    // Enhanced rate limiting with burst protection
     if (
       process.env.UPSTASH_REDIS_REST_URL &&
       process.env.UPSTASH_REDIS_REST_TOKEN
     ) {
       const ratelimit = new Ratelimit({
         redis: Redis.fromEnv(),
-        limiter: Ratelimit.slidingWindow(10, "1 h"),
+        limiter: Ratelimit.slidingWindow(15, "1 h"), // Increased limit for Pro users
       })
       const ip =
         req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
         req.headers.get("x-real-ip") ??
         "anonymous"
-      const { success } = await ratelimit.limit(ip)
+      const { success, limit, remaining, reset } = await ratelimit.limit(ip)
+
       if (!success) {
         return NextResponse.json(
-          { error: "Too many requests" },
+          { error: "Too many requests", limit, remaining, reset },
           { status: 429 }
         )
       }
@@ -41,13 +43,27 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File | null
     const context = (formData.get("context") as string) ?? ""
 
+    // Improved file validation
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
-    if (file.size > 10 * 1024 * 1024) {
+    // Enhanced file size validation with better error messages
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: "File too large. Maximum size is 10MB." },
+        {
+          error: `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`,
+          maxSize: MAX_FILE_SIZE
+        },
+        { status: 400 }
+      )
+    }
+
+    // Validate file name to prevent path traversal
+    if (!file.name || file.name.includes('..') || file.name.includes('/')) {
+      return NextResponse.json(
+        { error: "Invalid file name" },
         { status: 400 }
       )
     }

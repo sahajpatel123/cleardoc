@@ -72,52 +72,52 @@ export default function UploadZone({ onFileSelect, file, onClear, disabled }: Pr
           </motion.div>
         ) : (
           <motion.div key="dropzone" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-            {...getRootProps()}
             className={`rounded-2xl border-2 border-dashed transition-all duration-300 cursor-pointer group ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
             style={{
               borderColor: isDragReject ? "#DC2626" : isDragActive ? "#E8651A" : "#E8E2D9",
               background: isDragReject ? "#FEF2F2" : isDragActive ? "#FEF0E6" : "transparent",
             }}
           >
-            <input {...getInputProps()} />
-            <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-              <motion.div
-                animate={isDragActive ? { scale: 1.15, rotate: 5 } : { scale: 1, rotate: 0 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 border transition-all duration-300"
-                style={{
-                  background: isDragActive ? "#FEF0E6" : "#F9F6F1",
-                  borderColor: isDragActive ? "rgba(232,101,26,0.3)" : "#E8E2D9",
-                }}
-              >
-                <Upload className="w-7 h-7 transition-colors duration-300"
-                  style={{ color: isDragActive ? "#E8651A" : "#A89484" }} />
-              </motion.div>
+            <div {...getRootProps()} className="relative w-full h-full">
+              <input {...getInputProps()} />
+              <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                <motion.div
+                  animate={isDragActive ? { scale: 1.15, rotate: 5 } : { scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 border transition-all duration-300"
+                  style={{
+                    background: isDragActive ? "#FEF0E6" : "#F9F6F1",
+                    borderColor: isDragActive ? "rgba(232,101,26,0.3)" : "#E8E2D9",
+                  }}
+                >
+                  <Upload className="w-7 h-7 transition-colors duration-300"
+                    style={{ color: isDragActive ? "#E8651A" : "#A89484" }} />
+                </motion.div>
 
-              {isDragReject ? (
-                <><p className="font-semibold text-sm mb-1" style={{ color: "#DC2626" }}>File type not supported</p>
-                  <p className="text-xs" style={{ color: "#A89484" }}>Use PDF, PNG, or JPG</p></>
-              ) : isDragActive ? (
-                <><p className="font-bold text-base mb-1" style={{ color: "#E8651A" }}>Drop it here!</p>
-                  <p className="text-sm" style={{ color: "#6B5E52" }}>Release to upload your document</p></>
-              ) : (
-                <>
-                  <p className="font-semibold text-base mb-1" style={{ color: "#18130E" }}>
-                    Drop your document here
-                  </p>
-                  <p className="text-sm mb-5" style={{ color: "#A89484" }}>or click to browse files</p>
-                  <div className="flex items-center gap-2 text-xs">
-                    {["PDF", "PNG", "JPG"].map(t => (
-                      <span key={t} className="px-2.5 py-1 rounded-lg font-medium"
-                        style={{ background: "#F2EDE6", color: "#6B5E52", border: "1px solid #E8E2D9" }}>
-                        {t}
-                      </span>
-                    ))}
-                    <span style={{ color: "#CFC8BE" }}>· Max 10MB</span>
-                  </div>
-                </>
-              )}
+                {isDragReject ? (
+                  <><p className="font-semibold text-sm mb-1" style={{ color: "#DC2626" }}>File type not supported</p>
+                    <p className="text-xs" style={{ color: "#A89484" }}>Use PDF, PNG, or JPG</p></>
+                ) : isDragActive ? (
+                  <><p className="font-bold text-base mb-1" style={{ color: "#E8651A" }}>Drop it here!</p>
+                    <p className="text-sm" style={{ color: "#6B5E52" }}>Release to upload your document</p></>
+                ) : (
+                  <>
+                    <p className="font-semibold text-base mb-1" style={{ color: "#18130E" }}>
+                      Drop your document here
+                    </p>
+                    <p className="text-sm mb-5" style={{ color: "#A89484" }}>or click to browse files</p>
+                    <div className="flex items-center gap-2 text-xs">
+                      {["PDF", "PNG", "JPG"].map(t => (
+                        <span key={t} className="px-2.5 py-1 rounded-lg font-medium"
+                          style={{ background: "#F2EDE6", color: "#6B5E52", border: "1px solid #E8E2D9" }}>
+                          {t}
+                        </span>
+                      ))}
+                      <span style={{ color: "#CFC8BE" }}>· Max 10MB</span>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </motion.div>
         )}

@@ -46,8 +46,7 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
 
   return new Promise((resolve, reject) => {
     // Second arg = 1 enables raw text mode (returns decoded strings directly)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const parser = new (PDFParser as any)(null, 1)
+    const parser = new PDFParser(null, 1);
 
     parser.on("pdfParser_dataReady", (data: PDFData) => {
       const pages: PDFPage[] = data?.Pages ?? []
