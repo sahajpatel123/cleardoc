@@ -10,7 +10,7 @@ import { useAuth } from "@/context/AuthContext"
 import {
   ArrowRight, Shield, FileText, AlertTriangle, Mail,
   CheckCircle, Star, ChevronDown, Zap, Lock, TrendingUp,
-  XCircle, AlertCircle, Copy, ChevronRight, Sparkles,
+  XCircle, AlertCircle, Copy, ChevronRight,
   HeartPulse, Home, Activity, Landmark, Plane, Scale,
   CreditCard, Building2, Receipt, FileWarning, Car,
 } from "lucide-react"
@@ -113,12 +113,12 @@ function AnalysisPreview() {
     >
       {/* Ambient glow behind the card */}
       <div className="absolute -inset-8 rounded-[40px] pointer-events-none"
-        style={{ background: "radial-gradient(ellipse 90% 80% at 55% 50%, rgba(232,101,26,0.10) 0%, transparent 70%)" }} />
+        style={{ background: "radial-gradient(ellipse 90% 80% at 55% 50%, rgba(232,101,26,0.15) 0%, transparent 70%)" }} />
 
       {/* ── Main card ── */}
       <div className="relative rounded-[28px] overflow-hidden"
         style={{
-          background: "white",
+          background: "linear-gradient(135deg, #ffffff 0%, #FEF9F6 100%)",
           border: "1px solid rgba(24,19,14,0.08)",
           boxShadow: "0 32px 80px rgba(24,19,14,0.14), 0 8px 24px rgba(24,19,14,0.07), 0 0 0 1px rgba(24,19,14,0.03)",
         }}>
@@ -286,7 +286,7 @@ function AnalysisPreview() {
           <div className="rounded-xl border overflow-hidden" style={{ borderColor: "rgba(5,150,105,0.15)" }}>
             <div className="flex items-center gap-2 px-3 py-1.5"
               style={{ background: "#ECFDF5", borderBottom: "1px solid rgba(5,150,105,0.1)" }}>
-              <Sparkles className="w-3 h-3" style={{ color: "#059669" }} />
+              <CheckCircle className="w-3 h-3" style={{ color: "#059669" }} />
               <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#059669" }}>
                 Your Next Steps
               </p>
@@ -328,7 +328,7 @@ function AnalysisPreview() {
         }}>
         <div className="w-7 h-7 rounded-lg flex items-center justify-center"
           style={{ background: "linear-gradient(135deg, #FEF0E6, #FFE4CC)" }}>
-          <Zap className="w-3.5 h-3.5" style={{ color: "#E8651A" }} />
+          <Clock className="w-3.5 h-3.5" style={{ color: "#E8651A" }} />
         </div>
         <div>
           <p className="text-[11px] font-black" style={{ color: "#18130E" }}>Ready in 12s</p>
@@ -352,7 +352,7 @@ function AnalysisPreview() {
         }}>
         <div className="w-7 h-7 rounded-lg flex items-center justify-center"
           style={{ background: "linear-gradient(135deg, #ECFDF5, #D1FAE5)" }}>
-          <Shield className="w-3.5 h-3.5" style={{ color: "#059669" }} />
+          <Scale className="w-3.5 h-3.5" style={{ color: "#059669" }} />
         </div>
         <div>
           <p className="text-[11px] font-black" style={{ color: "#18130E" }}>100% Private</p>
@@ -446,7 +446,7 @@ function HomeContent() {
                 They sent you a
                 <br />
                 <span className="relative inline-block">
-                  <span className="gradient-text-animated">document.</span>
+                  <span className="gradient-text-animated">confusing document.</span>
                   <motion.svg
                     initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }}
                     transition={{ duration: 1.0, delay: 0.8, ease: "easeOut" }}
@@ -468,7 +468,7 @@ function HomeContent() {
                 style={{ color: "#6B5E52" }}>
                 Upload any scary official document. Get plain English, red flags,
                 a ready-to-send response letter, and your exact next steps.{" "}
-                <span className="font-bold" style={{ color: "#18130E" }}>In 30 seconds.</span>
+                <span className="font-bold" style={{ color: "#18130E" }}>Fast-track insight.</span>
               </motion.p>
 
               {/* Rotating doc type */}
