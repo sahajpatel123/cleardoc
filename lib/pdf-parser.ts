@@ -46,7 +46,7 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
 
   return new Promise((resolve, reject) => {
     // Second arg = 1 enables raw text mode (returns decoded strings directly)
-    const parser = new PDFParser(null, 1);
+    const parser = new PDFParser(null, true);
 
     parser.on("pdfParser_dataReady", (data: PDFData) => {
       const pages: PDFPage[] = data?.Pages ?? []
@@ -84,8 +84,9 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
       resolve(`[Document: ${pages.length} page(s)]\n\n${text}`)
     })
 
-    parser.on("pdfParser_dataError", (err: { parserError: unknown }) => {
-      reject(new Error(`PDF parsing failed: ${String(err?.parserError ?? "unknown error")}`))
+    parser.on("pdfParser_dataError", (err: Error | { parserError: Error }) => {
+      const message = 'parserError' in err ? String(err.parserError) : err.message
+      reject(new Error(`PDF parsing failed: ${message ?? "unknown error"}`))
     })
 
     parser.parseBuffer(buffer)
