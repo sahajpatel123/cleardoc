@@ -13,6 +13,7 @@ import {
   XCircle, AlertCircle, Copy, ChevronRight,
   HeartPulse, Home, Activity, Landmark, Plane, Scale,
   CreditCard, Building2, Receipt, FileWarning, Car,
+  Clock,
 } from "lucide-react"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
