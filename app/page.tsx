@@ -439,25 +439,26 @@ function HomeContent() {
             <div className="text-center lg:text-left">
               {/* Headline */}
               <motion.h1
-                initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, ease: EASE }}
+                initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: -8 }}
+                transition={{ duration: 0.9, ease: [0.25, 0.1, 0.25, 1.0] }}
                 className="font-black leading-[1.04] tracking-tight mb-4"
-                style={{ fontSize: "clamp(2.2rem, 4vw, 3.75rem)", fontFamily: "var(--font-syne,'Syne',sans-serif)", color: "#18130E" }}>
+                style={{ fontSize: "clamp(2.4rem, 5vw, 4.25rem)", fontFamily: "var(--font-syne,'Syne',sans-serif)", color: "#18130E" }}>
                 They sent you a
                 <br />
                 <span className="relative inline-block">
-                  <span className="gradient-text-animated">confusing document.</span>
+                  <span className="gradient-text-animated-pulse">confusing document.</span>
                   <motion.svg
-                    initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 1.0, delay: 0.8, ease: "easeOut" }}
+                    initial={{ pathLength: 0, opacity: 0, scale: 0.8 }}
+                    animate={{ pathLength: 1, opacity: 1, scale: 1.0 }}
+                    transition={{ duration: 1.4, delay: 0.6, ease: [0.25, 0.8, 0.35, 1] }}
                     className="absolute -bottom-1 left-0 w-full overflow-visible"
-                    viewBox="0 0 300 10" fill="none" preserveAspectRatio="none">
-                    <motion.path d="M2 7 C60 2, 150 2, 298 7"
-                      stroke="#E8651A" strokeWidth="2.5" strokeLinecap="round" fill="none" pathLength={1} />
+                    viewBox="0 0 340 12" fill="none" preserveAspectRatio="none">
+                    <motion.path d="M2 6 C70 1, 180 1, 248 6 C260 7, 275 8, 290 9 C305 11, 320 10, 338 6"
+                      stroke="#E8651A" strokeWidth="3" strokeLinecap="round" fill="none" pathLength={1} />
                   </motion.svg>
                 </span>
                 <br />
-                Now fight back.
+                Now fight back with confidence.
               </motion.h1>
 
               {/* Sub */}
