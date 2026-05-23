@@ -23,12 +23,14 @@ export default function LoadingAnalysis({ stage }: { stage: LoadingStage }) {
   }, [])
 
   useEffect(() => {
-    setLogs((l) => {
-      const next = STAGES[currentIdx]
-      if (!next) return l
-      if (l[l.length - 1] === next.log) return l
-      return [...l, next.log].slice(-4)
-    })
+    (async () => {
+      setLogs((l) => {
+        const next = STAGES[currentIdx]
+        if (!next) return l
+        if (l[l.length - 1] === next.log) return l
+        return [...l, next.log].slice(-4)
+      })
+    })()
   }, [currentIdx])
 
   return (

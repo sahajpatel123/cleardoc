@@ -88,7 +88,9 @@ export default function AnalyzePage() {
       return
     }
 
-    void runAnalysis(pending.file, pending.context)
+    (async () => {
+        await runAnalysis(pending.file, pending.context);
+      })()
   }, [authLoading, user, router, runAnalysis])
 
   if (showPricing && !result) {

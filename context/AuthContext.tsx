@@ -63,13 +63,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [session?.user?.id])
 
   useEffect(() => {
-    if (status === "authenticated") {
-      // Refresh user profile for authenticated session
-      refreshProfile()
-    } else {
-      // Clear profile when not authenticated
-      setProfile(null)
-    }
+    (async () => {
+      if (status === "authenticated") {
+        // Refresh user profile for authenticated session
+        await refreshProfile()
+      } else {
+        // Clear profile when not authenticated
+        setProfile(null)
+      }
+    })()
   }, [status, refreshProfile])
 
   const user =

@@ -36,7 +36,8 @@ function LoginInner() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    setError("")
+    const clear = () => setError("");
+    clear();
   }, [mode])
 
   const headline = useMemo(
