@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useAuth } from "@/context/AuthContext"
+import { isProUser } from "@/lib/user-plan"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Check, ArrowRight, ChevronDown } from "lucide-react"
@@ -71,7 +72,11 @@ export default function PricingPage() {
     }
   }
 
-  const isPro = profile?.plan === "pro"
+  const isPro = isProUser(
+    profile
+      ? { plan: profile.plan, subscriptionStatus: profile.subscriptionStatus }
+      : null,
+  )
 
   return (
     <div className="min-h-screen pt-28 pb-32">

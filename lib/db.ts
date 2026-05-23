@@ -4,10 +4,13 @@ import type { AnalysisResult } from "@/lib/types"
 // ── User ─────────────────────────────────────────────────
 
 export async function getOrCreateUser(id: string, email: string) {
-  return prisma.user.upsert({
-    where: { id },
-    update: {},
-    create: {
+  const existing = await prisma.user.findFirst({
+    where: { OR: [{ id }, { email }] },
+  })
+  if (existing) return existing
+
+  return prisma.user.create({
+    data: {
       id,
       email,
       plan: "free",
@@ -25,12 +28,33 @@ export async function getUserByStripeCustomerId(customerId: string) {
   return prisma.user.findUnique({ where: { stripeCustomerId: customerId } })
 }
 
-export async function decrementFreeUse(userId: string) {
-  const u = await prisma.user.findUnique({ where: { id: userId } })
-  if (!u || u.freeUsesRemaining <= 0) return u
-  return prisma.user.update({
-    where: { id: userId },
-    data: { freeUsesRemaining: { decrement: 1 } },
+export type SaveAnalysisResult =
+  | { ok: true; id: string }
+  | { ok: false; error: "FREE_LIMIT_REACHED" }
+
+/** Save analysis and consume one free credit atomically (skipped for Pro). */
+export async function saveAnalysisWithQuota(
+  userId: string,
+  pro: boolean,
+  documentName: string,
+  documentType: string,
+  result: AnalysisResult,
+): Promise<SaveAnalysisResult> {
+  return prisma.$transaction(async (tx) => {
+    if (!pro) {
+      const consumed = await tx.user.updateMany({
+        where: { id: userId, plan: "free", freeUsesRemaining: { gt: 0 } },
+        data: { freeUsesRemaining: { decrement: 1 } },
+      })
+      if (consumed.count === 0) {
+        return { ok: false as const, error: "FREE_LIMIT_REACHED" as const }
+      }
+    }
+
+    const created = await tx.analysis.create({
+      data: { userId, documentName, documentType, result: result as object },
+    })
+    return { ok: true as const, id: created.id }
   })
 }
 

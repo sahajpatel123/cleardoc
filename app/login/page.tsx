@@ -79,6 +79,7 @@ function LoginInner() {
         setLoading(false)
         return
       }
+      setLoading(false)
       router.push(redirectTo)
       router.refresh()
     } catch {

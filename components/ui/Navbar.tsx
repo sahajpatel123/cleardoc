@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
+import { isProUser } from "@/lib/user-plan"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Menu, X } from "lucide-react"
@@ -103,7 +104,14 @@ export default function Navbar() {
               <div className="hidden md:flex items-center gap-4">
                 {user ? (
                   <>
-                    {profile?.plan === "pro" && (
+                    {isProUser(
+                      profile
+                        ? {
+                            plan: profile.plan,
+                            subscriptionStatus: profile.subscriptionStatus,
+                          }
+                        : null,
+                    ) && (
                       <span className="label label-ember">Pro</span>
                     )}
                     <button

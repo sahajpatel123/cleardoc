@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
@@ -11,110 +11,141 @@ import NextStepItem from "@/components/ui/NextStepItem"
 import ResponseLetter from "@/components/ui/ResponseLetter"
 import PricingModal from "@/components/ui/PricingModal"
 import { Reveal } from "@/components/ui/Kinetic"
+import { takePendingAnalysis } from "@/lib/pending-analysis-store"
+import { parseAnalysisResult } from "@/lib/validate-analysis"
+import { getVerdictUi } from "@/lib/verdict-ui"
 import type { AnalysisResult, LoadingStage } from "@/lib/types"
 import {
-  CheckCircle, XCircle, AlertCircle, RotateCcw, LayoutDashboard,
+  CheckCircle, RotateCcw, LayoutDashboard,
 } from "lucide-react"
-
-const VERDICT = {
-  legitimate: {
-    label: "Legitimate",
-    Icon: CheckCircle,
-    accent: "var(--moss)",
-    labelClass: "label-moss",
-    desc: "This document appears legal and fair.",
-  },
-  suspicious: {
-    label: "Suspicious",
-    Icon: AlertCircle,
-    accent: "var(--amber)",
-    labelClass: "label-amber",
-    desc: "Review red flags carefully before responding.",
-  },
-  likely_illegal: {
-    label: "Likely Illegal",
-    Icon: XCircle,
-    accent: "var(--red)",
-    labelClass: "label-red",
-    desc: "This may violate laws or regulations.",
-  },
-}
-
-interface PendingAnalysis { fileName: string; fileType: string; fileBase64: string; context: string }
 
 export default function AnalyzePage() {
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, refreshProfile } = useAuth()
   const [stage, setStage] = useState<LoadingStage>("uploading")
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showPricing, setShowPricing] = useState(false)
+  const startedRef = useRef(false)
 
-  const runAnalysis = useCallback(async (pending: PendingAnalysis) => {
-    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
-    try {
-      setStage("uploading"); await delay(700)
-      const bs = atob(pending.fileBase64)
-      const bytes = new Uint8Array(bs.length)
-      for (let i = 0; i < bs.length; i++) bytes[i] = bs.charCodeAt(i)
-      const blob = new Blob([bytes], { type: pending.fileType })
-      const file = new File([blob], pending.fileName, { type: pending.fileType })
-      const fd = new FormData()
-      fd.append("file", file)
-      fd.append("context", pending.context)
+  const runAnalysis = useCallback(
+    async (file: File, context: string) => {
+      const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
+      try {
+        setStage("uploading")
+        await delay(700)
 
-      setStage("reading"); await delay(900)
-      setStage("analyzing")
-      const res = await fetch("/api/analyze", { method: "POST", body: fd })
-      const data = await res.json()
+        const fd = new FormData()
+        fd.append("file", file)
+        fd.append("context", context)
 
-      if (!res.ok) {
-        if (data.error === "FREE_LIMIT_REACHED") { setShowPricing(true); setStage("idle"); return }
-        throw new Error(data.error ?? "Analysis failed")
+        setStage("reading")
+        await delay(900)
+        setStage("analyzing")
+
+        const res = await fetch("/api/analyze", { method: "POST", body: fd })
+        const data = (await res.json()) as { error?: string; result?: unknown }
+
+        if (!res.ok) {
+          if (data.error === "FREE_LIMIT_REACHED") {
+            setShowPricing(true)
+            setStage("idle")
+            return
+          }
+          throw new Error(data.error ?? "Analysis failed")
+        }
+
+        const parsed = parseAnalysisResult(data.result)
+        if (!parsed) {
+          throw new Error("Analysis returned unexpected data. Please try again.")
+        }
+
+        setStage("preparing")
+        await delay(700)
+        setResult(parsed)
+        setStage("done")
+        await refreshProfile()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+        setStage("idle")
       }
-
-      setStage("preparing"); await delay(700)
-      setResult(data.result)
-      setStage("done")
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.")
-      setStage("idle")
-    }
-  }, [])
+    },
+    [refreshProfile],
+  )
 
   useEffect(() => {
     if (authLoading) return
-    const raw = sessionStorage.getItem("pendingAnalysis")
-    if (!raw) { router.push("/"); return }
-    const pending: PendingAnalysis = JSON.parse(raw)
-    sessionStorage.removeItem("pendingAnalysis")
-    ;(async () => { await runAnalysis(pending) })()
-  }, [authLoading, router, runAnalysis])
+    if (!user) {
+      router.replace(`/login?redirect=${encodeURIComponent("/analyze")}`)
+      return
+    }
+    if (startedRef.current) return
+    startedRef.current = true
+
+    const pending = takePendingAnalysis()
+    if (!pending) {
+      router.replace("/")
+      return
+    }
+
+    void runAnalysis(pending.file, pending.context)
+  }, [authLoading, user, router, runAnalysis])
+
+  if (showPricing && !result) {
+    return (
+      <div className="min-h-screen flex items-center px-4 pt-24">
+        <div className="container-edition">
+          <Reveal>
+            <p className="eyebrow mb-8" style={{ color: "var(--ember)" }}>
+              Free limit reached
+            </p>
+            <h1
+              className="display max-w-[18ch] mb-8"
+              style={{ fontSize: "clamp(2rem, 6vw, 4.5rem)", color: "var(--text)" }}
+            >
+              You&apos;ve used your free analysis.
+            </h1>
+            <p className="text-base mb-6 max-w-md" style={{ color: "var(--text-3)" }}>
+              Upgrade to Pro for unlimited document analyses, or sign out and try another account.
+            </p>
+          </Reveal>
+        </div>
+        <AnimatePresence>
+          <PricingModal onClose={() => router.push("/")} />
+        </AnimatePresence>
+      </div>
+    )
+  }
 
   if (stage !== "done" && stage !== "idle") return <LoadingAnalysis stage={stage} />
 
-  if (error) return (
-    <div className="min-h-screen flex items-center px-4 pt-24">
-      <div className="container-edition">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-          <p className="eyebrow mb-8" style={{ color: "var(--red)" }}>Analysis failed</p>
-          <h1 className="display max-w-[18ch] mb-8" style={{ fontSize: "clamp(2rem, 6vw, 4.5rem)", color: "var(--text)" }}>
-            Something stalled.
-          </h1>
-          <p className="text-base mb-10 max-w-md" style={{ color: "var(--text-3)" }}>
-            {error}
-          </p>
-          <button onClick={() => router.push("/")} className="btn btn-primary">
-            <RotateCcw className="w-4 h-4" /> Try again
-          </button>
-        </motion.div>
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center px-4 pt-24">
+        <div className="container-edition">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+            <p className="eyebrow mb-8" style={{ color: "var(--red)" }}>Analysis failed</p>
+            <h1
+              className="display max-w-[18ch] mb-8"
+              style={{ fontSize: "clamp(2rem, 6vw, 4.5rem)", color: "var(--text)" }}
+            >
+              Something stalled.
+            </h1>
+            <p className="text-base mb-10 max-w-md" style={{ color: "var(--text-3)" }}>
+              {error}
+            </p>
+            <button onClick={() => router.push("/")} className="btn btn-primary">
+              <RotateCcw className="w-4 h-4" /> Try again
+            </button>
+          </motion.div>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   if (!result) return null
 
-  const verdict = VERDICT[result.overall_verdict]
+  const verdict = getVerdictUi(result.overall_verdict)
   const VIcon = verdict.Icon
   const highFlags = result.red_flags.filter((f) => f.severity === "high")
   const sortedFlags = [...result.red_flags].sort(
@@ -124,7 +155,6 @@ export default function AnalyzePage() {
   return (
     <div className="min-h-screen pt-28 pb-32">
       <div className="container-edition">
-        {/* Header */}
         <Reveal>
           <div className="flex items-baseline justify-between mb-10">
             <p className="eyebrow">Analysis complete</p>
@@ -149,7 +179,6 @@ export default function AnalyzePage() {
           </p>
         </Reveal>
 
-        {/* High severity banner */}
         <AnimatePresence>
           {highFlags.length > 0 && (
             <motion.div
@@ -161,18 +190,17 @@ export default function AnalyzePage() {
                 border: "1px solid rgba(229,90,62,0.20)",
               }}
             >
-              <span className="label label-red shrink-0">
-                Heads up
-              </span>
+              <span className="label label-red shrink-0">Heads up</span>
               <p className="text-sm leading-relaxed" style={{ color: "var(--text-2)" }}>
-                <strong style={{ color: "var(--red)" }}>{highFlags.length} high-severity issue{highFlags.length > 1 ? "s" : ""}</strong>{" "}
+                <strong style={{ color: "var(--red)" }}>
+                  {highFlags.length} high-severity issue{highFlags.length > 1 ? "s" : ""}
+                </strong>{" "}
                 detected. Read the red flags below carefully before responding.
               </p>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Results */}
         <div className="mt-20">
           <ResultCard
             number="I"
@@ -219,7 +247,9 @@ export default function AnalyzePage() {
               </div>
             ) : (
               <div>
-                {sortedFlags.map((flag, i) => <RedFlagItem key={i} flag={flag} index={i} />)}
+                {sortedFlags.map((flag, i) => (
+                  <RedFlagItem key={i} flag={flag} index={i} />
+                ))}
               </div>
             )}
           </ResultCard>
@@ -242,12 +272,13 @@ export default function AnalyzePage() {
             <div>
               {[...result.next_steps]
                 .sort((a, b) => a.priority - b.priority)
-                .map((step, i) => <NextStepItem key={i} step={step} index={i} />)}
+                .map((step, i) => (
+                  <NextStepItem key={i} step={step} index={i} />
+                ))}
             </div>
           </ResultCard>
         </div>
 
-        {/* Footer actions */}
         <div className="hairline mt-16 mb-12" />
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <p className="text-xs italic max-w-md" style={{ color: "var(--text-mute)" }}>
@@ -265,10 +296,6 @@ export default function AnalyzePage() {
           </div>
         </div>
       </div>
-
-      <AnimatePresence>
-        {showPricing && <PricingModal onClose={() => { setShowPricing(false); router.push("/") }} />}
-      </AnimatePresence>
     </div>
   )
 }

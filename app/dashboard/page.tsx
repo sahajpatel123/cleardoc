@@ -4,18 +4,13 @@ import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/context/AuthContext"
-import type { Analysis, AnalysisResult } from "@/lib/types"
+import type { Analysis } from "@/lib/types"
+import { isProUser } from "@/lib/user-plan"
+import { getVerdictUi } from "@/lib/verdict-ui"
+import { parseAnalysisResult } from "@/lib/validate-analysis"
 import { motion, AnimatePresence } from "framer-motion"
-import {
-  CheckCircle, AlertCircle, XCircle, Plus, ArrowUpRight, Sparkles,
-} from "lucide-react"
+import { Plus, ArrowUpRight, Sparkles } from "lucide-react"
 import { Reveal, Counter } from "@/components/ui/Kinetic"
-
-const VERDICT_CONFIG = {
-  legitimate:     { label: "Legitimate",     Icon: CheckCircle, labelClass: "label-moss" },
-  suspicious:     { label: "Suspicious",     Icon: AlertCircle, labelClass: "label-amber" },
-  likely_illegal: { label: "Likely Illegal", Icon: XCircle,     labelClass: "label-red" },
-}
 
 function DashboardContent() {
   const router = useRouter()
@@ -33,7 +28,10 @@ function DashboardContent() {
 
   useEffect(() => {
     if (authLoading) return
-    if (!user) { router.push("/"); return }
+    if (!user) {
+      router.push(`/login?redirect=${encodeURIComponent("/dashboard")}`)
+      return
+    }
     fetch("/api/analyses")
       .then((r) => (r.ok ? r.json() : Promise.resolve([])))
       .then((data: Analysis[]) => setAnalyses(Array.isArray(data) ? data : []))
@@ -55,7 +53,11 @@ function DashboardContent() {
     )
   }
 
-  const isPro = profile?.plan === "pro"
+  const isPro = isProUser(
+    profile
+      ? { plan: profile.plan, subscriptionStatus: profile.subscriptionStatus }
+      : null,
+  )
 
   return (
     <div className="min-h-screen pt-28 pb-32">
@@ -228,8 +230,9 @@ function DashboardContent() {
           ) : (
             <div className="border-t" style={{ borderColor: "var(--hairline-2)" }}>
               {analyses.map((analysis, idx) => {
-                const ar = analysis.result as unknown as AnalysisResult
-                const vc = VERDICT_CONFIG[ar.overall_verdict]
+                const ar = parseAnalysisResult(analysis.result)
+                if (!ar) return null
+                const vc = getVerdictUi(ar.overall_verdict)
                 const VIcon = vc.Icon
                 return (
                   <motion.div

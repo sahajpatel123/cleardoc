@@ -7,12 +7,8 @@ import {
   CLAUDE_INVALID_JSON_ERROR_MESSAGE,
 } from "@/lib/claude"
 import { auth } from "@/auth"
-import {
-  getOrCreateUser,
-  getUserById,
-  decrementFreeUse,
-  saveAnalysis,
-} from "@/lib/db"
+import { getOrCreateUser, saveAnalysisWithQuota } from "@/lib/db"
+import { isProUser } from "@/lib/user-plan"
 
 export async function POST(req: NextRequest) {
   try {
@@ -69,24 +65,31 @@ export async function POST(req: NextRequest) {
     }
 
     const session = await auth()
-    const userId = session?.user?.id ?? null
-    const userEmail = session?.user?.email ?? ""
+    if (!session?.user?.id || !session.user.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-    // Free tier: one-time quota. Pro users skip all free-use checks and are never decremented here.
-    let userProfile = null as Awaited<ReturnType<typeof getUserById>>
-    if (userId && userEmail) {
-      await getOrCreateUser(userId, userEmail)
-      userProfile = await getUserById(userId)
-      if (
-        userProfile &&
-        userProfile.plan === "free" &&
-        userProfile.freeUsesRemaining <= 0
-      ) {
-        return NextResponse.json(
-          { error: "FREE_LIMIT_REACHED" },
-          { status: 402 }
-        )
-      }
+    const userEmail = session.user.email
+
+    let userProfile: Awaited<ReturnType<typeof getOrCreateUser>>
+    try {
+      userProfile = await getOrCreateUser(session.user.id, userEmail)
+    } catch (err) {
+      console.error("[analyze] User lookup failed:", err)
+      return NextResponse.json(
+        { error: "Could not load your account. Please sign in again." },
+        { status: 500 },
+      )
+    }
+
+    const userId = userProfile.id
+
+    const pro = isProUser(userProfile)
+    if (!pro && userProfile.freeUsesRemaining <= 0) {
+      return NextResponse.json(
+        { error: "FREE_LIMIT_REACHED" },
+        { status: 402 },
+      )
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
@@ -118,21 +121,21 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    let analysisId: string | null = null
-    if (userId) {
-      const created = await saveAnalysis(
-        userId,
-        file.name,
-        context || "Unknown",
-        result
+    const saved = await saveAnalysisWithQuota(
+      userId,
+      pro,
+      file.name,
+      context || "Unknown",
+      result,
+    )
+    if (!saved.ok) {
+      return NextResponse.json(
+        { error: "FREE_LIMIT_REACHED" },
+        { status: 402 },
       )
-      analysisId = created.id
-      if (userProfile?.plan === "free") {
-        await decrementFreeUse(userId)
-      }
     }
 
-    return NextResponse.json({ result, analysisId })
+    return NextResponse.json({ result, analysisId: saved.id })
   } catch (err) {
     console.error("[analyze] Error:", err)
     if (

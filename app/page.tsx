@@ -9,6 +9,8 @@ import Link from "next/link"
 import UploadZone from "@/components/ui/UploadZone"
 import PricingModal from "@/components/ui/PricingModal"
 import { useAuth } from "@/context/AuthContext"
+import { setPendingAnalysis } from "@/lib/pending-analysis-store"
+import { isProUser } from "@/lib/user-plan"
 import { ArrowUpRight, ArrowRight, Plus } from "lucide-react"
 import { Grid, Tilt, Vignette } from "@/components/ui/Atmosphere"
 import { Reveal, SplitWords, Counter, Magnetic, Marquee, Word } from "@/components/ui/Kinetic"
@@ -311,33 +313,24 @@ function HomeContent() {
   const scrollToUpload = () =>
     uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
 
-  const persistPendingAnalysis = async (f: File, ctx: string) => {
-    const ab = await f.arrayBuffer()
-    const u8 = new Uint8Array(ab)
-    const b64 = btoa(String.fromCharCode(...Array.from(u8)))
-    sessionStorage.setItem(
-      "pendingAnalysis",
-      JSON.stringify({
-        fileName: f.name,
-        fileType: f.type,
-        fileBase64: b64,
-        context: ctx,
-      }),
-    )
-  }
-
-  const handleAnalyze = async () => {
+  const handleAnalyze = () => {
     if (!file) return
+    setPendingAnalysis({ file, context })
     if (!user) {
-      await persistPendingAnalysis(file, context)
       router.push(`/login?mode=signup&redirect=${encodeURIComponent("/analyze")}`)
       return
     }
-    if (profile && profile.plan !== "pro" && profile.freeUsesRemaining <= 0) {
+    if (
+      profile &&
+      !isProUser({
+        plan: profile.plan,
+        subscriptionStatus: profile.subscriptionStatus,
+      }) &&
+      profile.freeUsesRemaining <= 0
+    ) {
       setShowPricing(true)
       return
     }
-    await persistPendingAnalysis(file, context)
     router.push("/analyze")
   }
 

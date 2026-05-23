@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { createCheckoutSession } from "@/lib/stripe"
-import { getOrCreateUser, getUserById } from "@/lib/db"
+import { getOrCreateUser } from "@/lib/db"
 
 export async function POST(_req: NextRequest) {
   try {
@@ -10,20 +10,10 @@ export async function POST(_req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userId = session.user.id
-    const email = session.user.email
-
-    await getOrCreateUser(userId, email)
-    const profile = await getUserById(userId)
-    if (!profile) {
-      return NextResponse.json(
-        { error: "Failed to load user profile" },
-        { status: 500 }
-      )
-    }
+    const profile = await getOrCreateUser(session.user.id, session.user.email)
 
     const url = await createCheckoutSession({
-      userId,
+      userId: profile.id,
       userEmail: profile.email,
       stripeCustomerId: profile.stripeCustomerId ?? undefined,
     })

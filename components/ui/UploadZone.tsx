@@ -16,6 +16,7 @@ const ACCEPTED: Record<string, string[]> = {
   "application/pdf": [".pdf"],
   "image/png": [".png"],
   "image/jpeg": [".jpg", ".jpeg"],
+  "image/webp": [".webp"],
 }
 const MAX_SIZE = 10 * 1024 * 1024
 const EASE = [0.16, 1, 0.3, 1] as [number, number, number, number]
@@ -31,7 +32,7 @@ export default function UploadZone({ onFileSelect, file, onClear, disabled }: Pr
       setError(null)
       if (rejected.length > 0) {
         const msg = rejected[0]?.errors[0]?.message
-        setError(msg?.includes("size") ? "File too large. Max 10MB." : "Please upload a PDF, PNG, or JPG.")
+        setError(msg?.includes("size") ? "File too large. Max 10MB." : "Please upload a PDF, PNG, JPG, or WebP.")
         return
       }
       if (accepted[0]) onFileSelect(accepted[0])

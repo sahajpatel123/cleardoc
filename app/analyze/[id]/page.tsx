@@ -10,30 +10,11 @@ import NextStepItem from "@/components/ui/NextStepItem"
 import ResponseLetter from "@/components/ui/ResponseLetter"
 import { Reveal } from "@/components/ui/Kinetic"
 import type { AnalysisResult } from "@/lib/types"
+import { parseAnalysisResult } from "@/lib/validate-analysis"
+import { getVerdictUi } from "@/lib/verdict-ui"
 import {
-  CheckCircle, XCircle, AlertCircle, RotateCcw, LayoutDashboard, AlertTriangle,
+  CheckCircle, RotateCcw, LayoutDashboard, AlertTriangle,
 } from "lucide-react"
-
-const VERDICT = {
-  legitimate: {
-    label: "Legitimate",
-    Icon: CheckCircle,
-    labelClass: "label-moss",
-    desc: "This document appears legal and fair.",
-  },
-  suspicious: {
-    label: "Suspicious",
-    Icon: AlertCircle,
-    labelClass: "label-amber",
-    desc: "Review red flags carefully before responding.",
-  },
-  likely_illegal: {
-    label: "Likely Illegal",
-    Icon: XCircle,
-    labelClass: "label-red",
-    desc: "This may violate laws or regulations.",
-  },
-}
 
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 } as const
 
@@ -50,7 +31,10 @@ export default function AnalyzeByIdPage() {
 
   useEffect(() => {
     if (authLoading) return
-    if (!user) { router.replace("/"); return }
+    if (!user) {
+      router.replace(`/login?redirect=${encodeURIComponent(`/analyze/${analysisId ?? ""}`)}`)
+      return
+    }
     if (!analysisId) {
       queueMicrotask(() => { setNotFound(true); setLoading(false) })
       return
@@ -66,7 +50,13 @@ export default function AnalyzeByIdPage() {
           setResult(null)
         } else {
           const analysis = await res.json()
-          setResult(analysis.result as AnalysisResult)
+          const parsed = parseAnalysisResult(analysis.result)
+          if (!parsed) {
+            setNotFound(true)
+            setResult(null)
+          } else {
+            setResult(parsed)
+          }
         }
       } catch {
         if (!cancelled) setNotFound(true)
@@ -117,7 +107,7 @@ export default function AnalyzeByIdPage() {
     )
   }
 
-  const verdict = VERDICT[result.overall_verdict]
+  const verdict = getVerdictUi(result.overall_verdict)
   const VIcon = verdict.Icon
   const highFlags = result.red_flags.filter((f) => f.severity === "high")
   const sortedFlags = [...result.red_flags].sort(

@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk"
 import type { AnalysisResult } from "./types"
+import { parseAnalysisResult } from "./validate-analysis"
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -86,12 +87,20 @@ function parseAnalysisResponse(raw: string): AnalysisResult {
     .replace(/```\s*$/i, "")
     .trim()
 
+  let data: unknown
   try {
-    return JSON.parse(cleaned) as AnalysisResult
+    data = JSON.parse(cleaned)
   } catch {
     console.error("[claude] Invalid JSON from model. Raw output:", raw)
     throw new Error(CLAUDE_INVALID_JSON_ERROR_MESSAGE)
   }
+
+  const parsed = parseAnalysisResult(data)
+  if (!parsed) {
+    console.error("[claude] Schema validation failed. Raw output:", raw)
+    throw new Error(CLAUDE_INVALID_JSON_ERROR_MESSAGE)
+  }
+  return parsed
 }
 
 export async function analyzeDocument(
