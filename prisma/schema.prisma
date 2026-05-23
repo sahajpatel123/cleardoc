@@ -49,6 +49,7 @@ model User {
   emailVerified        DateTime?
   name                 String?
   image                String?
+  password             String?    // scrypt-hashed; null only for legacy OAuth-created users
   createdAt            DateTime   @default(now())
   plan                 String     @default("free") // "free" | "pro"
   stripeCustomerId     String?    @unique

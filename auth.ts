@@ -1,15 +1,37 @@
 import NextAuth from "next-auth"
-import GoogleProvider from "next-auth/providers/google"
+import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
+import { verifyPassword, validateEmail, validatePassword } from "@/lib/password"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   adapter: PrismaAdapter(prisma),
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    Credentials({
+      name: "Email & Password",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(raw) {
+        const email = typeof raw?.email === "string" ? raw.email.trim().toLowerCase() : ""
+        const password = typeof raw?.password === "string" ? raw.password : ""
+        if (validateEmail(email) || validatePassword(password)) return null
+
+        const user = await prisma.user.findUnique({ where: { email } })
+        if (!user || !user.password) return null
+
+        const ok = await verifyPassword(password, user.password)
+        if (!ok) return null
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name ?? undefined,
+          image: user.image ?? undefined,
+        }
+      },
     }),
   ],
   session: {
@@ -30,6 +52,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   pages: {
-    signIn: "/", // Redirect to home — AuthModal handles sign-in UI
+    signIn: "/login",
   },
 })

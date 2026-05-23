@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef, Suspense } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import {
   motion, useScroll, useTransform, AnimatePresence, useMotionValueEvent,
 } from "framer-motion"
 import Link from "next/link"
 import UploadZone from "@/components/ui/UploadZone"
-import AuthModal from "@/components/ui/AuthModal"
 import PricingModal from "@/components/ui/PricingModal"
 import { useAuth } from "@/context/AuthContext"
 import { ArrowUpRight, ArrowRight, Plus } from "lucide-react"
@@ -292,18 +291,14 @@ function DocumentReader() {
 /* ─── Main ───────────────────────────────────────────────────────────────── */
 function HomeContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { user, profile } = useAuth()
   const uploadRef = useRef<HTMLDivElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
 
   const [file, setFile] = useState<File | null>(null)
   const [context, setContext] = useState("")
-  const [showAuth, setShowAuth] = useState(false)
-  const [authMode, setAuthMode] = useState<"signin" | "signup">("signup")
   const [showPricing, setShowPricing] = useState(false)
   const [rotIdx, setRotIdx] = useState(0)
-  const pendingAnalysis = useRef(false)
 
   const { scrollY } = useScroll()
   const heroY = useTransform(scrollY, [0, 600], [0, -60])
@@ -313,52 +308,37 @@ function HomeContent() {
     return () => clearInterval(t)
   }, [])
 
-  useEffect(() => {
-    const p = searchParams.get("auth")
-    if (p === "signin" || p === "signup") {
-      queueMicrotask(() => {
-        setAuthMode(p)
-        setShowAuth(true)
-      })
-    }
-  }, [searchParams])
-
   const scrollToUpload = () =>
     uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+
+  const persistPendingAnalysis = async (f: File, ctx: string) => {
+    const ab = await f.arrayBuffer()
+    const u8 = new Uint8Array(ab)
+    const b64 = btoa(String.fromCharCode(...Array.from(u8)))
+    sessionStorage.setItem(
+      "pendingAnalysis",
+      JSON.stringify({
+        fileName: f.name,
+        fileType: f.type,
+        fileBase64: b64,
+        context: ctx,
+      }),
+    )
+  }
 
   const handleAnalyze = async () => {
     if (!file) return
     if (!user) {
-      pendingAnalysis.current = true
-      setAuthMode("signup")
-      setShowAuth(true)
+      await persistPendingAnalysis(file, context)
+      router.push(`/login?mode=signup&redirect=${encodeURIComponent("/analyze")}`)
       return
     }
     if (profile && profile.plan !== "pro" && profile.freeUsesRemaining <= 0) {
       setShowPricing(true)
       return
     }
-    const ab = await file.arrayBuffer()
-    const u8 = new Uint8Array(ab)
-    const b64 = btoa(String.fromCharCode(...Array.from(u8)))
-    sessionStorage.setItem(
-      "pendingAnalysis",
-      JSON.stringify({
-        fileName: file.name,
-        fileType: file.type,
-        fileBase64: b64,
-        context,
-      }),
-    )
+    await persistPendingAnalysis(file, context)
     router.push("/analyze")
-  }
-
-  const handleAuthSuccess = () => {
-    setShowAuth(false)
-    if (pendingAnalysis.current && file) {
-      pendingAnalysis.current = false
-      setTimeout(handleAnalyze, 300)
-    }
   }
 
   return (
@@ -811,18 +791,6 @@ function HomeContent() {
       </section>
 
       <AnimatePresence>
-        {showAuth && (
-          <AuthModal
-            mode={authMode}
-            onClose={() => {
-              setShowAuth(false)
-              pendingAnalysis.current = false
-            }}
-            onSuccess={handleAuthSuccess}
-          />
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
         {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
       </AnimatePresence>
     </div>
@@ -830,9 +798,5 @@ function HomeContent() {
 }
 
 export default function HomePage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen" style={{ background: "var(--ink)" }} />}>
-      <HomeContent />
-    </Suspense>
-  )
+  return <HomeContent />
 }

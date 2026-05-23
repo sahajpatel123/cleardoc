@@ -1,232 +1,298 @@
-# ClearDoc — Project Memory
+# ClearDoc — Project Memory (source of truth)
 
-## Overview
-ClearDoc is an AI-powered document analysis tool that helps everyday people fight back against confusing, threatening, or manipulative official documents (insurance denials, medical bills, legal notices, eviction notices, visa rejections, IRS letters, etc.).
+> **Last verified:** 2026-05-23. If anything here conflicts with code, **trust the code** and update this file.
 
-**Core value prop**: Upload any scary official document → get plain English, red flags with severity, a ready-to-send response letter, and ranked next steps. Instantly.
+## What this app is
 
-**Monetization**: Free (1 analysis) → Pro ($9/month unlimited via Stripe).
+ClearDoc helps everyday people understand scary official documents (insurance denials, medical bills, eviction notices, IRS letters, etc.).
 
----
+**Output per analysis:** plain English summary, red flags with severity, a ready-to-send response letter, ranked next steps, and an overall verdict.
 
-## Tech Stack
-- **Framework**: Next.js 14 (App Router, TypeScript strict)
-- **Styling**: Tailwind CSS v4 (`@import "tailwindcss"` — NO config file needed)
-- **AI**: Anthropic Claude API (`claude-sonnet-4-20250514`, temp=0, max_tokens=4000)
-- **PDF Parsing**: pdf2json (server-side text extraction; serverless-safe)
-- **Auth**: Firebase Authentication (Email/Password + Google OAuth)
-- **Database**: Firebase Firestore
-- **File Storage**: Not wired in app code — optional `storageUrl` on analyses reserved for future use
-- **Payments**: Stripe (subscriptions + webhooks)
-- **Admin**: firebase-admin for server-side token verification
-- **Fonts**: Syne (display/headings) + DM Sans (body) from next/font/google
+**Monetization:** Free tier = **1 saved analysis** per account → Pro = **$9/month** unlimited (Stripe subscription).
 
 ---
 
-## File Structure
+## Critical: what is NOT in this repo anymore
+
+| Outdated (do not look for these) | Current replacement |
+|----------------------------------|---------------------|
+| Firebase Auth | **Auth.js (NextAuth v5)** — `auth.ts`, `/login`, `/api/auth/*` |
+| Firestore | **PostgreSQL via Prisma** — `prisma/schema.prisma`, `lib/db.ts` |
+| `lib/firebase.ts`, `firestore.ts`, `firebase-auth.ts` | **Deleted** — never reintroduce without explicit migration plan |
+| `AuthModal.tsx` | **`app/login/page.tsx`** — full-page sign-in / sign-up |
+| `middleware.ts` | **`proxy.ts`** — Next.js 16 request proxy (CSP + security headers) |
+| Google OAuth in production | **Not wired** — only Credentials provider in `auth.ts`; `.env.example` still lists Google keys for future use |
+
+---
+
+## Tech stack (actual)
+
+| Layer | Choice |
+|-------|--------|
+| Framework | **Next.js 16** App Router, React 19, TypeScript strict |
+| Styling | **Tailwind CSS v4** — `@import "tailwindcss"` in `app/globals.css` (no `tailwind.config.js`) |
+| Auth | **NextAuth v5** (`next-auth@5.0.0-beta.30`) + **Credentials** (email/password, scrypt) |
+| Database | **PostgreSQL** + **Prisma 6** (`@prisma/client`, `lib/prisma.ts`) |
+| AI | **Anthropic** `claude-sonnet-4-20250514` via `@anthropic-ai/sdk` (`lib/claude.ts`) |
+| PDF | **pdf2json** server-side (`lib/pdf-parser.ts`); images → Claude vision |
+| Payments | **Stripe** subscriptions (`lib/stripe.ts`, webhook + checkout routes) |
+| Rate limit | **Upstash Redis** — optional; enabled only when `UPSTASH_REDIS_*` env vars are set |
+| Motion / UI | **framer-motion**, **lucide-react**, editorial “Atelier” design in `globals.css` |
+| Fonts | **Syne** (display) + **DM Sans** (body) — `app/layout.tsx` |
+
+---
+
+## Repository map
+
 ```
+auth.ts                           — NextAuth config (Credentials, JWT sessions, Prisma adapter)
+proxy.ts                          — CSP + security headers (Next.js 16 proxy, not middleware.ts)
+next-auth.d.ts                    — Session.user.id typing
+
 /app
-  page.tsx                          — Landing page with upload zone
-  layout.tsx                        — Root layout (AuthProvider, Navbar, Footer)
-  globals.css                       — Global styles (Tailwind v4 import)
+  layout.tsx                      — Server: auth() → Providers(session) → Navbar + main + Footer
+  page.tsx                        — Landing: upload, sessionStorage handoff, login gate
+  globals.css                     — Design tokens (--ink, --ember, --bone, etc.)
+  /login/page.tsx                 — Sign in / sign up (client); posts to /api/auth/signup then signIn()
   /analyze
-    page.tsx                        — Results page (4-panel analysis output)
-    /[id]/page.tsx                  — View a saved analysis from dashboard
-  /dashboard
-    page.tsx                        — User history & account dashboard
-  /pricing
-    page.tsx                        — Pricing page with FAQ
+    page.tsx                      — Runs analysis from sessionStorage; 4 result panels
+    /[id]/page.tsx                — Reload saved analysis (auth required)
+  /dashboard/page.tsx             — History list; ?upgraded=true after Stripe
+  /pricing/page.tsx               — Pricing + checkout CTA
   /api
-    /analyze/route.ts               — Core analysis endpoint (PDF parse + Claude)
-    /usage/route.ts                 — Check user's remaining free uses
-    /stripe
-      /create-checkout/route.ts     — Create Stripe checkout session
-      /webhook/route.ts             — Handle Stripe subscription events
+    /auth/[...nextauth]/route.ts  — NextAuth handlers
+    /auth/signup/route.ts         — Create user + hashed password (before Credentials sign-in)
+    /analyze/route.ts             — PDF/vision + Claude + optional save + quota
+    /usage/route.ts               — Plan + freeUsesRemaining for AuthContext
+    /analyses/route.ts            — List user's analyses (auth)
+    /analyses/[id]/route.ts       — Single analysis (auth + ownership)
+    /stripe/create-checkout/route.ts
+    /stripe/webhook/route.ts
 
-/components/ui
-  Navbar.tsx                        — Top nav with auth state
-  Footer.tsx                        — Footer with legal disclaimer
-  UploadZone.tsx                    — Drag & drop file upload (react-dropzone)
-  ResultCard.tsx                    — Reusable card wrapper for result panels
-  ResponseLetter.tsx                — Letter display with copy + download
-  RedFlagItem.tsx                   — Single red flag with severity badge
-  NextStepItem.tsx                  — Single next step with priority number
-  LoadingAnalysis.tsx               — Multi-stage loading animation
-  AuthModal.tsx                     — Firebase auth modal (Google + email)
-  PricingModal.tsx                  — Paywall modal shown at free limit
-
-/lib
-  types.ts                          — All TypeScript interfaces
-  firebase.ts                       — Firebase client app initialization
-  firebase-auth.ts                  — Auth helpers (signIn, signOut, etc.)
-  firestore.ts                      — All Firestore read/write helpers
-  claude.ts                         — Claude API wrapper + system prompt
-  pdf-parser.ts                     — PDF text extraction (pdf2json); image → vision payload for Claude
-  stripe.ts                         — Stripe client + checkout helper
+/components
+  Providers.tsx                   — SessionProvider + AuthProvider
+  /ui                             — Navbar, Footer, UploadZone, result panels, PricingModal, Kinetic, Atmosphere
 
 /context
-  AuthContext.tsx                   — Global auth provider + useAuth hook
+  AuthContext.tsx                 — Wraps useSession; loads profile from /api/usage
 
 /hooks
-  useAuth.ts                        — Re-exports useAuth from AuthContext
+  useAuth.ts                      — Re-export of context useAuth
+
+/lib
+  types.ts                        — AnalysisResult, UserPlanProfile, etc.
+  db.ts                           — All Prisma data access (users, analyses, Stripe fields)
+  prisma.ts                       — Singleton PrismaClient
+  password.ts                     — scrypt hash/verify + validateEmail/validatePassword
+  claude.ts                       — Claude API + system prompt + JSON parse
+  pdf-parser.ts                   — pdf2json + image → vision payload
+  stripe.ts                       — getStripe(), createCheckoutSession()
+
+/prisma
+  schema.prisma                   — User, Analysis, Auth.js Account/Session tables
+  migrations/                     — Apply with: npx prisma migrate deploy
 ```
 
 ---
 
-## Firestore Collections
+## Data model (Prisma / PostgreSQL)
 
-### `users/{uid}`
-```typescript
-{
-  email: string
-  createdAt: Timestamp
-  plan: "free" | "pro"
-  stripeCustomerId?: string
-  stripeSubscriptionId?: string
-  subscriptionStatus: "active" | "inactive" | "cancelled"
-  freeUsesRemaining: number  // starts at 1 for new users
-}
-```
+### `User`
+- `id` (cuid), `email` (unique), `password` (scrypt hash, nullable for legacy rows)
+- `plan`: `"free"` \| `"pro"` (default `"free"`)
+- `freeUsesRemaining`: int, default **1** for new signups
+- `stripeCustomerId`, `stripeSubscriptionId`, `subscriptionStatus` (`active` \| `inactive` \| `cancelled`)
+- Auth.js relations: `accounts`, `sessions`
 
-### `analyses/{auto-id}`
-```typescript
-{
-  userId: string
-  createdAt: Timestamp
-  documentName: string
-  documentType: string  // user-provided context
-  storageUrl?: string   // optional; reserved when file storage is implemented
-  result: AnalysisResult
-}
-```
+### `Analysis`
+- `id`, `userId`, `documentName`, `documentType` (user context string), `result` (JSON `AnalysisResult`)
+- Index: `[userId, createdAt desc]`
+
+**No file blob storage** — documents are not persisted; only Claude output JSON is saved.
 
 ---
 
-## TypeScript Interfaces
+## Auth flows
 
+### Sign up
+1. `POST /api/auth/signup` — validates email/password, `prisma.user.create` with `hashPassword`
+2. Client calls `signIn("credentials", { email, password, redirect: false })`
+3. JWT session includes `user.id` via callbacks in `auth.ts`
+
+### Sign in
+- `/login` or `/login?mode=signup&redirect=/analyze`
+- Custom page: `pages.signIn: "/login"` in `auth.ts`
+
+### Server session in API routes
 ```typescript
-interface RedFlag {
-  issue: string
-  severity: "high" | "medium" | "low"
-  explanation: string
-  source_text: string  // exact sentence from document
-}
-
-interface NextStep {
-  action: string
-  reason: string
-  priority: number  // 1 = highest
-}
-
-interface AnalysisResult {
-  plain_summary: string
-  red_flags: RedFlag[]
-  response_letter: string
-  next_steps: NextStep[]
-  overall_verdict: "legitimate" | "suspicious" | "likely_illegal"
-}
+import { auth } from "@/auth"
+const session = await auth()
+const userId = session?.user?.id
 ```
+
+### Client auth
+```typescript
+import { useAuth } from "@/hooks/useAuth" // or @/context/AuthContext
+const { user, profile, loading, signOut, refreshProfile } = useAuth()
+```
+- `profile` comes from `GET /api/usage` (plan, freeUsesRemaining, subscriptionStatus)
 
 ---
 
-## Environment Variables
+## End-to-end analysis flow
+
+```mermaid
+sequenceDiagram
+  participant Home as app/page.tsx
+  participant SS as sessionStorage
+  participant Login as /login
+  participant Analyze as /analyze
+  participant API as POST /api/analyze
+  participant DB as PostgreSQL
+
+  Home->>SS: pendingAnalysis (base64 file + context)
+  alt not logged in
+    Home->>Login: redirect signup
+    Login->>Analyze: after signIn
+  else logged in
+    Home->>Analyze: router.push
+  end
+  Analyze->>API: FormData file + context
+  API->>API: pdf2json or vision
+  API->>API: Claude → AnalysisResult JSON
+  opt userId present
+    API->>DB: save Analysis
+    API->>DB: decrement freeUses if plan=free
+  end
+  API-->>Analyze: { result, analysisId }
+```
+
+### Product rules (implement exactly)
+
+| Rule | Where |
+|------|--------|
+| Homepage **requires login** before analyze | `app/page.tsx` `handleAnalyze` |
+| `/api/analyze` **can run without auth** (no save, no quota) | `app/api/analyze/route.ts` — UI gates this today |
+| Free users: block when `freeUsesRemaining <= 0` | API returns `402` + `FREE_LIMIT_REACHED` |
+| Pro users: **no** free-use check or decrement | `userProfile.plan === "pro"` |
+| Max upload **10MB**; PDF, PNG, JPG, WEBP | analyze route + pdf-parser |
+| Rate limit **15 req/hour/IP** if Upstash configured | analyze route |
+
+---
+
+## API routes reference
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| GET/POST | `/api/auth/[...nextauth]` | — | NextAuth |
+| POST | `/api/auth/signup` | — | Register email/password |
+| POST | `/api/analyze` | Optional | Analyze document |
+| GET | `/api/usage` | Optional | Quota/plan (anonymous → zeros) |
+| GET | `/api/analyses` | Required | List analyses |
+| GET | `/api/analyses/[id]` | Required | One analysis (owner only) |
+| POST | `/api/stripe/create-checkout` | Required | Stripe Checkout URL |
+| POST | `/api/stripe/webhook` | Stripe sig | Subscription lifecycle |
+
+---
+
+## Stripe
+
+- **Price:** $9/month (`unit_amount: 900` cents) — defined inline in `lib/stripe.ts`
+- **Success:** `/dashboard?upgraded=true`
+- **Webhook events:** `checkout.session.completed`, `customer.subscription.*`, `customer.subscription.deleted`
+- **Local:** `stripe listen --forward-to localhost:3000/api/stripe/webhook`
+
+---
+
+## Environment variables
+
+See `.env.example`. Required for full functionality:
 
 ```bash
-# Firebase (Client)
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-NEXT_PUBLIC_FIREBASE_APP_ID=
-
-# Firebase Admin (Server — from Service Account)
-FIREBASE_CLIENT_EMAIL=
-FIREBASE_PRIVATE_KEY=   # Include \n characters, wrap in quotes
-
-# Anthropic
+DATABASE_URL=              # PostgreSQL (e.g. Render, Neon, Supabase)
+NEXTAUTH_URL=              # e.g. http://localhost:3000
+NEXTAUTH_SECRET=           # openssl rand -base64 32
 ANTHROPIC_API_KEY=
-
-# Stripe
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+NEXT_PUBLIC_APP_URL=       # Used in Stripe redirect URLs
 
-# App
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+# Optional
+UPSTASH_REDIS_REST_URL=    # Rate limiting on /api/analyze
+UPSTASH_REDIS_REST_TOKEN=
+GOOGLE_CLIENT_ID=          # NOT used by auth.ts yet
+GOOGLE_CLIENT_SECRET=
 ```
+
+**Not used:** any `NEXT_PUBLIC_FIREBASE_*` or `FIREBASE_*` variables.
 
 ---
 
-## Key Conventions
+## Design system (“Atelier”)
+
+Defined in `app/globals.css` — use CSS variables, not legacy hex from old docs.
+
+| Token | Role |
+|-------|------|
+| `--ink`, `--ink-1`… | Near-black backgrounds |
+| `--bone` | Paper-like surfaces on analysis views |
+| `--text`, `--text-2`, `--text-3` | Typography hierarchy |
+| `--ember` | Single accent (CTAs, highlights) |
+| `--red`, `--amber`, `--moss` | Verdict / severity semantics |
+| `.container-edition`, `.display`, `.eyebrow`, `.field`, `.btn` | Layout + component classes |
+
+**UI building blocks:** `components/ui/Kinetic.tsx` (Reveal, SplitWords, Magnetic), `Atmosphere.tsx` (Grid, Vignette).
+
+---
+
+## Key conventions
 
 ### TypeScript
-- Strict mode enabled
-- No `any` types — use proper interfaces
-- All API routes validate auth server-side via firebase-admin
+- Strict mode; prefer `lib/types.ts` interfaces
+- Prisma `Analysis.result` is `Json` — cast to `AnalysisResult` when reading
 
 ### Components
-- All client components have `"use client"` directive
-- Server components are the default
-- `useSearchParams()` must be wrapped in `<Suspense>`
+- `"use client"` on interactive pages/components
+- `useSearchParams()` inside `<Suspense>` (see `login`, `dashboard`)
 
-### Styling
-- Tailwind CSS v4 — uses `@import "tailwindcss"` (no tailwind.config.js)
-- Color palette:
-  - Background: `#0A0A0F` (deep near-black)
-  - Surface: `#0F1117` (dark navy)
-  - Accent: `#F59E0B` (amber-400)
-  - Danger: `#EF4444` (red-500)
-  - Success: `#10B981` (emerald-500)
-  - Text: `#F8F8F2` primary, `#94A3B8` secondary
+### Security
+- `proxy.ts` sets CSP (allows Anthropic + Stripe connect/frame)
+- Passwords: `scrypt:<salt>:<hash>` in `lib/password.ts`
+- Analysis fetch by id enforces `userId` in `getAnalysisById`
 
-### API Routes
-- All analyze/stripe routes use firebase-admin to verify ID tokens
-- Rate limiting: **disabled** in code — production must use e.g. Upstash Redis (`@upstash/ratelimit`); see `app/api/analyze/route.ts` comment block
-- Max file size: 10MB
-- Claude API called server-side only (API key never exposed)
-
-### Analysis Flow
-1. User uploads file → stored in sessionStorage as base64
-2. `/analyze` page reconstructs file and POSTs to `/api/analyze`
-3. API extracts text (pdf2json) or sends images to Claude vision, calls Claude, saves to Firestore
-4. Result returned to client and rendered in 4 cards
-
----
-
-## How to Run Locally
-
+### Commands
 ```bash
-npm install
-# Fill in .env.local with all required values
+npm install          # runs prisma generate (postinstall)
+npx prisma migrate deploy   # production DB migrations
 npm run dev
-# Open http://localhost:3000
+npm run build
 ```
-
-## Stripe Webhook (local testing)
-```bash
-stripe listen --forward-to localhost:3000/api/stripe/webhook
-```
-
-## Deployment (Vercel)
-1. Push to GitHub
-2. Import repo in Vercel
-3. Add all environment variables from `.env.local`
-4. Set `NEXT_PUBLIC_APP_URL` to your Vercel URL
-5. Add Stripe webhook pointing to `https://your-domain.com/api/stripe/webhook`
-
-## Firebase Setup
-1. Create Firebase project at console.firebase.google.com
-2. Enable Authentication (Email/Password + Google)
-3. Create Firestore database
-4. Download Service Account JSON → copy `client_email` and `private_key` to env
-5. Enable Storage (optional — for document uploads)
 
 ---
 
-## Known Limitations / Future Work
-- Scanned PDFs with no extractable text: user should add context; consider OCR later
-- Production rate limiting not implemented (see API route comments)
-- Optional Firebase Storage / `storageUrl` for persisted file blobs — not implemented in app
-- Non-English documents: Claude handles them but note the limitation in UI
-- Document chunking for very long docs: currently capped at 80k chars to Claude
+## Known limitations / future work
+
+- **Google OAuth** — env placeholders only; add provider to `auth.ts` if needed
+- **Scanned PDFs** with no text — user context helps; OCR not implemented
+- **Anonymous API analyze** — possible at API layer; product forces login on homepage
+- **Document files** — not stored in DB or blob storage
+- **Non-English** — Claude handles; UI doesn’t disclaim
+- **Long docs** — truncated ~80k chars before Claude (`lib/claude.ts`)
+- **README.md** — still default create-next-app boilerplate; ignore for architecture
+
+---
+
+## In-progress / uncommitted (check `git status`)
+
+Typical active branch work (as of last doc update):
+
+- Email/password auth: `auth.ts`, `lib/password.ts`, `app/api/auth/signup/route.ts`, `app/login/page.tsx`
+- Prisma `User.password` + migration `20260523070000_add_user_password`
+- Navbar / landing / AuthContext wired to `/login` instead of modal
+
+After pulling changes, run migrations if `schema.prisma` changed:
+
+```bash
+npx prisma migrate dev    # local
+npx prisma migrate deploy # production
+```

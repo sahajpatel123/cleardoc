@@ -4,8 +4,7 @@ import { useState } from "react"
 import { useAuth } from "@/context/AuthContext"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Check, ArrowRight, ChevronDown, ArrowUpRight, X } from "lucide-react"
-import AuthModal from "@/components/ui/AuthModal"
+import { Check, ArrowRight, ChevronDown } from "lucide-react"
 import { Reveal, Magnetic } from "@/components/ui/Kinetic"
 
 const FREE_FEATURES = [
@@ -53,11 +52,13 @@ export default function PricingPage() {
   const router = useRouter()
   const { user, profile } = useAuth()
   const [loading, setLoading] = useState(false)
-  const [showAuth, setShowAuth] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(0)
 
   const handleUpgrade = async () => {
-    if (!user) { setShowAuth(true); return }
+    if (!user) {
+      router.push(`/login?mode=signup&redirect=${encodeURIComponent("/pricing")}`)
+      return
+    }
     setLoading(true)
     try {
       const res = await fetch("/api/stripe/create-checkout", { method: "POST" })
@@ -356,15 +357,6 @@ export default function PricingPage() {
         </section>
       </div>
 
-      <AnimatePresence>
-        {showAuth && (
-          <AuthModal
-            mode="signup"
-            onClose={() => setShowAuth(false)}
-            onSuccess={() => { setShowAuth(false); handleUpgrade() }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   )
 }

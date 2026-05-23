@@ -118,13 +118,13 @@ export default function Navbar() {
                 ) : (
                   <>
                     <Link
-                      href="/?auth=signin"
+                      href="/login"
                       className="text-sm transition-colors"
                       style={{ color: "var(--text-3)" }}
                     >
                       Sign in
                     </Link>
-                    <Link href="/?auth=signup" className="btn btn-primary !py-2 !px-4 !text-[13px]">
+                    <Link href="/login?mode=signup" className="btn btn-primary !py-2 !px-4 !text-[13px]">
                       Try free
                     </Link>
                   </>
@@ -200,7 +200,7 @@ export default function Navbar() {
                 ) : (
                   <>
                     <Link
-                      href="/?auth=signin"
+                      href="/login"
                       className="block py-2 text-sm"
                       style={{ color: "var(--text-3)" }}
                       onClick={() => setMobileOpen(false)}
@@ -208,7 +208,7 @@ export default function Navbar() {
                       Sign in
                     </Link>
                     <Link
-                      href="/?auth=signup"
+                      href="/login?mode=signup"
                       className="btn btn-primary mt-4"
                       onClick={() => setMobileOpen(false)}
                     >

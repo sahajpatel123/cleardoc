@@ -7,7 +7,7 @@ import {
   useState,
   useCallback,
 } from "react"
-import { useSession, signIn, signOut } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
 import type { UserPlanProfile } from "@/lib/types"
 
 interface AuthContextValue {
@@ -19,7 +19,6 @@ interface AuthContextValue {
   } | null
   profile: UserPlanProfile | null
   loading: boolean
-  signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -28,7 +27,6 @@ const AuthContext = createContext<AuthContextValue>({
   user: null,
   profile: null,
   loading: true,
-  signInWithGoogle: async () => {},
   signOut: async () => {},
   refreshProfile: async () => {},
 })
@@ -90,7 +88,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         profile,
         loading: status === "loading",
-        signInWithGoogle: () => signIn("google"),
         signOut: () => signOut({ callbackUrl: "/" }),
         refreshProfile,
       }}

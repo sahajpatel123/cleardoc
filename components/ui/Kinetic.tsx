@@ -43,16 +43,18 @@ export function SplitWords({
   return (
     <span className={className}>
       {words.map((w, i) => (
-        <span key={i} className="inline-block overflow-hidden align-baseline">
-          <motion.span
-            className="inline-block"
-            initial={{ y: "110%" }}
-            animate={{ y: "0%" }}
-            transition={{ duration: 1.1, delay: delay + i * perWordDelay, ease: EASE }}
-          >
-            {w}
-            {i < words.length - 1 ? " " : ""}
-          </motion.span>
+        <span key={i}>
+          <span className="inline-block overflow-hidden align-baseline">
+            <motion.span
+              className="inline-block"
+              initial={{ y: "110%" }}
+              animate={{ y: "0%" }}
+              transition={{ duration: 1.1, delay: delay + i * perWordDelay, ease: EASE }}
+            >
+              {w}
+            </motion.span>
+          </span>
+          {i < words.length - 1 ? " " : ""}
         </span>
       ))}
     </span>
