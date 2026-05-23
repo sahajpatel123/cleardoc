@@ -395,7 +395,7 @@ function HomeContent() {
           </h1>
 
           {/* Sub-meta row */}
-          <div className="mt-16 sm:mt-24 grid grid-cols-1 lg:grid-cols-12 gap-10 items-end">
+          <div className="mt-16 sm:mt-24 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
             <div className="lg:col-span-7">
               <Reveal delay={0.5}>
                 <p
@@ -437,30 +437,31 @@ function HomeContent() {
             {/* Sidebar — rotating doc type */}
             <div className="lg:col-span-5">
               <Reveal delay={0.8}>
-                <div className="border-l pl-6" style={{ borderColor: "var(--hairline-2)" }}>
-                  <p className="eyebrow mb-4">Built for</p>
-                  <div className="relative" style={{ height: 56 }}>
+                <div
+                  className="hero-built-for border-l pl-6 sm:pl-7"
+                  style={{ borderColor: "var(--hairline-2)" }}
+                >
+                  <p className="eyebrow mb-5">Built for</p>
+                  <div className="hero-rotate-slot" aria-live="polite" aria-atomic="true">
                     <AnimatePresence mode="wait">
                       <motion.h3
                         key={rotIdx}
-                        initial={{ y: 24, opacity: 0 }}
+                        initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -24, opacity: 0 }}
+                        exit={{ y: -20, opacity: 0 }}
                         transition={{ duration: 0.5, ease: EASE }}
-                        className="display"
+                        className="display hero-rotate-phrase"
                         style={{
-                          fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)",
                           color: "var(--text)",
                           position: "absolute",
-                          left: 0,
-                          right: 0,
+                          inset: "0.06em 0 0 0",
                         }}
                       >
                         the {ROTATING[rotIdx]}.
                       </motion.h3>
                     </AnimatePresence>
                   </div>
-                  <p className="mt-4 text-xs" style={{ color: "var(--text-3)" }}>
+                  <p className="mt-5 sm:mt-6 text-xs leading-relaxed" style={{ color: "var(--text-3)" }}>
                     And dozens more — IRS letters, visa rejections, debt collection, bank disputes, contracts.
                   </p>
                 </div>

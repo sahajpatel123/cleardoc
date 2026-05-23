@@ -137,6 +137,27 @@ body::before {
   padding-block: 0.16em;
   margin-block: -0.16em;
 }
+
+/* Hero sidebar — rotating document type (variable phrase length) */
+.hero-built-for {
+  padding-block: 0.5rem 0.75rem;
+}
+.hero-rotate-slot {
+  position: relative;
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+  /* Reserve two lines so long phrases never collapse the grid */
+  min-height: 2.45em;
+  padding-block: 0.06em;
+}
+.hero-rotate-phrase {
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  text-wrap: balance;
+  max-width: 100%;
+}
 .serif-italic {
   font-style: italic;
   font-weight: 400;
