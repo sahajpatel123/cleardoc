@@ -1,34 +1,30 @@
 "use client"
 
-import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Check, ArrowRight } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
+import { useBilling } from "@/hooks/useBilling"
 
 const FEATURES = [
   "Unlimited document analyses",
   "Full red flag detection",
   "Ready-to-send response letters",
-  "Priority AI processing",
   "Analysis history & dashboard",
-  "Cancel anytime",
+  "Cancel anytime via dashboard",
 ]
 
 export default function PricingModal({ onClose }: { onClose: () => void }) {
+  const router = useRouter()
   const { user } = useAuth()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const { startCheckout, loading, error } = useBilling()
 
   const handleUpgrade = async () => {
-    if (!user) return
-    setLoading(true); setError("")
-    try {
-      const res = await fetch("/api/stripe/create-checkout", { method: "POST" })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-      else setError("Failed to start checkout. Please try again.")
-    } catch { setError("Something went wrong. Please try again.") }
-    finally { setLoading(false) }
+    if (!user) {
+      router.push(`/login?mode=signup&redirect=${encodeURIComponent("/pricing")}`)
+      return
+    }
+    await startCheckout()
   }
 
   return (
@@ -129,7 +125,7 @@ export default function PricingModal({ onClose }: { onClose: () => void }) {
           </AnimatePresence>
 
           <button
-            onClick={handleUpgrade}
+            onClick={() => void handleUpgrade()}
             disabled={loading}
             className="btn btn-primary w-full justify-center"
           >

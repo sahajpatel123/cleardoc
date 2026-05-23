@@ -174,7 +174,7 @@ function LoginInner() {
                 <span className="w-px h-3" style={{ background: "var(--hairline-2)" }} />
                 <span>NO CARD REQUIRED</span>
                 <span className="w-px h-3 hidden sm:block" style={{ background: "var(--hairline-2)" }} />
-                <span className="hidden sm:inline">AUTO-DELETED · 30 DAYS</span>
+                <span className="hidden sm:inline">FILES NOT STORED · RESULTS ONLY</span>
               </div>
             </Reveal>
           </div>

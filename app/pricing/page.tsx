@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useAuth } from "@/context/AuthContext"
 import { isProUser } from "@/lib/user-plan"
+import { useBilling } from "@/hooks/useBilling"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Check, ArrowRight, ChevronDown } from "lucide-react"
@@ -41,35 +42,26 @@ const FAQ = [
   },
   {
     q: "What happens to my uploaded documents?",
-    a: "Your documents are processed securely and never shared. We don't use your documents to train AI models. Documents are automatically deleted from our servers after 30 days.",
+    a: "Your uploaded files are processed in memory and not kept on our servers. We only store the analysis results (summary, flags, letter, steps) tied to your account. We don't use your documents to train AI models.",
   },
   {
     q: "Can I cancel my Pro subscription?",
-    a: "Yes, anytime. Cancel from your account settings and you'll retain Pro access until the end of your billing period. No cancellation fees.",
+    a: "Yes, anytime. Use Manage subscription on your dashboard (Stripe billing portal) to cancel. You'll keep Pro access until the end of your billing period. No cancellation fees.",
   },
 ]
 
 export default function PricingPage() {
   const router = useRouter()
   const { user, profile } = useAuth()
-  const [loading, setLoading] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(0)
+  const { startCheckout, loading, error: billingError } = useBilling()
 
   const handleUpgrade = async () => {
     if (!user) {
       router.push(`/login?mode=signup&redirect=${encodeURIComponent("/pricing")}`)
       return
     }
-    setLoading(true)
-    try {
-      const res = await fetch("/api/stripe/create-checkout", { method: "POST" })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-    } catch {
-      alert("Something went wrong. Please try again.")
-    } finally {
-      setLoading(false)
-    }
+    await startCheckout()
   }
 
   const isPro = isProUser(
@@ -242,23 +234,30 @@ export default function PricingPage() {
                   ✓ You&apos;re on Pro
                 </div>
               ) : (
-                <Magnetic strength={6}>
-                  <button
-                    onClick={handleUpgrade}
-                    disabled={loading}
-                    className="btn btn-primary w-full justify-center"
-                  >
-                    {loading ? "Loading..." : "Upgrade to Pro"}
-                    {!loading && <ArrowRight className="w-4 h-4" />}
-                  </button>
-                </Magnetic>
+                <>
+                  {billingError && (
+                    <p className="text-xs mb-4" style={{ color: "var(--red)" }}>
+                      {billingError}
+                    </p>
+                  )}
+                  <Magnetic strength={6}>
+                    <button
+                      onClick={() => void handleUpgrade()}
+                      disabled={loading}
+                      className="btn btn-primary w-full justify-center"
+                    >
+                      {loading ? "Loading..." : "Upgrade to Pro"}
+                      {!loading && <ArrowRight className="w-4 h-4" />}
+                    </button>
+                  </Magnetic>
+                </>
               )}
             </div>
           </Reveal>
         </div>
 
         {/* FAQ */}
-        <section className="mt-32">
+        <section id="faq" className="mt-32">
           <Reveal>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-16 items-end">
               <div className="md:col-span-3">

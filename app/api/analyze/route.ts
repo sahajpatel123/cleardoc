@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { Ratelimit } from "@upstash/ratelimit"
-import { Redis } from "@upstash/redis"
 import { extractDocumentFromBuffer, getFileMimeType } from "@/lib/pdf-parser"
+import { assertServerEnv } from "@/lib/env"
+import { rateLimitByIp } from "@/lib/rate-limit"
 import {
   analyzeDocument,
   CLAUDE_INVALID_JSON_ERROR_MESSAGE,
@@ -10,29 +10,18 @@ import { auth } from "@/auth"
 import { getOrCreateUser, saveAnalysisWithQuota } from "@/lib/db"
 import { isProUser } from "@/lib/user-plan"
 
+export const runtime = "nodejs"
+
 export async function POST(req: NextRequest) {
   try {
-    // Enhanced rate limiting with burst protection
-    if (
-      process.env.UPSTASH_REDIS_REST_URL &&
-      process.env.UPSTASH_REDIS_REST_TOKEN
-    ) {
-      const ratelimit = new Ratelimit({
-        redis: Redis.fromEnv(),
-        limiter: Ratelimit.slidingWindow(15, "1 h"), // Increased limit for Pro users
-      })
-      const ip =
-        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-        req.headers.get("x-real-ip") ??
-        "anonymous"
-      const { success, limit, remaining, reset } = await ratelimit.limit(ip)
+    assertServerEnv()
 
-      if (!success) {
-        return NextResponse.json(
-          { error: "Too many requests", limit, remaining, reset },
-          { status: 429 }
-        )
-      }
+    const rate = await rateLimitByIp(req, 15, "1 h")
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests", limit: rate.limit, remaining: rate.remaining, reset: rate.reset },
+        { status: 429 },
+      )
     }
 
     const formData = await req.formData()

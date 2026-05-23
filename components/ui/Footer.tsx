@@ -24,7 +24,7 @@ export default function Footer() {
               words to fight it.
             </p>
             <div className="mt-8">
-              <Link href="/?auth=signup" className="btn btn-primary">
+              <Link href="/login?mode=signup" className="btn btn-primary">
                 Try free
                 <ArrowUpRight className="w-4 h-4" />
               </Link>
@@ -43,8 +43,7 @@ export default function Footer() {
             <FooterCol
               title="Index"
               links={[
-                { label: "Privacy", href: "/" },
-                { label: "30-day delete", href: "/" },
+                { label: "FAQ", href: "/pricing#faq" },
                 { label: "Disclaimer", href: "#disclaimer" },
               ]}
             />

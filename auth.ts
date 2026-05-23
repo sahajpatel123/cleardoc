@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { verifyPassword, validateEmail, validatePassword } from "@/lib/password"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.NEXTAUTH_SECRET,
   trustHost: true,
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -41,10 +42,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
+        token.email = user.email
+      } else if (typeof token.email === "string") {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email.trim().toLowerCase() },
+        })
+        if (dbUser) token.id = dbUser.id
       }
       return token
     },
     async session({ session, token }) {
+      if (session.user?.email) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: session.user.email.trim().toLowerCase() },
+        })
+        if (dbUser) {
+          session.user.id = dbUser.id
+          return session
+        }
+      }
       if (token?.id) {
         session.user.id = token.id as string
       }

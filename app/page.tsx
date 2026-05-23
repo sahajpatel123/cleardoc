@@ -313,9 +313,9 @@ function HomeContent() {
   const scrollToUpload = () =>
     uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!file) return
-    setPendingAnalysis({ file, context })
+    await setPendingAnalysis({ file, context })
     if (!user) {
       router.push(`/login?mode=signup&redirect=${encodeURIComponent("/analyze")}`)
       return
@@ -429,7 +429,7 @@ function HomeContent() {
                   <span className="w-px h-3" style={{ background: "var(--hairline-2)" }} />
                   <span>No card required</span>
                   <span className="w-px h-3 hidden sm:block" style={{ background: "var(--hairline-2)" }} />
-                  <span className="hidden sm:inline">Auto-deleted after 30 days</span>
+                  <span className="hidden sm:inline">Files not stored · only results saved</span>
                 </div>
               </Reveal>
             </div>
@@ -650,7 +650,7 @@ function HomeContent() {
                   </button>
                 </Magnetic>
                 <p className="mono text-[11px]" style={{ color: "var(--text-mute)" }}>
-                  Encrypted · auto-deleted after 30 days · no card required
+                  Encrypted in transit · original files not stored · no card required
                 </p>
               </div>
             </div>
@@ -719,7 +719,7 @@ function HomeContent() {
               { v: 30, suffix: "s", label: "Average time" },
               { v: 18, suffix: "k+", label: "Patterns recognized" },
               { v: 8, suffix: "+", label: "Document categories" },
-              { v: 100, suffix: "%", label: "Private · auto-deleted" },
+              { v: 100, suffix: "%", label: "Private · results only" },
             ].map((s, i) => (
               <Reveal key={i} delay={i * 0.08}>
                 <div

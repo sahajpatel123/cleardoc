@@ -82,15 +82,14 @@ export default function AnalyzePage() {
     if (startedRef.current) return
     startedRef.current = true
 
-    const pending = takePendingAnalysis()
-    if (!pending) {
-      router.replace("/")
-      return
-    }
-
-    (async () => {
-        await runAnalysis(pending.file, pending.context);
-      })()
+    void (async () => {
+      const pending = await takePendingAnalysis()
+      if (!pending) {
+        router.replace("/")
+        return
+      }
+      await runAnalysis(pending.file, pending.context)
+    })()
   }, [authLoading, user, router, runAnalysis])
 
   if (showPricing && !result) {

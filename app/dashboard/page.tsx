@@ -11,11 +11,13 @@ import { parseAnalysisResult } from "@/lib/validate-analysis"
 import { motion, AnimatePresence } from "framer-motion"
 import { Plus, ArrowUpRight, Sparkles } from "lucide-react"
 import { Reveal, Counter } from "@/components/ui/Kinetic"
+import { useBilling } from "@/hooks/useBilling"
 
 function DashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user, profile, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading, refreshProfile } = useAuth()
+  const { openPortal, loading: portalLoading } = useBilling()
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [upgraded, setUpgraded] = useState(false)
@@ -23,8 +25,9 @@ function DashboardContent() {
   useEffect(() => {
     if (searchParams.get("upgraded") === "true") {
       queueMicrotask(() => setUpgraded(true))
+      void refreshProfile()
     }
-  }, [searchParams])
+  }, [searchParams, refreshProfile])
 
   useEffect(() => {
     if (authLoading) return
@@ -92,9 +95,21 @@ function DashboardContent() {
         </AnimatePresence>
 
         <Reveal>
-          <div className="flex items-baseline justify-between mb-10">
+          <div className="flex items-baseline justify-between mb-10 gap-4 flex-wrap">
             <p className="eyebrow">Account · {user?.email}</p>
-            {isPro && <span className="label label-ember">Pro</span>}
+            <div className="flex items-center gap-3">
+              {isPro && <span className="label label-ember">Pro</span>}
+              {isPro && (
+                <button
+                  type="button"
+                  onClick={() => void openPortal()}
+                  disabled={portalLoading}
+                  className="btn btn-ghost !py-2 !px-4 !text-[13px]"
+                >
+                  {portalLoading ? "Opening…" : "Manage subscription"}
+                </button>
+              )}
+            </div>
           </div>
           <h1
             className="display max-w-[18ch] mb-6"
@@ -288,7 +303,7 @@ function DashboardContent() {
 
         {analyses.length > 0 && (
           <p className="mt-12 mono text-[10px] tracking-[0.2em]" style={{ color: "var(--text-mute)" }}>
-            DOCUMENTS RETAINED FOR 30 DAYS · AUTO-DELETED THEREAFTER
+            ANALYSIS RESULTS SAVED TO YOUR ACCOUNT · UPLOADED FILES NOT STORED
           </p>
         )}
       </div>

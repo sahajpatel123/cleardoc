@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
-import { createCheckoutSession } from "@/lib/stripe"
 import { getOrCreateUser } from "@/lib/db"
+import { createBillingPortalSession } from "@/lib/stripe"
 
 export async function POST() {
   try {
@@ -11,19 +11,20 @@ export async function POST() {
     }
 
     const profile = await getOrCreateUser(session.user.id, session.user.email)
+    if (!profile.stripeCustomerId) {
+      return NextResponse.json(
+        { error: "No billing account found. Subscribe to Pro first." },
+        { status: 400 },
+      )
+    }
 
-    const url = await createCheckoutSession({
-      userId: profile.id,
-      userEmail: profile.email,
-      stripeCustomerId: profile.stripeCustomerId ?? undefined,
-    })
-
+    const url = await createBillingPortalSession(profile.stripeCustomerId)
     return NextResponse.json({ url })
   } catch (err) {
-    console.error("[create-checkout]", err)
+    console.error("[stripe/portal]", err)
     return NextResponse.json(
-      { error: "Failed to create checkout session" },
-      { status: 500 }
+      { error: "Failed to open billing portal. Please try again." },
+      { status: 500 },
     )
   }
 }

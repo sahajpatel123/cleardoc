@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getStripe } from "@/lib/stripe"
+import { prisma } from "@/lib/prisma"
 import {
   getUserByStripeCustomerId,
   upgradeUserToPro,
@@ -7,6 +8,8 @@ import {
   cancelSubscriptionForCustomer,
 } from "@/lib/db"
 import Stripe from "stripe"
+
+export const runtime = "nodejs"
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text()
@@ -32,17 +35,33 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session
-        const userId = session.metadata?.userId ?? session.client_reference_id
-        if (!userId) break
+        let userId = session.metadata?.userId ?? session.client_reference_id ?? null
+
+        if (!userId && session.customer_email) {
+          const byEmail = await prisma.user.findUnique({
+            where: { email: session.customer_email.trim().toLowerCase() },
+          })
+          userId = byEmail?.id ?? null
+        }
+
+        if (!userId) {
+          console.error("[webhook] checkout.session.completed: missing userId", session.id)
+          break
+        }
+
+        if (!session.subscription) {
+          console.error("[webhook] checkout.session.completed: missing subscription", session.id)
+          break
+        }
 
         const subscription = await getStripe().subscriptions.retrieve(
-          session.subscription as string
+          session.subscription as string,
         )
 
         await upgradeUserToPro(
           userId,
           session.customer as string,
-          subscription.id
+          subscription.id,
         )
         break
       }

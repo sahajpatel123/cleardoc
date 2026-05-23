@@ -1,10 +1,16 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { hashPassword, validateEmail, validatePassword } from "@/lib/password"
+import { rateLimitByIp } from "@/lib/rate-limit"
 
 export const runtime = "nodejs"
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const rate = await rateLimitByIp(req, 10, "1 h")
+  if (!rate.allowed) {
+    return NextResponse.json({ error: "Too many signup attempts. Try again later." }, { status: 429 })
+  }
+
   let body: unknown
   try {
     body = await req.json()

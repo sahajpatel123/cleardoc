@@ -1,10 +1,10 @@
 import Stripe from "stripe"
+import { assertStripeEnv, getAppUrl } from "@/lib/env"
 
 // Lazy-initialize so a missing env var at module-load time doesn't 404 the route
 export function getStripe(): Stripe {
-  const key = process.env.STRIPE_SECRET_KEY
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not set")
-  return new Stripe(key, { apiVersion: "2026-02-25.clover" })
+  assertStripeEnv()
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" })
 }
 
 export async function createCheckoutSession(params: {
@@ -31,8 +31,8 @@ export async function createCheckoutSession(params: {
         quantity: 1,
       },
     ],
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgraded=true`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
+    success_url: `${getAppUrl()}/dashboard?upgraded=true`,
+    cancel_url: `${getAppUrl()}/pricing`,
     metadata: { userId },
     client_reference_id: userId,
   }
@@ -44,5 +44,15 @@ export async function createCheckoutSession(params: {
   }
 
   const session = await getStripe().checkout.sessions.create(sessionParams)
-  return session.url!
+  if (!session.url) throw new Error("Stripe did not return a checkout URL")
+  return session.url
+}
+
+export async function createBillingPortalSession(stripeCustomerId: string): Promise<string> {
+  const session = await getStripe().billingPortal.sessions.create({
+    customer: stripeCustomerId,
+    return_url: `${getAppUrl()}/dashboard`,
+  })
+  if (!session.url) throw new Error("Stripe did not return a portal URL")
+  return session.url
 }
