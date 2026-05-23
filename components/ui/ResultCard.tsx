@@ -3,43 +3,70 @@ import type { ReactNode } from "react"
 interface Props {
   title: string
   subtitle?: string
-  icon: ReactNode
+  icon?: ReactNode
   accent?: "orange" | "red" | "green" | "blue"
+  number?: string
   children: ReactNode
   className?: string
 }
 
-const accentConfig = {
-  orange: { iconBg: "#FEF0E6", iconColor: "#E8651A", border: "rgba(232,101,26,0.15)" },
-  red:    { iconBg: "#FEF2F2", iconColor: "#DC2626", border: "rgba(220,38,38,0.15)" },
-  green:  { iconBg: "#ECFDF5", iconColor: "#059669", border: "rgba(5,150,105,0.15)" },
-  blue:   { iconBg: "#EFF6FF", iconColor: "#2563EB", border: "rgba(37,99,235,0.15)" },
+const accentMap = {
+  orange: "var(--ember)",
+  red:    "var(--red)",
+  green:  "var(--moss)",
+  blue:   "var(--sky)",
 }
 
-export default function ResultCard({ title, subtitle, icon, accent = "orange", children, className = "" }: Props) {
-  const cfg = accentConfig[accent]
+export default function ResultCard({
+  title,
+  subtitle,
+  accent = "orange",
+  number,
+  children,
+  className = "",
+}: Props) {
+  const accentColor = accentMap[accent]
   return (
-    <div
-      className={`premium-card overflow-hidden ${className}`}
-      style={{ background: "white" }}
+    <section
+      className={`relative ${className}`}
+      style={{ borderTop: "1px solid var(--hairline-2)" }}
     >
-      {/* Card header */}
-      <div className="px-6 pt-6 pb-4 border-b" style={{ borderColor: "#F2EDE6" }}>
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl border flex items-center justify-center"
-            style={{ background: cfg.iconBg, borderColor: cfg.border, color: cfg.iconColor }}>
-            {icon}
-          </div>
-          <div>
-            <h3 className="font-bold text-base" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
+      {/* Top tick accent */}
+      <div
+        className="absolute top-[-1px] left-0 h-px"
+        style={{ width: 72, background: accentColor }}
+      />
+
+      <div className="py-10 sm:py-12">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-10 mb-8">
+          <div className="md:col-span-3">
+            {number && (
+              <p
+                className="mono text-[10px] tracking-[0.22em]"
+                style={{ color: "var(--text-mute)" }}
+              >
+                {number}
+              </p>
+            )}
+            <h3
+              className="display mt-3"
+              style={{
+                fontSize: "clamp(1.4rem, 2.4vw, 2rem)",
+                color: "var(--text)",
+              }}
+            >
               {title}
             </h3>
-            {subtitle && <p className="text-xs mt-0.5" style={{ color: "#A89484" }}>{subtitle}</p>}
+            {subtitle && (
+              <p className="mt-2 text-xs" style={{ color: "var(--text-3)" }}>
+                {subtitle}
+              </p>
+            )}
           </div>
+
+          <div className="md:col-span-9">{children}</div>
         </div>
       </div>
-      {/* Card body */}
-      <div className="px-6 py-5">{children}</div>
-    </div>
+    </section>
   )
 }

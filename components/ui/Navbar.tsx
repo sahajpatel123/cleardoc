@@ -1,19 +1,27 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Shield, LogOut, LayoutDashboard, Zap, Menu, X } from "lucide-react"
+import { Menu, X } from "lucide-react"
+
+const LINKS: { href: string; label: string }[] = [
+  { href: "/", label: "Index" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/dashboard", label: "Account" },
+]
 
 export default function Navbar() {
+  const pathname = usePathname()
   const { user, profile, signOut } = useAuth()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20)
+    const onScroll = () => setScrolled(window.scrollY > 16)
     window.addEventListener("scroll", onScroll, { passive: true })
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
@@ -27,103 +35,190 @@ export default function Navbar() {
 
   return (
     <>
-      <motion.nav
-        initial={{ y: -100, opacity: 0 }}
+      <motion.div
+        initial={{ y: -40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled
-            ? "backdrop-blur-xl border-b shadow-sm"
-            : "border-b"
-        }`}
-        style={{
-          background: scrolled ? "rgba(250,250,248,0.92)" : "rgba(250,250,248,0.85)",
-          borderColor: "#E8E2D9",
-        }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed top-0 left-0 right-0 z-50"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <motion.div
-                whileHover={{ rotate: 10, scale: 1.1 }}
-                transition={{ type: "spring", stiffness: 400 }}
-                className="w-8 h-8 rounded-lg flex items-center justify-center shadow-sm"
-                style={{ background: "#E8651A" }}
-              >
-                <Shield className="w-4 h-4 text-white" />
-              </motion.div>
-              <span className="font-black text-lg" style={{ fontFamily: "var(--font-syne,'Syne',sans-serif)", color: "#18130E" }}>
-                Clear<span style={{ color: "#E8651A" }}>Doc</span>
-              </span>
-            </Link>
-
-            {/* Desktop */}
-            <div className="hidden md:flex items-center gap-8">
-              <Link href="/pricing" className="text-sm font-medium transition-colors" style={{ color: "#6B5E52" }}>
-                Pricing
+        <div
+          className="transition-all duration-500"
+          style={{
+            background: scrolled ? "rgba(5,5,5,0.78)" : "transparent",
+            backdropFilter: scrolled ? "blur(18px) saturate(140%)" : "none",
+            WebkitBackdropFilter: scrolled ? "blur(18px) saturate(140%)" : "none",
+            borderBottom: scrolled ? "1px solid var(--hairline)" : "1px solid transparent",
+          }}
+        >
+          <div className="container-edition">
+            <div className="flex items-center justify-between h-16">
+              {/* Wordmark */}
+              <Link href="/" className="flex items-baseline gap-2 group">
+                <span
+                  className="text-base tracking-tight"
+                  style={{
+                    fontFamily: "var(--font-syne,'Syne',sans-serif)",
+                    color: "var(--text)",
+                    fontWeight: 600,
+                    letterSpacing: "-0.04em",
+                  }}
+                >
+                  ClearDoc
+                </span>
+                <span className="mono text-[10px]" style={{ color: "var(--text-mute)" }}>
+                  / read what they really sent.
+                </span>
               </Link>
-              {user ? (
-                <div className="flex items-center gap-4">
-                  {profile?.plan === "pro" && (
-                    <motion.span initial={{ scale: 0.8 }} animate={{ scale: 1 }}
-                      className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-semibold tag-orange">
-                      <Zap className="w-3 h-3" /> Pro
-                    </motion.span>
-                  )}
-                  <Link href="/dashboard" className="flex items-center gap-1.5 text-sm font-medium transition-colors" style={{ color: "#6B5E52" }}>
-                    <LayoutDashboard className="w-4 h-4" /> Dashboard
-                  </Link>
-                  <button onClick={handleSignOut} disabled={signingOut}
-                    className="flex items-center gap-1.5 text-sm transition-colors" style={{ color: "#A89484" }}>
-                    <LogOut className="w-4 h-4" /> {signingOut ? "..." : "Sign out"}
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <Link href="/?auth=signin" className="text-sm font-medium transition-colors" style={{ color: "#6B5E52" }}>
-                    Sign in
-                  </Link>
-                  <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                    <Link href="/?auth=signup" className="btn-primary !py-2.5 !px-5 !text-sm">
-                      Get started free
-                    </Link>
-                  </motion.div>
-                </div>
-              )}
-            </div>
 
-            {/* Mobile toggle */}
-            <button className="md:hidden p-2 rounded-lg transition-colors" style={{ color: "#18130E" }}
-              onClick={() => setMobileOpen(!mobileOpen)}>
-              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+              {/* Desktop links */}
+              <div className="hidden md:flex items-center gap-1">
+                {LINKS.map((l) => {
+                  const active = pathname === l.href
+                  return (
+                    <Link
+                      key={l.href}
+                      href={l.href}
+                      className="relative px-3.5 py-1.5 group"
+                    >
+                      <span
+                        className="relative z-10 text-sm transition-colors"
+                        style={{ color: active ? "var(--text)" : "var(--text-3)" }}
+                      >
+                        {l.label}
+                      </span>
+                      {active && (
+                        <motion.span
+                          layoutId="nav-underline"
+                          transition={{ type: "spring", stiffness: 320, damping: 28 }}
+                          className="absolute left-3.5 right-3.5 -bottom-0.5 h-px"
+                          style={{ background: "var(--ember)" }}
+                        />
+                      )}
+                    </Link>
+                  )
+                })}
+              </div>
+
+              {/* Right side */}
+              <div className="hidden md:flex items-center gap-4">
+                {user ? (
+                  <>
+                    {profile?.plan === "pro" && (
+                      <span className="label label-ember">Pro</span>
+                    )}
+                    <button
+                      onClick={handleSignOut}
+                      disabled={signingOut}
+                      className="text-sm transition-colors"
+                      style={{ color: "var(--text-3)" }}
+                    >
+                      {signingOut ? "..." : "Sign out"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/?auth=signin"
+                      className="text-sm transition-colors"
+                      style={{ color: "var(--text-3)" }}
+                    >
+                      Sign in
+                    </Link>
+                    <Link href="/?auth=signup" className="btn btn-primary !py-2 !px-4 !text-[13px]">
+                      Try free
+                    </Link>
+                  </>
+                )}
+              </div>
+
+              {/* Mobile toggle */}
+              <button
+                className="md:hidden p-2"
+                style={{ color: "var(--text)" }}
+                onClick={() => setMobileOpen(!mobileOpen)}
+                aria-label="Menu"
+              >
+                {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
         </div>
-      </motion.nav>
+      </motion.div>
 
       {/* Mobile menu */}
       <AnimatePresence>
         {mobileOpen && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}
-            className="fixed top-16 left-0 right-0 z-40 bg-white shadow-lg md:hidden"
-            style={{ borderBottom: "1px solid #E8E2D9" }}>
-            <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3">
-              <Link href="/pricing" className="py-2 text-sm font-medium" style={{ color: "#6B5E52" }} onClick={() => setMobileOpen(false)}>Pricing</Link>
-              {user ? (
-                <>
-                  <Link href="/dashboard" className="py-2 text-sm font-medium" style={{ color: "#6B5E52" }} onClick={() => setMobileOpen(false)}>Dashboard</Link>
-                  <button onClick={handleSignOut} className="py-2 text-sm text-left" style={{ color: "#DC2626" }}>{signingOut ? "Signing out..." : "Sign out"}</button>
-                </>
-              ) : (
-                <>
-                  <Link href="/?auth=signin" className="py-2 text-sm font-medium" style={{ color: "#6B5E52" }} onClick={() => setMobileOpen(false)}>Sign in</Link>
-                  <Link href="/?auth=signup" className="btn-primary justify-center text-sm" onClick={() => setMobileOpen(false)}>Get started free</Link>
-                </>
-              )}
-            </div>
-          </motion.div>
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 md:hidden"
+              style={{ background: "rgba(5,5,5,0.92)", backdropFilter: "blur(20px)" }}
+              onClick={() => setMobileOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="fixed top-16 left-0 right-0 z-50 md:hidden"
+              style={{ background: "var(--ink)", borderBottom: "1px solid var(--hairline)" }}
+            >
+              <div className="container-edition py-8">
+                {LINKS.map((l, i) => (
+                  <motion.div
+                    key={l.href}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                  >
+                    <Link
+                      href={l.href}
+                      className="block py-4 text-2xl"
+                      style={{
+                        color: pathname === l.href ? "var(--text)" : "var(--text-2)",
+                        fontFamily: "var(--font-syne,'Syne',sans-serif)",
+                        fontWeight: 500,
+                        letterSpacing: "-0.03em",
+                      }}
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {l.label}
+                    </Link>
+                  </motion.div>
+                ))}
+                <div className="hairline mt-4 mb-6" />
+                {user ? (
+                  <button
+                    onClick={handleSignOut}
+                    className="text-sm"
+                    style={{ color: "var(--red)" }}
+                  >
+                    {signingOut ? "Signing out..." : "Sign out"}
+                  </button>
+                ) : (
+                  <>
+                    <Link
+                      href="/?auth=signin"
+                      className="block py-2 text-sm"
+                      style={{ color: "var(--text-3)" }}
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Sign in
+                    </Link>
+                    <Link
+                      href="/?auth=signup"
+                      className="btn btn-primary mt-4"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Try free
+                    </Link>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </>

@@ -4,19 +4,9 @@ import { useState } from "react"
 import { useAuth } from "@/context/AuthContext"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import {
-  Shield,
-  Check,
-  Zap,
-  FileText,
-  AlertTriangle,
-  Mail,
-  ArrowRight,
-  ChevronRight,
-  Sparkles,
-  X,
-} from "lucide-react"
+import { Check, ArrowRight, ChevronDown, ArrowUpRight, X } from "lucide-react"
 import AuthModal from "@/components/ui/AuthModal"
+import { Reveal, Magnetic } from "@/components/ui/Kinetic"
 
 const FREE_FEATURES = [
   "1 document analysis",
@@ -59,75 +49,18 @@ const FAQ = [
   },
 ]
 
-const FEATURES_DETAIL = [
-  {
-    icon: FileText,
-    title: "Plain English Summary",
-    desc: "What the document actually says, explained like a friend would.",
-    accent: "orange",
-  },
-  {
-    icon: AlertTriangle,
-    title: "Red Flag Detection",
-    desc: "Illegal demands, manipulation tactics, and suspicious clauses — named explicitly.",
-    accent: "red",
-  },
-  {
-    icon: Mail,
-    title: "Response Letter",
-    desc: "A formal, assertive letter ready to send — with your details filled in.",
-    accent: "blue",
-  },
-  {
-    icon: ArrowRight,
-    title: "Next Steps",
-    desc: "3-5 ranked actions with free resources and realistic expectations.",
-    accent: "green",
-  },
-]
-
-const accentMap = {
-  orange: { iconBg: "#FEF0E6", iconColor: "#E8651A", border: "rgba(232,101,26,0.2)", glow: "rgba(232,101,26,0.08)" },
-  red:    { iconBg: "#FEF2F2", iconColor: "#DC2626", border: "rgba(220,38,38,0.2)",  glow: "rgba(220,38,38,0.06)" },
-  blue:   { iconBg: "#EFF6FF", iconColor: "#2563EB", border: "rgba(37,99,235,0.2)",  glow: "rgba(37,99,235,0.06)" },
-  green:  { iconBg: "#ECFDF5", iconColor: "#059669", border: "rgba(5,150,105,0.2)",  glow: "rgba(5,150,105,0.06)" },
-}
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 24 },
-  show: (i: number) => ({
-    opacity: 1, y: 0,
-    transition: { duration: 0.5, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
-  }),
-}
-
-function InView({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
-    >
-      {children}
-    </motion.div>
-  )
-}
-
 export default function PricingPage() {
   const router = useRouter()
   const { user, profile } = useAuth()
   const [loading, setLoading] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
-  const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [openFaq, setOpenFaq] = useState<number | null>(0)
 
   const handleUpgrade = async () => {
     if (!user) { setShowAuth(true); return }
     setLoading(true)
     try {
-      const res = await fetch("/api/stripe/create-checkout", {
-        method: "POST",
-      })
+      const res = await fetch("/api/stripe/create-checkout", { method: "POST" })
       const data = await res.json()
       if (data.url) window.location.href = data.url
     } catch {
@@ -140,244 +73,287 @@ export default function PricingPage() {
   const isPro = profile?.plan === "pro"
 
   return (
-    <div style={{ background: "#FAFAF8", minHeight: "100vh" }}>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-
-        {/* Header */}
-        <InView>
-          <div className="text-center mb-16">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1, type: "spring", stiffness: 300 }}
-              className="inline-flex items-center gap-2 rounded-full px-4 py-2 mb-6 border"
-              style={{ background: "#FEF0E6", borderColor: "rgba(232,101,26,0.25)", color: "#E8651A" }}>
-              <Shield className="w-3.5 h-3.5" />
-              <span className="text-xs font-bold tracking-wide">Simple, honest pricing</span>
-            </motion.div>
-            <h1 className="text-4xl sm:text-5xl font-black mb-4 leading-tight"
-              style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
-              Everyone deserves someone{" "}
-              <span className="gradient-text">smart in their corner</span>
-            </h1>
-            <p className="text-lg max-w-xl mx-auto" style={{ color: "#6B5E52" }}>
-              Start free. Upgrade when you need more.
+    <div className="min-h-screen pt-28 pb-32">
+      <div className="container-edition">
+        {/* Hero */}
+        <Reveal>
+          <div className="flex items-baseline justify-between mb-10">
+            <p className="eyebrow">Pricing · honest</p>
+            <p className="mono text-[10px]" style={{ color: "var(--text-mute)" }}>
+              CHAPTER 02 · INVESTMENT
             </p>
           </div>
-        </InView>
+        </Reveal>
 
-        {/* Pricing cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-20 max-w-3xl mx-auto">
+        <Reveal delay={0.1}>
+          <h1
+            className="display max-w-[20ch] mb-8"
+            style={{ fontSize: "clamp(2.6rem, 8vw, 7rem)", color: "var(--text)" }}
+          >
+            <span>Everyone deserves </span>
+            <span className="serif-italic" style={{ color: "var(--ember)" }}>
+              someone smart
+            </span>
+            <span> in their corner.</span>
+          </h1>
+        </Reveal>
+
+        <Reveal delay={0.2}>
+          <p className="max-w-md text-base mt-8" style={{ color: "var(--text-3)" }}>
+            Start free. Upgrade when you need more than one document a month.
+          </p>
+        </Reveal>
+
+        {/* Pricing — two columns side by side, hairlines only */}
+        <div className="mt-24 grid grid-cols-1 md:grid-cols-2 border-t" style={{ borderColor: "var(--hairline-2)" }}>
           {/* Free */}
-          <motion.div custom={0} variants={cardVariants} initial="hidden" whileInView="show"
-            viewport={{ once: true }}
-            whileHover={{ y: -4, boxShadow: "0 16px 40px rgba(24,19,14,0.08)" }}
-            className="premium-card p-6 flex flex-col">
-            <div className="mb-6">
-              <p className="section-label mb-2">Free forever</p>
-              <div className="flex items-end gap-1">
-                <span className="text-5xl font-black" style={{ color: "#18130E" }}>$0</span>
-                <span className="mb-2 text-sm" style={{ color: "#A89484" }}>/month</span>
+          <Reveal>
+            <div
+              className="p-8 sm:p-12 md:border-r"
+              style={{ borderColor: "var(--hairline-2)", minHeight: 480 }}
+            >
+              <div className="flex items-baseline justify-between mb-2">
+                <p className="eyebrow !ml-0" style={{ color: "var(--text-3)" }}>
+                  Plan I
+                </p>
               </div>
-              <p className="text-xs mt-1" style={{ color: "#A89484" }}>No credit card required</p>
+              <h3
+                className="display mt-4 mb-8"
+                style={{ fontSize: "clamp(2rem, 4vw, 3.5rem)", color: "var(--text)" }}
+              >
+                Free
+              </h3>
+              <div className="flex items-baseline gap-1 mb-2">
+                <span
+                  className="display"
+                  style={{
+                    fontSize: "clamp(2.6rem, 5vw, 4rem)",
+                    color: "var(--text-3)",
+                  }}
+                >
+                  $0
+                </span>
+                <span className="mono text-[11px]" style={{ color: "var(--text-mute)" }}>
+                  /month
+                </span>
+              </div>
+              <p className="mono text-[10px] mb-10" style={{ color: "var(--text-mute)" }}>
+                NO CARD REQUIRED
+              </p>
+
+              <div className="hairline-fade mb-8" />
+
+              <ul className="space-y-4 mb-12">
+                {FREE_FEATURES.map((f, i) => (
+                  <motion.li
+                    key={f}
+                    initial={{ opacity: 0, x: -8 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.1 + i * 0.05 }}
+                    className="flex items-center gap-3 text-sm"
+                    style={{ color: "var(--text-2)" }}
+                  >
+                    <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--text-3)" }} />
+                    {f}
+                  </motion.li>
+                ))}
+              </ul>
+
+              <button onClick={() => router.push("/")} className="btn btn-ghost w-full justify-center">
+                Get started
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
-
-            <ul className="space-y-3 mb-6 flex-1">
-              {FREE_FEATURES.map((f, i) => (
-                <motion.li key={f} initial={{ opacity: 0, x: -8 }} whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }} transition={{ delay: 0.1 + i * 0.05 }}
-                  className="flex items-center gap-2.5 text-sm" style={{ color: "#4A3F35" }}>
-                  <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 border"
-                    style={{ background: "#F2EDE6", borderColor: "#E8E2D9" }}>
-                    <Check className="w-2.5 h-2.5" style={{ color: "#A89484" }} />
-                  </div>
-                  {f}
-                </motion.li>
-              ))}
-            </ul>
-
-            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-              onClick={() => router.push("/")}
-              className="w-full border py-3 rounded-2xl text-sm font-semibold transition-all"
-              style={{ borderColor: "#E8E2D9", color: "#4A3F35", background: "white" }}>
-              Get started free
-            </motion.button>
-          </motion.div>
+          </Reveal>
 
           {/* Pro */}
-          <motion.div custom={1} variants={cardVariants} initial="hidden" whileInView="show"
-            viewport={{ once: true }}
-            whileHover={{ y: -4, boxShadow: "0 20px 50px rgba(232,101,26,0.18)" }}
-            className="relative rounded-2xl border p-6 flex flex-col overflow-hidden"
-            style={{ background: "#FEF0E6", borderColor: "rgba(232,101,26,0.35)" }}>
-            {/* Top accent line */}
-            <div className="absolute top-0 left-0 right-0 h-0.5"
-              style={{ background: "linear-gradient(90deg, transparent, #E8651A, transparent)" }} />
-
-            {/* Most popular badge */}
-            <div className="absolute top-4 right-4">
-              <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.4, type: "spring" }}
-                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border"
-                style={{ background: "#E8651A", color: "white", borderColor: "transparent",
-                  boxShadow: "0 2px 10px rgba(232,101,26,0.4)" }}>
-                <Sparkles className="w-3 h-3" /> POPULAR
-              </motion.div>
-            </div>
-
-            <div className="mb-6">
-              <p className="section-label mb-2" style={{ color: "#C4530F" }}>Pro plan</p>
-              <div className="flex items-end gap-1">
-                <span className="text-5xl font-black" style={{ color: "#18130E" }}>$9</span>
-                <span className="mb-2 text-sm" style={{ color: "#A89484" }}>/month</span>
+          <Reveal delay={0.08}>
+            <div className="p-8 sm:p-12 relative" style={{ minHeight: 480 }}>
+              {/* Top ember accent */}
+              <div
+                className="absolute top-[-1px] left-0 right-0 h-px"
+                style={{ background: "var(--ember)" }}
+              />
+              <div className="flex items-baseline justify-between mb-2">
+                <p className="eyebrow !ml-0" style={{ color: "var(--ember)" }}>
+                  Plan II
+                </p>
+                <span className="label label-ember">Recommended</span>
               </div>
-              <p className="text-xs mt-1" style={{ color: "#A89484" }}>Cancel anytime</p>
-            </div>
-
-            <ul className="space-y-3 mb-6 flex-1">
-              {PRO_FEATURES.map((f, i) => (
-                <motion.li key={f} initial={{ opacity: 0, x: -8 }} whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }} transition={{ delay: 0.1 + i * 0.05 }}
-                  className="flex items-center gap-2.5 text-sm font-medium" style={{ color: "#18130E" }}>
-                  <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 border"
-                    style={{ background: "rgba(232,101,26,0.15)", borderColor: "rgba(232,101,26,0.3)" }}>
-                    <Check className="w-2.5 h-2.5" style={{ color: "#E8651A" }} />
-                  </div>
-                  {f}
-                </motion.li>
-              ))}
-            </ul>
-
-            {isPro ? (
-              <div className="w-full rounded-2xl py-3 text-sm font-bold text-center border"
-                style={{ background: "#ECFDF5", borderColor: "rgba(5,150,105,0.3)", color: "#059669" }}>
-                ✓ You&apos;re on Pro
+              <h3
+                className="display mt-4 mb-8"
+                style={{ fontSize: "clamp(2rem, 4vw, 3.5rem)", color: "var(--text)" }}
+              >
+                Pro
+              </h3>
+              <div className="flex items-baseline gap-1 mb-2">
+                <span
+                  className="display"
+                  style={{
+                    fontSize: "clamp(2.6rem, 5vw, 4rem)",
+                    color: "var(--text)",
+                  }}
+                >
+                  $9
+                </span>
+                <span className="mono text-[11px]" style={{ color: "var(--text-mute)" }}>
+                  /month
+                </span>
               </div>
-            ) : (
-              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                onClick={handleUpgrade} disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold transition-all disabled:opacity-60"
-                style={{ background: "#E8651A", color: "white",
-                  boxShadow: "0 6px 20px rgba(232,101,26,0.4)" }}>
-                <Zap className="w-4 h-4" />
-                {loading ? "Loading..." : "Upgrade to Pro"}
-                {!loading && <ArrowRight className="w-4 h-4" />}
-              </motion.button>
-            )}
-          </motion.div>
+              <p className="mono text-[10px] mb-10" style={{ color: "var(--text-mute)" }}>
+                CANCEL ANYTIME
+              </p>
+
+              <div className="hairline-fade mb-8" />
+
+              <ul className="space-y-4 mb-12">
+                {PRO_FEATURES.map((f, i) => (
+                  <motion.li
+                    key={f}
+                    initial={{ opacity: 0, x: -8 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.1 + i * 0.05 }}
+                    className="flex items-center gap-3 text-sm"
+                    style={{ color: "var(--text-2)" }}
+                  >
+                    <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--ember)" }} />
+                    {f}
+                  </motion.li>
+                ))}
+              </ul>
+
+              {isPro ? (
+                <div
+                  className="w-full py-3 text-center text-sm rounded-full"
+                  style={{
+                    background: "rgba(107,175,138,0.06)",
+                    border: "1px solid rgba(107,175,138,0.30)",
+                    color: "var(--moss)",
+                  }}
+                >
+                  ✓ You&apos;re on Pro
+                </div>
+              ) : (
+                <Magnetic strength={6}>
+                  <button
+                    onClick={handleUpgrade}
+                    disabled={loading}
+                    className="btn btn-primary w-full justify-center"
+                  >
+                    {loading ? "Loading..." : "Upgrade to Pro"}
+                    {!loading && <ArrowRight className="w-4 h-4" />}
+                  </button>
+                </Magnetic>
+              )}
+            </div>
+          </Reveal>
         </div>
 
-        {/* What you get */}
-        <InView>
-          <div className="mb-20">
-            <div className="text-center mb-10">
-              <p className="section-label mb-2">Every analysis includes</p>
-              <h2 className="text-2xl sm:text-3xl font-black" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
-                What you get with every analysis
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {FEATURES_DETAIL.map(({ icon: Icon, title, desc, accent }, i) => {
-                const cfg = accentMap[accent as keyof typeof accentMap]
-                return (
-                  <motion.div key={title}
-                    custom={i} variants={cardVariants} initial="hidden" whileInView="show"
-                    viewport={{ once: true }}
-                    whileHover={{ y: -4, boxShadow: `0 16px 40px ${cfg.glow}` }}
-                    className="premium-card p-5 cursor-default transition-all"
-                  >
-                    <div className="w-10 h-10 rounded-xl border flex items-center justify-center mb-4"
-                      style={{ background: cfg.iconBg, borderColor: cfg.border }}>
-                      <Icon className="w-4.5 h-4.5" style={{ color: cfg.iconColor }} />
-                    </div>
-                    <h3 className="font-bold text-sm mb-1.5" style={{ color: "#18130E" }}>{title}</h3>
-                    <p className="text-xs leading-relaxed" style={{ color: "#6B5E52" }}>{desc}</p>
-                  </motion.div>
-                )
-              })}
-            </div>
-          </div>
-        </InView>
-
         {/* FAQ */}
-        <InView>
-          <div className="max-w-2xl mx-auto">
-            <div className="text-center mb-10">
-              <p className="section-label mb-2">Got questions?</p>
-              <h2 className="text-2xl sm:text-3xl font-black" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
-                Frequently asked questions
+        <section className="mt-32">
+          <Reveal>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-16 items-end">
+              <div className="md:col-span-3">
+                <p className="eyebrow">FAQ</p>
+              </div>
+              <h2
+                className="md:col-span-9 display"
+                style={{ fontSize: "clamp(2rem, 5.5vw, 5rem)", color: "var(--text)" }}
+              >
+                Questions, candidly answered.
               </h2>
             </div>
-            <div className="space-y-3">
-              {FAQ.map((item, i) => (
-                <motion.div key={i}
-                  initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }} transition={{ delay: i * 0.06 }}
-                  className="premium-card overflow-hidden">
-                  <motion.button
-                    className="w-full flex items-center justify-between px-5 py-4 text-left"
-                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                    whileTap={{ scale: 0.99 }}
-                  >
-                    <span className="font-semibold text-sm pr-4" style={{ color: "#18130E" }}>{item.q}</span>
-                    <motion.div
-                      animate={{ rotate: openFaq === i ? 90 : 0 }}
-                      transition={{ duration: 0.2 }}>
-                      <ChevronRight className="w-4 h-4 shrink-0" style={{ color: "#A89484" }} />
-                    </motion.div>
-                  </motion.button>
+          </Reveal>
 
-                  <AnimatePresence>
-                    {openFaq === i && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                        style={{ overflow: "hidden" }}>
-                        <div className="px-5 pb-5 pt-0 border-t" style={{ borderColor: "#F2EDE6" }}>
-                          <p className="text-sm leading-relaxed pt-4" style={{ color: "#6B5E52" }}>{item.a}</p>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              ))}
-            </div>
+          <div className="border-t" style={{ borderColor: "var(--hairline-2)" }}>
+            {FAQ.map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.05 }}
+                className="border-b"
+                style={{ borderColor: "var(--hairline-2)" }}
+              >
+                <button
+                  className="w-full flex items-baseline justify-between py-6 text-left gap-6"
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                >
+                  <span className="flex items-baseline gap-5 flex-1">
+                    <span
+                      className="mono text-[10px] tracking-[0.2em] shrink-0"
+                      style={{ color: "var(--text-mute)" }}
+                    >
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span
+                      style={{
+                        color: "var(--text)",
+                        fontFamily: "var(--font-syne,'Syne',sans-serif)",
+                        fontWeight: 500,
+                        letterSpacing: "-0.025em",
+                        fontSize: "clamp(1.1rem, 1.8vw, 1.5rem)",
+                      }}
+                    >
+                      {item.q}
+                    </span>
+                  </span>
+                  <motion.div animate={{ rotate: openFaq === i ? 180 : 0 }} className="shrink-0">
+                    <ChevronDown className="w-4 h-4" style={{ color: "var(--text-3)" }} />
+                  </motion.div>
+                </button>
+                <AnimatePresence>
+                  {openFaq === i && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                      className="overflow-hidden"
+                    >
+                      <div className="pb-8 pl-12 pr-12 max-w-3xl">
+                        <p className="text-base leading-relaxed" style={{ color: "var(--text-3)" }}>
+                          {item.a}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ))}
           </div>
-        </InView>
+        </section>
 
         {/* Bottom CTA */}
-        <InView delay={0.1}>
-          <div className="mt-20 text-center">
-            <motion.div
-              whileHover={{ scale: 1.01 }}
-              className="inline-block rounded-3xl border px-10 py-10 max-w-lg w-full"
-              style={{ background: "white", borderColor: "#E8E2D9",
-                boxShadow: "0 8px 40px rgba(24,19,14,0.06)" }}>
-              <div className="w-14 h-14 rounded-2xl mx-auto mb-5 flex items-center justify-center border"
-                style={{ background: "#FEF0E6", borderColor: "rgba(232,101,26,0.2)" }}>
-                <Shield className="w-7 h-7" style={{ color: "#E8651A" }} />
-              </div>
-              <h3 className="text-2xl font-black mb-2"
-                style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
-                Ready to fight back?
-              </h3>
-              <p className="text-sm mb-6" style={{ color: "#6B5E52" }}>
-                Upload your first document free. No credit card needed.
-              </p>
-              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                onClick={() => router.push("/")}
-                className="btn-primary mx-auto">
-                Analyze a Document <ArrowRight className="w-4 h-4" />
-              </motion.button>
-            </motion.div>
-          </div>
-        </InView>
+        <section className="mt-32">
+          <Reveal>
+            <h2
+              className="display max-w-[18ch] mb-8"
+              style={{ fontSize: "clamp(2.4rem, 7vw, 5.5rem)", color: "var(--text)" }}
+            >
+              <span>Ready to </span>
+              <span className="serif-italic" style={{ color: "var(--ember)" }}>fight back?</span>
+            </h2>
+            <div className="flex items-center gap-4 flex-wrap">
+              <Magnetic strength={6}>
+                <button onClick={() => router.push("/")} className="btn btn-primary">
+                  Analyze a document
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </Magnetic>
+              <span className="mono text-[11px]" style={{ color: "var(--text-mute)" }}>
+                NO CARD REQUIRED · ~30S
+              </span>
+            </div>
+          </Reveal>
 
-        <p className="text-center text-xs mt-12" style={{ color: "#CFC8BE" }}>
-          This is not legal advice. ClearDoc provides general information only.
-        </p>
+          <p className="mt-16 text-xs italic" style={{ color: "var(--text-mute)" }}>
+            This is not legal advice. ClearDoc provides general information only.
+          </p>
+        </section>
       </div>
 
       <AnimatePresence>

@@ -19,9 +19,9 @@ const dmSans = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: "ClearDoc — Fight Back Against Confusing Official Documents",
+  title: "ClearDoc — A second pair of eyes on the document that scares you.",
   description:
-    "Upload any scary official document — insurance denial, legal notice, medical bill, landlord threat — and get plain English, red flags, a response letter, and next steps. Instantly.",
+    "Upload any official document — insurance denial, legal notice, medical bill, landlord threat. Get plain English, red flags, a counter-letter, and ranked next steps in 30 seconds.",
   keywords: [
     "document analysis",
     "insurance denial",
@@ -31,9 +31,9 @@ export const metadata: Metadata = {
     "tenant rights",
   ],
   openGraph: {
-    title: "ClearDoc — They sent you a document. Now fight back.",
+    title: "ClearDoc — A second pair of eyes.",
     description:
-      "AI-powered document analysis for insurance denials, legal notices, medical bills, and more.",
+      "Upload any scary official document. Walk back armed.",
     type: "website",
   },
 }
@@ -47,10 +47,10 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className={`${syne.variable} ${dmSans.variable}`}>
-      <body className="bg-[#0A0A0F] text-white antialiased min-h-screen flex flex-col">
+      <body className="antialiased min-h-screen flex flex-col">
         <Providers session={session}>
           <Navbar />
-          <main className="flex-1 pt-16">{children}</main>
+          <main className="flex-1 relative">{children}</main>
           <Footer />
         </Providers>
       </body>

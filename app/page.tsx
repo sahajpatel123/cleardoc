@@ -2,365 +2,290 @@
 
 import { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
+import {
+  motion, useScroll, useTransform, AnimatePresence, useMotionValueEvent,
+} from "framer-motion"
+import Link from "next/link"
 import UploadZone from "@/components/ui/UploadZone"
 import AuthModal from "@/components/ui/AuthModal"
 import PricingModal from "@/components/ui/PricingModal"
 import { useAuth } from "@/context/AuthContext"
-import {
-  ArrowRight, Shield, FileText, AlertTriangle, Mail,
-  CheckCircle, Star, ChevronDown, Zap, Lock, TrendingUp,
-  XCircle, AlertCircle, Copy, ChevronRight,
-  HeartPulse, Home, Activity, Landmark, Plane, Scale,
-  CreditCard, Building2, Receipt, FileWarning, Car,
-  Clock,
-} from "lucide-react"
+import { ArrowUpRight, ArrowRight, Plus } from "lucide-react"
+import { Grid, Tilt, Vignette } from "@/components/ui/Atmosphere"
+import { Reveal, SplitWords, Counter, Magnetic, Marquee, Word } from "@/components/ui/Kinetic"
 
-const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
+const EASE = [0.16, 1, 0.3, 1] as [number, number, number, number]
 
-const DOC_TYPES = [
-  "insurance denial", "medical bill", "eviction notice",
-  "IRS letter", "visa rejection", "debt collection", "legal threat", "bank dispute",
+const USE_CASES = [
+  "Insurance denials",
+  "Eviction notices",
+  "Medical bills",
+  "IRS letters",
+  "Visa rejections",
+  "Debt collection",
+  "Landlord ultimatums",
+  "Bank disputes",
+  "Contract traps",
+  "Consumer rights",
+  "Billing errors",
+  "Legal threats",
 ]
 
-const FEATURES = [
-  { icon: FileText,    color: "#E8651A", bg: "#FEF0E6", title: "Plain English",     desc: "Every clause, demand, and legal term explained like a friend would — zero jargon.",                                                 tag: "Instant clarity" },
-  { icon: AlertTriangle, color: "#DC2626", bg: "#FEF2F2", title: "Red Flag Detection", desc: "Illegal demands, manipulation tactics, and bluffs flagged with the exact sentence that triggered each.",                     tag: "AI-powered"      },
-  { icon: Mail,        color: "#2563EB", bg: "#EFF6FF", title: "Response Letter",   desc: "A firm, formal, ready-to-send letter referencing specific clauses and amounts from your document.",                             tag: "Copy & send"     },
-  { icon: TrendingUp,  color: "#059669", bg: "#ECFDF5", title: "Ranked Next Steps", desc: "3–5 concrete actions ranked by success likelihood, with free resources like legal aid.",                                       tag: "Actionable"      },
+const ROTATING = [
+  "insurance denial",
+  "eviction notice",
+  "medical bill",
+  "IRS letter",
+  "visa rejection",
+  "debt collection threat",
+  "landlord ultimatum",
+]
+
+const PROMISE = [
+  {
+    n: "I",
+    title: "Plain English",
+    body: "Every clause, demand, and Latin phrase — explained like a friend at your kitchen table. No jargon, no hedging.",
+  },
+  {
+    n: "II",
+    title: "Red flags, named",
+    body: "Illegal demands, manipulation, and bluffs flagged with the exact sentence that triggered each one.",
+  },
+  {
+    n: "III",
+    title: "A counter-letter",
+    body: "A firm, formal reply quoting the relevant statutes back at them. Print, sign, send.",
+  },
+  {
+    n: "IV",
+    title: "Your next moves",
+    body: "Three to five concrete actions, ranked by likelihood of working — with free resources you can call today.",
+  },
 ]
 
 const STEPS = [
-  { n: "01", title: "Upload your document",  desc: "PDF, PNG, or JPG — any official document up to 10MB." },
-  { n: "02", title: "Add optional context",  desc: "A sentence about the situation helps our AI focus on what matters most." },
-  { n: "03", title: "Get your full analysis",desc: "Plain English, red flags, response letter, and next steps in under 30 seconds." },
+  { n: "01", title: "Upload", body: "PDF, PNG, or JPG. Up to 10MB." },
+  { n: "02", title: "Whisper context", body: "One line about the situation, if you want." },
+  { n: "03", title: "Walk back armed", body: "Plain English, red flags, letter, and next steps." },
 ]
 
-const USE_CASES_ROW1 = [
-  { Icon: HeartPulse, color: "#DC2626", bg: "#FEF2F2", label: "Insurance Denials"  },
-  { Icon: Home,       color: "#D97706", bg: "#FFFBEB", label: "Landlord Disputes"  },
-  { Icon: Activity,   color: "#2563EB", bg: "#EFF6FF", label: "Medical Bills"      },
-  { Icon: Landmark,   color: "#E8651A", bg: "#FEF0E6", label: "IRS Letters"        },
-  { Icon: Plane,      color: "#7C3AED", bg: "#F5F3FF", label: "Visa Rejections"    },
-  { Icon: Scale,      color: "#059669", bg: "#ECFDF5", label: "Legal Notices"      },
+const VOICES = [
+  {
+    quote:
+      "It found a clause my landlord was bluffing about and wrote the exact letter that made him back off. I read it three times before I sent it.",
+    name: "Mariana R.",
+    tag: "Eviction notice",
+  },
+  {
+    quote:
+      "My insurance denial said 'final.' ClearDoc surfaced the appeal window and drafted my response in two minutes. Coverage approved.",
+    name: "Jordan K.",
+    tag: "Insurance denial",
+  },
+  {
+    quote:
+      "I thought the medical bill was non-negotiable. The analysis caught a duplicate charge and a missing itemization request. Saved $2,140.",
+    name: "Priya S.",
+    tag: "Medical bill",
+  },
 ]
 
-const USE_CASES_ROW2 = [
-  { Icon: CreditCard,  color: "#DC2626", bg: "#FEF2F2", label: "Debt Collection"    },
-  { Icon: Building2,   color: "#2563EB", bg: "#EFF6FF", label: "Bank Disputes"      },
-  { Icon: FileWarning, color: "#D97706", bg: "#FFFBEB", label: "Contract Disputes"  },
-  { Icon: Shield,      color: "#059669", bg: "#ECFDF5", label: "Consumer Rights"    },
-  { Icon: Receipt,     color: "#E8651A", bg: "#FEF0E6", label: "Billing Errors"     },
-  { Icon: Car,         color: "#7C3AED", bg: "#F5F3FF", label: "Auto Claims"        },
+/* ────────────────────────────────────────────────────────────────────────
+ * Document Demo — the centerpiece interactive moment.
+ * A printed letter is read in real time. As you scroll, the AI underlines
+ * each line and writes a plain-English margin note next to it.
+ * ──────────────────────────────────────────────────────────────────────── */
+const DOC_LINES: { text: string; note?: { label: "Threat" | "Bluff" | "Illegal" | "Procedural"; body: string } }[] = [
+  { text: "Re: Notice to Quit" },
+  { text: "Date: 12 October 2026" },
+  { text: "" },
+  { text: "Dear Tenant," },
+  {
+    text:
+      "You are hereby commanded to vacate the premises within seventy-two (72) hours of receipt of this notice.",
+    note: { label: "Illegal", body: "Your state requires a minimum 30-day written notice. 72 hours is not enforceable." },
+  },
+  {
+    text:
+      "Failure to comply will result in immediate eviction proceedings and forfeiture of your security deposit.",
+    note: { label: "Bluff", body: "A landlord cannot keep your security deposit as a forfeiture penalty. State law caps deductions to documented damages." },
+  },
+  {
+    text:
+      "Late fees shall accrue at fifteen percent (15%) per day, compounding, until full vacancy is achieved.",
+    note: { label: "Illegal", body: "Statute caps late fees at 5% per month — not 15% per day. This clause is unenforceable." },
+  },
+  { text: "This notice is issued under authority granted by the lease executed January 1, 2024." },
+  {
+    text: "Signed this day of October by the undersigned landlord.",
+    note: { label: "Procedural", body: "Notice lacks notarization and a specific date — both required in your jurisdiction." },
+  },
 ]
 
-function InView({ children, className = "", delay = 0 }: {
-  children: React.ReactNode; className?: string; delay?: number
-}) {
+function DocumentReader() {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start start", "end end"],
+  })
+  const [active, setActive] = useState(-1)
+
+  const annotatedIndices = DOC_LINES.map((l, i) => (l.note ? i : -1)).filter((i) => i >= 0)
+
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    // 6 sticky frames: -1, then each annotated index in order
+    const frame = Math.min(annotatedIndices.length, Math.floor(v * (annotatedIndices.length + 1)))
+    const next = frame === 0 ? -1 : annotatedIndices[frame - 1]
+    setActive(next)
+  })
+
+  const activeNote = active >= 0 ? DOC_LINES[active]?.note : undefined
+
   return (
-    <motion.div className={className}
-      initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.6, delay, ease: EASE }}>
-      {children}
-    </motion.div>
-  )
-}
-
-/* ─── Premium Analysis Preview ──────────────────────────────────────────── */
-function AnalysisPreview() {
-  const [activeFlag, setActiveFlag] = useState<number | null>(null)
-  const [copied, setCopied] = useState(false)
-
-  const flags = [
-    {
-      sev: "high" as const,
-      issue: "Illegal 72-Hour Vacate Notice",
-      source: '"You must vacate the premises within 72 hours..."',
-      expl: "Your state mandates a minimum 30-day written notice. This notice is unenforceable.",
-    },
-    {
-      sev: "medium" as const,
-      issue: "Missing Notarization Requirement",
-      source: '"...signed this day of October by the undersigned."',
-      expl: "Official eviction notices in this jurisdiction require notarized signatures.",
-    },
-    {
-      sev: "low" as const,
-      issue: "Non-Standard Late Fee Clause",
-      source: '"Late fees accrue at 15% per day after the 1st..."',
-      expl: "Statute caps late fees at 5% per month. This clause is unenforceable as written.",
-    },
-  ]
-
-  const sevCfg = {
-    high:   { Icon: XCircle,      color: "#DC2626", bg: "#FEF2F2", border: "rgba(220,38,38,0.18)",  pill: "#DC2626", label: "HIGH"   },
-    medium: { Icon: AlertCircle,  color: "#D97706", bg: "#FFFBEB", border: "rgba(217,119,6,0.18)",  pill: "#D97706", label: "MED"    },
-    low:    { Icon: AlertTriangle,color: "#2563EB", bg: "#EFF6FF", border: "rgba(37,99,235,0.18)",  pill: "#2563EB", label: "LOW"    },
-  }
-
-  // Auto-cycle active flag for demo animation
-  useEffect(() => {
-    const t = setInterval(() => setActiveFlag(i => i === null ? 0 : (i + 1) % 3), 2200)
-    return () => clearInterval(t)
-  }, [])
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 48, y: 8 }}
-      animate={{ opacity: 1, x: 0, y: 0 }}
-      transition={{ duration: 0.9, delay: 0.4, ease: EASE }}
-      className="relative w-full max-w-[460px] mx-auto lg:mx-0 select-none"
+    <section
+      ref={ref}
+      className="relative"
+      style={{ height: `${(annotatedIndices.length + 1) * 90}vh` }}
     >
-      {/* Ambient glow behind the card */}
-      <div className="absolute -inset-8 rounded-[40px] pointer-events-none"
-        style={{ background: "radial-gradient(ellipse 90% 80% at 55% 50%, rgba(232,101,26,0.15) 0%, transparent 70%)" }} />
-
-      {/* ── Main card ── */}
-      <div className="relative rounded-[28px] overflow-hidden"
-        style={{
-          background: "linear-gradient(135deg, #ffffff 0%, #FEF9F6 100%)",
-          border: "1px solid rgba(24,19,14,0.08)",
-          boxShadow: "0 32px 80px rgba(24,19,14,0.14), 0 8px 24px rgba(24,19,14,0.07), 0 0 0 1px rgba(24,19,14,0.03)",
-        }}>
-
-        {/* ── Top chrome bar ── */}
-        <div className="relative px-4 pt-3 pb-2.5 flex items-center justify-between"
-          style={{ background: "linear-gradient(135deg, #1C1510 0%, #2E1E12 100%)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          {/* Window dots */}
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full" style={{ background: "#FF5F57" }} />
-            <div className="w-3 h-3 rounded-full" style={{ background: "#FEBC2E" }} />
-            <div className="w-3 h-3 rounded-full" style={{ background: "#28C840" }} />
-          </div>
-          {/* File name */}
-          <div className="flex items-center gap-2 absolute left-1/2 -translate-x-1/2">
-            <div className="w-4 h-4 rounded flex items-center justify-center"
-              style={{ background: "rgba(232,101,26,0.3)" }}>
-              <FileText className="w-2.5 h-2.5" style={{ color: "#FF8C42" }} />
-            </div>
-            <span className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
-              eviction-notice.pdf
-            </span>
-          </div>
-          {/* Live badge */}
-          <div className="flex items-center gap-1.5">
-            <motion.div
-              animate={{ opacity: [1, 0.3, 1] }}
-              transition={{ duration: 1.4, repeat: Infinity }}
-              className="w-1.5 h-1.5 rounded-full" style={{ background: "#28C840" }} />
-            <span className="text-[10px] font-semibold" style={{ color: "rgba(255,255,255,0.5)" }}>LIVE</span>
-          </div>
+      <div className="sticky top-0 h-screen flex items-center overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <Grid opacity={0.025} />
         </div>
 
-        {/* ── Verdict banner ── */}
-        <div className="px-4 py-3 border-b"
-          style={{ background: "linear-gradient(135deg, #FFFBEB 0%, #FFF8E1 100%)", borderColor: "rgba(217,119,6,0.15)" }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center"
-                style={{ background: "rgba(217,119,6,0.12)", border: "1px solid rgba(217,119,6,0.2)" }}>
-                <AlertCircle className="w-3.5 h-3.5" style={{ color: "#D97706" }} />
-              </div>
-              <div>
-                <p className="text-xs font-black uppercase tracking-wider" style={{ color: "#D97706" }}>Suspicious Document</p>
-                <p className="text-[10px]" style={{ color: "#92714A" }}>3 issues · likely unenforceable as written</p>
-              </div>
+        <div className="relative z-10 w-full">
+          <div className="container-edition">
+            {/* Section label */}
+            <div className="mb-10 sm:mb-14 flex items-baseline justify-between">
+              <p className="eyebrow">Demonstration · 01</p>
+              <p className="mono text-[10px]" style={{ color: "var(--text-mute)" }}>
+                Scroll to read along
+              </p>
             </div>
-            {/* Score ring */}
-            <div className="relative w-10 h-10">
-              <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
-                <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(217,119,6,0.12)" strokeWidth="3" />
-                <motion.circle cx="18" cy="18" r="14" fill="none" stroke="#D97706" strokeWidth="3"
-                  strokeLinecap="round" strokeDasharray="88"
-                  initial={{ strokeDashoffset: 88 }}
-                  animate={{ strokeDashoffset: 88 * 0.38 }}
-                  transition={{ duration: 1.2, delay: 1.0, ease: EASE }} />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[10px] font-black" style={{ color: "#D97706" }}>62</span>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* ── Red flags ── */}
-        <div className="px-3 py-2.5">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#A89484" }}>Red Flags Detected</p>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-              style={{ background: "#FEF2F2", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
-              3 found
-            </span>
-          </div>
-          <div className="space-y-1.5">
-            {flags.map(({ sev, issue, source, expl }, i) => {
-              const c = sevCfg[sev]
-              const Icon = c.Icon
-              const isActive = activeFlag === i
-              return (
-                <motion.div key={i}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.45, delay: 0.9 + i * 0.12, ease: EASE }}
-                  onHoverStart={() => setActiveFlag(i)}
-                  className="relative rounded-xl border cursor-default overflow-hidden transition-all duration-200"
-                  style={{
-                    background: isActive ? c.bg : "white",
-                    borderColor: isActive ? c.border : "rgba(24,19,14,0.06)",
-                    boxShadow: isActive ? `0 4px 16px ${c.border}` : "none",
-                  }}>
-                  {/* Left severity stripe */}
-                  <div className="absolute left-0 top-0 bottom-0 w-0.5 rounded-l-xl"
-                    style={{ background: c.color }} />
-                  <div className="pl-3.5 pr-2.5 py-2">
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5"
-                        style={{ background: c.bg, border: `1px solid ${c.border}` }}>
-                        <Icon className="w-3 h-3" style={{ color: c.color }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                          <p className="text-xs font-bold" style={{ color: "#18130E" }}>{issue}</p>
-                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded"
-                            style={{ background: c.color, color: "white", letterSpacing: "0.06em" }}>
-                            {c.label}
-                          </span>
-                        </div>
-                        <AnimatePresence>
-                          {isActive && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-start">
+              {/* LEFT: the document */}
+              <div className="lg:col-span-7">
+                <div className="paper rounded-lg p-8 sm:p-12 relative" style={{ boxShadow: "0 40px 120px rgba(0,0,0,0.6)" }}>
+                  <p
+                    className="mono text-[10px] uppercase tracking-[0.3em] mb-8"
+                    style={{ color: "rgba(0,0,0,0.45)" }}
+                  >
+                    Notice to Quit · From the Office of the Landlord
+                  </p>
+                  <div className="space-y-2 sm:space-y-2.5 leading-relaxed">
+                    {DOC_LINES.map((line, i) => {
+                      const isActive = active === i
+                      const isPast = annotatedIndices.indexOf(i) >= 0 && annotatedIndices.indexOf(i) <= annotatedIndices.indexOf(active)
+                      return (
+                        <div key={i} className="relative">
+                          <p
+                            className="text-[13px] sm:text-[15px] transition-colors duration-500"
+                            style={{
+                              color: line.text === "" ? "transparent" : "var(--ink)",
+                              fontFamily: "ui-serif, Georgia, serif",
+                              minHeight: line.text === "" ? 12 : "auto",
+                            }}
+                          >
+                            {line.text || "—"}
+                          </p>
+                          {line.note && (
                             <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}>
-                              <p className="text-[10px] italic mb-1" style={{ color: c.color }}>
-                                {source}
-                              </p>
-                              <p className="text-[10px] leading-relaxed" style={{ color: "#6B5E52" }}>{expl}</p>
-                            </motion.div>
+                              className="absolute left-0 right-0 -bottom-[2px] h-[2px] origin-left"
+                              style={{
+                                background:
+                                  line.note.label === "Illegal"
+                                    ? "var(--red)"
+                                    : line.note.label === "Bluff"
+                                      ? "var(--amber)"
+                                      : line.note.label === "Threat"
+                                        ? "var(--red)"
+                                        : "var(--sky)",
+                              }}
+                              initial={{ scaleX: 0 }}
+                              animate={{ scaleX: isPast ? 1 : 0 }}
+                              transition={{ duration: 0.9, ease: EASE }}
+                            />
                           )}
-                        </AnimatePresence>
-                        {!isActive && (
-                          <p className="text-[10px] truncate" style={{ color: "#A89484" }}>{expl}</p>
-                        )}
-                      </div>
-                    </div>
+                          {isActive && line.note && (
+                            <motion.div
+                              initial={{ opacity: 0, x: -6 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0 }}
+                              className="absolute -left-3 top-0 h-full w-[2px]"
+                              style={{ background: "var(--ember)" }}
+                            />
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </div>
+                </div>
+              </div>
 
-        {/* ── Response letter snippet ── */}
-        <div className="mx-3 mb-2 rounded-xl border overflow-hidden"
-          style={{ borderColor: "rgba(37,99,235,0.15)" }}>
-          <div className="flex items-center justify-between px-3 py-1.5"
-            style={{ background: "#EFF6FF", borderBottom: "1px solid rgba(37,99,235,0.1)" }}>
-            <div className="flex items-center gap-1.5">
-              <Mail className="w-3 h-3" style={{ color: "#2563EB" }} />
-              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#2563EB" }}>
-                Response Letter
-              </p>
-            </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              onClick={() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }}
-              className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg transition-all"
-              style={copied
-                ? { background: "#ECFDF5", color: "#059669" }
-                : { background: "white", color: "#2563EB", border: "1px solid rgba(37,99,235,0.2)" }}>
-              {copied ? <><CheckCircle className="w-2.5 h-2.5" /> Copied!</> : <><Copy className="w-2.5 h-2.5" /> Copy</>}
-            </motion.button>
-          </div>
-          <div className="px-3 py-2" style={{ background: "white" }}>
-            <p className="text-[10px] font-mono leading-relaxed" style={{ color: "#4A3F35" }}>
-              Dear [Landlord Name],{" "}
-              <span style={{ color: "#A89484" }}>I am writing to formally dispute the notice dated October 12, 2024. Per California Civil Code §1946, a minimum of 30 days&apos; written notice is required...</span>
-            </p>
-          </div>
-        </div>
-
-        {/* ── Next steps ── */}
-        <div className="px-3 pb-3">
-          <div className="rounded-xl border overflow-hidden" style={{ borderColor: "rgba(5,150,105,0.15)" }}>
-            <div className="flex items-center gap-2 px-3 py-1.5"
-              style={{ background: "#ECFDF5", borderBottom: "1px solid rgba(5,150,105,0.1)" }}>
-              <CheckCircle className="w-3 h-3" style={{ color: "#059669" }} />
-              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#059669" }}>
-                Your Next Steps
-              </p>
-              <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                style={{ background: "#D1FAE5", color: "#065F46" }}>3 actions</span>
-            </div>
-            <div className="divide-y" style={{ background: "white", borderColor: "rgba(5,150,105,0.08)" }}>
-              {[
-                "Send certified response letter within 5 days",
-                "Contact local tenant rights org for free help",
-                "Document all communication in writing",
-              ].map((step, i) => (
-                <motion.div key={i}
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                  transition={{ delay: 1.4 + i * 0.1 }}
-                  className="flex items-center gap-2.5 px-3 py-1.5">
-                  <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-[9px] font-black"
-                    style={{ background: "#ECFDF5", color: "#059669", border: "1px solid rgba(5,150,105,0.2)" }}>
-                    {i + 1}
-                  </span>
-                  <p className="text-[10px] font-medium flex-1" style={{ color: "#18130E" }}>{step}</p>
-                  <ChevronRight className="w-3 h-3 shrink-0" style={{ color: "#CFC8BE" }} />
-                </motion.div>
-              ))}
+              {/* RIGHT: the margin note */}
+              <div className="lg:col-span-5 lg:sticky lg:top-32">
+                <p className="eyebrow mb-6">
+                  {active >= 0 ? "Margin note" : "Read with us"}
+                </p>
+                <AnimatePresence mode="wait">
+                  {activeNote ? (
+                    <motion.div
+                      key={active}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -16 }}
+                      transition={{ duration: 0.6, ease: EASE }}
+                    >
+                      <span
+                        className={`label ${
+                          activeNote.label === "Illegal" || activeNote.label === "Threat"
+                            ? "label-red"
+                            : activeNote.label === "Bluff"
+                              ? "label-amber"
+                              : "label-sky"
+                        } mb-5`}
+                      >
+                        {activeNote.label}
+                      </span>
+                      <h3
+                        className="display mt-5"
+                        style={{ fontSize: "clamp(1.5rem, 2.5vw, 2.2rem)", color: "var(--text)" }}
+                      >
+                        {activeNote.body}
+                      </h3>
+                      <div className="hairline mt-8 mb-6" />
+                      <p className="text-sm" style={{ color: "var(--text-3)" }}>
+                        Source: <span style={{ color: "var(--text-2)" }} className="italic">&ldquo;{DOC_LINES[active]?.text}&rdquo;</span>
+                      </p>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="intro"
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -16 }}
+                      transition={{ duration: 0.6, ease: EASE }}
+                    >
+                      <h3
+                        className="display"
+                        style={{ fontSize: "clamp(1.5rem, 2.5vw, 2.2rem)", color: "var(--text)" }}
+                      >
+                        A real eviction notice, marked up the way we&apos;d mark it up for you.
+                      </h3>
+                      <div className="hairline mt-8 mb-6" />
+                      <p className="text-sm" style={{ color: "var(--text-3)" }}>
+                        Keep scrolling. Each underline is a place where our AI found something worth flagging.
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* ── Floating badge: Processing time ── */}
-      <motion.div
-        animate={{ y: [0, -7, 0] }}
-        transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -top-4 -right-2 flex items-center gap-2 rounded-2xl px-3 py-2"
-        style={{
-          background: "white",
-          border: "1px solid rgba(24,19,14,0.08)",
-          boxShadow: "0 8px 28px rgba(24,19,14,0.12)",
-        }}>
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg, #FEF0E6, #FFE4CC)" }}>
-          <Clock className="w-3.5 h-3.5" style={{ color: "#E8651A" }} />
-        </div>
-        <div>
-          <p className="text-[11px] font-black" style={{ color: "#18130E" }}>Ready in 12s</p>
-          <div className="flex items-center gap-1 mt-0.5">
-            <motion.div animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 1.2, repeat: Infinity }}
-              className="w-1.5 h-1.5 rounded-full" style={{ background: "#28C840" }} />
-            <p className="text-[10px] font-medium" style={{ color: "#A89484" }}>AI analyzing now</p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* ── Floating badge: Privacy ── */}
-      <motion.div
-        animate={{ y: [0, 6, 0] }}
-        transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
-        className="absolute -bottom-4 -left-2 flex items-center gap-2 rounded-2xl px-3 py-2"
-        style={{
-          background: "white",
-          border: "1px solid rgba(24,19,14,0.08)",
-          boxShadow: "0 8px 28px rgba(24,19,14,0.12)",
-        }}>
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg, #ECFDF5, #D1FAE5)" }}>
-          <Scale className="w-3.5 h-3.5" style={{ color: "#059669" }} />
-        </div>
-        <div>
-          <p className="text-[11px] font-black" style={{ color: "#18130E" }}>100% Private</p>
-          <p className="text-[10px] font-medium" style={{ color: "#A89484" }}>Deleted after 30 days</p>
-        </div>
-      </motion.div>
-    </motion.div>
+    </section>
   )
 }
 
@@ -370,20 +295,21 @@ function HomeContent() {
   const searchParams = useSearchParams()
   const { user, profile } = useAuth()
   const uploadRef = useRef<HTMLDivElement>(null)
+  const heroRef = useRef<HTMLDivElement>(null)
 
   const [file, setFile] = useState<File | null>(null)
   const [context, setContext] = useState("")
   const [showAuth, setShowAuth] = useState(false)
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signup")
   const [showPricing, setShowPricing] = useState(false)
-  const [docTypeIdx, setDocTypeIdx] = useState(0)
+  const [rotIdx, setRotIdx] = useState(0)
   const pendingAnalysis = useRef(false)
 
   const { scrollY } = useScroll()
-  const heroParallax = useTransform(scrollY, [0, 500], [0, -40])
+  const heroY = useTransform(scrollY, [0, 600], [0, -60])
 
   useEffect(() => {
-    const t = setInterval(() => setDocTypeIdx(i => (i + 1) % DOC_TYPES.length), 2600)
+    const t = setInterval(() => setRotIdx((i) => (i + 1) % ROTATING.length), 2400)
     return () => clearInterval(t)
   }, [])
 
@@ -391,364 +317,509 @@ function HomeContent() {
     const p = searchParams.get("auth")
     if (p === "signin" || p === "signup") {
       queueMicrotask(() => {
-        setAuthMode(p);
-        setShowAuth(true);
-      });
+        setAuthMode(p)
+        setShowAuth(true)
+      })
     }
   }, [searchParams])
 
-  const scrollToUpload = () => uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+  const scrollToUpload = () =>
+    uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
 
   const handleAnalyze = async () => {
     if (!file) return
-    if (!user) { pendingAnalysis.current = true; setAuthMode("signup"); setShowAuth(true); return }
-    if (profile && profile.plan !== "pro" && profile.freeUsesRemaining <= 0) { setShowPricing(true); return }
+    if (!user) {
+      pendingAnalysis.current = true
+      setAuthMode("signup")
+      setShowAuth(true)
+      return
+    }
+    if (profile && profile.plan !== "pro" && profile.freeUsesRemaining <= 0) {
+      setShowPricing(true)
+      return
+    }
     const ab = await file.arrayBuffer()
     const u8 = new Uint8Array(ab)
     const b64 = btoa(String.fromCharCode(...Array.from(u8)))
-    sessionStorage.setItem("pendingAnalysis", JSON.stringify({
-      fileName: file.name, fileType: file.type, fileBase64: b64, context
-    }))
+    sessionStorage.setItem(
+      "pendingAnalysis",
+      JSON.stringify({
+        fileName: file.name,
+        fileType: file.type,
+        fileBase64: b64,
+        context,
+      }),
+    )
     router.push("/analyze")
   }
 
   const handleAuthSuccess = () => {
     setShowAuth(false)
-    if (pendingAnalysis.current && file) { pendingAnalysis.current = false; setTimeout(handleAnalyze, 300) }
+    if (pendingAnalysis.current && file) {
+      pendingAnalysis.current = false
+      setTimeout(handleAnalyze, 300)
+    }
   }
 
   return (
-    <div style={{ background: "#FAFAF8", minHeight: "100vh" }}>
-
-      {/* ─── HERO ─────────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center pt-16 pb-4 overflow-hidden">
-        {/* Background blobs */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full"
-            style={{ background: "radial-gradient(circle, rgba(232,101,26,0.07) 0%, transparent 65%)", transform: "translate(25%, -25%)" }} />
-          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full"
-            style={{ background: "radial-gradient(circle, rgba(232,101,26,0.05) 0%, transparent 65%)", transform: "translate(-25%, 25%)" }} />
-          <div className="absolute inset-0 opacity-[0.3]"
-            style={{ backgroundImage: "radial-gradient(circle, rgba(24,19,14,0.07) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+    <div className="relative">
+      {/* ─── HERO ─────────────────────────────────────────────────── */}
+      <section
+        ref={heroRef}
+        className="relative min-h-[92vh] pt-32 sm:pt-40 pb-24 overflow-hidden"
+      >
+        <div className="absolute inset-0 pointer-events-none">
+          <Grid opacity={0.035} />
+          <Vignette />
         </div>
 
-        <motion.div style={{ y: heroParallax }}
-          className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12 items-center">
-
-            {/* LEFT: Copy */}
-            <div className="text-center lg:text-left">
-              {/* Headline */}
-              <motion.h1
-                initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: -8 }}
-                transition={{ duration: 0.9, ease: [0.25, 0.1, 0.25, 1.0] }}
-                className="font-black leading-[1.04] tracking-tight mb-4"
-                style={{ fontSize: "clamp(2.4rem, 5vw, 4.25rem)", fontFamily: "var(--font-syne,'Syne',sans-serif)", color: "#18130E" }}>
-                They sent you a
-                <br />
-                <span className="relative inline-block">
-                  <span className="gradient-text-animated-pulse">confusing document.</span>
-                  <motion.svg
-                    initial={{ pathLength: 0, opacity: 0, scale: 0.8 }}
-                    animate={{ pathLength: 1, opacity: 1, scale: 1.0 }}
-                    transition={{ duration: 1.4, delay: 0.6, ease: [0.25, 0.8, 0.35, 1] }}
-                    className="absolute -bottom-1 left-0 w-full overflow-visible"
-                    viewBox="0 0 340 12" fill="none" preserveAspectRatio="none">
-                    <motion.path d="M2 6 C70 1, 180 1, 248 6 C260 7, 275 8, 290 9 C305 11, 320 10, 338 6"
-                      stroke="#E8651A" strokeWidth="3" strokeLinecap="round" fill="none" pathLength={1} />
-                  </motion.svg>
-                </span>
-                <br />
-                Now fight back with confidence.
-              </motion.h1>
-
-              {/* Sub */}
-              <motion.p
-                initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.15, ease: EASE }}
-                className="text-base leading-relaxed mb-3 max-w-xl"
-                style={{ color: "#6B5E52" }}>
-                Upload any scary official document. Get plain English, red flags,
-                a ready-to-send response letter, and your exact next steps.{" "}
-                <span className="font-bold" style={{ color: "#18130E" }}>Fast-track insight.</span>
-              </motion.p>
-
-              {/* Rotating doc type */}
-              <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-                className="flex items-center gap-2 mb-5 justify-center lg:justify-start h-7 overflow-hidden">
-                <span className="text-sm" style={{ color: "#A89484" }}>Works on:</span>
-                <div className="relative h-7 flex items-center overflow-hidden">
-                  <AnimatePresence mode="wait">
-                    <motion.span key={docTypeIdx}
-                      initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -18, opacity: 0 }}
-                      transition={{ duration: 0.28, ease: EASE }}
-                      className="text-sm font-bold gradient-text block whitespace-nowrap">
-                      {DOC_TYPES[docTypeIdx]}
-                    </motion.span>
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-
-              {/* CTAs */}
-              <motion.div
-                initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.25, ease: EASE }}
-                className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-5">
-                <motion.button whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }}
-                  onClick={scrollToUpload} className="btn-primary text-base">
-                  <Shield className="w-5 h-5" />
-                  Analyze My Document
-                  <ArrowRight className="w-4 h-4" />
-                </motion.button>
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                  onClick={scrollToUpload}
-                  className="flex items-center justify-center gap-2 text-sm font-semibold px-6 py-3.5 rounded-2xl border transition-all"
-                  style={{ borderColor: "#E8E2D9", color: "#4A3F35", background: "white", boxShadow: "0 1px 4px rgba(24,19,14,0.05)" }}>
-                  See how it works <ChevronDown className="w-4 h-4" />
-                </motion.button>
-              </motion.div>
-
-              {/* Trust strip */}
-              <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }}
-                className="flex items-center gap-6 flex-wrap justify-center lg:justify-start">
-                {[
-                  { icon: Lock,  text: "Secure & private" },
-                  { icon: Zap,   text: "30-second results" },
-                  { icon: Star,  text: "Free first analysis" },
-                ].map(({ icon: Icon, text }) => (
-                  <div key={text} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "#A89484" }}>
-                    <Icon className="w-3.5 h-3.5" style={{ color: "#E8651A" }} />
-                    {text}
-                  </div>
-                ))}
-              </motion.div>
-            </div>
-
-            {/* RIGHT: Analysis Preview */}
-            <div className="flex justify-center lg:justify-end">
-              <div className="relative py-7 px-5">
-                <AnalysisPreview />
+        <motion.div
+          style={{ y: heroY }}
+          className="container-edition relative z-10"
+        >
+          {/* Top meta strip */}
+          <Reveal>
+            <div className="flex items-baseline justify-between mb-16 sm:mb-24">
+              <p className="eyebrow">Vol. 01 · The Atelier Edition</p>
+              <div className="hidden sm:flex items-center gap-3 mono text-[10px]" style={{ color: "var(--text-mute)" }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--moss)" }} />
+                LIVE · 2026
               </div>
             </div>
+          </Reveal>
 
-          </div>
-        </motion.div>
+          {/* The big idea */}
+          <h1
+            className="display max-w-[16ch]"
+            style={{
+              fontSize: "clamp(2.6rem, 8vw, 7rem)",
+              color: "var(--text)",
+            }}
+          >
+            <SplitWords text="A second pair of eyes" delay={0.15} />
+            <br />
+            <span style={{ color: "var(--text-3)" }}>
+              <SplitWords text="on the" delay={0.5} />{" "}
+            </span>
+            <Word delay={0.7}>
+              <span className="ember-mark">document</span>
+            </Word>{" "}
+            <Word delay={0.85}>
+              <span className="serif-italic" style={{ color: "var(--text-2)" }}>
+                that
+              </span>
+            </Word>{" "}
+            <Word delay={1.0}>
+              <span className="serif-italic" style={{ color: "var(--text-2)" }}>
+                scares
+              </span>
+            </Word>{" "}
+            <Word delay={1.15}>
+              <span className="serif-italic" style={{ color: "var(--text-2)" }}>
+                you.
+              </span>
+            </Word>
+          </h1>
 
-        <motion.div animate={{ y: [0, 7, 0] }} transition={{ repeat: Infinity, duration: 1.8 }}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
-          <ChevronDown className="w-5 h-5" style={{ color: "#CFC8BE" }} />
-        </motion.div>
-      </section>
-
-      {/* ─── USE CASES MARQUEE ───────────────────────────────────────── */}
-      <section className="py-12 border-y overflow-hidden" style={{ borderColor: "#E8E2D9", background: "white" }}>
-        <InView><p className="section-label text-center mb-8">Used by people fighting</p></InView>
-
-        {/* Row 1 — scrolls left */}
-        <div className="marquee-wrapper relative mb-3 overflow-hidden"
-          style={{ WebkitMaskImage: "linear-gradient(90deg, transparent, black 100px, black calc(100% - 100px), transparent)", maskImage: "linear-gradient(90deg, transparent, black 100px, black calc(100% - 100px), transparent)" }}>
-          <div className="flex gap-3 animate-marquee-left" style={{ width: "max-content" }}>
-            {[...USE_CASES_ROW1, ...USE_CASES_ROW1].map(({ Icon, color, bg, label }, i) => (
-              <div key={i}
-                className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl shrink-0 cursor-default select-none"
-                style={{ background: bg, border: `1px solid ${color}28` }}>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: color + "18" }}>
-                  <Icon className="w-4 h-4" style={{ color }} />
-                </div>
-                <span className="text-sm font-semibold whitespace-nowrap" style={{ color: "#2E261E" }}>{label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Row 2 — scrolls right */}
-        <div className="marquee-wrapper relative overflow-hidden"
-          style={{ WebkitMaskImage: "linear-gradient(90deg, transparent, black 100px, black calc(100% - 100px), transparent)", maskImage: "linear-gradient(90deg, transparent, black 100px, black calc(100% - 100px), transparent)" }}>
-          <div className="flex gap-3 animate-marquee-right" style={{ width: "max-content" }}>
-            {[...USE_CASES_ROW2, ...USE_CASES_ROW2].map(({ Icon, color, bg, label }, i) => (
-              <div key={i}
-                className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl shrink-0 cursor-default select-none"
-                style={{ background: bg, border: `1px solid ${color}28` }}>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: color + "18" }}>
-                  <Icon className="w-4 h-4" style={{ color }} />
-                </div>
-                <span className="text-sm font-semibold whitespace-nowrap" style={{ color: "#2E261E" }}>{label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── HOW IT WORKS ────────────────────────────────────────────── */}
-      <section className="py-24 px-4" style={{ background: "#FAFAF8" }}>
-        <div className="max-w-5xl mx-auto">
-          <InView className="text-center mb-16">
-            <p className="section-label mb-3">Simple process</p>
-            <h2 className="text-4xl sm:text-5xl font-black" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
-              From scared to prepared<br /><span className="gradient-text">in three steps</span>
-            </h2>
-          </InView>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {STEPS.map((s, i) => (
-              <InView key={s.n} delay={i * 0.1}>
-                <motion.div whileHover={{ y: -6 }} transition={{ type: "spring", stiffness: 300 }}
-                  className="premium-card p-7 relative overflow-hidden group cursor-default">
-                  <div className="absolute top-3 right-4 text-7xl font-black select-none"
-                    style={{ color: "#F2EDE6", fontFamily: "var(--font-syne,'Syne',sans-serif)", lineHeight: 1 }}>{s.n}</div>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
-                    style={{ background: "#FEF0E6", border: "1px solid rgba(232,101,26,0.2)" }}>
-                    <span className="text-base font-black" style={{ color: "#E8651A", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>{i + 1}</span>
-                  </div>
-                  <h3 className="text-lg font-bold mb-2" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>{s.title}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: "#6B5E52" }}>{s.desc}</p>
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300"
-                    style={{ background: "linear-gradient(90deg, #E8651A, #FF8C42)" }} />
-                </motion.div>
-              </InView>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── FEATURES ────────────────────────────────────────────────── */}
-      <section className="py-24 px-4" style={{ background: "white" }}>
-        <div className="max-w-6xl mx-auto">
-          <InView className="text-center mb-16">
-            <p className="section-label mb-3">What you get</p>
-            <h2 className="text-4xl sm:text-5xl font-black" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
-              Everything you need<br /><span className="gradient-text">to fight back</span>
-            </h2>
-          </InView>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {FEATURES.map((f, i) => {
-              const Icon = f.icon
-              return (
-                <InView key={f.title} delay={i * 0.08}>
-                  <motion.div whileHover={{ y: -6, scale: 1.01 }} transition={{ type: "spring", stiffness: 280 }}
-                    className="premium-card p-7 group cursor-default relative overflow-hidden">
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                      style={{ background: `radial-gradient(ellipse 80% 60% at 30% 50%, ${f.bg}CC 0%, transparent 70%)` }} />
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-5">
-                        <motion.div whileHover={{ rotate: 8, scale: 1.12 }}
-                          className="w-12 h-12 rounded-xl flex items-center justify-center border"
-                          style={{ background: f.bg, borderColor: `${f.color}30` }}>
-                          <Icon className="w-6 h-6" style={{ color: f.color }} />
-                        </motion.div>
-                        <span className="tag tag-warm text-xs">{f.tag}</span>
-                      </div>
-                      <h3 className="text-xl font-bold mb-2" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>{f.title}</h3>
-                      <p className="text-sm leading-relaxed" style={{ color: "#6B5E52" }}>{f.desc}</p>
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300"
-                      style={{ background: f.color }} />
-                  </motion.div>
-                </InView>
-              )
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── UPLOAD ZONE ─────────────────────────────────────────────── */}
-      <section ref={uploadRef} id="upload" className="py-24 px-4" style={{ background: "#FAFAF8" }}>
-        <div className="max-w-2xl mx-auto">
-          <InView className="text-center mb-10">
-            <p className="section-label mb-3">Try it now — free</p>
-            <h2 className="text-4xl font-black mb-3" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>Upload your document</h2>
-            <p className="text-base" style={{ color: "#6B5E52" }}>Your first analysis is completely free. No credit card required.</p>
-          </InView>
-          <InView>
-            <div className="premium-card p-7 relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-0.5"
-                style={{ background: "linear-gradient(90deg, transparent, #E8651A, transparent)" }} />
-              <UploadZone file={file} onFileSelect={setFile} onClear={() => setFile(null)} />
-              <div className="mt-4">
-                <input type="text" value={context} onChange={e => setContext(e.target.value)}
-                  placeholder='Optional context — e.g. "Insurance denied my surgery claim"' className="input-field" />
-              </div>
-              <div className="mt-4">
-                <motion.button onClick={handleAnalyze} disabled={!file}
-                  whileHover={file ? { scale: 1.015, y: -2 } : {}} whileTap={file ? { scale: 0.975 } : {}}
-                  className={`w-full flex items-center justify-center gap-2.5 font-bold text-base py-4 rounded-2xl transition-all duration-200 ${file ? "btn-primary" : "cursor-not-allowed"}`}
-                  style={!file ? { background: "#F2EDE6", color: "#A89484", border: "1px solid #E8E2D9", boxShadow: "none" } : {}}>
-                  <Shield className="w-5 h-5" />
-                  Analyze My Document
-                  <ArrowRight className="w-4 h-4" />
-                </motion.button>
-                <p className="text-center text-xs mt-3" style={{ color: "#A89484" }}>🔒 Secure · Private · Deleted after 30 days</p>
-              </div>
-            </div>
-          </InView>
-        </div>
-      </section>
-
-      {/* ─── STATS STRIP ─────────────────────────────────────────────── */}
-      <section className="py-16 px-4 border-y" style={{ background: "#18130E", borderColor: "#2E261E" }}>
-        <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-            {[
-              { value: "30s",  label: "Average analysis time" },
-              { value: "8+",   label: "Document categories" },
-              { value: "100%", label: "Private & secure" },
-            ].map((s, i) => (
-              <InView key={s.label} delay={i * 0.1}>
-                <div>
-                  <div className="text-5xl font-black mb-2 gradient-text" style={{ fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>{s.value}</div>
-                  <p className="text-sm" style={{ color: "#A89484" }}>{s.label}</p>
-                </div>
-              </InView>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── PRICING CTA ─────────────────────────────────────────────── */}
-      <section className="py-24 px-4" style={{ background: "white" }}>
-        <div className="max-w-3xl mx-auto">
-          <InView>
-            <motion.div whileHover={{ y: -4 }}
-              className="premium-card p-10 text-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-56 h-56 rounded-full -translate-y-1/3 translate-x-1/3 pointer-events-none"
-                style={{ background: "radial-gradient(circle, rgba(232,101,26,0.08), transparent)" }} />
-              <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full translate-y-1/3 -translate-x-1/3 pointer-events-none"
-                style={{ background: "radial-gradient(circle, rgba(232,101,26,0.05), transparent)" }} />
-              <div className="relative z-10">
-                <div className="w-14 h-14 rounded-2xl mx-auto mb-5 flex items-center justify-center border"
-                  style={{ background: "#FEF0E6", borderColor: "rgba(232,101,26,0.2)" }}>
-                  <Zap className="w-7 h-7" style={{ color: "#E8651A" }} />
-                </div>
-                <h2 className="text-3xl sm:text-4xl font-black mb-3" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
-                  Ready for unlimited access?
-                </h2>
-                <p className="text-base mb-8" style={{ color: "#6B5E52" }}>
-                  Upgrade to Pro for $9/month. Unlimited analyses, full features, cancel anytime.
+          {/* Sub-meta row */}
+          <div className="mt-16 sm:mt-24 grid grid-cols-1 lg:grid-cols-12 gap-10 items-end">
+            <div className="lg:col-span-7">
+              <Reveal delay={0.5}>
+                <p
+                  className="text-[clamp(1rem,1.3vw,1.25rem)] max-w-xl leading-relaxed"
+                  style={{ color: "var(--text-2)" }}
+                >
+                  Upload any official document and walk back with plain English, the bluffs and illegal
+                  clauses named, a ready-to-send counter-letter, and the next moves that actually work.
+                  Thirty seconds.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <motion.a href="/pricing" whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} className="btn-primary">
-                    <Zap className="w-5 h-5" /> Upgrade to Pro — $9/mo
-                  </motion.a>
-                  <motion.a href="/pricing" whileHover={{ scale: 1.02 }}
-                    className="flex items-center justify-center gap-2 text-sm font-semibold px-6 py-3.5 rounded-2xl border transition-all"
-                    style={{ borderColor: "#E8E2D9", color: "#4A3F35", background: "transparent" }}>
-                    Compare plans
-                  </motion.a>
+              </Reveal>
+
+              <Reveal delay={0.7}>
+                <div className="mt-9 flex items-center gap-3 flex-wrap">
+                  <Magnetic strength={6}>
+                    <button onClick={scrollToUpload} className="btn btn-primary">
+                      Try free
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </Magnetic>
+                  <Link href="#demo" className="btn btn-ghost">
+                    See it work
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
+              </Reveal>
+
+              <Reveal delay={0.85}>
+                <div className="mt-12 flex items-center gap-5 text-xs" style={{ color: "var(--text-mute)" }}>
+                  <span>First analysis free</span>
+                  <span className="w-px h-3" style={{ background: "var(--hairline-2)" }} />
+                  <span>No card required</span>
+                  <span className="w-px h-3 hidden sm:block" style={{ background: "var(--hairline-2)" }} />
+                  <span className="hidden sm:inline">Auto-deleted after 30 days</span>
+                </div>
+              </Reveal>
+            </div>
+
+            {/* Sidebar — rotating doc type */}
+            <div className="lg:col-span-5">
+              <Reveal delay={0.8}>
+                <div className="border-l pl-6" style={{ borderColor: "var(--hairline-2)" }}>
+                  <p className="eyebrow mb-4">Built for</p>
+                  <div className="relative" style={{ height: 56 }}>
+                    <AnimatePresence mode="wait">
+                      <motion.h3
+                        key={rotIdx}
+                        initial={{ y: 24, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -24, opacity: 0 }}
+                        transition={{ duration: 0.5, ease: EASE }}
+                        className="display"
+                        style={{
+                          fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)",
+                          color: "var(--text)",
+                          position: "absolute",
+                          left: 0,
+                          right: 0,
+                        }}
+                      >
+                        the {ROTATING[rotIdx]}.
+                      </motion.h3>
+                    </AnimatePresence>
+                  </div>
+                  <p className="mt-4 text-xs" style={{ color: "var(--text-3)" }}>
+                    And dozens more — IRS letters, visa rejections, debt collection, bank disputes, contracts.
+                  </p>
+                </div>
+              </Reveal>
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="container-edition relative z-10 mt-20 sm:mt-32">
+          <div className="hairline" />
+        </div>
+      </section>
+
+      {/* ─── MARQUEE ─────────────────────────────────────────────── */}
+      <section className="relative py-12 sm:py-16 overflow-hidden">
+        <Marquee>
+          {USE_CASES.map((u, i) => (
+            <div key={`${u}-${i}`} className="flex items-baseline shrink-0">
+              <span
+                className="display whitespace-nowrap pr-10"
+                style={{
+                  fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
+                  color: "var(--text)",
+                  letterSpacing: "-0.04em",
+                }}
+              >
+                {u}
+              </span>
+              <Plus className="w-4 h-4 shrink-0 mr-10" style={{ color: "var(--ember)" }} />
+            </div>
+          ))}
+        </Marquee>
+      </section>
+
+      <div className="container-edition"><div className="hairline" /></div>
+
+      {/* ─── PROMISE / WHAT YOU GET ──────────────────────────────── */}
+      <section className="relative py-28 sm:py-40">
+        <div className="container-edition">
+          <Reveal>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-20 sm:mb-28 items-end">
+              <div className="md:col-span-3">
+                <p className="eyebrow">Chapter 01</p>
               </div>
-            </motion.div>
-          </InView>
+              <h2
+                className="md:col-span-9 display"
+                style={{ fontSize: "clamp(2rem, 5.5vw, 5rem)", color: "var(--text)" }}
+              >
+                What we hand back to you.
+              </h2>
+            </div>
+          </Reveal>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-16 sm:gap-y-24">
+            {PROMISE.map((p, i) => (
+              <Reveal key={p.n} delay={i * 0.08}>
+                <div>
+                  <div className="flex items-baseline gap-4 mb-5">
+                    <span
+                      className="mono text-[11px]"
+                      style={{ color: "var(--text-mute)", letterSpacing: "0.2em" }}
+                    >
+                      {p.n}
+                    </span>
+                    <div className="flex-1 h-px" style={{ background: "var(--hairline-2)" }} />
+                  </div>
+                  <h3
+                    className="display mb-4"
+                    style={{
+                      fontSize: "clamp(1.6rem, 2.8vw, 2.5rem)",
+                      color: "var(--text)",
+                    }}
+                  >
+                    {p.title}
+                  </h3>
+                  <p className="text-base leading-relaxed max-w-md" style={{ color: "var(--text-3)" }}>
+                    {p.body}
+                  </p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── DOCUMENT READER (the wow) ─────────────────────────── */}
+      <div id="demo">
+        <DocumentReader />
+      </div>
+
+      {/* ─── HOW IT WORKS ──────────────────────────────────────── */}
+      <section className="relative py-28 sm:py-40 border-t" style={{ borderColor: "var(--hairline)" }}>
+        <div className="container-edition">
+          <Reveal>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-20 items-end">
+              <div className="md:col-span-3">
+                <p className="eyebrow">Chapter 02</p>
+              </div>
+              <h2
+                className="md:col-span-9 display"
+                style={{ fontSize: "clamp(2rem, 5.5vw, 5rem)", color: "var(--text)" }}
+              >
+                Three steps. Thirty seconds.
+              </h2>
+            </div>
+          </Reveal>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border-t border-l" style={{ borderColor: "var(--hairline-2)" }}>
+            {STEPS.map((s, i) => (
+              <Reveal key={s.n} delay={i * 0.1}>
+                <div
+                  className="p-8 sm:p-10 border-b border-r relative min-h-[260px] flex flex-col justify-between"
+                  style={{ borderColor: "var(--hairline-2)" }}
+                >
+                  <span
+                    className="mono text-[11px] tracking-[0.2em]"
+                    style={{ color: "var(--text-mute)" }}
+                  >
+                    {s.n}
+                  </span>
+                  <div>
+                    <h3
+                      className="display mb-3"
+                      style={{
+                        fontSize: "clamp(1.6rem, 2.6vw, 2.2rem)",
+                        color: "var(--text)",
+                      }}
+                    >
+                      {s.title}
+                    </h3>
+                    <p className="text-sm leading-relaxed" style={{ color: "var(--text-3)" }}>
+                      {s.body}
+                    </p>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── UPLOAD ────────────────────────────────────────────── */}
+      <section
+        ref={uploadRef}
+        id="upload"
+        className="relative py-28 sm:py-40 border-t"
+        style={{ borderColor: "var(--hairline)" }}
+      >
+        <div className="container-edition relative">
+          <Reveal>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-16 items-end">
+              <div className="md:col-span-3">
+                <p className="eyebrow">Chapter 03</p>
+              </div>
+              <h2
+                className="md:col-span-9 display"
+                style={{ fontSize: "clamp(2rem, 5.5vw, 5rem)", color: "var(--text)" }}
+              >
+                Hand us the document.
+              </h2>
+            </div>
+          </Reveal>
+
+          <Reveal delay={0.1}>
+            <div className="max-w-2xl">
+              <UploadZone file={file} onFileSelect={setFile} onClear={() => setFile(null)} />
+              <div className="mt-6">
+                <input
+                  type="text"
+                  value={context}
+                  onChange={(e) => setContext(e.target.value)}
+                  placeholder='Optional whisper — e.g. "Insurance denied my surgery"'
+                  className="field"
+                />
+              </div>
+              <div className="mt-10 flex items-center gap-4 flex-wrap">
+                <Magnetic strength={6}>
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={!file}
+                    className={file ? "btn btn-primary" : "btn btn-ghost"}
+                    style={!file ? { opacity: 0.45, cursor: "not-allowed" } : {}}
+                  >
+                    Analyze
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </Magnetic>
+                <p className="mono text-[11px]" style={{ color: "var(--text-mute)" }}>
+                  Encrypted · auto-deleted after 30 days · no card required
+                </p>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ─── VOICES ────────────────────────────────────────────── */}
+      <section className="relative py-28 sm:py-40 border-t" style={{ borderColor: "var(--hairline)" }}>
+        <div className="container-edition">
+          <Reveal>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-20 items-end">
+              <div className="md:col-span-3">
+                <p className="eyebrow">Chapter 04</p>
+              </div>
+              <h2
+                className="md:col-span-9 display"
+                style={{ fontSize: "clamp(2rem, 5.5vw, 5rem)", color: "var(--text)" }}
+              >
+                <span style={{ color: "var(--text)" }}>People who walked in scared.</span>{" "}
+                <span className="serif-italic" style={{ color: "var(--text-3)" }}>
+                  Walked out winning.
+                </span>
+              </h2>
+            </div>
+          </Reveal>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
+            {VOICES.map((v, i) => (
+              <Reveal key={i} delay={i * 0.1}>
+                <Tilt intensity={2}>
+                  <div
+                    className="p-8 sm:p-10 h-full flex flex-col justify-between border-l"
+                    style={{ borderColor: "var(--hairline-2)", minHeight: 320 }}
+                  >
+                    <p
+                      className="text-lg leading-snug mb-8 serif-italic"
+                      style={{ color: "var(--text)", fontFamily: "ui-serif, Georgia, serif" }}
+                    >
+                      &ldquo;{v.quote}&rdquo;
+                    </p>
+                    <div className="flex items-baseline justify-between">
+                      <p className="text-sm" style={{ color: "var(--text-2)" }}>
+                        — {v.name}
+                      </p>
+                      <span
+                        className="mono text-[10px] uppercase tracking-widest"
+                        style={{ color: "var(--text-mute)" }}
+                      >
+                        {v.tag}
+                      </span>
+                    </div>
+                  </div>
+                </Tilt>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── STATS ─────────────────────────────────────────────── */}
+      <section className="relative py-24 border-y" style={{ borderColor: "var(--hairline)" }}>
+        <div className="container-edition">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
+            {[
+              { v: 30, suffix: "s", label: "Average time" },
+              { v: 18, suffix: "k+", label: "Patterns recognized" },
+              { v: 8, suffix: "+", label: "Document categories" },
+              { v: 100, suffix: "%", label: "Private · auto-deleted" },
+            ].map((s, i) => (
+              <Reveal key={i} delay={i * 0.08}>
+                <div
+                  className="px-2 md:px-6 py-4 md:border-r"
+                  style={{ borderColor: i < 3 ? "var(--hairline-2)" : "transparent" }}
+                >
+                  <Counter
+                    to={s.v}
+                    suffix={s.suffix}
+                    className="display"
+                  />
+                  <style jsx>{`
+                    div :global(.display) {
+                      font-size: clamp(2.2rem, 5vw, 4rem);
+                      color: var(--text);
+                      display: block;
+                      margin-bottom: 6px;
+                    }
+                  `}</style>
+                  <p className="mono text-[10px] uppercase tracking-[0.18em]" style={{ color: "var(--text-mute)" }}>
+                    {s.label}
+                  </p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── FINAL CTA ─────────────────────────────────────────── */}
+      <section className="relative py-32 sm:py-48 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <Grid opacity={0.04} />
+        </div>
+        <div className="container-edition relative">
+          <Reveal>
+            <p className="eyebrow mb-10">Last page</p>
+            <h2
+              className="display max-w-[14ch]"
+              style={{ fontSize: "clamp(2.6rem, 9vw, 8rem)", color: "var(--text)" }}
+            >
+              <span>Ready </span>
+              <span className="serif-italic" style={{ color: "var(--ember)" }}>when</span>
+              <span> you are.</span>
+            </h2>
+          </Reveal>
+
+          <Reveal delay={0.2}>
+            <div className="mt-12 sm:mt-16 flex items-center gap-4 flex-wrap">
+              <Magnetic strength={8}>
+                <button onClick={scrollToUpload} className="btn btn-primary !px-6 !py-3.5 !text-[15px]">
+                  Try free
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </Magnetic>
+              <Link href="/pricing" className="btn-link">
+                $9/month, unlimited
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </Reveal>
         </div>
       </section>
 
       <AnimatePresence>
         {showAuth && (
-          <AuthModal mode={authMode}
-            onClose={() => { setShowAuth(false); pendingAnalysis.current = false }}
-            onSuccess={handleAuthSuccess} />
+          <AuthModal
+            mode={authMode}
+            onClose={() => {
+              setShowAuth(false)
+              pendingAnalysis.current = false
+            }}
+            onSuccess={handleAuthSuccess}
+          />
         )}
       </AnimatePresence>
       <AnimatePresence>
@@ -760,7 +831,7 @@ function HomeContent() {
 
 export default function HomePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen" style={{ background: "#FAFAF8" }} />}>
+    <Suspense fallback={<div className="min-h-screen" style={{ background: "var(--ink)" }} />}>
       <HomeContent />
     </Suspense>
   )

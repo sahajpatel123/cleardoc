@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Zap, Check, Shield } from "lucide-react"
+import { X, Check, ArrowRight } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 
 const FEATURES = [
@@ -23,9 +23,7 @@ export default function PricingModal({ onClose }: { onClose: () => void }) {
     if (!user) return
     setLoading(true); setError("")
     try {
-      const res = await fetch("/api/stripe/create-checkout", {
-        method: "POST",
-      })
+      const res = await fetch("/api/stripe/create-checkout", { method: "POST" })
       const data = await res.json()
       if (data.url) window.location.href = data.url
       else setError("Failed to start checkout. Please try again.")
@@ -35,65 +33,83 @@ export default function PricingModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="absolute inset-0 backdrop-blur-md"
-        style={{ background: "rgba(24,19,14,0.4)" }}
-        onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0"
+        style={{ background: "rgba(5,5,5,0.85)", backdropFilter: "blur(16px)" }}
+        onClick={onClose}
+      />
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.94, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.94, y: 16 }}
-        transition={{ type: "spring", stiffness: 300, damping: 28 }}
-        className="relative w-full max-w-md rounded-3xl overflow-hidden shadow-2xl"
-        style={{ background: "white", border: "1px solid #E8E2D9" }}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 16 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        className="relative w-full max-w-md overflow-hidden"
+        style={{
+          background: "var(--ink-1)",
+          border: "1px solid var(--hairline-2)",
+          borderRadius: 16,
+          boxShadow: "0 60px 120px rgba(0,0,0,0.8)",
+        }}
       >
-        <div className="absolute top-0 left-0 right-0 h-0.5"
-          style={{ background: "linear-gradient(90deg, transparent, #E8651A, transparent)" }} />
-        <button onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-xl transition-colors"
-          style={{ color: "#A89484" }}>
+        <div
+          className="absolute top-0 left-0 h-px"
+          style={{ width: 72, background: "var(--ember)" }}
+        />
+
+        <button
+          onClick={onClose}
+          className="absolute top-5 right-5 p-1.5 rounded-full transition-colors z-10"
+          style={{ color: "var(--text-3)" }}
+          aria-label="Close"
+        >
           <X className="w-4 h-4" />
         </button>
 
-        <div className="p-8">
-          {/* Badge */}
-          <div className="flex justify-center mb-6">
-            <span className="tag tag-orange">
-              <Zap className="w-3 h-3" /> YOU&apos;VE USED YOUR FREE ANALYSIS
+        <div className="p-10">
+          <p className="eyebrow mb-6">Free limit reached</p>
+          <h2
+            className="display mb-3"
+            style={{ fontSize: "clamp(1.8rem, 3.2vw, 2.4rem)", color: "var(--text)" }}
+          >
+            <span>Keep </span>
+            <span className="serif-italic" style={{ color: "var(--ember)" }}>fighting back.</span>
+          </h2>
+          <p className="text-sm mb-10" style={{ color: "var(--text-3)" }}>
+            Unlimited analyses for one low monthly price.
+          </p>
+
+          <div className="flex items-baseline gap-1 mb-2">
+            <span
+              className="display"
+              style={{ fontSize: "clamp(2.6rem, 5vw, 3.5rem)", color: "var(--text)" }}
+            >
+              $9
+            </span>
+            <span className="mono text-[11px]" style={{ color: "var(--text-mute)" }}>
+              /month
             </span>
           </div>
+          <p className="mono text-[10px] mb-8" style={{ color: "var(--text-mute)" }}>
+            CANCEL ANYTIME · NO HIDDEN FEES
+          </p>
 
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-black mb-2" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
-              Upgrade to Pro
-            </h2>
-            <p className="text-sm" style={{ color: "#6B5E52" }}>
-              Keep fighting back. Unlimited analyses for one low monthly price.
-            </p>
-          </div>
+          <div className="hairline-fade mb-8" />
 
-          {/* Price card */}
-          <div className="rounded-2xl p-5 text-center mb-5"
-            style={{ background: "#FEF0E6", border: "1px solid rgba(232,101,26,0.2)" }}>
-            <div className="flex items-end justify-center gap-1">
-              <span className="text-5xl font-black" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>$9</span>
-              <span className="mb-1.5 text-sm" style={{ color: "#6B5E52" }}>/month</span>
-            </div>
-            <p className="text-xs mt-1" style={{ color: "#A89484" }}>Cancel anytime. No hidden fees.</p>
-          </div>
-
-          {/* Features */}
-          <ul className="space-y-2.5 mb-5">
+          <ul className="space-y-3 mb-10">
             {FEATURES.map((f, i) => (
-              <motion.li key={f} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="flex items-center gap-2.5 text-sm"
-                style={{ color: "#4A3F35" }}>
-                <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
-                  style={{ background: "#ECFDF5", border: "1px solid rgba(5,150,105,0.2)" }}>
-                  <Check className="w-2.5 h-2.5" style={{ color: "#059669" }} />
-                </div>
+              <motion.li
+                key={f}
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className="flex items-center gap-3 text-sm"
+                style={{ color: "var(--text-2)" }}
+              >
+                <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--ember)" }} />
                 {f}
               </motion.li>
             ))}
@@ -101,23 +117,28 @@ export default function PricingModal({ onClose }: { onClose: () => void }) {
 
           <AnimatePresence>
             {error && (
-              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="text-xs px-3 py-2 rounded-xl mb-3"
-                style={{ background: "#FEF2F2", color: "#991B1B", border: "1px solid rgba(220,38,38,0.15)" }}>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-xs mb-4"
+                style={{ color: "var(--red)" }}
+              >
                 {error}
               </motion.p>
             )}
           </AnimatePresence>
 
-          <motion.button onClick={handleUpgrade} disabled={loading}
-            whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}
-            className="w-full btn-primary justify-center !py-4 !rounded-2xl text-base">
-            <Shield className="w-5 h-5" />
-            {loading ? "Redirecting..." : "Upgrade to Pro — $9/mo"}
-          </motion.button>
+          <button
+            onClick={handleUpgrade}
+            disabled={loading}
+            className="btn btn-primary w-full justify-center"
+          >
+            {loading ? "Redirecting..." : "Upgrade to Pro"}
+            {!loading && <ArrowRight className="w-4 h-4" />}
+          </button>
 
-          <p className="text-xs text-center mt-3" style={{ color: "#A89484" }}>
-            🔒 Secured by Stripe · No card stored on our servers
+          <p className="text-[11px] text-center mt-5" style={{ color: "var(--text-mute)" }}>
+            Secured by Stripe · no card stored on our servers
           </p>
         </div>
       </motion.div>

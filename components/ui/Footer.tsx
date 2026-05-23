@@ -1,36 +1,125 @@
-import { Shield } from "lucide-react"
+"use client"
+
 import Link from "next/link"
+import { motion } from "framer-motion"
+import { ArrowUpRight } from "lucide-react"
 
 export default function Footer() {
   return (
-    <footer className="border-t" style={{ background: "#18130E", borderColor: "#2E261E" }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2.5 mb-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#E8651A" }}>
-                <Shield className="w-3.5 h-3.5 text-white" />
-              </div>
-              <span className="font-black text-base text-white" style={{ fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
-                Clear<span style={{ color: "#E8651A" }}>Doc</span>
-              </span>
+    <footer className="relative border-t" style={{ borderColor: "var(--hairline)" }}>
+      <div className="container-edition py-20 sm:py-28">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-8 items-end">
+          <div className="md:col-span-7">
+            <p className="eyebrow mb-6">Colophon</p>
+            <h2
+              className="display"
+              style={{ fontSize: "clamp(2.2rem, 5vw, 4.2rem)" }}
+            >
+              <span style={{ color: "var(--text)" }}>Read what they </span>
+              <span className="serif-italic" style={{ color: "var(--ember)" }}>really </span>
+              <span style={{ color: "var(--text)" }}>sent.</span>
+            </h2>
+            <p className="mt-6 max-w-md text-sm leading-relaxed" style={{ color: "var(--text-3)" }}>
+              Hand us the document that scares you. We&apos;ll hand back the truth — and the
+              words to fight it.
+            </p>
+            <div className="mt-8">
+              <Link href="/?auth=signup" className="btn btn-primary">
+                Try free
+                <ArrowUpRight className="w-4 h-4" />
+              </Link>
             </div>
-            <p className="text-xs" style={{ color: "#4A3F35" }}>AI-powered consumer protection</p>
           </div>
-          <div className="flex items-center gap-6 text-sm" style={{ color: "#4A3F35" }}>
-            <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
-            <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
+
+          <div className="md:col-span-5 grid grid-cols-2 gap-8">
+            <FooterCol
+              title="Product"
+              links={[
+                { label: "Analyze", href: "/" },
+                { label: "Pricing", href: "/pricing" },
+                { label: "Account", href: "/dashboard" },
+              ]}
+            />
+            <FooterCol
+              title="Index"
+              links={[
+                { label: "Privacy", href: "/" },
+                { label: "30-day delete", href: "/" },
+                { label: "Disclaimer", href: "#disclaimer" },
+              ]}
+            />
           </div>
         </div>
-        <div className="mt-8 pt-6 border-t" style={{ borderColor: "#2E261E" }}>
-          <p className="text-xs text-center leading-relaxed max-w-2xl mx-auto" style={{ color: "#4A3F35" }}>
-            <span style={{ color: "#6B5E52" }}>Legal Disclaimer:</span>{" "}
-            This is not legal advice. ClearDoc provides general information only and does not constitute legal,
-            financial, or professional advice. Always consult a qualified attorney or relevant professional
-            for advice specific to your situation.
+
+        <div className="hairline my-16" />
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-baseline">
+          <p className="mono text-[11px] md:col-span-3" style={{ color: "var(--text-mute)" }}>
+            © {new Date().getFullYear()} ClearDoc
+          </p>
+          <p
+            id="disclaimer"
+            className="md:col-span-9 text-[11px] leading-relaxed italic"
+            style={{ color: "var(--text-mute)" }}
+          >
+            This is not legal advice. ClearDoc provides general information only and does not
+            constitute legal, financial, or professional advice. Always consult a qualified
+            attorney for advice specific to your situation.
           </p>
         </div>
       </div>
+
+      {/* Wordmark watermark */}
+      <div className="overflow-hidden border-t" style={{ borderColor: "var(--hairline)" }}>
+        <motion.div
+          aria-hidden
+          initial={{ y: 12, opacity: 0 }}
+          whileInView={{ y: 0, opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+          className="container-edition py-10 flex items-baseline justify-between"
+        >
+          <span
+            className="display stroke-text"
+            style={{
+              fontSize: "clamp(4.5rem, 16vw, 16rem)",
+              fontFamily: "var(--font-syne,'Syne',sans-serif)",
+              lineHeight: 0.85,
+              letterSpacing: "-0.06em",
+            }}
+          >
+            ClearDoc
+          </span>
+          <span className="mono text-[10px] tracking-[0.3em] shrink-0 hidden sm:inline" style={{ color: "var(--text-mute)" }}>
+            EST. 2026
+          </span>
+        </motion.div>
+      </div>
     </footer>
+  )
+}
+
+function FooterCol({ title, links }: { title: string; links: { label: string; href: string }[] }) {
+  return (
+    <div>
+      <p className="eyebrow mb-5">{title}</p>
+      <ul className="space-y-2.5">
+        {links.map((l) => (
+          <li key={l.label}>
+            <Link
+              href={l.href}
+              className="group inline-flex items-center gap-1.5 text-sm transition-colors"
+              style={{ color: "var(--text-2)" }}
+            >
+              <span className="group-hover:text-white transition-colors">{l.label}</span>
+              <ArrowUpRight
+                className="w-3 h-3 opacity-0 -translate-x-0.5 group-hover:opacity-100 group-hover:translate-x-0 transition-all"
+                style={{ color: "var(--text-2)" }}
+              />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }

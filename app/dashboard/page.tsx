@@ -7,32 +7,14 @@ import { useAuth } from "@/context/AuthContext"
 import type { Analysis, AnalysisResult } from "@/lib/types"
 import { motion, AnimatePresence } from "framer-motion"
 import {
-  Shield,
-  FileText,
-  Clock,
-  Zap,
-  CheckCircle,
-  AlertCircle,
-  XCircle,
-  Plus,
-  ChevronRight,
-  Sparkles,
-  LayoutDashboard,
-  User,
+  CheckCircle, AlertCircle, XCircle, Plus, ArrowUpRight, Sparkles,
 } from "lucide-react"
+import { Reveal, Counter } from "@/components/ui/Kinetic"
 
 const VERDICT_CONFIG = {
-  legitimate:    { label: "Legitimate",   Icon: CheckCircle, bg: "#ECFDF5", border: "rgba(5,150,105,0.2)",  text: "#059669" },
-  suspicious:    { label: "Suspicious",   Icon: AlertCircle, bg: "#FFFBEB", border: "rgba(217,119,6,0.2)",  text: "#D97706" },
-  likely_illegal:{ label: "Likely Illegal",Icon: XCircle,    bg: "#FEF2F2", border: "rgba(220,38,38,0.2)",  text: "#DC2626" },
-}
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
-  show: (i: number) => ({
-    opacity: 1, y: 0,
-    transition: { duration: 0.5, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] as [number,number,number,number] },
-  }),
+  legitimate:     { label: "Legitimate",     Icon: CheckCircle, labelClass: "label-moss" },
+  suspicious:     { label: "Suspicious",     Icon: AlertCircle, labelClass: "label-amber" },
+  likely_illegal: { label: "Likely Illegal", Icon: XCircle,     labelClass: "label-red" },
 }
 
 function DashboardContent() {
@@ -45,7 +27,7 @@ function DashboardContent() {
 
   useEffect(() => {
     if (searchParams.get("upgraded") === "true") {
-      queueMicrotask(() => setUpgraded(true));
+      queueMicrotask(() => setUpgraded(true))
     }
   }, [searchParams])
 
@@ -60,9 +42,15 @@ function DashboardContent() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#FAFAF8" }}>
-        <div className="w-8 h-8 rounded-full border-2 animate-spin"
-          style={{ borderColor: "rgba(232,101,26,0.2)", borderTopColor: "#E8651A" }} />
+      <div className="min-h-screen flex items-center justify-center">
+        <motion.span
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{ duration: 1.6, repeat: Infinity }}
+          className="mono text-[11px] tracking-[0.3em]"
+          style={{ color: "var(--text-3)" }}
+        >
+          LOADING
+        </motion.span>
       </div>
     )
   }
@@ -70,168 +58,175 @@ function DashboardContent() {
   const isPro = profile?.plan === "pro"
 
   return (
-    <div style={{ background: "#FAFAF8", minHeight: "100vh" }}>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-
-        {/* Upgraded banner */}
+    <div className="min-h-screen pt-28 pb-32">
+      <div className="container-edition">
         <AnimatePresence>
           {upgraded && (
             <motion.div
-              initial={{ opacity: 0, y: -12, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
-              className="mb-6 flex items-center gap-3 rounded-2xl px-5 py-4 border"
-              style={{ background: "#ECFDF5", borderColor: "rgba(5,150,105,0.25)" }}
+              className="mb-12 flex items-start gap-4 p-5 rounded-lg"
+              style={{ background: "rgba(255,106,31,0.06)", border: "1px solid rgba(255,106,31,0.20)" }}
             >
-              <Sparkles className="w-5 h-5 shrink-0" style={{ color: "#059669" }} />
+              <Sparkles className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--ember)" }} />
               <div>
-                <p className="font-bold text-sm" style={{ color: "#059669" }}>Welcome to ClearDoc Pro!</p>
-                <p className="text-xs mt-0.5" style={{ color: "#6B5E52" }}>You now have unlimited document analyses.</p>
+                <p
+                  style={{
+                    color: "var(--text)",
+                    fontFamily: "var(--font-syne,'Syne',sans-serif)",
+                    fontWeight: 500,
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  Welcome to Pro.
+                </p>
+                <p className="text-sm mt-1" style={{ color: "var(--text-3)" }}>
+                  You now have unlimited analyses.
+                </p>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }} className="mb-8">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="p-2 rounded-xl border"
-              style={{ background: "#FEF0E6", borderColor: "rgba(232,101,26,0.2)" }}>
-              <LayoutDashboard className="w-4 h-4" style={{ color: "#E8651A" }} />
-            </div>
-            <p className="section-label">Your account</p>
+        <Reveal>
+          <div className="flex items-baseline justify-between mb-10">
+            <p className="eyebrow">Account · {user?.email}</p>
+            {isPro && <span className="label label-ember">Pro</span>}
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black mt-2"
-            style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
-            Dashboard
+          <h1
+            className="display max-w-[18ch] mb-6"
+            style={{ fontSize: "clamp(2.4rem, 7vw, 6rem)", color: "var(--text)" }}
+          >
+            <span>Your </span>
+            <span className="serif-italic" style={{ color: "var(--ember)" }}>desk.</span>
           </h1>
-        </motion.div>
+          <p className="max-w-md text-base" style={{ color: "var(--text-3)" }}>
+            Every document you&apos;ve handed us, marked up and waiting for your next move.
+          </p>
+        </Reveal>
 
         {/* Stats row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          {/* Plan card */}
-          <motion.div custom={0} variants={cardVariants} initial="hidden" animate="show"
-            className="premium-card p-5"
-            style={isPro ? { background: "#FEF0E6", borderColor: "rgba(232,101,26,0.3)" } : {}}>
-            <div className="flex items-center gap-2 mb-3">
-              {isPro
-                ? <Zap className="w-4 h-4" style={{ color: "#E8651A" }} />
-                : <Shield className="w-4 h-4" style={{ color: "#A89484" }} />
-              }
-              <span className="section-label !text-[10px]">Plan</span>
+        <div className="mt-20 grid grid-cols-2 md:grid-cols-3 gap-0 border-t border-l" style={{ borderColor: "var(--hairline-2)" }}>
+          <Reveal>
+            <div className="p-6 sm:p-8 border-b border-r min-h-[160px] flex flex-col justify-between" style={{ borderColor: "var(--hairline-2)" }}>
+              <p className="mono text-[10px] tracking-[0.22em]" style={{ color: "var(--text-mute)" }}>PLAN</p>
+              <p
+                className="display"
+                style={{
+                  fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)",
+                  color: isPro ? "var(--ember)" : "var(--text)",
+                }}
+              >
+                {isPro ? "Pro" : "Free"}
+              </p>
+              <p className="mono text-[10px]" style={{ color: "var(--text-3)" }}>
+                {isPro ? "Unlimited" : `${profile?.freeUsesRemaining ?? 0} left`}
+              </p>
             </div>
-            <p className="text-2xl font-black" style={{ color: isPro ? "#E8651A" : "#18130E" }}>
-              {isPro ? "Pro" : "Free"}
-            </p>
-            <p className="text-xs mt-1" style={{ color: "#6B5E52" }}>
-              {isPro ? "Unlimited analyses" : `${profile?.freeUsesRemaining ?? 0} analysis remaining`}
-            </p>
-            {isPro && (
-              <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full"
-                style={{ background: "rgba(232,101,26,0.15)", color: "#C4530F" }}>
-                <CheckCircle className="w-3 h-3" /> Active
-              </div>
-            )}
-          </motion.div>
-
-          {/* Analyses count */}
-          <motion.div custom={1} variants={cardVariants} initial="hidden" animate="show"
-            className="premium-card p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <FileText className="w-4 h-4" style={{ color: "#A89484" }} />
-              <span className="section-label !text-[10px]">Analyses</span>
+          </Reveal>
+          <Reveal delay={0.05}>
+            <div className="p-6 sm:p-8 border-b border-r min-h-[160px] flex flex-col justify-between" style={{ borderColor: "var(--hairline-2)" }}>
+              <p className="mono text-[10px] tracking-[0.22em]" style={{ color: "var(--text-mute)" }}>ANALYZED</p>
+              <p
+                className="display"
+                style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)", color: "var(--text)" }}
+              >
+                <Counter to={analyses.length} />
+              </p>
+              <p className="mono text-[10px]" style={{ color: "var(--text-3)" }}>
+                {analyses.length === 1 ? "document" : "documents"}
+              </p>
             </div>
-            <p className="text-2xl font-black" style={{ color: "#18130E" }}>{analyses.length}</p>
-            <p className="text-xs mt-1" style={{ color: "#6B5E52" }}>Documents analyzed</p>
-          </motion.div>
-
-          {/* Account */}
-          <motion.div custom={2} variants={cardVariants} initial="hidden" animate="show"
-            className="premium-card p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <User className="w-4 h-4" style={{ color: "#A89484" }} />
-              <span className="section-label !text-[10px]">Account</span>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <div className="p-6 sm:p-8 border-b border-r min-h-[160px] flex flex-col justify-between" style={{ borderColor: "var(--hairline-2)" }}>
+              <p className="mono text-[10px] tracking-[0.22em]" style={{ color: "var(--text-mute)" }}>STATUS</p>
+              <p
+                className="display"
+                style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)", color: "var(--text)" }}
+              >
+                {isPro ? profile?.subscriptionStatus ?? "active" : "free"}
+              </p>
+              <p className="mono text-[10px]" style={{ color: "var(--text-3)" }}>
+                {isPro ? "subscription" : "tier"}
+              </p>
             </div>
-            <p className="text-sm font-semibold truncate" style={{ color: "#18130E" }}>{user?.email}</p>
-            <p className="text-xs mt-1" style={{ color: "#6B5E52" }}>
-              {isPro ? `Status: ${profile?.subscriptionStatus}` : "Free tier"}
-            </p>
-          </motion.div>
+          </Reveal>
         </div>
 
-        {/* Upgrade CTA (free users) */}
+        {/* Upgrade prompt */}
         <AnimatePresence>
           {!isPro && (
             <motion.div
-              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-              className="mb-8 rounded-2xl border p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between overflow-hidden relative"
-              style={{ background: "#FEF0E6", borderColor: "rgba(232,101,26,0.25)" }}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-12 p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end justify-between gap-6 border"
+              style={{
+                borderColor: "var(--hairline-2)",
+                background: "rgba(255,106,31,0.03)",
+              }}
             >
-              {/* Subtle bg pattern */}
-              <div className="absolute right-0 top-0 bottom-0 w-48 pointer-events-none"
-                style={{ background: "linear-gradient(90deg, transparent, rgba(232,101,26,0.06))" }} />
-              <div className="relative">
-                <div className="flex items-center gap-2 mb-1">
-                  <Zap className="w-4 h-4" style={{ color: "#E8651A" }} />
-                  <h3 className="font-bold" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
-                    Upgrade to Pro
-                  </h3>
-                </div>
-                <p className="text-sm" style={{ color: "#6B5E52" }}>Unlimited analyses for $9/month. Cancel anytime.</p>
+              <div>
+                <p className="eyebrow mb-3">Upgrade</p>
+                <h3
+                  className="display"
+                  style={{ fontSize: "clamp(1.4rem, 2.4vw, 2rem)", color: "var(--text)" }}
+                >
+                  Unlimited analyses, <span className="serif-italic" style={{ color: "var(--ember)" }}>$9/month.</span>
+                </h3>
+                <p className="text-sm mt-2 max-w-md" style={{ color: "var(--text-3)" }}>
+                  Cancel anytime. No hidden fees.
+                </p>
               </div>
-              <Link href="/pricing">
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                  className="relative shrink-0 flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm cursor-pointer"
-                  style={{ background: "#E8651A", color: "white", boxShadow: "0 4px 14px rgba(232,101,26,0.35)" }}>
-                  <Zap className="w-4 h-4" /> Upgrade Now
-                </motion.div>
+              <Link href="/pricing" className="btn btn-primary shrink-0">
+                Upgrade
+                <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Analysis history */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold" style={{ color: "#18130E", fontFamily: "var(--font-syne,'Syne',sans-serif)" }}>
-              Analysis History
-            </h2>
-            <Link href="/">
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl border cursor-pointer transition-all"
-                style={{ borderColor: "#E8E2D9", color: "#E8651A", background: "white" }}>
-                <Plus className="w-4 h-4" /> New Analysis
-              </motion.div>
+        {/* History */}
+        <div className="mt-24">
+          <div className="flex items-baseline justify-between mb-10">
+            <p className="eyebrow">History</p>
+            <Link href="/" className="btn btn-ghost !py-2 !px-4 !text-[13px]">
+              <Plus className="w-4 h-4" /> New analysis
             </Link>
           </div>
 
           {loadingHistory ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="w-6 h-6 rounded-full border-2 animate-spin"
-                style={{ borderColor: "rgba(232,101,26,0.2)", borderTopColor: "#E8651A" }} />
+            <div className="py-16 flex justify-center">
+              <motion.span
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1.6, repeat: Infinity }}
+                className="mono text-[11px] tracking-[0.3em]"
+                style={{ color: "var(--text-3)" }}
+              >
+                LOADING
+              </motion.span>
             </div>
           ) : analyses.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
-              className="text-center py-16 rounded-2xl border-2 border-dashed"
-              style={{ borderColor: "#E8E2D9" }}>
-              <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center border"
-                style={{ background: "#F2EDE6", borderColor: "#E8E2D9" }}>
-                <FileText className="w-6 h-6" style={{ color: "#A89484" }} />
-              </div>
-              <p className="font-semibold mb-1" style={{ color: "#18130E" }}>No analyses yet</p>
-              <p className="text-sm mb-6" style={{ color: "#A89484" }}>Upload your first document to get started</p>
-              <Link href="/">
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                  className="inline-flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm cursor-pointer"
-                  style={{ background: "#E8651A", color: "white", boxShadow: "0 4px 14px rgba(232,101,26,0.35)" }}>
-                  <Shield className="w-4 h-4" /> Analyze Your First Document
-                </motion.div>
+            <div
+              className="py-20 text-center border"
+              style={{ borderColor: "var(--hairline-2)", borderStyle: "dashed" }}
+            >
+              <p
+                className="display mb-3"
+                style={{ fontSize: "clamp(1.4rem, 2.4vw, 2rem)", color: "var(--text-2)" }}
+              >
+                Nothing here yet.
+              </p>
+              <p className="text-sm mb-8" style={{ color: "var(--text-3)" }}>
+                Upload your first document to begin.
+              </p>
+              <Link href="/" className="btn btn-primary">
+                <Plus className="w-4 h-4" /> Analyze your first document
               </Link>
-            </motion.div>
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="border-t" style={{ borderColor: "var(--hairline-2)" }}>
               {analyses.map((analysis, idx) => {
                 const ar = analysis.result as unknown as AnalysisResult
                 const vc = VERDICT_CONFIG[ar.overall_verdict]
@@ -239,58 +234,59 @@ function DashboardContent() {
                 return (
                   <motion.div
                     key={analysis.id}
-                    custom={idx}
-                    variants={cardVariants}
-                    initial="hidden"
-                    animate="show"
-                    whileHover={{ y: -2, boxShadow: "0 8px 24px rgba(24,19,14,0.08)" }}
-                    className="group flex items-center gap-4 rounded-2xl border p-4 cursor-pointer transition-all"
-                    style={{ background: "white", borderColor: "#E8E2D9" }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: idx * 0.04 }}
                     onClick={() => router.push(`/analyze/${analysis.id}`)}
+                    className="group cursor-pointer py-5 px-2 border-b flex items-baseline gap-5 transition-colors"
+                    style={{ borderColor: "var(--hairline-2)" }}
                   >
-                    <div className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0"
-                      style={{ background: "#F2EDE6", borderColor: "#E8E2D9" }}>
-                      <FileText className="w-5 h-5" style={{ color: "#A89484" }} />
-                    </div>
+                    <span
+                      className="mono text-[10px] tracking-[0.2em] shrink-0"
+                      style={{ color: "var(--text-mute)" }}
+                    >
+                      {String(analyses.length - idx).padStart(2, "0")}
+                    </span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate" style={{ color: "#18130E" }}>
+                      <p
+                        className="truncate group-hover:text-white transition-colors"
+                        style={{
+                          color: "var(--text)",
+                          fontFamily: "var(--font-syne,'Syne',sans-serif)",
+                          fontWeight: 500,
+                          letterSpacing: "-0.025em",
+                          fontSize: 18,
+                        }}
+                      >
                         {analysis.documentName}
                       </p>
-                      <p className="text-xs mt-0.5" style={{ color: "#A89484" }}>
+                      <p className="mono text-[10px] mt-1" style={{ color: "var(--text-mute)" }}>
                         {analysis.documentType && analysis.documentType !== "Unknown"
-                          ? `${analysis.documentType} · ` : ""}
+                          ? `${analysis.documentType.toUpperCase()} · `
+                          : ""}
                         {new Date(analysis.createdAt).toLocaleDateString("en-US", {
                           month: "short", day: "numeric", year: "numeric",
-                        })}
+                        }).toUpperCase()}
                       </p>
                     </div>
-                    <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold border rounded-lg px-2.5 py-1"
-                      style={{ background: vc.bg, borderColor: vc.border, color: vc.text }}>
-                      <VIcon className="w-3 h-3" />
-                      {vc.label}
-                    </div>
-                    <motion.div
-                      className="shrink-0"
-                      animate={{ x: 0 }}
-                      whileHover={{ x: 2 }}
-                    >
-                      <ChevronRight className="w-4 h-4 transition-colors"
-                        style={{ color: "#CFC8BE" }} />
-                    </motion.div>
+                    <span className={`label ${vc.labelClass} shrink-0 hidden sm:inline-flex`}>
+                      <VIcon className="w-3 h-3" /> {vc.label}
+                    </span>
+                    <ArrowUpRight
+                      className="w-4 h-4 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity"
+                      style={{ color: "var(--text-3)" }}
+                    />
                   </motion.div>
                 )
               })}
             </div>
           )}
-        </motion.div>
+        </div>
 
-        {/* Bottom clock note */}
         {analyses.length > 0 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-            className="flex items-center justify-center gap-2 mt-8">
-            <Clock className="w-3.5 h-3.5" style={{ color: "#CFC8BE" }} />
-            <p className="text-xs" style={{ color: "#CFC8BE" }}>Documents stored for 30 days</p>
-          </motion.div>
+          <p className="mt-12 mono text-[10px] tracking-[0.2em]" style={{ color: "var(--text-mute)" }}>
+            DOCUMENTS RETAINED FOR 30 DAYS · AUTO-DELETED THEREAFTER
+          </p>
         )}
       </div>
     </div>
@@ -299,7 +295,7 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen" style={{ background: "#FAFAF8" }} />}>
+    <Suspense fallback={<div className="min-h-screen" />}>
       <DashboardContent />
     </Suspense>
   )

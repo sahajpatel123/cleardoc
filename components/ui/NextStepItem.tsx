@@ -1,33 +1,46 @@
+"use client"
+
 import type { NextStep } from "@/lib/types"
 import { motion } from "framer-motion"
+import { ArrowUpRight } from "lucide-react"
 
 interface Props { step: NextStep; index: number }
 
-const priorityColors = [
-  { num: "#DC2626", bg: "#FEF2F2", border: "rgba(220,38,38,0.2)" },
-  { num: "#E8651A", bg: "#FEF0E6", border: "rgba(232,101,26,0.2)" },
-  { num: "#2563EB", bg: "#EFF6FF", border: "rgba(37,99,235,0.2)" },
-  { num: "#059669", bg: "#ECFDF5", border: "rgba(5,150,105,0.2)" },
-  { num: "#6B5E52", bg: "#F9F6F1", border: "#E8E2D9" },
-]
-
 export default function NextStepItem({ step, index }: Props) {
-  const c = priorityColors[Math.min(step.priority - 1, 4)]
   return (
     <motion.div
-      whileHover={{ x: 4 }}
-      transition={{ type: "spring", stiffness: 300 }}
-      className="flex items-start gap-4 p-4 rounded-xl border transition-all cursor-default"
-      style={{ background: "white", borderColor: "#E8E2D9" }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: index * 0.06, ease: [0.16, 1, 0.3, 1] }}
+      className="group py-5 border-b transition-colors flex items-start gap-5"
+      style={{ borderColor: "var(--hairline-2)" }}
     >
-      <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border"
-        style={{ color: c.num, background: c.bg, borderColor: c.border }}>
-        {step.priority}
+      <span
+        className="mono text-[10px] tracking-[0.2em] mt-1 shrink-0"
+        style={{ color: "var(--text-mute)" }}
+      >
+        {String(step.priority).padStart(2, "0")}
+      </span>
+      <div className="flex-1">
+        <h4
+          className="text-base sm:text-lg mb-2"
+          style={{
+            color: "var(--text)",
+            fontFamily: "var(--font-syne,'Syne',sans-serif)",
+            fontWeight: 500,
+            letterSpacing: "-0.02em",
+          }}
+        >
+          {step.action}
+        </h4>
+        <p className="text-sm leading-relaxed max-w-2xl" style={{ color: "var(--text-3)" }}>
+          {step.reason}
+        </p>
       </div>
-      <div className="flex-1 min-w-0">
-        <h4 className="font-bold text-sm mb-1" style={{ color: "#18130E" }}>{step.action}</h4>
-        <p className="text-sm leading-relaxed" style={{ color: "#6B5E52" }}>{step.reason}</p>
-      </div>
+      <ArrowUpRight
+        className="w-4 h-4 mt-1 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all"
+        style={{ color: "var(--ember)" }}
+      />
     </motion.div>
   )
 }
