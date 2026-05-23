@@ -125,6 +125,18 @@ body::before {
   line-height: 0.96;
 }
 .display-light { font-weight: 400; }
+
+/* Hero headline — room for ascenders/descenders + kinetic word masks */
+.hero-headline {
+  padding: 0.14em 0.1em 0.28em 0.08em;
+  line-height: 1.06;
+  letter-spacing: -0.038em;
+  text-wrap: balance;
+}
+.hero-headline .inline-block.overflow-hidden {
+  padding-block: 0.16em;
+  margin-block: -0.16em;
+}
 .serif-italic {
   font-style: italic;
   font-weight: 400;

@@ -363,7 +363,7 @@ function HomeContent() {
 
           {/* The big idea */}
           <h1
-            className="display max-w-[16ch]"
+            className="display hero-headline max-w-[16ch] mb-2 sm:mb-4"
             style={{
               fontSize: "clamp(2.6rem, 8vw, 7rem)",
               color: "var(--text)",
