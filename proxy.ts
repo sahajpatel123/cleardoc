@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function proxy(_request: NextRequest) {
+export function proxy(request: NextRequest) {
+  void request
   const response = NextResponse.next()
 
   // Content Security Policy
