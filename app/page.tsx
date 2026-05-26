@@ -350,10 +350,9 @@ function HomeContent() {
           style={{ y: heroY }}
           className="container-edition relative z-10"
         >
-          {/* Top meta strip */}
+          {/* Status strip */}
           <Reveal>
-            <div className="flex items-baseline justify-between mb-16 sm:mb-24">
-              <p className="eyebrow">Vol. 01 · The Atelier Edition</p>
+            <div className="flex items-baseline justify-end mb-10 sm:mb-14">
               <div className="hidden sm:flex items-center gap-3 mono text-[10px]" style={{ color: "var(--text-mute)" }}>
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--moss)" }} />
                 LIVE · 2026
