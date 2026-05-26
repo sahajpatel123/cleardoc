@@ -96,7 +96,7 @@ function LoginInner() {
         <Vignette />
       </div>
 
-      <div className="container-edition relative z-10 pt-28 sm:pt-36 pb-24">
+      <div className="container-edition relative z-10 pt-32 sm:pt-40 pb-24">
         {/* Top meta */}
         <Reveal>
           <div className="flex items-baseline justify-between mb-16 sm:mb-24">

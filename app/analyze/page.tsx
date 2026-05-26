@@ -154,7 +154,7 @@ export default function AnalyzePage() {
   )
 
   return (
-    <div className="min-h-screen pt-28 pb-32">
+    <div className="min-h-screen pt-32 pb-32">
       <div className="container-edition">
         <Reveal>
           <div className="flex items-baseline justify-between mb-10">
