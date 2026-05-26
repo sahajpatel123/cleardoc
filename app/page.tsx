@@ -350,16 +350,6 @@ function HomeContent() {
           style={{ y: heroY }}
           className="container-edition relative z-10"
         >
-          {/* Status strip */}
-          <Reveal>
-            <div className="flex items-baseline justify-end mb-10 sm:mb-14">
-              <div className="hidden sm:flex items-center gap-3 mono text-[10px]" style={{ color: "var(--text-mute)" }}>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--moss)" }} />
-                LIVE · 2026
-              </div>
-            </div>
-          </Reveal>
-
           {/* The big idea */}
           <h1
             className="display hero-headline max-w-[16ch] mb-2 sm:mb-4"
