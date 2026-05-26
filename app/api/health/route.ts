@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getMissingEnv, REQUIRED_SERVER_ENV, REQUIRED_STRIPE_ENV } from "@/lib/env"
+import { getMissingCoreEnv, getMissingEnv, REQUIRED_STRIPE_ENV } from "@/lib/env"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 export async function GET() {
-  const missingCore = getMissingEnv(REQUIRED_SERVER_ENV)
+  const missingCore = getMissingCoreEnv()
   const missingStripe = getMissingEnv(REQUIRED_STRIPE_ENV)
 
   let database: "ok" | "error" = "ok"

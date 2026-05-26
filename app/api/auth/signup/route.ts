@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from "next/server"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { hashPassword, validateEmail, validatePassword } from "@/lib/password"
 import { rateLimitByIp } from "@/lib/rate-limit"
+import { assertServerEnv } from "@/lib/env"
 
 export const runtime = "nodejs"
 
 export async function POST(req: NextRequest) {
+  try {
+    assertServerEnv()
+  } catch (err) {
+    console.error("[signup] Server env not configured:", err)
+    return NextResponse.json(
+      { error: "Account signup is temporarily unavailable. Please try again later." },
+      { status: 503 },
+    )
+  }
+
   const rate = await rateLimitByIp(req, 10, "1 h")
   if (!rate.allowed) {
     return NextResponse.json({ error: "Too many signup attempts. Try again later." }, { status: 429 })
@@ -34,22 +46,45 @@ export async function POST(req: NextRequest) {
   const password = rawPassword as string
   const name = typeof rawName === "string" && rawName.trim().length > 0 ? rawName.trim().slice(0, 80) : null
 
-  const existing = await prisma.user.findUnique({ where: { email } })
-  if (existing) {
+  try {
+    const existing = await prisma.user.findUnique({ where: { email } })
+    if (existing) {
+      return NextResponse.json(
+        { error: "An account with this email already exists." },
+        { status: 409 },
+      )
+    }
+
+    const hashed = await hashPassword(password)
+    await prisma.user.create({
+      data: {
+        email,
+        password: hashed,
+        name,
+      },
+    })
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error("[signup] Database error:", err)
+
+    if (err instanceof Prisma.PrismaClientInitializationError) {
+      return NextResponse.json(
+        { error: "Account signup is temporarily unavailable. Please try again later." },
+        { status: 503 },
+      )
+    }
+
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return NextResponse.json(
+        { error: "An account with this email already exists." },
+        { status: 409 },
+      )
+    }
+
     return NextResponse.json(
-      { error: "An account with this email already exists." },
-      { status: 409 },
+      { error: "Couldn't create account. Try again." },
+      { status: 500 },
     )
   }
-
-  const hashed = await hashPassword(password)
-  await prisma.user.create({
-    data: {
-      email,
-      password: hashed,
-      name,
-    },
-  })
-
-  return NextResponse.json({ ok: true })
 }
