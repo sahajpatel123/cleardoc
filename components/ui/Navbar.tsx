@@ -19,9 +19,6 @@ const LINKS: { href: string; label: string }[] = [
 function NavBrand({ showWhisper = false }: { showWhisper?: boolean }) {
   return (
     <>
-      <span className="nav-brand__sigil" aria-hidden>
-        <span className="nav-brand__sigil-core" />
-      </span>
       <span className="nav-brand__lockup">
         <span className="nav-brand__word">
           Clear<span className="nav-brand__word-accent">Doc</span>
@@ -199,32 +196,17 @@ export default function Navbar() {
                     >
                       <Link
                         href={l.href}
-                        className="flex items-baseline gap-4 py-4 border-b"
+                        className="block py-4 border-b text-2xl"
                         style={{
                           borderColor: "var(--hairline)",
                           color: pathname === l.href ? "var(--text)" : "var(--text-2)",
+                          fontFamily: "var(--font-syne,'Syne',sans-serif)",
+                          fontWeight: 500,
+                          letterSpacing: "-0.03em",
                         }}
                         onClick={() => setMobileOpen(false)}
                       >
-                        <span
-                          className="mono text-[11px] shrink-0"
-                          style={{
-                            color: pathname === l.href ? "var(--ember)" : "var(--text-mute)",
-                            letterSpacing: "0.16em",
-                          }}
-                        >
-                          {l.index}
-                        </span>
-                        <span
-                          className="text-2xl"
-                          style={{
-                            fontFamily: "var(--font-syne,'Syne',sans-serif)",
-                            fontWeight: 500,
-                            letterSpacing: "-0.03em",
-                          }}
-                        >
-                          {l.label}
-                        </span>
+                        {l.label}
                       </Link>
                     </motion.div>
                   ))}
