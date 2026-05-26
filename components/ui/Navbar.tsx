@@ -16,6 +16,32 @@ const LINKS: { href: string; label: string; index: string }[] = [
   { href: "/dashboard", label: "Account", index: "03" },
 ]
 
+function NavBrand({ showWhisper = false }: { showWhisper?: boolean }) {
+  return (
+    <>
+      <span className="nav-brand__sigil" aria-hidden>
+        <span className="nav-brand__sigil-ring" />
+        <span className="nav-brand__sigil-core" />
+      </span>
+      <span className="nav-brand__lockup">
+        <span className="nav-brand__word">
+          Clear<span className="nav-brand__word-accent">Doc</span>
+        </span>
+        {showWhisper && (
+          <>
+            <span className="nav-brand__sep" aria-hidden>
+              /
+            </span>
+            <span className="nav-brand__whisper">
+              read what they really sent.
+            </span>
+          </>
+        )}
+      </span>
+    </>
+  )
+}
+
 export default function Navbar() {
   const pathname = usePathname()
   const { user, profile, signOut } = useAuth()
@@ -59,11 +85,8 @@ export default function Navbar() {
           <div className="container-edition">
             {/* Mobile */}
             <div className="flex md:hidden items-center justify-between gap-4 min-h-[4.25rem] py-3">
-              <Link href="/" className="flex items-center gap-3 min-w-0">
-                <span className="nav-brand__mark" aria-hidden>
-                  CD
-                </span>
-                <span className="nav-brand__title">ClearDoc</span>
+              <Link href="/" className="nav-brand min-w-0">
+                <NavBrand />
               </Link>
               <button
                 type="button"
@@ -83,19 +106,8 @@ export default function Navbar() {
 
             {/* Desktop — true 3-column: brand | centered rail | actions */}
             <div className="hidden md:grid md:grid-cols-[1fr_auto_1fr] md:items-center md:gap-8 md:min-h-[var(--nav-height)]">
-              <Link
-                href="/"
-                className="flex items-center gap-3.5 group min-w-0 justify-self-start"
-              >
-                <span className="nav-brand__mark" aria-hidden>
-                  CD
-                </span>
-                <span className="flex flex-col min-w-0 gap-1">
-                  <span className="nav-brand__title">ClearDoc</span>
-                  <span className="nav-brand__tagline hidden lg:block">
-                    Read what they really sent
-                  </span>
-                </span>
+              <Link href="/" className="nav-brand min-w-0 justify-self-start">
+                <NavBrand showWhisper />
               </Link>
 
               <nav className="justify-self-center" aria-label="Primary">
