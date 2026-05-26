@@ -43,8 +43,8 @@ export default function Footer() {
             <FooterCol
               title="Index"
               links={[
-                { label: "FAQ", href: "/pricing#faq" },
-                { label: "Disclaimer", href: "#disclaimer" },
+                { label: "FAQ", href: "/faq" },
+                { label: "Disclaimer", href: "/disclaimer" },
               ]}
             />
           </div>

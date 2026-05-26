@@ -1,13 +1,15 @@
 "use client"
 
-import { useState } from "react"
 import { useAuth } from "@/context/AuthContext"
 import { isProUser } from "@/lib/user-plan"
 import { useBilling } from "@/hooks/useBilling"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Check, ArrowRight, ChevronDown } from "lucide-react"
+import { Check, ArrowRight } from "lucide-react"
 import { Reveal, Magnetic } from "@/components/ui/Kinetic"
+import FaqAccordion from "@/components/ui/FaqAccordion"
+import { PRICING_FAQ_ITEMS } from "@/lib/faq-content"
 
 const FREE_FEATURES = [
   "1 document analysis",
@@ -27,33 +29,9 @@ const PRO_FEATURES = [
   "Cancel anytime",
 ]
 
-const FAQ = [
-  {
-    q: "What types of documents can I upload?",
-    a: "Any official document: insurance denial letters, medical bills, eviction notices, visa rejections, IRS letters, debt collection letters, legal notices, bank dispute letters, and more. If it's official and intimidating, ClearDoc can help.",
-  },
-  {
-    q: "Is this actually legal advice?",
-    a: "No — ClearDoc is a general information tool, not a law firm. Our AI gives you a starting point to understand your situation and respond. For serious legal matters, also consult a licensed attorney (we'll often suggest free legal aid resources in your next steps).",
-  },
-  {
-    q: "How accurate is the AI analysis?",
-    a: "Our AI is trained to identify common red flags, illegal clauses, and manipulation tactics used in official documents. It's highly accurate for pattern recognition, but always read the analysis critically and verify specific legal claims with a professional.",
-  },
-  {
-    q: "What happens to my uploaded documents?",
-    a: "Your uploaded files are processed in memory and not kept on our servers. We only store the analysis results (summary, flags, letter, steps) tied to your account. We don't use your documents to train AI models.",
-  },
-  {
-    q: "Can I cancel my Pro subscription?",
-    a: "Yes, anytime. Use Manage subscription on your dashboard (Stripe billing portal) to cancel. You'll keep Pro access until the end of your billing period. No cancellation fees.",
-  },
-]
-
 export default function PricingPage() {
   const router = useRouter()
   const { user, profile } = useAuth()
-  const [openFaq, setOpenFaq] = useState<number | null>(0)
   const { startCheckout, loading, error: billingError } = useBilling()
 
   const handleUpgrade = async () => {
@@ -273,63 +251,18 @@ export default function PricingPage() {
           </Reveal>
 
           <div className="border-t" style={{ borderColor: "var(--hairline-2)" }}>
-            {FAQ.map((item, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 8 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.05 }}
-                className="border-b"
-                style={{ borderColor: "var(--hairline-2)" }}
-              >
-                <button
-                  className="w-full flex items-baseline justify-between py-6 text-left gap-6"
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                >
-                  <span className="flex items-baseline gap-5 flex-1">
-                    <span
-                      className="mono text-[10px] tracking-[0.2em] shrink-0"
-                      style={{ color: "var(--text-mute)" }}
-                    >
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <span
-                      style={{
-                        color: "var(--text)",
-                        fontFamily: "var(--font-syne,'Syne',sans-serif)",
-                        fontWeight: 500,
-                        letterSpacing: "-0.025em",
-                        fontSize: "clamp(1.1rem, 1.8vw, 1.5rem)",
-                      }}
-                    >
-                      {item.q}
-                    </span>
-                  </span>
-                  <motion.div animate={{ rotate: openFaq === i ? 180 : 0 }} className="shrink-0">
-                    <ChevronDown className="w-4 h-4" style={{ color: "var(--text-3)" }} />
-                  </motion.div>
-                </button>
-                <AnimatePresence>
-                  {openFaq === i && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                      className="overflow-hidden"
-                    >
-                      <div className="pb-8 pl-12 pr-12 max-w-3xl">
-                        <p className="text-base leading-relaxed" style={{ color: "var(--text-3)" }}>
-                          {item.a}
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            ))}
+            <FaqAccordion items={PRICING_FAQ_ITEMS} defaultOpen={0} />
           </div>
+          <p className="mt-8">
+            <Link
+              href="/faq"
+              className="text-sm inline-flex items-center gap-1.5 transition-colors"
+              style={{ color: "var(--text-3)" }}
+            >
+              View all questions
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </p>
         </section>
 
         {/* Bottom CTA */}
