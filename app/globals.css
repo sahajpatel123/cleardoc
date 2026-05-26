@@ -189,22 +189,9 @@ body::before {
 .balance { text-wrap: balance; }
 .pretty  { text-wrap: pretty; }
 
-/* Ember underline — the only piece of color in marketing prose. Used once. */
 .ember-mark {
-  position: relative;
   white-space: nowrap;
   color: var(--text);
-}
-.ember-mark::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -0.08em;
-  height: 0.10em;
-  background: var(--ember);
-  border-radius: 100px;
-  transform-origin: left;
 }
 
 /* Stroke-only display text */
