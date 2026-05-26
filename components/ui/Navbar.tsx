@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { isProUser } from "@/lib/user-plan"
 import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
 import { Menu, X, ArrowRight } from "lucide-react"
 
 const EASE = [0.16, 1, 0.3, 1] as [number, number, number, number]
@@ -15,6 +15,50 @@ const LINKS: { href: string; label: string }[] = [
   { href: "/pricing", label: "Pricing" },
   { href: "/dashboard", label: "Account" },
 ]
+
+const RAIL_SPRING = { type: "spring" as const, stiffness: 420, damping: 34, mass: 0.75 }
+
+function NavRail({ pathname }: { pathname: string }) {
+  return (
+    <LayoutGroup id="nav-rail">
+      <div className="nav-rail">
+        {LINKS.map((l) => {
+          const active = pathname === l.href
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="nav-rail__link"
+              aria-current={active ? "page" : undefined}
+            >
+              {active && (
+                <motion.span
+                  layoutId="nav-rail-pill"
+                  className="nav-rail__pill"
+                  transition={RAIL_SPRING}
+                  aria-hidden
+                />
+              )}
+              <motion.span
+                className="nav-rail__label"
+                animate={{
+                  color: active ? "var(--text)" : "var(--text-3)",
+                  scale: active ? 1 : 0.98,
+                }}
+                transition={{
+                  color: { duration: 0.22, ease: EASE },
+                  scale: RAIL_SPRING,
+                }}
+              >
+                {l.label}
+              </motion.span>
+            </Link>
+          )
+        })}
+      </div>
+    </LayoutGroup>
+  )
+}
 
 function NavBrand({ showWhisper = false }: { showWhisper?: boolean }) {
   return (
@@ -107,20 +151,7 @@ export default function Navbar() {
               </Link>
 
               <nav className="justify-self-center" aria-label="Primary">
-                <div className="nav-rail">
-                  {LINKS.map((l) => {
-                    const active = pathname === l.href
-                    return (
-                      <Link
-                        key={l.href}
-                        href={l.href}
-                        className={`nav-rail__link ${active ? "nav-rail__link--active" : ""}`}
-                      >
-                        <span className="nav-rail__label">{l.label}</span>
-                      </Link>
-                    )
-                  })}
-                </div>
+                <NavRail pathname={pathname} />
               </nav>
 
               <div className="flex items-center justify-end gap-5 justify-self-end">
