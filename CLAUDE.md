@@ -1,6 +1,6 @@
 # ClearDoc — Project Memory (source of truth)
 
-> **Last verified:** 2026-05-23. If anything here conflicts with code, **trust the code** and update this file.
+> **Last verified:** 2026-05-26. If anything here conflicts with code, **trust the code** and update this file.
 
 ## What this app is
 
@@ -51,18 +51,20 @@ next-auth.d.ts                    — Session.user.id typing
 
 /app
   layout.tsx                      — Server: auth() → Providers(session) → Navbar + main + Footer
-  page.tsx                        — Landing: upload, sessionStorage handoff, login gate
+  page.tsx                        — Landing: upload, IndexedDB handoff, login gate
   globals.css                     — Design tokens (--ink, --ember, --bone, etc.)
   /login/page.tsx                 — Sign in / sign up (client); posts to /api/auth/signup then signIn()
   /analyze
-    page.tsx                      — Runs analysis from sessionStorage; 4 result panels
+    page.tsx                      — Runs analysis from pending-analysis-store; 4 result panels
     /[id]/page.tsx                — Reload saved analysis (auth required)
   /dashboard/page.tsx             — History list; ?upgraded=true after Stripe
   /pricing/page.tsx               — Pricing + checkout CTA
   /api
     /auth/[...nextauth]/route.ts  — NextAuth handlers
     /auth/signup/route.ts         — Create user + hashed password (before Credentials sign-in)
-    /analyze/route.ts             — PDF/vision + Claude + optional save + quota
+    /analyze/route.ts             — PDF/vision + Claude + save (auth required; quota reserved before AI)
+    /health/route.ts              — Deploy health (DB + env)
+    /stripe/portal/route.ts       — Billing portal session
     /usage/route.ts               — Plan + freeUsesRemaining for AuthContext
     /analyses/route.ts            — List user's analyses (auth)
     /analyses/[id]/route.ts       — Single analysis (auth + ownership)
@@ -81,7 +83,12 @@ next-auth.d.ts                    — Session.user.id typing
 
 /lib
   types.ts                        — AnalysisResult, UserPlanProfile, etc.
-  db.ts                           — All Prisma data access (users, analyses, Stripe fields)
+  db.ts                           — Prisma: users, analyses, reserve/refund free credit, Stripe updates
+  pending-analysis-store.ts       — Memory + IndexedDB file handoff (login redirect safe)
+  stripe-events.ts                — Webhook idempotency (ProcessedStripeEvent)
+  user-plan.ts                    — isProUser(plan + subscriptionStatus active)
+  validate-analysis.ts            — Runtime AnalysisResult schema check
+  rate-limit.ts                   — Upstash IP + per-user limits (optional)
   prisma.ts                       — Singleton PrismaClient
   password.ts                     — scrypt hash/verify + validateEmail/validatePassword
   claude.ts                       — Claude API + system prompt + JSON parse
@@ -89,7 +96,7 @@ next-auth.d.ts                    — Session.user.id typing
   stripe.ts                       — getStripe(), createCheckoutSession()
 
 /prisma
-  schema.prisma                   — User, Analysis, Auth.js Account/Session tables
+  schema.prisma                   — User, Analysis, ProcessedStripeEvent, Auth.js tables
   migrations/                     — Apply with: npx prisma migrate deploy
 ```
 
@@ -107,6 +114,9 @@ next-auth.d.ts                    — Session.user.id typing
 ### `Analysis`
 - `id`, `userId`, `documentName`, `documentType` (user context string), `result` (JSON `AnalysisResult`)
 - Index: `[userId, createdAt desc]`
+
+### `ProcessedStripeEvent`
+- `id` — Stripe event id (`evt_...`); prevents duplicate webhook handling
 
 **No file blob storage** — documents are not persisted; only Claude output JSON is saved.
 
@@ -144,13 +154,13 @@ const { user, profile, loading, signOut, refreshProfile } = useAuth()
 ```mermaid
 sequenceDiagram
   participant Home as app/page.tsx
-  participant SS as sessionStorage
+  participant Store as pending-analysis-store
   participant Login as /login
   participant Analyze as /analyze
   participant API as POST /api/analyze
   participant DB as PostgreSQL
 
-  Home->>SS: pendingAnalysis (base64 file + context)
+  Home->>Store: setPendingAnalysis(file + context)
   alt not logged in
     Home->>Login: redirect signup
     Login->>Analyze: after signIn
@@ -158,11 +168,12 @@ sequenceDiagram
     Home->>Analyze: router.push
   end
   Analyze->>API: FormData file + context
-  API->>API: pdf2json or vision
-  API->>API: Claude → AnalysisResult JSON
-  opt userId present
-    API->>DB: save Analysis
-    API->>DB: decrement freeUses if plan=free
+  API->>DB: reserveFreeAnalysisCredit (free only)
+  API->>API: pdf2json or vision + Claude
+  alt success
+    API->>DB: save Analysis JSON
+  else failure
+    API->>DB: refundFreeAnalysisCredit (free only)
   end
   API-->>Analyze: { result, analysisId }
 ```
@@ -172,11 +183,12 @@ sequenceDiagram
 | Rule | Where |
 |------|--------|
 | Homepage **requires login** before analyze | `app/page.tsx` `handleAnalyze` |
-| `/api/analyze` **can run without auth** (no save, no quota) | `app/api/analyze/route.ts` — UI gates this today |
-| Free users: block when `freeUsesRemaining <= 0` | API returns `402` + `FREE_LIMIT_REACHED` |
-| Pro users: **no** free-use check or decrement | `userProfile.plan === "pro"` |
+| `/api/analyze` **requires auth** (401 if missing) | `app/api/analyze/route.ts` |
+| Free users: **reserve** credit before Claude; **refund** on failure | `reserveFreeAnalysisCredit` / `refundFreeAnalysisCredit` in `lib/db.ts` |
+| Pro = `plan === "pro"` **and** `subscriptionStatus === "active"` | `lib/user-plan.ts` `isProUser` |
 | Max upload **10MB**; PDF, PNG, JPG, WEBP | analyze route + pdf-parser |
-| Rate limit **15 req/hour/IP** if Upstash configured | analyze route |
+| Rate limits if Upstash set: **15/hr/IP**, **10/hr free user**, **60/hr Pro** | `lib/rate-limit.ts` `ANALYZE_RATE_LIMITS` |
+| Stripe webhooks **idempotent** per `event.id` | `lib/stripe-events.ts` + `ProcessedStripeEvent` |
 
 ---
 
@@ -186,7 +198,9 @@ sequenceDiagram
 |--------|------|------|---------|
 | GET/POST | `/api/auth/[...nextauth]` | — | NextAuth |
 | POST | `/api/auth/signup` | — | Register email/password |
-| POST | `/api/analyze` | Optional | Analyze document |
+| POST | `/api/analyze` | Required | Analyze document (quota reserved before AI) |
+| GET | `/api/health` | — | Health check for deploy |
+| POST | `/api/stripe/portal` | Required | Stripe billing portal URL |
 | GET | `/api/usage` | Optional | Quota/plan (anonymous → zeros) |
 | GET | `/api/analyses` | Required | List analyses |
 | GET | `/api/analyses/[id]` | Required | One analysis (owner only) |
@@ -266,6 +280,7 @@ npm install          # runs prisma generate (postinstall)
 npx prisma migrate deploy   # production DB migrations
 npm run dev
 npm run build
+npm test             # unit tests (user-plan, validate-analysis)
 ```
 
 ---

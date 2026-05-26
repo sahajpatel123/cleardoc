@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --import tsx --test lib/**/*.test.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -35,6 +36,7 @@
     "eslint-config-next": "16.1.6",
     "prisma": "^6.19.0",
     "tailwindcss": "^4",
+    "tsx": "^4.22.3",
     "typescript": "^5.9.3"
   }
 }

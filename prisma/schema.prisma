@@ -72,3 +72,9 @@ model Analysis {
 
   @@index([userId, createdAt(sort: Desc)])
 }
+
+/// Stripe webhook idempotency — one row per processed event id (evt_...).
+model ProcessedStripeEvent {
+  id        String   @id
+  createdAt DateTime @default(now())
+}

@@ -1,25 +1,34 @@
 import { NextRequest, NextResponse } from "next/server"
 import { extractDocumentFromBuffer, getFileMimeType } from "@/lib/pdf-parser"
 import { assertServerEnv } from "@/lib/env"
-import { rateLimitByIp } from "@/lib/rate-limit"
+import { ANALYZE_RATE_LIMITS, rateLimitByIp, rateLimitByUserId } from "@/lib/rate-limit"
 import {
   analyzeDocument,
   CLAUDE_INVALID_JSON_ERROR_MESSAGE,
 } from "@/lib/claude"
 import { auth } from "@/auth"
-import { getOrCreateUser, saveAnalysisWithQuota } from "@/lib/db"
+import {
+  getOrCreateUser,
+  refundFreeAnalysisCredit,
+  reserveFreeAnalysisCredit,
+  saveAnalysisResult,
+} from "@/lib/db"
 import { isProUser } from "@/lib/user-plan"
 
 export const runtime = "nodejs"
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
+  let reservedFreeCredit = false
+  let userId: string | null = null
+
   try {
     assertServerEnv()
 
-    const rate = await rateLimitByIp(req, 15, "1 h")
-    if (!rate.allowed) {
+    const ipRate = await rateLimitByIp(req, ANALYZE_RATE_LIMITS.ipPerHour, "1 h")
+    if (!ipRate.allowed) {
       return NextResponse.json(
-        { error: "Too many requests", limit: rate.limit, remaining: rate.remaining, reset: rate.reset },
+        { error: "Too many requests", limit: ipRate.limit, remaining: ipRate.remaining, reset: ipRate.reset },
         { status: 429 },
       )
     }
@@ -28,29 +37,23 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File | null
     const context = (formData.get("context") as string) ?? ""
 
-    // Improved file validation
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
-    // Enhanced file size validation with better error messages
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    const MAX_FILE_SIZE = 10 * 1024 * 1024
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         {
           error: `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`,
-          maxSize: MAX_FILE_SIZE
+          maxSize: MAX_FILE_SIZE,
         },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
-    // Validate file name to prevent path traversal
-    if (!file.name || file.name.includes('..') || file.name.includes('/')) {
-      return NextResponse.json(
-        { error: "Invalid file name" },
-        { status: 400 }
-      )
+    if (!file.name || file.name.includes("..") || file.name.includes("/")) {
+      return NextResponse.json({ error: "Invalid file name" }, { status: 400 })
     }
 
     const session = await auth()
@@ -71,23 +74,39 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const userId = userProfile.id
-
+    userId = userProfile.id
     const pro = isProUser(userProfile)
-    if (!pro && userProfile.freeUsesRemaining <= 0) {
+
+    const userRate = await rateLimitByUserId(
+      userId,
+      pro ? ANALYZE_RATE_LIMITS.proUserPerHour : ANALYZE_RATE_LIMITS.freeUserPerHour,
+      "1 h",
+    )
+    if (!userRate.allowed) {
       return NextResponse.json(
-        { error: "FREE_LIMIT_REACHED" },
-        { status: 402 },
+        {
+          error: "Too many analyses. Please wait before trying again.",
+          limit: userRate.limit,
+          remaining: userRate.remaining,
+          reset: userRate.reset,
+        },
+        { status: 429 },
       )
+    }
+
+    if (!pro) {
+      const reserved = await reserveFreeAnalysisCredit(userId)
+      if (!reserved.ok) {
+        return NextResponse.json({ error: "FREE_LIMIT_REACHED" }, { status: 402 })
+      }
+      reservedFreeCredit = true
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
     const mimeType = getFileMimeType(file.name)
     if (mimeType === "application/octet-stream") {
-      return NextResponse.json(
-        { error: "Unsupported file type." },
-        { status: 400 }
-      )
+      if (reservedFreeCredit && userId) await refundFreeAnalysisCredit(userId)
+      return NextResponse.json({ error: "Unsupported file type." }, { status: 400 })
     }
 
     const extracted = await extractDocumentFromBuffer(buffer, mimeType)
@@ -110,22 +129,22 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const saved = await saveAnalysisWithQuota(
+    const saved = await saveAnalysisResult(
       userId,
-      pro,
       file.name,
       context || "Unknown",
       result,
     )
-    if (!saved.ok) {
-      return NextResponse.json(
-        { error: "FREE_LIMIT_REACHED" },
-        { status: 402 },
-      )
-    }
+    reservedFreeCredit = false
 
     return NextResponse.json({ result, analysisId: saved.id })
   } catch (err) {
+    if (reservedFreeCredit && userId) {
+      await refundFreeAnalysisCredit(userId).catch((refundErr) => {
+        console.error("[analyze] Refund failed:", refundErr)
+      })
+    }
+
     console.error("[analyze] Error:", err)
     if (
       err instanceof Error &&
@@ -136,7 +155,7 @@ export async function POST(req: NextRequest) {
           error:
             "Analysis failed: model returned unexpected output. Please retry.",
         },
-        { status: 500 }
+        { status: 500 },
       )
     }
     const message =

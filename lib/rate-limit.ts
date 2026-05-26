@@ -20,12 +20,18 @@ export function getClientIp(req: NextRequest): string {
   )
 }
 
-/** Returns true if request is allowed. When Redis is not configured, always allows. */
-export async function rateLimitByIp(
-  req: NextRequest,
+export type RateLimitResult = {
+  allowed: boolean
+  limit?: number
+  remaining?: number
+  reset?: number
+}
+
+async function rateLimitByKey(
+  key: string,
   limit: number,
   window: `${number} s` | `${number} m` | `${number} h` | `${number} d`,
-): Promise<{ allowed: boolean; limit?: number; remaining?: number; reset?: number }> {
+): Promise<RateLimitResult> {
   const redis = getRedis()
   if (!redis) return { allowed: true }
 
@@ -33,8 +39,7 @@ export async function rateLimitByIp(
     redis,
     limiter: Ratelimit.slidingWindow(limit, window),
   })
-  const ip = getClientIp(req)
-  const result = await ratelimit.limit(ip)
+  const result = await ratelimit.limit(key)
   return {
     allowed: result.success,
     limit: result.limit,
@@ -42,3 +47,28 @@ export async function rateLimitByIp(
     reset: result.reset,
   }
 }
+
+/** Per-IP limit. When Redis is not configured, always allows. */
+export async function rateLimitByIp(
+  req: NextRequest,
+  limit: number,
+  window: `${number} s` | `${number} m` | `${number} h` | `${number} d`,
+): Promise<RateLimitResult> {
+  return rateLimitByKey(`ip:${getClientIp(req)}`, limit, window)
+}
+
+/** Per-account limit for authenticated routes (analyze, etc.). */
+export async function rateLimitByUserId(
+  userId: string,
+  limit: number,
+  window: `${number} s` | `${number} m` | `${number} h` | `${number} d`,
+): Promise<RateLimitResult> {
+  return rateLimitByKey(`user:${userId}`, limit, window)
+}
+
+/** Analyze route limits — tune COGS vs UX. */
+export const ANALYZE_RATE_LIMITS = {
+  ipPerHour: 15,
+  freeUserPerHour: 10,
+  proUserPerHour: 60,
+} as const

@@ -32,7 +32,42 @@ export type SaveAnalysisResult =
   | { ok: true; id: string }
   | { ok: false; error: "FREE_LIMIT_REACHED" }
 
-/** Save analysis and consume one free credit atomically (skipped for Pro). */
+/** Atomically consume one free credit before calling Claude (avoids API cost on limit races). */
+export async function reserveFreeAnalysisCredit(
+  userId: string,
+): Promise<{ ok: true } | { ok: false; error: "FREE_LIMIT_REACHED" }> {
+  const consumed = await prisma.user.updateMany({
+    where: { id: userId, plan: "free", freeUsesRemaining: { gt: 0 } },
+    data: { freeUsesRemaining: { decrement: 1 } },
+  })
+  if (consumed.count === 0) {
+    return { ok: false, error: "FREE_LIMIT_REACHED" }
+  }
+  return { ok: true }
+}
+
+/** Restore one free credit after a failed analysis (free plan only, capped at 1). */
+export async function refundFreeAnalysisCredit(userId: string): Promise<void> {
+  await prisma.user.updateMany({
+    where: { id: userId, plan: "free", freeUsesRemaining: { lt: 1 } },
+    data: { freeUsesRemaining: { increment: 1 } },
+  })
+}
+
+/** Persist analysis JSON after quota was already reserved (or for Pro users). */
+export async function saveAnalysisResult(
+  userId: string,
+  documentName: string,
+  documentType: string,
+  result: AnalysisResult,
+): Promise<{ id: string }> {
+  const created = await prisma.analysis.create({
+    data: { userId, documentName, documentType, result: result as object },
+  })
+  return { id: created.id }
+}
+
+/** @deprecated Use reserveFreeAnalysisCredit + saveAnalysisResult. Kept for compatibility. */
 export async function saveAnalysisWithQuota(
   userId: string,
   pro: boolean,
@@ -40,22 +75,12 @@ export async function saveAnalysisWithQuota(
   documentType: string,
   result: AnalysisResult,
 ): Promise<SaveAnalysisResult> {
-  return prisma.$transaction(async (tx) => {
-    if (!pro) {
-      const consumed = await tx.user.updateMany({
-        where: { id: userId, plan: "free", freeUsesRemaining: { gt: 0 } },
-        data: { freeUsesRemaining: { decrement: 1 } },
-      })
-      if (consumed.count === 0) {
-        return { ok: false as const, error: "FREE_LIMIT_REACHED" as const }
-      }
-    }
-
-    const created = await tx.analysis.create({
-      data: { userId, documentName, documentType, result: result as object },
-    })
-    return { ok: true as const, id: created.id }
-  })
+  if (!pro) {
+    const reserved = await reserveFreeAnalysisCredit(userId)
+    if (!reserved.ok) return reserved
+  }
+  const { id } = await saveAnalysisResult(userId, documentName, documentType, result)
+  return { ok: true, id }
 }
 
 export async function upgradeUserToPro(
