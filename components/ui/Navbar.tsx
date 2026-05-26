@@ -20,7 +20,6 @@ function NavBrand({ showWhisper = false }: { showWhisper?: boolean }) {
   return (
     <>
       <span className="nav-brand__sigil" aria-hidden>
-        <span className="nav-brand__sigil-ring" />
         <span className="nav-brand__sigil-core" />
       </span>
       <span className="nav-brand__lockup">
