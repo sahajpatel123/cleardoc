@@ -339,7 +339,7 @@ function HomeContent() {
       {/* ─── HERO ─────────────────────────────────────────────────── */}
       <section
         ref={heroRef}
-        className="relative min-h-[92vh] pt-32 sm:pt-40 pb-24 overflow-hidden"
+        className="relative min-h-[92vh] pt-32 sm:pt-40 pb-24 overflow-x-clip overflow-y-visible"
       >
         <div className="absolute inset-0 pointer-events-none">
           <Grid opacity={0.035} />
