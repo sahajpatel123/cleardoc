@@ -5,7 +5,10 @@ import { prisma } from "@/lib/prisma"
 import { verifyPassword, validateEmail, validatePassword } from "@/lib/password"
 import type { NextRequest } from "next/server"
 
-let _auth: ReturnType<typeof createAuth> | null = null
+let _auth: ReturnType<typeof createAuth> | null | undefined = undefined
+
+const MISSING_SECRET_ERROR =
+  "Missing NEXTAUTH_SECRET or AUTH_SECRET. Generate one: openssl rand -base64 32"
 
 function getSecret(): string {
   return process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET ?? ""
@@ -13,11 +16,7 @@ function getSecret(): string {
 
 function createAuth() {
   const secret = getSecret()
-  if (!secret) {
-    throw new Error(
-      "Missing NEXTAUTH_SECRET or AUTH_SECRET. Generate one: openssl rand -base64 32",
-    )
-  }
+  if (!secret) return null
   return NextAuth({
     secret,
     adapter: PrismaAdapter(prisma),
@@ -87,25 +86,38 @@ function createAuth() {
 }
 
 function getAuth() {
-  if (!_auth) _auth = createAuth()
+  if (_auth === undefined) _auth = createAuth()
   return _auth
 }
 
 type NextAuthHandler = (req: NextRequest, ...args: unknown[]) => Promise<Response> | Response
 
 export const handlers: { GET: NextAuthHandler; POST: NextAuthHandler } = {
-  GET: async (req) => getAuth().handlers.GET(req),
-  POST: async (req) => getAuth().handlers.POST(req),
+  GET: async (req) => {
+    const instance = getAuth()
+    if (!instance) throw new Error(MISSING_SECRET_ERROR)
+    return instance.handlers.GET(req)
+  },
+  POST: async (req) => {
+    const instance = getAuth()
+    if (!instance) throw new Error(MISSING_SECRET_ERROR)
+    return instance.handlers.POST(req)
+  },
 }
 
 export async function auth() {
-  return getAuth().auth()
+  const instance = getAuth()
+  return instance ? instance.auth() : null
 }
 
 export async function signIn(...args: Parameters<Awaited<ReturnType<typeof NextAuth>>["signIn"]>) {
-  return getAuth().signIn(...args)
+  const instance = getAuth()
+  if (!instance) throw new Error(MISSING_SECRET_ERROR)
+  return instance.signIn(...args)
 }
 
 export async function signOut(...args: Parameters<Awaited<ReturnType<typeof NextAuth>>["signOut"]>) {
-  return getAuth().signOut(...args)
+  const instance = getAuth()
+  if (!instance) throw new Error(MISSING_SECRET_ERROR)
+  return instance.signOut(...args)
 }
