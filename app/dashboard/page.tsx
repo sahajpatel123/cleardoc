@@ -63,7 +63,7 @@ function DashboardContent() {
   )
 
   return (
-    <div className="min-h-screen pt-32 pb-32">
+    <div className="min-h-screen pt-28 pb-32">
       <div className="container-edition">
         <AnimatePresence>
           {upgraded && (
