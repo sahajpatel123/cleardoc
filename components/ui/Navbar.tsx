@@ -10,10 +10,10 @@ import { Menu, X, ArrowRight } from "lucide-react"
 
 const EASE = [0.16, 1, 0.3, 1] as [number, number, number, number]
 
-const LINKS: { href: string; label: string; index: string }[] = [
-  { href: "/", label: "Index", index: "01" },
-  { href: "/pricing", label: "Pricing", index: "02" },
-  { href: "/dashboard", label: "Account", index: "03" },
+const LINKS: { href: string; label: string }[] = [
+  { href: "/", label: "Index" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/dashboard", label: "Account" },
 ]
 
 function NavBrand({ showWhisper = false }: { showWhisper?: boolean }) {
@@ -119,7 +119,6 @@ export default function Navbar() {
                         href={l.href}
                         className={`nav-rail__link ${active ? "nav-rail__link--active" : ""}`}
                       >
-                        <span className="nav-rail__index">{l.index}</span>
                         <span className="nav-rail__label">{l.label}</span>
                       </Link>
                     )
