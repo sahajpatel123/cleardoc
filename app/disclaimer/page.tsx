@@ -642,16 +642,10 @@ export default function DisclaimerPage() {
 
           <div className="hairline my-16" />
 
-          {/* ── Body: sticky index on the left, sections on the right ── */}
+          {/* ── Body: terms on the left, sticky index on the right ── */}
           <div className="legal-layout">
-            <aside className="legal-layout__sidebar hidden lg:block" aria-label="Document index">
-              <div className="legal-layout__toc">
-                <TableOfContents activeId={activeId} onNavigate={handleNavigate} />
-              </div>
-            </aside>
-
             <div className="legal-layout__main min-w-0">
-              <div className="space-y-18 sm:space-y-22 max-w-3xl">
+              <div className="space-y-18 sm:space-y-22">
                 {/* Key notice card */}
                 <Reveal delay={0.1}>
                   <div
@@ -888,6 +882,12 @@ export default function DisclaimerPage() {
                 </Reveal>
               </div>
             </div>
+
+            <aside className="legal-layout__sidebar hidden lg:block" aria-label="Document index">
+              <div className="legal-layout__toc">
+                <TableOfContents activeId={activeId} onNavigate={handleNavigate} />
+              </div>
+            </aside>
           </div>
         </div>
       </div>
