@@ -5,7 +5,8 @@
   "scripts": {
     "audit-fix": "npm audit fix --force",
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma migrate deploy && next build",
+    "db:migrate": "prisma migrate deploy",
     "start": "next start",
     "lint": "eslint",
     "test": "node --import tsx --test lib/**/*.test.ts",

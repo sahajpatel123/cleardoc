@@ -12,7 +12,10 @@ import {
   refundFreeAnalysisCredit,
   reserveFreeAnalysisCredit,
   saveAnalysisResult,
+  getAnalysisChainForContext,
+  resolveCaseLinking,
 } from "@/lib/db"
+import { buildCaseContextFromAnalyses, mergeUserContextWithCase } from "@/lib/case-context"
 import { isProUser } from "@/lib/user-plan"
 
 export const runtime = "nodejs"
@@ -36,6 +39,8 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData()
     const file = formData.get("file") as File | null
     const context = (formData.get("context") as string) ?? ""
+    const parentIdRaw = (formData.get("parentId") as string) ?? ""
+    const parentId = parentIdRaw.trim() || undefined
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
@@ -77,6 +82,21 @@ export async function POST(req: NextRequest) {
     userId = userProfile.id
     const pro = isProUser(userProfile)
 
+    let caseLink: { parentId: string; caseId: string } | undefined
+    if (parentId) {
+      if (!pro) {
+        return NextResponse.json(
+          { error: "Case linking is available on Pro. Upgrade to connect follow-up documents." },
+          { status: 403 },
+        )
+      }
+      const resolved = await resolveCaseLinking(userId, parentId)
+      if (!resolved) {
+        return NextResponse.json({ error: "Previous analysis not found." }, { status: 404 })
+      }
+      caseLink = resolved
+    }
+
     const userRate = await rateLimitByUserId(
       userId,
       pro ? ANALYZE_RATE_LIMITS.proUserPerHour : ANALYZE_RATE_LIMITS.freeUserPerHour,
@@ -111,12 +131,19 @@ export async function POST(req: NextRequest) {
 
     const extracted = await extractDocumentFromBuffer(buffer, mimeType)
 
+    let enrichedContext = context || undefined
+    if (caseLink) {
+      const chain = await getAnalysisChainForContext(userId, caseLink.parentId)
+      const caseContext = buildCaseContextFromAnalyses(chain)
+      enrichedContext = mergeUserContextWithCase(context, caseContext)
+    }
+
     let result
     if (extracted.kind === "text") {
       result = await analyzeDocument({
         mode: "text",
         documentText: extracted.text,
-        userContext: context || undefined,
+        userContext: enrichedContext,
         documentName: file.name,
       })
     } else {
@@ -124,7 +151,7 @@ export async function POST(req: NextRequest) {
         mode: "vision",
         mediaType: extracted.mediaType,
         base64Data: extracted.base64Data,
-        userContext: context || undefined,
+        userContext: enrichedContext,
         documentName: file.name,
       })
     }
@@ -134,6 +161,9 @@ export async function POST(req: NextRequest) {
       file.name,
       context || "Unknown",
       result,
+      caseLink
+        ? { parentId: caseLink.parentId, caseId: caseLink.caseId }
+        : undefined,
     )
     reservedFreeCredit = false
 

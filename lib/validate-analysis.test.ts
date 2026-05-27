@@ -35,8 +35,29 @@ describe("parseAnalysisResult", () => {
     )
   })
 
-  it("rejects non-objects", () => {
-    assert.equal(parseAnalysisResult(null), null)
-    assert.equal(parseAnalysisResult("text"), null)
+  it("accepts optional deadlines", () => {
+    const withDeadlines = {
+      ...valid,
+      deadlines: [
+        {
+          label: "Appeal",
+          description: "Must appeal within 30 days",
+          urgency: "critical",
+          date_type: "relative",
+          relative_rule: "30 days from notice date",
+          anchor_date: "2026-05-01",
+          source_text: "You have 30 days to appeal",
+        },
+      ],
+    }
+    const parsed = parseAnalysisResult(withDeadlines)
+    assert.ok(parsed)
+    assert.equal(parsed?.deadlines?.length, 1)
+  })
+
+  it("accepts analyses without deadlines (backward compatible)", () => {
+    const parsed = parseAnalysisResult(valid)
+    assert.ok(parsed)
+    assert.equal(parsed?.deadlines, undefined)
   })
 })

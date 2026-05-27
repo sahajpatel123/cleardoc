@@ -72,3 +72,10 @@ export const ANALYZE_RATE_LIMITS = {
   freeUserPerHour: 10,
   proUserPerHour: 60,
 } as const
+
+export const FEATURE_RATE_LIMITS = {
+  chatFreePerHour: 20,
+  chatProPerHour: 100,
+  rephraseFreePerHour: 5,
+  rephraseProPerHour: 60,
+} as const

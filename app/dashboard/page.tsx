@@ -282,6 +282,7 @@ function DashboardContent() {
                         {analysis.documentType && analysis.documentType !== "Unknown"
                           ? `${analysis.documentType.toUpperCase()} · `
                           : ""}
+                        {analysis.caseId ? "CASE · " : ""}
                         {new Date(analysis.createdAt).toLocaleDateString("en-US", {
                           month: "short", day: "numeric", year: "numeric",
                         }).toUpperCase()}

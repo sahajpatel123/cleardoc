@@ -5,6 +5,7 @@
 export type PendingAnalysisPayload = {
   file: File
   context: string
+  parentAnalysisId?: string
 }
 
 const DB_NAME = "cleardoc-pending"
@@ -18,6 +19,7 @@ type StoredRecord = {
   fileName: string
   fileType: string
   context: string
+  parentAnalysisId?: string
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -43,6 +45,7 @@ async function persistToIdb(payload: PendingAnalysisPayload): Promise<void> {
       fileName: payload.file.name,
       fileType: payload.file.type || "application/octet-stream",
       context: payload.context,
+      parentAnalysisId: payload.parentAnalysisId,
     }
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE, "readwrite")
@@ -71,7 +74,11 @@ async function readFromIdb(): Promise<PendingAnalysisPayload | null> {
     const file = new File([record.blob], record.fileName, {
       type: record.fileType || "application/octet-stream",
     })
-    return { file, context: record.context ?? "" }
+    return {
+      file,
+      context: record.context ?? "",
+      parentAnalysisId: record.parentAnalysisId,
+    }
   } catch (err) {
     console.warn("[pending-analysis] IndexedDB read failed:", err)
     return null

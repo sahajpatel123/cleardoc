@@ -75,6 +75,14 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
+      console.error("[signup] Database schema missing — run: npx prisma migrate deploy")
+      return NextResponse.json(
+        { error: "Account signup is temporarily unavailable. Please try again later." },
+        { status: 503 },
+      )
+    }
+
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       return NextResponse.json(
         { error: "An account with this email already exists." },

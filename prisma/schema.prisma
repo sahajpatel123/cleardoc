@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Account {
@@ -60,15 +61,22 @@ model User {
 }
 
 model Analysis {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   userId       String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime   @default(now())
   documentName String
-  documentType String   @default("Unknown")
+  documentType String     @default("Unknown")
   result       Json
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentId     String?
+  caseId       String?
+  chatMessages Json?
+  parent       Analysis?  @relation("AnalysisChain", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Analysis[] @relation("AnalysisChain")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([caseId])
+  @@index([parentId])
 }
 
 /// Stripe webhook idempotency — one row per processed event id (evt_...).

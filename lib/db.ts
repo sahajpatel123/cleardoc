@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
-import type { AnalysisResult } from "@/lib/types"
+import type { AnalysisResult, ChatMessage } from "@/lib/types"
+import { parseAnalysisResult } from "@/lib/validate-analysis"
 
 // ── User ─────────────────────────────────────────────────
 
@@ -60,9 +61,17 @@ export async function saveAnalysisResult(
   documentName: string,
   documentType: string,
   result: AnalysisResult,
+  opts?: { parentId?: string; caseId?: string },
 ): Promise<{ id: string }> {
   const created = await prisma.analysis.create({
-    data: { userId, documentName, documentType, result: result as object },
+    data: {
+      userId,
+      documentName,
+      documentType,
+      result: result as object,
+      parentId: opts?.parentId ?? null,
+      caseId: opts?.caseId ?? null,
+    },
   })
   return { id: created.id }
 }
@@ -157,6 +166,108 @@ export async function getUserAnalyses(userId: string) {
 
 export async function getAnalysisById(userId: string, analysisId: string) {
   return prisma.analysis.findFirst({
-    where: { id: analysisId, userId }, // ownership enforced
+    where: { id: analysisId, userId },
+  })
+}
+
+export async function getAnalysisChainForContext(userId: string, parentId: string) {
+  const chain: Array<{ documentName: string; createdAt: Date; result: unknown }> = []
+  let currentId: string | null = parentId
+  const seen = new Set<string>()
+
+  while (currentId && !seen.has(currentId) && chain.length < 5) {
+    seen.add(currentId)
+    const row: Awaited<ReturnType<typeof prisma.analysis.findFirst>> = await prisma.analysis.findFirst({
+      where: { id: currentId, userId },
+    })
+    if (!row) break
+    chain.unshift({
+      documentName: row.documentName,
+      createdAt: row.createdAt,
+      result: row.result,
+    })
+    currentId = row.parentId
+  }
+
+  return chain
+}
+
+export async function resolveCaseLinking(
+  userId: string,
+  parentId: string,
+): Promise<{ parentId: string; caseId: string } | null> {
+  const parent = await prisma.analysis.findFirst({
+    where: { id: parentId, userId },
+  })
+  if (!parent) return null
+  return {
+    parentId: parent.id,
+    caseId: parent.caseId ?? parent.id,
+  }
+}
+
+export async function updateAnalysisResult(
+  userId: string,
+  analysisId: string,
+  result: AnalysisResult,
+): Promise<boolean> {
+  const updated = await prisma.analysis.updateMany({
+    where: { id: analysisId, userId },
+    data: { result: result as object },
+  })
+  return updated.count > 0
+}
+
+export function parseChatMessages(raw: unknown): ChatMessage[] {
+  if (!Array.isArray(raw)) return []
+  const out: ChatMessage[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue
+    const m = item as Record<string, unknown>
+    if (
+      (m.role === "user" || m.role === "assistant") &&
+      typeof m.content === "string" &&
+      typeof m.createdAt === "string"
+    ) {
+      out.push({ role: m.role, content: m.content, createdAt: m.createdAt })
+    }
+  }
+  return out
+}
+
+export async function appendChatMessages(
+  userId: string,
+  analysisId: string,
+  newMessages: ChatMessage[],
+): Promise<ChatMessage[] | null> {
+  const row = await getAnalysisById(userId, analysisId)
+  if (!row) return null
+  const existing = parseChatMessages(row.chatMessages)
+  const merged = [...existing, ...newMessages]
+  await prisma.analysis.update({
+    where: { id: analysisId },
+    data: { chatMessages: merged as object },
+  })
+  return merged
+}
+
+export async function getCaseAnalyses(userId: string, caseId: string) {
+  return prisma.analysis.findMany({
+    where: { userId, caseId },
+    orderBy: { createdAt: "asc" },
+  })
+}
+
+export async function listAnalysesForCasePicker(userId: string) {
+  return prisma.analysis.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      documentName: true,
+      createdAt: true,
+      caseId: true,
+    },
+    take: 50,
   })
 }

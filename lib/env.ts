@@ -6,6 +6,9 @@ export const DATABASE_URL_KEYS = [
   "NEON_DATABASE_URL",
 ] as const
 
+/** Used by Prisma CLI for migrations when set (Supabase direct connection). */
+export const DIRECT_DATABASE_URL_KEYS = ["DIRECT_URL", "POSTGRES_URL_NON_POOLING"] as const
+
 /** Required environment variables for production API routes. */
 export const REQUIRED_SERVER_ENV = [
   "DATABASE_URL",

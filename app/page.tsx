@@ -299,6 +299,10 @@ function HomeContent() {
 
   const [file, setFile] = useState<File | null>(null)
   const [context, setContext] = useState("")
+  const [parentAnalysisId, setParentAnalysisId] = useState("")
+  const [priorAnalyses, setPriorAnalyses] = useState<
+    { id: string; documentName: string; createdAt: string }[]
+  >([])
   const [showPricing, setShowPricing] = useState(false)
   const [rotIdx, setRotIdx] = useState(0)
 
@@ -310,12 +314,30 @@ function HomeContent() {
     return () => clearInterval(t)
   }, [])
 
+  const isPro =
+    profile &&
+    isProUser({ plan: profile.plan, subscriptionStatus: profile.subscriptionStatus })
+
+  useEffect(() => {
+    if (!user || !isPro) return
+    fetch("/api/analyses")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: { id: string; documentName: string; createdAt: string }[]) => {
+        if (Array.isArray(data)) setPriorAnalyses(data)
+      })
+      .catch(() => {})
+  }, [user, isPro])
+
   const scrollToUpload = () =>
     uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
 
   const handleAnalyze = async () => {
     if (!file) return
-    await setPendingAnalysis({ file, context })
+    await setPendingAnalysis({
+      file,
+      context,
+      parentAnalysisId: parentAnalysisId || undefined,
+    })
     if (!user) {
       router.push(`/login?mode=signup&redirect=${encodeURIComponent("/analyze")}`)
       return
@@ -626,6 +648,34 @@ function HomeContent() {
                   className="field"
                 />
               </div>
+              {isPro && priorAnalyses.length > 0 && (
+                <div className="mt-4">
+                  <label
+                    className="mono text-[10px] tracking-[0.18em] block mb-2"
+                    style={{ color: "var(--text-mute)" }}
+                  >
+                    Follow-up to a previous document? (Pro)
+                  </label>
+                  <select
+                    value={parentAnalysisId}
+                    onChange={(e) => setParentAnalysisId(e.target.value)}
+                    className="field w-full"
+                  >
+                    <option value="">No — this is a new case</option>
+                    {priorAnalyses.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.documentName} (
+                        {new Date(a.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                        )
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="mt-10 flex items-center gap-4 flex-wrap">
                 <Magnetic strength={6}>
                   <button

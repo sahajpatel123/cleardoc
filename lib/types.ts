@@ -13,12 +13,39 @@ export interface NextStep {
   priority: number
 }
 
+export type DeadlineUrgency = "critical" | "high" | "medium"
+export type DeadlineDateType = "absolute" | "relative"
+
+export interface DocumentDeadline {
+  label: string
+  description: string
+  urgency: DeadlineUrgency
+  date_type: DeadlineDateType
+  /** ISO date YYYY-MM-DD when date_type is absolute */
+  absolute_date?: string
+  /** e.g. "30 days from notice date" */
+  relative_rule?: string
+  /** Date printed on the document, ISO YYYY-MM-DD */
+  anchor_date?: string
+  source_text: string
+}
+
+export type LetterTone = "firm" | "cooperative" | "hardship" | "assertive"
+
 export interface AnalysisResult {
   plain_summary: string
   red_flags: RedFlag[]
   response_letter: string
   next_steps: NextStep[]
   overall_verdict: "legitimate" | "suspicious" | "likely_illegal"
+  deadlines?: DocumentDeadline[]
+  letter_tone?: LetterTone
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant"
+  content: string
+  createdAt: string
 }
 
 /** Plan fields synced from /api/usage (Prisma User). */

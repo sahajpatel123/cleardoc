@@ -38,7 +38,20 @@ You must return ONLY a valid JSON object with no markdown, no preamble, no expla
     }
   ],
 
-  "overall_verdict": "legitimate | suspicious | likely_illegal"
+  "overall_verdict": "legitimate | suspicious | likely_illegal",
+
+  "deadlines": [
+    {
+      "label": "Short name (e.g., 'Appeal deadline')",
+      "description": "Plain English explanation of what happens if missed",
+      "urgency": "critical | high | medium",
+      "date_type": "absolute | relative",
+      "absolute_date": "YYYY-MM-DD when an exact calendar date appears in the document, otherwise omit",
+      "relative_rule": "e.g., '30 days from notice date' when only a relative timeframe is given, otherwise omit",
+      "anchor_date": "YYYY-MM-DD date printed on the document (notice date, letter date) when relative deadlines exist, otherwise omit",
+      "source_text": "Verbatim quote from the document about this deadline"
+    }
+  ]
 }
 
 Rules for red flags:
@@ -63,7 +76,15 @@ Rules for the response letter:
 Rules for overall verdict:
 - "legitimate": document appears legal and fair, no major issues
 - "suspicious": something feels off, tactics are questionable, or terms are unusually unfavorable
-- "likely_illegal": document contains requests or terms that appear to violate laws or regulations`
+- "likely_illegal": document contains requests or terms that appear to violate laws or regulations
+
+Rules for deadlines:
+- Extract every time-sensitive deadline, hearing date, response window, or appeal period
+- Use "critical" for hard legal consequences (eviction, loss of rights, default judgment)
+- Use "high" for appeal windows and formal response periods
+- Use "medium" for softer administrative deadlines
+- Prefer absolute_date when the document states an exact date; use relative_rule + anchor_date when it says "within X days"
+- If no deadlines exist, return an empty array`
 
 export type AnalyzeDocumentParams =
   | {

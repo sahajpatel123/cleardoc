@@ -210,20 +210,29 @@ body::before {
 
 /* ── Site masthead (Navbar) ───────────────────────────────────────────────── */
 .nav-masthead {
+  position: relative;
+  isolation: isolate;
   min-height: var(--nav-height);
-  border-bottom: 1px solid var(--hairline);
-  background: linear-gradient(
-    180deg,
-    rgba(5, 5, 5, 0.94) 0%,
-    rgba(5, 5, 5, 0.72) 100%
-  );
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  /* Semi-transparent tint so backdrop blur is visible through the bar */
+  background: rgba(5, 5, 5, 0.42);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
 }
 .nav-masthead--scrolled {
-  background: rgba(5, 5, 5, 0.9);
+  background: rgba(5, 5, 5, 0.52);
+  backdrop-filter: blur(32px) saturate(140%);
+  -webkit-backdrop-filter: blur(32px) saturate(140%);
   border-bottom-color: var(--hairline-2);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .nav-masthead {
+    background: rgba(5, 5, 5, 0.94);
+  }
+  .nav-masthead--scrolled {
+    background: rgba(5, 5, 5, 0.96);
+  }
 }
 .nav-masthead__accent {
   height: 2px;
