@@ -275,6 +275,12 @@ body::before {
     flex: 0 0 13.75rem;
     width: 13.75rem;
     max-width: 13.75rem;
+    position: sticky;
+    top: calc(var(--nav-height) + 1.5rem);
+    align-self: flex-start;
+    max-height: calc(100vh - var(--nav-height) - 3rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .legal-layout__sidebar::before {
     content: "";
@@ -294,12 +300,7 @@ body::before {
   }
 }
 .legal-layout__toc {
-  position: sticky;
-  top: calc(var(--nav-height) + 1.5rem);
-  max-height: calc(100vh - var(--nav-height) - 3rem);
-  overflow-y: auto;
   padding-left: 0.25rem;
-  scrollbar-width: thin;
 }
 .legal-layout__toc nav {
   width: 100%;
