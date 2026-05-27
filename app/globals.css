@@ -245,6 +245,50 @@ body::before {
   );
   opacity: 0.85;
 }
+
+/* ── Legal / disclaimer editorial layout ──────────────────────────────────── */
+.legal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .legal-layout {
+    grid-template-columns: minmax(200px, 220px) minmax(0, 1fr);
+    gap: 0 clamp(2.5rem, 5vw, 4.5rem);
+  }
+}
+.legal-layout__sidebar {
+  position: relative;
+}
+.legal-layout__sidebar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: calc(clamp(2.5rem, 5vw, 4.5rem) * -0.5);
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    var(--hairline-2) 12%,
+    var(--hairline-2) 88%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+.legal-layout__toc {
+  position: sticky;
+  top: calc(var(--nav-height) + 1.5rem);
+  max-height: calc(100vh - var(--nav-height) - 3rem);
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  scrollbar-width: thin;
+}
+.legal-layout__main {
+  min-width: 0;
+}
 /* Brand lockup — single-line editorial, not stacked block */
 .nav-brand {
   display: inline-flex;
