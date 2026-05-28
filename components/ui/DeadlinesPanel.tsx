@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { CalendarPlus, AlertTriangle } from "lucide-react"
 import type { DocumentDeadline } from "@/lib/types"
 import { buildIcsEvent, computeDeadlineDate, downloadIcsFile } from "@/lib/ics"
@@ -44,12 +44,17 @@ function formatDisplayDate(d: Date): string {
 
 function DeadlineRow({ deadline, index }: { deadline: DocumentDeadline; index: number }) {
   const style = URGENCY_STYLE[deadline.urgency]
-  const defaultAnchor =
+  const initialAnchor =
     deadline.anchor_date ??
-    (deadline.date_type === "relative"
-      ? new Date().toLocaleDateString("en-CA")
-      : "")
-  const [anchorDate, setAnchorDate] = useState(defaultAnchor)
+    (deadline.date_type === "relative" ? "" : "")
+  const [anchorDate, setAnchorDate] = useState(initialAnchor)
+
+  // Hydration-safe: compute local default client-side only
+  useEffect(() => {
+    if (deadline.date_type === "relative" && !deadline.anchor_date && !anchorDate) {
+      setAnchorDate(new Date().toLocaleDateString("en-CA"))
+    }
+  }, [deadline.date_type, deadline.anchor_date, anchorDate])
 
   const eventDate = computeDeadlineDate(deadline, anchorDate || undefined)
 

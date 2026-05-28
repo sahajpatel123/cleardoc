@@ -29,8 +29,11 @@ export function buildIcsEvent(opts: {
     const parts: string[] = []
     let remaining = line
     while (remaining.length > 75) {
-      parts.push(remaining.slice(0, 75))
-      remaining = " " + remaining.slice(75)
+      let splitAt = 75
+      // Don't split in the middle of an escape sequence (backslash + char)
+      if (remaining[splitAt - 1] === "\\") splitAt = 74
+      parts.push(remaining.slice(0, splitAt))
+      remaining = " " + remaining.slice(splitAt)
     }
     parts.push(remaining)
     return parts.join("\r\n")

@@ -19,6 +19,7 @@ export default function AnalyzeByIdPage() {
   const [caseAnalyses, setCaseAnalyses] = useState<Analysis[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const analysisId =
     typeof params.id === "string" ? params.id : Array.isArray(params.id) ? params.id[0] : undefined
@@ -63,11 +64,7 @@ export default function AnalyzeByIdPage() {
       } catch (err) {
         if (!cancelled) {
           console.error("[analyze/id] fetch error:", err)
-          if (err instanceof TypeError || (err instanceof Error && err.message.includes("fetch"))) {
-            setNotFound(false)
-          } else {
-            setNotFound(true)
-          }
+          setErrorMsg(err instanceof Error ? err.message : "Could not load analysis. Try again.")
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -93,6 +90,28 @@ export default function AnalyzeByIdPage() {
   }
 
   if (!user) return null
+
+  if (errorMsg) {
+    return (
+      <div className="min-h-screen flex items-center px-4 pt-24">
+        <div className="container-edition">
+          <p className="eyebrow mb-8" style={{ color: "var(--red)" }}>Server error</p>
+          <h1
+            className="display max-w-[20ch] mb-8"
+            style={{ fontSize: "clamp(2rem, 6vw, 4.5rem)", color: "var(--text)" }}
+          >
+            Couldn&apos;t load that analysis.
+          </h1>
+          <p className="text-base mb-10 max-w-md" style={{ color: "var(--text-3)" }}>
+            {errorMsg}
+          </p>
+          <button onClick={() => router.push("/dashboard")} className="btn btn-primary">
+            <LayoutDashboard className="w-4 h-4" /> Back to dashboard
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (notFound || !result || !analysisId) {
     return (

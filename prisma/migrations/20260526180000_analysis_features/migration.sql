@@ -1,3 +1,4 @@
+--skip-transaction
 -- Step 1: add nullable columns and indexes (quick, brief lock)
 ALTER TABLE "Analysis" ADD COLUMN "parentId" TEXT,
 ADD COLUMN "caseId" TEXT,
@@ -12,3 +13,5 @@ ALTER TABLE "Analysis" ADD CONSTRAINT "Analysis_parentId_fkey"
   FOREIGN KEY ("parentId") REFERENCES "Analysis"("id")
   ON DELETE SET NULL ON UPDATE CASCADE
   NOT VALID;
+
+-- Step 4 (future deploy after data is clean): VALIDATE CONSTRAINT "Analysis_parentId_fkey";
