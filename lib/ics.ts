@@ -18,10 +18,10 @@ export function buildIcsEvent(opts: {
 
   const escape = (s: string) =>
     s
-      .replace(/\r\n/g, "\\n")
+      .replace(/\\/g, "\\\\")
+      .replace(/\r\n/g, "\n")
       .replace(/\r/g, "")
       .replace(/\n/g, "\\n")
-      .replace(/\\/g, "\\\\")
       .replace(/;/g, "\\;")
       .replace(/,/g, "\\,")
 
