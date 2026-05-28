@@ -60,8 +60,15 @@ export default function AnalyzeByIdPage() {
             }
           }
         }
-      } catch {
-        if (!cancelled) setNotFound(true)
+      } catch (err) {
+        if (!cancelled) {
+          console.error("[analyze/id] fetch error:", err)
+          if (err instanceof TypeError || (err instanceof Error && err.message.includes("fetch"))) {
+            setNotFound(false)
+          } else {
+            setNotFound(true)
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false)
       }

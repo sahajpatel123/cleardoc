@@ -3,13 +3,13 @@ import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { hashPassword, validateEmail, validatePassword } from "@/lib/password"
 import { rateLimitByIp } from "@/lib/rate-limit"
-import { assertServerEnv } from "@/lib/env"
+import { assertAuthEnv } from "@/lib/env"
 
 export const runtime = "nodejs"
 
 export async function POST(req: NextRequest) {
   try {
-    assertServerEnv()
+    assertAuthEnv()
   } catch (err) {
     console.error("[signup] Server env not configured:", err)
     return NextResponse.json(

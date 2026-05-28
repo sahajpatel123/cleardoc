@@ -5,13 +5,15 @@ import { parseAnalysisResult } from "@/lib/validate-analysis"
 // ── User ─────────────────────────────────────────────────
 
 export async function getOrCreateUser(id: string, email: string) {
-  const existing = await prisma.user.findFirst({
-    where: { OR: [{ id }, { email }] },
-  })
+  const existing = await prisma.user.findUnique({ where: { id } })
   if (existing) return existing
 
-  return prisma.user.create({
-    data: {
+  // Atomic upsert on email to prevent races (P2002) when two requests
+  // arrive concurrently for a brand-new user.
+  return prisma.user.upsert({
+    where: { email },
+    update: {}, // existing user — do not mutate
+    create: {
       id,
       email,
       plan: "free",
@@ -245,7 +247,7 @@ export async function appendChatMessages(
   const existing = parseChatMessages(row.chatMessages)
   const merged = [...existing, ...newMessages]
   await prisma.analysis.update({
-    where: { id: analysisId },
+    where: { id: analysisId, userId },
     data: { chatMessages: merged as object },
   })
   return merged

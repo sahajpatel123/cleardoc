@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import ResultCard from "@/components/ui/ResultCard"
@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 } as const
+const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"]
 
 interface Props {
   result: AnalysisResult
@@ -39,6 +40,11 @@ export default function AnalysisResultsView({
   const router = useRouter()
   const [localResult, setLocalResult] = useState(result)
 
+  // Sync when parent re-renders with new data (e.g. after rephrasing)
+  useEffect(() => {
+    setLocalResult(result)
+  }, [result])
+
   const verdict = getVerdictUi(localResult.overall_verdict)
   const VIcon = verdict.Icon
   const highFlags = localResult.red_flags.filter((f) => f.severity === "high")
@@ -46,18 +52,111 @@ export default function AnalysisResultsView({
     (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
   )
   const deadlines = localResult.deadlines ?? []
-  let panelNumber = 0
-  const nextNum = () => {
-    panelNumber += 1
-    const roman = ["I", "II", "III", "IV", "V", "VI", "VII"][panelNumber - 1] ?? String(panelNumber)
-    return roman
-  }
 
   const handleLetterChange = (letter: string, tone: LetterTone) => {
     const updated = { ...localResult, response_letter: letter, letter_tone: tone }
     setLocalResult(updated)
     onResultChange?.(updated)
   }
+
+  // Panels in display order (conditional ones are filtered below)
+  const panelDefs = [
+    {
+      show: true,
+      title: "What this actually says",
+      subtitle: "Plain English, zero jargon",
+      accent: "orange" as const,
+      content: (
+        <p
+          className="text-lg leading-relaxed max-w-3xl"
+          style={{ color: "var(--text-2)", fontFamily: "ui-serif, Georgia, serif" }}
+        >
+          {localResult.plain_summary}
+        </p>
+      ),
+    },
+    {
+      show: deadlines.length > 0,
+      title: "Critical deadlines",
+      subtitle: `${deadlines.length} date${deadlines.length > 1 ? "s" : ""} to track`,
+      accent: "red" as const,
+      content: <DeadlinesPanel deadlines={deadlines} />,
+    },
+    {
+      show: true,
+      title: "Red flags found",
+      subtitle:
+        localResult.red_flags.length > 0
+          ? `${localResult.red_flags.length} issue${localResult.red_flags.length > 1 ? "s" : ""} detected`
+          : "Document reviewed",
+      accent: "red" as const,
+      content:
+        localResult.red_flags.length === 0 ? (
+          <div className="flex items-center gap-4 py-2">
+            <CheckCircle className="w-5 h-5 shrink-0" style={{ color: "var(--moss)" }} />
+            <div>
+              <p
+                style={{
+                  color: "var(--text)",
+                  fontFamily: "var(--font-syne,'Syne',sans-serif)",
+                  fontWeight: 500,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                No major red flags found
+              </p>
+              <p className="text-xs mt-1" style={{ color: "var(--text-3)" }}>
+                This document appears straightforward.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div>
+            {sortedFlags.map((flag, i) => (
+              <RedFlagItem key={i} flag={flag} index={i} />
+            ))}
+          </div>
+        ),
+    },
+    {
+      show: true,
+      title: "Your response letter",
+      subtitle: "Ready to send — fill in the bracketed fields",
+      accent: "blue" as const,
+      content: (
+        <ResponseLetter
+          letter={localResult.response_letter}
+          tone={localResult.letter_tone}
+          analysisId={analysisId}
+          onLetterChange={handleLetterChange}
+        />
+      ),
+    },
+    {
+      show: true,
+      title: "Your next moves",
+      subtitle: "Ranked by likelihood of success",
+      accent: "green" as const,
+      content: (
+        <div>
+          {[...localResult.next_steps]
+            .sort((a, b) => a.priority - b.priority)
+            .map((step, i) => (
+              <NextStepItem key={i} step={step} index={i} />
+            ))}
+        </div>
+      ),
+    },
+    {
+      show: Boolean(analysisId),
+      title: "Call prep chat",
+      subtitle: "Ask questions before you pick up the phone",
+      accent: "orange" as const,
+      content: <AnalysisChat analysisId={analysisId!} initialMessages={chatMessages} />,
+    },
+  ]
+
+  const shownPanels = panelDefs.filter((p) => p.show)
 
   return (
     <div className="min-h-screen pt-32 pb-32">
@@ -113,108 +212,17 @@ export default function AnalysisResultsView({
         </AnimatePresence>
 
         <div className="mt-20">
-          <ResultCard
-            number={nextNum()}
-            title="What this actually says"
-            subtitle="Plain English, zero jargon"
-            accent="orange"
-          >
-            <p
-              className="text-lg leading-relaxed max-w-3xl"
-              style={{ color: "var(--text-2)", fontFamily: "ui-serif, Georgia, serif" }}
-            >
-              {localResult.plain_summary}
-            </p>
-          </ResultCard>
-
-          {deadlines.length > 0 && (
+          {shownPanels.map((p, i) => (
             <ResultCard
-              number={nextNum()}
-              title="Critical deadlines"
-              subtitle={`${deadlines.length} date${deadlines.length > 1 ? "s" : ""} to track`}
-              accent="red"
+              key={p.title}
+              number={ROMAN[i] ?? String(i + 1)}
+              title={p.title}
+              subtitle={p.subtitle}
+              accent={p.accent}
             >
-              <DeadlinesPanel deadlines={deadlines} />
+              {p.content}
             </ResultCard>
-          )}
-
-          <ResultCard
-            number={nextNum()}
-            title="Red flags found"
-            subtitle={
-              localResult.red_flags.length > 0
-                ? `${localResult.red_flags.length} issue${localResult.red_flags.length > 1 ? "s" : ""} detected`
-                : "Document reviewed"
-            }
-            accent="red"
-          >
-            {localResult.red_flags.length === 0 ? (
-              <div className="flex items-center gap-4 py-2">
-                <CheckCircle className="w-5 h-5 shrink-0" style={{ color: "var(--moss)" }} />
-                <div>
-                  <p
-                    style={{
-                      color: "var(--text)",
-                      fontFamily: "var(--font-syne,'Syne',sans-serif)",
-                      fontWeight: 500,
-                      letterSpacing: "-0.02em",
-                    }}
-                  >
-                    No major red flags found
-                  </p>
-                  <p className="text-xs mt-1" style={{ color: "var(--text-3)" }}>
-                    This document appears straightforward.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div>
-                {sortedFlags.map((flag, i) => (
-                  <RedFlagItem key={i} flag={flag} index={i} />
-                ))}
-              </div>
-            )}
-          </ResultCard>
-
-          <ResultCard
-            number={nextNum()}
-            title="Your response letter"
-            subtitle="Ready to send — fill in the bracketed fields"
-            accent="blue"
-          >
-            <ResponseLetter
-              letter={localResult.response_letter}
-              tone={localResult.letter_tone}
-              analysisId={analysisId}
-              onLetterChange={handleLetterChange}
-            />
-          </ResultCard>
-
-          <ResultCard
-            number={nextNum()}
-            title="Your next moves"
-            subtitle="Ranked by likelihood of success"
-            accent="green"
-          >
-            <div>
-              {[...localResult.next_steps]
-                .sort((a, b) => a.priority - b.priority)
-                .map((step, i) => (
-                  <NextStepItem key={i} step={step} index={i} />
-                ))}
-            </div>
-          </ResultCard>
-
-          {analysisId && (
-            <ResultCard
-              number={nextNum()}
-              title="Call prep chat"
-              subtitle="Ask questions before you pick up the phone"
-              accent="orange"
-            >
-              <AnalysisChat analysisId={analysisId} initialMessages={chatMessages} />
-            </ResultCard>
-          )}
+          ))}
         </div>
 
         <div className="hairline mt-16 mb-12" />

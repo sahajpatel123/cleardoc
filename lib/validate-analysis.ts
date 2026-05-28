@@ -77,8 +77,8 @@ export function parseAnalysisResult(data: unknown): AnalysisResult | null {
     deadlines = []
     for (const item of o.deadlines) {
       const parsed = parseDeadline(item)
-      if (!parsed) return null
-      deadlines.push(parsed)
+      if (parsed) deadlines.push(parsed)
+      // silently skip malformed deadlines (corruption resilience)
     }
   }
 

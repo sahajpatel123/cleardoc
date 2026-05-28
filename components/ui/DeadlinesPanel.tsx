@@ -46,7 +46,9 @@ function DeadlineRow({ deadline, index }: { deadline: DocumentDeadline; index: n
   const style = URGENCY_STYLE[deadline.urgency]
   const defaultAnchor =
     deadline.anchor_date ??
-    (deadline.date_type === "relative" ? new Date().toISOString().slice(0, 10) : "")
+    (deadline.date_type === "relative"
+      ? new Date().toLocaleDateString("en-CA")
+      : "")
   const [anchorDate, setAnchorDate] = useState(defaultAnchor)
 
   const eventDate = computeDeadlineDate(deadline, anchorDate || undefined)

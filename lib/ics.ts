@@ -17,7 +17,24 @@ export function buildIcsEvent(opts: {
   const uid = opts.uid ?? `cleardoc-${Date.now()}@cleardoc.app`
 
   const escape = (s: string) =>
-    s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n")
+    s
+      .replace(/\r\n/g, "\\n")
+      .replace(/\r/g, "")
+      .replace(/\n/g, "\\n")
+      .replace(/\\/g, "\\\\")
+      .replace(/;/g, "\\;")
+      .replace(/,/g, "\\,")
+
+  const foldLine = (line: string): string => {
+    const parts: string[] = []
+    let remaining = line
+    while (remaining.length > 75) {
+      parts.push(remaining.slice(0, 75))
+      remaining = " " + remaining.slice(75)
+    }
+    parts.push(remaining)
+    return parts.join("\r\n")
+  }
 
   return [
     "BEGIN:VCALENDAR",
@@ -26,12 +43,12 @@ export function buildIcsEvent(opts: {
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
-    `UID:${uid}`,
-    `DTSTAMP:${dtstamp}`,
-    `DTSTART:${dtstart}`,
-    `DTEND:${dtend}`,
-    `SUMMARY:${escape(opts.title)}`,
-    `DESCRIPTION:${escape(opts.description)}`,
+    foldLine(`UID:${uid}`),
+    foldLine(`DTSTAMP:${dtstamp}`),
+    foldLine(`DTSTART:${dtstart}`),
+    foldLine(`DTEND:${dtend}`),
+    foldLine(`SUMMARY:${escape(opts.title)}`),
+    foldLine(`DESCRIPTION:${escape(opts.description)}`),
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n")

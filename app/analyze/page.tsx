@@ -66,16 +66,21 @@ export default function AnalyzePage() {
         setResult(parsed)
         setAnalysisId(data.analysisId)
         if (data.analysisId) {
-          const detailRes = await fetch(`/api/analyses/${data.analysisId}`)
-          if (detailRes.ok) {
-            const detail = await detailRes.json()
-            if (detail.caseId) {
-              const caseRes = await fetch(`/api/analyses/case/${detail.caseId}`)
-              if (caseRes.ok) {
-                const caseData = (await caseRes.json()) as Analysis[]
-                if (Array.isArray(caseData)) setCaseAnalyses(caseData)
+          try {
+            const detailRes = await fetch(`/api/analyses/${data.analysisId}`)
+            if (detailRes.ok) {
+              const detail = await detailRes.json()
+              if (detail.caseId) {
+                const caseRes = await fetch(`/api/analyses/case/${detail.caseId}`)
+                if (caseRes.ok) {
+                  const caseData = (await caseRes.json()) as Analysis[]
+                  if (Array.isArray(caseData)) setCaseAnalyses(caseData)
+                }
               }
             }
+          } catch (e) {
+            // Case chain fetch is optional — don't fail the whole analysis
+            console.warn("[analyze] case chain fetch failed:", e)
           }
         }
         setStage("done")
@@ -167,6 +172,7 @@ export default function AnalyzePage() {
       mode="fresh"
       analysisId={analysisId}
       caseAnalyses={caseAnalyses}
+      onResultChange={setResult}
     />
   )
 }

@@ -6,6 +6,11 @@ export const DATABASE_URL_KEYS = [
   "NEON_DATABASE_URL",
 ] as const
 
+export const REQUIRED_AUTH_ENV = [
+  "DATABASE_URL",
+  "NEXTAUTH_SECRET",
+] as const
+
 /** Used by Prisma CLI for migrations when set (Supabase direct connection). */
 export const DIRECT_DATABASE_URL_KEYS = ["DIRECT_URL", "POSTGRES_URL_NON_POOLING"] as const
 
@@ -52,6 +57,14 @@ export function hasDatabaseUrl(): boolean {
 export function assertServerEnv(): void {
   resolveDatabaseUrl()
   const missing = getMissingEnv(REQUIRED_SERVER_ENV).filter((key) => key !== "DATABASE_URL")
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(", ")}`)
+  }
+}
+
+export function assertAuthEnv(): void {
+  resolveDatabaseUrl()
+  const missing = getMissingEnv(REQUIRED_AUTH_ENV).filter((key) => key !== "DATABASE_URL")
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(", ")}`)
   }
