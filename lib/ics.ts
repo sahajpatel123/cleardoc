@@ -6,14 +6,16 @@ export function buildIcsEvent(opts: {
   uid?: string
 }): string {
   const pad = (n: number) => String(n).padStart(2, "0")
+  const formatDate = (d: Date) =>
+    `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}`
   const formatUtc = (d: Date) =>
     `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`
 
   const dtstamp = formatUtc(new Date())
-  const dtstart = formatUtc(opts.startDate)
+  const dtstart = formatDate(opts.startDate)
   const end = new Date(opts.startDate)
-  end.setUTCHours(end.getUTCHours() + 1)
-  const dtend = formatUtc(end)
+  end.setUTCDate(end.getUTCDate() + 1)
+  const dtend = formatDate(end)
   const uid = opts.uid ?? `cleardoc-${Date.now()}@cleardoc.app`
 
   const escape = (s: string) =>
@@ -48,8 +50,8 @@ export function buildIcsEvent(opts: {
     "BEGIN:VEVENT",
     foldLine(`UID:${uid}`),
     foldLine(`DTSTAMP:${dtstamp}`),
-    foldLine(`DTSTART:${dtstart}`),
-    foldLine(`DTEND:${dtend}`),
+    foldLine(`DTSTART;VALUE=DATE:${dtstart}`),
+    foldLine(`DTEND;VALUE=DATE:${dtend}`),
     foldLine(`SUMMARY:${escape(opts.title)}`),
     foldLine(`DESCRIPTION:${escape(opts.description)}`),
     "END:VEVENT",
@@ -64,7 +66,7 @@ export function parseIsoDate(iso: string): Date | null {
   const y = Number(m[1])
   const mo = Number(m[2]) - 1
   const d = Number(m[3])
-  const date = new Date(Date.UTC(y, mo, d, 9, 0, 0))
+  const date = new Date(Date.UTC(y, mo, d, 12, 0, 0))
   if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo || date.getUTCDate() !== d) {
     return null
   }

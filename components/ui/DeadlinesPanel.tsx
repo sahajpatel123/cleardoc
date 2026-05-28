@@ -35,6 +35,7 @@ const URGENCY_STYLE: Record<
 
 function formatDisplayDate(d: Date): string {
   return d.toLocaleDateString("en-US", {
+    timeZone: "UTC",
     weekday: "short",
     month: "short",
     day: "numeric",
