@@ -18,7 +18,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     chapter: "I · The basics",
     q: "Do I need an account?",
-    a: "Yes — sign up is free and takes seconds. Your first saved analysis is included on the free plan. We need an account to save results to your dashboard and apply your plan limits.",
+    a: "Sign up is free. The free plan includes 3 saved document analyses per day (resets at midnight UTC): full summary, red flags, response letter draft, and ranked next steps. No card required.",
   },
   {
     chapter: "II · Privacy",
@@ -33,7 +33,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     chapter: "III · Plans",
     q: "What does the free plan include?",
-    a: "One saved analysis per account: full plain-English summary, red flags, response letter draft, and ranked next steps. You can still sign up and explore without a card.",
+    a: "Three saved analyses per UTC day: full plain-English summary, red flags, response letter draft, and ranked next steps. Upgrade to Pro for unlimited analyses.",
   },
   {
     chapter: "III · Plans",
@@ -58,7 +58,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     chapter: "IV · Trust",
     q: "What if the AI returns an error?",
-    a: "Retry once. Persistent failures usually mean a very large file, an unsupported format, or a temporary model issue. Free users get their credit refunded if analysis fails after a credit was reserved.",
+    a: "If analysis fails after you started it, it does not count toward your daily limit — only successfully saved analyses count.",
   },
 ]
 

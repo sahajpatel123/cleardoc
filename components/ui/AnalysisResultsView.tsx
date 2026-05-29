@@ -42,6 +42,7 @@ export default function AnalysisResultsView({
 
   // Sync when parent re-renders with new data (e.g. after rephrasing)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalResult(result)
   }, [result])
 

@@ -1,15 +1,10 @@
 import { prisma } from "@/lib/prisma"
 import type { AnalysisResult, ChatMessage } from "@/lib/types"
-import { parseAnalysisResult } from "@/lib/validate-analysis"
 
 // ── User ─────────────────────────────────────────────────
 
 export async function getOrCreateUser(id: string, email: string) {
-  const existing = await prisma.user.findUnique({ where: { id } })
-  if (existing) return existing
-
-  // Atomic upsert on email to prevent races (P2002) when two requests
-  // arrive concurrently for a brand-new user.
+  // Atomic upsert — no separate findUnique that would create a TOCTOU race
   return prisma.user.upsert({
     where: { email },
     update: {}, // existing user — do not mutate
@@ -17,7 +12,6 @@ export async function getOrCreateUser(id: string, email: string) {
       id,
       email,
       plan: "free",
-      freeUsesRemaining: 1,
       subscriptionStatus: "inactive",
     },
   })
@@ -31,30 +25,13 @@ export async function getUserByStripeCustomerId(customerId: string) {
   return prisma.user.findUnique({ where: { stripeCustomerId: customerId } })
 }
 
-export type SaveAnalysisResult =
-  | { ok: true; id: string }
-  | { ok: false; error: "FREE_LIMIT_REACHED" }
-
-/** Atomically consume one free credit before calling Claude (avoids API cost on limit races). */
-export async function reserveFreeAnalysisCredit(
-  userId: string,
-): Promise<{ ok: true } | { ok: false; error: "FREE_LIMIT_REACHED" }> {
-  const consumed = await prisma.user.updateMany({
-    where: { id: userId, plan: "free", freeUsesRemaining: { gt: 0 } },
-    data: { freeUsesRemaining: { decrement: 1 } },
+/** Bump tokenVersion when password changes to invalidate stale JWTs. */
+export async function incrementTokenVersion(userId: string): Promise<boolean> {
+  const updated = await prisma.user.updateMany({
+    where: { id: userId },
+    data: { tokenVersion: { increment: 1 } },
   })
-  if (consumed.count === 0) {
-    return { ok: false, error: "FREE_LIMIT_REACHED" }
-  }
-  return { ok: true }
-}
-
-/** Restore one free credit after a failed analysis (free plan only, capped at 1). */
-export async function refundFreeAnalysisCredit(userId: string): Promise<void> {
-  await prisma.user.updateMany({
-    where: { id: userId, plan: "free", freeUsesRemaining: { lt: 1 } },
-    data: { freeUsesRemaining: { increment: 1 } },
-  })
+  return updated.count > 0
 }
 
 /** Persist analysis JSON after quota was already reserved (or for Pro users). */
@@ -78,26 +55,10 @@ export async function saveAnalysisResult(
   return { id: created.id }
 }
 
-/** @deprecated Use reserveFreeAnalysisCredit + saveAnalysisResult. Kept for compatibility. */
-export async function saveAnalysisWithQuota(
-  userId: string,
-  pro: boolean,
-  documentName: string,
-  documentType: string,
-  result: AnalysisResult,
-): Promise<SaveAnalysisResult> {
-  if (!pro) {
-    const reserved = await reserveFreeAnalysisCredit(userId)
-    if (!reserved.ok) return reserved
-  }
-  const { id } = await saveAnalysisResult(userId, documentName, documentType, result)
-  return { ok: true, id }
-}
-
 export async function upgradeUserToPro(
   userId: string,
   stripeCustomerId: string,
-  stripeSubscriptionId: string
+  stripeSubscriptionId: string,
 ) {
   return prisma.user.update({
     where: { id: userId },
@@ -113,7 +74,7 @@ export async function upgradeUserToPro(
 export async function updateUserSubscriptionStatus(
   stripeCustomerId: string,
   status: string,
-  plan: string
+  plan: string,
 ) {
   return prisma.user.update({
     where: { stripeCustomerId },
@@ -127,7 +88,7 @@ export async function updateUserSubscriptionByCustomerId(
     stripeSubscriptionId?: string | null
     plan: string
     subscriptionStatus: string
-  }
+  },
 ) {
   return prisma.user.update({
     where: { stripeCustomerId },
@@ -135,11 +96,18 @@ export async function updateUserSubscriptionByCustomerId(
   })
 }
 
+/**
+ * Mark a subscription as cancelled.
+ * We keep plan="pro" so the user still sees "Pro" in their UI,
+ * but subscriptionStatus="cancelled" blocks Pro access immediately
+ * via isProUser. In a future billing-period-end flow, this could
+ * defer status change until current_period_end.
+ */
 export async function cancelSubscriptionForCustomer(stripeCustomerId: string) {
   return prisma.user.update({
     where: { stripeCustomerId },
     data: {
-      plan: "free",
+      plan: "pro",
       subscriptionStatus: "cancelled",
       stripeSubscriptionId: null,
     },
@@ -152,7 +120,7 @@ export async function saveAnalysis(
   userId: string,
   documentName: string,
   documentType: string,
-  result: AnalysisResult
+  result: AnalysisResult,
 ) {
   return prisma.analysis.create({
     data: { userId, documentName, documentType, result: result as object },
@@ -163,6 +131,13 @@ export async function getUserAnalyses(userId: string) {
   return prisma.analysis.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
+    take: 100, // bounded — prevents unbounded payload
+  })
+}
+
+export async function countUserAnalysesSince(userId: string, since: Date): Promise<number> {
+  return prisma.analysis.count({
+    where: { userId, createdAt: { gte: since } },
   })
 }
 
@@ -237,26 +212,29 @@ export function parseChatMessages(raw: unknown): ChatMessage[] {
   return out
 }
 
+/**
+ * Append chat messages atomically using PostgreSQL jsonb concatenation,
+ * avoiding the read-modify-write race that could lose messages.
+ */
 export async function appendChatMessages(
   userId: string,
   analysisId: string,
   newMessages: ChatMessage[],
 ): Promise<ChatMessage[] | null> {
+  await prisma.$executeRaw`
+    UPDATE "Analysis"
+    SET "chatMessages" = COALESCE("chatMessages", '[]'::jsonb) || ${JSON.stringify(newMessages)}::jsonb
+    WHERE id = ${analysisId} AND "userId" = ${userId}
+  `
   const row = await getAnalysisById(userId, analysisId)
-  if (!row) return null
-  const existing = parseChatMessages(row.chatMessages)
-  const merged = [...existing, ...newMessages]
-  await prisma.analysis.update({
-    where: { id: analysisId, userId },
-    data: { chatMessages: merged as object },
-  })
-  return merged
+  return row ? parseChatMessages(row.chatMessages) : null
 }
 
 export async function getCaseAnalyses(userId: string, caseId: string) {
   return prisma.analysis.findMany({
     where: { userId, caseId },
     orderBy: { createdAt: "asc" },
+    take: 100, // bounded
   })
 }
 

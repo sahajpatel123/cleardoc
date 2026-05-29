@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { CalendarPlus, AlertTriangle } from "lucide-react"
 import type { DocumentDeadline } from "@/lib/types"
 import { buildIcsEvent, computeDeadlineDate, downloadIcsFile } from "@/lib/ics"
@@ -45,17 +45,12 @@ function formatDisplayDate(d: Date): string {
 
 function DeadlineRow({ deadline, index }: { deadline: DocumentDeadline; index: number }) {
   const style = URGENCY_STYLE[deadline.urgency]
-  const initialAnchor =
+  const defaultAnchor =
     deadline.anchor_date ??
-    (deadline.date_type === "relative" ? "" : "")
-  const [anchorDate, setAnchorDate] = useState(initialAnchor)
-
-  // Hydration-safe: compute local default client-side only
-  useEffect(() => {
-    if (deadline.date_type === "relative" && !deadline.anchor_date && !anchorDate) {
-      setAnchorDate(new Date().toLocaleDateString("en-CA"))
-    }
-  }, [deadline.date_type, deadline.anchor_date, anchorDate])
+    (deadline.date_type === "relative" && typeof window !== "undefined"
+      ? new Date().toLocaleDateString("en-CA")
+      : "")
+  const [anchorDate, setAnchorDate] = useState(defaultAnchor)
 
   const eventDate = computeDeadlineDate(deadline, anchorDate || undefined)
 
@@ -65,7 +60,7 @@ function DeadlineRow({ deadline, index }: { deadline: DocumentDeadline; index: n
       title: deadline.label,
       description: `${deadline.description}\n\nSource: "${deadline.source_text}"`,
       startDate: eventDate,
-      uid: `cleardoc-deadline-${index}-${Date.now()}@cleardoc.app`,
+      uid: `cleardoc-deadline-${index}-${crypto.randomUUID()}@cleardoc.app`,
     })
     const slug = deadline.label.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 40)
     downloadIcsFile(ics, `${slug || "deadline"}.ics`)

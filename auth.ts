@@ -59,7 +59,16 @@ function createAuth() {
           const dbUser = await prisma.user.findUnique({
             where: { email: token.email.trim().toLowerCase() },
           })
-          if (dbUser) token.id = dbUser.id
+          if (dbUser) {
+            // Reject stale tokens after password change
+            const currentVersion = dbUser.tokenVersion ?? 0
+            const tokenVersion = typeof token.ver === "number" ? token.ver : 0
+            if (tokenVersion < currentVersion) {
+              throw new Error("Session invalidated. Please sign in again.")
+            }
+            token.id = dbUser.id
+            token.ver = currentVersion
+          }
         }
         return token
       },

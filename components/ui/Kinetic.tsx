@@ -72,9 +72,11 @@ export function Counter({
   const ref = useRef<HTMLSpanElement | null>(null)
   const inView = useInView(ref, { once: true, margin: "-60px" })
   const [val, setVal] = useState(0)
+  const hasAnimated = useRef(false)
 
   useEffect(() => {
-    if (!inView) return
+    if (!inView || hasAnimated.current) return
+    hasAnimated.current = true
     const start = performance.now()
     let raf = 0
     const tick = (now: number) => {

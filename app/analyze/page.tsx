@@ -3,11 +3,10 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import LoadingAnalysis from "@/components/ui/LoadingAnalysis"
 import AnalysisResultsView from "@/components/ui/AnalysisResultsView"
-import PricingModal from "@/components/ui/PricingModal"
-import { Reveal } from "@/components/ui/Kinetic"
+import FreeLimitView, { type FreeLimitQuota } from "@/components/ui/FreeLimitView"
 import { takePendingAnalysis } from "@/lib/pending-analysis-store"
 import { parseAnalysisResult } from "@/lib/validate-analysis"
 import type { AnalysisResult, LoadingStage, Analysis } from "@/lib/types"
@@ -22,6 +21,7 @@ export default function AnalyzePage() {
   const [caseAnalyses, setCaseAnalyses] = useState<Analysis[]>([])
   const [error, setError] = useState<string | null>(null)
   const [showPricing, setShowPricing] = useState(false)
+  const [limitQuota, setLimitQuota] = useState<FreeLimitQuota | null>(null)
   const startedRef = useRef(false)
 
   const runAnalysis = useCallback(
@@ -45,10 +45,23 @@ export default function AnalyzePage() {
           error?: string
           result?: unknown
           analysisId?: string
+          limit?: number
+          used?: number
+          remaining?: number
+          resetsAt?: string
         }
 
         if (!res.ok) {
-          if (data.error === "FREE_LIMIT_REACHED") {
+          if (
+            data.error === "FREE_DAILY_LIMIT_REACHED" ||
+            data.error === "FREE_LIMIT_REACHED"
+          ) {
+            setLimitQuota({
+              limit: data.limit ?? 3,
+              used: data.used ?? data.limit ?? 3,
+              remaining: data.remaining ?? 0,
+              resetsAt: data.resetsAt,
+            })
             setShowPricing(true)
             setStage("idle")
             return
@@ -88,6 +101,7 @@ export default function AnalyzePage() {
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.")
         setStage("idle")
+        startedRef.current = false
       }
     },
     [refreshProfile],
@@ -113,29 +127,7 @@ export default function AnalyzePage() {
   }, [authLoading, user, router, runAnalysis])
 
   if (showPricing && !result) {
-    return (
-      <div className="min-h-screen flex items-center px-4 pt-24">
-        <div className="container-edition">
-          <Reveal>
-            <p className="eyebrow mb-8" style={{ color: "var(--ember)" }}>
-              Free limit reached
-            </p>
-            <h1
-              className="display max-w-[18ch] mb-8"
-              style={{ fontSize: "clamp(2rem, 6vw, 4.5rem)", color: "var(--text)" }}
-            >
-              You&apos;ve used your free analysis.
-            </h1>
-            <p className="text-base mb-6 max-w-md" style={{ color: "var(--text-3)" }}>
-              Upgrade to Pro for unlimited document analyses, or sign out and try another account.
-            </p>
-          </Reveal>
-        </div>
-        <AnimatePresence>
-          <PricingModal onClose={() => router.push("/")} />
-        </AnimatePresence>
-      </div>
-    )
+    return <FreeLimitView quota={limitQuota ?? undefined} onClose={() => router.push("/")} />
   }
 
   if (stage !== "done" && stage !== "idle") return <LoadingAnalysis stage={stage} />

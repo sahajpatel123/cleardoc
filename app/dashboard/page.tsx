@@ -138,7 +138,9 @@ function DashboardContent() {
                 {isPro ? "Pro" : "Free"}
               </p>
               <p className="mono text-[10px]" style={{ color: "var(--text-3)" }}>
-                {isPro ? "Unlimited" : `${profile?.freeUsesRemaining ?? 0} left`}
+                {isPro
+                  ? "Unlimited"
+                  : `${profile?.freeAnalysesRemainingToday ?? profile?.freeUsesRemaining ?? 0} left today`}
               </p>
             </div>
           </Reveal>
@@ -284,6 +286,7 @@ function DashboardContent() {
                           : ""}
                         {analysis.caseId ? "CASE · " : ""}
                         {new Date(analysis.createdAt).toLocaleDateString("en-US", {
+                          timeZone: "UTC",
                           month: "short", day: "numeric", year: "numeric",
                         }).toUpperCase()}
                       </p>

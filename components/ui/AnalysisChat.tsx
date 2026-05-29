@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { motion } from "framer-motion"
-import { MessageCircle, Send, Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { MessageCircle, Send, Loader2, ArrowUpRight } from "lucide-react"
 import type { ChatMessage } from "@/lib/types"
 
 interface Props {
@@ -11,10 +11,12 @@ interface Props {
 }
 
 export default function AnalysisChat({ analysisId, initialMessages = [] }: Props) {
+  const router = useRouter()
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showUpgrade, setShowUpgrade] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -26,6 +28,7 @@ export default function AnalysisChat({ analysisId, initialMessages = [] }: Props
     if (!trimmed || loading) return
 
     setError(null)
+    setShowUpgrade(false)
     setLoading(true)
     setInput("")
 
@@ -44,6 +47,7 @@ export default function AnalysisChat({ analysisId, initialMessages = [] }: Props
       })
       const data = (await res.json()) as {
         error?: string
+        code?: string
         messages?: ChatMessage[]
         reply?: string
       }
@@ -52,6 +56,7 @@ export default function AnalysisChat({ analysisId, initialMessages = [] }: Props
         setMessages((prev) => prev.filter((m) => m !== optimistic))
         setInput(trimmed)
         setError(data.error ?? "Could not send message.")
+        if (data.code === "CHAT_LIMIT_REACHED") setShowUpgrade(true)
         return
       }
 
@@ -129,9 +134,22 @@ export default function AnalysisChat({ analysisId, initialMessages = [] }: Props
 
         <div className="p-4 border-t space-y-2" style={{ borderColor: "var(--hairline-2)" }}>
           {error && (
-            <p className="text-xs" style={{ color: "var(--red)" }}>
-              {error}
-            </p>
+            <div className="space-y-2">
+              <p className="text-xs" style={{ color: "var(--red)" }}>
+                {error}
+              </p>
+              {showUpgrade && (
+                <button
+                  type="button"
+                  onClick={() => router.push("/pricing")}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium"
+                  style={{ color: "var(--ember)" }}
+                >
+                  Upgrade to Pro for unlimited messages
+                  <ArrowUpRight className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           )}
           <div className="flex gap-2">
             <input

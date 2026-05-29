@@ -56,6 +56,7 @@ export default function CaseTimeline({ analyses, currentId }: Props) {
               )}
               <span className="mono text-[10px] shrink-0 ml-auto hidden sm:inline" style={{ color: "var(--text-mute)" }}>
                 {new Date(a.createdAt).toLocaleDateString("en-US", {
+                  timeZone: "UTC",
                   month: "short",
                   day: "numeric",
                 }).toUpperCase()}

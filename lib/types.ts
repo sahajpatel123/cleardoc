@@ -48,11 +48,16 @@ export interface ChatMessage {
   createdAt: string
 }
 
-/** Plan fields synced from /api/usage (Prisma User). */
+/** Plan fields synced from /api/usage (Prisma User + daily quota). */
 export interface UserPlanProfile {
   plan: string
   freeUsesRemaining: number
   subscriptionStatus: string
+  freeDailyLimit?: number
+  freeAnalysesUsedToday?: number
+  freeAnalysesRemainingToday?: number
+  resetsAt?: string
+  unlimited?: boolean
 }
 
 export type Analysis = PrismaAnalysis

@@ -21,6 +21,7 @@ export default function ResponseLetter({ letter, tone, analysisId, onLetterChang
   const [rephraseError, setRephraseError] = useState<string | null>(null)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentLetter(letter)
     setCurrentTone(tone ?? "firm")
   }, [letter, tone])
@@ -87,7 +88,7 @@ export default function ResponseLetter({ letter, tone, analysisId, onLetterChang
                 key={opt.id}
                 type="button"
                 onClick={() => void handleTone(opt.id)}
-                disabled={rephrasing}
+                disabled={rephrasing || !analysisId}
                 className="rounded-full px-4 py-2 text-left transition-colors border disabled:opacity-50"
                 style={
                   active

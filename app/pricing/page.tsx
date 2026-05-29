@@ -12,7 +12,7 @@ import FaqAccordion from "@/components/ui/FaqAccordion"
 import { PRICING_FAQ_ITEMS } from "@/lib/faq-content"
 
 const FREE_FEATURES = [
-  "1 document analysis",
+  "3 document analyses per day",
   "Plain English summary",
   "Red flag detection",
   "Response letter draft",

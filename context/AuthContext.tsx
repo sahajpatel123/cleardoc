@@ -48,8 +48,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = (await res.json()) as {
       error?: string
       freeUsesRemaining?: number
+      freeAnalysesRemainingToday?: number
+      freeAnalysesUsedToday?: number
+      freeDailyLimit?: number
+      resetsAt?: string
       plan?: string
       subscriptionStatus?: string
+      unlimited?: boolean
     }
     if (data.error) {
       setProfile(null)
@@ -57,8 +62,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setProfile({
       plan: data.plan ?? "free",
-      freeUsesRemaining: data.freeUsesRemaining ?? 0,
+      freeUsesRemaining: data.freeAnalysesRemainingToday ?? data.freeUsesRemaining ?? 0,
       subscriptionStatus: data.subscriptionStatus ?? "inactive",
+      freeDailyLimit: data.freeDailyLimit,
+      freeAnalysesUsedToday: data.freeAnalysesUsedToday,
+      freeAnalysesRemainingToday: data.freeAnalysesRemainingToday,
+      resetsAt: data.resetsAt,
+      unlimited: data.unlimited,
     })
   }, [session?.user?.id])
 

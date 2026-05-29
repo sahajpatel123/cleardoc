@@ -41,13 +41,18 @@ export async function extractDocumentFromBuffer(
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
   // Dynamic import keeps pdf2json out of the module graph at build time
-  const PDFParserMod = await import("pdf2json")
-  const PDFParser = PDFParserMod.default ?? PDFParserMod
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let PdfParserCtor: any
+  try {
+    const mod = await import("pdf2json")
+    PdfParserCtor = mod.default ?? mod
+  } catch {
+    throw new Error("PDF parser (pdf2json) is unavailable in this environment.")
+  }
+
+  const parser = new PdfParserCtor(null, true)
 
   return new Promise((resolve, reject) => {
-    // Second arg = 1 enables raw text mode (returns decoded strings directly)
-    const parser = new PDFParser(null, true);
-
     parser.on("pdfParser_dataReady", (data: PDFData) => {
       const pages: PDFPage[] = data?.Pages ?? []
 

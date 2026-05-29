@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
+import { clearPendingAnalysis } from "@/lib/pending-analysis-store"
 import { isProUser } from "@/lib/user-plan"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
@@ -105,6 +106,7 @@ export default function Navbar() {
 
   const handleSignOut = async () => {
     setSigningOut(true)
+    await clearPendingAnalysis()
     await signOut()
     setSigningOut(false)
     setMobileOpen(false)

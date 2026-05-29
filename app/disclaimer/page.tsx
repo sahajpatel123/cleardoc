@@ -18,7 +18,7 @@ import {
   ChevronDown,
   MessageCircle,
 } from "lucide-react"
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 
 /* ── Section data — expanded, detailed content ────────────────────────────── */
 const SECTIONS = [

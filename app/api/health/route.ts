@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getMissingCoreEnv, getMissingEnv, REQUIRED_STRIPE_ENV } from "@/lib/env"
+import { getMissingCoreEnv, REQUIRED_STRIPE_ENV, getMissingEnv } from "@/lib/env"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -25,7 +25,6 @@ export async function GET() {
       env: {
         core: missingCore.length === 0 ? "ok" : "missing",
         stripe: missingStripe.length === 0 ? "ok" : "missing",
-        missing: [...missingCore, ...missingStripe],
       },
       timestamp: new Date().toISOString(),
     },

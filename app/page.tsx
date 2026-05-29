@@ -8,6 +8,7 @@ import {
 import Link from "next/link"
 import UploadZone from "@/components/ui/UploadZone"
 import PricingModal from "@/components/ui/PricingModal"
+import { FREE_DAILY_ANALYSIS_LIMIT } from "@/lib/free-quota"
 import { useAuth } from "@/context/AuthContext"
 import { setPendingAnalysis } from "@/lib/pending-analysis-store"
 import { isProUser } from "@/lib/user-plan"
@@ -304,6 +305,12 @@ function HomeContent() {
     { id: string; documentName: string; createdAt: string }[]
   >([])
   const [showPricing, setShowPricing] = useState(false)
+  const [limitQuota, setLimitQuota] = useState<{
+    limit: number
+    used: number
+    remaining: number
+    resetsAt?: string
+  } | null>(null)
   const [rotIdx, setRotIdx] = useState(0)
 
   const { scrollY } = useScroll()
@@ -348,8 +355,14 @@ function HomeContent() {
         plan: profile.plan,
         subscriptionStatus: profile.subscriptionStatus,
       }) &&
-      profile.freeUsesRemaining <= 0
+      (profile.freeAnalysesRemainingToday ?? profile.freeUsesRemaining) <= 0
     ) {
+      setLimitQuota({
+        limit: profile.freeDailyLimit ?? FREE_DAILY_ANALYSIS_LIMIT,
+        used: profile.freeAnalysesUsedToday ?? FREE_DAILY_ANALYSIS_LIMIT,
+        remaining: 0,
+        resetsAt: profile.resetsAt,
+      })
       setShowPricing(true)
       return
     }
@@ -824,7 +837,12 @@ function HomeContent() {
       </section>
 
       <AnimatePresence>
-        {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
+        {showPricing && (
+          <PricingModal
+            onClose={() => setShowPricing(false)}
+            quota={limitQuota ?? undefined}
+          />
+        )}
       </AnimatePresence>
     </div>
   )

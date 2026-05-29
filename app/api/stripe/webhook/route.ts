@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getStripe } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
+import { assertStripeEnv } from "@/lib/env"
 import {
   getUserByStripeCustomerId,
   upgradeUserToPro,
@@ -79,6 +80,13 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    assertStripeEnv()
+  } catch (err) {
+    console.error("[webhook] Stripe env not configured:", err)
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 })
+  }
+
   const rawBody = await req.text()
   const sig = req.headers.get("stripe-signature")
 

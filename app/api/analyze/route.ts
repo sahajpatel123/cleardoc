@@ -9,20 +9,26 @@ import {
 import { auth } from "@/auth"
 import {
   getOrCreateUser,
-  refundFreeAnalysisCredit,
-  reserveFreeAnalysisCredit,
   saveAnalysisResult,
   getAnalysisChainForContext,
   resolveCaseLinking,
 } from "@/lib/db"
+import { checkFreeDailyQuota } from "@/lib/free-quota"
 import { buildCaseContextFromAnalyses, mergeUserContextWithCase } from "@/lib/case-context"
 import { isProUser } from "@/lib/user-plan"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
 
+/** Generic catch-all error for exceptions we don't want to leak. */
+function genericErrorResponse(status = 500) {
+  return NextResponse.json(
+    { error: "Something went wrong. Please try again." },
+    { status },
+  )
+}
+
 export async function POST(req: NextRequest) {
-  let reservedFreeCredit = false
   let userId: string | null = null
 
   try {
@@ -59,6 +65,22 @@ export async function POST(req: NextRequest) {
 
     if (!file.name || file.name.includes("..") || file.name.includes("/")) {
       return NextResponse.json({ error: "Invalid file name" }, { status: 400 })
+    }
+
+    const MAX_FILE_NAME_LENGTH = 255
+    if (file.name.length > MAX_FILE_NAME_LENGTH) {
+      return NextResponse.json({ error: "File name too long." }, { status: 400 })
+    }
+
+    const MAX_CONTEXT_LENGTH = 2000
+    if (context.length > MAX_CONTEXT_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `Context too long. Maximum ${MAX_CONTEXT_LENGTH} characters.`,
+          maxLength: MAX_CONTEXT_LENGTH,
+        },
+        { status: 400 },
+      )
     }
 
     const session = await auth()
@@ -115,17 +137,25 @@ export async function POST(req: NextRequest) {
     }
 
     if (!pro) {
-      const reserved = await reserveFreeAnalysisCredit(userId)
-      if (!reserved.ok) {
-        return NextResponse.json({ error: "FREE_LIMIT_REACHED" }, { status: 402 })
+      const quota = await checkFreeDailyQuota(userId)
+      if (!quota.ok) {
+        return NextResponse.json(
+          {
+            error: "FREE_DAILY_LIMIT_REACHED",
+            code: "FREE_DAILY_LIMIT_REACHED",
+            limit: quota.status.limit,
+            used: quota.status.used,
+            remaining: quota.status.remaining,
+            resetsAt: quota.status.resetsAt,
+          },
+          { status: 402 },
+        )
       }
-      reservedFreeCredit = true
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
     const mimeType = getFileMimeType(file.name)
     if (mimeType === "application/octet-stream") {
-      if (reservedFreeCredit && userId) await refundFreeAnalysisCredit(userId)
       return NextResponse.json({ error: "Unsupported file type." }, { status: 400 })
     }
 
@@ -139,21 +169,33 @@ export async function POST(req: NextRequest) {
     }
 
     let result
-    if (extracted.kind === "text") {
-      result = await analyzeDocument({
-        mode: "text",
-        documentText: extracted.text,
-        userContext: enrichedContext,
-        documentName: file.name,
-      })
-    } else {
-      result = await analyzeDocument({
-        mode: "vision",
-        mediaType: extracted.mediaType,
-        base64Data: extracted.base64Data,
-        userContext: enrichedContext,
-        documentName: file.name,
-      })
+    try {
+      if (extracted.kind === "text") {
+        result = await analyzeDocument({
+          mode: "text",
+          documentText: extracted.text,
+          userContext: enrichedContext,
+          documentName: file.name,
+        })
+      } else {
+        result = await analyzeDocument({
+          mode: "vision",
+          mediaType: extracted.mediaType,
+          base64Data: extracted.base64Data,
+          userContext: enrichedContext,
+          documentName: file.name,
+        })
+      }
+    } catch (modelErr: unknown) {
+      console.error("[analyze] Model error:", modelErr)
+      let errorMessage = "Analysis failed. Please try again."
+      const status = 500
+      if (modelErr instanceof Error) {
+        if (modelErr.message === CLAUDE_INVALID_JSON_ERROR_MESSAGE) {
+          errorMessage = "Analysis failed: model returned unexpected output. Please retry."
+        }
+      }
+      return NextResponse.json({ error: errorMessage }, { status })
     }
 
     const saved = await saveAnalysisResult(
@@ -165,31 +207,9 @@ export async function POST(req: NextRequest) {
         ? { parentId: caseLink.parentId, caseId: caseLink.caseId }
         : undefined,
     )
-    reservedFreeCredit = false
-
     return NextResponse.json({ result, analysisId: saved.id })
-  } catch (err) {
-    if (reservedFreeCredit && userId) {
-      await refundFreeAnalysisCredit(userId).catch((refundErr) => {
-        console.error("[analyze] Refund failed:", refundErr)
-      })
-    }
-
+  } catch (err: unknown) {
     console.error("[analyze] Error:", err)
-    if (
-      err instanceof Error &&
-      err.message === CLAUDE_INVALID_JSON_ERROR_MESSAGE
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Analysis failed: model returned unexpected output. Please retry.",
-        },
-        { status: 500 },
-      )
-    }
-    const message =
-      err instanceof Error ? err.message : "Analysis failed. Please try again."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return genericErrorResponse(500)
   }
 }

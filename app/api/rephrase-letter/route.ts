@@ -60,14 +60,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Analysis data is invalid." }, { status: 500 })
   }
 
-  const rewritten = await rephraseResponseLetter(analysis.response_letter, tone as LetterTone)
+  let rewritten: string
+  try {
+    rewritten = await rephraseResponseLetter(analysis.response_letter, tone as LetterTone)
+  } catch {
+    return NextResponse.json({ error: "Letter rewrite AI failed. Try again." }, { status: 500 })
+  }
   const updated: typeof analysis = {
     ...analysis,
     response_letter: rewritten,
     letter_tone: tone as LetterTone,
   }
 
-  const ok = await updateAnalysisResult(userProfile.id, analysisId, updated)
+  let ok: boolean
+  try {
+    ok = await updateAnalysisResult(userProfile.id, analysisId, updated)
+  } catch {
+    return NextResponse.json({ error: "Could not save rewritten letter." }, { status: 500 })
+  }
   if (!ok) {
     return NextResponse.json({ error: "Could not save rewritten letter." }, { status: 500 })
   }

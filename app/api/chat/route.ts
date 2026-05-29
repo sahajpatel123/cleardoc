@@ -87,14 +87,24 @@ export async function POST(req: NextRequest) {
     createdAt: new Date().toISOString(),
   }
 
-  const replyText = await generateChatReply(analysis, history, trimmed)
+  let replyText: string
+  try {
+    replyText = await generateChatReply(analysis, history, trimmed)
+  } catch {
+    return NextResponse.json({ error: "AI response failed. Try again." }, { status: 500 })
+  }
   const assistantMsg: ChatMessage = {
     role: "assistant",
     content: replyText,
     createdAt: new Date().toISOString(),
   }
 
-  const merged = await appendChatMessages(userProfile.id, analysisId, [userMsg, assistantMsg])
+  let merged: ChatMessage[] | null
+  try {
+    merged = await appendChatMessages(userProfile.id, analysisId, [userMsg, assistantMsg])
+  } catch {
+    return NextResponse.json({ error: "Could not save chat." }, { status: 500 })
+  }
   if (!merged) {
     return NextResponse.json({ error: "Could not save chat." }, { status: 500 })
   }

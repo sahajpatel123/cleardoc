@@ -47,14 +47,6 @@ export async function POST(req: NextRequest) {
   const name = typeof rawName === "string" && rawName.trim().length > 0 ? rawName.trim().slice(0, 80) : null
 
   try {
-    const existing = await prisma.user.findUnique({ where: { email } })
-    if (existing) {
-      return NextResponse.json(
-        { error: "An account with this email already exists." },
-        { status: 409 },
-      )
-    }
-
     const hashed = await hashPassword(password)
     await prisma.user.create({
       data: {

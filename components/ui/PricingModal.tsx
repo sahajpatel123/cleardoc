@@ -6,6 +6,9 @@ import { X, Check, ArrowRight } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useBilling } from "@/hooks/useBilling"
 
+import { FREE_DAILY_ANALYSIS_LIMIT, formatQuotaResetLabel } from "@/lib/free-quota"
+import type { FreeLimitQuota } from "@/components/ui/FreeLimitView"
+
 const FEATURES = [
   "Unlimited document analyses",
   "Full red flag detection",
@@ -14,7 +17,13 @@ const FEATURES = [
   "Cancel anytime via dashboard",
 ]
 
-export default function PricingModal({ onClose }: { onClose: () => void }) {
+export default function PricingModal({
+  onClose,
+  quota,
+}: {
+  onClose: () => void
+  quota?: FreeLimitQuota
+}) {
   const router = useRouter()
   const { user } = useAuth()
   const { startCheckout, loading, error } = useBilling()
@@ -66,16 +75,46 @@ export default function PricingModal({ onClose }: { onClose: () => void }) {
         </button>
 
         <div className="p-10">
-          <p className="eyebrow mb-6">Free limit reached</p>
+          <p className="eyebrow mb-6">Daily allowance</p>
           <h2
             className="display mb-3"
             style={{ fontSize: "clamp(1.8rem, 3.2vw, 2.4rem)", color: "var(--text)" }}
           >
-            <span>Keep </span>
-            <span className="serif-italic" style={{ color: "var(--ember)" }}>fighting back.</span>
+            <span>Today&apos;s </span>
+            <span className="serif-italic" style={{ color: "var(--ember)" }}>{quota?.limit ?? FREE_DAILY_ANALYSIS_LIMIT} are used.</span>
           </h2>
-          <p className="text-sm mb-10" style={{ color: "var(--text-3)" }}>
-            Unlimited analyses for one low monthly price.
+          <p className="text-sm mb-6 leading-relaxed" style={{ color: "var(--text-3)" }}>
+            Free accounts include {FREE_DAILY_ANALYSIS_LIMIT} analyses per day.
+            {quota?.resetsAt ? (
+              <> Resets {formatQuotaResetLabel(quota.resetsAt)}.</>
+            ) : (
+              <> Resets at midnight UTC.</>
+            )}
+          </p>
+
+          {quota && (
+            <div
+              className="flex items-center justify-between gap-4 mb-8 py-3 px-4 rounded-lg border"
+              style={{ borderColor: "var(--hairline-2)", background: "rgba(255,106,31,0.04)" }}
+            >
+              <span className="mono text-[10px] tracking-[0.18em]" style={{ color: "var(--text-mute)" }}>
+                TODAY
+              </span>
+              <span
+                style={{
+                  color: "var(--ember)",
+                  fontFamily: "var(--font-syne,'Syne',sans-serif)",
+                  fontWeight: 600,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                {quota.used} / {quota.limit}
+              </span>
+            </div>
+          )}
+
+          <p className="text-sm mb-8" style={{ color: "var(--text-3)" }}>
+            Upgrade for unlimited analyses — one flat monthly price.
           </p>
 
           <div className="flex items-baseline gap-1 mb-2">
