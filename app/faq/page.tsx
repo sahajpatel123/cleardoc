@@ -69,7 +69,7 @@ export default function FaqPage() {
                 obvious.
               </p>
               <Magnetic strength={5}>
-                <Link href="/" className="btn btn-primary">
+                <Link href="/#upload" className="btn btn-primary">
                   Try free
                   <ArrowRight className="w-4 h-4" />
                 </Link>

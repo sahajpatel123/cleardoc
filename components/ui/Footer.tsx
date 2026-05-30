@@ -24,7 +24,7 @@ export default function Footer() {
               words to fight it.
             </p>
             <div className="mt-8">
-              <Link href="/login?mode=signup" className="btn btn-primary">
+              <Link href="/#upload" className="btn btn-primary">
                 Try free
                 <ArrowUpRight className="w-4 h-4" />
               </Link>

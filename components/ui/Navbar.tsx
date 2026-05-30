@@ -187,7 +187,7 @@ export default function Navbar() {
                     <Link href="/login" className="nav-actions__text">
                       Sign in
                     </Link>
-                    <Link href="/login?mode=signup" className="btn btn-primary">
+                    <Link href="/#upload" className="btn btn-primary">
                       Try free
                       <ArrowRight className="w-4 h-4" />
                     </Link>
@@ -268,7 +268,7 @@ export default function Navbar() {
                       Sign in
                     </Link>
                     <Link
-                      href="/login?mode=signup"
+                      href="/#upload"
                       className="btn btn-primary w-full justify-center"
                       onClick={() => setMobileOpen(false)}
                     >

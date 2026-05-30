@@ -322,6 +322,15 @@ function HomeContent() {
     return () => clearInterval(t)
   }, [])
 
+  useEffect(() => {
+    if (typeof window === "undefined" || window.location.hash !== "#upload") return
+    const scroll = () =>
+      uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+    requestAnimationFrame(scroll)
+    const t = setTimeout(scroll, 400)
+    return () => clearTimeout(t)
+  }, [])
+
   const isPro =
     profile &&
     isProUser({ plan: profile.plan, subscriptionStatus: profile.subscriptionStatus })
@@ -350,7 +359,7 @@ function HomeContent() {
       parentAnalysisId: parentAnalysisId || undefined,
     })
     if (!user) {
-      router.push(`/login?mode=signup&redirect=${encodeURIComponent("/analyze")}`)
+      router.push(`/login?mode=signup&redirect=${encodeURIComponent("/analyze/session")}`)
       return
     }
     if (
@@ -370,7 +379,7 @@ function HomeContent() {
       setShowPricing(true)
       return
     }
-    router.push("/analyze")
+    router.push("/analyze/session")
   }
 
   return (
