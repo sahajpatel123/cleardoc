@@ -639,12 +639,10 @@ function HomeContent() {
       >
         <div className="container-edition relative">
           <Reveal>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-16 items-end">
-              <div className="md:col-span-3">
-                <p className="eyebrow">Chapter 03</p>
-              </div>
+            <div className="mb-16 sm:mb-20 text-center max-w-4xl mx-auto">
+              <p className="eyebrow mb-6 sm:mb-8">Chapter 03</p>
               <h2
-                className="md:col-span-9 display"
+                className="display balance"
                 style={{ fontSize: "clamp(2rem, 5.5vw, 5rem)", color: "var(--text)" }}
               >
                 Hand us the document.
@@ -653,7 +651,7 @@ function HomeContent() {
           </Reveal>
 
           <Reveal delay={0.1}>
-            <div className="max-w-2xl">
+            <div className="max-w-2xl mx-auto">
               <UploadZone file={file} onFileSelect={setFile} onClear={() => setFile(null)} />
               <div className="mt-6">
                 <input
