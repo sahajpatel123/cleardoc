@@ -22,11 +22,12 @@ export async function GET() {
       const rows = await prisma.$queryRaw<{ column_name: string }[]>`
         SELECT column_name
         FROM information_schema.columns
-        WHERE table_name = 'User'
-          AND column_name = 'lastResetAt'
-        LIMIT 1
+        WHERE table_name IN ('User', 'Analysis')
+          AND column_name IN ('lastResetAt', 'tokenVersion', 'caseId', 'parentId', 'chatMessages')
       `
-      if (!rows || rows.length === 0) {
+      const found = new Set(rows.map((r) => r.column_name))
+      const required = ["lastResetAt", "tokenVersion", "caseId", "parentId", "chatMessages"]
+      if (!required.every((col) => found.has(col))) {
         tables = "schema_incomplete"
       }
     } catch {

@@ -42,6 +42,20 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Resolve session before reading multipart body — consuming the body first can
+    // prevent Auth.js from reading session cookies on some serverless runtimes.
+    const session = await auth()
+    if (!session?.user?.id || !session.user.email) {
+      console.error("[analyze] No session:", {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        hasEmail: !!session?.user?.email,
+      })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const userEmail = session.user.email
+
     const formData = await req.formData()
     const file = formData.get("file") as File | null
     const context = (formData.get("context") as string) ?? ""
@@ -82,18 +96,6 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       )
     }
-
-    const session = await auth()
-    if (!session?.user?.id || !session.user.email) {
-      console.error("[analyze] No session:", {
-        hasSession: !!session,
-        userId: session?.user?.id,
-        hasEmail: !!session?.user?.email,
-      })
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const userEmail = session.user.email
 
     let userProfile: Awaited<ReturnType<typeof getOrCreateUser>>
     try {

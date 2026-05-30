@@ -12,7 +12,7 @@ describe("free daily quota", () => {
     const status = buildFreeDailyQuotaStatus(0)
     assert.equal(status.limit, FREE_DAILY_ANALYSIS_LIMIT)
     assert.equal(status.used, 0)
-    assert.equal(status.remaining, 1)
+    assert.equal(status.remaining, FREE_DAILY_ANALYSIS_LIMIT)
   })
 
   it("clamps used at limit", () => {

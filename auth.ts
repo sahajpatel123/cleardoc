@@ -19,6 +19,7 @@ function createAuth() {
   if (!secret) return null
   return NextAuth({
     secret,
+    trustHost: true,
     adapter: PrismaAdapter(prisma),
     providers: [
       Credentials({

@@ -1,5 +1,5 @@
 /** Free tier: saved analyses per UTC calendar day. */
-export const FREE_DAILY_ANALYSIS_LIMIT = 1
+export const FREE_DAILY_ANALYSIS_LIMIT = 3
 
 export type FreeDailyQuotaStatus = {
   limit: number
