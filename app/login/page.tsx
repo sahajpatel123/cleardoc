@@ -111,7 +111,7 @@ function LoginInner() {
           </div>
         </Reveal>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-start max-md:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-start max-md:gap-6">
           {/* LEFT — editorial headline + promises */}
           <div className="lg:col-span-7">
             <h1
@@ -129,7 +129,7 @@ function LoginInner() {
 
             <Reveal delay={0.55}>
               <p
-                className="mt-10 max-w-md text-[clamp(1rem,1.2vw,1.15rem)] leading-relaxed max-md:mt-6"
+                className="mt-10 max-w-md text-[clamp(1rem,1.2vw,1.15rem)] leading-relaxed max-md:mt-4 max-md:text-sm"
                 style={{ color: "var(--text-2)" }}
               >
                 {mode === "signin"
@@ -139,9 +139,9 @@ function LoginInner() {
             </Reveal>
 
             <Reveal delay={0.75}>
-              <div className="mt-16 border-l pl-6 max-md:mt-10" style={{ borderColor: "var(--hairline-2)" }}>
-                <p className="eyebrow mb-6">What you get inside</p>
-                <ul className="space-y-3">
+              <div className="mt-16 border-l pl-6 max-md:mt-6 max-md:border-l-0 max-md:pl-0" style={{ borderColor: "var(--hairline-2)" }}>
+                <p className="eyebrow mb-6 max-md:mb-3 max-md:text-[9px]">What you get inside</p>
+                <ul className="space-y-3 max-md:space-y-2">
                   {PROMISES.map((p, i) => (
                     <motion.li
                       key={p.n}
@@ -169,7 +169,7 @@ function LoginInner() {
             </Reveal>
 
             <Reveal delay={1}>
-              <div className="mt-16 flex items-center gap-5 mono text-[10px] max-md:mt-10" style={{ color: "var(--text-mute)" }}>
+              <div className="mt-16 flex items-center gap-5 mono text-[10px] max-md:mt-6 max-md:gap-3 max-md:text-[8px]" style={{ color: "var(--text-mute)" }}>
                 <span>FIRST ANALYSIS FREE</span>
                 <span className="w-px h-3" style={{ background: "var(--hairline-2)" }} />
                 <span>NO CARD REQUIRED</span>
@@ -183,17 +183,17 @@ function LoginInner() {
           <div className="lg:col-span-5 lg:pt-3">
             <Reveal delay={0.35}>
               <div
-                className="relative pl-8 sm:pl-10 max-md:pl-0"
+                className="relative pl-8 sm:pl-10 max-md:pl-0 max-md:pt-6 max-md:border-t max-md:border-l-0"
                 style={{ borderLeft: "1px solid var(--hairline-2)" }}
               >
                 {/* Ember mark on the rule */}
                 <span
-                  className="absolute left-[-1px] top-0 w-px h-10"
+                  className="absolute left-[-1px] top-0 w-px h-10 max-md:left-0 max-md:top-[-1px] max-md:w-10 max-md:h-px"
                   style={{ background: "var(--ember)" }}
                 />
 
                 {/* Mode toggle — two words, single underline slides */}
-                <div className="flex items-baseline gap-7 mb-12 relative">
+                <div className="flex items-baseline gap-7 mb-12 relative max-md:mb-8 max-md:gap-5">
                   {(["signin", "signup"] as Mode[]).map((m) => {
                     const active = mode === m
                     return (
@@ -201,7 +201,7 @@ function LoginInner() {
                         key={m}
                         type="button"
                         onClick={() => setMode(m)}
-                        className="relative pb-2 mono text-[11px] tracking-[0.22em]"
+                        className="relative pb-2 mono text-[11px] tracking-[0.22em] max-md:text-[13px] max-md:pb-3 max-md:tracking-[0.18em]"
                         style={{
                           color: active ? "var(--text)" : "var(--text-3)",
                           letterSpacing: "0.22em",
@@ -220,14 +220,14 @@ function LoginInner() {
                     )
                   })}
                   <span
-                    className="ml-auto mono text-[10px]"
+                    className="ml-auto mono text-[10px] max-md:hidden"
                     style={{ color: "var(--text-mute)" }}
                   >
                     No. {mode === "signin" ? "01" : "02"}
                   </span>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-7">
+                <form onSubmit={handleSubmit} className="space-y-7 max-md:space-y-5">
                   <AnimatePresence initial={false}>
                     {mode === "signup" && (
                       <motion.div
@@ -245,14 +245,14 @@ function LoginInner() {
                           >
                             FULL NAME · OPTIONAL
                           </label>
-                          <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="Mariana Reyes"
-                            autoComplete="name"
-                            className="field"
-                          />
+                        <input
+                          type="text"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Mariana Reyes"
+                          autoComplete="name"
+                          className="field max-md:text-sm"
+                        />
                         </div>
                       </motion.div>
                     )}
@@ -265,15 +265,15 @@ function LoginInner() {
                     >
                       EMAIL
                     </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@quiet.address"
-                      autoComplete="email"
-                      required
-                      className="field"
-                    />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@quiet.address"
+                        autoComplete="email"
+                        required
+                        className="field max-md:text-sm"
+                      />
                   </div>
 
                   <div>
@@ -301,7 +301,7 @@ function LoginInner() {
                       autoComplete={mode === "signup" ? "new-password" : "current-password"}
                       required
                       minLength={8}
-                      className="field"
+                      className="field max-md:text-sm"
                     />
                   </div>
 
@@ -319,12 +319,12 @@ function LoginInner() {
                     )}
                   </AnimatePresence>
 
-                  <div className="pt-3">
+                  <div className="pt-3 max-md:pt-2">
                     <Magnetic strength={5}>
                       <button
                         type="submit"
                         disabled={loading}
-                        className="btn btn-primary"
+                        className="btn btn-primary max-md:w-full max-md:justify-center"
                         style={loading ? { opacity: 0.55, cursor: "wait" } : {}}
                       >
                         {loading
@@ -339,9 +339,9 @@ function LoginInner() {
                     </Magnetic>
                   </div>
 
-                  <div className="hairline-fade mt-8" />
+                  <div className="hairline-fade mt-8 max-md:mt-6" />
 
-                  <p className="text-xs mt-8" style={{ color: "var(--text-3)" }}>
+                  <p className="text-xs mt-8 max-md:mt-6" style={{ color: "var(--text-3)" }}>
                     {mode === "signup" ? (
                       <>
                         Already have an account?{" "}
@@ -369,7 +369,7 @@ function LoginInner() {
                     )}
                   </p>
 
-                  <p className="text-[11px] mt-6 leading-relaxed" style={{ color: "var(--text-mute)" }}>
+                  <p className="text-[11px] mt-6 leading-relaxed max-md:mt-4 max-md:text-[10px]" style={{ color: "var(--text-mute)" }}>
                     By continuing you agree to our{" "}
                     <Link href="/terms" className="underline underline-offset-2" style={{ color: "var(--text-3)" }}>
                       Terms
@@ -385,7 +385,7 @@ function LoginInner() {
             </Reveal>
 
             <Reveal delay={0.9}>
-              <div className="mt-12 flex items-baseline justify-between mono text-[10px] max-md:mt-8" style={{ color: "var(--text-mute)" }}>
+              <div className="mt-12 flex items-baseline justify-between mono text-[10px] max-md:mt-6 max-md:text-[8px] max-md:hidden" style={{ color: "var(--text-mute)" }}>
                 <span>VOL. 01 · THE ATELIER EDITION</span>
                 <Link
                   href="/pricing"
