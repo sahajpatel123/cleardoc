@@ -12,8 +12,10 @@ import {
   saveAnalysisResult,
   getAnalysisChainForContext,
   resolveCaseLinking,
+  reserveFreeAnalysisCredit,
+  refundFreeAnalysisCredit,
+  getFreeDailyQuotaStatus,
 } from "@/lib/db"
-import { checkFreeDailyQuota } from "@/lib/free-quota"
 import { buildCaseContextFromAnalyses, mergeUserContextWithCase } from "@/lib/case-context"
 import { isProUser } from "@/lib/user-plan"
 
@@ -137,16 +139,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (!pro) {
-      const quota = await checkFreeDailyQuota(userId)
-      if (!quota.ok) {
+      // Reserve free credit before AI call for free users
+      const creditReserved = await reserveFreeAnalysisCredit(userId)
+      if (!creditReserved) {
         return NextResponse.json(
           {
-            error: "FREE_DAILY_LIMIT_REACHED",
-            code: "FREE_DAILY_LIMIT_REACHED",
-            limit: quota.status.limit,
-            used: quota.status.used,
-            remaining: quota.status.remaining,
-            resetsAt: quota.status.resetsAt,
+            error: "FREE_CREDITS_EXHAUSTED",
+            code: "FREE_CREDITS_EXHAUSTED",
+            message: "You have used your free analysis credit. Check back later for your free credit to reset, or upgrade to Pro for unlimited analyses.",
           },
           { status: 402 },
         )
@@ -195,6 +195,12 @@ export async function POST(req: NextRequest) {
           errorMessage = "Analysis failed: model returned unexpected output. Please retry."
         }
       }
+
+      // Refund free credit on failure for free users
+      if (!pro && userId) {
+        await refundFreeAnalysisCredit(userId)
+      }
+
       return NextResponse.json({ error: errorMessage }, { status })
     }
 

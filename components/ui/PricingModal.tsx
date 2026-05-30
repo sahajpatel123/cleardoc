@@ -7,7 +7,8 @@ import { X, Check, ArrowRight } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useBilling } from "@/hooks/useBilling"
 
-import { FREE_DAILY_ANALYSIS_LIMIT, formatQuotaResetLabel } from "@/lib/free-quota"
+// Free tier analysis limit is now handled via freeUsesRemaining in user record
+// import { FREE_DAILY_ANALYSIS_LIMIT, formatQuotaResetLabel } from "@/lib/free-quota"
 import type { FreeLimitQuota } from "@/components/ui/FreeLimitView"
 
 const FEATURES = [
@@ -96,7 +97,7 @@ export default function PricingModal({
             style={{ fontSize: "clamp(1.8rem, 3.2vw, 2.4rem)", color: "var(--text)" }}
           >
             <span>Today&apos;s </span>
-            <span className="serif-italic" style={{ color: "var(--ember)" }}>{quota?.limit ?? FREE_DAILY_ANALYSIS_LIMIT} are used.</span>
+            <span className="serif-italic" style={{ color: "var(--ember)" }}>{quota?.limit} are used.</span>
           </h2>
           <p className="text-sm mb-6 leading-relaxed" style={{ color: "var(--text-3)" }}>
             Free accounts include {FREE_DAILY_ANALYSIS_LIMIT} analyses per day.

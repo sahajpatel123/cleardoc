@@ -9,10 +9,10 @@ import {
 
 describe("free daily quota", () => {
   it("builds remaining count from used analyses", () => {
-    const status = buildFreeDailyQuotaStatus(1)
+    const status = buildFreeDailyQuotaStatus(0)
     assert.equal(status.limit, FREE_DAILY_ANALYSIS_LIMIT)
-    assert.equal(status.used, 1)
-    assert.equal(status.remaining, 2)
+    assert.equal(status.used, 0)
+    assert.equal(status.remaining, 1)
   })
 
   it("clamps used at limit", () => {

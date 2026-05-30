@@ -13,6 +13,8 @@ export async function getOrCreateUser(id: string, email: string) {
       email,
       plan: "free",
       subscriptionStatus: "inactive",
+      freeUsesRemaining: FREE_TIER_CREDITS_PER_DAY,
+      lastResetAt: startOfUtcDay(new Date()),
     },
   })
 }
@@ -251,3 +253,4 @@ export async function listAnalysesForCasePicker(userId: string) {
     take: 50,
   })
 }
+

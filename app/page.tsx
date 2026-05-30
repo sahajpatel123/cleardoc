@@ -8,7 +8,8 @@ import {
 import Link from "next/link"
 import UploadZone from "@/components/ui/UploadZone"
 import PricingModal from "@/components/ui/PricingModal"
-import { FREE_DAILY_ANALYSIS_LIMIT } from "@/lib/free-quota"
+// Free tier analysis limit is now handled via freeUsesRemaining in user record
+// import { FREE_DAILY_ANALYSIS_LIMIT } from "@/lib/free-quota"
 import { useAuth } from "@/context/AuthContext"
 import { setPendingAnalysis } from "@/lib/pending-analysis-store"
 import { isProUser } from "@/lib/user-plan"
@@ -361,8 +362,8 @@ function HomeContent() {
       (profile.freeAnalysesRemainingToday ?? profile.freeUsesRemaining) <= 0
     ) {
       setLimitQuota({
-        limit: profile.freeDailyLimit ?? FREE_DAILY_ANALYSIS_LIMIT,
-        used: profile.freeAnalysesUsedToday ?? FREE_DAILY_ANALYSIS_LIMIT,
+        limit: profile.freeDailyLimit,
+        used: profile.freeAnalysesUsedToday,
         remaining: 0,
         resetsAt: profile.resetsAt,
       })

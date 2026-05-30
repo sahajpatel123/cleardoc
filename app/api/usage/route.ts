@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { getUserById } from "@/lib/db"
-import { getFreeDailyQuotaStatus, FREE_DAILY_ANALYSIS_LIMIT } from "@/lib/free-quota"
+import { getFreeDailyQuotaStatus, FREE_TIER_CREDITS_PER_DAY } from "@/lib/db"
 import { isProUser } from "@/lib/user-plan"
 
 export async function GET() {
@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({
       freeUsesRemaining: 0,
       freeAnalysesRemainingToday: 0,
-      freeDailyLimit: FREE_DAILY_ANALYSIS_LIMIT,
+      freeDailyLimit: FREE_TIER_CREDITS_PER_DAY,
       plan: "free",
     })
   }
@@ -26,7 +26,7 @@ export async function GET() {
     return NextResponse.json({
       plan: user?.plan ?? "pro",
       subscriptionStatus: user?.subscriptionStatus ?? "active",
-      freeDailyLimit: FREE_DAILY_ANALYSIS_LIMIT,
+      freeDailyLimit: FREE_TIER_CREDITS_PER_DAY,
       freeAnalysesUsedToday: 0,
       freeAnalysesRemainingToday: 0,
       freeUsesRemaining: 0,
