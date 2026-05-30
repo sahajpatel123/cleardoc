@@ -54,10 +54,13 @@
 html {
   scroll-behavior: smooth;
   background: var(--ink);
+  overflow-x: hidden;
 }
 html, body {
   background: var(--ink);
   color: var(--text);
+  width: 100%;
+  max-width: 100vw;
 }
 
 body {
@@ -481,6 +484,11 @@ body::before {
   }
   .hero-headline {
     padding: 0.1em 0.18em 0.2em 0.12em;
+  }
+  /* Prevent horizontal scroll on touch devices */
+  html, body {
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
   }
 }
 
