@@ -114,7 +114,7 @@ export default function PricingPage() {
                 </span>
               </div>
               <p className="mono text-[10px] mb-10" style={{ color: "var(--text-mute)" }}>
-                NO CARD REQUIRED
+                3 ANALYSES FREE PER DAY
               </p>
 
               <div className="hairline-fade mb-8" />
@@ -283,7 +283,7 @@ export default function PricingPage() {
                 </button>
               </Magnetic>
               <span className="mono text-[11px]" style={{ color: "var(--text-mute)" }}>
-                NO CARD REQUIRED · ~30S
+                ~30S
               </span>
             </div>
           </Reveal>

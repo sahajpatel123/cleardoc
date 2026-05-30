@@ -452,9 +452,8 @@ function HomeContent() {
 
               <Reveal delay={0.85}>
                 <div className="mt-12 flex items-center gap-5 text-xs" style={{ color: "var(--text-mute)" }}>
-                  <span>First analysis free</span>
+                  <span>3 analyses free per day</span>
                   <span className="w-px h-3" style={{ background: "var(--hairline-2)" }} />
-                  <span>No card required</span>
                   <span className="w-px h-3 hidden sm:block" style={{ background: "var(--hairline-2)" }} />
                   <span className="hidden sm:inline">Files not stored · only results saved</span>
                 </div>
@@ -705,7 +704,7 @@ function HomeContent() {
                   </button>
                 </Magnetic>
                 <p className="mono text-[11px]" style={{ color: "var(--text-mute)" }}>
-                  Encrypted in transit · original files not stored · no card required
+                  Encrypted in transit · original files not stored
                 </p>
               </div>
             </div>

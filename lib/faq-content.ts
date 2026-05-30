@@ -18,7 +18,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     chapter: "I · The basics",
     q: "Do I need an account?",
-    a: "Sign up is free. The free plan includes 3 saved document analyses per day (resets at midnight UTC): full summary, red flags, response letter draft, and ranked next steps. No card required.",
+    a: "Sign up is free. The free plan includes 3 analyses per day (resets at midnight UTC): full summary, red flags, response letter draft, and ranked next steps.",
   },
   {
     chapter: "II · Privacy",

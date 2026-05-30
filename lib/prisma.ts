@@ -5,7 +5,7 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-function createPrismaClient(): PrismaClient {
+export function createPrismaClient(): PrismaClient {
   const url = resolveDatabaseUrl()
   return new PrismaClient({
     datasources: { db: { url } },

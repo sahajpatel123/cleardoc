@@ -134,7 +134,7 @@ function LoginInner() {
               >
                 {mode === "signin"
                   ? "Sign in to your analyses, your counter-letters, and the documents you've already taken apart."
-                  : "One account opens every chapter — first analysis is on us. No card, no theatre."}
+                  : "One account opens every chapter — 3 free analyses per day, no card required."}
               </p>
             </Reveal>
 
@@ -170,9 +170,8 @@ function LoginInner() {
 
             <Reveal delay={1}>
               <div className="mt-16 flex items-center gap-5 mono text-[10px] max-md:mt-6 max-md:gap-3 max-md:text-[8px]" style={{ color: "var(--text-mute)" }}>
-                <span>FIRST ANALYSIS FREE</span>
+                <span>3 ANALYSES FREE PER DAY</span>
                 <span className="w-px h-3" style={{ background: "var(--hairline-2)" }} />
-                <span>NO CARD REQUIRED</span>
                 <span className="w-px h-3 hidden sm:block" style={{ background: "var(--hairline-2)" }} />
                 <span className="hidden sm:inline">FILES NOT STORED · RESULTS ONLY</span>
               </div>
