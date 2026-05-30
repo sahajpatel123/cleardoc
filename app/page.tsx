@@ -362,8 +362,8 @@ function HomeContent() {
       (profile.freeAnalysesRemainingToday ?? profile.freeUsesRemaining) <= 0
     ) {
       setLimitQuota({
-        limit: profile.freeDailyLimit,
-        used: profile.freeAnalysesUsedToday,
+        limit: profile.freeDailyLimit ?? 3,
+        used: profile.freeAnalysesUsedToday ?? 0,
         remaining: 0,
         resetsAt: profile.resetsAt,
       })

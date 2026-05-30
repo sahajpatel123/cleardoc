@@ -12,10 +12,8 @@ import {
   saveAnalysisResult,
   getAnalysisChainForContext,
   resolveCaseLinking,
-  reserveFreeAnalysisCredit,
-  refundFreeAnalysisCredit,
-  getFreeDailyQuotaStatus,
 } from "@/lib/db"
+import { checkFreeDailyQuota } from "@/lib/free-quota"
 import { buildCaseContextFromAnalyses, mergeUserContextWithCase } from "@/lib/case-context"
 import { isProUser } from "@/lib/user-plan"
 
@@ -87,6 +85,11 @@ export async function POST(req: NextRequest) {
 
     const session = await auth()
     if (!session?.user?.id || !session.user.email) {
+      console.error("[analyze] No session:", {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        hasEmail: !!session?.user?.email,
+      })
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -139,14 +142,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (!pro) {
-      // Reserve free credit before AI call for free users
-      const creditReserved = await reserveFreeAnalysisCredit(userId)
-      if (!creditReserved) {
+      // Check free daily quota before AI call for free users
+      const quota = await checkFreeDailyQuota(userId)
+      if (!quota.ok) {
         return NextResponse.json(
           {
-            error: "FREE_CREDITS_EXHAUSTED",
-            code: "FREE_CREDITS_EXHAUSTED",
-            message: "You have used your free analysis credit. Check back later for your free credit to reset, or upgrade to Pro for unlimited analyses.",
+            error: "FREE_DAILY_LIMIT_REACHED",
+            code: "FREE_DAILY_LIMIT_REACHED",
+            message: "You have used your free analyses for today. Upgrade to Pro for unlimited analyses.",
+            limit: quota.status.limit,
+            used: quota.status.used,
+            remaining: quota.status.remaining,
+            resetsAt: quota.status.resetsAt,
           },
           { status: 402 },
         )
@@ -194,11 +201,6 @@ export async function POST(req: NextRequest) {
         if (modelErr.message === AI_INVALID_JSON_ERROR_MESSAGE) {
           errorMessage = "Analysis failed: model returned unexpected output. Please retry."
         }
-      }
-
-      // Refund free credit on failure for free users
-      if (!pro && userId) {
-        await refundFreeAnalysisCredit(userId)
       }
 
       return NextResponse.json({ error: errorMessage }, { status })

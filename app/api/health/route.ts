@@ -16,12 +16,31 @@ export async function GET() {
     database = "error"
   }
 
-  const healthy = missingCore.length === 0 && database === "ok"
+  let tables: "ok" | "schema_incomplete" | "error" = "ok"
+  if (database === "ok") {
+    try {
+      const rows = await prisma.$queryRaw<{ column_name: string }[]>`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'User'
+          AND column_name = 'lastResetAt'
+        LIMIT 1
+      `
+      if (!rows || rows.length === 0) {
+        tables = "schema_incomplete"
+      }
+    } catch {
+      tables = "error"
+    }
+  }
+
+  const healthy = missingCore.length === 0 && database === "ok" && tables === "ok"
 
   return NextResponse.json(
     {
       status: healthy ? "ok" : "degraded",
       database,
+      tables,
       env: {
         core: missingCore.length === 0 ? "ok" : "missing",
         stripe: missingStripe.length === 0 ? "ok" : "missing",

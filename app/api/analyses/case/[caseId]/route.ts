@@ -6,12 +6,17 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ caseId: string }> },
 ) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-  const { caseId } = await params
-  const rows = await getCaseAnalyses(session.user.id, caseId)
-  return NextResponse.json(rows)
+    const { caseId } = await params
+    const rows = await getCaseAnalyses(session.user.id, caseId)
+    return NextResponse.json(rows)
+  } catch (err) {
+    console.error("[analyses/case] error:", err)
+    return NextResponse.json({ error: "Could not load case." }, { status: 500 })
+  }
 }

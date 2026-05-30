@@ -113,20 +113,25 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-  const analysisId = req.nextUrl.searchParams.get("analysisId")
-  if (!analysisId) {
-    return NextResponse.json({ error: "analysisId required." }, { status: 400 })
-  }
+    const analysisId = req.nextUrl.searchParams.get("analysisId")
+    if (!analysisId) {
+      return NextResponse.json({ error: "analysisId required." }, { status: 400 })
+    }
 
-  const row = await getAnalysisById(session.user.id, analysisId)
-  if (!row) {
-    return NextResponse.json({ error: "Analysis not found." }, { status: 404 })
-  }
+    const row = await getAnalysisById(session.user.id, analysisId)
+    if (!row) {
+      return NextResponse.json({ error: "Analysis not found." }, { status: 404 })
+    }
 
-  return NextResponse.json({ messages: parseChatMessages(row.chatMessages) })
+    return NextResponse.json({ messages: parseChatMessages(row.chatMessages) })
+  } catch (err) {
+    console.error("[chat] Error fetching chat history:", err)
+    return NextResponse.json({ error: "Failed to fetch chat." }, { status: 500 })
+  }
 }

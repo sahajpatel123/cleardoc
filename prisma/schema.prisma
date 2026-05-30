@@ -54,8 +54,6 @@ model User {
   stripeSubscriptionId String?
   subscriptionStatus   String     @default("inactive")
   freeUsesRemaining    Int        @default(1)
-  lastResetAt          DateTime   @default(now())
-  tokenVersion         Int        @default(0)
   password             String?
   accounts             Account[]
   analyses             Analysis[]
@@ -63,22 +61,15 @@ model User {
 }
 
 model Analysis {
-  id           String     @id @default(cuid())
+  id           String   @id @default(cuid())
   userId       String
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime @default(now())
   documentName String
-  documentType String     @default("Unknown")
+  documentType String   @default("Unknown")
   result       Json
-  parentId     String?
-  caseId       String?
-  chatMessages Json?
-  parent       Analysis?  @relation("AnalysisChain", fields: [parentId], references: [id], onDelete: SetNull)
-  children     Analysis[] @relation("AnalysisChain")
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
-  @@index([caseId])
-  @@index([parentId])
 }
 
 /// Stripe webhook idempotency — one row per processed event id (evt_...).
@@ -86,4 +77,3 @@ model ProcessedStripeEvent {
   id        String   @id
   createdAt DateTime @default(now())
 }
-

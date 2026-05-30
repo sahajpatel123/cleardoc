@@ -13,9 +13,6 @@ const MODEL = "meta/llama-3.2-90b-vision-instruct"
 export const AI_INVALID_JSON_ERROR_MESSAGE =
   "Model returned invalid JSON. Raw output logged."
 
-/** @deprecated Use AI_INVALID_JSON_ERROR_MESSAGE */
-export const CLAUDE_INVALID_JSON_ERROR_MESSAGE = AI_INVALID_JSON_ERROR_MESSAGE
-
 const SYSTEM_PROMPT = `You are ClearDoc's analysis engine — simultaneously a consumer rights attorney, insurance specialist, tenant rights advocate, medical billing expert, and immigration lawyer. You are direct, opinionated, and unfailingly on the side of the individual against institutions.
 
 Your job is to analyze official documents and give people exactly what they need to fight back. Never be vague. Never hedge unnecessarily. If something is wrong, say it clearly. If they're being manipulated, name it explicitly.
@@ -133,67 +130,84 @@ function parseAnalysisResponse(raw: string): AnalysisResult {
 export async function analyzeDocument(
   params: AnalyzeDocumentParams
 ): Promise<AnalysisResult> {
-  if (params.mode === "text") {
-    const { documentText, userContext, documentName } = params
+  const maxRetries = 3
+  let lastError: unknown
 
-    const userMessage = [
-      userContext ? `Context from user: ${userContext}\n` : "",
-      documentName ? `Document filename: ${documentName}\n` : "",
-      "--- DOCUMENT TEXT BEGINS ---\n",
-      documentText.slice(0, 80000),
-      "\n--- DOCUMENT TEXT ENDS ---",
-    ]
-      .filter(Boolean)
-      .join("\n")
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      if (params.mode === "text") {
+        const { documentText, userContext, documentName } = params
 
-    const response = await client.chat.completions.create({
-      model: MODEL,
-      max_tokens: 4000,
-      temperature: 0,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userMessage },
-      ],
-    })
+        const userMessage = [
+          userContext ? `Context from user: ${userContext}\n` : "",
+          documentName ? `Document filename: ${documentName}\n` : "",
+          "--- DOCUMENT TEXT BEGINS ---\n",
+          documentText.slice(0, 80000),
+          "\n--- DOCUMENT TEXT ENDS ---",
+        ]
+          .filter(Boolean)
+          .join("\n")
 
-    const raw = response.choices[0]?.message?.content ?? ""
-    return parseAnalysisResponse(raw)
-  }
+        const response = await client.chat.completions.create({
+          model: MODEL,
+          max_tokens: 4000,
+          temperature: 0,
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: userMessage },
+          ],
+        })
 
-  const { mediaType, base64Data, userContext, documentName } = params
+        const raw = response.choices[0]?.message?.content ?? ""
+        return parseAnalysisResponse(raw)
+      }
 
-  const instructionText = [
-    userContext ? `Context from user: ${userContext}\n` : "",
-    documentName ? `Document filename: ${documentName}\n` : "",
-    "The attached image is an official document. Analyze it according to the system instructions. Return ONLY valid JSON matching the schema described in those instructions — no markdown fences or preamble.",
-  ]
-    .filter(Boolean)
-    .join("\n")
+      const { mediaType, base64Data, userContext, documentName } = params
 
-  const response = await client.chat.completions.create({
-    model: MODEL,
-    max_tokens: 4000,
-    temperature: 0,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: [
+      const instructionText = [
+        userContext ? `Context from user: ${userContext}\n` : "",
+        documentName ? `Document filename: ${documentName}\n` : "",
+        "The attached image is an official document. Analyze it according to the system instructions. Return ONLY valid JSON matching the schema described in those instructions — no markdown fences or preamble.",
+      ]
+        .filter(Boolean)
+        .join("\n")
+
+      const response = await client.chat.completions.create({
+        model: MODEL,
+        max_tokens: 4000,
+        temperature: 0,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
           {
-            type: "image_url",
-            image_url: {
-              url: `data:${mediaType};base64,${base64Data}`,
-            },
-          },
-          {
-            type: "text",
-            text: instructionText,
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${mediaType};base64,${base64Data}`,
+                },
+              },
+              {
+                type: "text",
+                text: instructionText,
+              },
+            ],
           },
         ],
-      },
-    ],
-  })
+      })
 
-  const raw = response.choices[0]?.message?.content ?? ""
-  return parseAnalysisResponse(raw)
+      const raw = response.choices[0]?.message?.content ?? ""
+      return parseAnalysisResponse(raw)
+    } catch (err) {
+      lastError = err
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000
+        console.warn(`[ai] Attempt ${attempt} failed, retrying in ${delay}ms...`)
+        await new Promise((resolve) => setTimeout(resolve, delay))
+      }
+    }
+  }
+
+  console.error("[ai] All retry attempts failed:", lastError)
+  throw lastError instanceof Error ? lastError : new Error("AI analysis failed after retries")
 }

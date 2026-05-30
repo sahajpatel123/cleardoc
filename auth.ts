@@ -56,32 +56,30 @@ function createAuth() {
           token.id = user.id
           token.email = user.email
         } else if (typeof token.email === "string") {
-          const dbUser = await prisma.user.findUnique({
-            where: { email: token.email.trim().toLowerCase() },
-          })
-          if (dbUser) {
-            // Reject stale tokens after password change
-            const currentVersion = dbUser.tokenVersion ?? 0
-            const tokenVersion = typeof token.ver === "number" ? token.ver : 0
-            if (tokenVersion < currentVersion) {
+          // Only query DB if token is missing id (first refresh after sign-in)
+          if (!token.id) {
+            const dbUser = await prisma.user.findUnique({
+              where: { email: token.email.trim().toLowerCase() },
+              select: { id: true, tokenVersion: true },
+            })
+            if (dbUser) {
+              token.id = dbUser.id
+              token.ver = dbUser.tokenVersion ?? 0
+            }
+          } else if (typeof token.ver === "number") {
+            // Validate token version hasn't been revoked
+            const dbUser = await prisma.user.findUnique({
+              where: { id: token.id as string },
+              select: { tokenVersion: true },
+            })
+            if (dbUser && (dbUser.tokenVersion ?? 0) > token.ver) {
               throw new Error("Session invalidated. Please sign in again.")
             }
-            token.id = dbUser.id
-            token.ver = currentVersion
           }
         }
         return token
       },
       async session({ session, token }) {
-        if (session.user?.email) {
-          const dbUser = await prisma.user.findUnique({
-            where: { email: session.user.email.trim().toLowerCase() },
-          })
-          if (dbUser) {
-            session.user.id = dbUser.id
-            return session
-          }
-        }
         if (token?.id && session.user) {
           session.user.id = token.id as string
         }

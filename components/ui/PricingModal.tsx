@@ -6,9 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { X, Check, ArrowRight } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useBilling } from "@/hooks/useBilling"
-
-// Free tier analysis limit is now handled via freeUsesRemaining in user record
-// import { FREE_DAILY_ANALYSIS_LIMIT, formatQuotaResetLabel } from "@/lib/free-quota"
+import { FREE_DAILY_ANALYSIS_LIMIT, formatQuotaResetLabel } from "@/lib/free-quota"
 import type { FreeLimitQuota } from "@/components/ui/FreeLimitView"
 
 const FEATURES = [

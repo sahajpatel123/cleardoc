@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import type { AnalysisResult, ChatMessage } from "@/lib/types"
+import { FREE_DAILY_ANALYSIS_LIMIT, startOfUtcDay } from "@/lib/free-quota"
 
 // ── User ─────────────────────────────────────────────────
 
@@ -13,7 +14,7 @@ export async function getOrCreateUser(id: string, email: string) {
       email,
       plan: "free",
       subscriptionStatus: "inactive",
-      freeUsesRemaining: FREE_TIER_CREDITS_PER_DAY,
+      freeUsesRemaining: FREE_DAILY_ANALYSIS_LIMIT,
       lastResetAt: startOfUtcDay(new Date()),
     },
   })
@@ -117,17 +118,6 @@ export async function cancelSubscriptionForCustomer(stripeCustomerId: string) {
 }
 
 // ── Analysis ─────────────────────────────────────────────
-
-export async function saveAnalysis(
-  userId: string,
-  documentName: string,
-  documentType: string,
-  result: AnalysisResult,
-) {
-  return prisma.analysis.create({
-    data: { userId, documentName, documentType, result: result as object },
-  })
-}
 
 export async function getUserAnalyses(userId: string) {
   return prisma.analysis.findMany({
@@ -252,5 +242,21 @@ export async function listAnalysesForCasePicker(userId: string) {
     },
     take: 50,
   })
+}
+
+export async function cleanupProcessedStripeEvents(olderThanDays: number = 90): Promise<number> {
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - olderThanDays)
+  const deleted = await prisma.processedStripeEvent.deleteMany({
+    where: { createdAt: { lt: cutoff } },
+  })
+  return deleted.count
+}
+
+export async function deleteAnalysis(userId: string, analysisId: string): Promise<boolean> {
+  const deleted = await prisma.analysis.deleteMany({
+    where: { id: analysisId, userId },
+  })
+  return deleted.count > 0
 }
 

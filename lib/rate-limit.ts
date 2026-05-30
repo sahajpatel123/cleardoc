@@ -33,7 +33,10 @@ async function rateLimitByKey(
   window: `${number} s` | `${number} m` | `${number} h` | `${number} d`,
 ): Promise<RateLimitResult> {
   const redis = getRedis()
-  if (!redis) return { allowed: true }
+  if (!redis) {
+    console.warn("[rate-limit] Redis not configured — allowing request without rate limiting")
+    return { allowed: true }
+  }
 
   const ratelimit = new Ratelimit({
     redis,

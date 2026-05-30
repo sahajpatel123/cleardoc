@@ -82,6 +82,25 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       break
     }
 
+    case "invoice.payment_failed": {
+      const invoice = event.data.object as Stripe.Invoice
+      const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id
+      if (!customerId) {
+        console.error("[webhook] invoice.payment_failed missing customer id", invoice.id)
+        break
+      }
+      const user = await getUserByStripeCustomerId(customerId)
+      if (!user) break
+
+      console.warn(
+        "[webhook] Payment failed for user",
+        user.id,
+        "- invoice:",
+        invoice.id,
+      )
+      break
+    }
+
     default:
       break
   }

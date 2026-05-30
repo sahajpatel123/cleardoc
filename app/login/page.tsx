@@ -25,7 +25,9 @@ function LoginInner() {
   const params = useSearchParams()
 
   const initialMode: Mode = params.get("mode") === "signup" ? "signup" : "signin"
-  const redirectTo = params.get("redirect") || "/"
+  const rawRedirect = params.get("redirect") || "/"
+  const redirectTo =
+    rawRedirect.startsWith("/") && !rawRedirect.includes("//") ? rawRedirect : "/"
 
   const [mode, setMode] = useState<Mode>(initialMode)
   const [email, setEmail] = useState("")
@@ -63,6 +65,25 @@ function LoginInner() {
         })
         const data = (await res.json().catch(() => ({}))) as { error?: string }
         if (!res.ok) {
+          // If the account already exists, try signing in — the user may have
+          // already registered and just re-submitted. Any other 5xx could also
+          // mean the account was written but the 201 response was lost, so
+          // optimistically attempt signIn before surfacing an error.
+          const accountExists = data.error?.toLowerCase().includes("already exists")
+          const serverError = res.status >= 500
+          if (accountExists || serverError) {
+            const attempt = await signIn("credentials", {
+              email,
+              password,
+              redirect: false,
+            })
+            if (!attempt?.error) {
+              setLoading(false)
+              router.push(redirectTo)
+              router.refresh()
+              return
+            }
+          }
           setError(data.error || "Couldn't create account. Try again.")
           setLoading(false)
           return
@@ -84,6 +105,25 @@ function LoginInner() {
       router.push(redirectTo)
       router.refresh()
     } catch {
+      // Network-level failure: if we were signing up, attempt signIn anyway —
+      // the account may have been created before the connection dropped.
+      if (mode === "signup") {
+        try {
+          const attempt = await signIn("credentials", {
+            email,
+            password,
+            redirect: false,
+          })
+          if (!attempt?.error) {
+            setLoading(false)
+            router.push(redirectTo)
+            router.refresh()
+            return
+          }
+        } catch {
+          // signIn also failed; fall through to generic error
+        }
+      }
       setError("Something went wrong. Try again.")
       setLoading(false)
     }

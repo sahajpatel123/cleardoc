@@ -32,17 +32,53 @@ export function getMissingEnv(keys: readonly string[]): string[] {
 }
 
 /**
+ * Append PgBouncer compatibility params to a PostgreSQL URL when the URL
+ * targets a connection pooler (port 6543, used by Supabase Pooler).
+ * Params are only added when not already present to avoid duplication.
+ */
+function applyPgBouncerParams(rawUrl: string): string {
+  // Only apply to pooler URLs (Supabase uses port 6543 for PgBouncer)
+  if (!rawUrl.includes(":6543")) return rawUrl
+  try {
+    const parsed = new URL(rawUrl)
+    let changed = false
+    if (!parsed.searchParams.has("pgbouncer")) {
+      parsed.searchParams.set("pgbouncer", "true")
+      changed = true
+    }
+    if (!parsed.searchParams.has("prepared_statements")) {
+      parsed.searchParams.set("prepared_statements", "false")
+      changed = true
+    }
+    return changed ? parsed.toString() : rawUrl
+  } catch {
+    // If URL parsing fails fall back to raw string manipulation
+    const hasParams = rawUrl.includes("?")
+    const extra = [
+      !rawUrl.includes("pgbouncer=") ? "pgbouncer=true" : "",
+      !rawUrl.includes("prepared_statements=") ? "prepared_statements=false" : "",
+    ]
+      .filter(Boolean)
+      .join("&")
+    if (!extra) return rawUrl
+    return hasParams ? `${rawUrl}&${extra}` : `${rawUrl}?${extra}`
+  }
+}
+
+/**
  * Resolve a PostgreSQL URL from standard env names and sync DATABASE_URL
  * so Prisma and other tools see a single canonical variable.
+ * Automatically appends PgBouncer compatibility params for pooler URLs.
  */
 export function resolveDatabaseUrl(): string {
   for (const key of DATABASE_URL_KEYS) {
     const value = process.env[key]?.trim()
     if (value) {
+      const resolvedUrl = applyPgBouncerParams(value)
       if (!process.env.DATABASE_URL?.trim()) {
-        process.env.DATABASE_URL = value
+        process.env.DATABASE_URL = resolvedUrl
       }
-      return value
+      return resolvedUrl
     }
   }
   throw new Error(

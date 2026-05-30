@@ -85,7 +85,7 @@ function NavBrand({ showWhisper = false }: { showWhisper?: boolean }) {
 
 export default function Navbar() {
   const pathname = usePathname()
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, loading: authLoading, signOut } = useAuth()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
@@ -157,7 +157,11 @@ export default function Navbar() {
               </nav>
 
               <div className="flex items-center justify-end gap-5 justify-self-end">
-                {user ? (
+                {authLoading ? (
+                  <span className="nav-actions__text opacity-0 pointer-events-none" aria-hidden>
+                    &nbsp;
+                  </span>
+                ) : user ? (
                   <>
                     {isProUser(
                       profile
@@ -245,7 +249,7 @@ export default function Navbar() {
                   ))}
                 </nav>
                 <div className="hairline mt-6 mb-8" />
-                {user ? (
+                {authLoading ? null : user ? (
                   <button
                     type="button"
                     onClick={handleSignOut}

@@ -140,7 +140,9 @@ function DashboardContent() {
               <p className="mono text-[10px]" style={{ color: "var(--text-3)" }}>
                 {isPro
                   ? "Unlimited"
-                  : `${profile?.freeAnalysesRemainingToday ?? profile?.freeUsesRemaining ?? 0} left today`}
+                  : profile
+                    ? `${profile.freeAnalysesRemainingToday ?? profile.freeUsesRemaining ?? 0} left today`
+                    : "--"}
               </p>
             </div>
           </Reveal>

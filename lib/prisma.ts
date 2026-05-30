@@ -6,21 +6,25 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function createPrismaClient(): PrismaClient {
+  // resolveDatabaseUrl() automatically appends PgBouncer params (pgbouncer=true
+  // & prepared_statements=false) when the URL targets a pooler port (6543).
   const url = resolveDatabaseUrl()
-  // Disable prepared statements to avoid issues with PgBouncer/connection pooling
-  // by adding ?prepared_statements=false to the connection string for PostgreSQL
-  // Alternative: use ?pgbouncer=true for PgBouncer pool mode
-  const connectionString = url.includes('?')
-    ? `${url}&prepared_statements=false`
-    : `${url}?prepared_statements=false`
 
-  return new PrismaClient({
-    datasources: { db: { url: connectionString } },
+  const client = new PrismaClient({
+    datasources: { db: { url } },
     log:
       process.env.NODE_ENV === "development"
         ? ["query", "error", "warn"]
         : ["error"],
   })
+
+  // Gracefully handle unexpected connection-level errors so the process
+  // does not crash silently — Prisma will still surface errors per-query.
+  client.$connect().catch((err: unknown) => {
+    console.error("[Prisma] Initial connection failed:", err)
+  })
+
+  return client
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()

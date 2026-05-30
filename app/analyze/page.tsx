@@ -52,7 +52,17 @@ export default function AnalyzePage() {
         }
 
         if (!res.ok) {
+          if (res.status === 401) {
+            setError("Your session expired. Please sign in again.")
+            setStage("idle")
+            setTimeout(() => {
+              router.replace(`/login?redirect=${encodeURIComponent("/analyze")}`)
+            }, 2000)
+            return
+          }
+
           if (
+            res.status === 402 ||
             data.error === "FREE_DAILY_LIMIT_REACHED" ||
             data.error === "FREE_LIMIT_REACHED"
           ) {
@@ -66,7 +76,21 @@ export default function AnalyzePage() {
             setStage("idle")
             return
           }
-          throw new Error(data.error ?? "Analysis failed")
+
+          const rawError = data.error ?? ""
+          if (
+            res.status === 500 &&
+            (rawError.toLowerCase().includes("model") ||
+              rawError.toLowerCase().includes("analysis failed"))
+          ) {
+            throw new Error("AI analysis failed. Please try again.")
+          }
+
+          if (res.status === 500) {
+            throw new Error("Something went wrong. Please try again.")
+          }
+
+          throw new Error(rawError || "Analysis failed. Please try again.")
         }
 
         const parsed = parseAnalysisResult(data.result)
@@ -104,7 +128,7 @@ export default function AnalyzePage() {
         startedRef.current = false
       }
     },
-    [refreshProfile],
+    [refreshProfile, router],
   )
 
   useEffect(() => {
@@ -117,13 +141,30 @@ export default function AnalyzePage() {
     startedRef.current = true
 
     void (async () => {
-      const pending = await takePendingAnalysis()
+      let pending: Awaited<ReturnType<typeof takePendingAnalysis>>
+      try {
+        pending = await takePendingAnalysis()
+      } catch (storeErr) {
+        console.error("[analyze] Failed to read pending analysis:", storeErr)
+        setError("No document found. Please upload your document again.")
+        setStage("idle")
+        setTimeout(() => router.replace("/"), 2500)
+        return
+      }
+
       if (!pending) {
         router.replace("/")
         return
       }
+
       await runAnalysis(pending.file, pending.context, pending.parentAnalysisId)
-    })()
+    })().catch((err: unknown) => {
+      // Catch anything that escapes runAnalysis (should not happen, but belt-and-suspenders)
+      console.error("[analyze] Unhandled error in analysis flow:", err)
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
+      setStage("idle")
+      startedRef.current = false
+    })
   }, [authLoading, user, router, runAnalysis])
 
   if (showPricing && !result) {
