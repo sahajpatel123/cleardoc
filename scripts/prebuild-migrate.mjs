@@ -72,6 +72,7 @@ function runMigrate() {
   return execSync("npx prisma migrate deploy", {
     encoding: "utf8",
     env: process.env,
+    timeout: 45_000,
   })
 }
 
@@ -116,9 +117,9 @@ try {
     const out = tryRecoverAndMigrate(err)
     if (out) process.stdout.write(out)
   } catch (retryErr) {
-    if (isUnreachableError(retryErr)) {
+    if (isUnreachableError(retryErr) || retryErr.killed || retryErr.signal === "SIGTERM") {
       console.warn(
-        "[migrate] Database unreachable from build environment (P1001) — skipping migrations.",
+        "[migrate] Database unreachable or timed out from build environment — skipping migrations.",
       )
       console.warn(
         "[migrate] Run `npx prisma migrate deploy` locally or fix Supabase network access.",

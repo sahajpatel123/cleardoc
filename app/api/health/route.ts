@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getMissingCoreEnv, REQUIRED_STRIPE_ENV, getMissingEnv } from "@/lib/env"
+import { ensureDatabaseSchema } from "@/lib/ensure-schema"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -11,6 +12,7 @@ export async function GET() {
 
   let database: "ok" | "error" = "ok"
   try {
+    await ensureDatabaseSchema()
     await prisma.$queryRaw`SELECT 1`
   } catch {
     database = "error"

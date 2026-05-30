@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma"
 import type { AnalysisResult, ChatMessage } from "@/lib/types"
 import { FREE_DAILY_ANALYSIS_LIMIT, startOfUtcDay } from "@/lib/free-quota"
+import { ensureDatabaseSchema } from "@/lib/ensure-schema"
 
 // ── User ─────────────────────────────────────────────────
 
 export async function getOrCreateUser(id: string, email: string) {
+  await ensureDatabaseSchema()
   // Atomic upsert — no separate findUnique that would create a TOCTOU race
   return prisma.user.upsert({
     where: { email },
@@ -45,6 +47,7 @@ export async function saveAnalysisResult(
   result: AnalysisResult,
   opts?: { parentId?: string; caseId?: string },
 ): Promise<{ id: string }> {
+  await ensureDatabaseSchema()
   const created = await prisma.analysis.create({
     data: {
       userId,
@@ -120,6 +123,7 @@ export async function cancelSubscriptionForCustomer(stripeCustomerId: string) {
 // ── Analysis ─────────────────────────────────────────────
 
 export async function getUserAnalyses(userId: string) {
+  await ensureDatabaseSchema()
   return prisma.analysis.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
@@ -134,6 +138,7 @@ export async function countUserAnalysesSince(userId: string, since: Date): Promi
 }
 
 export async function getAnalysisById(userId: string, analysisId: string) {
+  await ensureDatabaseSchema()
   return prisma.analysis.findFirst({
     where: { id: analysisId, userId },
   })
