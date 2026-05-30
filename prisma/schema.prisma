@@ -55,21 +55,30 @@ model User {
   subscriptionStatus   String     @default("inactive")
   freeUsesRemaining    Int        @default(1)
   password             String?
+  lastResetAt          DateTime   @default(now())
+  tokenVersion         Int        @default(0)
   accounts             Account[]
   analyses             Analysis[]
   sessions             Session[]
 }
 
 model Analysis {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   userId       String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime   @default(now())
   documentName String
-  documentType String   @default("Unknown")
+  documentType String     @default("Unknown")
   result       Json
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatMessages Json?
+  parentId     String?
+  caseId       String?
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent       Analysis?  @relation("AnalysisChain", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Analysis[] @relation("AnalysisChain")
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([caseId])
+  @@index([parentId])
 }
 
 /// Stripe webhook idempotency — one row per processed event id (evt_...).
