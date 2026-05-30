@@ -1,12 +1,11 @@
 import OpenAI from "openai"
 import type { AnalysisResult, ChatMessage, LetterTone } from "./types"
+import { AI_MODEL, nimCompletionParams } from "./ai-model"
 
 const client = new OpenAI({
   apiKey: process.env.NVIDIA_API_KEY,
   baseURL: "https://integrate.api.nvidia.com/v1",
 })
-
-const MODEL = "meta/llama-3.2-90b-vision-instruct"
 
 const CHAT_SYSTEM = `You are ClearDoc's call-prep advocate — the same fierce, practical ally who analyzed the user's document. You help them prepare for phone calls, negotiations, and follow-up actions.
 
@@ -69,12 +68,14 @@ export async function generateChatReply(
       { role: "user", content: userMessage },
     ]
 
-    const response = await client.chat.completions.create({
-      model: MODEL,
-      max_tokens: 1024,
-      temperature: 0.3,
-      messages,
-    })
+    const response = await client.chat.completions.create(
+      nimCompletionParams({
+        model: AI_MODEL,
+        max_tokens: 1024,
+        temperature: 0.3,
+        messages,
+      }),
+    )
 
     const text = response.choices[0]?.message?.content ?? ""
     return text.trim() || "I couldn't generate a response. Please try rephrasing your question."
@@ -96,21 +97,23 @@ export async function rephraseResponseLetter(
   tone: LetterTone,
 ): Promise<string> {
   return withRetry(async () => {
-    const response = await client.chat.completions.create({
-      model: MODEL,
-      max_tokens: 2000,
-      temperature: 0.2,
-      messages: [
-        {
-          role: "system",
-          content: `You rewrite formal response letters for consumers disputing institutions. Preserve ALL facts, dates, dollar amounts, policy numbers, names, and legal references exactly. Do not invent new facts or citations. Only change tone and phrasing. Return ONLY the rewritten letter text — no preamble or markdown.`,
-        },
-        {
-          role: "user",
-          content: `Rewrite this letter to sound ${TONE_PROMPTS[tone]}\n\n--- LETTER ---\n${letter}`,
-        },
-      ],
-    })
+    const response = await client.chat.completions.create(
+      nimCompletionParams({
+        model: AI_MODEL,
+        max_tokens: 2000,
+        temperature: 0.2,
+        messages: [
+          {
+            role: "system",
+            content: `You rewrite formal response letters for consumers disputing institutions. Preserve ALL facts, dates, dollar amounts, policy numbers, names, and legal references exactly. Do not invent new facts or citations. Only change tone and phrasing. Return ONLY the rewritten letter text — no preamble or markdown.`,
+          },
+          {
+            role: "user",
+            content: `Rewrite this letter to sound ${TONE_PROMPTS[tone]}\n\n--- LETTER ---\n${letter}`,
+          },
+        ],
+      }),
+    )
 
     const text = response.choices[0]?.message?.content ?? ""
     return text.trim() || letter

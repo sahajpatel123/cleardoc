@@ -14,20 +14,15 @@ export async function DELETE(
 
     const { id } = await params
 
-    // Verify ownership before deletion
-    const analysis = await prisma.analysis.findFirst({
+    // Atomic ownership-scoped delete — no check-then-act TOCTOU window.
+    // deleteMany only removes the row when BOTH id and userId match.
+    const result = await prisma.analysis.deleteMany({
       where: { id, userId: session.user.id },
-      select: { id: true },
     })
 
-    if (!analysis) {
+    if (result.count === 0) {
       return NextResponse.json({ error: "Not found" }, { status: 404 })
     }
-
-    // Delete the analysis
-    await prisma.analysis.delete({
-      where: { id },
-    })
 
     return NextResponse.json({ deleted: true })
   } catch (err) {

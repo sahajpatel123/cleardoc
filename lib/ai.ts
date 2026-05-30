@@ -1,13 +1,12 @@
 import OpenAI from "openai"
 import type { AnalysisResult } from "./types"
+import { AI_MODEL, nimCompletionParams } from "./ai-model"
 import { parseAnalysisResult } from "./validate-analysis"
 
 const client = new OpenAI({
   apiKey: process.env.NVIDIA_API_KEY,
   baseURL: "https://integrate.api.nvidia.com/v1",
 })
-
-const MODEL = "meta/llama-3.2-90b-vision-instruct"
 
 /** Thrown when JSON.parse fails; API route maps this to a user-safe message. */
 export const AI_INVALID_JSON_ERROR_MESSAGE =
@@ -148,15 +147,17 @@ export async function analyzeDocument(
           .filter(Boolean)
           .join("\n")
 
-        const response = await client.chat.completions.create({
-          model: MODEL,
-          max_tokens: 4000,
-          temperature: 0,
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: userMessage },
-          ],
-        })
+        const response = await client.chat.completions.create(
+          nimCompletionParams({
+            model: AI_MODEL,
+            max_tokens: 4000,
+            temperature: 0,
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT },
+              { role: "user", content: userMessage },
+            ],
+          }),
+        )
 
         const raw = response.choices[0]?.message?.content ?? ""
         return parseAnalysisResponse(raw)
@@ -172,29 +173,31 @@ export async function analyzeDocument(
         .filter(Boolean)
         .join("\n")
 
-      const response = await client.chat.completions.create({
-        model: MODEL,
-        max_tokens: 4000,
-        temperature: 0,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: [
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mediaType};base64,${base64Data}`,
+      const response = await client.chat.completions.create(
+        nimCompletionParams({
+          model: AI_MODEL,
+          max_tokens: 4000,
+          temperature: 0,
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${mediaType};base64,${base64Data}`,
+                  },
                 },
-              },
-              {
-                type: "text",
-                text: instructionText,
-              },
-            ],
-          },
-        ],
-      })
+                {
+                  type: "text",
+                  text: instructionText,
+                },
+              ],
+            },
+          ],
+        }),
+      )
 
       const raw = response.choices[0]?.message?.content ?? ""
       return parseAnalysisResponse(raw)

@@ -61,6 +61,45 @@ export async function saveAnalysisResult(
   return { id: created.id }
 }
 
+/**
+ * Atomically enforce the free daily quota AND persist the analysis in one
+ * transaction. A per-user transaction-scoped advisory lock serializes
+ * concurrent saves for the same user, so the row count is authoritative and
+ * the check-then-insert race (two concurrent requests both passing a plain
+ * COUNT) cannot exceed the limit. Pro users do not use this path.
+ *
+ * Returns { ok: false } when the user is already at the daily limit — the
+ * caller should surface a 402 and NOT save. The lock auto-releases on
+ * commit/rollback, so there is nothing to clean up on error.
+ */
+export async function saveFreeAnalysisWithQuota(
+  userId: string,
+  documentName: string,
+  documentType: string,
+  result: AnalysisResult,
+): Promise<{ ok: true; id: string } | { ok: false }> {
+  await ensureDatabaseSchema()
+  const since = startOfUtcDay(new Date())
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+    const used = await tx.analysis.count({
+      where: { userId, createdAt: { gte: since } },
+    })
+    if (used >= FREE_DAILY_ANALYSIS_LIMIT) {
+      return { ok: false as const }
+    }
+    const created = await tx.analysis.create({
+      data: {
+        userId,
+        documentName,
+        documentType,
+        result: result as object,
+      },
+    })
+    return { ok: true as const, id: created.id }
+  })
+}
+
 export async function upgradeUserToPro(
   userId: string,
   stripeCustomerId: string,

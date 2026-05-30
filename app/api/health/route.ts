@@ -6,7 +6,7 @@ import { ensureDatabaseSchema } from "@/lib/ensure-schema"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-export async function GET() {
+export async function GET(req: Request) {
   const missingCore = getMissingCoreEnv()
   const missingStripe = getMissingEnv(REQUIRED_STRIPE_ENV)
 
@@ -39,17 +39,26 @@ export async function GET() {
 
   const healthy = missingCore.length === 0 && database === "ok" && tables === "ok"
 
-  return NextResponse.json(
-    {
-      status: healthy ? "ok" : "degraded",
-      database,
-      tables,
-      env: {
-        core: missingCore.length === 0 ? "ok" : "missing",
-        stripe: missingStripe.length === 0 ? "ok" : "missing",
-      },
-      timestamp: new Date().toISOString(),
-    },
-    { status: healthy ? 200 : 503 },
-  )
+  // Public response is intentionally minimal — uptime/deploy checks still get a
+  // 200/503 and a status string, but internal diagnostics (which subsystems and
+  // env groups are degraded) are only disclosed to callers presenting the secret.
+  const authorized =
+    !!process.env.HEALTH_CHECK_SECRET &&
+    req.headers.get("x-health-token") === process.env.HEALTH_CHECK_SECRET
+
+  const body: Record<string, unknown> = {
+    status: healthy ? "ok" : "degraded",
+    timestamp: new Date().toISOString(),
+  }
+
+  if (authorized) {
+    body.database = database
+    body.tables = tables
+    body.env = {
+      core: missingCore.length === 0 ? "ok" : "missing",
+      stripe: missingStripe.length === 0 ? "ok" : "missing",
+    }
+  }
+
+  return NextResponse.json(body, { status: healthy ? 200 : 503 })
 }

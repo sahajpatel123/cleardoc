@@ -10,15 +10,16 @@ import { auth } from "@/auth"
 import {
   getOrCreateUser,
   saveAnalysisResult,
+  saveFreeAnalysisWithQuota,
   getAnalysisChainForContext,
   resolveCaseLinking,
 } from "@/lib/db"
-import { checkFreeDailyQuota } from "@/lib/free-quota"
+import { checkFreeDailyQuota, getFreeDailyQuotaStatus } from "@/lib/free-quota"
 import { buildCaseContextFromAnalyses, mergeUserContextWithCase } from "@/lib/case-context"
 import { isProUser } from "@/lib/user-plan"
 
 export const runtime = "nodejs"
-export const maxDuration = 60
+export const maxDuration = 120
 
 /** Generic catch-all error for exceptions we don't want to leak. */
 function genericErrorResponse(status = 500) {
@@ -217,16 +218,48 @@ export async function POST(req: NextRequest) {
           ? "Image"
           : "Document"
 
-    const saved = await saveAnalysisResult(
-      userId,
-      file.name,
-      documentType,
-      result,
-      caseLink
-        ? { parentId: caseLink.parentId, caseId: caseLink.caseId }
-        : undefined,
-    )
-    return NextResponse.json({ result, analysisId: saved.id })
+    // Pro users: save directly (case linking is Pro-only). Free users: save
+    // through the atomic quota gate so concurrent requests cannot exceed the
+    // daily limit. Free users never have a caseLink (blocked with 403 above).
+    let analysisId: string
+    if (pro) {
+      const saved = await saveAnalysisResult(
+        userId,
+        file.name,
+        documentType,
+        result,
+        caseLink
+          ? { parentId: caseLink.parentId, caseId: caseLink.caseId }
+          : undefined,
+      )
+      analysisId = saved.id
+    } else {
+      const outcome = await saveFreeAnalysisWithQuota(
+        userId,
+        file.name,
+        documentType,
+        result,
+      )
+      if (!outcome.ok) {
+        const status = await getFreeDailyQuotaStatus(userId)
+        return NextResponse.json(
+          {
+            error: "FREE_DAILY_LIMIT_REACHED",
+            code: "FREE_DAILY_LIMIT_REACHED",
+            message:
+              "You have used your free analyses for today. Upgrade to Pro for unlimited analyses.",
+            limit: status.limit,
+            used: status.used,
+            remaining: status.remaining,
+            resetsAt: status.resetsAt,
+          },
+          { status: 402 },
+        )
+      }
+      analysisId = outcome.id
+    }
+
+    return NextResponse.json({ result, analysisId })
   } catch (err: unknown) {
     console.error("[analyze] Error:", err)
     return genericErrorResponse(500)
