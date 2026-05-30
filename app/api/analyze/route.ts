@@ -4,8 +4,8 @@ import { assertServerEnv } from "@/lib/env"
 import { ANALYZE_RATE_LIMITS, rateLimitByIp, rateLimitByUserId } from "@/lib/rate-limit"
 import {
   analyzeDocument,
-  CLAUDE_INVALID_JSON_ERROR_MESSAGE,
-} from "@/lib/claude"
+  AI_INVALID_JSON_ERROR_MESSAGE,
+} from "@/lib/ai"
 import { auth } from "@/auth"
 import {
   getOrCreateUser,
@@ -191,7 +191,7 @@ export async function POST(req: NextRequest) {
       let errorMessage = "Analysis failed. Please try again."
       const status = 500
       if (modelErr instanceof Error) {
-        if (modelErr.message === CLAUDE_INVALID_JSON_ERROR_MESSAGE) {
+        if (modelErr.message === AI_INVALID_JSON_ERROR_MESSAGE) {
           errorMessage = "Analysis failed: model returned unexpected output. Please retry."
         }
       }
@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
     }
 
     // documentType is a short label for the dashboard, derived from the file
-    // type — NOT the user's context (which is sent to Claude as enrichedContext).
+    // type — NOT the user's context (which is sent to the AI as enrichedContext).
     const documentType =
       mimeType === "application/pdf"
         ? "PDF"

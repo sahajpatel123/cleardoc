@@ -1,9 +1,12 @@
-import Anthropic from "@anthropic-ai/sdk"
+import OpenAI from "openai"
 import type { AnalysisResult, ChatMessage, LetterTone } from "./types"
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+const client = new OpenAI({
+  apiKey: process.env.NVIDIA_API_KEY,
+  baseURL: "https://integrate.api.nvidia.com/v1",
 })
+
+const MODEL = "meta/llama-3.2-90b-vision-instruct"
 
 const CHAT_SYSTEM = `You are ClearDoc's call-prep advocate — the same fierce, practical ally who analyzed the user's document. You help them prepare for phone calls, negotiations, and follow-up actions.
 
@@ -34,23 +37,23 @@ export async function generateChatReply(
     2,
   )
 
-  const messages: Anthropic.MessageParam[] = [
+  const messages: OpenAI.ChatCompletionMessageParam[] = [
+    { role: "system", content: `${CHAT_SYSTEM}\n\nDocument analysis JSON:\n${contextBlock}` },
     ...history.map((m) => ({
-      role: m.role,
+      role: m.role as "user" | "assistant",
       content: m.content,
     })),
     { role: "user", content: userMessage },
   ]
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+  const response = await client.chat.completions.create({
+    model: MODEL,
     max_tokens: 1024,
     temperature: 0.3,
-    system: `${CHAT_SYSTEM}\n\nDocument analysis JSON:\n${contextBlock}`,
     messages,
   })
 
-  const text = response.content[0].type === "text" ? response.content[0].text : ""
+  const text = response.choices[0]?.message?.content ?? ""
   return text.trim() || "I couldn't generate a response. Please try rephrasing your question."
 }
 
@@ -68,12 +71,15 @@ export async function rephraseResponseLetter(
   letter: string,
   tone: LetterTone,
 ): Promise<string> {
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+  const response = await client.chat.completions.create({
+    model: MODEL,
     max_tokens: 2000,
     temperature: 0.2,
-    system: `You rewrite formal response letters for consumers disputing institutions. Preserve ALL facts, dates, dollar amounts, policy numbers, names, and legal references exactly. Do not invent new facts or citations. Only change tone and phrasing. Return ONLY the rewritten letter text — no preamble or markdown.`,
     messages: [
+      {
+        role: "system",
+        content: `You rewrite formal response letters for consumers disputing institutions. Preserve ALL facts, dates, dollar amounts, policy numbers, names, and legal references exactly. Do not invent new facts or citations. Only change tone and phrasing. Return ONLY the rewritten letter text — no preamble or markdown.`,
+      },
       {
         role: "user",
         content: `Rewrite this letter to sound ${TONE_PROMPTS[tone]}\n\n--- LETTER ---\n${letter}`,
@@ -81,7 +87,7 @@ export async function rephraseResponseLetter(
     ],
   })
 
-  const text = response.content[0].type === "text" ? response.content[0].text : ""
+  const text = response.choices[0]?.message?.content ?? ""
   return text.trim() || letter
 }
 

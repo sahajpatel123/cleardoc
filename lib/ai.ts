@@ -1,14 +1,20 @@
-import Anthropic from "@anthropic-ai/sdk"
+import OpenAI from "openai"
 import type { AnalysisResult } from "./types"
 import { parseAnalysisResult } from "./validate-analysis"
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+const client = new OpenAI({
+  apiKey: process.env.NVIDIA_API_KEY,
+  baseURL: "https://integrate.api.nvidia.com/v1",
 })
 
+const MODEL = "meta/llama-3.2-90b-vision-instruct"
+
 /** Thrown when JSON.parse fails; API route maps this to a user-safe message. */
-export const CLAUDE_INVALID_JSON_ERROR_MESSAGE =
-  "Claude returned invalid JSON. Raw output logged."
+export const AI_INVALID_JSON_ERROR_MESSAGE =
+  "Model returned invalid JSON. Raw output logged."
+
+/** @deprecated Use AI_INVALID_JSON_ERROR_MESSAGE */
+export const CLAUDE_INVALID_JSON_ERROR_MESSAGE = AI_INVALID_JSON_ERROR_MESSAGE
 
 const SYSTEM_PROMPT = `You are ClearDoc's analysis engine — simultaneously a consumer rights attorney, insurance specialist, tenant rights advocate, medical billing expert, and immigration lawyer. You are direct, opinionated, and unfailingly on the side of the individual against institutions.
 
@@ -112,14 +118,14 @@ function parseAnalysisResponse(raw: string): AnalysisResult {
   try {
     data = JSON.parse(cleaned)
   } catch {
-    console.error("[claude] Invalid JSON from model. Raw output:", raw)
-    throw new Error(CLAUDE_INVALID_JSON_ERROR_MESSAGE)
+    console.error("[ai] Invalid JSON from model. Raw output:", raw)
+    throw new Error(AI_INVALID_JSON_ERROR_MESSAGE)
   }
 
   const parsed = parseAnalysisResult(data)
   if (!parsed) {
-    console.error("[claude] Schema validation failed. Raw output:", raw)
-    throw new Error(CLAUDE_INVALID_JSON_ERROR_MESSAGE)
+    console.error("[ai] Schema validation failed. Raw output:", raw)
+    throw new Error(AI_INVALID_JSON_ERROR_MESSAGE)
   }
   return parsed
 }
@@ -140,16 +146,17 @@ export async function analyzeDocument(
       .filter(Boolean)
       .join("\n")
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+    const response = await client.chat.completions.create({
+      model: MODEL,
       max_tokens: 4000,
       temperature: 0,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userMessage },
+      ],
     })
 
-    const raw =
-      response.content[0].type === "text" ? response.content[0].text : ""
+    const raw = response.choices[0]?.message?.content ?? ""
     return parseAnalysisResponse(raw)
   }
 
@@ -163,30 +170,30 @@ export async function analyzeDocument(
     .filter(Boolean)
     .join("\n")
 
-  const userContent = [
-    {
-      type: "image" as const,
-      source: {
-        type: "base64" as const,
-        media_type: mediaType,
-        data: base64Data,
-      },
-    },
-    {
-      type: "text" as const,
-      text: instructionText,
-    },
-  ]
-
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+  const response = await client.chat.completions.create({
+    model: MODEL,
     max_tokens: 4000,
     temperature: 0,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userContent }],
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: [
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${mediaType};base64,${base64Data}`,
+            },
+          },
+          {
+            type: "text",
+            text: instructionText,
+          },
+        ],
+      },
+    ],
   })
 
-  const raw =
-    response.content[0].type === "text" ? response.content[0].text : ""
+  const raw = response.choices[0]?.message?.content ?? ""
   return parseAnalysisResponse(raw)
 }

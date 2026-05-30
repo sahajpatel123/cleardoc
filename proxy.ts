@@ -12,7 +12,7 @@ export function proxy(request: NextRequest) {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob:",
     "font-src 'self' https://fonts.gstatic.com",
-    "connect-src 'self' https://api.anthropic.com https://api.stripe.com",
+    "connect-src 'self' https://integrate.api.nvidia.com https://api.stripe.com",
     "frame-src 'self' https://js.stripe.com",
     "object-src 'none'",
     "base-uri 'self'",

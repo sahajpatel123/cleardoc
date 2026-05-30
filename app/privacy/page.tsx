@@ -35,7 +35,7 @@ const SECTIONS: { n: string; title: string; body: string[] }[] = [
     n: "03",
     title: "Third-party processors",
     body: [
-      "Anthropic (Claude): your document content and any context you provide are sent to Anthropic's API to generate the analysis, subject to Anthropic's data handling terms.",
+      "NVIDIA NIM: your document content and any context you provide are sent to NVIDIA's NIM API to generate the analysis, subject to NVIDIA's data handling terms.",
       "Stripe: processes subscription payments and stores your payment details under its PCI-compliant infrastructure.",
       "Supabase / PostgreSQL: stores your account record and saved analysis results.",
       "Upstash (if enabled): stores short-lived counters used for rate limiting.",

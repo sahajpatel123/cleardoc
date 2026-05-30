@@ -33,8 +33,8 @@ ClearDoc helps everyday people understand scary official documents (insurance de
 | Styling | **Tailwind CSS v4** — `@import "tailwindcss"` in `app/globals.css` (no `tailwind.config.js`) |
 | Auth | **NextAuth v5** (`next-auth@5.0.0-beta.30`) + **Credentials** (email/password, scrypt) |
 | Database | **PostgreSQL** + **Prisma 6** (`@prisma/client`, `lib/prisma.ts`) |
-| AI | **Anthropic** `claude-sonnet-4-20250514` via `@anthropic-ai/sdk` (`lib/claude.ts`) |
-| PDF | **pdf2json** server-side (`lib/pdf-parser.ts`); images → Claude vision |
+| AI | **NVIDIA NIM** `meta/llama-3.2-90b-vision-instruct` via `openai` SDK (`lib/ai.ts`) |
+| PDF | **pdf2json** server-side (`lib/pdf-parser.ts`); images → NVIDIA NIM vision |
 | Payments | **Stripe** subscriptions (`lib/stripe.ts`, webhook + checkout routes) |
 | Rate limit | **Upstash Redis** — optional; enabled only when `UPSTASH_REDIS_*` env vars are set |
 | Motion / UI | **framer-motion**, **lucide-react**, editorial “Atelier” design in `globals.css` |
@@ -62,7 +62,7 @@ next-auth.d.ts                    — Session.user.id typing
   /api
     /auth/[...nextauth]/route.ts  — NextAuth handlers
     /auth/signup/route.ts         — Create user + hashed password (before Credentials sign-in)
-    /analyze/route.ts             — PDF/vision + Claude + save (auth required; quota reserved before AI)
+    /analyze/route.ts             — PDF/vision + AI model + save (auth required; quota reserved before AI)
     /health/route.ts              — Deploy health (DB + env)
     /stripe/portal/route.ts       — Billing portal session
     /usage/route.ts               — Plan + freeUsesRemaining for AuthContext
@@ -91,7 +91,7 @@ next-auth.d.ts                    — Session.user.id typing
   rate-limit.ts                   — Upstash IP + per-user limits (optional)
   prisma.ts                       — Singleton PrismaClient
   password.ts                     — scrypt hash/verify + validateEmail/validatePassword
-  claude.ts                       — Claude API + system prompt + JSON parse
+  ai.ts                       — AI model API + system prompt + JSON parse
   pdf-parser.ts                   — pdf2json + image → vision payload
   stripe.ts                       — getStripe(), createCheckoutSession()
 
@@ -118,7 +118,7 @@ next-auth.d.ts                    — Session.user.id typing
 ### `ProcessedStripeEvent`
 - `id` — Stripe event id (`evt_...`); prevents duplicate webhook handling
 
-**No file blob storage** — documents are not persisted; only Claude output JSON is saved.
+**No file blob storage** — documents are not persisted; only AI model output JSON is saved.
 
 ---
 
@@ -169,7 +169,7 @@ sequenceDiagram
   end
   Analyze->>API: FormData file + context
   API->>DB: reserveFreeAnalysisCredit (free only)
-  API->>API: pdf2json or vision + Claude
+  API->>API: pdf2json or vision + AI model
   alt success
     API->>DB: save Analysis JSON
   else failure
@@ -184,7 +184,7 @@ sequenceDiagram
 |------|--------|
 | Homepage **requires login** before analyze | `app/page.tsx` `handleAnalyze` |
 | `/api/analyze` **requires auth** (401 if missing) | `app/api/analyze/route.ts` |
-| Free users: check daily quota **before** Claude (3/day limit) | `checkFreeDailyQuota` in `lib/free-quota.ts` |
+| Free users: check daily quota **before** AI model (3/day limit) | `checkFreeDailyQuota` in `lib/free-quota.ts` |
 | Pro = `plan === "pro"` **and** `subscriptionStatus === "active"` | `lib/user-plan.ts` `isProUser` |
 | Max upload **10MB**; PDF, PNG, JPG, WEBP | analyze route + pdf-parser |
 | Rate limits if Upstash set: **15/hr/IP**, **10/hr free user**, **60/hr Pro** | `lib/rate-limit.ts` `ANALYZE_RATE_LIMITS` |
@@ -229,7 +229,7 @@ See `.env.example`. Required for full functionality:
 DATABASE_URL=              # PostgreSQL (e.g. Render, Neon, Supabase)
 NEXTAUTH_URL=              # e.g. http://localhost:3000
 NEXTAUTH_SECRET=           # openssl rand -base64 32
-ANTHROPIC_API_KEY=
+NVIDIA_API_KEY=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 NEXT_PUBLIC_APP_URL=       # Used in Stripe redirect URLs
@@ -273,7 +273,7 @@ Defined in `app/globals.css` — use CSS variables, not legacy hex from old docs
 - `useSearchParams()` inside `<Suspense>` (see `login`, `dashboard`)
 
 ### Security
-- `proxy.ts` sets CSP (allows Anthropic + Stripe connect/frame)
+- `proxy.ts` sets CSP (allows NVIDIA NIM + Stripe connect/frame)
 - Passwords: `scrypt:<salt>:<hash>` in `lib/password.ts`
 - Analysis fetch by id enforces `userId` in `getAnalysisById`
 
@@ -294,8 +294,8 @@ npm test             # unit tests (user-plan, validate-analysis)
 - **Scanned PDFs** with no text — user context helps; OCR not implemented
 - **Anonymous API analyze** — possible at API layer; product forces login on homepage
 - **Document files** — not stored in DB or blob storage
-- **Non-English** — Claude handles; UI doesn’t disclaim
-- **Long docs** — truncated ~80k chars before Claude (`lib/claude.ts`)
+- **Non-English** — AI model handles; UI doesn’t disclaim
+- **Long docs** — truncated ~80k chars before AI model (`lib/ai.ts`)
 
 ---
 

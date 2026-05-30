@@ -26,8 +26,8 @@ for unlimited use, follow-up case linking, and higher chat/letter limits.
 | Styling     | Tailwind CSS v4 (`@import "tailwindcss"` — no config file)         |
 | Auth        | NextAuth v5 (Credentials: email + password, scrypt)               |
 | Database    | PostgreSQL + Prisma 6 (Supabase in production)                    |
-| AI          | Anthropic Claude (`@anthropic-ai/sdk`)                            |
-| PDF / image | `pdf2json` for text PDFs; images analyzed via Claude vision        |
+| AI          | NVIDIA NIM (`openai` SDK, `meta/llama-3.2-90b-vision-instruct`)   |
+| PDF / image | `pdf2json` for text PDFs; images analyzed via NVIDIA NIM vision    |
 | Payments    | Stripe subscriptions (Checkout + Billing Portal + webhook)        |
 | Rate limit  | Upstash Redis (optional — see note below)                         |
 
@@ -71,7 +71,7 @@ Environment Variables (production). See `.env.example` for the full list.
 | `DIRECT_URL`            | Supabase **direct** (non-pooled) URL — used for `migrate`   |
 | `NEXTAUTH_SECRET`       | `openssl rand -base64 32`                                   |
 | `NEXTAUTH_URL`          | e.g. `https://yourdomain.com`                               |
-| `ANTHROPIC_API_KEY`     | Claude API key                                              |
+| `NVIDIA_API_KEY`        | NVIDIA NIM API key                                          |
 | `STRIPE_SECRET_KEY`     | Stripe secret key                                           |
 | `STRIPE_WEBHOOK_SECRET` | From the Stripe webhook endpoint you create                 |
 | `NEXT_PUBLIC_APP_URL`   | Public origin, e.g. `https://yourdomain.com` (Stripe + SEO) |
@@ -84,7 +84,7 @@ Environment Variables (production). See `.env.example` for the full list.
 | `UPSTASH_REDIS_REST_TOKEN` | ↑ paired token                                          |
 
 > ⚠️ **Rate limiting is disabled when Upstash is not configured.** The
-> `/api/analyze` route calls the Claude API (real cost per request). Without
+> `/api/analyze` route calls the NVIDIA NIM API (real cost per request). Without
 > Upstash env vars set, `lib/rate-limit.ts` allows every request. **Set the
 > Upstash variables before going live** to cap per-IP and per-account usage.
 
