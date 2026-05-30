@@ -63,7 +63,7 @@ function DashboardContent() {
   )
 
   return (
-    <div className="min-h-screen pt-32 pb-32">
+    <div className="min-h-screen pt-32 pb-32 max-md:pt-20 max-md:pb-20">
       <div className="container-edition">
         <AnimatePresence>
           {upgraded && (
@@ -95,7 +95,7 @@ function DashboardContent() {
         </AnimatePresence>
 
         <Reveal>
-          <div className="flex items-baseline justify-between mb-10 gap-4 flex-wrap">
+          <div className="flex items-baseline justify-between mb-10 gap-4 flex-wrap max-md:mb-6">
             <p className="eyebrow">Account · {user?.email}</p>
             <div className="flex items-center gap-3">
               {isPro && <span className="label label-ember">Pro</span>}
@@ -124,9 +124,9 @@ function DashboardContent() {
         </Reveal>
 
         {/* Stats row */}
-        <div className="mt-20 grid grid-cols-2 md:grid-cols-3 gap-0 border-t border-l" style={{ borderColor: "var(--hairline-2)" }}>
+        <div className="mt-20 grid grid-cols-2 md:grid-cols-3 gap-0 border-t border-l max-md:mt-12" style={{ borderColor: "var(--hairline-2)" }}>
           <Reveal>
-            <div className="p-6 sm:p-8 border-b border-r min-h-[160px] flex flex-col justify-between" style={{ borderColor: "var(--hairline-2)" }}>
+            <div className="p-6 sm:p-8 border-b border-r min-h-[160px] flex flex-col justify-between max-md:p-4 max-md:min-h-[120px]" style={{ borderColor: "var(--hairline-2)" }}>
               <p className="mono text-[10px] tracking-[0.22em]" style={{ color: "var(--text-mute)" }}>PLAN</p>
               <p
                 className="display"
@@ -145,7 +145,7 @@ function DashboardContent() {
             </div>
           </Reveal>
           <Reveal delay={0.05}>
-            <div className="p-6 sm:p-8 border-b border-r min-h-[160px] flex flex-col justify-between" style={{ borderColor: "var(--hairline-2)" }}>
+            <div className="p-6 sm:p-8 border-b border-r min-h-[160px] flex flex-col justify-between max-md:p-4 max-md:min-h-[120px]" style={{ borderColor: "var(--hairline-2)" }}>
               <p className="mono text-[10px] tracking-[0.22em]" style={{ color: "var(--text-mute)" }}>ANALYZED</p>
               <p
                 className="display"
@@ -159,7 +159,7 @@ function DashboardContent() {
             </div>
           </Reveal>
           <Reveal delay={0.1}>
-            <div className="p-6 sm:p-8 border-b border-r min-h-[160px] flex flex-col justify-between" style={{ borderColor: "var(--hairline-2)" }}>
+            <div className="p-6 sm:p-8 border-b border-r min-h-[160px] flex flex-col justify-between max-md:p-4 max-md:min-h-[120px]" style={{ borderColor: "var(--hairline-2)" }}>
               <p className="mono text-[10px] tracking-[0.22em]" style={{ color: "var(--text-mute)" }}>STATUS</p>
               <p
                 className="display"
@@ -180,7 +180,7 @@ function DashboardContent() {
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-12 p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end justify-between gap-6 border"
+              className="mt-12 p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end justify-between gap-6 border max-md:mt-8"
               style={{
                 borderColor: "var(--hairline-2)",
                 background: "rgba(255,106,31,0.03)",
@@ -207,8 +207,8 @@ function DashboardContent() {
         </AnimatePresence>
 
         {/* History */}
-        <div className="mt-24">
-          <div className="flex items-baseline justify-between mb-10">
+        <div className="mt-24 max-md:mt-16">
+          <div className="flex items-baseline justify-between mb-10 max-md:mb-6">
             <p className="eyebrow">History</p>
             <Link href="/" className="btn btn-ghost !py-2 !px-4 !text-[13px]">
               <Plus className="w-4 h-4" /> New analysis
@@ -269,7 +269,7 @@ function DashboardContent() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <p
-                        className="truncate group-hover:text-white transition-colors"
+                        className="truncate group-hover:text-white transition-colors max-md:text-base"
                         style={{
                           color: "var(--text)",
                           fontFamily: "var(--font-syne,'Syne',sans-serif)",

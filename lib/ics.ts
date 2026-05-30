@@ -59,7 +59,7 @@ export function buildIcsEvent(opts: {
   ].join("\r\n")
 }
 
-/** Parse YYYY-MM-DD as UTC midnight. Returns null if invalid. */
+/** Parse YYYY-MM-DD as UTC noon (avoids DST/timezone date drift). Returns null if invalid. */
 export function parseIsoDate(iso: string): Date | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim())
   if (!m) return null

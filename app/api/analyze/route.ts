@@ -198,10 +198,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: errorMessage }, { status })
     }
 
+    // documentType is a short label for the dashboard, derived from the file
+    // type — NOT the user's context (which is sent to Claude as enrichedContext).
+    const documentType =
+      mimeType === "application/pdf"
+        ? "PDF"
+        : mimeType.startsWith("image/")
+          ? "Image"
+          : "Document"
+
     const saved = await saveAnalysisResult(
       userId,
       file.name,
-      context || "Unknown",
+      documentType,
       result,
       caseLink
         ? { parentId: caseLink.parentId, caseId: caseLink.caseId }

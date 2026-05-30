@@ -9,10 +9,10 @@ import { FAQ_CHAPTERS, FAQ_ITEMS } from "@/lib/faq-content"
 
 export default function FaqPage() {
   return (
-    <div className="min-h-screen pt-32 pb-32">
+    <div className="min-h-screen pt-32 pb-32 max-md:pt-20 max-md:pb-20">
       <div className="container-edition">
         <Reveal>
-          <div className="flex items-baseline justify-between mb-10 gap-4 flex-wrap">
+          <div className="flex items-baseline justify-between mb-10 gap-4 flex-wrap max-md:mb-6">
             <p className="eyebrow">Index · questions</p>
             <Link
               href="/"
@@ -43,7 +43,7 @@ export default function FaqPage() {
           </p>
         </Reveal>
 
-        <div className="mt-20 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
+        <div className="mt-20 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 max-md:mt-12 max-md:gap-8">
           <aside className="lg:col-span-4">
             <Reveal delay={0.2}>
               <p className="eyebrow mb-6">Chapters</p>
@@ -101,7 +101,7 @@ export default function FaqPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-28 p-8 sm:p-10 rounded-lg border"
+          className="mt-28 p-8 sm:p-10 rounded-lg border max-md:mt-16 max-md:p-6"
           style={{
             borderColor: "var(--hairline-2)",
             background: "rgba(255, 106, 31, 0.04)",

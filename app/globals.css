@@ -469,6 +469,21 @@ body::before {
   color: transparent;
 }
 
+/* ── Mobile refinements ───────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .container-edition {
+    padding-left: clamp(14px, 4vw, 20px);
+    padding-right: clamp(14px, 4vw, 20px);
+  }
+  .btn {
+    white-space: normal;
+    text-align: center;
+  }
+  .hero-headline {
+    padding: 0.1em 0.18em 0.2em 0.12em;
+  }
+}
+
 /* ── Buttons ──────────────────────────────────────────────────────────────── */
 .btn {
   position: relative;
@@ -516,6 +531,33 @@ body::before {
   transition: color 0.25s var(--ease), border-color 0.25s var(--ease);
 }
 .btn-link:hover { color: var(--text); border-color: var(--text); }
+
+/* Consistent disabled + tap-feedback states for all buttons */
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn:active:not(:disabled) { transform: scale(0.985); }
+
+/* ── Accessibility: visible keyboard focus (WCAG 2.4.7) ──────────────────────
+   focus-visible only fires for keyboard / programmatic focus, never on mouse
+   click — so this adds an obvious focus ring for keyboard users without
+   changing the look of normal pointer interaction. */
+:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 2px;
+}
+/* The underline-style field reads better with a tight, boxed ring */
+.field:focus-visible { outline-offset: 4px; }
+/* Remove the default outline only where focus-visible takes over */
+a:focus:not(:focus-visible),
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible) {
+  outline: none;
+}
 
 /* ── Fields ───────────────────────────────────────────────────────────────── */
 .field {

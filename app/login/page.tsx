@@ -96,10 +96,10 @@ function LoginInner() {
         <Vignette />
       </div>
 
-      <div className="container-edition relative z-10 pt-32 sm:pt-40 pb-24">
+      <div className="container-edition relative z-10 pt-32 sm:pt-40 pb-24 max-md:pt-20">
         {/* Top meta */}
         <Reveal>
-          <div className="flex items-baseline justify-between mb-16 sm:mb-24">
+          <div className="flex items-baseline justify-between mb-16 sm:mb-24 max-md:mb-10">
             <p className="eyebrow">{headline.eyebrow}</p>
             <Link
               href="/"
@@ -111,7 +111,7 @@ function LoginInner() {
           </div>
         </Reveal>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-start max-md:gap-8">
           {/* LEFT — editorial headline + promises */}
           <div className="lg:col-span-7">
             <h1
@@ -129,7 +129,7 @@ function LoginInner() {
 
             <Reveal delay={0.55}>
               <p
-                className="mt-10 max-w-md text-[clamp(1rem,1.2vw,1.15rem)] leading-relaxed"
+                className="mt-10 max-w-md text-[clamp(1rem,1.2vw,1.15rem)] leading-relaxed max-md:mt-6"
                 style={{ color: "var(--text-2)" }}
               >
                 {mode === "signin"
@@ -139,7 +139,7 @@ function LoginInner() {
             </Reveal>
 
             <Reveal delay={0.75}>
-              <div className="mt-16 border-l pl-6" style={{ borderColor: "var(--hairline-2)" }}>
+              <div className="mt-16 border-l pl-6 max-md:mt-10" style={{ borderColor: "var(--hairline-2)" }}>
                 <p className="eyebrow mb-6">What you get inside</p>
                 <ul className="space-y-3">
                   {PROMISES.map((p, i) => (
@@ -169,7 +169,7 @@ function LoginInner() {
             </Reveal>
 
             <Reveal delay={1}>
-              <div className="mt-16 flex items-center gap-5 mono text-[10px]" style={{ color: "var(--text-mute)" }}>
+              <div className="mt-16 flex items-center gap-5 mono text-[10px] max-md:mt-10" style={{ color: "var(--text-mute)" }}>
                 <span>FIRST ANALYSIS FREE</span>
                 <span className="w-px h-3" style={{ background: "var(--hairline-2)" }} />
                 <span>NO CARD REQUIRED</span>
@@ -183,7 +183,7 @@ function LoginInner() {
           <div className="lg:col-span-5 lg:pt-3">
             <Reveal delay={0.35}>
               <div
-                className="relative pl-8 sm:pl-10"
+                className="relative pl-8 sm:pl-10 max-md:pl-0"
                 style={{ borderLeft: "1px solid var(--hairline-2)" }}
               >
                 {/* Ember mark on the rule */}
@@ -369,15 +369,23 @@ function LoginInner() {
                     )}
                   </p>
 
-                  <p className="text-[11px] mt-6" style={{ color: "var(--text-mute)" }}>
-                    By continuing you agree to our terms and acknowledge ClearDoc provides general information only — not legal advice.
+                  <p className="text-[11px] mt-6 leading-relaxed" style={{ color: "var(--text-mute)" }}>
+                    By continuing you agree to our{" "}
+                    <Link href="/terms" className="underline underline-offset-2" style={{ color: "var(--text-3)" }}>
+                      Terms
+                    </Link>{" "}
+                    and{" "}
+                    <Link href="/privacy" className="underline underline-offset-2" style={{ color: "var(--text-3)" }}>
+                      Privacy Policy
+                    </Link>
+                    , and acknowledge ClearDoc provides general information only — not legal advice.
                   </p>
                 </form>
               </div>
             </Reveal>
 
             <Reveal delay={0.9}>
-              <div className="mt-12 flex items-baseline justify-between mono text-[10px]" style={{ color: "var(--text-mute)" }}>
+              <div className="mt-12 flex items-baseline justify-between mono text-[10px] max-md:mt-8" style={{ color: "var(--text-mute)" }}>
                 <span>VOL. 01 · THE ATELIER EDITION</span>
                 <Link
                   href="/pricing"

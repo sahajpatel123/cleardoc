@@ -7,8 +7,8 @@ import { ArrowUpRight } from "lucide-react"
 export default function Footer() {
   return (
     <footer className="relative border-t" style={{ borderColor: "var(--hairline)" }}>
-      <div className="container-edition py-20 sm:py-28">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-8 items-end">
+      <div className="container-edition py-20 sm:py-28 max-md:py-12">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-8 items-end max-md:gap-8">
           <div className="md:col-span-7">
             <p className="eyebrow mb-6">Colophon</p>
             <h2
@@ -31,7 +31,7 @@ export default function Footer() {
             </div>
           </div>
 
-          <div className="md:col-span-5 grid grid-cols-2 gap-8">
+          <div className="md:col-span-5 grid grid-cols-2 gap-8 max-md:gap-4">
             <FooterCol
               title="Product"
               links={[
@@ -45,6 +45,8 @@ export default function Footer() {
               links={[
                 { label: "FAQ", href: "/faq" },
                 { label: "Disclaimer", href: "/disclaimer" },
+                { label: "Privacy", href: "/privacy" },
+                { label: "Terms", href: "/terms" },
               ]}
             />
           </div>

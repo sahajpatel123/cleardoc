@@ -552,11 +552,11 @@ export default function DisclaimerPage() {
     <>
       <ReadingProgress />
 
-      <div className="min-h-screen pt-32 pb-32">
+      <div className="min-h-screen pt-32 pb-32 max-md:pt-20 max-md:pb-20">
         <div className="container-edition max-w-6xl">
           {/* ── Hero — full width, spans entire page above the index ── */}
           <Reveal>
-            <div className="flex items-baseline justify-between mb-10 gap-4 flex-wrap">
+            <div className="flex items-baseline justify-between mb-10 gap-4 flex-wrap max-md:mb-6">
               <p className="eyebrow">Index · legal</p>
               <Link
                 href="/"
@@ -649,7 +649,7 @@ export default function DisclaimerPage() {
                 {/* Key notice card */}
                 <Reveal delay={0.1}>
                   <div
-                    className="relative overflow-hidden rounded-2xl p-6 sm:p-8 mb-16"
+                    className="relative overflow-hidden rounded-2xl p-6 sm:p-8 mb-16 max-md:mb-10"
                     style={{
                       background:
                         "linear-gradient(135deg, rgba(255, 106, 31, 0.06) 0%, rgba(194, 73, 20, 0.03) 100%)",
@@ -702,7 +702,7 @@ export default function DisclaimerPage() {
 
                 {/* Section articles */}
                 {SECTIONS.map((s, i) => (
-                  <div key={s.id} className="mb-16 sm:mb-20">
+                  <div key={s.id} className="mb-16 sm:mb-20 max-md:mb-10">
                     <SectionCard section={s} index={i} />
                   </div>
                 ))}

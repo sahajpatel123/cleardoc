@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Check, ArrowRight } from "lucide-react"
@@ -36,8 +37,22 @@ export default function PricingModal({
     await startCheckout()
   }
 
+  // Close on Escape — standard modal keyboard behavior
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onClose])
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Upgrade to ClearDoc Pro"
+    >
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -69,7 +84,7 @@ export default function PricingModal({
           onClick={onClose}
           className="absolute top-5 right-5 p-1.5 rounded-full transition-colors z-10"
           style={{ color: "var(--text-3)" }}
-          aria-label="Close"
+          aria-label="Close upgrade dialog"
         >
           <X className="w-4 h-4" />
         </button>

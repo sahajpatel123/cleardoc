@@ -165,10 +165,10 @@ function DocumentReader() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-start max-md:gap-6">
               {/* LEFT: the document */}
               <div className="lg:col-span-7">
-                <div className="paper rounded-lg p-8 sm:p-12 relative" style={{ boxShadow: "0 40px 120px rgba(0,0,0,0.6)" }}>
+                <div className="paper rounded-lg p-8 sm:p-12 relative max-md:p-5" style={{ boxShadow: "0 40px 120px rgba(0,0,0,0.6)" }}>
                   <p
                     className="mono text-[10px] uppercase tracking-[0.3em] mb-8"
                     style={{ color: "rgba(0,0,0,0.45)" }}
@@ -332,7 +332,10 @@ function HomeContent() {
       .then((data: { id: string; documentName: string; createdAt: string }[]) => {
         if (Array.isArray(data)) setPriorAnalyses(data)
       })
-      .catch(() => {})
+      .catch((err) => {
+        // Optional feature (case-linking picker) — degrade silently but log.
+        console.warn("[home] failed to load prior analyses:", err)
+      })
   }, [user, isPro])
 
   const scrollToUpload = () =>
@@ -374,7 +377,7 @@ function HomeContent() {
       {/* ─── HERO ─────────────────────────────────────────────────── */}
       <section
         ref={heroRef}
-        className="relative min-h-[92vh] pt-32 sm:pt-40 pb-24 overflow-x-clip overflow-y-visible"
+        className="relative min-h-[92vh] pt-32 sm:pt-40 pb-24 overflow-x-clip overflow-y-visible max-md:min-h-[80vh] max-md:pt-20"
       >
         <div className="absolute inset-0 pointer-events-none">
           <Grid opacity={0.035} />
@@ -419,7 +422,7 @@ function HomeContent() {
           </h1>
 
           {/* Sub-meta row */}
-          <div className="mt-16 sm:mt-24 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+          <div className="mt-16 sm:mt-24 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start max-md:mt-10 max-md:gap-6">
             <div className="lg:col-span-7">
               <Reveal delay={0.5}>
                 <p
@@ -462,7 +465,7 @@ function HomeContent() {
             <div className="lg:col-span-5">
               <Reveal delay={0.8}>
                 <div
-                  className="hero-built-for border-l pl-6 sm:pl-7"
+                  className="hero-built-for border-l pl-6 sm:pl-7 max-md:border-l-0 max-md:pl-0"
                   style={{ borderColor: "var(--hairline-2)" }}
                 >
                   <p className="eyebrow mb-5">Built for</p>
@@ -494,7 +497,7 @@ function HomeContent() {
           </div>
         </motion.div>
 
-        <div className="container-edition relative z-10 mt-20 sm:mt-32">
+        <div className="container-edition relative z-10 mt-20 sm:mt-32 max-md:mt-12">
           <div className="hairline" />
         </div>
       </section>
@@ -523,10 +526,10 @@ function HomeContent() {
       <div className="container-edition"><div className="hairline" /></div>
 
       {/* ─── PROMISE / WHAT YOU GET ──────────────────────────────── */}
-      <section className="relative py-28 sm:py-40">
+      <section className="relative py-28 sm:py-40 max-md:py-16">
         <div className="container-edition">
           <Reveal>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-20 sm:mb-28 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-20 sm:mb-28 items-end max-md:mb-12 max-md:gap-6">
               <div className="md:col-span-3">
                 <p className="eyebrow">Chapter 01</p>
               </div>
@@ -539,7 +542,7 @@ function HomeContent() {
             </div>
           </Reveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-16 sm:gap-y-24">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-16 sm:gap-y-24 max-md:gap-y-10">
             {PROMISE.map((p, i) => (
               <Reveal key={p.n} delay={i * 0.08}>
                 <div>
@@ -577,7 +580,7 @@ function HomeContent() {
       </div>
 
       {/* ─── HOW IT WORKS ──────────────────────────────────────── */}
-      <section className="relative py-28 sm:py-40 border-t" style={{ borderColor: "var(--hairline)" }}>
+      <section className="relative py-28 sm:py-40 border-t max-md:py-16" style={{ borderColor: "var(--hairline)" }}>
         <div className="container-edition">
           <Reveal>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-20 items-end">
@@ -597,7 +600,7 @@ function HomeContent() {
             {STEPS.map((s, i) => (
               <Reveal key={s.n} delay={i * 0.1}>
                 <div
-                  className="p-8 sm:p-10 border-b border-r relative min-h-[260px] flex flex-col justify-between"
+                  className="p-8 sm:p-10 border-b border-r relative min-h-[260px] flex flex-col justify-between max-md:p-5 max-md:min-h-[180px]"
                   style={{ borderColor: "var(--hairline-2)" }}
                 >
                   <span
@@ -631,7 +634,7 @@ function HomeContent() {
       <section
         ref={uploadRef}
         id="upload"
-        className="relative py-28 sm:py-40 border-t"
+        className="relative py-28 sm:py-40 border-t max-md:py-16"
         style={{ borderColor: "var(--hairline)" }}
       >
         <div className="container-edition relative">
@@ -735,8 +738,8 @@ function HomeContent() {
               <Reveal key={i} delay={i * 0.1}>
                 <Tilt intensity={2}>
                   <div
-                    className="p-8 sm:p-10 h-full flex flex-col justify-between border-l"
-                    style={{ borderColor: "var(--hairline-2)", minHeight: 320 }}
+                    className="p-8 sm:p-10 h-full flex flex-col justify-between border-l max-md:p-5"
+                    style={{ borderColor: "var(--hairline-2)", minHeight: "clamp(240px, 50vw, 320px)" }}
                   >
                     <p
                       className="text-lg leading-snug mb-8 serif-italic"
@@ -764,7 +767,7 @@ function HomeContent() {
       </section>
 
       {/* ─── STATS ─────────────────────────────────────────────── */}
-      <section className="relative py-24 border-y" style={{ borderColor: "var(--hairline)" }}>
+      <section className="relative py-24 border-y max-md:py-16" style={{ borderColor: "var(--hairline)" }}>
         <div className="container-edition">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
             {[
@@ -775,7 +778,7 @@ function HomeContent() {
             ].map((s, i) => (
               <Reveal key={i} delay={i * 0.08}>
                 <div
-                  className="px-2 md:px-6 py-4 md:border-r"
+                  className="px-2 md:px-6 py-4 md:border-r max-md:py-3"
                   style={{ borderColor: i < 3 ? "var(--hairline-2)" : "transparent" }}
                 >
                   <Counter
@@ -802,7 +805,7 @@ function HomeContent() {
       </section>
 
       {/* ─── FINAL CTA ─────────────────────────────────────────── */}
-      <section className="relative py-32 sm:py-48 overflow-hidden">
+      <section className="relative py-32 sm:py-48 overflow-hidden max-md:py-20">
         <div className="absolute inset-0 pointer-events-none">
           <Grid opacity={0.04} />
         </div>
@@ -820,7 +823,7 @@ function HomeContent() {
           </Reveal>
 
           <Reveal delay={0.2}>
-            <div className="mt-12 sm:mt-16 flex items-center gap-4 flex-wrap">
+            <div className="mt-12 sm:mt-16 flex items-center gap-4 flex-wrap max-md:mt-8">
               <Magnetic strength={8}>
                 <button onClick={scrollToUpload} className="btn btn-primary !px-6 !py-3.5 !text-[15px]">
                   Try free

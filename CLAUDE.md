@@ -8,7 +8,7 @@ ClearDoc helps everyday people understand scary official documents (insurance de
 
 **Output per analysis:** plain English summary, red flags with severity, a ready-to-send response letter, ranked next steps, and an overall verdict.
 
-**Monetization:** Free tier = **1 saved analysis** per account → Pro = **$9/month** unlimited (Stripe subscription).
+**Monetization:** Free tier = **3 saved analyses per day** → Pro = **$9/month** unlimited (Stripe subscription).
 
 ---
 
@@ -107,7 +107,7 @@ next-auth.d.ts                    — Session.user.id typing
 ### `User`
 - `id` (cuid), `email` (unique), `password` (scrypt hash, nullable for legacy rows)
 - `plan`: `"free"` \| `"pro"` (default `"free"`)
-- `freeUsesRemaining`: int, default **1** for new signups
+- `freeUsesRemaining`: used as derived count (analyses per UTC day); daily limit is **3** (`FREE_DAILY_ANALYSIS_LIMIT` in `lib/free-quota.ts`)
 - `stripeCustomerId`, `stripeSubscriptionId`, `subscriptionStatus` (`active` \| `inactive` \| `cancelled`)
 - Auth.js relations: `accounts`, `sessions`
 
@@ -184,7 +184,7 @@ sequenceDiagram
 |------|--------|
 | Homepage **requires login** before analyze | `app/page.tsx` `handleAnalyze` |
 | `/api/analyze` **requires auth** (401 if missing) | `app/api/analyze/route.ts` |
-| Free users: **reserve** credit before Claude; **refund** on failure | `reserveFreeAnalysisCredit` / `refundFreeAnalysisCredit` in `lib/db.ts` |
+| Free users: check daily quota **before** Claude (3/day limit) | `checkFreeDailyQuota` in `lib/free-quota.ts` |
 | Pro = `plan === "pro"` **and** `subscriptionStatus === "active"` | `lib/user-plan.ts` `isProUser` |
 | Max upload **10MB**; PDF, PNG, JPG, WEBP | analyze route + pdf-parser |
 | Rate limits if Upstash set: **15/hr/IP**, **10/hr free user**, **60/hr Pro** | `lib/rate-limit.ts` `ANALYZE_RATE_LIMITS` |
@@ -204,8 +204,11 @@ sequenceDiagram
 | GET | `/api/usage` | Optional | Quota/plan (anonymous → zeros) |
 | GET | `/api/analyses` | Required | List analyses |
 | GET | `/api/analyses/[id]` | Required | One analysis (owner only) |
+| GET/POST | `/api/analyses/case/[caseId]` | Required | Case chain analyses |
 | POST | `/api/stripe/create-checkout` | Required | Stripe Checkout URL |
 | POST | `/api/stripe/webhook` | Stripe sig | Subscription lifecycle |
+| POST | `/api/chat` | Required | Per-analysis Q&A chat |
+| POST | `/api/rephrase-letter` | Required | Tone-adjusted response letter |
 
 ---
 
@@ -293,7 +296,6 @@ npm test             # unit tests (user-plan, validate-analysis)
 - **Document files** — not stored in DB or blob storage
 - **Non-English** — Claude handles; UI doesn’t disclaim
 - **Long docs** — truncated ~80k chars before Claude (`lib/claude.ts`)
-- **README.md** — still default create-next-app boilerplate; ignore for architecture
 
 ---
 

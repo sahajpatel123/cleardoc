@@ -160,10 +160,10 @@ export default function AnalysisResultsView({
   const shownPanels = panelDefs.filter((p) => p.show)
 
   return (
-    <div className="min-h-screen pt-32 pb-32">
+    <div className="min-h-screen pt-32 pb-32 max-md:pt-20 max-md:pb-20">
       <div className="container-edition">
         <Reveal>
-          <div className="flex items-baseline justify-between mb-10">
+          <div className="flex items-baseline justify-between mb-10 max-md:mb-6">
             <p className="eyebrow">{mode === "saved" ? "Saved analysis" : "Analysis complete"}</p>
             <span className={`label ${verdict.labelClass}`}>
               <VIcon className="w-3 h-3" /> {verdict.label}
@@ -212,7 +212,7 @@ export default function AnalysisResultsView({
           )}
         </AnimatePresence>
 
-        <div className="mt-20">
+        <div className="mt-20 max-md:mt-12">
           {shownPanels.map((p, i) => (
             <ResultCard
               key={p.title}

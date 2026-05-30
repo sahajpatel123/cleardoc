@@ -49,11 +49,11 @@ export default function PricingPage() {
   )
 
   return (
-    <div className="min-h-screen pt-32 pb-32">
+    <div className="min-h-screen pt-32 pb-32 max-md:pt-20 max-md:pb-20">
       <div className="container-edition">
         {/* Hero */}
         <Reveal>
-          <div className="flex items-baseline justify-between mb-10">
+          <div className="flex items-baseline justify-between mb-10 max-md:mb-6">
             <p className="eyebrow">Pricing · honest</p>
             <p className="mono text-[10px]" style={{ color: "var(--text-mute)" }}>
               CHAPTER 02 · INVESTMENT
@@ -75,17 +75,17 @@ export default function PricingPage() {
         </Reveal>
 
         <Reveal delay={0.2}>
-          <p className="max-w-md text-base mt-8" style={{ color: "var(--text-3)" }}>
-            Start free. Upgrade when you need more than one document a month.
+          <p className="max-w-md text-base mt-8 max-md:mt-4" style={{ color: "var(--text-3)" }}>
+            Start free — three analyses a day. Upgrade the moment you need more.
           </p>
         </Reveal>
 
         {/* Pricing — two columns side by side, hairlines only */}
-        <div className="mt-24 grid grid-cols-1 md:grid-cols-2 border-t" style={{ borderColor: "var(--hairline-2)" }}>
+        <div className="mt-24 grid grid-cols-1 md:grid-cols-2 border-t max-md:mt-12" style={{ borderColor: "var(--hairline-2)" }}>
           {/* Free */}
           <Reveal>
             <div
-              className="p-8 sm:p-12 md:border-r"
+              className="p-8 sm:p-12 md:border-r max-md:p-6"
               style={{ borderColor: "var(--hairline-2)", minHeight: 480 }}
             >
               <div className="flex items-baseline justify-between mb-2">
@@ -145,7 +145,7 @@ export default function PricingPage() {
 
           {/* Pro */}
           <Reveal delay={0.08}>
-            <div className="p-8 sm:p-12 relative" style={{ minHeight: 480 }}>
+            <div className="p-8 sm:p-12 relative max-md:p-6" style={{ minHeight: "clamp(420px, 90vw, 480px)" }}>
               {/* Top ember accent */}
               <div
                 className="absolute top-[-1px] left-0 right-0 h-px"
@@ -235,9 +235,9 @@ export default function PricingPage() {
         </div>
 
         {/* FAQ */}
-        <section id="faq" className="mt-32">
+        <section id="faq" className="mt-32 max-md:mt-16">
           <Reveal>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-16 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-16 items-end max-md:mb-10 max-md:gap-6">
               <div className="md:col-span-3">
                 <p className="eyebrow">FAQ</p>
               </div>
@@ -266,10 +266,10 @@ export default function PricingPage() {
         </section>
 
         {/* Bottom CTA */}
-        <section className="mt-32">
+        <section className="mt-32 max-md:mt-16">
           <Reveal>
             <h2
-              className="display max-w-[18ch] mb-8"
+              className="display max-w-[18ch] mb-8 max-md:mb-6"
               style={{ fontSize: "clamp(2.4rem, 7vw, 5.5rem)", color: "var(--text)" }}
             >
               <span>Ready to </span>
@@ -288,7 +288,7 @@ export default function PricingPage() {
             </div>
           </Reveal>
 
-          <p className="mt-16 text-xs italic" style={{ color: "var(--text-mute)" }}>
+            <p className="mt-16 text-xs italic max-md:mt-8" style={{ color: "var(--text-mute)" }}>
             This is not legal advice. ClearDoc provides general information only.
           </p>
         </section>

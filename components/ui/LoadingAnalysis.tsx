@@ -18,7 +18,8 @@ export default function LoadingAnalysis({ stage }: { stage: LoadingStage }) {
   const current = STAGES[currentIdx] ?? STAGES[0]
 
   useEffect(() => {
-    const t = setInterval(() => setNow((n) => n + 1), 700)
+    // ~1s ticks so the elapsed counter tracks real seconds
+    const t = setInterval(() => setNow((n) => n + 1), 1000)
     return () => clearInterval(t)
   }, [])
 
@@ -56,7 +57,7 @@ export default function LoadingAnalysis({ stage }: { stage: LoadingStage }) {
           <p className="eyebrow">Atelier · in session</p>
           <div className="flex items-center gap-3 mono text-[10px]" style={{ color: "var(--text-mute)" }}>
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--ember)" }} />
-            WORKING · {Math.min(30, now)}s elapsed
+            WORKING · {now}s elapsed
           </div>
         </div>
 

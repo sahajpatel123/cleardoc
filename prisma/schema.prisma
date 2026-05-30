@@ -53,7 +53,7 @@ model User {
   stripeCustomerId     String?    @unique
   stripeSubscriptionId String?
   subscriptionStatus   String     @default("inactive")
-  freeUsesRemaining    Int        @default(3)
+  freeUsesRemaining    Int        @default(1)
   lastResetAt          DateTime   @default(now())
   tokenVersion         Int        @default(0)
   password             String?

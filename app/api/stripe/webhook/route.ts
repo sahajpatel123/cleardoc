@@ -51,7 +51,11 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
     case "customer.subscription.created":
     case "customer.subscription.updated": {
       const sub = event.data.object as Stripe.Subscription
-      const customerId = sub.customer as string
+      const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id
+      if (!customerId) {
+        console.error("[webhook] subscription event missing customer id", sub.id)
+        break
+      }
       const user = await getUserByStripeCustomerId(customerId)
       if (!user) break
 
@@ -66,7 +70,11 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
 
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription
-      const customerId = sub.customer as string
+      const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id
+      if (!customerId) {
+        console.error("[webhook] subscription.deleted missing customer id", sub.id)
+        break
+      }
       const user = await getUserByStripeCustomerId(customerId)
       if (!user) break
 
