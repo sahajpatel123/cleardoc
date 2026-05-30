@@ -12,12 +12,16 @@ function getRedis() {
   return Redis.fromEnv()
 }
 
-export function getClientIp(req: NextRequest): string {
+export function getClientIpFromHeaders(headers: Headers): string {
   return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
+    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    headers.get("x-real-ip") ??
     "anonymous"
   )
+}
+
+export function getClientIp(req: NextRequest): string {
+  return getClientIpFromHeaders(req.headers)
 }
 
 export type RateLimitResult = {
@@ -124,6 +128,20 @@ export async function rateLimitByUserId(
 export const LOGIN_RATE_LIMITS = {
   ipPer15Min: 10,
 } as const
+
+/**
+ * Throttle credential login attempts by client IP, derived from request
+ * headers. Called from within auth.ts authorize() so a rejected attempt
+ * returns the standard "invalid credentials" response (returning null) —
+ * never a custom 429 that would break the next-auth client's signIn() flow.
+ */
+export async function rateLimitLoginByHeaders(headers: Headers): Promise<RateLimitResult> {
+  return rateLimitByKey(
+    `login:${getClientIpFromHeaders(headers)}`,
+    LOGIN_RATE_LIMITS.ipPer15Min,
+    "15 m",
+  )
+}
 
 /** Analyze route limits — tune COGS vs UX. */
 export const ANALYZE_RATE_LIMITS = {

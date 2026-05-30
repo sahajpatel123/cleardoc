@@ -3,7 +3,7 @@ import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import { verifyPassword, validateEmail, validatePassword } from "@/lib/password"
-import { rateLimitByIp, LOGIN_RATE_LIMITS } from "@/lib/rate-limit"
+import { rateLimitLoginByHeaders } from "@/lib/rate-limit"
 import type { NextRequest } from "next/server"
 
 let _auth: ReturnType<typeof createAuth> | null | undefined = undefined
@@ -29,7 +29,16 @@ function createAuth() {
           email: { label: "Email", type: "email" },
           password: { label: "Password", type: "password" },
         },
-        async authorize(raw) {
+        async authorize(raw, request) {
+          // Brute-force throttle: cap credential attempts per IP BEFORE any DB
+          // lookup or scrypt verification. Returning null yields the normal
+          // "invalid credentials" response, so the next-auth client contract is
+          // preserved (no custom 429 that would crash signIn()).
+          if (request) {
+            const rl = await rateLimitLoginByHeaders(request.headers)
+            if (!rl.allowed) return null
+          }
+
           const email = typeof raw?.email === "string" ? raw.email.trim().toLowerCase() : ""
           const password = typeof raw?.password === "string" ? raw.password : ""
           if (validateEmail(email) || validatePassword(password)) return null
@@ -110,27 +119,6 @@ export const handlers: { GET: NextAuthHandler; POST: NextAuthHandler } = {
   POST: async (req) => {
     const instance = getAuth()
     if (!instance) throw new Error(MISSING_SECRET_ERROR)
-    // Throttle credential login attempts per IP. Scoped to the credentials
-    // callback only, so signout/session/csrf POSTs are never affected.
-    if (req.nextUrl?.pathname?.includes("/callback/credentials")) {
-      const rate = await rateLimitByIp(req, LOGIN_RATE_LIMITS.ipPer15Min, "15 m")
-      if (!rate.allowed) {
-        const retryAfter =
-          rate.reset && rate.reset > Date.now()
-            ? Math.ceil((rate.reset - Date.now()) / 1000)
-            : 900
-        return new Response(
-          JSON.stringify({ error: "Too many login attempts. Please try again later." }),
-          {
-            status: 429,
-            headers: {
-              "content-type": "application/json",
-              "retry-after": String(retryAfter),
-            },
-          },
-        )
-      }
-    }
     return instance.handlers.POST(req)
   },
 }
