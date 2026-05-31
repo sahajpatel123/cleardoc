@@ -30,7 +30,7 @@ ClearDoc helps everyday people understand and fight back against scary official 
   - Security hardening (login throttle, auth optimization, AI retry, try-catch on GET routes)
 - **Product works end-to-end:** upload → login gate → analyze → save → dashboard history → Stripe upgrade.
 - **Recently shipped:** Nemotron Omni model swap, security hardening, dedicated analysis session page, mobile horizontal-scroll fix, GDPR deletion endpoint.
-- **Full audit complete:** 117 issues found (8 Critical, 18 High, 42 Medium, 49 Low). Top 10 fixes prioritized. See daily notes.
+- **Audit triaged + fixed (2026-06-01):** the "117-issue" audit was verified by workflow — 13 confirmed, 14 false-positive, severities overstated. Confirmed defects fixed & verified green (tsc + tests + build): chat/rephrase error-shape, atomic chat cap, webhook null-customer guard, CSP `unsafe-eval` drop + `poweredByHeader`, prod raw-log gating, analyze error codes, pdf decode safety, Stripe-event cleanup cron. Uncommitted on `main`. See [[CHANGES]] + [[DECISIONS]] D-007.
 - **Deploy target:** Vercel + Supabase Postgres (pooler). Build does **not** run migrations; schema self-heals at runtime. See [[KNOWLEDGE/deployment-and-schema]].
 
 ---
@@ -114,3 +114,6 @@ Deeper maps: [[KNOWLEDGE/architecture]], [[KNOWLEDGE/ai-pipeline]].
 - Conventions & standards → [[RULES]]
 - Deep technical notes → [[KNOWLEDGE/README]]
 - What changed and when → [[CHANGES]]
+
+## 9. Agent / AI protocol adoption (2026-06-01)
+The full `./memory/` operating system (RULES + MEMORY + DECISIONS + TODO + KNOWLEDGE) has been analyzed in depth and its instructions adopted as **binding** for all future work by this agent. See [[CHANGES]] 2026-06-01 entry. The dual-convention tension with root `AGENTS.md` (D-002) remains open per owner decision.

@@ -19,9 +19,9 @@
 
 ## Open items (need action) — see [[TODO]]
 
-1. **Audit git HISTORY for leaked secrets.** A prior memory flagged *committed API keys*. The current tree is clean, but secrets may persist in history. Run `git log -p -- '.env*'` / `gitleaks detect`. **If anything is found, rotate the keys immediately** (NVIDIA, Stripe, NextAuth secret, Upstash) — rotation matters more than rewriting history.
-2. **Sensitive-data logging.** `lib/ai.ts` does `console.error("[ai] ... Raw output:", raw)` on parse/validation failure — this can dump document content / model output to logs. Gate behind a debug flag or scrub before shipping. (A prior memory flagged "sensitive data logged.")
-3. **CSP review.** Confirm `proxy.ts` directives aren't broader than needed (no `unsafe-eval`/wildcard origins beyond NIM + Stripe).
+1. **Audit git HISTORY for leaked secrets.** A prior memory flagged *committed API keys*. The current tree is clean, but secrets may persist in history. Run `git log -p -- '.env*'` / `gitleaks detect`. **If anything is found, rotate the keys immediately** (NVIDIA, Stripe, NextAuth secret, Upstash) — rotation matters more than rewriting history. *(Still open.)*
+2. ✅ **Sensitive-data logging — FIXED 2026-06-01.** `lib/ai.ts` parse/validation failures now log metadata only in production (gated on `NODE_ENV`); full raw output only in dev. Confirmed `lib/analysis-ai.ts` logs only `Error` objects, not raw content.
+3. ✅ **CSP — TIGHTENED 2026-06-01.** Dropped `'unsafe-eval'` from `script-src` in both `proxy.ts` and `next.config.ts` (now kept in sync; proxy wins at runtime). `'unsafe-inline'` retained pending nonce adoption (Next streaming SSR). No wildcard origins beyond NIM + Stripe. Also added `poweredByHeader:false`. Remaining: nonce-based CSP to drop `'unsafe-inline'` (tracked in [[TODO]]).
 
 ## Notes
 

@@ -43,6 +43,21 @@ Recorded retroactively from CLAUDE.md, git history, and code. Reasoning inferred
 
 ---
 
+## D-006 · 2026-06-01 · Formal agent adoption of `./memory/` operating protocol
+- **Decision:** Any agent or AI operating in this workspace (including this one) must treat the instructions in `./memory/RULES.md`, `MEMORY.md`, `DECISIONS.md`, and `TODO.md` (plus linked KNOWLEDGE) as **binding and non-negotiable**. Before meaningful work: read the core four. After significant work: perform the required updates using wikilinks. "Trust the code over docs", "Atelier tokens only", "no raw document/model logging", "all memory under ./memory/", and all business invariants must be followed.
+- **Why:** User explicitly directed full analysis of the memory folder + "follow every instruction that have and also follow this instruction in future prompts and commands too." This makes the memory system the active constitution for agent behavior.
+- **Consequences:** All future interactions must demonstrate compliance (read core files first on significant tasks, end responses with "Central memory updated: …" when work occurred, use [[wikilinks]], never create project memory outside `./memory/`, etc.). Root `AGENTS.md` framework remains separate per D-002.
+- **Status:** Active.
+
+## D-007 · 2026-06-01 · Audit-fix scope & CSP / Stripe entitlement policy
+- **Decision:** From the "117-issue" audit, fix only triage-**confirmed** real defects; reject false positives; defer product/schema/UI items. Specific calls:
+  - **CSP:** drop `'unsafe-eval'` (no `eval`/`new Function` in the app; Next prod doesn't need it); **keep** `'unsafe-inline'` for scripts because Next 16 + React 19 streaming SSR emits inline bootstrap scripts and there's no nonce mechanism yet (nonce CSP = separate follow-up). Keep CSP in BOTH `proxy.ts` (wins at runtime) and `next.config.ts`, kept in sync — not removing one — to avoid the risk that the proxy matcher misses some responses.
+  - **Stripe entitlement:** do NOT add `charge.refunded` / immediate `payment_failed` downgrade. Access is driven by `subscriptionStatus`; `customer.subscription.updated` (past_due/unpaid/canceled → non-active) + `isProUser` already revoke it. Immediate-revoke-on-refund and a past_due grace period are **product decisions**, not bugs.
+  - **Chat cap:** enforce atomically in the DB (`jsonb_array_length` guard), not via the route pre-check alone.
+- **Why:** The audit was 14/39 false-positive and overstated severity (all 8 "CRITICAL" were medium-or-less). Blindly "fixing" 117 items would regress an already-hardened codebase (atomic quota, idempotent webhooks, ownership-scoped reads). [[RULES]] "trust the code".
+- **Consequences:** Several audit items are intentionally unchanged (logged in [[CHANGES]]). CSP `'unsafe-inline'` removal, schema enums/index, grace period, and the password-change endpoint are tracked in [[TODO]]. All applied fixes verified green (tsc + tests + build).
+- **Status:** Active.
+
 ## Decision template (copy for new entries)
 
 ```

@@ -7,6 +7,30 @@
 
 ---
 
+## 2026-06-01 — Audit triage + verified bug/vuln fixes (workflow-driven)
+- Ran a 9-agent triage **workflow** (`wf_57b5a245-109`) to verify the "117-issue / 300-agent" audit against the *current* code: **13 confirmed, 12 partial, 14 false-positive**. The audit was heavily stale/overstated — all 8 "CRITICAL" collapsed to a handful of medium defects.
+- **Fixed & verified (tsc clean · 13/13 tests · `next build` ✓):**
+  - chat + rephrase POST wrapped in outer try-catch → shaped JSON 500, not an unshaped framework error (#1/#2).
+  - chat message cap enforced **atomically** in `appendChatMessages` (`jsonb_array_length` guard + `RETURNING`), closing the check-then-act race (#8); now returns a discriminated `AppendChatResult`.
+  - Stripe webhook: guard nullable `session.customer` before `upgradeUserToPro` (#7); wrap `claimStripeEvent` so a transient DB error returns a shaped 500 and Stripe retries (#3).
+  - CSP: dropped `'unsafe-eval'` in `script-src` (both `proxy.ts` + `next.config.ts`, kept in sync; proxy wins), kept `'unsafe-inline'` pending nonces (#4); added `poweredByHeader:false`.
+  - `lib/ai.ts`: raw model output no longer logged in prod — metadata only, per [[RULES]] (#AI-LOG-RAW); balanced-object JSON fallback for model preamble (#22); named `MAX_DOCUMENT_CHARS` (#21).
+  - analyze route: `formData()` → 400, document extraction failure → 422 (were generic 500) (#9/#10).
+  - `pdf-parser`: `safeDecode` tolerates malformed percent-encoding (was an uncaught `URIError` in an emitter callback) (#13).
+  - `validate-analysis`: dropped-deadline now `console.warn`'d (metadata only) instead of silent (VALIDATE-DEADLINE-DROP); `ics` Invalid-Date guard; `case-context` whitespace truncation.
+  - Wired the orphaned `cleanupProcessedStripeEvents` via new authenticated `GET /api/cron/cleanup` + `vercel.json` weekly cron (CLEANUP-ORPHAN). Needs `CRON_SECRET` env (`.env.example` is permission-locked — add manually).
+- **Rejected as false-positive (no change):** revenue "leaks" #5/#6 (access already revokes via `subscription.updated`→non-active + `isProUser`), quota race (atomic advisory-lock save), chat read-after-write (atomic append), `STRIPE_WEBHOOK_SECRET!` (env-asserted), usage/health/db #19/#20/#24, JWT "2 queries" (it's 1, by design), validate cast, vision size, moderation.
+- **Deferred:** frontend a11y/perf cluster (its triage agent failed — needs own pass), password-change endpoint (#12), Prisma enums + `ProcessedStripeEvent` `createdAt` index (migration), past_due grace (product), nonce-based CSP, next-auth GA bump. See [[TODO]].
+- Refs: [[DECISIONS]] D-007; [[KNOWLEDGE/security]]; daily-2026-06-01.
+
+## 2026-06-01 — Full analysis + internalization of `./memory/` system
+- Performed exhaustive read of every file in `./memory/` (RULES.md, MEMORY.md, DECISIONS.md, TODO.md, CHANGES.md, KNOWLEDGE/*, daily/*).
+- Extracted and adopted **all operating instructions** as binding protocol for this agent (memory-system rules, style, security, business invariants, git hygiene, etc.).
+- Confirmed full fidelity to the "read-first / update-after / trust-code / wikilinks / Atelier-only / no-raw-logging" rules.
+- Noted excellent self-documentation quality and the intentional but unreconciled dual memory convention (D-002).
+- This analysis itself followed the memory protocol: core files read before work; updates applied after.
+- Refs: [[RULES]], [[MEMORY]], [[DECISIONS]] D-002/D-004, [[TODO]] (memory reconciliation + CLAUDE.md drift).
+
 ## 2026-05-31 — Full-site mobile responsiveness pass
 - Applied responsive improvements across 9 pages + 3 components + globals.css: grid stacking, touch targets, spacing reduction, horizontal overflow fix.
 - Committed `1f3ee13`, pushed to `main`.
