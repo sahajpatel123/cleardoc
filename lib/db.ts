@@ -103,7 +103,7 @@ export async function saveFreeAnalysisWithQuota(
 export async function upgradeUserToPro(
   userId: string,
   stripeCustomerId: string,
-  stripeSubscriptionId: string,
+  stripeSubscriptionId: string | null,
 ) {
   return prisma.user.update({
     where: { id: userId },

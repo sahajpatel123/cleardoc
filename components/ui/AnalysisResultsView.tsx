@@ -114,8 +114,8 @@ export default function AnalysisResultsView({
           </div>
 ) : (
            <div>
-             {sortedFlags.map((flag, i) => (
-               <RedFlagItem key={flag.issue ?? i} flag={flag} index={i} />
+              {sortedFlags.map((flag, i) => (
+                <RedFlagItem key={`flag-${i}`} flag={flag} index={i} />
              ))}
            </div>
          ),
@@ -143,8 +143,8 @@ content: (
          <div>
            {[...localResult.next_steps]
              .sort((a, b) => a.priority - b.priority)
-             .map((step) => (
-               <NextStepItem key={step.priority} step={step} index={step.priority - 1} />
+              .map((step, i) => (
+                 <NextStepItem key={`step-${i}`} step={step} index={i} />
              ))}
          </div>
        ),

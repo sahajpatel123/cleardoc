@@ -48,7 +48,7 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       // The subscription.* webhook will update with full status later
       const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id
 
-      await upgradeUserToPro(userId, customerId, subscriptionId ?? "")
+      await upgradeUserToPro(userId, customerId, subscriptionId ?? null)
       break
     }
 
