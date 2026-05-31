@@ -33,7 +33,7 @@
 
 ## 🟡 Audit-fix follow-ups (deferred from 2026-06-01 triage — see [[DECISIONS]] D-007)
 
-- [ ] 🟡 **Frontend a11y/perf pass** — the triage agent for the frontend cluster failed; PricingModal focus-return, AnalysisChat aria-label, RedFlagItem aria-expanded, UploadZone/DeadlinesPanel label wiring, FaqAccordion arrow-keys, memoization, effect cleanup. Needs its own verified pass.
+- [x] 🟡 **Frontend a11y/perf pass** — DONE 2026-06-01: PricingModal focus-trap + focus-return, AnalysisChat aria-label, RedFlagItem aria-expanded, UploadZone aria-describedby, DeadlinesPanel htmlFor/id, FaqAccordion arrow-keys, panelDefs useMemo, Dashboard AbortController, ResponseLetter setTimeout cleanup. Verified (lint clean, 13/13 tests, build pass). Committed `1cee2d0`.
 - [ ] 🟡 **Password-change endpoint** (#12) — `incrementTokenVersion` exists but is unused; no route consumes it. Needs route + UI + auth regression testing.
 - [ ] 🟢 Add `CRON_SECRET` to `.env.example` (was permission-locked) and set it in Vercel so `/api/cron/cleanup` runs.
 - [ ] 🟢 Nonce-based CSP to drop `'unsafe-inline'` from `script-src` (proxy generates nonce → Next reads it). Larger change; test hydration.

@@ -7,7 +7,19 @@
 
 ---
 
-## 2026-06-01 — Audit triage + verified bug/vuln fixes (workflow-driven)
+## 2026-06-01 — Frontend a11y/perf pass (verified)
+- PricingModal: focus-trap (Tab cycling within modal) + focus-return to trigger on unmount.
+- AnalysisChat: `aria-label` on input ("Ask a question about this document") and send button ("Send message").
+- RedFlagItem: `aria-expanded` on toggle button.
+- UploadZone: error message connected to input via `aria-describedby` + `role="alert"`.
+- DeadlinesPanel: label connected to date input via `htmlFor`/`id`.
+- FaqAccordion: ArrowUp/ArrowDown keyboard navigation between questions.
+- AnalysisResultsView: `panelDefs` memoized with `useMemo`, `handleLetterChange` wrapped in `useCallback`.
+- Dashboard: fetch uses `AbortController` + proper error handling (no silent empty array on failure).
+- ResponseLetter: `setTimeout` cleaned up on unmount.
+- Verified: lint clean (0 errors from changes), 13/13 tests pass, build passes.
+- Committed `1cee2d0`, pushed to `main`.
+- Refs: [[TODO]] (frontend a11y/perf pass marked done).
 - Ran a 9-agent triage **workflow** (`wf_57b5a245-109`) to verify the "117-issue / 300-agent" audit against the *current* code: **13 confirmed, 12 partial, 14 false-positive**. The audit was heavily stale/overstated — all 8 "CRITICAL" collapsed to a handful of medium defects.
 - **Fixed & verified (tsc clean · 13/13 tests · `next build` ✓):**
   - chat + rephrase POST wrapped in outer try-catch → shaped JSON 500, not an unshaped framework error (#1/#2).
