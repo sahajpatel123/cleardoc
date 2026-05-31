@@ -7,6 +7,16 @@
 
 ---
 
+## 2026-06-01 — Post-stabilization cleanup + verification
+
+- Full forensic re-audit (300 agents, 8 swarms) verified all prior fixes.
+- **auth.ts:** Removed unreachable dead code (`if (!secret)` after `getSecret()` now throws).
+- **lib/stripe.ts:** Added singleton caching to `getStripe()` — prevents per-request TLS handshakes.
+- Verified: `analysis-ai.ts` already uses `getClient()` correctly (swarm false positive).
+- Verified: 13/13 tests pass, build passes.
+- Committed `b6b6896`, pushed to `main`.
+- Remaining minor items: prompt injection (no sanitization), IP spoofing (platform-dependent), cron timing-safe comparison.
+
 ## 2026-06-01 — Critical security + reliability stabilization (verified)
 
 - **auth.ts:** `getSecret()` now throws instead of returning `""` when `NEXTAUTH_SECRET`/`AUTH_SECRET` are missing — prevents JWT forgery with empty signing key.
