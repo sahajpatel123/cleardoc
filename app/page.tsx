@@ -337,15 +337,18 @@ function HomeContent() {
 
   useEffect(() => {
     if (!user || !isPro) return
-    fetch("/api/analyses")
+    const controller = new AbortController()
+    fetch("/api/analyses", { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : []))
       .then((data: { id: string; documentName: string; createdAt: string }[]) => {
         if (Array.isArray(data)) setPriorAnalyses(data)
       })
       .catch((err) => {
+        if (err?.name === "AbortError") return
         // Optional feature (case-linking picker) — degrade silently but log.
         console.warn("[home] failed to load prior analyses:", err)
       })
+    return () => controller.abort()
   }, [user, isPro])
 
   const scrollToUpload = () =>

@@ -267,7 +267,10 @@ function DashboardContent() {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: idx * 0.04 }}
+                    role="link"
+                    tabIndex={0}
                     onClick={() => router.push(`/analyze/${analysis.id}`)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") router.push(`/analyze/${analysis.id}`) }}
                     className="group cursor-pointer py-5 px-2 border-b flex items-baseline gap-5 transition-colors"
                     style={{ borderColor: "var(--hairline-2)" }}
                   >

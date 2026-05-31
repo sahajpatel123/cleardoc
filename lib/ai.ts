@@ -9,6 +9,12 @@ function getClient(): OpenAI {
     _client = new OpenAI({
       apiKey: process.env.NVIDIA_API_KEY,
       baseURL: "https://integrate.api.nvidia.com/v1",
+      // Cancel the underlying HTTP request at the deadline (Promise.race in
+      // withTimeout cannot) and disable the SDK's own retries so our retry loop
+      // is the single source of truth — otherwise one call fans out to 3x HTTP
+      // attempts and orphaned requests keep running after a timeout.
+      timeout: AI_TIMEOUT_MS,
+      maxRetries: 0,
     })
   }
   return _client
@@ -254,6 +260,13 @@ const response = await withTimeout(
       return parseAnalysisResponse(raw)
     } catch (err) {
       lastError = err
+      // A JSON-parse / schema-validation failure is deterministic at
+      // temperature 0 — retrying with identical inputs reproduces the same bad
+      // output. Fail fast instead of burning two more model calls (and the
+      // route's maxDuration budget). Only transient/network/timeout errors retry.
+      if (err instanceof Error && err.message === AI_INVALID_JSON_ERROR_MESSAGE) {
+        break
+      }
       if (attempt < maxRetries) {
         const delay = Math.pow(2, attempt) * 1000
         console.warn(`[ai] Attempt ${attempt} failed, retrying in ${delay}ms...`)

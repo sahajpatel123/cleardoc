@@ -2,10 +2,18 @@ import OpenAI from "openai"
 import type { AnalysisResult, ChatMessage, LetterTone } from "./types"
 import { AI_MODEL, nimCompletionParams, AI_TIMEOUT_MS_SHORT, withTimeout } from "./ai-model"
 
-const client = new OpenAI({
-  apiKey: process.env.NVIDIA_API_KEY,
-  baseURL: "https://integrate.api.nvidia.com/v1",
-})
+let _client: OpenAI | null = null
+function getClient(): OpenAI {
+  if (!_client) {
+    _client = new OpenAI({
+      apiKey: process.env.NVIDIA_API_KEY,
+      baseURL: "https://integrate.api.nvidia.com/v1",
+      timeout: AI_TIMEOUT_MS_SHORT,
+      maxRetries: 0,
+    })
+  }
+  return _client
+}
 
 const CHAT_SYSTEM = `You are ClearDoc's call-prep advocate — the same fierce, practical ally who analyzed the user's document. You help them prepare for phone calls, negotiations, and follow-up actions.
 
@@ -89,7 +97,7 @@ export async function generateChatReply(
     ]
 
     const response = await withTimeout(
-      client.chat.completions.create(
+      getClient().chat.completions.create(
         nimCompletionParams({
           model: AI_MODEL,
           max_tokens: 1024,
@@ -126,7 +134,7 @@ export async function rephraseResponseLetter(
     const cappedLetter = letter.slice(0, 6000)
 
     const response = await withTimeout(
-      client.chat.completions.create(
+      getClient().chat.completions.create(
         nimCompletionParams({
           model: AI_MODEL,
           max_tokens: 2000,

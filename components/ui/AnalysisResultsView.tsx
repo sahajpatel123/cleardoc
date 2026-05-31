@@ -54,10 +54,12 @@ export default function AnalysisResultsView({
   )
 
   const handleLetterChange = useCallback((letter: string, tone: LetterTone) => {
-    const updated = { ...localResult, response_letter: letter, letter_tone: tone }
-    setLocalResult(updated)
-    onResultChange?.(updated)
-  }, [localResult, onResultChange])
+    setLocalResult((prev) => {
+      const updated = { ...prev, response_letter: letter, letter_tone: tone }
+      onResultChange?.(updated)
+      return updated
+    })
+  }, [onResultChange])
 
   // Panels in display order (conditional ones are filtered below)
   const panelDefs = useMemo(() => {

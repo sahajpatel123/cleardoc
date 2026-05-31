@@ -59,8 +59,13 @@ const memoryStore = new Map<string, { count: number; resetAt: number }>()
 const MEMORY_STORE_MAX_KEYS = 10_000
 
 function sweepExpired(now: number) {
+  let swept = 0
   for (const [key, entry] of memoryStore) {
-    if (entry.resetAt <= now) memoryStore.delete(key)
+    if (entry.resetAt <= now) {
+      memoryStore.delete(key)
+      swept++
+    }
+    if (swept >= 1000) break // cap sweep to avoid O(N) latency
   }
 }
 

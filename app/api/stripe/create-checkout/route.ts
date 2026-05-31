@@ -13,7 +13,15 @@ export async function POST() {
 
     const profile = await getOrCreateUser(session.user.id, session.user.email)
 
-    const rate = await rateLimitByUserId(profile.id, BILLING_RATE_LIMITS.perHour, "1 h")
+    // Fail open: checkout is low-frequency and auth-gated, so a rate-limiter
+    // outage (e.g. Upstash unreachable) must not block a paying customer.
+    let rate: { allowed: boolean }
+    try {
+      rate = await rateLimitByUserId(profile.id, BILLING_RATE_LIMITS.perHour, "1 h")
+    } catch (rlErr) {
+      console.error("[create-checkout] rate-limit check failed, allowing:", rlErr)
+      rate = { allowed: true }
+    }
     if (!rate.allowed) {
       return NextResponse.json(
         { error: "Too many requests. Please wait before trying again." },

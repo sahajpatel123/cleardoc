@@ -28,10 +28,42 @@ function safeDecode(s: string): string {
   }
 }
 
+/**
+ * Verify the uploaded bytes actually match the MIME type derived from the
+ * filename extension. getFileMimeType() trusts the extension, so a non-image
+ * (or HTML/binary) renamed to .png would otherwise be base64-encoded and sent
+ * to the paid vision model, wasting a call on garbage. Magic-byte signatures
+ * are stable across all valid files of each type, so this never rejects a
+ * legitimate upload.
+ */
+export function contentMatchesMime(buffer: Buffer, mimeType: string): boolean {
+  if (buffer.length < 4) return false
+  switch (mimeType) {
+    case "application/pdf": // %PDF
+      return buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46
+    case "image/png":
+      return buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47
+    case "image/jpeg":
+      return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff
+    case "image/webp":
+      return (
+        buffer.length >= 12 &&
+        buffer.toString("ascii", 0, 4) === "RIFF" &&
+        buffer.toString("ascii", 8, 12) === "WEBP"
+      )
+    default:
+      return false
+  }
+}
+
 export async function extractDocumentFromBuffer(
   buffer: Buffer,
   mimeType: string
 ): Promise<ExtractDocumentResult> {
+  if (!contentMatchesMime(buffer, mimeType)) {
+    throw new Error("File content does not match its extension.")
+  }
+
   if (mimeType === "application/pdf") {
     const text = await extractPdfText(buffer)
     return { kind: "text", text }

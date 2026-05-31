@@ -17,6 +17,7 @@ export default function ResponseLetter({ letter, tone, analysisId, onLetterChang
   const [currentLetter, setCurrentLetter] = useState(letter)
   const [currentTone, setCurrentTone] = useState<LetterTone>(tone ?? "firm")
   const [copied, setCopied] = useState(false)
+  const [copyFailed, setCopyFailed] = useState(false)
   const [rephrasing, setRephrasing] = useState(false)
   const [rephraseError, setRephraseError] = useState<string | null>(null)
 
@@ -27,8 +28,16 @@ export default function ResponseLetter({ letter, tone, analysisId, onLetterChang
   }, [letter, tone])
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(currentLetter)
-    setCopied(true)
+    try {
+      await navigator.clipboard.writeText(currentLetter)
+      setCopied(true)
+      setCopyFailed(false)
+    } catch {
+      // clipboard.writeText rejects in insecure contexts, when permission is
+      // denied, or when the document isn't focused — surface a manual fallback
+      // instead of failing silently with an unhandled rejection.
+      setCopyFailed(true)
+    }
   }
 
   useEffect(() => {
@@ -157,6 +166,12 @@ export default function ResponseLetter({ letter, tone, analysisId, onLetterChang
           </button>
         </div>
       </div>
+
+      {copyFailed && (
+        <p className="text-xs" style={{ color: "var(--amber)" }}>
+          Couldn&apos;t copy automatically. Select the letter below and copy it manually (Ctrl/⌘+C).
+        </p>
+      )}
 
       <div
         className="paper rounded-lg overflow-hidden relative"

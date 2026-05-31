@@ -13,7 +13,15 @@ export async function POST() {
 
     const profile = await getOrCreateUser(session.user.id, session.user.email)
 
-    const rate = await rateLimitByUserId(profile.id, BILLING_RATE_LIMITS.perHour, "1 h")
+    // Fail open: the billing portal is low-frequency and auth-gated, so a
+    // rate-limiter outage must not lock a customer out of managing their plan.
+    let rate: { allowed: boolean }
+    try {
+      rate = await rateLimitByUserId(profile.id, BILLING_RATE_LIMITS.perHour, "1 h")
+    } catch (rlErr) {
+      console.error("[stripe/portal] rate-limit check failed, allowing:", rlErr)
+      rate = { allowed: true }
+    }
     if (!rate.allowed) {
       return NextResponse.json(
         { error: "Too many requests. Please wait before trying again." },

@@ -7,6 +7,7 @@ import {
   useState,
   useCallback,
   useRef,
+  useMemo,
 } from "react"
 import { useSession, signOut } from "next-auth/react"
 import type { UserPlanProfile } from "@/lib/types"
@@ -91,26 +92,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => abortRef.current?.abort()
   }, [status, refreshProfile])
 
-  const user =
-    session?.user?.id && session.user.email
-      ? {
-          id: session.user.id,
-          email: session.user.email,
-          name: session.user.name,
-          image: session.user.image,
-        }
-      : null
+  const user = useMemo(
+    () =>
+      session?.user?.id && session.user.email
+        ? {
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.name,
+            image: session.user.image,
+          }
+        : null,
+    [session?.user?.id, session?.user?.email, session?.user?.name, session?.user?.image],
+  )
+
+  const handleSignOut = useCallback(() => signOut({ callbackUrl: "/" }), [])
+
+  const value = useMemo(
+    () => ({
+      user,
+      profile,
+      loading: status === "loading",
+      signOut: handleSignOut,
+      refreshProfile,
+    }),
+    [user, profile, status, handleSignOut, refreshProfile],
+  )
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        profile,
-        loading: status === "loading",
-        signOut: () => signOut({ callbackUrl: "/" }),
-        refreshProfile,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )

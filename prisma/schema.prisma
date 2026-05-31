@@ -85,4 +85,6 @@ model Analysis {
 model ProcessedStripeEvent {
   id        String   @id
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
