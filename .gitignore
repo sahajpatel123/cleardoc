@@ -40,6 +40,9 @@ pnpm-workspace.yaml
 .env*
 !.env.example
 
+# memory (project working notes — never commit)
+memory/
+
 # vercel
 .vercel
 
