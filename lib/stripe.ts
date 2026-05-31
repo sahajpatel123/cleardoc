@@ -1,10 +1,15 @@
 import Stripe from "stripe"
 import { assertStripeEnv, getAppUrl } from "@/lib/env"
 
+let _stripe: Stripe | null = null
+
 // Lazy-initialize so a missing env var at module-load time doesn't 404 the route
 export function getStripe(): Stripe {
-  assertStripeEnv()
-  return new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" })
+  if (!_stripe) {
+    assertStripeEnv()
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" })
+  }
+  return _stripe
 }
 
 export async function createCheckoutSession(params: {

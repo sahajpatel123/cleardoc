@@ -21,7 +21,6 @@ function getSecret(): string {
 
 function createAuth() {
   const secret = getSecret()
-  if (!secret) return null
   return NextAuth({
     secret,
     adapter: PrismaAdapter(prisma),
@@ -69,12 +68,20 @@ function createAuth() {
         if (user) {
           token.id = user.id
           token.email = user.email
-          // Also fetch tokenVersion on sign-in to enable immediate validation
-          const dbUser = await prisma.user.findUnique({
-            where: { id: user.id },
-            select: { tokenVersion: true },
-          })
-          token.ver = dbUser?.tokenVersion ?? 0
+          // Also fetch tokenVersion on sign-in to enable immediate validation.
+          // Fail open: a transient DB error (or a not-yet-migrated tokenVersion
+          // column) must not block an otherwise-valid sign-in — default to 0 and
+          // let the next refresh re-seed it.
+          try {
+            const dbUser = await prisma.user.findUnique({
+              where: { id: user.id },
+              select: { tokenVersion: true },
+            })
+            token.ver = dbUser?.tokenVersion ?? 0
+          } catch (err) {
+            console.error("[auth] tokenVersion fetch failed on sign-in; defaulting to 0:", err)
+            token.ver = 0
+          }
         } else if (typeof token.email === "string") {
           if (!token.id) {
             const dbUser = await prisma.user.findUnique({
@@ -89,13 +96,23 @@ function createAuth() {
             // Always check token version — including legacy tokens without `ver`.
             // Legacy tokens (ver=undefined) are treated as version 0, which will
             // be invalidated if the user has ever changed their password.
-            const dbUser = await prisma.user.findUnique({
-              where: { id: token.id as string },
-              select: { tokenVersion: true },
-            })
-            const tokenVer = typeof token.ver === "number" ? token.ver : 0
-            if (dbUser && (dbUser.tokenVersion ?? 0) > tokenVer) {
-              throw new Error("Session invalidated. Please sign in again.")
+            // Fail open on DB/probe errors (transient outage, un-migrated column)
+            // so a healthy session is not force-logged-out by an infra blip; the
+            // intentional revocation throw is always re-raised.
+            try {
+              const dbUser = await prisma.user.findUnique({
+                where: { id: token.id as string },
+                select: { tokenVersion: true },
+              })
+              const tokenVer = typeof token.ver === "number" ? token.ver : 0
+              if (dbUser && (dbUser.tokenVersion ?? 0) > tokenVer) {
+                throw new Error("Session invalidated. Please sign in again.")
+              }
+            } catch (err) {
+              if (err instanceof Error && err.message.startsWith("Session invalidated")) {
+                throw err
+              }
+              console.error("[auth] tokenVersion validation skipped (DB error):", err)
             }
           }
         }
