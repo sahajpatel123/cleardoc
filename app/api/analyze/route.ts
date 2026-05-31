@@ -57,7 +57,12 @@ export async function POST(req: NextRequest) {
 
     const userEmail = session.user.email
 
-    const formData = await req.formData()
+    let formData: FormData
+    try {
+      formData = await req.formData()
+    } catch {
+      return NextResponse.json({ error: "Invalid form submission." }, { status: 400 })
+    }
     const file = formData.get("file") as File | null
     const context = (formData.get("context") as string) ?? ""
     const parentIdRaw = (formData.get("parentId") as string) ?? ""
@@ -169,7 +174,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unsupported file type." }, { status: 400 })
     }
 
-    const extracted = await extractDocumentFromBuffer(buffer, mimeType)
+    let extracted: Awaited<ReturnType<typeof extractDocumentFromBuffer>>
+    try {
+      extracted = await extractDocumentFromBuffer(buffer, mimeType)
+    } catch (err) {
+      console.error("[analyze] Document extraction failed:", err)
+      return NextResponse.json(
+        {
+          error:
+            "We couldn't read this file. It may be corrupted or password-protected — try re-exporting it, or describe it in the context field.",
+        },
+        { status: 422 },
+      )
+    }
 
     let enrichedContext = context || undefined
     if (caseLink) {

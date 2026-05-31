@@ -36,15 +36,18 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
         break
       }
 
+      const customerId =
+        typeof session.customer === "string" ? session.customer : session.customer?.id
+      if (!customerId) {
+        console.error("[webhook] checkout.session.completed: missing customer", session.id)
+        break
+      }
+
       const subscription = await getStripe().subscriptions.retrieve(
         session.subscription as string,
       )
 
-      await upgradeUserToPro(
-        userId,
-        session.customer as string,
-        subscription.id,
-      )
+      await upgradeUserToPro(userId, customerId, subscription.id)
       break
     }
 
@@ -133,7 +136,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
   }
 
-  const claimed = await claimStripeEvent(event.id)
+  let claimed: boolean
+  try {
+    claimed = await claimStripeEvent(event.id)
+  } catch (err) {
+    // A transient DB error here means the claim row wasn't created, so a 500
+    // lets Stripe retry safely (no event is dropped). Keep the response shape
+    // consistent rather than letting the throw escape as an unshaped 500.
+    console.error("[webhook] Claim failed:", err)
+    return NextResponse.json({ error: "Webhook claim failed" }, { status: 500 })
+  }
   if (!claimed) {
     return NextResponse.json({ received: true, duplicate: true })
   }

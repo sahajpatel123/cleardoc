@@ -24,53 +24,55 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Chat is temporarily unavailable." }, { status: 503 })
   }
 
-  const session = await auth()
-  if (!session?.user?.id || !session.user.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  let body: unknown
+  // Outer guard so any throw (auth/DB/etc.) returns a shaped JSON error rather
+  // than an unshaped framework 500 — matching the GET handler's convention.
   try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 })
-  }
+    const session = await auth()
+    if (!session?.user?.id || !session.user.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-  const { analysisId, message } = (body ?? {}) as { analysisId?: string; message?: string }
-  const trimmed = typeof message === "string" ? message.trim() : ""
-  if (!analysisId || !trimmed) {
-    return NextResponse.json({ error: "Analysis ID and message are required." }, { status: 400 })
-  }
-  if (trimmed.length > 2000) {
-    return NextResponse.json({ error: "Message is too long." }, { status: 400 })
-  }
+    let body: unknown
+    try {
+      body = await req.json()
+    } catch {
+      return NextResponse.json({ error: "Invalid request." }, { status: 400 })
+    }
 
-  const userProfile = await getOrCreateUser(session.user.id, session.user.email)
-  const pro = isProUser(userProfile)
+    const { analysisId, message } = (body ?? {}) as { analysisId?: string; message?: string }
+    const trimmed = typeof message === "string" ? message.trim() : ""
+    if (typeof analysisId !== "string" || !analysisId.trim() || !trimmed) {
+      return NextResponse.json({ error: "Analysis ID and message are required." }, { status: 400 })
+    }
+    if (trimmed.length > 2000) {
+      return NextResponse.json({ error: "Message is too long." }, { status: 400 })
+    }
 
-  const rate = await rateLimitByUserId(
-    userProfile.id,
-    pro ? FEATURE_RATE_LIMITS.chatProPerHour : FEATURE_RATE_LIMITS.chatFreePerHour,
-    "1 h",
-  )
-  if (!rate.allowed) {
-    return NextResponse.json({ error: "Too many chat messages. Try again later." }, { status: 429 })
-  }
+    const userProfile = await getOrCreateUser(session.user.id, session.user.email)
+    const pro = isProUser(userProfile)
 
-  const row = await getAnalysisById(userProfile.id, analysisId)
-  if (!row) {
-    return NextResponse.json({ error: "Analysis not found." }, { status: 404 })
-  }
+    const rate = await rateLimitByUserId(
+      userProfile.id,
+      pro ? FEATURE_RATE_LIMITS.chatProPerHour : FEATURE_RATE_LIMITS.chatFreePerHour,
+      "1 h",
+    )
+    if (!rate.allowed) {
+      return NextResponse.json({ error: "Too many chat messages. Try again later." }, { status: 429 })
+    }
 
-  const analysis = parseAnalysisResult(row.result)
-  if (!analysis) {
-    return NextResponse.json({ error: "Analysis data is invalid." }, { status: 500 })
-  }
+    const row = await getAnalysisById(userProfile.id, analysisId)
+    if (!row) {
+      return NextResponse.json({ error: "Analysis not found." }, { status: 404 })
+    }
 
-  const history = parseChatMessages(row.chatMessages)
-  const limit = pro ? CHAT_MESSAGE_LIMITS.pro : CHAT_MESSAGE_LIMITS.free
-  if (history.length >= limit) {
-    return NextResponse.json(
+    const analysis = parseAnalysisResult(row.result)
+    if (!analysis) {
+      return NextResponse.json({ error: "Analysis data is invalid." }, { status: 500 })
+    }
+
+    const history = parseChatMessages(row.chatMessages)
+    const limit = pro ? CHAT_MESSAGE_LIMITS.pro : CHAT_MESSAGE_LIMITS.free
+    const limitReached = NextResponse.json(
       {
         error: pro
           ? "Chat limit reached for this analysis."
@@ -79,37 +81,46 @@ export async function POST(req: NextRequest) {
       },
       { status: 402 },
     )
-  }
+    // Cheap pre-check (fast path); the authoritative cap is enforced atomically
+    // at append time below, so concurrent requests cannot exceed `limit`.
+    if (history.length >= limit) {
+      return limitReached
+    }
 
-  const userMsg: ChatMessage = {
-    role: "user",
-    content: trimmed,
-    createdAt: new Date().toISOString(),
-  }
+    const userMsg: ChatMessage = {
+      role: "user",
+      content: trimmed,
+      createdAt: new Date().toISOString(),
+    }
 
-  let replyText: string
-  try {
-    replyText = await generateChatReply(analysis, history, trimmed)
-  } catch {
-    return NextResponse.json({ error: "AI response failed. Try again." }, { status: 500 })
-  }
-  const assistantMsg: ChatMessage = {
-    role: "assistant",
-    content: replyText,
-    createdAt: new Date().toISOString(),
-  }
+    let replyText: string
+    try {
+      replyText = await generateChatReply(analysis, history, trimmed)
+    } catch {
+      return NextResponse.json({ error: "AI response failed. Try again." }, { status: 500 })
+    }
+    const assistantMsg: ChatMessage = {
+      role: "assistant",
+      content: replyText,
+      createdAt: new Date().toISOString(),
+    }
 
-  let merged: ChatMessage[] | null
-  try {
-    merged = await appendChatMessages(userProfile.id, analysisId, [userMsg, assistantMsg])
-  } catch {
-    return NextResponse.json({ error: "Could not save chat." }, { status: 500 })
-  }
-  if (!merged) {
-    return NextResponse.json({ error: "Could not save chat." }, { status: 500 })
-  }
+    const appended = await appendChatMessages(
+      userProfile.id,
+      analysisId,
+      [userMsg, assistantMsg],
+      limit,
+    )
+    if (!appended.ok) {
+      if (appended.reason === "limit") return limitReached
+      return NextResponse.json({ error: "Analysis not found." }, { status: 404 })
+    }
 
-  return NextResponse.json({ reply: replyText, messages: merged })
+    return NextResponse.json({ reply: replyText, messages: appended.messages })
+  } catch (err) {
+    console.error("[chat] POST error:", err)
+    return NextResponse.json({ error: "Could not process chat." }, { status: 500 })
+  }
 }
 
 export async function GET(req: NextRequest) {

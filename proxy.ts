@@ -5,15 +5,22 @@ export function proxy(request: NextRequest) {
   void request
   const response = NextResponse.next()
 
-  // Content Security Policy
+  // Content Security Policy.
+  // NOTE: this runtime proxy header OVERRIDES the duplicate CSP in
+  // next.config.ts (proxy runs per-request and wins), so the two MUST stay in
+  // sync. 'unsafe-eval' is intentionally NOT granted — the app uses no eval/new
+  // Function and Next's production bundles don't need it. 'unsafe-inline' for
+  // scripts is still required because Next 16 + React 19 streaming SSR emits
+  // inline bootstrap scripts and there is no nonce mechanism yet (nonce-based
+  // CSP is a tracked follow-up).
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+    "script-src 'self' 'unsafe-inline' https://js.stripe.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob:",
     "font-src 'self' https://fonts.gstatic.com",
     "connect-src 'self' https://integrate.api.nvidia.com https://api.stripe.com",
-    "frame-src 'self' https://js.stripe.com",
+    "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'"

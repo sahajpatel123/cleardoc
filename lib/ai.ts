@@ -88,6 +88,9 @@ Rules for deadlines:
 - Prefer absolute_date when the document states an exact date; use relative_rule + anchor_date when it says "within X days"
 - If no deadlines exist, return an empty array`
 
+/** Character (not token) safety cap on document text sent to the model. */
+const MAX_DOCUMENT_CHARS = 80000
+
 export type AnalyzeDocumentParams =
   | {
       mode: "text"
@@ -103,6 +106,23 @@ export type AnalyzeDocumentParams =
       documentName?: string
     }
 
+/**
+ * Log a model-output failure WITHOUT leaking raw document/model content in
+ * production. The raw payload is derived from the user's uploaded document, so
+ * per RULES.md it must never reach prod logs — we emit only safe metadata. The
+ * full payload is still logged locally for debugging.
+ */
+function logRawModelFailure(stage: string, raw: string): void {
+  if (process.env.NODE_ENV === "production") {
+    console.error(`[ai] ${stage}`, {
+      length: raw.length,
+      startsWithBrace: raw.trimStart().startsWith("{"),
+    })
+  } else {
+    console.error(`[ai] ${stage} Raw output:`, raw)
+  }
+}
+
 function parseAnalysisResponse(raw: string): AnalysisResult {
   const cleaned = raw
     .replace(/^```json\s*/i, "")
@@ -114,13 +134,25 @@ function parseAnalysisResponse(raw: string): AnalysisResult {
   try {
     data = JSON.parse(cleaned)
   } catch {
-    console.error("[ai] Invalid JSON from model. Raw output:", raw)
-    throw new Error(AI_INVALID_JSON_ERROR_MESSAGE)
+    // The model occasionally wraps JSON in prose ("Here is the analysis: {…}").
+    // Fall back to the outermost balanced object before giving up.
+    const start = cleaned.indexOf("{")
+    const end = cleaned.lastIndexOf("}")
+    if (start === -1 || end <= start) {
+      logRawModelFailure("Invalid JSON from model.", raw)
+      throw new Error(AI_INVALID_JSON_ERROR_MESSAGE)
+    }
+    try {
+      data = JSON.parse(cleaned.slice(start, end + 1))
+    } catch {
+      logRawModelFailure("Invalid JSON from model.", raw)
+      throw new Error(AI_INVALID_JSON_ERROR_MESSAGE)
+    }
   }
 
   const parsed = parseAnalysisResult(data)
   if (!parsed) {
-    console.error("[ai] Schema validation failed. Raw output:", raw)
+    logRawModelFailure("Schema validation failed.", raw)
     throw new Error(AI_INVALID_JSON_ERROR_MESSAGE)
   }
   return parsed
@@ -141,7 +173,7 @@ export async function analyzeDocument(
           userContext ? `Context from user: ${userContext}\n` : "",
           documentName ? `Document filename: ${documentName}\n` : "",
           "--- DOCUMENT TEXT BEGINS ---\n",
-          documentText.slice(0, 80000),
+          documentText.slice(0, MAX_DOCUMENT_CHARS),
           "\n--- DOCUMENT TEXT ENDS ---",
         ]
           .filter(Boolean)

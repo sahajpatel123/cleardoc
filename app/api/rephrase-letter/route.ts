@@ -21,66 +21,73 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Letter rewrite is temporarily unavailable." }, { status: 503 })
   }
 
-  const session = await auth()
-  if (!session?.user?.id || !session.user.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  let body: unknown
+  // Outer guard so any throw (auth/DB/etc.) returns a shaped JSON error rather
+  // than an unshaped framework 500, consistent with the chat route.
   try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 })
-  }
+    const session = await auth()
+    if (!session?.user?.id || !session.user.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-  const { analysisId, tone } = (body ?? {}) as { analysisId?: string; tone?: string }
-  if (!analysisId || !tone || !TONES.has(tone as LetterTone)) {
-    return NextResponse.json({ error: "Analysis ID and valid tone are required." }, { status: 400 })
-  }
+    let body: unknown
+    try {
+      body = await req.json()
+    } catch {
+      return NextResponse.json({ error: "Invalid request." }, { status: 400 })
+    }
 
-  const userProfile = await getOrCreateUser(session.user.id, session.user.email)
-  const pro = isProUser(userProfile)
+    const { analysisId, tone } = (body ?? {}) as { analysisId?: string; tone?: string }
+    if (typeof analysisId !== "string" || !analysisId.trim() || !tone || !TONES.has(tone as LetterTone)) {
+      return NextResponse.json({ error: "Analysis ID and valid tone are required." }, { status: 400 })
+    }
 
-  const rate = await rateLimitByUserId(
-    userProfile.id,
-    pro ? FEATURE_RATE_LIMITS.rephraseProPerHour : FEATURE_RATE_LIMITS.rephraseFreePerHour,
-    "1 h",
-  )
-  if (!rate.allowed) {
-    return NextResponse.json({ error: "Too many letter rewrites. Try again later." }, { status: 429 })
-  }
+    const userProfile = await getOrCreateUser(session.user.id, session.user.email)
+    const pro = isProUser(userProfile)
 
-  const row = await getAnalysisById(userProfile.id, analysisId)
-  if (!row) {
-    return NextResponse.json({ error: "Analysis not found." }, { status: 404 })
-  }
+    const rate = await rateLimitByUserId(
+      userProfile.id,
+      pro ? FEATURE_RATE_LIMITS.rephraseProPerHour : FEATURE_RATE_LIMITS.rephraseFreePerHour,
+      "1 h",
+    )
+    if (!rate.allowed) {
+      return NextResponse.json({ error: "Too many letter rewrites. Try again later." }, { status: 429 })
+    }
 
-  const analysis = parseAnalysisResult(row.result)
-  if (!analysis) {
-    return NextResponse.json({ error: "Analysis data is invalid." }, { status: 500 })
-  }
+    const row = await getAnalysisById(userProfile.id, analysisId)
+    if (!row) {
+      return NextResponse.json({ error: "Analysis not found." }, { status: 404 })
+    }
 
-  let rewritten: string
-  try {
-    rewritten = await rephraseResponseLetter(analysis.response_letter, tone as LetterTone)
-  } catch {
-    return NextResponse.json({ error: "Letter rewrite AI failed. Try again." }, { status: 500 })
-  }
-  const updated: typeof analysis = {
-    ...analysis,
-    response_letter: rewritten,
-    letter_tone: tone as LetterTone,
-  }
+    const analysis = parseAnalysisResult(row.result)
+    if (!analysis) {
+      return NextResponse.json({ error: "Analysis data is invalid." }, { status: 500 })
+    }
 
-  let ok: boolean
-  try {
-    ok = await updateAnalysisResult(userProfile.id, analysisId, updated)
-  } catch {
-    return NextResponse.json({ error: "Could not save rewritten letter." }, { status: 500 })
-  }
-  if (!ok) {
-    return NextResponse.json({ error: "Could not save rewritten letter." }, { status: 500 })
-  }
+    let rewritten: string
+    try {
+      rewritten = await rephraseResponseLetter(analysis.response_letter, tone as LetterTone)
+    } catch {
+      return NextResponse.json({ error: "Letter rewrite AI failed. Try again." }, { status: 500 })
+    }
+    const updated: typeof analysis = {
+      ...analysis,
+      response_letter: rewritten,
+      letter_tone: tone as LetterTone,
+    }
 
-  return NextResponse.json({ letter: rewritten, tone })
+    let ok: boolean
+    try {
+      ok = await updateAnalysisResult(userProfile.id, analysisId, updated)
+    } catch {
+      return NextResponse.json({ error: "Could not save rewritten letter." }, { status: 500 })
+    }
+    if (!ok) {
+      return NextResponse.json({ error: "Could not save rewritten letter." }, { status: 500 })
+    }
+
+    return NextResponse.json({ letter: rewritten, tone })
+  } catch (err) {
+    console.error("[rephrase-letter] POST error:", err)
+    return NextResponse.json({ error: "Could not rewrite letter." }, { status: 500 })
+  }
 }

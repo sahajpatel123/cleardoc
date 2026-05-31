@@ -248,22 +248,38 @@ export function parseChatMessages(raw: unknown): ChatMessage[] {
   return out
 }
 
+export type AppendChatResult =
+  | { ok: true; messages: ChatMessage[] }
+  | { ok: false; reason: "limit" | "missing" }
+
 /**
- * Append chat messages atomically using PostgreSQL jsonb concatenation,
- * avoiding the read-modify-write race that could lose messages.
+ * Append chat messages atomically using PostgreSQL jsonb concatenation. The
+ * per-analysis cap is enforced INSIDE the same statement (jsonb_array_length
+ * guard with RETURNING), so concurrent requests cannot push the stored history
+ * past the cap — closing the check-then-act race the route's pre-check alone
+ * left open. Returns the merged messages on success, or a reason on no-op.
  */
 export async function appendChatMessages(
   userId: string,
   analysisId: string,
   newMessages: ChatMessage[],
-): Promise<ChatMessage[] | null> {
-  await prisma.$executeRaw`
+  maxMessages: number,
+): Promise<AppendChatResult> {
+  const updated = await prisma.$queryRaw<Array<{ chatMessages: unknown }>>`
     UPDATE "Analysis"
     SET "chatMessages" = COALESCE("chatMessages", '[]'::jsonb) || ${JSON.stringify(newMessages)}::jsonb
-    WHERE id = ${analysisId} AND "userId" = ${userId}
+    WHERE id = ${analysisId}
+      AND "userId" = ${userId}
+      AND jsonb_array_length(COALESCE("chatMessages", '[]'::jsonb)) < ${maxMessages}
+    RETURNING "chatMessages"
   `
+  if (updated.length > 0) {
+    return { ok: true, messages: parseChatMessages(updated[0].chatMessages) }
+  }
+  // No row updated: the analysis is either at/over the cap, or gone (deleted
+  // concurrently / not owned). Distinguish so the route returns 402 vs 404.
   const row = await getAnalysisById(userId, analysisId)
-  return row ? parseChatMessages(row.chatMessages) : null
+  return { ok: false, reason: row ? "limit" : "missing" }
 }
 
 export async function getCaseAnalyses(userId: string, caseId: string) {

@@ -5,6 +5,10 @@ export function buildIcsEvent(opts: {
   startDate: Date
   uid?: string
 }): string {
+  if (Number.isNaN(opts.startDate.getTime())) {
+    throw new Error("buildIcsEvent: invalid startDate")
+  }
+
   const pad = (n: number) => String(n).padStart(2, "0")
   const formatDate = (d: Date) =>
     `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}`

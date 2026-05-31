@@ -38,7 +38,8 @@ export function buildCaseContextFromAnalyses(
 
   let text = sections.join("\n\n")
   if (text.length > MAX_CONTEXT_CHARS) {
-    text = text.slice(0, MAX_CONTEXT_CHARS) + "\n\n[Prior context truncated.]"
+    const cut = text.lastIndexOf(" ", MAX_CONTEXT_CHARS)
+    text = text.slice(0, cut > 0 ? cut : MAX_CONTEXT_CHARS) + "\n\n[Prior context truncated.]"
   }
   return text
 }

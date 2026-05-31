@@ -19,6 +19,15 @@ export type ExtractDocumentResult =
       base64Data: string
     }
 
+/** Decode pdf2json's URL-encoded text, tolerating malformed percent-escapes. */
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s)
+  } catch {
+    return s
+  }
+}
+
 export async function extractDocumentFromBuffer(
   buffer: Buffer,
   mimeType: string
@@ -71,7 +80,7 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
           const pageText = (page.Texts ?? [])
             .map((t) =>
               (t.R ?? [])
-                .map((r) => decodeURIComponent(r.T))
+                .map((r) => safeDecode(r.T))
                 .join("")
             )
             .join(" ")

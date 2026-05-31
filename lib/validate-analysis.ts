@@ -77,8 +77,18 @@ export function parseAnalysisResult(data: unknown): AnalysisResult | null {
     deadlines = []
     for (const item of o.deadlines) {
       const parsed = parseDeadline(item)
-      if (parsed) deadlines.push(parsed)
-      // silently skip malformed deadlines (corruption resilience)
+      if (parsed) {
+        deadlines.push(parsed)
+      } else {
+        // Stay corruption-resilient (one bad deadline must not void the whole
+        // analysis), but make the loss observable — metadata only, no content.
+        const d = (item ?? {}) as Record<string, unknown>
+        console.warn("[validate] dropped malformed deadline", {
+          hasLabel: typeof d.label === "string",
+          urgency: typeof d.urgency === "string" ? d.urgency : typeof d.urgency,
+          dateType: typeof d.date_type === "string" ? d.date_type : typeof d.date_type,
+        })
+      }
     }
   }
 
