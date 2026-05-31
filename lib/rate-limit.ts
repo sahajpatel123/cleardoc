@@ -64,25 +64,6 @@ function sweepExpired(now: number) {
   }
 }
 
-function rateLimitInMemory(key: string, limit: number, window: Window): RateLimitResult {
-  const now = Date.now()
-  if (memoryStore.size > MEMORY_STORE_MAX_KEYS) sweepExpired(now)
-
-  let entry = memoryStore.get(key)
-  if (!entry || entry.resetAt <= now) {
-    entry = { count: 0, resetAt: now + windowToMs(window) }
-    memoryStore.set(key, entry)
-  }
-  entry.count += 1
-
-  return {
-    allowed: entry.count <= limit,
-    limit,
-    remaining: Math.max(0, limit - entry.count),
-    reset: entry.resetAt,
-  }
-}
-
 async function rateLimitByKey(
   key: string,
   limit: number,
@@ -103,6 +84,32 @@ async function rateLimitByKey(
     limit: result.limit,
     remaining: result.remaining,
     reset: result.reset,
+  }
+}
+
+function rateLimitInMemory(key: string, limit: number, window: Window): RateLimitResult {
+  const now = Date.now()
+  if (memoryStore.size > MEMORY_STORE_MAX_KEYS) sweepExpired(now)
+
+  const existing = memoryStore.get(key)
+  let count: number
+  let resetAt: number
+
+  if (!existing || existing.resetAt <= now) {
+    count = 1
+    resetAt = now + windowToMs(window)
+    memoryStore.set(key, { count, resetAt })
+  } else {
+    existing.count += 1
+    count = existing.count
+    resetAt = existing.resetAt
+  }
+
+  return {
+    allowed: count <= limit,
+    limit,
+    remaining: Math.max(0, limit - count),
+    reset: resetAt,
   }
 }
 
@@ -148,6 +155,11 @@ export const ANALYZE_RATE_LIMITS = {
   ipPerHour: 15,
   freeUserPerHour: 10,
   proUserPerHour: 60,
+} as const
+
+/** Rate limit for billing endpoints (checkout, portal). */
+export const BILLING_RATE_LIMITS = {
+  perHour: 5,
 } as const
 
 export const FEATURE_RATE_LIMITS = {

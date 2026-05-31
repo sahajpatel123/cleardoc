@@ -1,6 +1,6 @@
 import OpenAI from "openai"
 import type { AnalysisResult, ChatMessage, LetterTone } from "./types"
-import { AI_MODEL, nimCompletionParams } from "./ai-model"
+import { AI_MODEL, nimCompletionParams, AI_TIMEOUT_MS, withTimeout } from "./ai-model"
 
 const client = new OpenAI({
   apiKey: process.env.NVIDIA_API_KEY,
@@ -46,18 +46,14 @@ export async function generateChatReply(
   userMessage: string,
 ): Promise<string> {
   return withRetry(async () => {
-    const contextBlock = JSON.stringify(
-      {
+    const contextBlock = JSON.stringify({
         plain_summary: analysis.plain_summary,
         overall_verdict: analysis.overall_verdict,
         red_flags: analysis.red_flags,
         next_steps: analysis.next_steps,
         response_letter: analysis.response_letter,
         deadlines: analysis.deadlines ?? [],
-      },
-      null,
-      2,
-    )
+      })
 
     const messages: OpenAI.ChatCompletionMessageParam[] = [
       { role: "system", content: `${CHAT_SYSTEM}\n\nDocument analysis JSON:\n${contextBlock}` },
@@ -68,13 +64,17 @@ export async function generateChatReply(
       { role: "user", content: userMessage },
     ]
 
-    const response = await client.chat.completions.create(
-      nimCompletionParams({
-        model: AI_MODEL,
-        max_tokens: 1024,
-        temperature: 0.3,
-        messages,
-      }),
+    const response = await withTimeout(
+      client.chat.completions.create(
+        nimCompletionParams({
+          model: AI_MODEL,
+          max_tokens: 1024,
+          temperature: 0.3,
+          messages,
+        }),
+      ),
+      AI_TIMEOUT_MS,
+      "chat reply",
     )
 
     const text = response.choices[0]?.message?.content ?? ""
@@ -97,22 +97,26 @@ export async function rephraseResponseLetter(
   tone: LetterTone,
 ): Promise<string> {
   return withRetry(async () => {
-    const response = await client.chat.completions.create(
-      nimCompletionParams({
-        model: AI_MODEL,
-        max_tokens: 2000,
-        temperature: 0.2,
-        messages: [
-          {
-            role: "system",
-            content: `You rewrite formal response letters for consumers disputing institutions. Preserve ALL facts, dates, dollar amounts, policy numbers, names, and legal references exactly. Do not invent new facts or citations. Only change tone and phrasing. Return ONLY the rewritten letter text — no preamble or markdown.`,
-          },
-          {
-            role: "user",
-            content: `Rewrite this letter to sound ${TONE_PROMPTS[tone]}\n\n--- LETTER ---\n${letter}`,
-          },
-        ],
-      }),
+    const response = await withTimeout(
+      client.chat.completions.create(
+        nimCompletionParams({
+          model: AI_MODEL,
+          max_tokens: 2000,
+          temperature: 0.2,
+          messages: [
+            {
+              role: "system",
+              content: `You rewrite formal response letters for consumers disputing institutions. Preserve ALL facts, dates, dollar amounts, policy numbers, names, and legal references exactly. Do not invent new facts or citations. Only change tone and phrasing. Return ONLY the rewritten letter text — no preamble or markdown.`,
+            },
+            {
+              role: "user",
+              content: `Rewrite this letter to sound ${TONE_PROMPTS[tone]}\n\n--- LETTER ---\n${letter}`,
+            },
+          ],
+        }),
+      ),
+      AI_TIMEOUT_MS,
+      "letter rephrase",
     )
 
     const text = response.choices[0]?.message?.content ?? ""

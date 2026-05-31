@@ -1,6 +1,6 @@
 import OpenAI from "openai"
 import type { AnalysisResult } from "./types"
-import { AI_MODEL, nimCompletionParams } from "./ai-model"
+import { AI_MODEL, nimCompletionParams, AI_TIMEOUT_MS, withTimeout } from "./ai-model"
 import { parseAnalysisResult } from "./validate-analysis"
 
 const client = new OpenAI({
@@ -10,7 +10,7 @@ const client = new OpenAI({
 
 /** Thrown when JSON.parse fails; API route maps this to a user-safe message. */
 export const AI_INVALID_JSON_ERROR_MESSAGE =
-  "Model returned invalid JSON. Raw output logged."
+  "Model returned invalid JSON"
 
 const SYSTEM_PROMPT = `You are ClearDoc's analysis engine — simultaneously a consumer rights attorney, insurance specialist, tenant rights advocate, medical billing expert, and immigration lawyer. You are direct, opinionated, and unfailingly on the side of the individual against institutions.
 
@@ -109,15 +109,12 @@ export type AnalyzeDocumentParams =
 /**
  * Log a model-output failure WITHOUT leaking raw document/model content in
  * production. The raw payload is derived from the user's uploaded document, so
- * per RULES.md it must never reach prod logs — we emit only safe metadata. The
+ * per RULES.md it must never reach prod logs — we emit only a generic error. The
  * full payload is still logged locally for debugging.
  */
 function logRawModelFailure(stage: string, raw: string): void {
   if (process.env.NODE_ENV === "production") {
-    console.error(`[ai] ${stage}`, {
-      length: raw.length,
-      startsWithBrace: raw.trimStart().startsWith("{"),
-    })
+    console.error(`[ai] ${stage} Model returned invalid JSON`)
   } else {
     console.error(`[ai] ${stage} Raw output:`, raw)
   }
@@ -179,7 +176,8 @@ export async function analyzeDocument(
           .filter(Boolean)
           .join("\n")
 
-        const response = await client.chat.completions.create(
+const response = await withTimeout(
+        client.chat.completions.create(
           nimCompletionParams({
             model: AI_MODEL,
             max_tokens: 4000,
@@ -189,9 +187,12 @@ export async function analyzeDocument(
               { role: "user", content: userMessage },
             ],
           }),
-        )
+        ),
+        AI_TIMEOUT_MS,
+        "document analysis",
+      )
 
-        const raw = response.choices[0]?.message?.content ?? ""
+      const raw = response.choices[0]?.message?.content ?? ""
         return parseAnalysisResponse(raw)
       }
 
@@ -205,30 +206,34 @@ export async function analyzeDocument(
         .filter(Boolean)
         .join("\n")
 
-      const response = await client.chat.completions.create(
-        nimCompletionParams({
-          model: AI_MODEL,
-          max_tokens: 4000,
-          temperature: 0,
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            {
-              role: "user",
-              content: [
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:${mediaType};base64,${base64Data}`,
+const response = await withTimeout(
+        client.chat.completions.create(
+          nimCompletionParams({
+            model: AI_MODEL,
+            max_tokens: 4000,
+            temperature: 0,
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT },
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: `data:${mediaType};base64,${base64Data}`,
+                    },
                   },
-                },
-                {
-                  type: "text",
-                  text: instructionText,
-                },
-              ],
-            },
-          ],
-        }),
+                  {
+                    type: "text",
+                    text: instructionText,
+                  },
+                ],
+              },
+            ],
+          }),
+        ),
+        AI_TIMEOUT_MS,
+        "image analysis",
       )
 
       const raw = response.choices[0]?.message?.content ?? ""

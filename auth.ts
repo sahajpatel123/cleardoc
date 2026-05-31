@@ -66,8 +66,13 @@ function createAuth() {
         if (user) {
           token.id = user.id
           token.email = user.email
+          // Also fetch tokenVersion on sign-in to enable immediate validation
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { tokenVersion: true },
+          })
+          token.ver = dbUser?.tokenVersion ?? 0
         } else if (typeof token.email === "string") {
-          // Only query DB if token is missing id (first refresh after sign-in)
           if (!token.id) {
             const dbUser = await prisma.user.findUnique({
               where: { email: token.email.trim().toLowerCase() },
@@ -78,7 +83,6 @@ function createAuth() {
               token.ver = dbUser.tokenVersion ?? 0
             }
           } else if (typeof token.ver === "number") {
-            // Validate token version hasn't been revoked
             const dbUser = await prisma.user.findUnique({
               where: { id: token.id as string },
               select: { tokenVersion: true },

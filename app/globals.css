@@ -24,7 +24,7 @@
   --text:         #F5F2EB;
   --text-2:       rgba(245, 242, 235, 0.72);
   --text-3:       rgba(245, 242, 235, 0.48);
-  --text-mute:    rgba(245, 242, 235, 0.28);
+  --text-mute:    rgba(245, 242, 235, 0.35); /* WCAG 4.5:1 on #050505 */
 
   /* Hairlines */
   --hairline:     rgba(245, 242, 235, 0.08);

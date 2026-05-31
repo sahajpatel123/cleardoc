@@ -142,7 +142,7 @@ export default function PricingModal({
             style={{ fontSize: "clamp(1.8rem, 3.2vw, 2.4rem)", color: "var(--text)" }}
           >
             <span>Today&apos;s </span>
-            <span className="serif-italic" style={{ color: "var(--ember)" }}>{quota?.limit} are used.</span>
+            <span className="serif-italic" style={{ color: "var(--ember)" }}>{quota?.used ?? 0} used.</span>
           </h2>
           <p className="text-sm mb-6 leading-relaxed" style={{ color: "var(--text-3)" }}>
             Free accounts include {FREE_DAILY_ANALYSIS_LIMIT} analyses per day.

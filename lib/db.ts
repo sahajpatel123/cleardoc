@@ -161,6 +161,8 @@ export async function cancelSubscriptionForCustomer(stripeCustomerId: string) {
 
 // ── Analysis ─────────────────────────────────────────────
 
+/** Dashboard history list. Returns full result because Prisma cannot partially select JSON fields.
+ *  If bandwidth becomes problematic at scale, add `overallVerdict` column to Analysis table. */
 export async function getUserAnalyses(userId: string) {
   await ensureDatabaseSchema()
   return prisma.analysis.findMany({

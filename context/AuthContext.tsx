@@ -6,6 +6,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react"
 import { useSession, signOut } from "next-auth/react"
 import type { UserPlanProfile } from "@/lib/types"
@@ -34,54 +35,60 @@ const AuthContext = createContext<AuthContextValue>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
   const [profile, setProfile] = useState<UserPlanProfile | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const refreshProfile = useCallback(async () => {
     if (!session?.user?.id) {
       setProfile(null)
       return
     }
-    const res = await fetch("/api/usage")
-    if (!res.ok) {
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+
+    try {
+      const res = await fetch("/api/usage", { signal: abortRef.current.signal })
+      if (!res.ok) {
+        setProfile(null)
+        return
+      }
+      const data = (await res.json()) as {
+        error?: string
+        freeUsesRemaining?: number
+        freeAnalysesRemainingToday?: number
+        freeAnalysesUsedToday?: number
+        freeDailyLimit?: number
+        resetsAt?: string
+        plan?: string
+        subscriptionStatus?: string
+        unlimited?: boolean
+      }
+      if (data.error) {
+        setProfile(null)
+        return
+      }
+      setProfile({
+        plan: data.plan ?? "free",
+        freeUsesRemaining: data.freeAnalysesRemainingToday ?? data.freeUsesRemaining ?? 0,
+        subscriptionStatus: data.subscriptionStatus ?? "inactive",
+        freeDailyLimit: data.freeDailyLimit,
+        freeAnalysesUsedToday: data.freeAnalysesUsedToday,
+        freeAnalysesRemainingToday: data.freeAnalysesRemainingToday,
+        resetsAt: data.resetsAt,
+        unlimited: data.unlimited,
+      })
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") return
       setProfile(null)
-      return
     }
-    const data = (await res.json()) as {
-      error?: string
-      freeUsesRemaining?: number
-      freeAnalysesRemainingToday?: number
-      freeAnalysesUsedToday?: number
-      freeDailyLimit?: number
-      resetsAt?: string
-      plan?: string
-      subscriptionStatus?: string
-      unlimited?: boolean
-    }
-    if (data.error) {
-      setProfile(null)
-      return
-    }
-    setProfile({
-      plan: data.plan ?? "free",
-      freeUsesRemaining: data.freeAnalysesRemainingToday ?? data.freeUsesRemaining ?? 0,
-      subscriptionStatus: data.subscriptionStatus ?? "inactive",
-      freeDailyLimit: data.freeDailyLimit,
-      freeAnalysesUsedToday: data.freeAnalysesUsedToday,
-      freeAnalysesRemainingToday: data.freeAnalysesRemainingToday,
-      resetsAt: data.resetsAt,
-      unlimited: data.unlimited,
-    })
   }, [session?.user?.id])
 
   useEffect(() => {
-    (async () => {
-      if (status === "authenticated") {
-        // Refresh user profile for authenticated session
-        await refreshProfile()
-      } else {
-        // Clear profile when not authenticated
-        setProfile(null)
-      }
-    })()
+    if (status === "authenticated") {
+      refreshProfile()
+    } else {
+      setProfile(null)
+    }
+    return () => abortRef.current?.abort()
   }, [status, refreshProfile])
 
   const user =

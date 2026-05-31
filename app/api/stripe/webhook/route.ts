@@ -20,8 +20,9 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       let userId = session.metadata?.userId ?? session.client_reference_id ?? null
 
       if (!userId && session.customer_email) {
-        const byEmail = await prisma.user.findUnique({
+        const byEmail = await prisma.user.findFirst({
           where: { email: session.customer_email.trim().toLowerCase() },
+          orderBy: { createdAt: "desc" },
         })
         userId = byEmail?.id ?? null
       }
@@ -43,11 +44,11 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
         break
       }
 
-      const subscription = await getStripe().subscriptions.retrieve(
-        session.subscription as string,
-      )
+      // If subscription is not expanded, we still upgrade with what we have
+      // The subscription.* webhook will update with full status later
+      const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id
 
-      await upgradeUserToPro(userId, customerId, subscription.id)
+      await upgradeUserToPro(userId, customerId, subscriptionId ?? "")
       break
     }
 

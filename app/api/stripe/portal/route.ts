@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { getOrCreateUser } from "@/lib/db"
 import { createBillingPortalSession } from "@/lib/stripe"
+import { rateLimitByUserId, BILLING_RATE_LIMITS } from "@/lib/rate-limit"
 
 export async function POST() {
   try {
@@ -11,6 +12,15 @@ export async function POST() {
     }
 
     const profile = await getOrCreateUser(session.user.id, session.user.email)
+
+    const rate = await rateLimitByUserId(profile.id, BILLING_RATE_LIMITS.perHour, "1 h")
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please wait before trying again." },
+        { status: 429 },
+      )
+    }
+
     if (!profile.stripeCustomerId) {
       return NextResponse.json(
         { error: "No billing account found. Subscribe to Pro first." },

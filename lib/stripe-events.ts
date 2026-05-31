@@ -19,5 +19,16 @@ export async function claimStripeEvent(eventId: string): Promise<boolean> {
 }
 
 export async function releaseStripeEventClaim(eventId: string): Promise<void> {
-  await prisma.processedStripeEvent.delete({ where: { id: eventId } }).catch(() => {})
+  try {
+    await prisma.processedStripeEvent.delete({ where: { id: eventId } })
+  } catch (err: unknown) {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? (err as { code: string }).code
+        : undefined
+    // P2025 = record not found - not an error, already released
+    if (code !== "P2025") {
+      console.error("[stripe-events] Failed to release event claim:", eventId, err)
+    }
+  }
 }

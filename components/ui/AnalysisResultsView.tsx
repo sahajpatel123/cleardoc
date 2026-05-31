@@ -112,13 +112,13 @@ export default function AnalysisResultsView({
               </p>
             </div>
           </div>
-        ) : (
-          <div>
-            {sortedFlags.map((flag, i) => (
-              <RedFlagItem key={i} flag={flag} index={i} />
-            ))}
-          </div>
-        ),
+) : (
+           <div>
+             {sortedFlags.map((flag, i) => (
+               <RedFlagItem key={flag.issue ?? i} flag={flag} index={i} />
+             ))}
+           </div>
+         ),
     },
     {
       show: true,
@@ -139,15 +139,15 @@ export default function AnalysisResultsView({
       title: "Your next moves",
       subtitle: "Ranked by likelihood of success",
       accent: "green" as const,
-      content: (
-        <div>
-          {[...localResult.next_steps]
-            .sort((a, b) => a.priority - b.priority)
-            .map((step, i) => (
-              <NextStepItem key={i} step={step} index={i} />
-            ))}
-        </div>
-      ),
+content: (
+         <div>
+           {[...localResult.next_steps]
+             .sort((a, b) => a.priority - b.priority)
+             .map((step) => (
+               <NextStepItem key={step.priority} step={step} index={step.priority - 1} />
+             ))}
+         </div>
+       ),
     },
     {
       show: Boolean(analysisId),
