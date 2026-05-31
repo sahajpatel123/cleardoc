@@ -30,7 +30,7 @@ ClearDoc helps everyday people understand and fight back against scary official 
   - Security hardening (login throttle, auth optimization, AI retry, try-catch on GET routes)
 - **Product works end-to-end:** upload → login gate → analyze → save → dashboard history → Stripe upgrade.
 - **Recently shipped:** Nemotron Omni model swap, security hardening, dedicated analysis session page, mobile horizontal-scroll fix, GDPR deletion endpoint.
-- **Audit triaged + fixed (2026-06-01):** the "117-issue" audit was verified by workflow — 13 confirmed, 14 false-positive, severities overstated. Confirmed defects fixed & verified green (tsc + tests + build): chat/rephrase error-shape, atomic chat cap, webhook null-customer guard, CSP `unsafe-eval` drop + `poweredByHeader`, prod raw-log gating, analyze error codes, pdf decode safety, Stripe-event cleanup cron. Uncommitted on `main`. See [[CHANGES]] + [[DECISIONS]] D-007.
+- **Audit triaged + fixed (2026-06-01):** the "117-issue" audit was verified by workflow — 13 confirmed, 14 false-positive, severities overstated. Confirmed defects fixed & verified green (tsc + tests + build): chat/rephrase error-shape, atomic chat cap, webhook null-customer guard, CSP `unsafe-eval` drop + `poweredByHeader`, prod raw-log gating, analyze error codes, pdf decode safety, Stripe-event cleanup cron. Pushed to `main` (`14c38ec` code, `feac60f` memory). See [[CHANGES]] + [[DECISIONS]] D-007.
 - **Deploy target:** Vercel + Supabase Postgres (pooler). Build does **not** run migrations; schema self-heals at runtime. See [[KNOWLEDGE/deployment-and-schema]].
 
 ---

@@ -21,6 +21,7 @@
   - Wired the orphaned `cleanupProcessedStripeEvents` via new authenticated `GET /api/cron/cleanup` + `vercel.json` weekly cron (CLEANUP-ORPHAN). Needs `CRON_SECRET` env (`.env.example` is permission-locked — add manually).
 - **Rejected as false-positive (no change):** revenue "leaks" #5/#6 (access already revokes via `subscription.updated`→non-active + `isProUser`), quota race (atomic advisory-lock save), chat read-after-write (atomic append), `STRIPE_WEBHOOK_SECRET!` (env-asserted), usage/health/db #19/#20/#24, JWT "2 queries" (it's 1, by design), validate cast, vision size, moderation.
 - **Deferred:** frontend a11y/perf cluster (its triage agent failed — needs own pass), password-change endpoint (#12), Prisma enums + `ProcessedStripeEvent` `createdAt` index (migration), past_due grace (product), nonce-based CSP, next-auth GA bump. See [[TODO]].
+- Committed `14c38ec` (code) + `feac60f` (memory) and pushed to `main`. Left uncommitted (unrelated / pending owner decision): `lib/ensure-schema.ts`, `DESIGN.md`, `marketing-posters/`.
 - Refs: [[DECISIONS]] D-007; [[KNOWLEDGE/security]]; daily-2026-06-01.
 
 ## 2026-06-01 — Full analysis + internalization of `./memory/` system
