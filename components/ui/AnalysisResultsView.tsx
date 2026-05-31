@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useCallback, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import ResultCard from "@/components/ui/ResultCard"
@@ -52,16 +52,17 @@ export default function AnalysisResultsView({
   const sortedFlags = [...localResult.red_flags].sort(
     (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
   )
-  const deadlines = localResult.deadlines ?? []
 
-  const handleLetterChange = (letter: string, tone: LetterTone) => {
+  const handleLetterChange = useCallback((letter: string, tone: LetterTone) => {
     const updated = { ...localResult, response_letter: letter, letter_tone: tone }
     setLocalResult(updated)
     onResultChange?.(updated)
-  }
+  }, [localResult, onResultChange])
 
   // Panels in display order (conditional ones are filtered below)
-  const panelDefs = [
+  const panelDefs = useMemo(() => {
+    const deadlines = localResult.deadlines ?? []
+    return [
     {
       show: true,
       title: "What this actually says",
@@ -155,7 +156,7 @@ export default function AnalysisResultsView({
       accent: "orange" as const,
       content: <AnalysisChat analysisId={analysisId!} initialMessages={chatMessages} />,
     },
-  ]
+  ]}, [localResult, sortedFlags, analysisId, chatMessages, handleLetterChange])
 
   const shownPanels = panelDefs.filter((p) => p.show)
 

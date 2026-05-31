@@ -25,7 +25,7 @@ export default function RedFlagItem({ flag, index }: Props) {
       className="relative py-5 border-b"
       style={{ borderColor: "var(--hairline-2)" }}
     >
-      <button onClick={() => setOpen((o) => !o)} className="w-full text-left flex items-start gap-5">
+      <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full text-left flex items-start gap-5">
         <span
           className="mono text-[10px] tracking-[0.2em] mt-1 shrink-0"
           style={{ color: "var(--text-mute)" }}

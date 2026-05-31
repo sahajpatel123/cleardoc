@@ -106,10 +106,11 @@ function DeadlineRow({ deadline, index }: { deadline: DocumentDeadline; index: n
       {deadline.date_type === "relative" && (
         <div className="flex flex-col sm:flex-row sm:items-end gap-3 pt-2 border-t" style={{ borderColor: style.border }}>
           <div className="flex-1">
-            <label className="mono text-[10px] tracking-[0.18em] block mb-2" style={{ color: "var(--text-mute)" }}>
+            <label htmlFor={`anchor-date-${index}`} className="mono text-[10px] tracking-[0.18em] block mb-2" style={{ color: "var(--text-mute)" }}>
               {deadline.relative_rule ?? "Relative deadline"} — confirm receipt / notice date
             </label>
             <input
+              id={`anchor-date-${index}`}
               type="date"
               value={anchorDate}
               onChange={(e) => setAnchorDate(e.target.value)}

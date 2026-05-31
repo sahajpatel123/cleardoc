@@ -35,10 +35,18 @@ function DashboardContent() {
       router.push(`/login?redirect=${encodeURIComponent("/dashboard")}`)
       return
     }
-    fetch("/api/analyses")
-      .then((r) => (r.ok ? r.json() : Promise.resolve([])))
-      .then((data: Analysis[]) => setAnalyses(Array.isArray(data) ? data : []))
+    const controller = new AbortController()
+    fetch("/api/analyses", { signal: controller.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
+      .then((data: unknown) => setAnalyses(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        if (err?.name !== "AbortError") setAnalyses([])
+      })
       .finally(() => setLoadingHistory(false))
+    return () => controller.abort()
   }, [user, authLoading, router])
 
   if (authLoading) {

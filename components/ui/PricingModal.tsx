@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Check, ArrowRight } from "lucide-react"
@@ -20,13 +20,16 @@ const FEATURES = [
 export default function PricingModal({
   onClose,
   quota,
+  triggerRef,
 }: {
   onClose: () => void
   quota?: FreeLimitQuota
+  triggerRef?: React.RefObject<HTMLButtonElement | null>
 }) {
   const router = useRouter()
   const { user } = useAuth()
   const { startCheckout, loading, error } = useBilling()
+  const modalRef = useRef<HTMLDivElement>(null)
 
   const handleUpgrade = async () => {
     if (!user) {
@@ -36,14 +39,57 @@ export default function PricingModal({
     await startCheckout()
   }
 
-  // Close on Escape — standard modal keyboard behavior
+  // Focus-trap: trap Tab within the modal
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose()
+        return
+      }
+      if (e.key !== "Tab") return
+      const modal = modalRef.current
+      if (!modal) return
+      const focusable = modal.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      )
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
+    },
+    [onClose],
+  )
+
+  // Close on Escape + focus-trap
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose()
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [handleKeyDown])
+
+  // Focus the modal on mount; restore trigger on unmount
+  useEffect(() => {
+    const trigger = triggerRef?.current
+    const timer = setTimeout(() => {
+      const firstFocusable = modalRef.current?.querySelector<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      )
+      firstFocusable?.focus()
+    }, 50)
+    return () => {
+      clearTimeout(timer)
+      trigger?.focus()
     }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [onClose])
+  }, [triggerRef])
 
   return (
     <div
@@ -62,6 +108,7 @@ export default function PricingModal({
       />
 
       <motion.div
+        ref={modalRef}
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 16 }}

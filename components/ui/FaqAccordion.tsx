@@ -32,6 +32,22 @@ export default function FaqAccordion({
             type="button"
             className="w-full flex items-baseline justify-between py-6 text-left gap-6"
             onClick={() => setOpen(open === i ? null : i)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault()
+                const next = items[i + 1]
+                if (next) {
+                  const buttons = e.currentTarget.closest("div")?.querySelectorAll<HTMLElement>("button")
+                  buttons?.[i + 1]?.focus()
+                }
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault()
+                if (i > 0) {
+                  const buttons = e.currentTarget.closest("div")?.querySelectorAll<HTMLElement>("button")
+                  buttons?.[i - 1]?.focus()
+                }
+              }
+            }}
             aria-expanded={open === i}
           >
             <span className="flex items-baseline gap-5 flex-1 min-w-0">

@@ -29,7 +29,8 @@ export default function ResponseLetter({ letter, tone, analysisId, onLetterChang
   const handleCopy = async () => {
     await navigator.clipboard.writeText(currentLetter)
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    const id = setTimeout(() => setCopied(false), 2000)
+    return () => clearTimeout(id)
   }
 
   const handleDownload = () => {

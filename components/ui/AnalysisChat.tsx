@@ -163,6 +163,7 @@ export default function AnalysisChat({ analysisId, initialMessages = [] }: Props
                 }
               }}
               placeholder="Ask about your next call or step…"
+              aria-label="Ask a question about this document"
               className="field flex-1"
               disabled={loading}
             />
@@ -170,6 +171,7 @@ export default function AnalysisChat({ analysisId, initialMessages = [] }: Props
               type="button"
               onClick={() => void send()}
               disabled={loading || !input.trim()}
+              aria-label="Send message"
               className="btn btn-primary !px-4 shrink-0"
             >
               <Send className="w-4 h-4" />

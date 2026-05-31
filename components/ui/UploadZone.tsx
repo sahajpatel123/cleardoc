@@ -119,7 +119,7 @@ export default function UploadZone({ onFileSelect, file, onClear, disabled }: Pr
                 borderBottom: "1px solid var(--hairline-2)",
               }}
             >
-              <input {...getInputProps()} />
+              <input {...getInputProps()} aria-describedby={error ? "upload-error" : undefined} />
               <div className="py-12 sm:py-16 relative">
                 {/* The big drag-here line, designed like a magazine pull-quote */}
                 <div className="flex items-baseline gap-4 sm:gap-6">
@@ -212,6 +212,8 @@ export default function UploadZone({ onFileSelect, file, onClear, disabled }: Pr
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
+            id="upload-error"
+            role="alert"
             className="flex items-center gap-2 mt-4 text-xs"
             style={{ color: "var(--red)" }}
           >
