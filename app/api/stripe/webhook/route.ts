@@ -28,20 +28,25 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       }
 
       if (!userId) {
-        console.error("[webhook] checkout.session.completed: missing userId", session.id)
-        break
+        // Don't consume the event — let Stripe retry until we can resolve the user.
+        // This prevents the "user pays but never gets Pro" failure mode.
+        console.error("[webhook] checkout.session.completed: cannot resolve userId — releasing claim for retry", session.id)
+        await releaseStripeEventClaim(event.id)
+        throw new Error("Cannot resolve userId for checkout session")
       }
 
       if (!session.subscription) {
-        console.error("[webhook] checkout.session.completed: missing subscription", session.id)
-        break
+        console.error("[webhook] checkout.session.completed: missing subscription — releasing claim for retry", session.id)
+        await releaseStripeEventClaim(event.id)
+        throw new Error("Missing subscription in checkout session")
       }
 
       const customerId =
         typeof session.customer === "string" ? session.customer : session.customer?.id
       if (!customerId) {
-        console.error("[webhook] checkout.session.completed: missing customer", session.id)
-        break
+        console.error("[webhook] checkout.session.completed: missing customer — releasing claim for retry", session.id)
+        await releaseStripeEventClaim(event.id)
+        throw new Error("Missing customer in checkout session")
       }
 
       // If subscription is not expanded, we still upgrade with what we have
@@ -61,13 +66,17 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
         break
       }
       const user = await getUserByStripeCustomerId(customerId)
-      if (!user) break
+      if (!user) {
+        console.warn("[webhook] subscription.updated/created: no user found for customer", customerId, "— event will be dropped")
+        break
+      }
 
       const isActive = sub.status === "active" || sub.status === "trialing"
+      const isPastDue = sub.status === "past_due"
       await updateUserSubscriptionByCustomerId(customerId, {
         stripeSubscriptionId: sub.id,
-        plan: isActive ? "pro" : "free",
-        subscriptionStatus: isActive ? "active" : "inactive",
+        plan: isActive ? "pro" : isPastDue ? user.plan : "free",
+        subscriptionStatus: isActive ? "active" : isPastDue ? "past_due" : "inactive",
       })
       break
     }
@@ -80,7 +89,10 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
         break
       }
       const user = await getUserByStripeCustomerId(customerId)
-      if (!user) break
+      if (!user) {
+        console.warn("[webhook] subscription.deleted: no user found for customer", customerId, "— cancellation will be dropped")
+        break
+      }
 
       await cancelSubscriptionForCustomer(customerId)
       break
@@ -94,14 +106,28 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
         break
       }
       const user = await getUserByStripeCustomerId(customerId)
-      if (!user) break
+      if (!user) {
+        console.warn("[webhook] invoice.payment_failed: no user found for customer", customerId, "— failure will be dropped")
+        break
+      }
 
       console.warn(
         "[webhook] Payment failed for user",
         user.id,
         "- invoice:",
         invoice.id,
+        "- attempt:",
+        invoice.attempt_count,
       )
+
+      // After 3 failed attempts, downgrade to past_due to revoke Pro access.
+      // Stripe retries automatically; this prevents indefinite free Pro access.
+      if (invoice.attempt_count >= 3) {
+        await updateUserSubscriptionByCustomerId(customerId, {
+          plan: "free",
+          subscriptionStatus: "past_due",
+        })
+      }
       break
     }
 

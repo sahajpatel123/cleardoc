@@ -12,7 +12,11 @@ const MISSING_SECRET_ERROR =
   "Missing NEXTAUTH_SECRET or AUTH_SECRET. Generate one: openssl rand -base64 32"
 
 function getSecret(): string {
-  return process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET ?? ""
+  const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET
+  if (!secret) {
+    throw new Error(MISSING_SECRET_ERROR)
+  }
+  return secret
 }
 
 function createAuth() {
@@ -20,7 +24,6 @@ function createAuth() {
   if (!secret) return null
   return NextAuth({
     secret,
-    trustHost: true,
     adapter: PrismaAdapter(prisma),
     providers: [
       Credentials({
@@ -82,12 +85,16 @@ function createAuth() {
               token.id = dbUser.id
               token.ver = dbUser.tokenVersion ?? 0
             }
-          } else if (typeof token.ver === "number") {
+          } else {
+            // Always check token version — including legacy tokens without `ver`.
+            // Legacy tokens (ver=undefined) are treated as version 0, which will
+            // be invalidated if the user has ever changed their password.
             const dbUser = await prisma.user.findUnique({
               where: { id: token.id as string },
               select: { tokenVersion: true },
             })
-            if (dbUser && (dbUser.tokenVersion ?? 0) > token.ver) {
+            const tokenVer = typeof token.ver === "number" ? token.ver : 0
+            if (dbUser && (dbUser.tokenVersion ?? 0) > tokenVer) {
               throw new Error("Session invalidated. Please sign in again.")
             }
           }
@@ -129,7 +136,11 @@ export const handlers: { GET: NextAuthHandler; POST: NextAuthHandler } = {
 
 export async function auth() {
   const instance = getAuth()
-  return instance ? instance.auth() : null
+  if (!instance) {
+    console.error("[auth]", MISSING_SECRET_ERROR)
+    return null
+  }
+  return instance.auth()
 }
 
 export async function signIn(...args: Parameters<Awaited<ReturnType<typeof NextAuth>>["signIn"]>) {

@@ -50,11 +50,6 @@ export async function GET() {
     })
   } catch (err) {
     console.error("[usage] error:", err)
-    return NextResponse.json({
-      freeUsesRemaining: 0,
-      freeAnalysesRemainingToday: 0,
-      freeDailyLimit: FREE_DAILY_ANALYSIS_LIMIT,
-      plan: "free",
-    })
+    return NextResponse.json({ error: "Could not load usage." }, { status: 500 })
   }
 }

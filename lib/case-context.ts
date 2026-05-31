@@ -1,4 +1,3 @@
-import type { AnalysisResult } from "./types"
 import { parseAnalysisResult } from "./validate-analysis"
 
 const MAX_CONTEXT_CHARS = 6000
@@ -51,8 +50,4 @@ export function mergeUserContextWithCase(
   const parts = [caseContext, userContext?.trim()].filter(Boolean)
   if (parts.length === 0) return undefined
   return parts.join("\n\n")
-}
-
-export function extractAnalysisResult(result: unknown): AnalysisResult | null {
-  return parseAnalysisResult(result)
 }

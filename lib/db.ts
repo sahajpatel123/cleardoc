@@ -105,26 +105,25 @@ export async function upgradeUserToPro(
   stripeCustomerId: string,
   stripeSubscriptionId: string | null,
 ) {
-  return prisma.user.update({
-    where: { id: userId },
-    data: {
-      plan: "pro",
-      stripeCustomerId,
-      stripeSubscriptionId,
-      subscriptionStatus: "active",
-    },
-  })
-}
-
-export async function updateUserSubscriptionStatus(
-  stripeCustomerId: string,
-  status: string,
-  plan: string,
-) {
-  return prisma.user.update({
-    where: { stripeCustomerId },
-    data: { subscriptionStatus: status, plan },
-  })
+  try {
+    return await prisma.user.update({
+      where: { id: userId },
+      data: {
+        plan: "pro",
+        stripeCustomerId,
+        stripeSubscriptionId,
+        subscriptionStatus: "active",
+      },
+    })
+  } catch (err: unknown) {
+    // P2025 = RecordNotFound — user was deleted between webhook and DB write.
+    // Log and return gracefully instead of crashing the webhook handler.
+    if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2025") {
+      console.warn("[db] upgradeUserToPro: user not found", userId, "— user may have been deleted")
+      return null
+    }
+    throw err
+  }
 }
 
 export async function updateUserSubscriptionByCustomerId(
@@ -135,10 +134,18 @@ export async function updateUserSubscriptionByCustomerId(
     subscriptionStatus: string
   },
 ) {
-  return prisma.user.update({
-    where: { stripeCustomerId },
-    data,
-  })
+  try {
+    return await prisma.user.update({
+      where: { stripeCustomerId },
+      data,
+    })
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2025") {
+      console.warn("[db] updateUserSubscriptionByCustomerId: user not found for customer", stripeCustomerId)
+      return null
+    }
+    throw err
+  }
 }
 
 /**
@@ -149,14 +156,22 @@ export async function updateUserSubscriptionByCustomerId(
  * defer status change until current_period_end.
  */
 export async function cancelSubscriptionForCustomer(stripeCustomerId: string) {
-  return prisma.user.update({
-    where: { stripeCustomerId },
-    data: {
-      plan: "pro",
-      subscriptionStatus: "cancelled",
-      stripeSubscriptionId: null,
-    },
-  })
+  try {
+    return await prisma.user.update({
+      where: { stripeCustomerId },
+      data: {
+        plan: "pro",
+        subscriptionStatus: "cancelled",
+        stripeSubscriptionId: null,
+      },
+    })
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2025") {
+      console.warn("[db] cancelSubscriptionForCustomer: user not found for customer", stripeCustomerId)
+      return null
+    }
+    throw err
+  }
 }
 
 // ── Analysis ─────────────────────────────────────────────

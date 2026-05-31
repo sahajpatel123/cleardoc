@@ -11,6 +11,9 @@ export const AI_MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
 /** Timeout in milliseconds for AI API calls (default 60s). */
 export const AI_TIMEOUT_MS = 60000
 
+/** Shorter timeout for chat/rephrase routes where Vercel maxDuration is 30s. */
+export const AI_TIMEOUT_MS_SHORT = 25000
+
 /** Disable chain-of-thought for structured JSON — faster responses, cleaner output. */
 export const AI_COMPLETION_EXTRA = {
   chat_template_kwargs: { enable_thinking: false },

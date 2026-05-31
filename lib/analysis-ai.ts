@@ -1,6 +1,6 @@
 import OpenAI from "openai"
 import type { AnalysisResult, ChatMessage, LetterTone } from "./types"
-import { AI_MODEL, nimCompletionParams, AI_TIMEOUT_MS, withTimeout } from "./ai-model"
+import { AI_MODEL, nimCompletionParams, AI_TIMEOUT_MS_SHORT, withTimeout } from "./ai-model"
 
 const client = new OpenAI({
   apiKey: process.env.NVIDIA_API_KEY,
@@ -30,14 +30,33 @@ async function withRetry<T>(
     } catch (err) {
       lastError = err
       if (attempt < maxRetries) {
-        const delay = Math.pow(2, attempt) * 1000
-        console.warn(`[analysis-ai] ${label} attempt ${attempt} failed, retrying in ${delay}ms...`)
+        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000
+        console.warn(`[analysis-ai] ${label} attempt ${attempt} failed, retrying in ${Math.round(delay)}ms...`)
         await new Promise((resolve) => setTimeout(resolve, delay))
       }
     }
   }
   console.error(`[analysis-ai] ${label} failed after ${maxRetries} attempts:`, lastError)
   throw lastError instanceof Error ? lastError : new Error(`${label} failed after retries`)
+}
+
+/** Approximate token count (4 chars per token, conservative). */
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4)
+}
+
+/** Cap chat history to fit within a token budget. Keeps the most recent messages. */
+function truncateHistory(history: ChatMessage[], maxTokens: number): ChatMessage[] {
+  let total = 0
+  const result: ChatMessage[] = []
+  // Walk from newest to oldest, keeping as many as fit
+  for (let i = history.length - 1; i >= 0; i--) {
+    const tokens = estimateTokens(history[i].content)
+    if (total + tokens > maxTokens) break
+    total += tokens
+    result.unshift(history[i])
+  }
+  return result
 }
 
 export async function generateChatReply(
@@ -51,13 +70,18 @@ export async function generateChatReply(
         overall_verdict: analysis.overall_verdict,
         red_flags: analysis.red_flags,
         next_steps: analysis.next_steps,
-        response_letter: analysis.response_letter,
+        response_letter: analysis.response_letter.slice(0, 1500),
         deadlines: analysis.deadlines ?? [],
       })
 
+    // Budget: ~30K tokens total. Reserve ~8K for analysis context + system prompt.
+    // User message gets ~2K. Remaining ~20K for history.
+    const historyBudget = 20000
+    const truncatedHistory = truncateHistory(history, historyBudget)
+
     const messages: OpenAI.ChatCompletionMessageParam[] = [
       { role: "system", content: `${CHAT_SYSTEM}\n\nDocument analysis JSON:\n${contextBlock}` },
-      ...history.map((m) => ({
+      ...truncatedHistory.map((m) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       })),
@@ -73,11 +97,12 @@ export async function generateChatReply(
           messages,
         }),
       ),
-      AI_TIMEOUT_MS,
+      AI_TIMEOUT_MS_SHORT,
       "chat reply",
     )
 
     const text = response.choices[0]?.message?.content ?? ""
+    if (!text) throw new Error("AI returned empty response")
     return text.trim() || "I couldn't generate a response. Please try rephrasing your question."
   }, 3, "chat reply")
 }
@@ -97,6 +122,9 @@ export async function rephraseResponseLetter(
   tone: LetterTone,
 ): Promise<string> {
   return withRetry(async () => {
+    // Cap letter length to prevent context overflow
+    const cappedLetter = letter.slice(0, 6000)
+
     const response = await withTimeout(
       client.chat.completions.create(
         nimCompletionParams({
@@ -110,17 +138,18 @@ export async function rephraseResponseLetter(
             },
             {
               role: "user",
-              content: `Rewrite this letter to sound ${TONE_PROMPTS[tone]}\n\n--- LETTER ---\n${letter}`,
+              content: `Rewrite this letter to sound ${TONE_PROMPTS[tone]}\n\n--- LETTER ---\n${cappedLetter}`,
             },
           ],
         }),
       ),
-      AI_TIMEOUT_MS,
+      AI_TIMEOUT_MS_SHORT,
       "letter rephrase",
     )
 
     const text = response.choices[0]?.message?.content ?? ""
-    return text.trim() || letter
+    if (!text.trim()) throw new Error("AI returned empty rephrased letter")
+    return text.trim()
   }, 3, "letter rephrase")
 }
 

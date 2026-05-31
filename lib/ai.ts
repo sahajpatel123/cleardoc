@@ -3,10 +3,16 @@ import type { AnalysisResult } from "./types"
 import { AI_MODEL, nimCompletionParams, AI_TIMEOUT_MS, withTimeout } from "./ai-model"
 import { parseAnalysisResult } from "./validate-analysis"
 
-const client = new OpenAI({
-  apiKey: process.env.NVIDIA_API_KEY,
-  baseURL: "https://integrate.api.nvidia.com/v1",
-})
+let _client: OpenAI | null = null
+function getClient(): OpenAI {
+  if (!_client) {
+    _client = new OpenAI({
+      apiKey: process.env.NVIDIA_API_KEY,
+      baseURL: "https://integrate.api.nvidia.com/v1",
+    })
+  }
+  return _client
+}
 
 /** Thrown when JSON.parse fails; API route maps this to a user-safe message. */
 export const AI_INVALID_JSON_ERROR_MESSAGE =
@@ -177,7 +183,7 @@ export async function analyzeDocument(
           .join("\n")
 
 const response = await withTimeout(
-        client.chat.completions.create(
+        getClient().chat.completions.create(
           nimCompletionParams({
             model: AI_MODEL,
             max_tokens: 4000,
@@ -193,6 +199,10 @@ const response = await withTimeout(
       )
 
       const raw = response.choices[0]?.message?.content ?? ""
+      if (!raw) {
+        logRawModelFailure("Model returned empty response.", "")
+        throw new Error(AI_INVALID_JSON_ERROR_MESSAGE)
+      }
         return parseAnalysisResponse(raw)
       }
 
@@ -207,7 +217,7 @@ const response = await withTimeout(
         .join("\n")
 
 const response = await withTimeout(
-        client.chat.completions.create(
+        getClient().chat.completions.create(
           nimCompletionParams({
             model: AI_MODEL,
             max_tokens: 4000,
@@ -237,6 +247,10 @@ const response = await withTimeout(
       )
 
       const raw = response.choices[0]?.message?.content ?? ""
+      if (!raw) {
+        logRawModelFailure("Model returned empty response (vision).", "")
+        throw new Error(AI_INVALID_JSON_ERROR_MESSAGE)
+      }
       return parseAnalysisResponse(raw)
     } catch (err) {
       lastError = err
