@@ -14,7 +14,7 @@
 
 ## 🔴 Correctness / docs accuracy
 
-- [ ] 🔴 **Update CLAUDE.md** to match code: AI model is `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` (not llama-3.2-90b); add `User.lastResetAt`, `User.tokenVersion`, `Analysis.chatMessages/parentId/caseId`; add new lib files & the `/api/analyses/[id]/delete` route. Full diff in [[KNOWLEDGE/claude-md-drift]].
+- [x] 🔴 **Update CLAUDE.md** - Fixed in code (see CHANGES.md)
 - [ ] 🟡 Commit or revert the uncommitted working-tree changes (`lib/ensure-schema.ts`, `DESIGN.md`, `marketing-posters/`) — currently sitting un-tracked/modified.
 
 ## 🟡 Security follow-ups (see [[KNOWLEDGE/security]])
@@ -34,6 +34,7 @@
 ## 🟡 Audit-fix follow-ups (deferred from 2026-06-01 triage — see [[DECISIONS]] D-007)
 
 - [x] 🟡 **Frontend a11y/perf pass** — DONE 2026-06-01: PricingModal focus-trap + focus-return, AnalysisChat aria-label, RedFlagItem aria-expanded, UploadZone aria-describedby, DeadlinesPanel htmlFor/id, FaqAccordion arrow-keys, panelDefs useMemo, Dashboard AbortController, ResponseLetter setTimeout cleanup. Verified (lint clean, 13/13 tests, build pass). Committed `1cee2d0`.
+- [x] 🟡 **Critical security + reliability stabilization** — DONE 2026-06-01: auth.ts empty secret throw, JWT legacy token version check, Stripe webhook silent drops fixed (release claim instead of consume), invoice.payment_failed downgrade after 3 attempts, usage/route.ts proper 500, analysis-ai.ts token budget + rephrase error, db.ts P2025 handling, ai.ts client bug fix, AI timeout mismatch fixed, dead code removed. Verified (13/13 tests, build pass). Committed `39d9d58`.
 - [ ] 🟡 **Password-change endpoint** (#12) — `incrementTokenVersion` exists but is unused; no route consumes it. Needs route + UI + auth regression testing.
 - [ ] 🟢 Add `CRON_SECRET` to `.env.example` (was permission-locked) and set it in Vercel so `/api/cron/cleanup` runs.
 - [ ] 🟢 Nonce-based CSP to drop `'unsafe-inline'` from `script-src` (proxy generates nonce → Next reads it). Larger change; test hydration.

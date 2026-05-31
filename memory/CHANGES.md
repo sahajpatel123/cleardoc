@@ -7,6 +7,23 @@
 
 ---
 
+## 2026-06-01 — Critical security + reliability stabilization (verified)
+
+- **auth.ts:** `getSecret()` now throws instead of returning `""` when `NEXTAUTH_SECRET`/`AUTH_SECRET` are missing — prevents JWT forgery with empty signing key.
+- **auth.ts:** JWT token version check now applies to legacy tokens (`ver=undefined` treated as version 0) — stolen JWTs are invalidated after password change.
+- **Stripe webhook:** `checkout.session.completed` now releases the event claim (instead of silently consuming) when userId/subscription/customer is missing — user pays but doesn't get Pro is no longer possible.
+- **Stripe webhook:** `invoice.payment_failed` now downgrades to `past_due` after 3 failed attempts — prevents indefinite free Pro access.
+- **usage/route.ts:** Returns 500 on error instead of fake `{ plan: "free" }` data.
+- **analysis-ai.ts:** Letter rephrase throws on empty AI response instead of silently returning original letter.
+- **analysis-ai.ts:** Chat history truncated to 20K token budget; response_letter capped at 1500 chars in context — prevents context overflow on Pro users.
+- **db.ts:** `upgradeUserToPro`, `updateUserSubscriptionByCustomerId`, `cancelSubscriptionForCustomer` handle P2025 (record not found) gracefully.
+- **ai.ts:** Fixed `client` → `getClient()` reference bug (pre-existing).
+- **ai-model.ts:** Added `AI_TIMEOUT_MS_SHORT` (25s) for chat/rephrase routes (Vercel `maxDuration=30`).
+- **Dead code removed:** `updateUserSubscriptionStatus` (db.ts), `extractAnalysisResult` (case-context.ts).
+- Verified: 13/13 tests pass, build passes, lint clean (pre-existing errors only).
+- Committed `39d9d58`, pushed to `main`.
+- Refs: [[TODO]] (Stripe webhook fix, JWT fix, usage error fix).
+
 ## 2026-06-01 — Frontend a11y/perf pass (verified)
 - PricingModal: focus-trap (Tab cycling within modal) + focus-return to trigger on unmount.
 - AnalysisChat: `aria-label` on input ("Ask a question about this document") and send button ("Send message").
