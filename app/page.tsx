@@ -201,18 +201,16 @@ function MobileDocumentLine({
         )}
       </p>
 
-      {/* margin note — label chip + plain-English explanation */}
+      {/* margin note — label chip + plain-English explanation.
+       * opacity/transform only (no height:auto) so the reveal never reflows
+       * the page mid-scroll — that layout thrash was freezing the framer
+       * whileInView reveals of the sections below the demo in the prod build. */}
       {note && (
         <motion.div
           initial={false}
-          animate={{
-            opacity: inView ? 1 : 0,
-            height: inView ? "auto" : 0,
-            marginTop: inView ? 12 : 0,
-            y: inView ? 0 : 6,
-          }}
-          transition={{ duration: 0.55, ease: EASE }}
-          className="overflow-hidden"
+          animate={{ opacity: inView ? 1 : 0, y: inView ? 0 : 10 }}
+          transition={{ duration: 0.5, ease: EASE }}
+          style={{ marginTop: 12 }}
         >
           <div
             className="rounded-lg py-3 pl-3.5 pr-3.5"
@@ -289,11 +287,9 @@ function MobileDocumentReader() {
           }}
         >
           <span className="flex items-center gap-2.5">
-            <motion.span
-              className="block h-2 w-2 rounded-full"
+            <span
+              className={`block h-2 w-2 rounded-full ${done ? "" : "dot-pulse"}`}
               style={{ background: done ? "var(--moss)" : "var(--ember)" }}
-              animate={done ? { scale: 1 } : { scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-              transition={done ? { duration: 0.3 } : { duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
             />
             <span
               className="mono text-[10px] uppercase tracking-[0.18em]"

@@ -19,11 +19,46 @@ export function Reveal({
   className?: string
   once?: boolean
 }) {
+  // Reveal-on-scroll WITHOUT relying on framer's `whileInView`. Its
+  // IntersectionObserver callbacks coalesce under fast scrolling (especially on
+  // mobile, where the main thread is busier), so an element can cross the whole
+  // trigger zone between cycles and never latch — leaving the section stuck at
+  // opacity 0 ("everything below is blank"). Instead we drive visibility from a
+  // rAF-throttled scroll/resize check with a 240px pre-trigger margin: it fires
+  // every frame the user scrolls, so it is impossible to skip. Once shown (the
+  // default `once` behaviour) the listener detaches and the element stays visible.
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [shown, setShown] = useState(false)
+
+  useEffect(() => {
+    if (shown && once) return // already revealed and staying — no listener needed
+    let raf = 0
+    const PRE = 240
+    const evaluate = () => {
+      raf = 0
+      const node = ref.current
+      if (!node) return
+      const r = node.getBoundingClientRect()
+      const visible = r.top < window.innerHeight + PRE && r.bottom > -PRE
+      if (visible) setShown(true)
+      else if (!once) setShown(false)
+    }
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(evaluate) }
+    evaluate() // initial check — reveals above-the-fold content on mount
+    window.addEventListener("scroll", onScroll, { passive: true })
+    window.addEventListener("resize", onScroll, { passive: true })
+    return () => {
+      if (raf) cancelAnimationFrame(raf)
+      window.removeEventListener("scroll", onScroll)
+      window.removeEventListener("resize", onScroll)
+    }
+  }, [shown, once])
+
   return (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0, y }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once, margin: "-80px" }}
+      animate={shown ? { opacity: 1, y: 0 } : { opacity: 0, y }}
       transition={{ duration: 0.95, delay, ease: EASE }}
       className={className}
     >

@@ -608,6 +608,15 @@ textarea:focus:not(:focus-visible) {
 }
 .animate-drift { animation: drift-y 9s ease-in-out infinite; }
 
+/* Live "reading" pulse for the mobile red-flag counter dot. Done in CSS (not
+   a framer-motion repeat:Infinity loop) so it never competes with the
+   scroll-reveal animations for the JS animation frame on mobile. */
+@keyframes softPulse {
+  0%, 100% { transform: scale(1);   opacity: 1;   }
+  50%      { transform: scale(1.6); opacity: 0.45; }
+}
+.dot-pulse { animation: softPulse 1.4s ease-in-out infinite; }
+
 /* ── Card — minimal, hairline-bordered ────────────────────────────────────── */
 .card {
   position: relative;
