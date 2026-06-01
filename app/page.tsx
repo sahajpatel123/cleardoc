@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
   motion, useScroll, useTransform, AnimatePresence, useMotionValueEvent, useInView,
@@ -126,79 +126,237 @@ const DOC_LINES: { text: string; note?: { label: "Threat" | "Bluff" | "Illegal" 
   },
 ]
 
-/* ── MobileDocumentLine — single line of the eviction notice as it renders
- * on small viewports. Animates the underline + an inline margin-note card
- * when the line enters the viewport, replacing the desktop sticky scrolly-
- * telling pattern (which clips content on phones and leaves a blank dark
- * scroll region below the section). */
 type DocLine = (typeof DOC_LINES)[number]
-function MobileDocumentLine({ line }: { line: DocLine }) {
+
+/* Map a note label to its accent colour + matching pill class. */
+function noteTheme(label?: NonNullable<DocLine["note"]>["label"]) {
+  if (label === "Illegal" || label === "Threat")
+    return { accent: "var(--red)", soft: "rgba(229,90,62,0.20)", labelClass: "label-red" }
+  if (label === "Bluff")
+    return { accent: "var(--amber)", soft: "rgba(217,165,82,0.22)", labelClass: "label-amber" }
+  return { accent: "var(--sky)", soft: "rgba(111,168,214,0.20)", labelClass: "label-sky" }
+}
+
+/* ── MobileDocumentLine — one clause of the eviction notice on small viewports.
+ * As the line enters view, a highlighter marker sweeps across the flagged
+ * sentence and a plain-English margin note slides in beneath it — recreating
+ * the desktop "marked up live" moment in a single column, with no fragile
+ * full-section sticky. Reports each flag to the parent so the live counter
+ * can tally red flags as you scroll. */
+function MobileDocumentLine({
+  line,
+  index,
+  onReveal,
+}: {
+  line: DocLine
+  index: number
+  onReveal: (index: number) => void
+}) {
   const ref = useRef<HTMLDivElement | null>(null)
-  const inView = useInView(ref, { margin: "0px 0px -15% 0px" })
+  // once:true — each clause stays marked up after it's first revealed, so the
+  // document height never collapses mid-scroll (no layout jank). The counter
+  // only ever counts up, so this matches the "analysis is done" feel.
+  const inView = useInView(ref, { margin: "0px 0px -26% 0px", once: true })
   const note = line.note
-  const noteColor =
-    note?.label === "Illegal" || note?.label === "Threat"
-      ? "var(--red)"
-      : note?.label === "Bluff"
-        ? "var(--amber)"
-        : "var(--sky)"
-  const labelClass =
-    note?.label === "Illegal" || note?.label === "Threat"
-      ? "label-red"
-      : note?.label === "Bluff"
-        ? "label-amber"
-        : "label-sky"
+  const { accent, soft, labelClass } = noteTheme(note?.label)
+
+  useEffect(() => {
+    if (inView && note) onReveal(index)
+  }, [inView, note, index, onReveal])
 
   return (
     <div ref={ref} className="relative">
       <p
-        className="text-[13px] sm:text-[15px]"
+        className="relative inline-block text-[14px] leading-relaxed"
         style={{
           color: line.text === "" ? "transparent" : "var(--ink)",
           fontFamily: "ui-serif, Georgia, serif",
-          minHeight: line.text === "" ? 12 : "auto",
+          minHeight: line.text === "" ? 10 : "auto",
         }}
       >
-        {line.text || "—"}
+        {/* highlighter marker sweeping across the flagged clause */}
+        {note && (
+          <motion.span
+            aria-hidden
+            className="absolute -inset-x-1 -inset-y-[3px] rounded-[3px] origin-left"
+            style={{ background: soft, zIndex: 0 }}
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: inView ? 1 : 0 }}
+            transition={{ duration: 0.8, ease: EASE }}
+          />
+        )}
+        <span className="relative" style={{ zIndex: 1 }}>
+          {line.text || "—"}
+        </span>
+        {/* underline accent under the flagged clause */}
+        {note && (
+          <motion.span
+            aria-hidden
+            className="absolute left-0 right-0 -bottom-[2px] h-[2px] origin-left"
+            style={{ background: accent, zIndex: 1 }}
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: inView ? 1 : 0 }}
+            transition={{ duration: 0.9, ease: EASE, delay: 0.1 }}
+          />
+        )}
       </p>
-      {note && (
-        <motion.div
-          className="absolute left-0 right-0 -bottom-[2px] h-[2px] origin-left"
-          style={{ background: noteColor }}
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: inView ? 1 : 0 }}
-          transition={{ duration: 0.9, ease: EASE }}
-        />
-      )}
+
+      {/* margin note — label chip + plain-English explanation */}
       {note && (
         <motion.div
           initial={false}
           animate={{
             opacity: inView ? 1 : 0,
-            maxHeight: inView ? 240 : 0,
-            marginTop: inView ? 10 : 0,
+            height: inView ? "auto" : 0,
+            marginTop: inView ? 12 : 0,
+            y: inView ? 0 : 6,
           }}
           transition={{ duration: 0.55, ease: EASE }}
           className="overflow-hidden"
         >
           <div
-            className="rounded pl-3 pr-3 py-2.5"
-            style={{
-              backgroundColor: "rgba(0,0,0,0.05)",
-              borderLeft: `2px solid ${noteColor}`,
-            }}
+            className="rounded-lg py-3 pl-3.5 pr-3.5"
+            style={{ background: "rgba(0,0,0,0.045)", borderLeft: `2.5px solid ${accent}` }}
           >
-            <span className={`label ${labelClass}`}>{note.label}</span>
-            <p
-              className="text-[12.5px] mt-1.5 leading-relaxed"
-              style={{ color: "rgba(0,0,0,0.78)" }}
-            >
+            <div className="mb-2 flex items-center justify-between">
+              <span className={`label ${labelClass}`}>{note.label}</span>
+              <span
+                className="mono text-[9px] uppercase tracking-[0.22em]"
+                style={{ color: "rgba(0,0,0,0.4)" }}
+              >
+                Margin note
+              </span>
+            </div>
+            <p className="text-[13px] leading-relaxed" style={{ color: "rgba(0,0,0,0.8)" }}>
               {note.body}
             </p>
           </div>
         </motion.div>
       )}
     </div>
+  )
+}
+
+/* ── MobileDocumentReader — the mobile counterpart to the desktop scrolly demo.
+ * Single-column, natural-scroll, with a pinned live "red flags" counter that
+ * pops as each flag is found (mirroring the desktop margin-note rail's persistent,
+ * alive feel) and a payoff line once the whole notice has been marked up. */
+function MobileDocumentReader() {
+  const totalFlags = DOC_LINES.filter((l) => l.note).length
+  const revealed = useRef<Set<number>>(new Set())
+  const [found, setFound] = useState(0)
+
+  const handleReveal = useCallback((index: number) => {
+    if (revealed.current.has(index)) return
+    revealed.current.add(index)
+    setFound(revealed.current.size)
+  }, [])
+
+  const done = found >= totalFlags
+
+  return (
+    <section className="relative py-20">
+      <div className="absolute inset-0 pointer-events-none">
+        <Grid opacity={0.02} />
+      </div>
+
+      <div className="container-edition relative">
+        {/* Header */}
+        <p className="eyebrow mb-4">Demonstration · 01</p>
+        <h3
+          className="display mb-3"
+          style={{ fontSize: "clamp(1.65rem, 7vw, 2.3rem)", color: "var(--text)" }}
+        >
+          A real eviction notice,{" "}
+          <span className="serif-italic" style={{ color: "var(--text-2)" }}>
+            marked up live.
+          </span>
+        </h3>
+        <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--text-3)" }}>
+          Scroll slowly. Every highlight is a place our AI found something worth flagging.
+        </p>
+
+        {/* Pinned live red-flag counter — the "alive" analyst readout */}
+        <div
+          className="sticky z-20 mb-7 flex items-center justify-between rounded-full px-4 py-2.5"
+          style={{
+            top: "calc(var(--nav-height) + 10px)",
+            background: "rgba(10,10,10,0.74)",
+            backdropFilter: "blur(16px) saturate(140%)",
+            WebkitBackdropFilter: "blur(16px) saturate(140%)",
+            border: "1px solid var(--hairline-2)",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+          }}
+        >
+          <span className="flex items-center gap-2.5">
+            <motion.span
+              className="block h-2 w-2 rounded-full"
+              style={{ background: done ? "var(--moss)" : "var(--ember)" }}
+              animate={done ? { scale: 1 } : { scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+              transition={done ? { duration: 0.3 } : { duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <span
+              className="mono text-[10px] uppercase tracking-[0.18em]"
+              style={{ color: "var(--text-2)" }}
+            >
+              {done ? "Analysis complete" : "Reading along"}
+            </span>
+          </span>
+          <span className="flex items-baseline gap-1.5">
+            <motion.span
+              key={found}
+              initial={{ y: 10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.4, ease: EASE }}
+              className="display"
+              style={{ fontSize: "1.1rem", color: done ? "var(--moss)" : "var(--ember)" }}
+            >
+              {found}
+            </motion.span>
+            <span
+              className="mono text-[10px] tracking-[0.12em]"
+              style={{ color: "var(--text-mute)" }}
+            >
+              / {totalFlags} RED FLAGS
+            </span>
+          </span>
+        </div>
+
+        {/* The document */}
+        <div
+          className="paper relative rounded-xl p-5 sm:p-6"
+          style={{ boxShadow: "0 30px 90px rgba(0,0,0,0.55)" }}
+        >
+          <p
+            className="mono mb-6 text-[9.5px] uppercase tracking-[0.3em]"
+            style={{ color: "rgba(0,0,0,0.45)" }}
+          >
+            Notice to Quit · From the Office of the Landlord
+          </p>
+          <div className="space-y-3 leading-relaxed">
+            {DOC_LINES.map((line, i) => (
+              <MobileDocumentLine key={i} line={line} index={i} onReveal={handleReveal} />
+            ))}
+          </div>
+        </div>
+
+        {/* Payoff */}
+        <motion.p
+          className="mt-6 text-sm leading-relaxed"
+          style={{ color: "var(--text-3)" }}
+          animate={{ opacity: 1 }}
+        >
+          {done ? (
+            <>
+              That&apos;s <span style={{ color: "var(--text)" }}>{totalFlags} clauses</span> you could
+              push back on — and we&apos;d hand you the letter to do it.
+            </>
+          ) : (
+            <>Keep scrolling — there&apos;s more buried in the fine print.</>
+          )}
+        </motion.p>
+      </div>
+    </section>
   )
 }
 
@@ -240,40 +398,11 @@ function DocumentReader() {
 
   const activeNote = active >= 0 ? DOC_LINES[active]?.note : undefined
 
-  // ─── Mobile layout: natural-scroll, no sticky, no 450vh of empty section.
-  // Each line is its own block; the underline and the inline margin-note
-  // card animate in when the line scrolls into view. The section is sized
-  // to its natural content height, eliminating the blank dark area that
-  // appeared on touch devices with the desktop sticky pattern.
+  // ─── Mobile layout: cinematic single-column reader (see MobileDocumentReader).
+  // Natural scroll, no 450vh sticky — each clause is highlighted and annotated
+  // as it enters view, with a pinned live red-flag counter for the "alive" feel.
   if (isMobile) {
-    return (
-      <section ref={ref} className="relative py-16 sm:py-20">
-        <div className="container-edition">
-          <div className="mb-8 flex items-baseline justify-between">
-            <p className="eyebrow">Demonstration · 01</p>
-            <p className="mono text-[10px]" style={{ color: "var(--text-mute)" }}>
-              Scroll to read
-            </p>
-          </div>
-          <div
-            className="paper rounded-lg p-5 relative"
-            style={{ boxShadow: "0 40px 120px rgba(0,0,0,0.6)" }}
-          >
-            <p
-              className="mono text-[10px] uppercase tracking-[0.3em] mb-6"
-              style={{ color: "rgba(0,0,0,0.45)" }}
-            >
-              Notice to Quit · From the Office of the Landlord
-            </p>
-            <div className="space-y-2.5 leading-relaxed">
-              {DOC_LINES.map((line, i) => (
-                <MobileDocumentLine key={i} line={line} />
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-    )
+    return <MobileDocumentReader />
   }
 
   return (
