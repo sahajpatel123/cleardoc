@@ -54,7 +54,12 @@
 html {
   scroll-behavior: smooth;
   background: var(--ink);
-  overflow-x: hidden;
+  /* `clip` (not `hidden`) prevents horizontal scroll WITHOUT turning the
+     root into a scroll container. `overflow-x: hidden` forces overflow-y to
+     compute as `auto`, which silently breaks every `position: sticky`
+     descendant (the homepage "Notice to Quit" scrollytelling, the legal
+     sidebar, etc.). `clip` establishes no scroll container, so sticky works. */
+  overflow-x: clip;
 }
 html, body {
   background: var(--ink);
@@ -70,7 +75,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
   letter-spacing: -0.005em;
-  overflow-x: hidden;
+  overflow-x: clip; /* see note on `html` above — keeps position: sticky working */
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -485,9 +490,10 @@ body::before {
   .hero-headline {
     padding: 0.1em 0.18em 0.2em 0.12em;
   }
-  /* Prevent horizontal scroll on touch devices */
+  /* Prevent horizontal scroll on touch devices.
+     `clip` (not `hidden`) so position: sticky descendants keep working. */
   html, body {
-    overflow-x: hidden;
+    overflow-x: clip;
     overscroll-behavior-x: none;
   }
 }
