@@ -2,12 +2,21 @@ import { describe, it, before, after } from "node:test"
 import assert from "node:assert/strict"
 
 /**
- * Production safety guards (lib/env.ts assertProductionEnvSafety):
- *   - Stripe sk_test_ in production → throw
- *   - pk_test_/sk_live_ skew → throw
- *   - Short NEXTAUTH_SECRET → throw
- *   - localhost NEXT_PUBLIC_APP_URL in production → throw
- *   - trial NVIDIA endpoint → log warning (does NOT throw)
+ * Production safety guards in lib/env.ts are split across two functions:
+ *
+ *   assertProductionEnvSafety()  — runs from every assert*Env() entry point:
+ *     - Short NEXTAUTH_SECRET in production → throw
+ *     - localhost NEXT_PUBLIC_APP_URL in production → throw
+ *     - trial NVIDIA endpoint → log warning (does NOT throw)
+ *
+ *   assertStripeLiveMode()       — runs only from assertStripeEnv() and the
+ *                                 routes that actually touch Stripe:
+ *     - Stripe sk_test_ in production → throw
+ *     - pk_test_/sk_live_ skew → throw
+ *
+ * The split is deliberate: blocking signup or AI routes because the operator
+ * has not yet swapped Stripe test→live keys was a bug. Stripe only matters
+ * for /api/stripe/* and lib/stripe.ts.
  *
  * These tests manipulate NODE_ENV and process.env directly. They are
  * isolated to this file and re-import the module under each condition
@@ -70,7 +79,11 @@ describe("assertProductionEnvSafety", () => {
     process.env.NEXTAUTH_SECRET = "x".repeat(48)
     process.env.NEXT_PUBLIC_APP_URL = "https://cleardoc.example.com"
     const env = loadEnvFresh("production")
-    assert.throws(() => env.assertProductionEnvSafety(), /sk_test_/)
+    // The Stripe sk_test_ guard has moved out of assertProductionEnvSafety()
+    // and into assertStripeLiveMode() — assertProductionEnvSafety() must NOT
+    // throw on a sk_test_ key, otherwise auth/AI routes cannot run.
+    assert.doesNotThrow(() => env.assertProductionEnvSafety())
+    assert.throws(() => env.assertStripeLiveMode(), /sk_test_/)
   })
 
   it("refuses to boot in production with pk_test_/sk_live_ skew", () => {
@@ -81,7 +94,8 @@ describe("assertProductionEnvSafety", () => {
     process.env.NEXTAUTH_SECRET = "x".repeat(48)
     process.env.NEXT_PUBLIC_APP_URL = "https://cleardoc.example.com"
     const env = loadEnvFresh("production")
-    assert.throws(() => env.assertProductionEnvSafety(), /pk_test_/)
+    assert.doesNotThrow(() => env.assertProductionEnvSafety())
+    assert.throws(() => env.assertStripeLiveMode(), /pk_test_/)
   })
 
   it("refuses to boot in production with short NEXTAUTH_SECRET", () => {

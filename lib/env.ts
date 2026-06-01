@@ -88,6 +88,12 @@ export function assertAuthEnv(): void {
     )
   }
   assertProductionRateLimiter()
+  // NOTE: Stripe live-mode guard is intentionally NOT called here. Signup
+  // does not touch Stripe — only the /api/stripe/* routes do — so blocking
+  // signup because the operator has not yet swapped test→live keys is a
+  // bug, not a safety win. The Stripe guard is enforced in assertStripeEnv()
+  // below and is wired up by /api/stripe/create-checkout, /portal, /webhook,
+  // and lib/stripe.ts (everywhere Stripe is actually used).
   assertProductionEnvSafety()
 }
 
@@ -98,6 +104,7 @@ export function assertStripeEnv(): void {
   }
   assertProductionRateLimiter()
   assertProductionEnvSafety()
+  assertStripeLiveMode()
 }
 
 export function getAppUrl(): string {
@@ -183,20 +190,16 @@ export function assertProductionRateLimiter(): void {
 }
 
 /**
- * Production-only safety guards. Called from every assert*Env() entry point.
+ * Production-only safety guards. Called from assertAuthEnv(), assertServerEnv(),
+ * and assertStripeEnv() — i.e. from every entry point that gates an API route.
  *
  * Catches configuration mistakes that would otherwise ship silently:
  *
- *   1. Stripe secret starts with sk_test_ — refuses to boot. The previous
- *      `.env.vercel.prod` had `sk_test_` keys; a real production deploy with
- *      test-mode keys would create non-chargeable Checkout sessions, fail
- *      webhook signature verification, and silently never grant Pro.
- *
- *   2. NEXTAUTH_SECRET shorter than 32 chars in production — refuses to
+ *   1. NEXTAUTH_SECRET shorter than 32 chars in production — refuses to
  *      boot. NextAuth v5 accepts any non-empty string, but RFC 2104 / NIST
  *      guidance is 256 bits of entropy (32 base64 chars ~= 192 bits).
  *
- *   3. NVIDIA NIM baseURL pointing at the trial endpoint (integrate.api.nvidia.com)
+ *   2. NVIDIA NIM baseURL pointing at the trial endpoint (integrate.api.nvidia.com)
  *      — logs a hard warning. The trial endpoint logs inputs and outputs
  *      for product improvement; sending HIPAA / GDPR / privileged-document
  *      content through it is a regulatory violation. There is no API-level
@@ -204,30 +207,16 @@ export function assertProductionRateLimiter(): void {
  *      a private endpoint or (b) sign an enterprise contract with NVIDIA.
  *      We refuse to silence the warning — the operator must take action.
  *
- *   4. NEXT_PUBLIC_APP_URL still set to localhost in production — refuses
+ *   3. NEXT_PUBLIC_APP_URL still set to localhost in production — refuses
  *      to boot. Stripe success/cancel URLs would all point to localhost.
+ *
+ * NOTE: Stripe live-mode enforcement (sk_test_ / pk_test_ skew) lives in
+ * its own assertStripeLiveMode() so it can be wired to the routes that
+ * actually use Stripe (/api/stripe/* + lib/stripe.ts) without blocking
+ * auth, AI, and billing-agnostic routes that have no business with Stripe.
  */
 export function assertProductionEnvSafety(): void {
   if (process.env.NODE_ENV !== "production") return
-
-  const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim() ?? ""
-  if (stripeSecret && stripeSecret.startsWith("sk_test_")) {
-    throw new Error(
-      "CRITICAL PRODUCTION GUARD: STRIPE_SECRET_KEY starts with sk_test_. " +
-        "Refusing to boot. Switch to a live Stripe secret (sk_live_…) before deploying. " +
-        "See lib/env.ts assertProductionEnvSafety.",
-    )
-  }
-  const stripePub = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim() ?? ""
-  if (stripePub && stripePub.startsWith("pk_test_") && !stripeSecret.startsWith("sk_test_")) {
-    // Skew between pk_test_ and sk_live_ is the more dangerous case — users
-    // would think the publishable key is test but the secret is live. Catch
-    // it explicitly.
-    throw new Error(
-      "CRITICAL PRODUCTION GUARD: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY starts with pk_test_ " +
-        "but STRIPE_SECRET_KEY is live. Refusing to boot. Either both test or both live.",
-    )
-  }
 
   const nextAuthSecret = process.env.NEXTAUTH_SECRET?.trim() ?? process.env.AUTH_SECRET?.trim() ?? ""
   if (nextAuthSecret && nextAuthSecret.length < 32) {
@@ -277,5 +266,41 @@ export function assertProductionEnvSafety(): void {
           "the public Vercel URL before deploying.",
       )
     }
+  }
+}
+
+/**
+ * Stripe live-mode guard. ONLY called from assertStripeEnv() and the routes
+ * that actually touch Stripe. Refuses to boot if:
+ *
+ *   - STRIPE_SECRET_KEY starts with sk_test_ — would create non-chargeable
+ *     Checkout sessions and fail webhook signature verification, silently
+ *     never granting Pro to paying customers.
+ *   - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is pk_test_ while the secret is
+ *     sk_live_ (or vice versa) — the skew is the most dangerous misconfig
+ *     because it looks correct at a glance.
+ *
+ * Previously this guard lived inside assertProductionEnvSafety() and ran on
+ * every API route (including signup and AI), which broke signup when the
+ * operator had not yet swapped test→live keys. The right scope is "every
+ * route that actually uses Stripe", which is what assertStripeEnv() covers.
+ */
+export function assertStripeLiveMode(): void {
+  if (process.env.NODE_ENV !== "production") return
+
+  const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim() ?? ""
+  if (stripeSecret && stripeSecret.startsWith("sk_test_")) {
+    throw new Error(
+      "CRITICAL PRODUCTION GUARD: STRIPE_SECRET_KEY starts with sk_test_. " +
+        "Refusing to boot. Switch to a live Stripe secret (sk_live_…) before deploying. " +
+        "See lib/env.ts assertStripeLiveMode.",
+    )
+  }
+  const stripePub = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim() ?? ""
+  if (stripePub && stripePub.startsWith("pk_test_") && !stripeSecret.startsWith("sk_test_")) {
+    throw new Error(
+      "CRITICAL PRODUCTION GUARD: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY starts with pk_test_ " +
+        "but STRIPE_SECRET_KEY is live. Refusing to boot. Either both test or both live.",
+    )
   }
 }
