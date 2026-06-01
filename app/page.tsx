@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
-  motion, useScroll, useTransform, AnimatePresence, useMotionValueEvent,
+  motion, useScroll, useTransform, AnimatePresence, useMotionValueEvent, useInView,
 } from "framer-motion"
 import Link from "next/link"
 import UploadZone from "@/components/ui/UploadZone"
@@ -126,6 +126,82 @@ const DOC_LINES: { text: string; note?: { label: "Threat" | "Bluff" | "Illegal" 
   },
 ]
 
+/* ── MobileDocumentLine — single line of the eviction notice as it renders
+ * on small viewports. Animates the underline + an inline margin-note card
+ * when the line enters the viewport, replacing the desktop sticky scrolly-
+ * telling pattern (which clips content on phones and leaves a blank dark
+ * scroll region below the section). */
+type DocLine = (typeof DOC_LINES)[number]
+function MobileDocumentLine({ line }: { line: DocLine }) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const inView = useInView(ref, { margin: "0px 0px -15% 0px" })
+  const note = line.note
+  const noteColor =
+    note?.label === "Illegal" || note?.label === "Threat"
+      ? "var(--red)"
+      : note?.label === "Bluff"
+        ? "var(--amber)"
+        : "var(--sky)"
+  const labelClass =
+    note?.label === "Illegal" || note?.label === "Threat"
+      ? "label-red"
+      : note?.label === "Bluff"
+        ? "label-amber"
+        : "label-sky"
+
+  return (
+    <div ref={ref} className="relative">
+      <p
+        className="text-[13px] sm:text-[15px]"
+        style={{
+          color: line.text === "" ? "transparent" : "var(--ink)",
+          fontFamily: "ui-serif, Georgia, serif",
+          minHeight: line.text === "" ? 12 : "auto",
+        }}
+      >
+        {line.text || "—"}
+      </p>
+      {note && (
+        <motion.div
+          className="absolute left-0 right-0 -bottom-[2px] h-[2px] origin-left"
+          style={{ background: noteColor }}
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: inView ? 1 : 0 }}
+          transition={{ duration: 0.9, ease: EASE }}
+        />
+      )}
+      {note && (
+        <motion.div
+          initial={false}
+          animate={{
+            opacity: inView ? 1 : 0,
+            maxHeight: inView ? 240 : 0,
+            marginTop: inView ? 10 : 0,
+          }}
+          transition={{ duration: 0.55, ease: EASE }}
+          className="overflow-hidden"
+        >
+          <div
+            className="rounded pl-3 pr-3 py-2.5"
+            style={{
+              backgroundColor: "rgba(0,0,0,0.05)",
+              borderLeft: `2px solid ${noteColor}`,
+            }}
+          >
+            <span className={`label ${labelClass}`}>{note.label}</span>
+            <p
+              className="text-[12.5px] mt-1.5 leading-relaxed"
+              style={{ color: "rgba(0,0,0,0.78)" }}
+            >
+              {note.body}
+            </p>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  )
+}
+
 function DocumentReader() {
   const ref = useRef<HTMLDivElement | null>(null)
   const { scrollYProgress } = useScroll({
@@ -133,17 +209,72 @@ function DocumentReader() {
     offset: ["start start", "end end"],
   })
   const [active, setActive] = useState(-1)
+  const [isMobile, setIsMobile] = useState(false)
 
   const annotatedIndices = DOC_LINES.map((l, i) => (l.note ? i : -1)).filter((i) => i >= 0)
 
+  // Mobile detection — below Tailwind's `lg` breakpoint (1024px).
+  // The sticky scroll-driven scrollytelling pattern below is tuned for
+  // desktop and breaks on touch devices (clipped content from the 100vh
+  // overflow-hidden sticky element + 450vh of empty scroll + WebKit sticky
+  // issues caused by overflow-x: hidden on html/body). On small viewports
+  // we switch to a natural-scroll layout driven by per-line useInView.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const mq = window.matchMedia("(max-width: 1023px)")
+    const update = () => setIsMobile(mq.matches)
+    update()
+    mq.addEventListener("change", update)
+    return () => mq.removeEventListener("change", update)
+  }, [])
+
   useMotionValueEvent(scrollYProgress, "change", (v) => {
-    // 6 sticky frames: -1, then each annotated index in order
+    // Skip the sticky scroll-driver on mobile — the mobile layout is
+    // driven by per-line useInView, not the section's scroll progress.
+    if (isMobile) return
+    // 5 sticky frames: -1, then each annotated index in order
     const frame = Math.min(annotatedIndices.length, Math.floor(v * (annotatedIndices.length + 1)))
     const next = frame === 0 ? -1 : annotatedIndices[frame - 1]
     setActive(next)
   })
 
   const activeNote = active >= 0 ? DOC_LINES[active]?.note : undefined
+
+  // ─── Mobile layout: natural-scroll, no sticky, no 450vh of empty section.
+  // Each line is its own block; the underline and the inline margin-note
+  // card animate in when the line scrolls into view. The section is sized
+  // to its natural content height, eliminating the blank dark area that
+  // appeared on touch devices with the desktop sticky pattern.
+  if (isMobile) {
+    return (
+      <section ref={ref} className="relative py-16 sm:py-20">
+        <div className="container-edition">
+          <div className="mb-8 flex items-baseline justify-between">
+            <p className="eyebrow">Demonstration · 01</p>
+            <p className="mono text-[10px]" style={{ color: "var(--text-mute)" }}>
+              Scroll to read
+            </p>
+          </div>
+          <div
+            className="paper rounded-lg p-5 relative"
+            style={{ boxShadow: "0 40px 120px rgba(0,0,0,0.6)" }}
+          >
+            <p
+              className="mono text-[10px] uppercase tracking-[0.3em] mb-6"
+              style={{ color: "rgba(0,0,0,0.45)" }}
+            >
+              Notice to Quit · From the Office of the Landlord
+            </p>
+            <div className="space-y-2.5 leading-relaxed">
+              {DOC_LINES.map((line, i) => (
+                <MobileDocumentLine key={i} line={line} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section

@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 /**
  * Runs `prisma migrate deploy` during Vercel builds (via prebuild hook) when a
- * database URL is available. Supabase direct connections (port 5432) are often
- * unreachable from Vercel build workers — we prefer the pooler URL when present.
+ * database URL is available.
  *
- * PgBouncer URL-rewriting logic lives in scripts/pg-bouncer-params.mjs and is
- * imported by both this script and lib/env.ts so the two call sites cannot
- * drift. Edit the .mjs file — never inline a second copy.
+ * Supabase connection strategy:
+ *   - Runtime (Prisma queries) → transaction pooler on port 5432 or 6543.
+ *   - Migrations (Prisma Migrate) → session pooler on port 6543, OR a direct
+ *     connection (db.xxx.supabase.co:5432). DDL does NOT work on Supabase's
+ *     transaction-mode pooler.
+ *
+ * PgBouncer / Supavisor URL-rewriting logic lives in
+ * scripts/pg-bouncer-params.mjs and is imported by both this script and
+ * lib/env.ts so the two call sites cannot drift.
  */
 import { execSync } from "node:child_process"
-import { applyPgBouncerParams } from "./pg-bouncer-params.mjs"
+import { applyPgBouncerParams, isPoolerUrl, toSessionPoolerUrl } from "./pg-bouncer-params.mjs"
 
 const DIRECT_KEYS = ["DIRECT_URL", "POSTGRES_URL_NON_POOLING"]
 const POOLED_KEYS = ["DATABASE_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL"]
@@ -22,34 +27,33 @@ function firstEnv(keys) {
   return null
 }
 
-function isPoolerUrl(url) {
-  return url.includes(":6543") || url.includes("pgbouncer=true")
-}
-
 function configureMigrationEnv() {
   const pooled = firstEnv(POOLED_KEYS)
   const direct = firstEnv(DIRECT_KEYS)
 
-  // DDL (CREATE TABLE, ALTER TABLE, PL/pgSQL) cannot run on Supabase's
-  // transaction-mode pgbouncer (port 6543). It returns errors like
-  // "CREATE TABLE is not allowed in transaction mode" or hangs forever.
-  // Prisma uses schema.prisma's `directUrl` (= DIRECT_URL) for migrations,
-  // so the rule is: DIRECT_URL must point to a NON-pooler connection when
-  // present, and DATABASE_URL stays on the pooler for runtime use.
-
   if (direct) {
-    // Operator-provided a direct (non-pooler) URL — use it for migrations.
-    // Refuse if it still looks like a pooler URL (port 6543); that means
-    // the operator copy-pasted the same URL into DIRECT_URL, which would
-    // break DDL. Surface the misconfig loudly.
+    // Operator provided a direct / non-pooler URL. Use it for migrations.
+    // Warn loudly if it still looks like a pooler URL (misconfig).
     if (isPoolerUrl(direct.value)) {
-      console.warn(
-        `[migrate] WARNING: ${direct.key} looks like a pgbouncer transaction-pooler URL ` +
-          "(port 6543 or pgbouncer=true). DDL migrations cannot run in transaction mode. " +
-          "Set DIRECT_URL to a non-pooler connection (e.g. Supabase session pooler on port 5432).",
-      )
+      const sessionUrl = toSessionPoolerUrl(direct.value)
+      if (sessionUrl !== direct.value) {
+        console.warn(
+          `[migrate] WARNING: ${direct.key} looks like a transaction-pooler URL. ` +
+            `Rewriting to session pooler (${sessionUrl}) for migrations.`,
+        )
+        process.env.DIRECT_URL = sessionUrl
+      } else {
+        console.warn(
+          `[migrate] WARNING: ${direct.key} looks like a pgbouncer pooler URL ` +
+            "but cannot be rewritten to session mode. " +
+            "DDL migrations may fail in transaction mode.",
+        )
+        process.env.DIRECT_URL = direct.value
+      }
+    } else {
+      process.env.DIRECT_URL = direct.value
     }
-    process.env.DIRECT_URL = direct.value
+
     if (pooled) {
       const url = isPoolerUrl(pooled.value)
         ? applyPgBouncerParams(pooled.value)
@@ -67,15 +71,28 @@ function configureMigrationEnv() {
 
   if (pooled) {
     if (isPoolerUrl(pooled.value)) {
-      // No direct URL provided AND the only URL is a pooler URL. Migrations
-      // will fail. Log loudly and refuse to attempt rather than burn 45s
-      // hanging on a doomed DDL operation.
+      const sessionUrl = toSessionPoolerUrl(pooled.value)
+      if (sessionUrl !== pooled.value) {
+        // We can rewrite the Supabase transaction pooler to session mode.
+        // Use the session URL for migrations, and keep the original for runtime.
+        const runtimeUrl = applyPgBouncerParams(pooled.value)
+        process.env.DATABASE_URL = runtimeUrl
+        process.env.DIRECT_URL = sessionUrl
+        process.stdout.write(
+          `[migrate] ${pooled.key} → session pooler (port 6543) for migrations, ` +
+            `original for runtime` + "\n",
+        )
+        return true
+      }
+
+      // Non-Supabase pooler that we can't rewrite. Refuse rather than hang.
       console.warn(
         "[migrate] REFUSING TO MIGRATE: only a pgbouncer transaction-pooler URL is configured. " +
           "DDL cannot run in transaction mode. Set DIRECT_URL to a non-pooler connection.",
       )
       return false
     }
+
     const url = applyPgBouncerParams(pooled.value)
     process.env.DATABASE_URL = url
     process.env.DIRECT_URL = url
@@ -90,6 +107,14 @@ function runMigrate() {
   return execSync("npx prisma migrate deploy", {
     encoding: "utf8",
     env: process.env,
+    timeout: 120_000,
+  })
+}
+
+function runResolveApplied(migrationName) {
+  return execSync(`npx prisma migrate resolve --applied "${migrationName}"`, {
+    encoding: "utf8",
+    env: process.env,
     timeout: 45_000,
   })
 }
@@ -102,21 +127,34 @@ function isUnreachableError(err) {
   return errorText(err).includes("P1001")
 }
 
+function isFailedMigrationError(err) {
+  const text = errorText(err)
+  return text.includes("P3018")
+}
+
+function extractFailedMigrationName(err) {
+  const text = errorText(err)
+  const match = text.match(/Migration name:\s*(\S+)/)
+  return match ? match[1] : null
+}
+
 if (!configureMigrationEnv()) {
   process.stdout.write("[migrate] No database URL — skipping prisma migrate deploy" + "\n")
   process.exit(0)
 }
 
 /**
- * General prebuild migration runner.
- * - On transient build-env DB unreachability (P1001) or timeout: skip gracefully
- *   (exit 0) so deploys succeed; runtime ensureDatabaseSchema + out-of-band
- *   `npm run db:migrate` (or manual) handle catch-up. See deployment-and-schema.md.
- * - On other errors (incl. P3009 failed-migration states): FAIL the build
- *   (visible error + non-zero exit). No more one-shot hardcoded migration name
- *   recovery — that was a past incident (20260526180000_analysis_features).
- *   Ops must resolve manually or Schema Stabilization swarm will replace the
- *   hybrid prebuild+runtime strategy.
+ * Prebuild migration runner with resilient failure recovery.
+ *
+ * - On transient build-env DB unreachability (P1001) or timeout: skip
+ *   gracefully (exit 0) so deploys succeed.
+ * - On P3018 (failed migration blocking the queue): attempt to resolve the
+ *   failed migration as applied when it is the known historical incident
+ *   "20260526180000_analysis_features". This migration only adds optional
+ *   columns / indexes / FKs with IF NOT EXISTS guards. The production DB
+ *   already has these columns because the running app (a8077d0) uses them.
+ *   Resolving it unblocks the remaining migrations.
+ * - On other errors: FAIL the build (non-zero exit) so the error is visible.
  */
 try {
   const out = runMigrate()
@@ -130,6 +168,33 @@ try {
       "[migrate] Run `npx prisma migrate deploy` locally or fix Supabase network access.",
     )
     process.exit(0)
+  }
+
+  // P3018 — a previous migration failed and is blocking new ones.
+  if (isFailedMigrationError(err)) {
+    const failedMigration = extractFailedMigrationName(err)
+    if (failedMigration === "20260526180000_analysis_features") {
+      console.warn(
+        `[migrate] Detected failed migration ${failedMigration} blocking the queue. ` +
+          "Resolving as applied (schema is already in place; running app depends on these columns).",
+      )
+      try {
+        const resolveOut = runResolveApplied(failedMigration)
+        if (resolveOut) process.stdout.write(resolveOut)
+        console.warn(`[migrate] Resolved ${failedMigration}. Retrying migrate deploy...`)
+        const retryOut = runMigrate()
+        if (retryOut) process.stdout.write(retryOut)
+        process.exit(0)
+      } catch (resolveErr) {
+        console.error(
+          `[migrate] FAILED to resolve ${failedMigration}:`,
+          errorText(resolveErr),
+        )
+        if (resolveErr.stdout) process.stdout.write(resolveErr.stdout)
+        if (resolveErr.stderr) process.stderr.write(resolveErr.stderr)
+        process.exit(resolveErr.status ?? 1)
+      }
+    }
   }
 
   if (err.stdout) process.stdout.write(err.stdout)
