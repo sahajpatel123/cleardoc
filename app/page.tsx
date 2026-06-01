@@ -898,7 +898,7 @@ function HomeContent() {
               <Reveal key={i} delay={i * 0.1}>
                 <Tilt intensity={2}>
                   <div
-                    className="p-8 sm:p-10 h-full flex flex-col justify-between border-l max-md:p-5"
+                    className="p-8 sm:p-10 h-full flex flex-col justify-between border-l max-md:p-5 max-md:border-l-0 max-md:border-t"
                     style={{ borderColor: "var(--hairline-2)", minHeight: "clamp(240px, 50vw, 320px)" }}
                   >
                     <p
