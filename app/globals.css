@@ -681,3 +681,76 @@ textarea:focus:not(:focus-visible) {
     transition-duration: 0.001s !important;
   }
 }
+
+/* ── Notice-to-Quit reader: ONE responsive sticky scrollytelling section ──────
+   The same DocumentReader runs at every breakpoint. Mobile fit is solved purely
+   with CSS sizing (no height:auto animations anywhere): the bone paper card
+   scrolls INTERNALLY inside a capped viewport (JS centres the active clause) and
+   the margin note lives in a fixed-height dock, so the pinned frame never clips
+   on a 390x844 phone. */
+
+/* The pinned frame. Mobile-first: pin BELOW the fixed navbar and fill the small
+   viewport height minus the navbar, so the iOS dynamic toolbar can't crop the
+   bottom note dock. `position: sticky` comes from the Tailwind `sticky` class. */
+.reader-pin {
+  top: var(--nav-height);
+  height: calc(100vh - var(--nav-height));  /* fallback */
+  height: calc(100svh - var(--nav-height));
+}
+
+/* Mobile-first: card text area is height-capped + internally scrolled
+   (JS-driven scrollTo; no manual scrollbar). */
+.reader-card-scroll {
+  max-height: 38vh;
+  overflow: hidden;
+}
+
+/* Fixed-height note dock so swapping notes never reflows the pinned frame.
+   AnimatePresence children are absolutely positioned within it (see TSX). */
+.reader-note-dock {
+  min-height: 30vh;
+}
+
+/* Mobile note typography — compact so the longest body still fits the dock. */
+.reader-note-body {
+  font-size: clamp(1.05rem, 5vw, 1.5rem);
+  line-height: 1.18;
+}
+.reader-note-source {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;        /* a long source line can't blow out the dock */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ≥ lg (1024px): restore the EXACT desktop scrollytelling — full-height pinned
+   frame, no card cap, natural-flow note rail, full-size note display. */
+@media (min-width: 1024px) {
+  .reader-pin {
+    top: 0;
+    height: 100vh;
+  }
+  .reader-card-scroll {
+    max-height: none;
+    overflow: visible;
+  }
+  .reader-note-dock {
+    min-height: 0;
+  }
+  .reader-note-body {
+    font-size: clamp(1.5rem, 2.5vw, 2.2rem);  /* original desktop clamp */
+    line-height: 1.02;
+  }
+  .reader-note-source {
+    -webkit-line-clamp: unset;
+    display: block;
+    overflow: visible;
+  }
+}
+
+/* Very short viewports (landscape phones): shrink card window + dock so the
+   note is always reachable inside the pinned frame. */
+@media (max-width: 1023px) and (max-height: 720px) {
+  .reader-card-scroll { max-height: 32vh; }
+  .reader-note-dock   { min-height: 24vh; }
+}
