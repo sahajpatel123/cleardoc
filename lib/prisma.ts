@@ -27,32 +27,23 @@ function createPrismaClient(): PrismaClient {
   // necessary standalone copy that must be kept in sync.
   let url = resolveDatabaseUrl()
 
-  // directUrl bypasses PgBouncer for operations that require a persistent
-  // connection (e.g. Supabase connection pooler on port 6543). When not set,
-  // Prisma uses `url` for everything — fine for Render, Neon, and non-pooled
-  // deployments. schema.prisma declares `directUrl = env("DIRECT_URL")` for
-  // Prisma Migrate/Studio; here we pass it explicitly so the runtime client
-  // benefits from it too when the env var is available.
-  let directUrl =
-    process.env.DIRECT_URL?.trim() ||
-    process.env.POSTGRES_URL_NON_POOLING?.trim() ||
-    undefined
-
   // When the operator hasn't set a real URL yet, fall back to a syntactically
   // valid placeholder so the build does not crash. The first real query at
   // runtime will fail with a clear connection error — the boot guard in
   // lib/env.ts will also have thrown a more specific error first.
   if (isPlaceholderUrl(url)) {
     url = "postgresql://localhost:5432/cleardoc?schema=public"
-    if (directUrl && isPlaceholderUrl(directUrl)) {
-      directUrl = "postgresql://localhost:5432/cleardoc?schema=public"
-    } else if (!directUrl) {
-      directUrl = url
-    }
   }
 
+  // directUrl is declared in prisma/schema.prisma as `directUrl = env("DIRECT_URL")`
+  // (with POSTGRES_URL_NON_POOLING as a Supabase-fallback alias). Prisma reads it
+  // automatically from the env, so it MUST NOT be passed through the PrismaClient
+  // constructor's `datasources.db` object — Prisma 6 rejects it with
+  // `PrismaClientConstructorValidationError: Invalid value { db: { url, directUrl } }
+  // for datasource "db"` at construction time, which surfaced as a warm-up failure
+  // and a "Missing database URL" tail in the truncated runtime log.
   const client = new PrismaClient({
-    datasources: { db: { url, ...(directUrl ? { directUrl } : {}) } },
+    datasources: { db: { url } },
     log:
       process.env.NODE_ENV === "development"
         ? ["query", "error", "warn"]
