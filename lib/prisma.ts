@@ -42,7 +42,11 @@ function createPrismaClient(): PrismaClient {
   // `PrismaClientConstructorValidationError: Invalid value { db: { url, directUrl } }
   // for datasource "db"` at construction time, which surfaced as a warm-up failure
   // and a "Missing database URL" tail in the truncated runtime log.
-  const client = new PrismaClient({
+  //
+  // Prisma 6 also removed the legacy `$use()` middleware API in favor of
+  // Client Extensions (`$extends`). We attach the chatMessages JSONB guard
+  // via `$allOperations` on `$allModels`, filtered to the Analysis model.
+  const baseClient = new PrismaClient({
     datasources: { db: { url } },
     log:
       process.env.NODE_ENV === "development"
@@ -50,12 +54,49 @@ function createPrismaClient(): PrismaClient {
         : ["error"],
   })
 
+  const client = baseClient.$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ model, operation, args, query }) {
+          if (
+            model === "Analysis" &&
+            args &&
+            typeof args === "object" &&
+            "data" in args &&
+            (operation === "update" ||
+              operation === "updateMany" ||
+              operation === "create" ||
+              operation === "createMany")
+          ) {
+            const data = (args as { data: unknown }).data
+            const dataArray = Array.isArray(data) ? data : [data]
+            for (const d of dataArray) {
+              if (
+                d &&
+                typeof d === "object" &&
+                "chatMessages" in d &&
+                (d as { chatMessages: unknown }).chatMessages !== undefined &&
+                !Array.isArray((d as { chatMessages: unknown }).chatMessages)
+              ) {
+                throw new Error(
+                  "chatMessages must be an array — write rejected by Prisma extension",
+                )
+              }
+            }
+          }
+          return query(args)
+        },
+      },
+    },
+  })
+
   // Gracefully handle unexpected connection-level errors so the process
   // does not crash silently. Retry once with backoff for transient blips.
   async function connectWithRetry(maxRetries = 2): Promise<void> {
+    const connectable = client as unknown as { $connect: () => Promise<void> }
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        await client.$connect()
+        await connectable.$connect()
         return
       } catch (err: unknown) {
         if (attempt === maxRetries) {
@@ -73,26 +114,7 @@ function createPrismaClient(): PrismaClient {
   }
   connectWithRetry()
 
-  // Prisma middleware: guard the Analysis.chatMessages JSONB column against
-  // non-array writes from future code paths that bypass appendChatMessages.
-  // This prevents a single buggy updateMany from corrupting the column.
-  type MiddlewareFn = (params: unknown, next: (params: unknown) => Promise<unknown>) => Promise<unknown>
-  type ClientWithMiddleware = PrismaClient & { $use: (fn: MiddlewareFn) => void }
-  ;(client as ClientWithMiddleware).$use(async (params, next) => {
-    const p = params as { model?: string; action: string; args?: { data?: Record<string, unknown> | Record<string, unknown>[] } }
-    if (p.model === "Analysis" && p.args?.data &&
-        (p.action === "update" || p.action === "updateMany" || p.action === "create" || p.action === "createMany")) {
-      const dataArray = Array.isArray(p.args.data) ? p.args.data : [p.args.data]
-      for (const data of dataArray) {
-        if (data.chatMessages !== undefined && !Array.isArray(data.chatMessages)) {
-          throw new Error("chatMessages must be an array — write rejected by Prisma middleware")
-        }
-      }
-    }
-    return next(params)
-  })
-
-  return client
+  return client as unknown as PrismaClient
 }
 
 let _prismaInstance: PrismaClient | undefined = globalForPrisma.prisma
