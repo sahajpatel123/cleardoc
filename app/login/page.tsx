@@ -63,15 +63,21 @@ function LoginInner() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password, name }),
         })
-        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        const raw = await res.json().catch(() => ({}))
+        if (!raw || typeof raw !== "object") {
+          setError("Something went wrong. Try again.")
+          setLoading(false)
+          return
+        }
+        const data = raw as Record<string, unknown>
+        const serverError = typeof data.error === "string" ? data.error : undefined
         if (!res.ok) {
           // If the account already exists, try signing in — the user may have
-          // already registered and just re-submitted. Any other 5xx could also
-          // mean the account was written but the 201 response was lost, so
-          // optimistically attempt signIn before surfacing an error.
-          const accountExists = data.error?.toLowerCase().includes("already exists")
-          const serverError = res.status >= 500
-          if (accountExists || serverError) {
+          // already registered and is re-submitting. Only attempt this for the
+          // 409 Conflict status (duplicate email), not generic 5xx errors,
+          // which indicate real server failures unrelated to account creation.
+          const accountExists = res.status === 409
+          if (accountExists) {
             const attempt = await signIn("credentials", {
               email,
               password,
@@ -84,7 +90,7 @@ function LoginInner() {
               return
             }
           }
-          setError(data.error || "Couldn't create account. Try again.")
+          setError(serverError || "Couldn't create account. Try again.")
           setLoading(false)
           return
         }
@@ -279,12 +285,14 @@ function LoginInner() {
                       >
                         <div>
                           <label
+                            htmlFor="login-name"
                             className="mono text-[10px] tracking-[0.24em] block mb-3"
                             style={{ color: "var(--text-mute)" }}
                           >
                             FULL NAME · OPTIONAL
                           </label>
                         <input
+                          id="login-name"
                           type="text"
                           value={name}
                           onChange={(e) => setName(e.target.value)}
@@ -299,12 +307,14 @@ function LoginInner() {
 
                   <div>
                     <label
+                      htmlFor="login-email"
                       className="mono text-[10px] tracking-[0.24em] block mb-3"
                       style={{ color: "var(--text-mute)" }}
                     >
                       EMAIL
                     </label>
                       <input
+                        id="login-email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -318,6 +328,7 @@ function LoginInner() {
                   <div>
                     <div className="flex items-baseline justify-between mb-3">
                       <label
+                        htmlFor="login-password"
                         className="mono text-[10px] tracking-[0.24em]"
                         style={{ color: "var(--text-mute)" }}
                       >
@@ -333,13 +344,14 @@ function LoginInner() {
                       </button>
                     </div>
                     <input
+                      id="login-password"
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder={mode === "signup" ? "At least eight characters" : "Your password"}
+                      placeholder={mode === "signup" ? "At least 12 characters" : "Your password"}
                       autoComplete={mode === "signup" ? "new-password" : "current-password"}
                       required
-                      minLength={8}
+                      minLength={12}
                       className="field max-md:text-sm"
                     />
                   </div>

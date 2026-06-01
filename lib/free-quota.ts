@@ -1,3 +1,5 @@
+import { getRedis } from "@/lib/redis"
+
 /** Free tier: saved analyses per UTC calendar day. */
 export const FREE_DAILY_ANALYSIS_LIMIT = 3
 
@@ -45,6 +47,55 @@ export async function checkFreeDailyQuota(
     return { ok: false, status }
   }
   return { ok: true, status }
+}
+
+export async function reserveFreeAnalysisQuota(
+  userId: string,
+): Promise<{ ok: true; status: FreeDailyQuotaStatus } | { ok: false; status: FreeDailyQuotaStatus }> {
+  const status = await getFreeDailyQuotaStatus(userId)
+  if (status.remaining <= 0) {
+    return { ok: false, status }
+  }
+
+  const redis = getRedis()
+  if (!redis) {
+    return { ok: true, status }
+  }
+
+  const dateStr = startOfUtcDay().toISOString().slice(0, 10)
+  const key = `cleardoc:quota-reserve:${userId}:${dateStr}`
+
+  try {
+    const count = await redis.incr(key)
+    if (count === 1) {
+      const ttlSec = Math.max(1, Math.floor((nextUtcMidnight().getTime() - Date.now()) / 1000))
+      await redis.expire(key, ttlSec)
+    }
+    if (count > FREE_DAILY_ANALYSIS_LIMIT) {
+      await redis.decr(key)
+      return { ok: false, status }
+    }
+  } catch {
+    // Redis failure — fall through to DB-only check
+    return { ok: true, status }
+  }
+
+  return { ok: true, status }
+}
+
+/** Compensating decrement: call when the DB transaction ultimately rejects
+ *  the save so the Redis optimistic counter stays consistent with reality.
+ */
+export async function releaseFreeAnalysisQuota(userId: string): Promise<void> {
+  const redis = getRedis()
+  if (!redis) return
+  const dateStr = startOfUtcDay().toISOString().slice(0, 10)
+  const key = `cleardoc:quota-reserve:${userId}:${dateStr}`
+  try {
+    await redis.decr(key)
+  } catch {
+    // Best-effort; TTL will eventually reconcile.
+  }
 }
 
 export function formatQuotaResetLabel(iso: string): string {

@@ -1,5 +1,6 @@
 import Stripe from "stripe"
 import { assertStripeEnv, getAppUrl } from "@/lib/env"
+import { withCircuit, CircuitOpenError } from "@/lib/circuit-breaker"
 
 let _stripe: Stripe | null = null
 
@@ -7,7 +8,14 @@ let _stripe: Stripe | null = null
 export function getStripe(): Stripe {
   if (!_stripe) {
     assertStripeEnv()
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" })
+    // DEPENDENCY RISK (DR-6): "2026-02-25.clover" is a preview / non-current
+    // Stripe API version. Stripe deprecates API versions after ~12 months.
+    // When Stripe announces deprecation of this version, migrate to the
+    // then-current stable version and regression-test checkout + webhooks.
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: "2026-02-25.clover",
+      timeout: 10000,
+    })
   }
   return _stripe
 }
@@ -48,16 +56,33 @@ export async function createCheckoutSession(params: {
     sessionParams.customer_email = userEmail
   }
 
-  const session = await getStripe().checkout.sessions.create(sessionParams)
+  const session = await withStripeCircuit(() => getStripe().checkout.sessions.create(sessionParams))
   if (!session.url) throw new Error("Stripe did not return a checkout URL")
   return session.url
 }
 
 export async function createBillingPortalSession(stripeCustomerId: string): Promise<string> {
-  const session = await getStripe().billingPortal.sessions.create({
-    customer: stripeCustomerId,
-    return_url: `${getAppUrl()}/dashboard`,
-  })
+  const session = await withStripeCircuit(() =>
+    getStripe().billingPortal.sessions.create({
+      customer: stripeCustomerId,
+      return_url: `${getAppUrl()}/dashboard`,
+    }),
+  )
   if (!session.url) throw new Error("Stripe did not return a portal URL")
   return session.url
+}
+
+async function withStripeCircuit<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await withCircuit("stripe", fn, {
+      failureThreshold: 5,
+      resetTimeoutMs: 30_000,
+      halfOpenMaxCalls: 1,
+    })
+  } catch (err) {
+    if (err instanceof CircuitOpenError) {
+      throw new Error("Stripe is temporarily unavailable. Please retry shortly.")
+    }
+    throw err
+  }
 }

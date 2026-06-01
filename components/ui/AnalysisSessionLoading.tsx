@@ -122,6 +122,11 @@ export default function AnalysisSessionLoading({
   }, [])
 
   useEffect(() => {
+    // Cap visible log lines to the last 5 for the live ticker. The setState is
+    // intentionally inside an effect because the rotation is driven by an
+    // external `current.log` prop change (not a user event) and the
+    // prev-state guard makes this idempotent — no cascading re-renders.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLogs((prev) => {
       if (prev[prev.length - 1] === current.log) return prev
       return [...prev, current.log].slice(-5)

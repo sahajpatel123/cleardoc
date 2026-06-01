@@ -1,25 +1,82 @@
 import { prisma } from "@/lib/prisma"
 import type { AnalysisResult, ChatMessage } from "@/lib/types"
 import { FREE_DAILY_ANALYSIS_LIMIT, startOfUtcDay } from "@/lib/free-quota"
-import { ensureDatabaseSchema } from "@/lib/ensure-schema"
+import { invalidateTokenVersionCache } from "@/lib/token-version-cache"
+import { safeParseAnalysisResult } from "@/lib/schemas"
+import { createLogger } from "@/lib/observability"
+import { withDbTimeout } from "@/lib/db-timeout"
+
+const log = createLogger("db")
 
 // ── User ─────────────────────────────────────────────────
 
 export async function getOrCreateUser(id: string, email: string) {
-  await ensureDatabaseSchema()
-  // Atomic upsert — no separate findUnique that would create a TOCTOU race
-  return prisma.user.upsert({
-    where: { email },
-    update: {}, // existing user — do not mutate
-    create: {
-      id,
-      email,
-      plan: "free",
-      subscriptionStatus: "inactive",
-      freeUsesRemaining: FREE_DAILY_ANALYSIS_LIMIT,
-      lastResetAt: startOfUtcDay(new Date()),
-    },
-  })
+  // Fast path: the user was created at signup (Credentials provider) or by a
+  // prior OAuth flow. A plain read is cheaper than an upsert write on every
+  // authenticated request. The slow path (create) only fires for first-time
+  // users or if the DB row was deleted while the JWT was still valid.
+  const byId = await prisma.user.findUnique({ where: { id } })
+  if (byId) return byId
+
+  // H8 fix: the previous implementation used `prisma.user.upsert({ where:
+  // { email }, update: {}, create: ... })`. If a row existed under the same
+  // email (e.g. a prior OAuth flow with a different id), the upsert
+  // returned that row unchanged — and the JWT id would never match any DB
+  // row, silently breaking every subsequent getUserById(jwtId) lookup.
+  //
+  // New approach: use `update` first (treating the JWT id as the source of
+  // truth) so we never return a row whose id differs from the JWT. If the
+  // email row already exists with a different id, we surface the conflict
+  // to the caller so they can re-issue credentials.
+  const codeFromError = (e: unknown): string | undefined => {
+    if (e && typeof e === "object" && "code" in e) {
+      const c = (e as { code: unknown }).code
+      return typeof c === "string" ? c : undefined
+    }
+    return undefined
+  }
+
+  try {
+    return await prisma.user.update({
+      where: { id },
+      data: { email },
+    })
+  } catch (err: unknown) {
+    if (codeFromError(err) === "P2025") {
+      // Row under the JWT id does not exist. This means the user row was
+      // deleted while the JWT was still valid. All associated analyses were
+      // cascade-deleted. The user gets a fresh account.
+      log.warn({ userId: id, email }, "getOrCreateUser slow path: user row deleted, creating fresh account")
+      // Try to create it. If a row already exists with the same email but
+      // a different id (the conflict we wanted to detect), return null so
+      // the caller knows the JWT is stale and the user must sign in again.
+      try {
+        return await prisma.user.create({
+          data: {
+            id,
+            email,
+            plan: "free",
+            subscriptionStatus: "inactive",
+            freeUsesRemaining: FREE_DAILY_ANALYSIS_LIMIT,
+            lastResetAt: startOfUtcDay(new Date()),
+          },
+        })
+      } catch (createErr: unknown) {
+        if (codeFromError(createErr) === "P2002") {
+          // P2002 = unique constraint violation. It could be:
+          //   (a) email conflict with a different id → stale JWT
+          //   (b) id conflict from a concurrent first-time request → race winner
+          // Try to re-read by id (the race winner's row). If not found, it's an
+          // email conflict and the JWT is stale.
+          const raced = await prisma.user.findUnique({ where: { id } })
+          if (raced) return raced
+          return null
+        }
+        throw createErr
+      }
+    }
+    throw err
+  }
 }
 
 export async function getUserById(id: string) {
@@ -36,6 +93,12 @@ export async function incrementTokenVersion(userId: string): Promise<boolean> {
     where: { id: userId },
     data: { tokenVersion: { increment: 1 } },
   })
+  if (updated.count > 0) {
+    // Evict cached version immediately (both per-instance memory and Redis)
+    // so the next auth() re-reads from DB and detects the incremented version
+    // without waiting for cache TTL.
+    await invalidateTokenVersionCache(userId)
+  }
   return updated.count > 0
 }
 
@@ -47,7 +110,6 @@ export async function saveAnalysisResult(
   result: AnalysisResult,
   opts?: { parentId?: string; caseId?: string },
 ): Promise<{ id: string }> {
-  await ensureDatabaseSchema()
   const created = await prisma.analysis.create({
     data: {
       userId,
@@ -71,6 +133,13 @@ export async function saveAnalysisResult(
  * Returns { ok: false } when the user is already at the daily limit — the
  * caller should surface a 402 and NOT save. The lock auto-releases on
  * commit/rollback, so there is nothing to clean up on error.
+ *
+ * Lock key derivation: hashtextextended(${userId}, 0) returns a 64-bit
+ * bigint. The previous code used `hashtext(${userId})::bigint` which
+ * sign-extends a 32-bit int4 — same collision probability (~50% at
+ * 65k active users). hashtextextended is Postgres 11+; we are on 14+ via
+ * Supabase. Birthday collision for 64-bit is ~50% at 2^32 = 4B users,
+ * which is well past any realistic install size.
  */
 export async function saveFreeAnalysisWithQuota(
   userId: string,
@@ -78,10 +147,10 @@ export async function saveFreeAnalysisWithQuota(
   documentType: string,
   result: AnalysisResult,
 ): Promise<{ ok: true; id: string } | { ok: false }> {
-  await ensureDatabaseSchema()
   const since = startOfUtcDay(new Date())
-  return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+  return withDbTimeout(
+    prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`
     const used = await tx.analysis.count({
       where: { userId, createdAt: { gte: since } },
     })
@@ -97,7 +166,10 @@ export async function saveFreeAnalysisWithQuota(
       },
     })
     return { ok: true as const, id: created.id }
-  })
+  }),
+    15000,
+    "saveFreeAnalysisWithQuota",
+  )
 }
 
 export async function upgradeUserToPro(
@@ -119,7 +191,7 @@ export async function upgradeUserToPro(
     // P2025 = RecordNotFound — user was deleted between webhook and DB write.
     // Log and return gracefully instead of crashing the webhook handler.
     if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2025") {
-      console.warn("[db] upgradeUserToPro: user not found", userId, "— user may have been deleted")
+      log.warn({ userId, op: "upgradeUserToPro" }, "user not found — may have been deleted")
       return null
     }
     throw err
@@ -141,7 +213,7 @@ export async function updateUserSubscriptionByCustomerId(
     })
   } catch (err: unknown) {
     if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2025") {
-      console.warn("[db] updateUserSubscriptionByCustomerId: user not found for customer", stripeCustomerId)
+      log.warn({ stripeCustomerId, op: "updateUserSubscriptionByCustomerId" }, "user not found for customer")
       return null
     }
     throw err
@@ -150,24 +222,22 @@ export async function updateUserSubscriptionByCustomerId(
 
 /**
  * Mark a subscription as cancelled.
- * We keep plan="pro" so the user still sees "Pro" in their UI,
- * but subscriptionStatus="cancelled" blocks Pro access immediately
- * via isProUser. In a future billing-period-end flow, this could
- * defer status change until current_period_end.
+ * Downgrade plan to free so the UI is consistent — the user sees
+ * Free/Inactive after cancellation.
  */
 export async function cancelSubscriptionForCustomer(stripeCustomerId: string) {
   try {
     return await prisma.user.update({
       where: { stripeCustomerId },
       data: {
-        plan: "pro",
+        plan: "free",
         subscriptionStatus: "cancelled",
         stripeSubscriptionId: null,
       },
     })
   } catch (err: unknown) {
     if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2025") {
-      console.warn("[db] cancelSubscriptionForCustomer: user not found for customer", stripeCustomerId)
+      log.warn({ stripeCustomerId, op: "cancelSubscriptionForCustomer" }, "user not found for customer")
       return null
     }
     throw err
@@ -177,14 +247,42 @@ export async function cancelSubscriptionForCustomer(stripeCustomerId: string) {
 // ── Analysis ─────────────────────────────────────────────
 
 /** Dashboard history list. Returns full result because Prisma cannot partially select JSON fields.
- *  If bandwidth becomes problematic at scale, add `overallVerdict` column to Analysis table. */
-export async function getUserAnalyses(userId: string) {
-  await ensureDatabaseSchema()
-  return prisma.analysis.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    take: 100, // bounded — prevents unbounded payload
-  })
+ *  Prefer getUserAnalysesSummary for list views — it extracts only the verdict from the JSONB column. */
+export type AnalysisSummary = {
+  id: string
+  documentName: string
+  documentType: string
+  createdAt: Date
+  caseId: string | null
+  parentId: string | null
+  overallVerdict: string | null
+}
+
+/**
+ * Lightweight dashboard list — extracts only overallVerdict from the JSONB
+ * result column instead of transmitting full 5-8 KB blobs per row.
+ * Use this for list/history views; use getAnalysisById for full detail.
+ */
+export async function getUserAnalysesSummary(userId: string): Promise<AnalysisSummary[]> {
+  const rows = await withDbTimeout(
+    prisma.$queryRaw<AnalysisSummary[]>`
+    SELECT
+      id,
+      "documentName",
+      "documentType",
+      "createdAt",
+      "caseId",
+      "parentId",
+      result->>'overall_verdict' AS "overallVerdict"
+    FROM "Analysis"
+    WHERE "userId" = ${userId}
+    ORDER BY "createdAt" DESC
+    LIMIT 50
+  `,
+    8000,
+    "getUserAnalysesSummary",
+  )
+  return rows.map((r) => ({ ...r, createdAt: new Date(r.createdAt) }))
 }
 
 export async function countUserAnalysesSince(userId: string, since: Date): Promise<number> {
@@ -194,32 +292,51 @@ export async function countUserAnalysesSince(userId: string, since: Date): Promi
 }
 
 export async function getAnalysisById(userId: string, analysisId: string) {
-  await ensureDatabaseSchema()
   return prisma.analysis.findFirst({
     where: { id: analysisId, userId },
   })
 }
 
+/**
+ * Walk the parentId chain up to 5 levels deep using a single recursive CTE,
+ * replacing the previous serial N+1 loop (up to 5 sequential DB round-trips).
+ * The userId guard is applied at every recursive step to prevent cross-user
+ * chain traversal (the FK does not constrain ownership).
+ */
 export async function getAnalysisChainForContext(userId: string, parentId: string) {
-  const chain: Array<{ documentName: string; createdAt: Date; result: unknown }> = []
-  let currentId: string | null = parentId
-  const seen = new Set<string>()
-
-  while (currentId && !seen.has(currentId) && chain.length < 5) {
-    seen.add(currentId)
-    const row: Awaited<ReturnType<typeof prisma.analysis.findFirst>> = await prisma.analysis.findFirst({
-      where: { id: currentId, userId },
-    })
-    if (!row) break
-    chain.unshift({
-      documentName: row.documentName,
-      createdAt: row.createdAt,
-      result: row.result,
-    })
-    currentId = row.parentId
+  type ChainRow = {
+    documentName: string
+    createdAt: Date
+    result: unknown
   }
 
-  return chain
+  const rows = await withDbTimeout(
+    prisma.$queryRaw<ChainRow[]>`
+    WITH RECURSIVE chain AS (
+      SELECT "documentName", "createdAt", "result", "parentId", 1 AS depth
+      FROM "Analysis"
+      WHERE id = ${parentId} AND "userId" = ${userId}
+
+      UNION ALL
+
+      SELECT a."documentName", a."createdAt", a."result", a."parentId", c.depth + 1
+      FROM "Analysis" a
+      JOIN chain c ON a.id = c."parentId"
+      WHERE c.depth < 6 AND a."userId" = ${userId}
+    )
+    SELECT "documentName", "createdAt", "result"
+    FROM chain
+    ORDER BY depth ASC
+  `,
+    10000,
+    "getAnalysisChainForContext",
+  )
+
+  return rows.map((r) => ({
+    documentName: r.documentName,
+    createdAt: new Date(r.createdAt),
+    result: r.result,
+  }))
 }
 
 export async function resolveCaseLinking(
@@ -230,10 +347,37 @@ export async function resolveCaseLinking(
     where: { id: parentId, userId },
   })
   if (!parent) return null
-  return {
-    parentId: parent.id,
-    caseId: parent.caseId ?? parent.id,
+
+  // If the parent already belongs to a Case, reuse it (verifying ownership).
+  if (parent.caseId) {
+    const existing = await prisma.case.findFirst({
+      where: { id: parent.caseId, userId },
+      select: { id: true },
+    })
+    if (existing) {
+      return { parentId: parent.id, caseId: existing.id }
+    }
+    // Parent's caseId points to a Case we no longer own (or it was deleted
+    // and parent.caseId was reset to NULL by ON DELETE SET NULL — though the
+    // raw column should already be null in that case). Fall through to
+    // create a new Case for the parent.
   }
+
+  // No case yet — mint one. The slug uses the parent's id so a chain rooted
+  // at the original analysis keeps a stable user-visible identifier.
+  //
+  // Use `upsert` keyed on the composite `@@unique([userId, slug])` so a
+  // concurrent request racing to create the same Case (e.g. two child
+  // analyses submitted at the same instant for the same parent) cannot
+  // produce a P2002 unique-constraint violation. The second request
+  // transparently receives the first one's Case.
+  const caseRow = await prisma.case.upsert({
+    where: { userId_slug: { userId, slug: parent.id } },
+    update: {},
+    create: { userId, slug: parent.id },
+    select: { id: true },
+  })
+  return { parentId: parent.id, caseId: caseRow.id }
 }
 
 export async function updateAnalysisResult(
@@ -241,9 +385,16 @@ export async function updateAnalysisResult(
   analysisId: string,
   result: AnalysisResult,
 ): Promise<boolean> {
+  // Write-time validation: reject malformed AnalysisResult before it hits
+  // the DB. This closes the gap where a route bug or AI regression could
+  // corrupt the result JSONB column with a non-conformant shape.
+  const validated = safeParseAnalysisResult(result)
+  if (!validated) {
+    throw new Error("Invalid AnalysisResult shape — rejected at write boundary")
+  }
   const updated = await prisma.analysis.updateMany({
     where: { id: analysisId, userId },
-    data: { result: result as object },
+    data: { result: validated as object },
   })
   return updated.count > 0
 }
@@ -259,6 +410,10 @@ export function parseChatMessages(raw: unknown): ChatMessage[] {
       typeof m.content === "string" &&
       typeof m.createdAt === "string"
     ) {
+      // Validate that createdAt is a parseable ISO date. Reject messages
+      // with garbage timestamps to prevent React key collisions and silent
+      // display bugs in future date-rendering code.
+      if (Number.isNaN(Date.parse(m.createdAt))) continue
       out.push({ role: m.role, content: m.content, createdAt: m.createdAt })
     }
   }
@@ -276,12 +431,33 @@ export type AppendChatResult =
  * past the cap — closing the check-then-act race the route's pre-check alone
  * left open. Returns the merged messages on success, or a reason on no-op.
  */
+/** Validate that every message in the array is a well-formed ChatMessage.
+ *  Prevents corrupted data from entering the chatMessages JSONB column. */
+function validateChatMessages(messages: ChatMessage[]): void {
+  for (const m of messages) {
+    if (
+      !m ||
+      typeof m !== "object" ||
+      (m.role !== "user" && m.role !== "assistant") ||
+      typeof m.content !== "string" ||
+      typeof m.createdAt !== "string"
+    ) {
+      throw new Error("Invalid chat message structure")
+    }
+  }
+}
+
 export async function appendChatMessages(
   userId: string,
   analysisId: string,
   newMessages: ChatMessage[],
   maxMessages: number,
 ): Promise<AppendChatResult> {
+  // Write-time validation: reject malformed messages before they hit the DB.
+  // This closes the gap where a route bug or injection could corrupt the
+  // JSONB column with data that parseChatMessages would silently filter later.
+  validateChatMessages(newMessages)
+
   const updated = await prisma.$queryRaw<Array<{ chatMessages: unknown }>>`
     UPDATE "Analysis"
     SET "chatMessages" = COALESCE("chatMessages", '[]'::jsonb) || ${JSON.stringify(newMessages)}::jsonb

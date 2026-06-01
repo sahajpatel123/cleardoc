@@ -1,31 +1,60 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { createCheckoutSession } from "@/lib/stripe"
 import { getOrCreateUser } from "@/lib/db"
 import { rateLimitByUserId, BILLING_RATE_LIMITS } from "@/lib/rate-limit"
+import { assertStripeEnv } from "@/lib/env"
+import { createLogger } from "@/lib/observability"
 
-export async function POST() {
+export const runtime = "nodejs"
+
+const log = createLogger("stripe-checkout")
+
+export async function POST(req: NextRequest) {
+  const contentType = req.headers.get("content-type") ?? ""
+  if (!contentType.startsWith("application/json")) {
+    return NextResponse.json({ error: "Unsupported Media Type" }, { status: 415 })
+  }
+
   try {
+    assertStripeEnv()
     const session = await auth()
     if (!session?.user?.id || !session.user.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const profile = await getOrCreateUser(session.user.id, session.user.email)
+    if (!profile) {
+      return NextResponse.json(
+        { error: "Session stale. Please sign in again." },
+        { status: 401 },
+      )
+    }
 
-    // Fail open: checkout is low-frequency and auth-gated, so a rate-limiter
-    // outage (e.g. Upstash unreachable) must not block a paying customer.
-    let rate: { allowed: boolean }
+    // FAIL-CLOSED on rate-limit errors. A paying customer being told
+    // "service unavailable, retry in 30s" is far less harmful than an
+    // attacker spamming Checkout endpoints during a rate-limiter outage
+    // (which would generate hundreds of Stripe emails, hit Stripe API rate
+    // limits, and create support load). The previous fail-open was a
+    // bug — payment endpoints are the most abuse-attractive paths.
+    let rate: { allowed: boolean; reset?: number }
     try {
       rate = await rateLimitByUserId(profile.id, BILLING_RATE_LIMITS.perHour, "1 h")
     } catch (rlErr) {
-      console.error("[create-checkout] rate-limit check failed, allowing:", rlErr)
-      rate = { allowed: true }
+      log.error({ err: rlErr, userId: profile.id }, "rate-limit check failed; failing closed")
+      const retryAfter = 30
+      return NextResponse.json(
+        { error: "Service temporarily unavailable. Please retry shortly." },
+        { status: 503, headers: { "Retry-After": String(retryAfter) } },
+      )
     }
     if (!rate.allowed) {
       return NextResponse.json(
         { error: "Too many requests. Please wait before trying again." },
-        { status: 429 },
+        {
+          status: 429,
+          headers: rate.reset ? { "Retry-After": String(Math.max(1, Math.ceil((rate.reset - Date.now()) / 1000))) } : {},
+        },
       )
     }
 
@@ -37,7 +66,7 @@ export async function POST() {
 
     return NextResponse.json({ url })
   } catch (err) {
-    console.error("[create-checkout]", err)
+    log.error({ err }, "create-checkout failed")
     return NextResponse.json(
       { error: "Failed to create checkout session" },
       { status: 500 }

@@ -8,7 +8,8 @@ export const DATABASE_URL_KEYS = [
 
 export const REQUIRED_AUTH_ENV = [
   "DATABASE_URL",
-  "NEXTAUTH_SECRET",
+  // NextAuth v5 accepts both NEXTAUTH_SECRET and AUTH_SECRET. We require one of
+  // them via resolvedAuthSecret() rather than constraining to a single name.
 ] as const
 
 /** Used by Prisma CLI for migrations when set (Supabase direct connection). */
@@ -31,44 +32,18 @@ export function getMissingEnv(keys: readonly string[]): string[] {
   return keys.filter((key) => !process.env[key]?.trim())
 }
 
-/**
- * Append PgBouncer compatibility params to a PostgreSQL URL when the URL
- * targets a connection pooler (port 6543, used by Supabase Pooler).
- * Params are only added when not already present to avoid duplication.
- */
-function applyPgBouncerParams(rawUrl: string): string {
-  // Only apply to pooler URLs (Supabase uses port 6543 for PgBouncer)
-  if (!rawUrl.includes(":6543")) return rawUrl
-  try {
-    const parsed = new URL(rawUrl)
-    let changed = false
-    if (!parsed.searchParams.has("pgbouncer")) {
-      parsed.searchParams.set("pgbouncer", "true")
-      changed = true
-    }
-    if (!parsed.searchParams.has("prepared_statements")) {
-      parsed.searchParams.set("prepared_statements", "false")
-      changed = true
-    }
-    return changed ? parsed.toString() : rawUrl
-  } catch {
-    // If URL parsing fails fall back to raw string manipulation
-    const hasParams = rawUrl.includes("?")
-    const extra = [
-      !rawUrl.includes("pgbouncer=") ? "pgbouncer=true" : "",
-      !rawUrl.includes("prepared_statements=") ? "prepared_statements=false" : "",
-    ]
-      .filter(Boolean)
-      .join("&")
-    if (!extra) return rawUrl
-    return hasParams ? `${rawUrl}&${extra}` : `${rawUrl}?${extra}`
-  }
-}
+// The runtime implementation lives in scripts/pg-bouncer-params.mjs (it must
+// be plain ESM so scripts/prebuild-migrate.mjs can import it at install time,
+// before any TypeScript compilation has produced .js files). The sibling
+// .d.mts file provides ambient types for TypeScript consumers.
+import { applyPgBouncerParams as _applyPgBouncerParamsRaw } from "../scripts/pg-bouncer-params.mjs"
+export const applyPgBouncerParams: (rawUrl: string) => string = _applyPgBouncerParamsRaw
+import { createLogger, captureException } from "@/lib/observability"
+const _envLog = createLogger("env")
 
 /**
  * Resolve a PostgreSQL URL from standard env names and sync DATABASE_URL
  * so Prisma and other tools see a single canonical variable.
- * Automatically appends PgBouncer compatibility params for pooler URLs.
  */
 export function resolveDatabaseUrl(): string {
   for (const key of DATABASE_URL_KEYS) {
@@ -96,14 +71,24 @@ export function assertServerEnv(): void {
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(", ")}`)
   }
+  assertProductionRateLimiter()
+  assertProductionEnvSafety()
+}
+
+/** Resolve the NextAuth v5 secret from either NEXTAUTH_SECRET or AUTH_SECRET. */
+export function resolvedAuthSecret(): string {
+  return process.env.NEXTAUTH_SECRET?.trim() ?? process.env.AUTH_SECRET?.trim() ?? ""
 }
 
 export function assertAuthEnv(): void {
   resolveDatabaseUrl()
-  const missing = getMissingEnv(REQUIRED_AUTH_ENV).filter((key) => key !== "DATABASE_URL")
-  if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(", ")}`)
+  if (!resolvedAuthSecret()) {
+    throw new Error(
+      "Missing required environment variable: NEXTAUTH_SECRET (or AUTH_SECRET, supported by NextAuth v5)",
+    )
   }
+  assertProductionRateLimiter()
+  assertProductionEnvSafety()
 }
 
 export function assertStripeEnv(): void {
@@ -111,6 +96,8 @@ export function assertStripeEnv(): void {
   if (missing.length > 0) {
     throw new Error(`Missing Stripe environment variables: ${missing.join(", ")}`)
   }
+  assertProductionRateLimiter()
+  assertProductionEnvSafety()
 }
 
 export function getAppUrl(): string {
@@ -119,9 +106,176 @@ export function getAppUrl(): string {
   return url.replace(/\/$/, "")
 }
 
+/**
+ * Validate that a request's Origin or Referer header matches the app's
+ * canonical URL. Used on state-changing routes that accept multipart/form-data
+ * (which a malicious <form> can submit cross-origin) to prevent CSRF.
+ *
+ * Returns `true` when the origin is same-site or when the header is missing
+ * but the request is from a trusted source (e.g. server-to-server). In
+ * production, a missing Origin on a state-changing route is treated as
+ * suspicious and returns `false`.
+ */
+export function isValidOrigin(req: { headers: Headers }): boolean {
+  const origin = req.headers.get("origin")
+  const referer = req.headers.get("referer")
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? ""
+
+  if (!appUrl) {
+    // In production we must have a canonical URL to validate origins.
+    // Without one, state-changing routes are vulnerable to CSRF.
+    return process.env.NODE_ENV !== "production"
+  }
+
+  const allowedOrigin = appUrl.toLowerCase()
+
+  if (origin) {
+    return origin.toLowerCase() === allowedOrigin
+  }
+
+  // Fallback to referer check (less strict — any subpath is acceptable)
+  if (referer) {
+    try {
+      const refererOrigin = new URL(referer).origin.toLowerCase()
+      return refererOrigin === allowedOrigin
+    } catch {
+      // Malformed referer header — treat as invalid origin
+      return false
+    }
+  }
+
+  // No origin/referer header. In production, reject state-changing requests
+  // without an origin header. In dev, allow (e.g. curl, testing tools).
+  return process.env.NODE_ENV !== "production"
+}
+
 /** For health checks — lists missing core env including database. */
 export function getMissingCoreEnv(): string[] {
   const missing = getMissingEnv(REQUIRED_SERVER_ENV).filter((key) => key !== "DATABASE_URL")
   if (!hasDatabaseUrl()) missing.unshift("DATABASE_URL")
   return missing
+}
+
+/**
+ * Startup guard for production: distributed rate limiter (Upstash Redis) is
+ * MANDATORY. The in-memory fallback in lib/rate-limit.ts is per-process only
+ * and multiplies effective limits across serverless instances — unacceptable
+ * for abuse/Cogs protection on analyze, chat, billing, login paths in prod.
+ *
+ * Call this early (via assertServerEnv or health) in production deploys.
+ * Does nothing outside NODE_ENV=production.
+ */
+export function assertProductionRateLimiter(): void {
+  if (process.env.NODE_ENV !== "production") return
+
+  const hasUpstash =
+    !!process.env.UPSTASH_REDIS_REST_URL?.trim() &&
+    !!process.env.UPSTASH_REDIS_REST_TOKEN?.trim()
+
+  if (!hasUpstash) {
+    throw new Error(
+      "CRITICAL PRODUCTION GUARD: Distributed rate limiter is required. " +
+        "Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN (Upstash). " +
+        "In-memory fallback is unsafe for production (limits multiplied by instance count; no coordination across deploys). " +
+        "See lib/rate-limit.ts and BUILD/DEPLOYMENT cleanup.",
+    )
+  }
+}
+
+/**
+ * Production-only safety guards. Called from every assert*Env() entry point.
+ *
+ * Catches configuration mistakes that would otherwise ship silently:
+ *
+ *   1. Stripe secret starts with sk_test_ — refuses to boot. The previous
+ *      `.env.vercel.prod` had `sk_test_` keys; a real production deploy with
+ *      test-mode keys would create non-chargeable Checkout sessions, fail
+ *      webhook signature verification, and silently never grant Pro.
+ *
+ *   2. NEXTAUTH_SECRET shorter than 32 chars in production — refuses to
+ *      boot. NextAuth v5 accepts any non-empty string, but RFC 2104 / NIST
+ *      guidance is 256 bits of entropy (32 base64 chars ~= 192 bits).
+ *
+ *   3. NVIDIA NIM baseURL pointing at the trial endpoint (integrate.api.nvidia.com)
+ *      — logs a hard warning. The trial endpoint logs inputs and outputs
+ *      for product improvement; sending HIPAA / GDPR / privileged-document
+ *      content through it is a regulatory violation. There is no API-level
+ *      way to disable logging; the only fixes are (a) self-host Nemotron on
+ *      a private endpoint or (b) sign an enterprise contract with NVIDIA.
+ *      We refuse to silence the warning — the operator must take action.
+ *
+ *   4. NEXT_PUBLIC_APP_URL still set to localhost in production — refuses
+ *      to boot. Stripe success/cancel URLs would all point to localhost.
+ */
+export function assertProductionEnvSafety(): void {
+  if (process.env.NODE_ENV !== "production") return
+
+  const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim() ?? ""
+  if (stripeSecret && stripeSecret.startsWith("sk_test_")) {
+    throw new Error(
+      "CRITICAL PRODUCTION GUARD: STRIPE_SECRET_KEY starts with sk_test_. " +
+        "Refusing to boot. Switch to a live Stripe secret (sk_live_…) before deploying. " +
+        "See lib/env.ts assertProductionEnvSafety.",
+    )
+  }
+  const stripePub = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim() ?? ""
+  if (stripePub && stripePub.startsWith("pk_test_") && !stripeSecret.startsWith("sk_test_")) {
+    // Skew between pk_test_ and sk_live_ is the more dangerous case — users
+    // would think the publishable key is test but the secret is live. Catch
+    // it explicitly.
+    throw new Error(
+      "CRITICAL PRODUCTION GUARD: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY starts with pk_test_ " +
+        "but STRIPE_SECRET_KEY is live. Refusing to boot. Either both test or both live.",
+    )
+  }
+
+  const nextAuthSecret = process.env.NEXTAUTH_SECRET?.trim() ?? process.env.AUTH_SECRET?.trim() ?? ""
+  if (nextAuthSecret && nextAuthSecret.length < 32) {
+    throw new Error(
+      "CRITICAL PRODUCTION GUARD: NEXTAUTH_SECRET is shorter than 32 characters. " +
+        "Generate a stronger secret: openssl rand -base64 32",
+    )
+  }
+
+  const aiBaseUrl = process.env.NVIDIA_API_BASE_URL?.trim() ?? "https://integrate.api.nvidia.com/v1"
+  if (aiBaseUrl.includes("integrate.api.nvidia.com")) {
+    // Log but do not throw — the trial endpoint is functional, just
+    // privacy-incompatible. The operator must act before serving EU/health/
+    // immigration users. We log at error level so it surfaces in Vercel
+    // function logs but does not break the boot.
+    _envLog.error(
+      "NVIDIA_API_BASE_URL is the trial endpoint (integrate.api.nvidia.com) — trial endpoint LOGS inputs/outputs; " +
+        "sending HIPAA / GDPR / privileged-document content through it is a regulatory violation. " +
+        "Set NVIDIA_API_BASE_URL to a private deployment or sign an enterprise DPA.",
+    )
+    captureException(
+      new Error("NVIDIA_API_BASE_URL is the trial endpoint — privacy violation risk"),
+      { component: "env-safety", extra: { aiBaseUrl } }
+    )
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? ""
+  if (appUrl) {
+    // Reject any loopback / private-network address in production. A
+    // misconfigured APP_URL would silently send Stripe success URLs and
+    // password-reset emails to the developer's machine, or worse to an
+    // internal service that the attacker can register.
+    if (
+      appUrl.includes("localhost") ||
+      appUrl.includes("127.0.0.1") ||
+      appUrl.includes("[::1]") ||
+      // 10.0.0.0/8, 172.16/12, 192.168/16 — RFC 1918 private space
+      /https?:\/\/(10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?(\/|$)/.test(
+        appUrl,
+      )
+    ) {
+      throw new Error(
+        `CRITICAL PRODUCTION GUARD: NEXT_PUBLIC_APP_URL (${appUrl}) resolves to ` +
+          "a loopback (localhost / 127.0.0.1 / ::1) or RFC 1918 private-network " +
+          "address. Stripe success/cancel URLs and email links would point to an " +
+          "unreachable or attacker-controllable host. Set NEXT_PUBLIC_APP_URL to " +
+          "the public Vercel URL before deploying.",
+      )
+    }
+  }
 }

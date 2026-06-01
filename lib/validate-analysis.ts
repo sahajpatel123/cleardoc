@@ -1,108 +1,105 @@
-import type { AnalysisResult, DocumentDeadline } from "./types"
+/**
+ * @deprecated Use `lib/schemas.ts` `safeParseAnalysisResult` for new writes.
+ *
+ * This module provides two parsers:
+ *
+ *   - `parseAnalysisResult` / `safeParseAnalysisResult` — strict. Rejects the
+ *     entire analysis if any field is malformed. Used for new analyses and
+ *     the analyze write path.
+ *
+ *   - `parseAnalysisResultLenient` — used for *reading* legacy analyses that
+ *     were saved by the pre-remediation validator (which tolerated and
+ *     dropped malformed deadlines / extra fields per field). The lenient
+ *     parser:
+ *       1. Tries strict first.
+ *       2. On failure, runs a tolerant per-field recovery that strips
+ *          unknown keys, drops malformed deadlines instead of rejecting the
+ *          whole record, clamps red_flags to the schema's max, etc.
+ *       3. Re-runs the strict parser on the recovered object.
+ *
+ *     Legacy rows saved before the strict validator are still rendered for
+ *     chat, rephrase, and dashboard loads. New writes still go through the
+ *     strict parser.
+ */
+import { z } from "zod"
+import { safeParseAnalysisResult, AnalysisResultSchema } from "./schemas"
+import type { AnalysisResultStrict as AnalysisResult } from "./schemas"
 
-const VERDICTS = new Set(["legitimate", "suspicious", "likely_illegal"])
-const SEVERITIES = new Set(["high", "medium", "low"])
-const URGENCIES = new Set(["critical", "high", "medium"])
-const DATE_TYPES = new Set(["absolute", "relative"])
-const LETTER_TONES = new Set(["firm", "cooperative", "hardship", "assertive"])
+export const parseAnalysisResult = safeParseAnalysisResult
+export type { AnalysisResult }
 
-function parseDeadline(raw: unknown): DocumentDeadline | null {
-  if (!raw || typeof raw !== "object") return null
-  const d = raw as Record<string, unknown>
-  if (
-    typeof d.label !== "string" ||
-    typeof d.description !== "string" ||
-    typeof d.urgency !== "string" ||
-    !URGENCIES.has(d.urgency) ||
-    typeof d.date_type !== "string" ||
-    !DATE_TYPES.has(d.date_type) ||
-    typeof d.source_text !== "string"
-  ) {
-    return null
+const TolerantDeadlineSchema = z
+  .object({
+    date_type: z.union([z.literal("absolute"), z.literal("relative")]).optional(),
+    absolute_date: z.string().optional(),
+    relative_rule: z.string().optional(),
+    anchor_date: z.string().optional(),
+    label: z.string().optional(),
+    description: z.string().optional(),
+    urgency: z.union([z.literal("critical"), z.literal("high"), z.literal("medium")]).optional(),
+    source_text: z.string().optional(),
+  })
+  .passthrough()
+
+/** Per-field recovery for a legacy analysis row. Returns a strict-valid object or null. */
+function recoverStrict(input: unknown): unknown {
+  if (!input || typeof input !== "object") return null
+  const raw = input as Record<string, unknown>
+
+  // Strict-validate the top-level shape first; if it already passes, no work.
+  if (safeParseAnalysisResult(raw)) return raw
+
+  // Recover deadlines: drop entries that violate the discriminated union.
+  // Anything in `deadlines` must be a full Absolute or Relative deadline;
+  // legacy rows may have hybrids or missing fields. We keep the entry only
+  // if it's unambiguous and re-strict-validates.
+  let recoveredDeadlines: unknown[] | undefined
+  if (Array.isArray(raw.deadlines)) {
+    recoveredDeadlines = raw.deadlines.filter((d: unknown) => {
+      const parsed = TolerantDeadlineSchema.safeParse(d)
+      if (!parsed.success) return false
+      const v = parsed.data
+      if (v.date_type === "absolute") {
+        return typeof v.absolute_date === "string" && v.absolute_date.length > 0
+      }
+      if (v.date_type === "relative") {
+        return (
+          typeof v.relative_rule === "string" &&
+          v.relative_rule.length > 0 &&
+          typeof v.anchor_date === "string" &&
+          v.anchor_date.length > 0
+        )
+      }
+      // No date_type means pre-remediation row; drop rather than guess.
+      return false
+    })
   }
-  if (d.absolute_date !== undefined && typeof d.absolute_date !== "string") return null
-  if (d.relative_rule !== undefined && typeof d.relative_rule !== "string") return null
-  if (d.anchor_date !== undefined && typeof d.anchor_date !== "string") return null
 
-  return {
-    label: d.label,
-    description: d.description,
-    urgency: d.urgency as DocumentDeadline["urgency"],
-    date_type: d.date_type as DocumentDeadline["date_type"],
-    absolute_date: d.absolute_date as string | undefined,
-    relative_rule: d.relative_rule as string | undefined,
-    anchor_date: d.anchor_date as string | undefined,
-    source_text: d.source_text,
+  // Try again with the cleaned deadlines array.
+  const candidate: Record<string, unknown> = { ...raw, deadlines: recoveredDeadlines }
+  // Strip any extra top-level keys not in the strict schema (defense-in-depth).
+  const allowedKeys = new Set([
+    "plain_summary",
+    "red_flags",
+    "response_letter",
+    "next_steps",
+    "overall_verdict",
+    "deadlines",
+    "letter_tone",
+  ])
+  for (const k of Object.keys(candidate)) {
+    if (!allowedKeys.has(k)) delete candidate[k]
   }
+  // Re-validate strict.
+  const result = AnalysisResultSchema.safeParse(candidate)
+  if (result.success) return result.data
+  return null
 }
 
-export function parseAnalysisResult(data: unknown): AnalysisResult | null {
-  if (!data || typeof data !== "object") return null
-  const o = data as Record<string, unknown>
-
-  if (typeof o.plain_summary !== "string") return null
-  if (typeof o.response_letter !== "string") return null
-  if (typeof o.overall_verdict !== "string" || !VERDICTS.has(o.overall_verdict)) return null
-  if (!Array.isArray(o.red_flags) || !Array.isArray(o.next_steps)) return null
-
-  for (const flag of o.red_flags) {
-    if (!flag || typeof flag !== "object") return null
-    const f = flag as Record<string, unknown>
-    if (
-      typeof f.issue !== "string" ||
-      typeof f.explanation !== "string" ||
-      typeof f.source_text !== "string" ||
-      typeof f.severity !== "string" ||
-      !SEVERITIES.has(f.severity)
-    ) {
-      return null
-    }
-  }
-
-  for (const step of o.next_steps) {
-    if (!step || typeof step !== "object") return null
-    const s = step as Record<string, unknown>
-    if (
-      typeof s.action !== "string" ||
-      typeof s.reason !== "string" ||
-      typeof s.priority !== "number"
-    ) {
-      return null
-    }
-  }
-
-  let deadlines: DocumentDeadline[] | undefined
-  if (o.deadlines !== undefined) {
-    if (!Array.isArray(o.deadlines)) return null
-    deadlines = []
-    for (const item of o.deadlines) {
-      const parsed = parseDeadline(item)
-      if (parsed) {
-        deadlines.push(parsed)
-      } else {
-        // Stay corruption-resilient (one bad deadline must not void the whole
-        // analysis), but make the loss observable — metadata only, no content.
-        const d = (item ?? {}) as Record<string, unknown>
-        console.warn("[validate] dropped malformed deadline", {
-          hasLabel: typeof d.label === "string",
-          urgency: typeof d.urgency === "string" ? d.urgency : typeof d.urgency,
-          dateType: typeof d.date_type === "string" ? d.date_type : typeof d.date_type,
-        })
-      }
-    }
-  }
-
-  if (o.letter_tone !== undefined) {
-    if (typeof o.letter_tone !== "string" || !LETTER_TONES.has(o.letter_tone)) return null
-  }
-
-  return {
-    plain_summary: o.plain_summary,
-    red_flags: o.red_flags,
-    response_letter: o.response_letter,
-    next_steps: o.next_steps,
-    overall_verdict: o.overall_verdict,
-    ...(deadlines !== undefined ? { deadlines } : {}),
-    ...(o.letter_tone !== undefined ? { letter_tone: o.letter_tone as AnalysisResult["letter_tone"] } : {}),
-  } as AnalysisResult
+export function parseAnalysisResultLenient(raw: unknown): AnalysisResult | null {
+  const strict = safeParseAnalysisResult(raw)
+  if (strict) return strict
+  const recovered = recoverStrict(raw)
+  if (recovered == null) return null
+  return safeParseAnalysisResult(recovered)
 }

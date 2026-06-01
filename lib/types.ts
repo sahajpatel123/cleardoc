@@ -1,4 +1,13 @@
+/**
+ * Domain types. The runtime-validated types from lib/schemas.ts are the
+ * authoritative shape. The loose interfaces below exist for UI prop
+ * signatures and backward compatibility; production code paths should
+ * use the strict types from lib/schemas.ts.
+ */
 import type { Analysis as PrismaAnalysis } from "@prisma/client"
+import type { AnalysisResultStrict as StrictAnalysisResult } from "./schemas"
+
+export type AnalysisResult = StrictAnalysisResult
 
 export interface RedFlag {
   issue: string
@@ -31,16 +40,6 @@ export interface DocumentDeadline {
 }
 
 export type LetterTone = "firm" | "cooperative" | "hardship" | "assertive"
-
-export interface AnalysisResult {
-  plain_summary: string
-  red_flags: RedFlag[]
-  response_letter: string
-  next_steps: NextStep[]
-  overall_verdict: "legitimate" | "suspicious" | "likely_illegal"
-  deadlines?: DocumentDeadline[]
-  letter_tone?: LetterTone
-}
 
 export interface ChatMessage {
   role: "user" | "assistant"

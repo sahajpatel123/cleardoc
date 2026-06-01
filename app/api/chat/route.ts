@@ -9,65 +9,114 @@ import {
 } from "@/lib/db"
 import { generateChatReply, CHAT_MESSAGE_LIMITS } from "@/lib/analysis-ai"
 import { FEATURE_RATE_LIMITS, rateLimitByUserId } from "@/lib/rate-limit"
-import { parseAnalysisResult } from "@/lib/validate-analysis"
+import { parseAnalysisResultLenient } from "@/lib/validate-analysis"
 import { isProUser } from "@/lib/user-plan"
+import { ChatRequestSchema, parseOrError } from "@/lib/schemas"
+import { generateReqId, captureException } from "@/lib/observability"
 import type { ChatMessage } from "@/lib/types"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
 
 export async function POST(req: NextRequest) {
+  const reqId = generateReqId()
+
   try {
     assertServerEnv()
   } catch (err) {
-    console.error("[chat] Server env not configured:", err)
-    return NextResponse.json({ error: "Chat is temporarily unavailable." }, { status: 503 })
+    captureException(err, { component: "chat", reqId, extra: { phase: "assert-env" } })
+    return NextResponse.json(
+      { error: "Chat is temporarily unavailable." },
+      { status: 503, headers: { "x-request-id": reqId } },
+    )
   }
 
-  // Outer guard so any throw (auth/DB/etc.) returns a shaped JSON error rather
-  // than an unshaped framework 500 — matching the GET handler's convention.
   try {
     const session = await auth()
     if (!session?.user?.id || !session.user.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: { "x-request-id": reqId } },
+      )
+    }
+
+    const contentType = req.headers.get("content-type") ?? ""
+    if (!contentType.startsWith("application/json")) {
+      return NextResponse.json(
+        { error: "Unsupported Media Type" },
+        { status: 415, headers: { "x-request-id": reqId } },
+      )
     }
 
     let body: unknown
     try {
       body = await req.json()
     } catch {
-      return NextResponse.json({ error: "Invalid request." }, { status: 400 })
+      return NextResponse.json(
+        { error: "Invalid request." },
+        { status: 400, headers: { "x-request-id": reqId } },
+      )
     }
 
-    const { analysisId, message } = (body ?? {}) as { analysisId?: string; message?: string }
-    const trimmed = typeof message === "string" ? message.trim() : ""
-    if (typeof analysisId !== "string" || !analysisId.trim() || !trimmed) {
-      return NextResponse.json({ error: "Analysis ID and message are required." }, { status: 400 })
+    const parsed = parseOrError(ChatRequestSchema, body)
+    if (!parsed.ok) {
+      return NextResponse.json(
+        { error: parsed.error },
+        { status: 400, headers: { "x-request-id": reqId } },
+      )
     }
-    if (trimmed.length > 2000) {
-      return NextResponse.json({ error: "Message is too long." }, { status: 400 })
-    }
+    const { analysisId, message } = parsed.data
 
     const userProfile = await getOrCreateUser(session.user.id, session.user.email)
+    if (!userProfile) {
+      return NextResponse.json(
+        { error: "Session stale. Please sign in again." },
+        { status: 401, headers: { "x-request-id": reqId } },
+      )
+    }
     const pro = isProUser(userProfile)
 
-    const rate = await rateLimitByUserId(
-      userProfile.id,
-      pro ? FEATURE_RATE_LIMITS.chatProPerHour : FEATURE_RATE_LIMITS.chatFreePerHour,
-      "1 h",
-    )
+    let rate: { allowed: boolean; reset?: number }
+    try {
+      rate = await rateLimitByUserId(
+        userProfile.id,
+        pro ? FEATURE_RATE_LIMITS.chatProPerHour : FEATURE_RATE_LIMITS.chatFreePerHour,
+        "1 h",
+      )
+    } catch (rlErr) {
+      captureException(rlErr, { component: "chat", reqId, extra: { phase: "rate-limit" } })
+      return NextResponse.json(
+        { error: "Service temporarily unavailable. Please retry shortly." },
+        { status: 503, headers: { "Retry-After": "30", "x-request-id": reqId } },
+      )
+    }
     if (!rate.allowed) {
-      return NextResponse.json({ error: "Too many chat messages. Try again later." }, { status: 429 })
+      const retryAfter = rate.reset
+        ? String(Math.max(1, Math.ceil((rate.reset - Date.now()) / 1000)))
+        : "60"
+      return NextResponse.json(
+        { error: "Too many chat messages. Try again later." },
+        { status: 429, headers: { "Retry-After": retryAfter, "x-request-id": reqId } },
+      )
     }
 
     const row = await getAnalysisById(userProfile.id, analysisId)
     if (!row) {
-      return NextResponse.json({ error: "Analysis not found." }, { status: 404 })
+      return NextResponse.json(
+        { error: "Analysis not found." },
+        { status: 404, headers: { "x-request-id": reqId } },
+      )
     }
 
-    const analysis = parseAnalysisResult(row.result)
+    // Lenient parse: legacy rows saved before the strict schema may have a
+    // tolerated-then-dropped malformed deadline. We still want to render
+    // chat, rephrase, and dashboard loads for those rows.
+    const analysis = parseAnalysisResultLenient(row.result)
     if (!analysis) {
-      return NextResponse.json({ error: "Analysis data is invalid." }, { status: 500 })
+      return NextResponse.json(
+        { error: "Analysis data is invalid." },
+        { status: 500, headers: { "x-request-id": reqId } },
+      )
     }
 
     const history = parseChatMessages(row.chatMessages)
@@ -79,25 +128,36 @@ export async function POST(req: NextRequest) {
           : "Free chat limit reached. Upgrade to Pro for more messages.",
         code: "CHAT_LIMIT_REACHED",
       },
-      { status: 402 },
+      { status: 402, headers: { "x-request-id": reqId } },
     )
-    // Cheap pre-check (fast path); the authoritative cap is enforced atomically
-    // at append time below, so concurrent requests cannot exceed `limit`.
     if (history.length >= limit) {
       return limitReached
     }
 
+    // Sanitize user message before sending to the AI to mitigate prompt injection.
+    const sanitizedMessage = message
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+      .replace(/^\s*(system|user|assistant)\s*:/gim, "")
+      .replace(/ignore\s+(all\s+)?(previous|above|prior)\s+instructions/gi, "[REMOVED]")
+      .replace(/new\s+system\s+prompt/gi, "[REMOVED]")
+      .replace(/<system\b[^>]*>[\s\S]*?<\/system>/gi, "[REMOVED]")
+      .trim()
+
     const userMsg: ChatMessage = {
       role: "user",
-      content: trimmed,
+      content: sanitizedMessage,
       createdAt: new Date().toISOString(),
     }
 
     let replyText: string
     try {
-      replyText = await generateChatReply(analysis, history, trimmed)
-    } catch {
-      return NextResponse.json({ error: "AI response failed. Try again." }, { status: 500 })
+      replyText = await generateChatReply(analysis, history, sanitizedMessage, req.signal, reqId)
+    } catch (aiErr) {
+      captureException(aiErr, { component: "chat", reqId, extra: { phase: "ai" } })
+      return NextResponse.json(
+        { error: "AI response failed. Try again." },
+        { status: 500, headers: { "x-request-id": reqId } },
+      )
     }
     const assistantMsg: ChatMessage = {
       role: "assistant",
@@ -113,36 +173,61 @@ export async function POST(req: NextRequest) {
     )
     if (!appended.ok) {
       if (appended.reason === "limit") return limitReached
-      return NextResponse.json({ error: "Analysis not found." }, { status: 404 })
+      return NextResponse.json(
+        { error: "Analysis not found." },
+        { status: 404, headers: { "x-request-id": reqId } },
+      )
     }
 
-    return NextResponse.json({ reply: replyText, messages: appended.messages })
+    return NextResponse.json(
+      { reply: replyText, messages: appended.messages },
+      { headers: { "x-request-id": reqId } },
+    )
   } catch (err) {
-    console.error("[chat] POST error:", err)
-    return NextResponse.json({ error: "Could not process chat." }, { status: 500 })
+    captureException(err, { component: "chat", reqId })
+    return NextResponse.json(
+      { error: "Could not process chat.", reqId },
+      { status: 500, headers: { "x-request-id": reqId } },
+    )
   }
 }
 
 export async function GET(req: NextRequest) {
+  const reqId = generateReqId()
   try {
     const session = await auth()
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: { "x-request-id": reqId } },
+      )
     }
 
     const analysisId = req.nextUrl.searchParams.get("analysisId")
     if (!analysisId) {
-      return NextResponse.json({ error: "analysisId required." }, { status: 400 })
+      return NextResponse.json(
+        { error: "analysisId required." },
+        { status: 400, headers: { "x-request-id": reqId } },
+      )
     }
 
     const row = await getAnalysisById(session.user.id, analysisId)
     if (!row) {
-      return NextResponse.json({ error: "Analysis not found." }, { status: 404 })
+      return NextResponse.json(
+        { error: "Analysis not found." },
+        { status: 404, headers: { "x-request-id": reqId } },
+      )
     }
 
-    return NextResponse.json({ messages: parseChatMessages(row.chatMessages) })
+    return NextResponse.json(
+      { messages: parseChatMessages(row.chatMessages) },
+      { headers: { "x-request-id": reqId } },
+    )
   } catch (err) {
-    console.error("[chat] Error fetching chat history:", err)
-    return NextResponse.json({ error: "Failed to fetch chat." }, { status: 500 })
+    captureException(err, { component: "chat", reqId, extra: { phase: "get" } })
+    return NextResponse.json(
+      { error: "Failed to fetch chat." },
+      { status: 500, headers: { "x-request-id": reqId } },
+    )
   }
 }

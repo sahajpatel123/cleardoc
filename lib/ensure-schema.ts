@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma"
+import { createLogger, captureException } from "@/lib/observability"
+
+const log = createLogger("ensure-schema")
 
 let schemaReady: Promise<void> | null = null
 
@@ -16,61 +19,43 @@ const REQUIRED_COLUMNS: ReadonlyArray<{ table: "User" | "Analysis"; column: stri
 ]
 
 /**
- * Idempotent DDL applied ONLY when a required column is missing (the slow path,
- * e.g. a brand-new database). Each is run independently and best-effort.
- */
-const DDL_STATEMENTS: readonly string[] = [
-  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "lastResetAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
-  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "tokenVersion" INTEGER NOT NULL DEFAULT 0`,
-  `ALTER TABLE "Analysis" ADD COLUMN IF NOT EXISTS "chatMessages" JSONB`,
-  `ALTER TABLE "Analysis" ADD COLUMN IF NOT EXISTS "parentId" TEXT`,
-  `ALTER TABLE "Analysis" ADD COLUMN IF NOT EXISTS "caseId" TEXT`,
-  `CREATE INDEX IF NOT EXISTS "Analysis_caseId_idx" ON "Analysis" ("caseId")`,
-  `CREATE INDEX IF NOT EXISTS "Analysis_parentId_idx" ON "Analysis" ("parentId")`,
-  `DO $$ BEGIN
-    IF NOT EXISTS (
-      SELECT 1 FROM information_schema.table_constraints
-      WHERE constraint_name = 'Analysis_parentId_fkey'
-    ) THEN
-      ALTER TABLE "Analysis" ADD CONSTRAINT "Analysis_parentId_fkey"
-        FOREIGN KEY ("parentId") REFERENCES "Analysis"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-    END IF;
-  END $$;`,
-]
-
-/**
  * Best-effort runtime guard that adds columns introduced in later migrations
- * when `prisma migrate deploy` could not run during the Vercel build (the build
- * container cannot reach the direct database port on Supabase).
+ * when `prisma migrate deploy` could not run during the Vercel build.
  *
- * Two safety properties make this safe on managed Postgres (e.g. Supabase),
- * where the pooler role does NOT own the tables:
+ * Two safety properties:
+ *  1. Read-first — if the required columns exist (normal production state),
+ *     zero DDL runs. The catalog SELECT needs no table ownership.
+ *  2. Never fatal — any DDL failure is logged and swallowed. The request
+ *     proceeds; missing columns surface as precise query errors instead.
  *
- *  1. Read-first — if the required columns already exist (the normal production
- *     state), it runs zero DDL. A `SELECT` on information_schema needs no table
- *     ownership, so it can never fail with `42501 must be owner of table`.
- *  2. Never fatal — any DDL failure (insufficient privilege, already applied,
- *     transient) is logged and swallowed. The request proceeds; if a column
- *     were genuinely missing, the real query surfaces a precise error instead
- *     of every request dying inside this guard.
- *
- * Runs once per server instance. Safe to call on every request.
+ * Runs once per server instance. Each DDL statement uses $executeRaw (tagged
+ * template) rather than $executeRawUnsafe so Prisma's parameterisation layer
+ * is still active for the parts of the statement that accept parameters.
+ * All values here are hard-coded constants with no user input, but the safer
+ * API is used by default to prevent footguns if the code is later modified.
  */
 export function ensureDatabaseSchema(): Promise<void> {
+  if (process.env.NODE_ENV === "production") {
+    // In production, migrations MUST be applied at build time via
+    // `prisma migrate deploy` (scripts/prebuild-migrate.mjs). Runtime DDL
+    // is disabled to avoid table locks, cold-start latency, and the
+    // information_schema probe tax on every health check.
+    return Promise.resolve()
+  }
+
   if (!schemaReady) {
     schemaReady = applySchemaGuards().catch((err) => {
       // Allow a retry on a later cold start, but never propagate — keep serving.
+      // This is the ONLY place a failed DDL state can re-trigger the boot path.
+      captureException(err, { component: "ensure-schema", extra: { phase: "boot" } })
       schemaReady = null
-      console.error("[ensureDatabaseSchema] non-fatal:", err)
     })
   }
   return schemaReady
 }
 
 /**
- * True when every required column already exists. Uses a read-only catalog
- * query (no ownership needed). On any probe error, returns false so the
- * best-effort DDL path still gets a chance to run.
+ * True when every required column already exists.
  */
 async function schemaIsComplete(): Promise<boolean> {
   try {
@@ -82,23 +67,69 @@ async function schemaIsComplete(): Promise<boolean> {
     `
     return Number(rows[0]?.count ?? 0) >= REQUIRED_COLUMNS.length
   } catch (err) {
-    console.error("[ensureDatabaseSchema] schema probe failed:", err)
+    captureException(err, { component: "ensure-schema", extra: { phase: "probe" } })
     return false
   }
 }
 
-async function applySchemaGuards(): Promise<void> {
-  // Fast path: schema already current → no DDL, no ownership required.
-  if (await schemaIsComplete()) return
-
-  // Slow path (e.g. fresh database): attempt each idempotent statement on its
-  // own. A failure on one — already applied, or insufficient privilege on a
-  // managed DB — must not abort the rest or crash the request.
-  for (const sql of DDL_STATEMENTS) {
-    try {
-      await prisma.$executeRawUnsafe(sql)
-    } catch (err) {
-      console.error("[ensureDatabaseSchema] statement skipped:", sql.slice(0, 64), err)
-    }
+async function tryDdl(label: string, fn: () => Promise<unknown>): Promise<void> {
+  try {
+    await fn()
+  } catch (err) {
+    log.error({ statement: label }, "ddl statement skipped")
+    captureException(err, { component: "ensure-schema", extra: { statement: label } })
   }
+}
+
+async function applySchemaGuards(): Promise<void> {
+  const complete = await schemaIsComplete()
+
+  // In production, migrations must be applied at build time via
+  // `prisma migrate deploy` (see scripts/prebuild-migrate.mjs). Running DDL
+  // inside request handlers causes dangerous race conditions, table locks, and
+  // cold-start latency on serverless platforms. We skip entirely in production.
+  if (process.env.NODE_ENV === "production") {
+    return
+  }
+
+  if (complete) return
+
+  // Each statement is idempotent (IF NOT EXISTS / IF NOT EXISTS constraint check).
+  // Using $executeRaw tagged templates instead of $executeRawUnsafe — no dynamic
+  // user input ever reaches these queries, but the safer API is the correct default.
+  await tryDdl("User.lastResetAt", () =>
+    prisma.$executeRaw`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "lastResetAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`
+  )
+  await tryDdl("User.tokenVersion", () =>
+    prisma.$executeRaw`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "tokenVersion" INTEGER NOT NULL DEFAULT 0`
+  )
+  await tryDdl("Analysis.chatMessages", () =>
+    prisma.$executeRaw`ALTER TABLE "Analysis" ADD COLUMN IF NOT EXISTS "chatMessages" JSONB`
+  )
+  await tryDdl("Analysis.parentId", () =>
+    prisma.$executeRaw`ALTER TABLE "Analysis" ADD COLUMN IF NOT EXISTS "parentId" TEXT`
+  )
+  await tryDdl("Analysis.caseId", () =>
+    prisma.$executeRaw`ALTER TABLE "Analysis" ADD COLUMN IF NOT EXISTS "caseId" TEXT`
+  )
+  await tryDdl("idx_caseId", () =>
+    prisma.$executeRaw`CREATE INDEX IF NOT EXISTS "Analysis_caseId_idx" ON "Analysis" ("caseId")`
+  )
+  await tryDdl("idx_parentId", () =>
+    prisma.$executeRaw`CREATE INDEX IF NOT EXISTS "Analysis_parentId_idx" ON "Analysis" ("parentId")`
+  )
+  // The FK check uses a DO block which cannot be parameterised; it contains no
+  // user input, so using $executeRaw here is safe.
+  await tryDdl("Analysis.parentId_fkey", () =>
+    prisma.$executeRaw`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_name = 'Analysis_parentId_fkey'
+        ) THEN
+          ALTER TABLE "Analysis" ADD CONSTRAINT "Analysis_parentId_fkey"
+            FOREIGN KEY ("parentId") REFERENCES "Analysis"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+        END IF;
+      END $$`
+  )
 }

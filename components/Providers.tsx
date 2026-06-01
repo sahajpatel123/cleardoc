@@ -11,8 +11,15 @@ export function Providers({
   children: React.ReactNode
   session: Session | null
 }) {
+  // Disable NextAuth's default polling (60s interval) and window-focus refetch.
+  // Polling burns unnecessary /api/usage calls (up to 1 RPS per open tab).
+  // Session state is driven by JWT callbacks; polling provides no benefit.
   return (
-    <SessionProvider session={session}>
+    <SessionProvider
+      session={session}
+      refetchInterval={0}
+      refetchOnWindowFocus={false}
+    >
       <AuthProvider>{children}</AuthProvider>
     </SessionProvider>
   )

@@ -773,6 +773,9 @@ function HomeContent() {
               </Reveal>
             ))}
           </div>
+          <p className="mt-8 mono text-[10px]" style={{ color: "var(--text-mute)" }}>
+            Illustrative examples. Individual results vary.
+          </p>
         </div>
       </section>
 

@@ -49,3 +49,6 @@ memory/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# source maps (build output only — Sentry uploads should delete after upload)
+.next/**/*.map

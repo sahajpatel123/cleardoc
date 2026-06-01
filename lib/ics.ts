@@ -20,7 +20,14 @@ export function buildIcsEvent(opts: {
   const end = new Date(opts.startDate)
   end.setUTCDate(end.getUTCDate() + 1)
   const dtend = formatDate(end)
-  const uid = opts.uid ?? `cleardoc-${Date.now()}@cleardoc.app`
+  // crypto.randomUUID() produces a collision-resistant UID without relying on
+  // Date.now() (non-deterministic, poor entropy, breaks idempotent exports).
+  // Callers can override via opts.uid for fully deterministic IDs.
+  const uid =
+    opts.uid ??
+    (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? `cleardoc-${crypto.randomUUID()}@cleardoc.app`
+      : `cleardoc-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}@cleardoc.app`)
 
   const escape = (s: string) =>
     s
@@ -115,5 +122,5 @@ export function downloadIcsFile(content: string, filename: string): void {
   a.href = url
   a.download = filename.endsWith(".ics") ? filename : `${filename}.ics`
   a.click()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

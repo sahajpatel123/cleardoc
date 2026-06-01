@@ -48,7 +48,7 @@ function DeadlineRow({ deadline, index }: { deadline: DocumentDeadline; index: n
   const defaultAnchor =
     deadline.anchor_date ??
     (deadline.date_type === "relative" && typeof window !== "undefined"
-      ? new Date().toLocaleDateString("en-CA")
+      ? new Date().toISOString().slice(0, 10)
       : "")
   const [anchorDate, setAnchorDate] = useState(defaultAnchor)
 

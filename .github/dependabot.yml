@@ -1,0 +1,45 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    # Security updates are always created regardless of this setting
+    open-pull-requests-limit: 5
+    # Group patch-level updates to reduce noise
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    # Labels applied to dependabot PRs
+    labels:
+      - "dependencies"
+      - "automated"
+    # Ignore major version updates for known-risk packages until manually reviewed
+    ignore:
+      - dependency-name: "next-auth"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "prisma"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "stripe"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+    # Commit message format
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    # Assignees for review
+    reviewers:
+      - "sahajpatel123"

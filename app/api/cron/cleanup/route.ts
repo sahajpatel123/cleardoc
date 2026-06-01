@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cleanupProcessedStripeEvents } from "@/lib/db"
+import { generateReqId, captureException } from "@/lib/observability"
+import { timingSafeEqual } from "node:crypto"
 
 export const runtime = "nodejs"
 
@@ -12,19 +14,34 @@ export const runtime = "nodejs"
  * to run (never leave a maintenance endpoint open to the public).
  */
 export async function GET(req: NextRequest) {
+  const reqId = generateReqId()
   const secret = process.env.CRON_SECRET
   if (!secret) {
-    return NextResponse.json({ error: "Cron not configured" }, { status: 503 })
+    return NextResponse.json(
+      { error: "Cron not configured" },
+      { status: 503, headers: { "x-request-id": reqId } },
+    )
   }
-  if (req.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const expected = Buffer.from(`Bearer ${secret}`, "utf8")
+  const actual = Buffer.from(req.headers.get("authorization") ?? "", "utf8")
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401, headers: { "x-request-id": reqId } },
+    )
   }
 
   try {
     const deleted = await cleanupProcessedStripeEvents()
-    return NextResponse.json({ ok: true, deleted })
+    return NextResponse.json(
+      { ok: true, deleted },
+      { headers: { "x-request-id": reqId } },
+    )
   } catch (err) {
-    console.error("[cron/cleanup] failed:", err)
-    return NextResponse.json({ error: "Cleanup failed" }, { status: 500 })
+    captureException(err, { component: "cron-cleanup", reqId })
+    return NextResponse.json(
+      { error: "Cleanup failed" },
+      { status: 500, headers: { "x-request-id": reqId } },
+    )
   }
 }

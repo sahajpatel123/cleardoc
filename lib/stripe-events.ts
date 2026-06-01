@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { captureException } from "@/lib/observability"
 
 /**
  * Claim a Stripe event id before handling. Returns false if already processed.
@@ -28,7 +29,10 @@ export async function releaseStripeEventClaim(eventId: string): Promise<void> {
         : undefined
     // P2025 = record not found - not an error, already released
     if (code !== "P2025") {
-      console.error("[stripe-events] Failed to release event claim:", eventId, err)
+      captureException(err, {
+        component: "stripe-events",
+        extra: { phase: "release-claim", eventId },
+      })
     }
   }
 }

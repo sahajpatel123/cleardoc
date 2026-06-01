@@ -14,18 +14,33 @@ interface Props {
 }
 
 export default function ResponseLetter({ letter, tone, analysisId, onLetterChange }: Props) {
-  const [currentLetter, setCurrentLetter] = useState(letter)
-  const [currentTone, setCurrentTone] = useState<LetterTone>(tone ?? "firm")
+  // H9 fix: derive displayed values from the prop, with optional local edit
+  // overrides. This replaces the previous `useEffect → setState` anti-pattern
+  // (which triggered a cascading re-render on every prop change) and keeps
+  // optimistic rephrase edits in sync without the cascading-render footgun.
+  // `localEdit` is set when the user rephrases — the prop normally wins, but
+  // an explicit local edit sticks until the prop changes.
+  const [localLetter, setLocalLetter] = useState<string | null>(null)
+  const [localTone, setLocalTone] = useState<LetterTone | null>(null)
+  const currentLetter = localLetter ?? letter
+  const currentTone = localTone ?? tone ?? "firm"
   const [copied, setCopied] = useState(false)
   const [copyFailed, setCopyFailed] = useState(false)
   const [rephrasing, setRephrasing] = useState(false)
   const [rephraseError, setRephraseError] = useState<string | null>(null)
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCurrentLetter(letter)
-    setCurrentTone(tone ?? "firm")
-  }, [letter, tone])
+  // Adjust-during-render pattern: reset local edits when upstream props change
+  // without triggering an extra render cycle (same pattern as AnalysisResultsView).
+  const [prevLetter, setPrevLetter] = useState(letter)
+  if (prevLetter !== letter) {
+    setPrevLetter(letter)
+    setLocalLetter(null)
+  }
+  const [prevTone, setPrevTone] = useState(tone)
+  if (prevTone !== tone) {
+    setPrevTone(tone)
+    setLocalTone(null)
+  }
 
   const handleCopy = async () => {
     try {
@@ -59,7 +74,7 @@ export default function ResponseLetter({ letter, tone, analysisId, onLetterChang
   const handleTone = async (nextTone: LetterTone) => {
     if (nextTone === currentTone || rephrasing) return
     if (!analysisId) {
-      setCurrentTone(nextTone)
+      setLocalTone(nextTone)
       return
     }
 
@@ -76,8 +91,8 @@ export default function ResponseLetter({ letter, tone, analysisId, onLetterChang
         setRephraseError(data.error ?? "Could not rewrite letter.")
         return
       }
-      setCurrentLetter(data.letter)
-      setCurrentTone(data.tone ?? nextTone)
+      setLocalLetter(data.letter)
+      setLocalTone(data.tone ?? nextTone)
       onLetterChange?.(data.letter, data.tone ?? nextTone)
     } catch {
       setRephraseError("Network error. Try again.")

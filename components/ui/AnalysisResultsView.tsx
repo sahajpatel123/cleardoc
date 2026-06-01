@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useCallback, useState } from "react"
+import { useMemo, useCallback, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import ResultCard from "@/components/ui/ResultCard"
@@ -38,127 +38,162 @@ export default function AnalysisResultsView({
   onResultChange,
 }: Props) {
   const router = useRouter()
-  const [localResult, setLocalResult] = useState(result)
 
-  // Sync when parent re-renders with new data (e.g. after rephrasing)
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLocalResult(result)
-  }, [result])
+  // Only the response letter has an optimistic local override. Everything
+  // else is read straight from the prop. This avoids the "mirror prop to
+  // state" anti-pattern (previous: useEffect(() => setLocalResult(result),
+  // [result])) which caused double-renders on every parent update.
+  const [letterOverride, setLetterOverride] = useState<{
+    letter: string
+    tone: LetterTone
+  } | null>(null)
 
-  const verdict = getVerdictUi(localResult.overall_verdict)
-  const VIcon = verdict.Icon
-  const highFlags = localResult.red_flags.filter((f) => f.severity === "high")
-  const sortedFlags = [...localResult.red_flags].sort(
-    (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
+  // When the parent prop changes (e.g. after a rephrase or fresh load),
+  // drop any local override so the new server state is reflected. Using
+  // the "adjust state during render" pattern from the React docs to avoid
+  // a cascading render from an effect.
+  const [prevResult, setPrevResult] = useState(result)
+  if (prevResult !== result) {
+    setPrevResult(result)
+    setLetterOverride(null)
+  }
+
+  const effectiveResult = useMemo<AnalysisResult>(() => {
+    if (letterOverride) {
+      return {
+        ...result,
+        response_letter: letterOverride.letter,
+        letter_tone: letterOverride.tone,
+      }
+    }
+    return result
+  }, [result, letterOverride])
+
+  const handleLetterChange = useCallback(
+    (letter: string, tone: LetterTone) => {
+      setLetterOverride({ letter, tone })
+      onResultChange?.({ ...effectiveResult, response_letter: letter, letter_tone: tone })
+    },
+    [onResultChange, effectiveResult],
   )
 
-  const handleLetterChange = useCallback((letter: string, tone: LetterTone) => {
-    setLocalResult((prev) => {
-      const updated = { ...prev, response_letter: letter, letter_tone: tone }
-      onResultChange?.(updated)
-      return updated
-    })
-  }, [onResultChange])
+  const verdict = useMemo(
+    () => getVerdictUi(effectiveResult.overall_verdict),
+    [effectiveResult.overall_verdict],
+  )
+  const VIcon = verdict.Icon
+  const highFlags = useMemo(
+    () => effectiveResult.red_flags.filter((f) => f.severity === "high"),
+    [effectiveResult.red_flags],
+  )
+  const sortedFlags = useMemo(
+    () => [...effectiveResult.red_flags].sort(
+      (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
+    ),
+    [effectiveResult.red_flags],
+  )
+  const sortedSteps = useMemo(
+    () => [...effectiveResult.next_steps].sort((a, b) => a.priority - b.priority),
+    [effectiveResult.next_steps],
+  )
 
   // Panels in display order (conditional ones are filtered below)
   const panelDefs = useMemo(() => {
-    const deadlines = localResult.deadlines ?? []
+    const deadlines = effectiveResult.deadlines ?? []
     return [
-    {
-      show: true,
-      title: "What this actually says",
-      subtitle: "Plain English, zero jargon",
-      accent: "orange" as const,
-      content: (
-        <p
-          className="text-lg leading-relaxed max-w-3xl"
-          style={{ color: "var(--text-2)", fontFamily: "ui-serif, Georgia, serif" }}
-        >
-          {localResult.plain_summary}
-        </p>
-      ),
-    },
-    {
-      show: deadlines.length > 0,
-      title: "Critical deadlines",
-      subtitle: `${deadlines.length} date${deadlines.length > 1 ? "s" : ""} to track`,
-      accent: "red" as const,
-      content: <DeadlinesPanel deadlines={deadlines} />,
-    },
-    {
-      show: true,
-      title: "Red flags found",
-      subtitle:
-        localResult.red_flags.length > 0
-          ? `${localResult.red_flags.length} issue${localResult.red_flags.length > 1 ? "s" : ""} detected`
-          : "Document reviewed",
-      accent: "red" as const,
-      content:
-        localResult.red_flags.length === 0 ? (
-          <div className="flex items-center gap-4 py-2">
-            <CheckCircle className="w-5 h-5 shrink-0" style={{ color: "var(--moss)" }} />
-            <div>
-              <p
-                style={{
-                  color: "var(--text)",
-                  fontFamily: "var(--font-syne,'Syne',sans-serif)",
-                  fontWeight: 500,
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                No major red flags found
-              </p>
-              <p className="text-xs mt-1" style={{ color: "var(--text-3)" }}>
-                This document appears straightforward.
-              </p>
+      {
+        show: true,
+        title: "What this actually says",
+        subtitle: "Plain English, zero jargon",
+        accent: "orange" as const,
+        content: (
+          <p
+            className="text-lg leading-relaxed max-w-3xl"
+            style={{ color: "var(--text-2)", fontFamily: "ui-serif, Georgia, serif" }}
+          >
+            {effectiveResult.plain_summary}
+          </p>
+        ),
+      },
+      {
+        show: deadlines.length > 0,
+        title: "Critical deadlines",
+        subtitle: `${deadlines.length} date${deadlines.length > 1 ? "s" : ""} to track`,
+        accent: "red" as const,
+        content: <DeadlinesPanel deadlines={deadlines} />,
+      },
+      {
+        show: true,
+        title: "Red flags found",
+        subtitle:
+          effectiveResult.red_flags.length > 0
+            ? `${effectiveResult.red_flags.length} issue${effectiveResult.red_flags.length > 1 ? "s" : ""} detected`
+            : "Document reviewed",
+        accent: "red" as const,
+        content:
+          effectiveResult.red_flags.length === 0 ? (
+            <div className="flex items-center gap-4 py-2">
+              <CheckCircle className="w-5 h-5 shrink-0" style={{ color: "var(--moss)" }} />
+              <div>
+                <p
+                  style={{
+                    color: "var(--text)",
+                    fontFamily: "var(--font-syne,'Syne',sans-serif)",
+                    fontWeight: 500,
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  No major red flags found
+                </p>
+                <p className="text-xs mt-1" style={{ color: "var(--text-3)" }}>
+                  This document appears straightforward.
+                </p>
+              </div>
             </div>
-          </div>
-) : (
-           <div>
+          ) : (
+            <div>
               {sortedFlags.map((flag, i) => (
                 <RedFlagItem key={`flag-${i}`} flag={flag} index={i} />
-             ))}
-           </div>
-         ),
-    },
-    {
-      show: true,
-      title: "Your response letter",
-      subtitle: "Ready to send — fill in the bracketed fields",
-      accent: "blue" as const,
-      content: (
-        <ResponseLetter
-          letter={localResult.response_letter}
-          tone={localResult.letter_tone}
-          analysisId={analysisId}
-          onLetterChange={handleLetterChange}
-        />
-      ),
-    },
-    {
-      show: true,
-      title: "Your next moves",
-      subtitle: "Ranked by likelihood of success",
-      accent: "green" as const,
-content: (
-         <div>
-           {[...localResult.next_steps]
-             .sort((a, b) => a.priority - b.priority)
-              .map((step, i) => (
-                 <NextStepItem key={`step-${i}`} step={step} index={i} />
-             ))}
-         </div>
-       ),
-    },
-    {
-      show: Boolean(analysisId),
-      title: "Call prep chat",
-      subtitle: "Ask questions before you pick up the phone",
-      accent: "orange" as const,
-      content: <AnalysisChat analysisId={analysisId!} initialMessages={chatMessages} />,
-    },
-  ]}, [localResult, sortedFlags, analysisId, chatMessages, handleLetterChange])
+              ))}
+            </div>
+          ),
+      },
+      {
+        show: true,
+        title: "Your response letter",
+        subtitle: "Ready to send — fill in the bracketed fields",
+        accent: "blue" as const,
+        content: (
+          <ResponseLetter
+            letter={effectiveResult.response_letter}
+            tone={effectiveResult.letter_tone}
+            analysisId={analysisId}
+            onLetterChange={handleLetterChange}
+          />
+        ),
+      },
+      {
+        show: true,
+        title: "Your next moves",
+        subtitle: "Ranked by likelihood of success",
+        accent: "green" as const,
+        content: (
+          <div>
+            {sortedSteps.map((step, i) => (
+              <NextStepItem key={`step-${i}`} step={step} index={i} />
+            ))}
+          </div>
+        ),
+      },
+      {
+        show: Boolean(analysisId),
+        title: "Call prep chat",
+        subtitle: "Ask questions before you pick up the phone",
+        accent: "orange" as const,
+        content: <AnalysisChat analysisId={analysisId!} initialMessages={chatMessages} />,
+      },
+    ]
+  }, [effectiveResult, sortedFlags, sortedSteps, analysisId, chatMessages, handleLetterChange])
 
   const shownPanels = panelDefs.filter((p) => p.show)
 

@@ -7,7 +7,7 @@ import { motion } from "framer-motion"
 import AnalysisResultsView from "@/components/ui/AnalysisResultsView"
 import { parseAnalysisResult } from "@/lib/validate-analysis"
 import type { Analysis, AnalysisResult, ChatMessage } from "@/lib/types"
-import { parseChatMessages } from "@/lib/db-client"
+import { parseChatMessages } from "@/lib/db"
 import { LayoutDashboard } from "lucide-react"
 
 export default function AnalyzeByIdPage() {

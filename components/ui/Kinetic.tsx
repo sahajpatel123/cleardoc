@@ -130,9 +130,15 @@ export function Marquee({
   children,
   className = "",
 }: { children: React.ReactNode; className?: string }) {
+  // Duplicating children for the infinite-scroll illusion requires unique
+  // keys per copy, otherwise React warns about duplicate keys and silently
+  // reconciles the wrong subtree (visible animation glitches). We wrap each
+  // copy in a keyed fragment so React keeps the two DOM subtrees distinct.
+  const items = Array.isArray(children) ? children : [children]
   return (
     <div
       className={`marquee-host relative overflow-hidden ${className}`}
+      aria-hidden="true"
       style={{
         WebkitMaskImage:
           "linear-gradient(90deg, transparent, black 140px, black calc(100% - 140px), transparent)",
@@ -140,9 +146,17 @@ export function Marquee({
           "linear-gradient(90deg, transparent, black 140px, black calc(100% - 140px), transparent)",
       }}
     >
-      <div className="marquee-track flex w-max">
-        {children}
-        {children}
+      <div className="marquee-track flex w-max" aria-hidden={false}>
+        {items.map((child, i) => (
+          <div key={`marquee-a-${i}`} className="flex shrink-0">
+            {child}
+          </div>
+        ))}
+        {items.map((child, i) => (
+          <div key={`marquee-b-${i}`} className="flex shrink-0" aria-hidden="true">
+            {child}
+          </div>
+        ))}
       </div>
     </div>
   )

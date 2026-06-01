@@ -1,23 +1,54 @@
 import { Ratelimit } from "@upstash/ratelimit"
 import { Redis } from "@upstash/redis"
 import { NextRequest } from "next/server"
+import { createLogger } from "@/lib/observability"
+
+const log = createLogger("rate-limit")
+
+let _redisWarnedOnce = false
+
+// Memoized Ratelimit instances keyed by "limit:window".
+const _ratelimitCache = new Map<string, Ratelimit>()
 
 function getRedis() {
   if (
     !process.env.UPSTASH_REDIS_REST_URL?.trim() ||
     !process.env.UPSTASH_REDIS_REST_TOKEN?.trim()
   ) {
+    // In production, each serverless instance has its own in-memory store, so
+    // the effective rate limit = configured_limit × number_of_live_instances.
+    // This provides minimal abuse protection. Configure Upstash Redis to get
+    // coordinated rate limiting across instances.
+    if (process.env.NODE_ENV === "production" && !_redisWarnedOnce) {
+      _redisWarnedOnce = true
+      log.error(
+        "UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN not set — rate limiting falls back to per-instance memory",
+      )
+      log.warn(
+        "Rate-limit fallback: effective limit = configured_limit × instance_count. " +
+          "Abuse protection is severely degraded. Configure Upstash Redis immediately.",
+      )
+    }
     return null
   }
   return Redis.fromEnv()
 }
 
 export function getClientIpFromHeaders(headers: Headers): string {
-  return (
-    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    headers.get("x-real-ip") ??
-    "anonymous"
-  )
+  // Vercel sanitises x-vercel-forwarded-for to the real client IP.
+  // For other platforms, use the RIGHTMOST IP in x-forwarded-for
+  // (the last proxy appended the real client IP).
+  const vercelIp = headers.get("x-vercel-forwarded-for")?.trim()
+  if (vercelIp) return vercelIp
+
+  const forwarded = headers.get("x-forwarded-for")
+  if (forwarded) {
+    const parts = forwarded.split(",")
+    const rightmost = parts[parts.length - 1]?.trim()
+    if (rightmost) return rightmost
+  }
+
+  return headers.get("x-real-ip") ?? "anonymous"
 }
 
 export function getClientIp(req: NextRequest): string {
@@ -69,20 +100,34 @@ function sweepExpired(now: number) {
   }
 }
 
-async function rateLimitByKey(
+/** Generic rate limit by arbitrary key. Used for per-email signup limits. */
+export async function rateLimitByKey(
   key: string,
   limit: number,
   window: Window,
 ): Promise<RateLimitResult> {
   const redis = getRedis()
   if (!redis) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "Rate limiter unavailable in production — Upstash Redis is required. " +
+          "Refusing to operate without distributed rate limiting.",
+      )
+    }
     return rateLimitInMemory(key, limit, window)
   }
 
-  const ratelimit = new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(limit, window),
-  })
+  // Memoize Ratelimit instances by (limit, window) to avoid allocating
+  // thousands of closures per minute on high-RPS routes like /api/analyze.
+  const cacheKey = `${limit}:${window}`
+  let ratelimit = _ratelimitCache.get(cacheKey)
+  if (!ratelimit) {
+    ratelimit = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(limit, window),
+    })
+    _ratelimitCache.set(cacheKey, ratelimit)
+  }
   const result = await ratelimit.limit(key)
   return {
     allowed: result.success,

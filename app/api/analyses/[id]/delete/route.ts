@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { generateReqId, captureException } from "@/lib/observability"
+
+export const runtime = "nodejs"
 
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const reqId = generateReqId()
   try {
     const session = await auth()
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: { "x-request-id": reqId } },
+      )
     }
 
     const { id } = await params
@@ -21,12 +28,21 @@ export async function DELETE(
     })
 
     if (result.count === 0) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Not found" },
+        { status: 404, headers: { "x-request-id": reqId } },
+      )
     }
 
-    return NextResponse.json({ deleted: true })
+    return NextResponse.json(
+      { deleted: true },
+      { headers: { "x-request-id": reqId } },
+    )
   } catch (err) {
-    console.error("[analyses/delete] Error deleting analysis:", err)
-    return NextResponse.json({ error: "Failed to delete analysis." }, { status: 500 })
+    captureException(err, { component: "analyses-delete", reqId })
+    return NextResponse.json(
+      { error: "Failed to delete analysis." },
+      { status: 500, headers: { "x-request-id": reqId } },
+    )
   }
 }

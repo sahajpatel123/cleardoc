@@ -9,9 +9,12 @@ import {
   cancelSubscriptionForCustomer,
 } from "@/lib/db"
 import { claimStripeEvent, releaseStripeEventClaim } from "@/lib/stripe-events"
+import { createLogger, generateReqId, captureException } from "@/lib/observability"
 import Stripe from "stripe"
 
 export const runtime = "nodejs"
+
+const log = createLogger("stripe-webhook")
 
 async function handleStripeEvent(event: Stripe.Event): Promise<void> {
   switch (event.type) {
@@ -20,23 +23,29 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       let userId = session.metadata?.userId ?? session.client_reference_id ?? null
 
       if (!userId && session.customer_email) {
-        const byEmail = await prisma.user.findFirst({
+        const byEmail = await prisma.user.findUnique({
           where: { email: session.customer_email.trim().toLowerCase() },
-          orderBy: { createdAt: "desc" },
         })
         userId = byEmail?.id ?? null
       }
 
       if (!userId) {
-        // Don't consume the event — let Stripe retry until we can resolve the user.
-        // This prevents the "user pays but never gets Pro" failure mode.
-        console.error("[webhook] checkout.session.completed: cannot resolve userId — releasing claim for retry", session.id)
-        await releaseStripeEventClaim(event.id)
-        throw new Error("Cannot resolve userId for checkout session")
+        // CRITICAL: Do NOT release the claim — keep it as a tombstone so ops
+        // can identify unprocessed checkout events. Returning 200 tells Stripe
+        // not to retry (the event is acknowledged), but the loud error log
+        // triggers manual intervention.
+        log.error(
+          { event: "checkout.session.completed", sessionId: session.id },
+          "CRITICAL: cannot resolve userId — checkout event TOMBSTONED for manual reconciliation",
+        )
+        return
       }
 
       if (!session.subscription) {
-        console.error("[webhook] checkout.session.completed: missing subscription — releasing claim for retry", session.id)
+        log.error(
+          { event: "checkout.session.completed", sessionId: session.id },
+          "missing subscription — releasing claim for retry",
+        )
         await releaseStripeEventClaim(event.id)
         throw new Error("Missing subscription in checkout session")
       }
@@ -44,7 +53,10 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       const customerId =
         typeof session.customer === "string" ? session.customer : session.customer?.id
       if (!customerId) {
-        console.error("[webhook] checkout.session.completed: missing customer — releasing claim for retry", session.id)
+        log.error(
+          { event: "checkout.session.completed", sessionId: session.id },
+          "missing customer — releasing claim for retry",
+        )
         await releaseStripeEventClaim(event.id)
         throw new Error("Missing customer in checkout session")
       }
@@ -62,12 +74,18 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       const sub = event.data.object as Stripe.Subscription
       const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id
       if (!customerId) {
-        console.error("[webhook] subscription event missing customer id", sub.id)
+        log.error(
+          { event: event.type, subscriptionId: sub.id },
+          "missing customer id",
+        )
         break
       }
       const user = await getUserByStripeCustomerId(customerId)
       if (!user) {
-        console.warn("[webhook] subscription.updated/created: no user found for customer", customerId, "— event will be dropped")
+        log.warn(
+          { event: event.type, customerId },
+          "no user found for customer — event will be dropped",
+        )
         break
       }
 
@@ -85,12 +103,18 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       const sub = event.data.object as Stripe.Subscription
       const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id
       if (!customerId) {
-        console.error("[webhook] subscription.deleted missing customer id", sub.id)
+        log.error(
+          { event: "customer.subscription.deleted", subscriptionId: sub.id },
+          "missing customer id",
+        )
         break
       }
       const user = await getUserByStripeCustomerId(customerId)
       if (!user) {
-        console.warn("[webhook] subscription.deleted: no user found for customer", customerId, "— cancellation will be dropped")
+        log.warn(
+          { event: "customer.subscription.deleted", customerId },
+          "no user found for customer — cancellation will be dropped",
+        )
         break
       }
 
@@ -102,22 +126,24 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       const invoice = event.data.object as Stripe.Invoice
       const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id
       if (!customerId) {
-        console.error("[webhook] invoice.payment_failed missing customer id", invoice.id)
+        log.error(
+          { event: "invoice.payment_failed", invoiceId: invoice.id },
+          "missing customer id",
+        )
         break
       }
       const user = await getUserByStripeCustomerId(customerId)
       if (!user) {
-        console.warn("[webhook] invoice.payment_failed: no user found for customer", customerId, "— failure will be dropped")
+        log.warn(
+          { event: "invoice.payment_failed", customerId },
+          "no user found for customer — failure will be dropped",
+        )
         break
       }
 
-      console.warn(
-        "[webhook] Payment failed for user",
-        user.id,
-        "- invoice:",
-        invoice.id,
-        "- attempt:",
-        invoice.attempt_count,
+      log.warn(
+        { event: "invoice.payment_failed", userId: user.id, invoiceId: invoice.id, attempt: invoice.attempt_count },
+        "payment failed",
       )
 
       // After 3 failed attempts, downgrade to past_due to revoke Pro access.
@@ -137,18 +163,27 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
 }
 
 export async function POST(req: NextRequest) {
+  const reqId = generateReqId()
+  const headers = { "x-request-id": reqId }
+
   try {
     assertStripeEnv()
   } catch (err) {
-    console.error("[webhook] Stripe env not configured:", err)
-    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 })
+    captureException(err, { component: "stripe-webhook", reqId })
+    return NextResponse.json(
+      { error: "Webhook not configured" },
+      { status: 500, headers },
+    )
   }
 
   const rawBody = await req.text()
   const sig = req.headers.get("stripe-signature")
 
   if (!sig) {
-    return NextResponse.json({ error: "No signature" }, { status: 400 })
+    return NextResponse.json(
+      { error: "No signature" },
+      { status: 400, headers },
+    )
   }
 
   let event: Stripe.Event
@@ -159,8 +194,34 @@ export async function POST(req: NextRequest) {
       process.env.STRIPE_WEBHOOK_SECRET!,
     )
   } catch (err) {
-    console.error("[webhook] Signature verification failed:", err)
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
+    captureException(err, { component: "stripe-webhook", reqId })
+    return NextResponse.json(
+      { error: "Invalid signature" },
+      { status: 400, headers },
+    )
+  }
+
+  // Belt-and-braces: reject empty event ids before claiming. An empty id would
+  // create a row with id="" and break idempotency for all subsequent events.
+  if (!event.id || event.id.trim().length === 0) {
+    log.error({ reqId }, "Rejecting webhook with empty event id")
+    return NextResponse.json({ error: "Invalid event" }, { status: 400, headers })
+  }
+
+  // Replay freshness bound: reject events older than 24 hours to prevent
+  // replay attacks after the 90-day tombstone cleanup window expires.
+  const eventAgeMs = Date.now() - (event.created * 1000)
+  if (eventAgeMs > 24 * 60 * 60 * 1000) {
+    log.warn({ reqId, eventId: event.id, type: event.type, ageHours: Math.round(eventAgeMs / 3600000) }, "Dropping stale Stripe event")
+    return NextResponse.json({ received: true, dropped: true, reason: "stale" }, { headers })
+  }
+
+  // Reject test-mode events in production environments using live keys.
+  const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim() ?? ""
+  const isLiveKey = stripeSecret.startsWith("sk_live_")
+  if (isLiveKey && event.livemode === false) {
+    log.warn({ reqId, eventId: event.id, type: event.type }, "Dropping test-mode Stripe event in production")
+    return NextResponse.json({ received: true, dropped: true, reason: "test-mode-in-production" }, { headers })
   }
 
   let claimed: boolean
@@ -170,20 +231,29 @@ export async function POST(req: NextRequest) {
     // A transient DB error here means the claim row wasn't created, so a 500
     // lets Stripe retry safely (no event is dropped). Keep the response shape
     // consistent rather than letting the throw escape as an unshaped 500.
-    console.error("[webhook] Claim failed:", err)
-    return NextResponse.json({ error: "Webhook claim failed" }, { status: 500 })
+    captureException(err, { component: "stripe-webhook", reqId })
+    return NextResponse.json(
+      { error: "Webhook claim failed" },
+      { status: 500, headers },
+    )
   }
   if (!claimed) {
-    return NextResponse.json({ received: true, duplicate: true })
+    return NextResponse.json(
+      { received: true, duplicate: true },
+      { headers },
+    )
   }
 
   try {
     await handleStripeEvent(event)
   } catch (err) {
     await releaseStripeEventClaim(event.id)
-    console.error("[webhook] Handler error:", err)
-    return NextResponse.json({ error: "Webhook handler error" }, { status: 500 })
+    captureException(err, { component: "stripe-webhook", reqId, extra: { stripeEventType: event.type } })
+    return NextResponse.json(
+      { error: "Webhook handler error" },
+      { status: 500, headers },
+    )
   }
 
-  return NextResponse.json({ received: true })
+  return NextResponse.json({ received: true }, { headers })
 }

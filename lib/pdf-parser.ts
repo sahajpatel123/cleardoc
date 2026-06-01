@@ -7,12 +7,17 @@
  *
  * Images are returned as vision payloads (base64 + media type) for Claude's
  * native image API — not as placeholder text.
+ *
+ * DEPENDENCY RISK (DR-3): pdf2json is maintained on a sporadic schedule and
+ * depends on @xmldom/xmldom, which has a CVE history. Monitor Dependabot
+ * alerts for xmldom updates; a future CVE may require switching to
+ * pdfjs-dist or another parser.
  */
 
 export type VisionMediaType = "image/png" | "image/jpeg" | "image/webp"
 
 export type ExtractDocumentResult =
-  | { kind: "text"; text: string }
+  | { kind: "text"; text: string; isScanned: boolean; truncated: boolean; totalPages: number }
   | {
       kind: "vision"
       mediaType: VisionMediaType
@@ -65,8 +70,8 @@ export async function extractDocumentFromBuffer(
   }
 
   if (mimeType === "application/pdf") {
-    const text = await extractPdfText(buffer)
-    return { kind: "text", text }
+    const { text, isScanned, truncated, totalPages } = await extractPdfText(buffer)
+    return { kind: "text", text, isScanned, truncated, totalPages }
   }
 
   if (mimeType === "image/png" || mimeType === "image/jpeg" || mimeType === "image/webp") {
@@ -80,27 +85,39 @@ export async function extractDocumentFromBuffer(
   throw new Error(`Unsupported file type: ${mimeType}`)
 }
 
-async function extractPdfText(buffer: Buffer): Promise<string> {
-  // Dynamic import keeps pdf2json out of the module graph at build time
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let PdfParserCtor: any
+/** Maximum time to spend parsing a PDF before aborting to prevent slot exhaustion. */
+const PDF_PARSE_TIMEOUT_MS = 30_000
+
+async function extractPdfText(buffer: Buffer): Promise<{ text: string; isScanned: boolean; truncated: boolean; totalPages: number }> {
+  // Dynamic import keeps pdf2json out of the module graph at build time.
+  // pdf2json has no TypeScript types, so we declare a narrow interface for
+  // the two methods we actually call (on / parseBuffer).
+  interface PdfParser {
+    on(event: string, handler: unknown): void
+    parseBuffer(buffer: Buffer): void
+    removeAllListeners(): void
+  }
+  let PdfParserCtor: new (...args: unknown[]) => PdfParser
   try {
     const mod = await import("pdf2json")
-    PdfParserCtor = mod.default ?? mod
+    PdfParserCtor = (mod.default ?? mod) as new (...args: unknown[]) => PdfParser
   } catch {
     throw new Error("PDF parser (pdf2json) is unavailable in this environment.")
   }
 
   const parser = new PdfParserCtor(null, true)
 
-  return new Promise((resolve, reject) => {
+  const parsePromise = new Promise<{ text: string; isScanned: boolean; truncated: boolean; totalPages: number }>((resolve, reject) => {
     parser.on("pdfParser_dataReady", (data: PDFData) => {
       const pages: PDFPage[] = data?.Pages ?? []
 
       if (pages.length === 0) {
-        resolve(
-          "[No text content found. Please describe the document in the context field for accurate analysis.]"
-        )
+        resolve({
+          text: "[No text content found. Please describe the document in the context field for accurate analysis.]",
+          isScanned: true,
+          truncated: false,
+          totalPages: 0,
+        })
         return
       }
 
@@ -121,13 +138,21 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
         .join("\n\n")
 
       if (!text.trim() || text.replace(/\s/g, "").length < 50) {
-        resolve(
-          `[This appears to be a scanned PDF with no extractable text. The document contains ${pages.length} page(s). Please describe the document contents in the context field above for accurate analysis.]`
-        )
+        resolve({
+          text: `[This appears to be a scanned PDF with no extractable text. The document contains ${pages.length} page(s). Please describe the document contents in the context field above for accurate analysis.]`,
+          isScanned: true,
+          truncated: pages.length > 50,
+          totalPages: pages.length,
+        })
         return
       }
 
-      resolve(`[Document: ${pages.length} page(s)]\n\n${text}`)
+      resolve({
+        text: `[Document: ${pages.length} page(s)]\n\n${text}`,
+        isScanned: false,
+        truncated: pages.length > 50,
+        totalPages: pages.length,
+      })
     })
 
     parser.on("pdfParser_dataError", (err: Error | { parserError: Error }) => {
@@ -137,6 +162,25 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
 
     parser.parseBuffer(buffer)
   })
+
+  // Guard against pathological PDFs (deep XObject trees, circular references)
+  // that can make pdf2json spin indefinitely, exhausting the serverless slot.
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new Error(`PDF parsing timed out after ${PDF_PARSE_TIMEOUT_MS}ms`)),
+      PDF_PARSE_TIMEOUT_MS,
+    )
+  )
+
+  try {
+    return await Promise.race([parsePromise, timeoutPromise])
+  } finally {
+    // Cleanup: remove listeners and dereference parser so the background
+    // pdf2json work can be GC'd even if the timeout won the race.
+    try {
+      parser.removeAllListeners()
+    } catch {}
+  }
 }
 
 export function getFileMimeType(filename: string): string {

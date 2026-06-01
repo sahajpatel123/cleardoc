@@ -4,10 +4,10 @@ import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/context/AuthContext"
-import type { Analysis } from "@/lib/types"
+import type { AnalysisSummary } from "@/lib/db"
 import { isProUser } from "@/lib/user-plan"
 import { getVerdictUi } from "@/lib/verdict-ui"
-import { parseAnalysisResult } from "@/lib/validate-analysis"
+import type { AnalysisResult } from "@/lib/types"
 import { motion, AnimatePresence } from "framer-motion"
 import { Plus, ArrowUpRight, Sparkles } from "lucide-react"
 import { Reveal, Counter } from "@/components/ui/Kinetic"
@@ -18,16 +18,30 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const { user, profile, loading: authLoading, refreshProfile } = useAuth()
   const { openPortal, loading: portalLoading } = useBilling()
-  const [analyses, setAnalyses] = useState<Analysis[]>([])
+  const [analyses, setAnalyses] = useState<AnalysisSummary[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
+  const [historyError, setHistoryError] = useState("")
   const [upgraded, setUpgraded] = useState(false)
+  const [optimisticPro, setOptimisticPro] = useState(() => {
+    if (typeof window === "undefined") return false
+    const raw = localStorage.getItem("cleardoc_upgraded_at")
+    if (!raw) return false
+    const ts = Number(raw)
+    if (Number.isNaN(ts)) return false
+    return Date.now() - ts < 5 * 60 * 1000
+  })
 
   useEffect(() => {
     if (searchParams.get("upgraded") === "true") {
       queueMicrotask(() => setUpgraded(true))
+      setOptimisticPro(true)
+      localStorage.setItem("cleardoc_upgraded_at", String(Date.now()))
       void refreshProfile()
+      const url = new URL(window.location.href)
+      url.searchParams.delete("upgraded")
+      void router.replace(url.pathname + url.search + url.hash)
     }
-  }, [searchParams, refreshProfile])
+  }, [searchParams, refreshProfile, router, setOptimisticPro])
 
   useEffect(() => {
     if (authLoading) return
@@ -36,16 +50,29 @@ function DashboardContent() {
       return
     }
     const controller = new AbortController()
+    // H22 fix: track the abort state so the .finally() setState path
+    // doesn't fire on an aborted request and surface a spurious
+    // "loading" UI flicker on remount.
+    let aborted = false
+    controller.signal.addEventListener("abort", () => {
+      aborted = true
+    })
     fetch("/api/analyses", { signal: controller.signal })
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
-      .then((data: unknown) => setAnalyses(Array.isArray(data) ? data : []))
-      .catch((err) => {
-        if (err?.name !== "AbortError") setAnalyses([])
+      .then((data: unknown) => {
+        if (aborted) return
+        setAnalyses(Array.isArray(data) ? (data as AnalysisSummary[]) : [])
       })
-      .finally(() => setLoadingHistory(false))
+      .catch((err) => {
+        if (aborted || err?.name === "AbortError") return
+        setHistoryError("Could not load your history.")
+      })
+      .finally(() => {
+        if (!aborted) setLoadingHistory(false)
+      })
     return () => controller.abort()
   }, [user, authLoading, router])
 
@@ -64,7 +91,7 @@ function DashboardContent() {
     )
   }
 
-  const isPro = isProUser(
+  const isPro = optimisticPro || isProUser(
     profile
       ? { plan: profile.plan, subscriptionStatus: profile.subscriptionStatus }
       : null,
@@ -236,6 +263,18 @@ function DashboardContent() {
                 LOADING
               </motion.span>
             </div>
+          ) : historyError ? (
+            <div
+              className="py-20 text-center border"
+              style={{ borderColor: "var(--hairline-2)", borderStyle: "dashed" }}
+            >
+              <p
+                className="display mb-3"
+                style={{ fontSize: "clamp(1.4rem, 2.4vw, 2rem)", color: "var(--text-2)" }}
+              >
+                {historyError}
+              </p>
+            </div>
           ) : analyses.length === 0 ? (
             <div
               className="py-20 text-center border"
@@ -257,9 +296,9 @@ function DashboardContent() {
           ) : (
             <div className="border-t" style={{ borderColor: "var(--hairline-2)" }}>
               {analyses.map((analysis, idx) => {
-                const ar = parseAnalysisResult(analysis.result)
-                if (!ar) return null
-                const vc = getVerdictUi(ar.overall_verdict)
+                const vc = getVerdictUi(
+                  (analysis.overallVerdict ?? "legitimate") as AnalysisResult["overall_verdict"],
+                )
                 const VIcon = vc.Icon
                 return (
                   <motion.div

@@ -1,19 +1,11 @@
-import OpenAI from "openai"
+import type OpenAI from "openai"
 import type { AnalysisResult, ChatMessage, LetterTone } from "./types"
 import { AI_MODEL, nimCompletionParams, AI_TIMEOUT_MS_SHORT, withTimeout } from "./ai-model"
+import { withAiClient } from "./ai-client"
+import { logAiUsage } from "@/lib/observability"
+import { withRetry } from "./ai-retry"
 
-let _client: OpenAI | null = null
-function getClient(): OpenAI {
-  if (!_client) {
-    _client = new OpenAI({
-      apiKey: process.env.NVIDIA_API_KEY,
-      baseURL: "https://integrate.api.nvidia.com/v1",
-      timeout: AI_TIMEOUT_MS_SHORT,
-      maxRetries: 0,
-    })
-  }
-  return _client
-}
+// const log = createLogger("analysis-ai")
 
 const CHAT_SYSTEM = `You are ClearDoc's call-prep advocate — the same fierce, practical ally who analyzed the user's document. You help them prepare for phone calls, negotiations, and follow-up actions.
 
@@ -26,31 +18,12 @@ Rules:
 - This is informational prep, not legal representation — do not claim to be their lawyer
 - If they ask something unrelated to the document, gently redirect to the case at hand`
 
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries = 3,
-  label = "AI call",
-): Promise<T> {
-  let lastError: unknown
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn()
-    } catch (err) {
-      lastError = err
-      if (attempt < maxRetries) {
-        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000
-        console.warn(`[analysis-ai] ${label} attempt ${attempt} failed, retrying in ${Math.round(delay)}ms...`)
-        await new Promise((resolve) => setTimeout(resolve, delay))
-      }
-    }
-  }
-  console.error(`[analysis-ai] ${label} failed after ${maxRetries} attempts:`, lastError)
-  throw lastError instanceof Error ? lastError : new Error(`${label} failed after retries`)
-}
-
-/** Approximate token count (4 chars per token, conservative). */
+/** Approximate token count (3 chars per token, more conservative).
+ *  The previous /4 heuristic underestimated by 30-50% for non-English /
+ *  symbol-heavy text. /3 is safer for the Nemotron context window.
+ */
 function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4)
+  return Math.ceil(text.length / 3)
 }
 
 /** Cap chat history to fit within a token budget. Keeps the most recent messages. */
@@ -71,8 +44,11 @@ export async function generateChatReply(
   analysis: AnalysisResult,
   history: ChatMessage[],
   userMessage: string,
+  signal?: AbortSignal,
+  reqId?: string,
 ): Promise<string> {
   return withRetry(async () => {
+    const startTime = Date.now()
     const contextBlock = JSON.stringify({
         plain_summary: analysis.plain_summary,
         overall_verdict: analysis.overall_verdict,
@@ -97,22 +73,37 @@ export async function generateChatReply(
     ]
 
     const response = await withTimeout(
-      getClient().chat.completions.create(
-        nimCompletionParams({
-          model: AI_MODEL,
-          max_tokens: 1024,
-          temperature: 0.3,
-          messages,
-        }),
-      ),
+      (composedSignal) =>
+        withAiClient(
+          (client) =>
+            client.chat.completions.create(
+              nimCompletionParams({
+                model: AI_MODEL,
+                max_tokens: 1024,
+                temperature: 0.3,
+                messages,
+              }),
+              { signal: composedSignal },
+            ),
+          composedSignal,
+        ),
       AI_TIMEOUT_MS_SHORT,
       "chat reply",
+      signal,
     )
 
     const text = response.choices[0]?.message?.content ?? ""
     if (!text) throw new Error("AI returned empty response")
+    logAiUsage({
+      model: AI_MODEL,
+      promptTokens: response.usage?.prompt_tokens,
+      completionTokens: response.usage?.completion_tokens,
+      totalTokens: response.usage?.total_tokens,
+      durationMs: Date.now() - startTime,
+      reqId,
+    })
     return text.trim() || "I couldn't generate a response. Please try rephrasing your question."
-  }, 3, "chat reply")
+  }, 3, "chat reply", signal, reqId, undefined, "analysis-ai")
 }
 
 const TONE_PROMPTS: Record<LetterTone, string> = {
@@ -128,37 +119,55 @@ const TONE_PROMPTS: Record<LetterTone, string> = {
 export async function rephraseResponseLetter(
   letter: string,
   tone: LetterTone,
+  signal?: AbortSignal,
+  reqId?: string,
 ): Promise<string> {
   return withRetry(async () => {
+    const startTime = Date.now()
     // Cap letter length to prevent context overflow
     const cappedLetter = letter.slice(0, 6000)
 
     const response = await withTimeout(
-      getClient().chat.completions.create(
-        nimCompletionParams({
-          model: AI_MODEL,
-          max_tokens: 2000,
-          temperature: 0.2,
-          messages: [
-            {
-              role: "system",
-              content: `You rewrite formal response letters for consumers disputing institutions. Preserve ALL facts, dates, dollar amounts, policy numbers, names, and legal references exactly. Do not invent new facts or citations. Only change tone and phrasing. Return ONLY the rewritten letter text — no preamble or markdown.`,
-            },
-            {
-              role: "user",
-              content: `Rewrite this letter to sound ${TONE_PROMPTS[tone]}\n\n--- LETTER ---\n${cappedLetter}`,
-            },
-          ],
-        }),
-      ),
+      (composedSignal) =>
+        withAiClient(
+          (client) =>
+            client.chat.completions.create(
+              nimCompletionParams({
+                model: AI_MODEL,
+                max_tokens: 2000,
+                temperature: 0.2,
+                messages: [
+                  {
+                    role: "system",
+                    content: `You rewrite formal response letters for consumers disputing institutions. Preserve ALL facts, dates, dollar amounts, policy numbers, names, and legal references exactly. Do not invent new facts or citations. Only change tone and phrasing. Return ONLY the rewritten letter text — no preamble or markdown.`,
+                  },
+                  {
+                    role: "user",
+                    content: `Rewrite this letter to sound ${TONE_PROMPTS[tone]}\n\n--- LETTER ---\n${cappedLetter}`,
+                  },
+                ],
+              }),
+              { signal: composedSignal },
+            ),
+          composedSignal,
+        ),
       AI_TIMEOUT_MS_SHORT,
       "letter rephrase",
+      signal,
     )
 
     const text = response.choices[0]?.message?.content ?? ""
     if (!text.trim()) throw new Error("AI returned empty rephrased letter")
+    logAiUsage({
+      model: AI_MODEL,
+      promptTokens: response.usage?.prompt_tokens,
+      completionTokens: response.usage?.completion_tokens,
+      totalTokens: response.usage?.total_tokens,
+      durationMs: Date.now() - startTime,
+      reqId,
+    })
     return text.trim()
-  }, 3, "letter rephrase")
+  }, 3, "letter rephrase", signal, reqId, undefined, "analysis-ai")
 }
 
 export const LETTER_TONE_OPTIONS: { id: LetterTone; label: string; hint: string }[] = [
