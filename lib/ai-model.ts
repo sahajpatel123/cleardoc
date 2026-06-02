@@ -8,6 +8,27 @@ import OpenAI from "openai"
  */
 export const AI_MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
 
+/**
+ * Comma-separated list of model ids used as fallbacks when the primary
+ * vision model returns 200 + empty content. The first model in the list
+ * that returns a non-empty response wins. Default is an empty list —
+ * the operator must opt in by setting AI_VISION_FALLBACK_MODELS so the
+ * behavior is reversible without code changes.
+ *
+ * Text-mode analysis is never affected; the fallback chain only fires
+ * for the vision path of `analyzeDocument`. Models are tried in order.
+ * The OpenAI SDK `client` is the same one used by the primary call,
+ * so all fallbacks hit the same NVIDIA_API_BASE_URL.
+ */
+export const AI_VISION_FALLBACK_MODELS: string[] = (() => {
+  const raw = process.env.AI_VISION_FALLBACK_MODELS?.trim()
+  if (!raw) return []
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+})()
+
 /** Timeout in milliseconds for AI API calls (default 50s for analyze route). */
 export const AI_TIMEOUT_MS = 50000
 
