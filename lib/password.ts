@@ -8,6 +8,11 @@ const SCRYPT_N = 131072
 const SCRYPT_R = 8
 const SCRYPT_P = 1
 const KEYLEN = 64
+// scrypt needs ~128 · N · r bytes (≈128 MB at N=131072). Node's DEFAULT maxmem
+// is only 32 MB, so the hash path threw ERR_CRYPTO_INVALID_SCRYPT_PARAMS
+// ("memory limit exceeded") on every signup/login until maxmem was raised here.
+// verifyPassword already sets this; hashPassword was missing it.
+const SCRYPT_MAXMEM = 256 * 1024 * 1024
 
 const scryptAsync = promisify(scrypt) as (
   password: string,
@@ -28,6 +33,7 @@ export async function hashPassword(password: string): Promise<string> {
     N: SCRYPT_N,
     r: SCRYPT_R,
     p: SCRYPT_P,
+    maxmem: SCRYPT_MAXMEM,
   })
   return `scrypt:${SCRYPT_N}:${SCRYPT_R}:${SCRYPT_P}:${salt.toString("hex")}:${derived.toString("hex")}`
 }
