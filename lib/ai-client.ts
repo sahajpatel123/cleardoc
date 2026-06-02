@@ -99,3 +99,22 @@ export function getAiClient(): OpenAI {
   }
   return _client
 }
+
+/**
+ * Test-only: replace the cached singleton with a fake client. Returns a
+ * restore function the caller must invoke to put the real client back.
+ * Production code never calls this — the test file in `ai.test.ts` is
+ * the only caller.
+ *
+ * Important: the test must invoke this on the SAME module instance that
+ * `lib/ai.ts` imports. The simplest way to guarantee that is to grab the
+ * module instance from `Module._cache` after `import`/`require` of
+ * `lib/ai.ts` has run, then call this on the same instance.
+ */
+export function _setAiClientForTesting(fake: OpenAI | null): () => void {
+  const previous = _client
+  _client = fake
+  return () => {
+    _client = previous
+  }
+}
