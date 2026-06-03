@@ -21,7 +21,7 @@ export type ExtractDocumentResult =
   | {
       kind: "vision"
       mediaType: VisionMediaType
-      base64Data: string
+      buffer: Buffer
     }
 
 /** Decode pdf2json's URL-encoded text, tolerating malformed percent-escapes. */
@@ -78,7 +78,7 @@ export async function extractDocumentFromBuffer(
     return {
       kind: "vision",
       mediaType: mimeType,
-      base64Data: buffer.toString("base64"),
+      buffer: buffer,
     }
   }
 

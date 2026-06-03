@@ -17,54 +17,7 @@ import { withCircuit, CircuitOpenError } from "./circuit-breaker"
  */
 let _client: OpenAI | null = null
 
-/** Lightweight async semaphore to cap concurrent NVIDIA connections.
- *  Prevents stampede when many serverless instances are warm — each instance
- *  caps its own concurrency; cross-instance coordination is via rate limits.
- */
-class Semaphore {
-  private permits: number
-  private queue: Array<() => void> = []
-
-  constructor(permits: number) {
-    this.permits = permits
-  }
-
-  async acquire(signal?: AbortSignal, timeoutMs = 10_000): Promise<void> {
-    if (this.permits > 0) {
-      this.permits--
-      return
-    }
-    return new Promise((resolve, reject) => {
-      const onAbort = () => reject(new Error("Request aborted while waiting for AI slot"))
-      if (signal?.aborted) {
-        onAbort()
-        return
-      }
-      signal?.addEventListener("abort", onAbort, { once: true })
-
-      const timer = setTimeout(() => {
-        signal?.removeEventListener("abort", onAbort)
-        reject(new Error(`AI semaphore acquisition timed out after ${timeoutMs}ms`))
-      }, timeoutMs)
-
-      this.queue.push(() => {
-        clearTimeout(timer)
-        signal?.removeEventListener("abort", onAbort)
-        resolve()
-      })
-    })
-  }
-
-  release(): void {
-    if (this.queue.length > 0) {
-      const next = this.queue.shift()
-      next?.()
-    } else {
-      this.permits++
-    }
-  }
-}
-
+import { Semaphore } from "./semaphore"
 const _semaphore = new Semaphore(5)
 
 export async function withAiClient<T>(

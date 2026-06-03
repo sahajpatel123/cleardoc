@@ -11,6 +11,7 @@ import { withAiClient } from "./ai-client"
 import { safeParseAnalysisResult } from "./schemas"
 import { captureException, createLogger, emitMetric, logAiUsage } from "./observability"
 import { withRetry } from "./ai-retry"
+import { capImageForVision, MAX_INPUT_DIMENSION } from "./image-cap"
 
 const log = createLogger("ai")
 
@@ -147,12 +148,15 @@ export type AnalyzeDocumentParams =
   | {
       mode: "vision"
       mediaType: "image/png" | "image/jpeg" | "image/webp"
-      base64Data: string
+      base64Data?: string
+      buffer?: Buffer
       userContext?: string
       documentName?: string
       signal?: AbortSignal
       deadlineMs?: number
       reqId?: string
+      userId?: string
+      pro?: boolean
     }
 
 /**
@@ -437,7 +441,49 @@ export async function analyzeDocument(
         return parseAnalysisResponse(raw, params.reqId)
       }
 
-      const { signal } = params
+      const { signal, userId, pro, reqId } = params
+      let finalBase64 = params.base64Data ?? ""
+
+      if (params.buffer) {
+        const capped = await capImageForVision(params.buffer, params.mediaType)
+        if (!capped.ok) {
+          if (capped.reason === "too_large") {
+            emitMetric("analysis", "image_rejected_oversize", {
+              userId,
+              pro,
+              maxDimension: MAX_INPUT_DIMENSION,
+              actualWidth: capped.actualDimension?.width,
+              actualHeight: capped.actualDimension?.height,
+              reqId,
+            })
+            const err = new Error(capped.message)
+            err.name = "ImageTooLargeError"
+            ;(err as any).maxDimension = capped.maxDimension
+            ;(err as any).actualDimension = capped.actualDimension
+            throw err
+          }
+          const err = new Error(capped.message)
+          err.name = "ImageDecodeError"
+          throw err
+        }
+
+        emitMetric("analysis", "image_capped", {
+          userId,
+          pro,
+          wasResized: capped.wasResized,
+          originalWidth: capped.original.width,
+          originalHeight: capped.original.height,
+          originalBytes: capped.original.bytes,
+          finalWidth: capped.final.width,
+          finalHeight: capped.final.height,
+          finalBytes: capped.final.bytes,
+          reqId,
+        })
+        finalBase64 = capped.buffer.toString("base64")
+        params.mediaType = capped.mediaType
+      }
+
+      const visionParams = { ...params, base64Data: finalBase64 }
 
       // Vision fallback chain. Default is [AI_MODEL] (no fallback) when
       // AI_VISION_FALLBACK_MODELS is unset. When set, models are tried in
@@ -465,7 +511,7 @@ export async function analyzeDocument(
                 (client) =>
                   runVisionCall(
                     client,
-                    { ...params, model },
+                    { ...visionParams, model },
                     composedSignal,
                   ),
                 composedSignal,

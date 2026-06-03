@@ -17,7 +17,7 @@ import {
   resolveCaseLinking,
 } from "@/lib/db"
 import { reserveFreeAnalysisQuota, getFreeDailyQuotaStatus, releaseFreeAnalysisQuota } from "@/lib/free-quota"
-import { capImageForVision, MAX_INPUT_DIMENSION, TARGET_DIMENSION } from "@/lib/image-cap"
+import { TARGET_DIMENSION } from "@/lib/image-cap"
 import { buildCaseContextFromAnalyses, mergeUserContextWithCase } from "@/lib/case-context"
 import { isProUser } from "@/lib/user-plan"
 import { getRedis } from "@/lib/redis"
@@ -299,11 +299,14 @@ async function runAnalysisWithCache(
       result = await analyzeDocument({
         mode: "vision",
         mediaType: extracted.mediaType,
-        base64Data: extracted.base64Data,
+        buffer: extracted.buffer,
         userContext: enrichedContext,
         documentName: fileName,
         signal,
         deadlineMs: 100000,
+        reqId,
+        userId,
+        pro,
       })
     }
     await setCachedResult(userId, cacheKey, result)
@@ -418,83 +421,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Vision path: enforce a server-side image dimension cap. NVIDIA NIM
-    // returns empty completions on oversized images (Cause-C diagnosis,
-    // 2026-06-02), which manifests as rawLength: 0 from the model. The
-    // cap module resizes in-bounds images to fit the model's token budget
-    // and rejects oversize images with a 413 the client can act on.
-    if (extracted.kind === "vision") {
-      let capped: Awaited<ReturnType<typeof capImageForVision>>
-      try {
-        capped = await capImageForVision(buffer, extracted.mediaType)
-      } catch (capErr) {
-        captureException(capErr, { component: "analyze", reqId, extra: { phase: "image-cap" } })
-        throwResponse(
-          NextResponse.json(
-            { error: "We couldn't prepare the image for analysis. Please try a different file." },
-            { status: 422, headers: { "x-request-id": reqId } },
-          ),
-        )
-      }
-      if (!capped.ok) {
-        if (capped.reason === "too_large") {
-          emitMetric("analysis", "image_rejected_oversize", {
-            userId,
-            pro,
-            maxDimension: MAX_INPUT_DIMENSION,
-            actualWidth: capped.actualDimension?.width,
-            actualHeight: capped.actualDimension?.height,
-            reqId,
-          })
-          reqLog.warn(
-            {
-              maxDimension: MAX_INPUT_DIMENSION,
-              actualWidth: capped.actualDimension?.width,
-              actualHeight: capped.actualDimension?.height,
-            },
-            "image rejected: dimensions exceed limit",
-          )
-          throwResponse(
-            NextResponse.json(
-              {
-                error: capped.message,
-                code: "IMAGE_TOO_LARGE",
-                maxDimension: capped.maxDimension,
-                actualDimension: capped.actualDimension,
-              },
-              { status: 413, headers: { "x-request-id": reqId } },
-            ),
-          )
-        }
-        // decode_failed: bubble up as 422 with a friendly message.
-        throwResponse(
-          NextResponse.json(
-            { error: capped.message },
-            { status: 422, headers: { "x-request-id": reqId } },
-          ),
-        )
-      }
-      emitMetric("analysis", "image_capped", {
-        userId,
-        pro,
-        wasResized: capped.wasResized,
-        originalWidth: capped.original.width,
-        originalHeight: capped.original.height,
-        originalBytes: capped.original.bytes,
-        finalWidth: capped.final.width,
-        finalHeight: capped.final.height,
-        finalBytes: capped.final.bytes,
-        reqId,
-      })
-      // Replace the extracted payload with the capped one so downstream
-      // code uses the resized buffer and matches the (possibly changed)
-      // media type.
-      extracted = {
-        kind: "vision",
-        mediaType: capped.mediaType,
-        base64Data: capped.buffer.toString("base64"),
-      }
-    }
+
 
     let enrichedContext = context || undefined
     if (caseLink) {
