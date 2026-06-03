@@ -493,7 +493,21 @@ export async function analyzeDocument(
       // to the next model — a 5xx on one fallback shouldn't poison the
       // whole chain. 200 + empty content is the ONLY symptom that
       // triggers a fallback; the previous code path just threw here.
+      //
+      // Deadline budget: app/api/analyze/route.ts sets maxDuration=120s
+      // and passes deadlineMs=100_000 to analyzeDocument. With the
+      // per-model AI_TIMEOUT_MS=50_000, a chain of primary + 2 fallbacks
+      // could run 150s and get hard-killed by Vercel. We bound the chain
+      // by `params.deadlineMs ?? 75_000` (a conservative default below
+      // the typical 120s maxDuration for callers that don't pass one).
+      // Before each iteration we check the remaining budget and skip
+      // remaining models if it has been exhausted, surfacing a clear
+      // "image analysis timed out" error to the caller instead of a
+      // Vercel hard-kill.
       const modelsToTry: string[] = [AI_MODEL, ...AI_VISION_FALLBACK_MODELS]
+      const chainDeadlineMs = params.deadlineMs ?? 75_000
+      const chainStartMs = Date.now()
+      const remainingMs = (): number => Math.max(0, chainDeadlineMs - (Date.now() - chainStartMs))
       let lastContent = ""
       let lastUsage:
         | { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
@@ -502,6 +516,25 @@ export async function analyzeDocument(
       let succeeded = false
 
       for (let i = 0; i < modelsToTry.length; i++) {
+        // Cap per-model timeout to whatever is left of the chain budget so
+        // we never spend a full 50s on a model that has no time left.
+        // Skip the iteration entirely if the remaining budget is below
+        // 1s (can't meaningfully call a model in <1s).
+        const budget = remainingMs()
+        if (budget < 1000) {
+          reqLog.warn(
+            {
+              remainingMs: budget,
+              fallbackIndex: i,
+              modelsRemaining: modelsToTry.length - i,
+              deadlineMs: chainDeadlineMs,
+              reqId: params.reqId,
+            },
+            "vision chain budget exhausted; skipping remaining models",
+          )
+          break
+        }
+        const perModelMs = Math.min(AI_TIMEOUT_MS, budget)
         const model = modelsToTry[i]
         const isFallback = i > 0
         try {
@@ -516,7 +549,7 @@ export async function analyzeDocument(
                   ),
                 composedSignal,
               ),
-            AI_TIMEOUT_MS,
+            perModelMs,
             isFallback ? "image analysis (fallback)" : "image analysis",
             signal,
           )
