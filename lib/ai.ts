@@ -580,7 +580,29 @@ export async function analyzeDocument(
           }
 
           // 200 + empty content. Try the next model.
-          if (isFallback) {
+          // Emit observability for ALL empty responses (primary i===0 AND
+          // fallback i>0). The primary metric is the operator's signal that
+          // the main model is silently degraded even if a fallback rescued
+          // the call. Without this, a degraded primary is invisible.
+          emitMetric("ai", "vision_empty_response", {
+            model,
+            fallbackIndex: i,
+            isPrimary: i === 0,
+            reqId: params.reqId,
+          })
+          if (i === 0) {
+            // Primary returned empty — a more specific degradation signal
+            // so operators can alert on primary health independent of
+            // fallback health.
+            emitMetric("ai", "vision_primary_degraded", {
+              fromModel: AI_MODEL,
+              reqId: params.reqId,
+            })
+            reqLog.warn(
+              { fromModel: AI_MODEL, toModel: model, fallbackIndex: i, reqId: params.reqId },
+              "vision PRIMARY model returned empty — degradation event",
+            )
+          } else {
             reqLog.warn(
               { fromModel: AI_MODEL, toModel: model, fallbackIndex: i, reqId: params.reqId },
               "vision fallback returned empty; trying next model",
