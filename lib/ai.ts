@@ -437,7 +437,7 @@ export async function analyzeDocument(
         return parseAnalysisResponse(raw, params.reqId)
       }
 
-      const { mediaType, base64Data, userContext, documentName, signal } = params
+      const { signal } = params
 
       // Vision fallback chain. Default is [AI_MODEL] (no fallback) when
       // AI_VISION_FALLBACK_MODELS is unset. When set, models are tried in
@@ -465,7 +465,7 @@ export async function analyzeDocument(
                 (client) =>
                   runVisionCall(
                     client,
-                    { ...params, mode: "vision", model, mediaType, base64Data, userContext, documentName },
+                    { ...params, model },
                     composedSignal,
                   ),
                 composedSignal,

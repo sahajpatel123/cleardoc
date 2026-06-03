@@ -42,7 +42,7 @@ import sharp from "sharp"
 
 export const MAX_INPUT_DIMENSION = 2048
 export const TARGET_DIMENSION = 1024
-const JPEG_QUALITY = 90
+const IMAGE_QUALITY = 90
 
 /** Permitted input media types — must match the vision branch in pdf-parser.ts. */
 export type ImageMediaType = "image/png" | "image/jpeg" | "image/webp"
@@ -133,11 +133,11 @@ export async function capImageForVision(
   })
 
   if (mediaType === "image/jpeg") {
-    pipeline = pipeline.jpeg({ quality: JPEG_QUALITY })
+    pipeline = pipeline.jpeg({ quality: IMAGE_QUALITY })
   } else if (mediaType === "image/webp") {
-    pipeline = pipeline.webp({ quality: JPEG_QUALITY })
+    pipeline = pipeline.webp({ quality: IMAGE_QUALITY })
   } else {
-    pipeline = pipeline.png({ compressionLevel: 9 })
+    pipeline = pipeline.png({ compressionLevel: 6 })
   }
 
   const out = await pipeline.toBuffer({ resolveWithObject: true })

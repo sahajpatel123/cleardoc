@@ -74,3 +74,19 @@ export function applyPgBouncerParams(rawUrl) {
     return hasParams ? `${rawUrl}&${extra}` : `${rawUrl}?${extra}`
   }
 }
+
+export const DATABASE_URL_KEYS = [
+  "DATABASE_URL",
+  "POSTGRES_PRISMA_URL",
+  "POSTGRES_URL",
+  "NEON_DATABASE_URL",
+]
+
+export const DIRECT_DATABASE_URL_KEYS = ["DIRECT_URL", "POSTGRES_URL_NON_POOLING"]
+
+export function getFirstEnvValue(envObj, keys) {
+  for (const k of keys) {
+    if (envObj[k]?.trim()) return { key: k, value: envObj[k].trim() }
+  }
+  return null
+}

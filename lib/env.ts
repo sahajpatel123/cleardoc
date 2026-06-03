@@ -1,19 +1,10 @@
-/** PostgreSQL connection — checked in priority order (Vercel/Neon often use POSTGRES_*). */
-export const DATABASE_URL_KEYS = [
-  "DATABASE_URL",
-  "POSTGRES_PRISMA_URL",
-  "POSTGRES_URL",
-  "NEON_DATABASE_URL",
-] as const
+import { DATABASE_URL_KEYS } from "../scripts/pg-bouncer-params.mjs"
 
 export const REQUIRED_AUTH_ENV = [
   "DATABASE_URL",
   // NextAuth v5 accepts both NEXTAUTH_SECRET and AUTH_SECRET. We require one of
   // them via resolvedAuthSecret() rather than constraining to a single name.
 ] as const
-
-/** Used by Prisma CLI for migrations when set (Supabase direct connection). */
-export const DIRECT_DATABASE_URL_KEYS = ["DIRECT_URL", "POSTGRES_URL_NON_POOLING"] as const
 
 /** Required environment variables for production API routes. */
 export const REQUIRED_SERVER_ENV = [

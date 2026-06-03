@@ -17,7 +17,7 @@ import {
   resolveCaseLinking,
 } from "@/lib/db"
 import { reserveFreeAnalysisQuota, getFreeDailyQuotaStatus, releaseFreeAnalysisQuota } from "@/lib/free-quota"
-import { capImageForVision, MAX_INPUT_DIMENSION } from "@/lib/image-cap"
+import { capImageForVision, MAX_INPUT_DIMENSION, TARGET_DIMENSION } from "@/lib/image-cap"
 import { buildCaseContextFromAnalyses, mergeUserContextWithCase } from "@/lib/case-context"
 import { isProUser } from "@/lib/user-plan"
 import { getRedis } from "@/lib/redis"
@@ -38,6 +38,7 @@ function buildCacheKey(userId: string, buffer: Buffer, context: string, parentId
     .update(context)
     .update(parentId ?? "")
     .update(AI_MODEL)
+    .update(TARGET_DIMENSION.toString())
     .digest("hex")
   return `cleardoc:ai-result:${userId}:${hash}`
 }

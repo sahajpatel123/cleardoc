@@ -14,22 +14,11 @@
  * lib/env.ts so the two call sites cannot drift.
  */
 import { execSync } from "node:child_process"
-import { applyPgBouncerParams, isPoolerUrl, toSessionPoolerUrl } from "./pg-bouncer-params.mjs"
-
-const DIRECT_KEYS = ["DIRECT_URL", "POSTGRES_URL_NON_POOLING"]
-const POOLED_KEYS = ["DATABASE_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL"]
-
-function firstEnv(keys) {
-  for (const key of keys) {
-    const value = process.env[key]?.trim()
-    if (value) return { key, value }
-  }
-  return null
-}
+import { applyPgBouncerParams, isPoolerUrl, toSessionPoolerUrl, DATABASE_URL_KEYS, DIRECT_DATABASE_URL_KEYS, getFirstEnvValue } from "./pg-bouncer-params.mjs"
 
 function configureMigrationEnv() {
-  const pooled = firstEnv(POOLED_KEYS)
-  const direct = firstEnv(DIRECT_KEYS)
+  const pooled = getFirstEnvValue(process.env, DATABASE_URL_KEYS)
+  const direct = getFirstEnvValue(process.env, DIRECT_DATABASE_URL_KEYS)
 
   if (direct) {
     // Operator provided a direct / non-pooler URL. Use it for migrations.

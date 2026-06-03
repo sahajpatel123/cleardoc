@@ -21,7 +21,6 @@
  */
 import { describe, it, before, after, afterEach } from "node:test"
 import assert from "node:assert/strict"
-import Module from "node:module"
 
 // Set the env BEFORE any module that reads it loads. Top-level
 // assignment in a CommonJS module runs at module-load time, before any
@@ -29,24 +28,6 @@ import Module from "node:module"
 process.env.NVIDIA_API_KEY = process.env.NVIDIA_API_KEY ?? "test-key-do-not-use-in-prod"
 process.env.AI_VISION_FALLBACK_MODELS = "fallback-a,fallback-b"
 
-// Load ai.ts (which transitively loads ai-client.ts) and grab the
-// ai-client module instance from the cache so we can swap its singleton.
-// require() is required here — import() with a query string is not
-// portable across bundlers, and we need the synchronous return value
-// before the test describe block runs.
-const aiModule =
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require("./ai") as typeof import("./ai")
-
-const aiClientModuleCacheKey = Object.keys((Module as unknown as { _cache: Record<string, { exports: unknown }> })._cache).find(
-  (k) => /lib[\\/]ai-client\.ts$/.test(k),
-)
-if (!aiClientModuleCacheKey) {
-  throw new Error("ai.test.ts: could not find lib/ai-client.ts in Module._cache")
-}
-const aiClient = (Module as unknown as { _cache: Record<string, { exports: typeof import("./ai-client") }> })._cache[
-  aiClientModuleCacheKey
-].exports
 
 // ── Fake OpenAI client ──────────────────────────────────────────────
 
@@ -94,6 +75,10 @@ function makeFakeClient() {
   }
 }
 
+const aiClientModule = require("./ai-client")
+const __forTesting = aiClientModule.__forTesting
+// Now require ai.ts AFTER the mock
+const aiModule = require("./ai") as typeof import("./ai")
 const analyzeDocument = aiModule.analyzeDocument
 
 const validAnalysisJson = JSON.stringify({
@@ -106,12 +91,10 @@ const validAnalysisJson = JSON.stringify({
 })
 
 describe("analyzeDocument vision fallback chain", () => {
-  let restoreClient: (() => void) | null = null
+  let restoreClient: (() => void) | undefined
 
   before(() => {
-    restoreClient = aiClient._setAiClientForTesting(
-      makeFakeClient() as unknown as Parameters<typeof aiClient._setAiClientForTesting>[0],
-    )
+    restoreClient = __forTesting!.setAiClientForTesting(makeFakeClient() as any)
   })
 
   afterEach(() => {
