@@ -312,6 +312,11 @@ async function runAnalysisWithCache(
     await setCachedResult(userId, cacheKey, result)
   } catch (modelErr: unknown) {
     captureException(modelErr, { component: "analyze", reqId, extra: { phase: "ai" } })
+    // Release quota because the AI call (including image-cap rejection now
+    // happening inside analyzeDocument) failed after reserve but before save.
+    // Without this, free users lose a quota slot on every AI failure
+    // (timeouts, rate limits, invalid JSON, image-cap rejection, etc.).
+    if (!pro) await releaseFreeAnalysisQuota(userId)
     let errorMessage = "Analysis failed. Please try again."
     const status = 500
     if (modelErr instanceof Error) {
@@ -401,6 +406,8 @@ export async function POST(req: NextRequest) {
       extracted = await extractDocumentFromBuffer(buffer, mimeType)
     } catch (err) {
       captureException(err, { component: "analyze", reqId, extra: { phase: "extract" } })
+      // Release quota because this pre-AI rejection occurs after reserve but before save.
+      if (!pro) await releaseFreeAnalysisQuota(userId)
       throwResponse(
         NextResponse.json(
           {
@@ -413,6 +420,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (extracted.kind === "text" && extracted.isScanned) {
+      // Release quota because this pre-AI rejection occurs after reserve but before save.
+      if (!pro) await releaseFreeAnalysisQuota(userId)
       throwResponse(
         NextResponse.json(
           { error: "This PDF appears to be scanned and contains no extractable text. Please describe the document in the context field for accurate analysis." },
