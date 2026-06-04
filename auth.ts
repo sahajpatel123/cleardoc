@@ -23,6 +23,21 @@ if (process.env.NODE_ENV !== "production" && globalForAuth._auth !== undefined) 
 
 const MISSING_SECRET_ERROR = "Authentication service misconfigured"
 
+// During `next build`, Next.js sets NODE_ENV=production and
+// NEXT_PHASE=phase-production-build, but does NOT load .env / .env.local —
+// those are only loaded by `next dev` and `next start`. That means
+// NEXTAUTH_SECRET is legitimately absent during the build, even though
+// the runtime secret is configured. The RSC auth-gate pages (BUG #14)
+// call auth() during page-data collection, so the secret check fires
+// once per page per worker — producing ~14 scary-looking error lines
+// per build, even though the build SUCCEEDS.
+//
+// We silence the error log during the build phase. Runtime misconfig
+// (a production deploy with no secret) still throws MISSING_SECRET_ERROR
+// from the handlers and the auth() function logs once per process.
+const IS_BUILD_PHASE = process.env.NEXT_PHASE === "phase-production-build"
+const _missingSecretWarned = { value: false }
+
 function getSecret(): string {
   const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET
   if (!secret) {
@@ -235,7 +250,15 @@ function getAuth() {
       // propagate as an unhandled throw from signIn/signOut. Return null so
       // callers hit the explicit `if (!instance)` guard and throw a typed
       // error instead of a raw stack trace.
-      log.error({ err }, "auth initialization failed")
+      //
+      // Build-phase silence: during `next build` .env files are not loaded,
+      // so the missing secret is expected — see IS_BUILD_PHASE above. The
+      // build still succeeds: auth() returns null, RSC pages redirect, the
+      // pages are correctly marked as dynamic. Do not pollute the build
+      // output with a per-page error from every worker.
+      if (!IS_BUILD_PHASE) {
+        log.error({ err }, "auth initialization failed")
+      }
       _auth = null
     }
   }
@@ -263,7 +286,18 @@ export const handlers: { GET: NextAuthHandler; POST: NextAuthHandler } = {
 export async function auth() {
   const instance = getAuth()
   if (!instance) {
-    log.error(MISSING_SECRET_ERROR)
+    // Build-phase silence: see IS_BUILD_PHASE above. The build does not
+    // load .env files, so a missing NEXTAUTH_SECRET is expected — auth()
+    // returning null is the correct behavior (RSC pages redirect to
+    // /login). We deliberately do NOT log here during build.
+    //
+    // At runtime, log once per process so a real production misconfig
+    // (a deploy that forgot to set NEXTAUTH_SECRET) is still visible in
+    // logs — but only once, not on every RSC render.
+    if (!IS_BUILD_PHASE && !_missingSecretWarned.value) {
+      _missingSecretWarned.value = true
+      log.error(MISSING_SECRET_ERROR)
+    }
     return null
   }
   return instance.auth()

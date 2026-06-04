@@ -313,6 +313,7 @@ async function runAnalysisWithCache(
   reqId: string,
   pro: boolean,
   buffer: Buffer,
+  transaction: SentryTransaction,
 ): Promise<{ result: AnalysisResult; wasCached: boolean }> {
   const cacheKey = buildCacheKey(userId, buffer, enrichedContext ?? "", parentId)
   const cachedResult = await getCachedResult(userId, cacheKey)
@@ -321,6 +322,8 @@ async function runAnalysisWithCache(
     return { result: cachedResult, wasCached: true }
   }
 
+  // ── Span: ai-call (only when not cached) ──
+  const aiSpan = transaction.startChild({ op: "ai", description: "ai-call" })
   let result: AnalysisResult
   try {
     if (extracted.kind === "text") {
@@ -347,7 +350,10 @@ async function runAnalysisWithCache(
       })
     }
     await setCachedResult(userId, cacheKey, result)
+    aiSpan.finish()
   } catch (modelErr: unknown) {
+    aiSpan.setStatus("internal_error")
+    aiSpan.finish()
     captureException(modelErr, { component: "analyze", reqId, extra: { phase: "ai" } })
     // Release quota because the AI call (including image-cap rejection now
     // happening inside analyzeDocument) failed after reserve but before save.
@@ -505,7 +511,6 @@ export async function POST(req: NextRequest) {
 
     // ── Span: cache-check ──
     const cacheSpan = transaction.startChild({ op: "cache", description: "cache-check" })
-    let cacheHit = false
     let result: AnalysisResult
     let wasCached: boolean
     try {
@@ -519,23 +524,15 @@ export async function POST(req: NextRequest) {
         reqId,
         pro,
         buffer,
+        transaction,
       )
       result = cached.result
       wasCached = cached.wasCached
-      cacheHit = cached.wasCached
       cacheSpan.finish()
     } catch (cacheErr) {
       cacheSpan.setStatus("internal_error")
       cacheSpan.finish()
       throw cacheErr
-    }
-
-    // ── Span: ai-call (only meaningful when not cached) ──
-    // The AI call is embedded inside runAnalysisWithCache; we mark it separately
-    // only when the result was not cached so the span reflects actual AI latency.
-    if (!cacheHit) {
-      const aiSpan = transaction.startChild({ op: "ai", description: "ai-call" })
-      aiSpan.finish()
     }
 
     const documentType =

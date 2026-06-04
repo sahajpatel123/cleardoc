@@ -21,7 +21,7 @@ import type { SentryTransaction } from "@/lib/observability"
 import type { ChatMessage } from "@/lib/types"
 
 export const runtime = "nodejs"
-export const maxDuration = 30
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   const reqId = generateReqId()
@@ -265,7 +265,6 @@ export async function POST(req: NextRequest) {
                 }
               }
             }
-            aiSpan.finish()
           } catch (err) {
             if (!streamError) {
               aiSpan.setStatus("internal_error")

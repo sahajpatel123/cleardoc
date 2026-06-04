@@ -48,11 +48,14 @@ Then enable Rolling Releases in the Vercel dashboard under **Settings > Git > De
 
 ### Current vercel.json Configuration
 
-The existing `vercel.json` configures function-level settings but does not yet have deployment policies enabled. The current configuration:
+The current `vercel.json` (clean and schema-valid) includes the `git` section that enables Rolling Releases in the Vercel dashboard:
 
 ```json
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": true
+  },
   "crons": [
     { "path": "/api/cron/cleanup", "schedule": "0 4 * * 0" },
     { "path": "/api/cron/quota-reconcile", "schedule": "0 * * * *" }
@@ -66,7 +69,7 @@ The existing `vercel.json` configures function-level settings but does not yet h
 }
 ```
 
-To add canary rollout configuration, add a `git` key alongside the existing `crons` and `functions` keys.
+`git.deploymentEnabled: true` is the on-ramp; actual percentage steps, monitoring windows, and rollback thresholds are configured in the Vercel dashboard under **Settings > Git > Deployment Policies** for the `main` branch (see below). No comment fields or other non-standard properties are present — the file must remain strictly valid against the `$schema`.
 
 ### Gradual Rollout via Vercel Dashboard
 
