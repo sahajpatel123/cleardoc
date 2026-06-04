@@ -27,13 +27,13 @@
     "@upstash/redis": "^1.35.8",
     "framer-motion": "^12.36.0",
     "lucide-react": "^0.577.0",
-    "next": "^16.2.6",
+    "next": "^16.2.7",
     "next-auth": "5.0.0-beta.30",
     "openai": "^4.104.0",
     "pdf2json": "^3.2.2",
     "pino": "^9.5.0",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "react-dropzone": "^15.0.0",
     "sharp": "^0.34.5",
     "stripe": "^20.4.1",
@@ -49,7 +49,7 @@
     "eslint-config-next": "16.1.6",
     "prisma": "^6.19.0",
     "tailwindcss": "^4",
-    "tsx": "^4.22.3",
+    "tsx": "^4.22.4",
     "typescript": "^5.9.3"
   }
 }
