@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": true
+  },
+  "_comment_canary_deployments": "Rolling Releases are enabled via git.deploymentEnabled. Enable gradual traffic shifting in Vercel dashboard > Settings > Git > Deployment Policies for the main branch. See docs/CANARY_DEPLOYMENTS.md for health-gated rollout configuration.",
+  "_comment_otel_tracing": "OpenTelemetry: Sentry transactions (lib/observability.ts) can be forwarded to an OTLP-compatible collector by configuring SENTRY_DSN and setting up a Sentry-to-OTel bridge in your observability stack.",
   "crons": [
     {
       "path": "/api/cron/cleanup",
