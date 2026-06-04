@@ -1,6 +1,7 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
+import { randomBytes } from "node:crypto"
 import { prisma } from "@/lib/prisma"
 import { verifyPassword, validateEmail, validatePassword } from "@/lib/password"
 import { rateLimitLoginByHeaders, rateLimitByKey } from "@/lib/rate-limit"
@@ -36,14 +37,35 @@ const MISSING_SECRET_ERROR = "Authentication service misconfigured"
 // (a production deploy with no secret) still throws MISSING_SECRET_ERROR
 // from the handlers and the auth() function logs once per process.
 const IS_BUILD_PHASE = process.env.NEXT_PHASE === "phase-production-build"
+const IS_DEV = process.env.NODE_ENV !== "production"
 const _missingSecretWarned = { value: false }
+const _devSecretWarned = { value: false }
 
 function getSecret(): string {
-  const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET
-  if (!secret) {
-    throw new Error(MISSING_SECRET_ERROR)
+  const explicit = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET
+  if (explicit) return explicit
+
+  // Dev-only fallback: if no secret is configured AND we're in development,
+  // generate a per-process random secret. This lets `next dev` boot and
+  // function without forcing every developer to set NEXTAUTH_SECRET in
+  // .env.local. Sessions invalidate on dev server restart, which is
+  // acceptable. The fallback is NEVER used in production — the throw
+  // below guarantees that.
+  if (IS_DEV) {
+    const devSecret = require("crypto").randomBytes(32).toString("base64")
+    process.env.NEXTAUTH_SECRET = devSecret
+    if (!_devSecretWarned.value) {
+      _devSecretWarned.value = true
+      log.warn(
+        "NEXTAUTH_SECRET is not set; using a per-process random fallback for dev. " +
+          "Sessions will be invalidated on every dev server restart. " +
+          "Set NEXTAUTH_SECRET in .env.local (32+ chars) for stable dev sessions.",
+      )
+    }
+    return devSecret
   }
-  return secret
+
+  throw new Error(MISSING_SECRET_ERROR)
 }
 
 function createAuth() {
