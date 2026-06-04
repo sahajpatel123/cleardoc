@@ -24,8 +24,18 @@ export async function withAiClient<T>(
   fn: (client: OpenAI) => Promise<T>,
   signal?: AbortSignal,
 ): Promise<T> {
-  await _semaphore.acquire(signal)
+  // If the signal is already aborted before we even try to acquire, reject
+  // immediately. Without this guard, acquire() rejects at line 30-32 without
+  // consuming a permit, but the finally block below would still call release(),
+  // incrementing the permit count past the max (permit inflation).
+  if (signal?.aborted) {
+    throw new Error("Request aborted while waiting for AI slot")
+  }
+
+  let acquired = false
   try {
+    await _semaphore.acquire(signal)
+    acquired = true
     return await withCircuit("ai", () => fn(getAiClient()), {
       failureThreshold: 5,
       resetTimeoutMs: 30_000,
@@ -37,7 +47,12 @@ export async function withAiClient<T>(
     }
     throw err
   } finally {
-    _semaphore.release()
+    // Only release if we actually acquired a permit. A pre-aborted signal
+    // (checked above) or a timeout/abort during acquire means no permit was
+    // consumed — releasing here would inflate the count past max.
+    if (acquired) {
+      _semaphore.release()
+    }
   }
 }
 

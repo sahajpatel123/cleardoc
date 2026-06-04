@@ -1,9 +1,10 @@
 import type { NextConfig } from "next"
-// Build-time security headers. These are the ONLY active CSP because the
-// previous middleware (proxy.ts) was removed as dead code. Every path gets
-// these headers. 'unsafe-inline' for scripts is required without a nonce-
-// generating middleware; Next.js bootstrap emits inline scripts that would
-// be blocked otherwise.
+// Build-time security headers. Middleware (middleware.ts) is the canonical
+// path: it sets a per-request nonce and emits the active CSP. These build-
+// time headers are the FALLBACK for static export / middleware-bypassed
+// paths only. They are intentionally strict (no 'unsafe-inline' for scripts)
+// so any successful XSS cannot run arbitrary JS even on a static path.
+// See D003.
 const SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -14,14 +15,18 @@ const SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
   },
-  // Hardened CSP — the only active source since middleware was removed.
-  // frame-ancestors blocks clickjacking; upgrade-insecure-requests forces
-  // HTTPS for any mixed-content subresources.
+  // Strict CSP fallback. The active runtime CSP is generated per-request in
+  // middleware.ts with a fresh nonce. The fallback uses a fixed empty nonce
+  // directive so any inline script will be blocked — there is no path on
+  // which 'unsafe-inline' is honoured.
   {
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://js.stripe.com",
+      // No 'unsafe-inline' — middleware.ts generates a per-request nonce for
+      // the canonical path. The empty nonce here is intentional: any inline
+      // script on a static-exported path will be blocked, not bypassed.
+      "script-src 'self' 'nonce-' https://js.stripe.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob:",
       "font-src 'self' https://fonts.gstatic.com",
@@ -40,6 +45,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
   serverExternalPackages: ["pdf2json"],
+  experimental: {
+    optimizePackageImports: ["framer-motion", "lucide-react"],
+  },
   async headers() {
     return [
       {

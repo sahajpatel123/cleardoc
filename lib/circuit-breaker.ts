@@ -81,11 +81,24 @@ class Circuit {
   }
 }
 
+const MAX_CIRCUITS = 64
 const _circuits = new Map<string, Circuit>()
 
 export function getCircuit(name: string, opts?: Partial<CircuitOptions>): Circuit {
   let c = _circuits.get(name)
   if (!c) {
+    // Evict expired circuits if the map has grown beyond the cap. Closed
+    // circuits are safe to evict — they'll be recreated on next use with
+    // fresh counters. Open/half_open circuits are kept to preserve their
+    // reset timers and probe state.
+    if (_circuits.size >= MAX_CIRCUITS) {
+      for (const [key, circuit] of _circuits) {
+        if (circuit.getState() === "closed") {
+          _circuits.delete(key)
+          if (_circuits.size < MAX_CIRCUITS) break
+        }
+      }
+    }
     c = new Circuit({
       failureThreshold: opts?.failureThreshold ?? 5,
       resetTimeoutMs: opts?.resetTimeoutMs ?? 30_000,

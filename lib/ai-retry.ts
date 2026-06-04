@@ -2,8 +2,9 @@ import { captureException, createLogger } from "./observability"
 
 const log = createLogger("ai-retry")
 
-/** Default retry predicate: do NOT retry 4xx client errors or auth failures.
- *  These indicate a misconfiguration or invalid request, not transient issues.
+/** Default retry predicate: do NOT retry 4xx client errors, auth failures, or
+ *  circuit-breaker rejections. Circuit-open means the service is known down —
+ *  retrying wastes 2-3 attempts with exponential backoff while achieving nothing.
  */
 function defaultShouldRetry(err: unknown): boolean {
   if (err && typeof err === "object") {
@@ -13,7 +14,12 @@ function defaultShouldRetry(err: unknown): boolean {
     if (e.message?.includes("401") || e.message?.includes("403") || e.message?.includes("429")) {
       return false
     }
+    // Circuit breaker is OPEN — fail fast, do not burn retries.
+    if (e.message?.includes("Circuit breaker OPEN")) return false
   }
+  // CircuitOpenError is a class import — check by name for cases where the
+  // error is serialized or wrapped. The class check covers the direct throw.
+  if (err instanceof Error && err.constructor.name === "CircuitOpenError") return false
   return true
 }
 

@@ -88,10 +88,95 @@ export async function extractDocumentFromBuffer(
 /** Maximum time to spend parsing a PDF before aborting to prevent slot exhaustion. */
 const PDF_PARSE_TIMEOUT_MS = 30_000
 
+/**
+ * Parse PDF text inside a worker thread so the event loop is never blocked.
+ *
+ * pdf2json's parseBuffer is CPU-synchronous — on the main thread it would
+ * block the event loop for the entire parse, making Promise.race timeouts
+ * useless. By running parseBuffer in a worker_thread the timeout can actually
+ * fire, and the worker is forcefully terminated if it exceeds the limit.
+ */
 async function extractPdfText(buffer: Buffer): Promise<{ text: string; isScanned: boolean; truncated: boolean; totalPages: number }> {
-  // Dynamic import keeps pdf2json out of the module graph at build time.
-  // pdf2json has no TypeScript types, so we declare a narrow interface for
-  // the two methods we actually call (on / parseBuffer).
+  // Attempt to use a worker thread so the event loop stays responsive.
+  // If worker_threads are unavailable (e.g. some Edge/minimal runtimes),
+  // fall back to main-thread parsing with a warning.
+  let Worker: typeof import("node:worker_threads").Worker | undefined
+  try {
+    const wt = await import("node:worker_threads")
+    Worker = wt.Worker
+  } catch {
+    // worker_threads not available — fall back to main-thread parsing.
+  }
+
+  if (Worker) {
+    return extractPdfTextViaWorker(buffer, Worker)
+  }
+
+  // Fallback: parse on main thread (timeout will be best-effort for CPU work).
+  if (typeof console !== "undefined") {
+    // eslint-disable-next-line no-console
+    console.warn("[pdf-parser] worker_threads unavailable — PDF parsing will block the event loop. Timeouts may not interrupt CPU-bound work.")
+  }
+  return extractPdfTextMainThread(buffer)
+}
+
+/** Worker-thread implementation: parseBuffer runs off the main thread. */
+async function extractPdfTextViaWorker(
+  buffer: Buffer,
+  Worker: typeof import("node:worker_threads").Worker,
+): Promise<{ text: string; isScanned: boolean; truncated: boolean; totalPages: number }> {
+  const worker = new Worker(new URL("./pdf-parser-worker.ts", import.meta.url), {
+    workerData: { buffer },
+  })
+
+  const resultPromise = new Promise<{ text: string; isScanned: boolean; truncated: boolean; totalPages: number }>((resolve, reject) => {
+    worker.on("message", (msg: { ok: boolean; value?: unknown; error?: string }) => {
+      if (msg.ok) {
+        resolve(msg.value as { text: string; isScanned: boolean; truncated: boolean; totalPages: number })
+      } else {
+        reject(new Error(msg.error ?? "Unknown PDF parsing error in worker"))
+      }
+    })
+
+    worker.on("error", (err: Error) => {
+      reject(new Error(`PDF worker error: ${err.message}`))
+    })
+
+    worker.on("exit", (code: number) => {
+      // If the worker exits without sending a message, reject.
+      if (code !== 0) {
+        reject(new Error(`PDF worker exited with code ${code}`))
+      }
+    })
+  })
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error(`PDF parsing timed out after ${PDF_PARSE_TIMEOUT_MS}ms`)),
+      PDF_PARSE_TIMEOUT_MS,
+    )
+  })
+
+  try {
+    return await Promise.race([resultPromise, timeoutPromise])
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+    // Terminate the worker regardless of outcome. If the timeout won the
+    // race the worker may still be running CPU-synchronous work — terminate()
+    // kills the thread immediately.
+    try {
+      worker.terminate()
+    } catch {}
+  }
+}
+
+/**
+ * Main-thread fallback for environments without worker_threads.
+ * Identical logic to pdf-parser-worker.ts but runs on the event loop, so
+ * the timeout cannot interrupt CPU-synchronous parseBuffer work.
+ */
+async function extractPdfTextMainThread(buffer: Buffer): Promise<{ text: string; isScanned: boolean; truncated: boolean; totalPages: number }> {
   interface PdfParser {
     on(event: string, handler: unknown): void
     parseBuffer(buffer: Buffer): void
@@ -121,7 +206,6 @@ async function extractPdfText(buffer: Buffer): Promise<{ text: string; isScanned
         return
       }
 
-      // Cap at 50 pages to avoid token overrun
       const capped = pages.slice(0, 50)
 
       const text = capped
@@ -163,20 +247,18 @@ async function extractPdfText(buffer: Buffer): Promise<{ text: string; isScanned
     parser.parseBuffer(buffer)
   })
 
-  // Guard against pathological PDFs (deep XObject trees, circular references)
-  // that can make pdf2json spin indefinitely, exhausting the serverless slot.
-  const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(
       () => reject(new Error(`PDF parsing timed out after ${PDF_PARSE_TIMEOUT_MS}ms`)),
       PDF_PARSE_TIMEOUT_MS,
     )
-  )
+  })
 
   try {
     return await Promise.race([parsePromise, timeoutPromise])
   } finally {
-    // Cleanup: remove listeners and dereference parser so the background
-    // pdf2json work can be GC'd even if the timeout won the race.
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
     try {
       parser.removeAllListeners()
     } catch {}

@@ -42,6 +42,15 @@ export async function register(): Promise<void> {
     }
     process.on("SIGTERM", () => gracefulShutdown("SIGTERM"))
     process.on("SIGINT", () => gracefulShutdown("SIGINT"))
+
+    // Catch unhandled promise rejections that slip through — prevents the
+    // Node process from silently crashing with exit code 1 and no stack trace
+    // in serverless. Worker threads can reject without a .catch() handler if
+    // the caller's timeout wins the race before the worker's promise settles.
+    process.on("unhandledRejection", (reason: unknown) => {
+      // eslint-disable-next-line no-console
+      console.error("[instrumentation] Unhandled promise rejection:", reason)
+    })
   }
   if (process.env.NEXT_RUNTIME === "edge") {
     try {

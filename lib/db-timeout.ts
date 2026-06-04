@@ -18,8 +18,15 @@ export async function withDbTimeout<T>(
   ms: number,
   label: string,
 ): Promise<T> {
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new DbTimeoutError(label, ms)), ms),
-  )
-  return Promise.race([promise, timeout])
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new DbTimeoutError(label, ms)), ms)
+  })
+  try {
+    return await Promise.race([promise, timeout])
+  } finally {
+    // Clear the timer if the query succeeded before timeout — prevents
+    // dangling 15s timer per DB query on high-RPS routes.
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+  }
 }

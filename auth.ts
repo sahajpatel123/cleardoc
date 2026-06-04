@@ -64,9 +64,22 @@ function createAuth() {
 
           const user = await prisma.user.findUnique({ where: { email } })
           if (!user || !user.password) {
-            // Timing-attack mitigation: run a dummy scrypt with a static salt
-            // so the "missing user" path has similar latency to the "wrong password" path.
-            await verifyPassword("dummy", "scrypt:0000000000000000:0000000000000000")
+            // Timing-attack mitigation: run a real-format scrypt verify at the
+            // SAME cost (N=131072) used for real-password checks, so the
+            // "missing user" path has equivalent latency to the "wrong
+            // password" path. The previous dummy used the legacy 3-part
+            // format which triggered Node's default N=16384 path — that's a
+            // 10x speedup, distinguishable to an attacker via response-time
+            // measurement and so leaks email registration state.
+            //
+            // Format must match the NEW hash format (6 parts, new params).
+            // A 16-byte static salt and 64-byte zero derived key is enough
+            // to drive verifyPassword through the scrypt path; the result
+            // is discarded (return null either way).
+            await verifyPassword(
+              "dummy",
+              `scrypt:131072:8:1:${"00".repeat(16)}:${"00".repeat(64)}`,
+            )
             return null
           }
 
@@ -114,6 +127,9 @@ function createAuth() {
             if (dbUser) {
               token.id = dbUser.id
               token.ver = dbUser.tokenVersion ?? 0
+              // Cache the token version now so the next jwt callback
+              // (which will have token.id) can skip the DB query entirely.
+              await setTokenVersion(dbUser.id, dbUser.tokenVersion ?? 0)
             }
           } else {
             // Always check token version — including legacy tokens without `ver`.

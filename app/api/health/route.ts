@@ -17,6 +17,29 @@ const AI_BASE_URL = process.env.NVIDIA_API_BASE_URL?.trim() ?? "https://integrat
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
+/** Cache TTL for healthy results (ms). */
+const CACHE_TTL_MS = 30_000
+/** Shorter TTL for error/degraded results — we want fresh probes sooner. */
+const ERROR_CACHE_TTL_MS = 10_000
+
+interface CachedHealth {
+  result: {
+    database: "ok" | "error"
+    tables: "ok" | "schema_incomplete" | "error"
+    rateLimiter: "distributed" | "distributed-unreachable" | "in-memory-fallback" | "error"
+    aiUpstream: "ok" | "unconfigured" | "unreachable" | "error"
+    stripeApi: "ok" | "unconfigured" | "error"
+    env: {
+      core: "ok" | "missing"
+      stripe: "ok" | "missing"
+    }
+    healthy: boolean
+  }
+  timestamp: number
+}
+
+let healthCache: CachedHealth | null = null
+
 /**
  * Timing-safe comparison of the `x-health-token` header against the
  * configured `HEALTH_CHECK_SECRET`. A naive `===` leaks the prefix length
@@ -34,29 +57,10 @@ function safeTokenEquals(a: string, b: string): boolean {
   return timingSafeEqual(aBuf, bBuf)
 }
 
-export async function GET(req: NextRequest) {
-  const reqId = generateReqId()
-  const headers = { "x-request-id": reqId }
-
-  // Light rate limit on health endpoint to prevent DoS amplification.
-  // 60 requests per IP per minute is generous for uptime probes.
-  const rl = await rateLimitByIp(req, 60, "1 m")
-  if (!rl.allowed) {
-    return new NextResponse(null, { status: 429, headers })
-  }
-
-  const missingCore = getMissingCoreEnv()
-  const missingStripe = getMissingEnv(REQUIRED_STRIPE_ENV)
-
-  // H4: rate-limiter reachability is now actively probed (1s timeout) when
-  // Upstash is configured. We do not throw on probe failure — the body
-  // reports "unreachable" and the operator can act before a real traffic
-  // spike hits a broken limiter.
-  let rateLimiter:
-    | "distributed"
-    | "distributed-unreachable"
-    | "in-memory-fallback"
-    | "error" = "in-memory-fallback"
+/** Probe Redis / rate-limiter reachability. */
+async function probeRateLimiter(): Promise<
+  "distributed" | "distributed-unreachable" | "in-memory-fallback" | "error"
+> {
   try {
     assertProductionRateLimiter()
     const url = process.env.UPSTASH_REDIS_REST_URL?.trim()
@@ -69,82 +73,140 @@ export async function GET(req: NextRequest) {
           setTimeout(() => resolve("timeout"), 1000),
         ),
       ])
-      rateLimiter = reachable === "PONG" ? "distributed" : "distributed-unreachable"
+      return reachable === "PONG" ? "distributed" : "distributed-unreachable"
     } else {
-      rateLimiter = "in-memory-fallback"
+      return "in-memory-fallback"
     }
   } catch {
-    rateLimiter = "error"
+    return "error"
   }
+}
 
+/** Probe database connectivity and schema completeness. */
+async function probeDatabase(): Promise<{
+  database: "ok" | "error"
+  tables: "ok" | "schema_incomplete" | "error"
+}> {
   let database: "ok" | "error" = "ok"
+  let tables: "ok" | "schema_incomplete" | "error" = "ok"
+
   try {
     await ensureDatabaseSchema()
     await prisma.$queryRaw`SELECT 1`
   } catch {
-    database = "error"
+    return { database: "error", tables: "error" }
   }
 
-  let tables: "ok" | "schema_incomplete" | "error" = "ok"
-  if (database === "ok") {
-    try {
-      const rows = await prisma.$queryRaw<{ column_name: string }[]>`
-        SELECT column_name
-        FROM information_schema.columns
-        WHERE table_name IN ('User', 'Analysis')
-          AND column_name IN ('lastResetAt', 'tokenVersion', 'caseId', 'parentId', 'chatMessages')
-      `
-      const found = new Set(rows.map((r) => r.column_name))
-      const required = ["lastResetAt", "tokenVersion", "caseId", "parentId", "chatMessages"]
-      if (!required.every((col) => found.has(col))) {
-        tables = "schema_incomplete"
-      }
-    } catch {
-      tables = "error"
+  try {
+    const rows = await prisma.$queryRaw<{ column_name: string }[]>`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name IN ('User', 'Analysis')
+        AND column_name IN ('lastResetAt', 'tokenVersion', 'caseId', 'parentId', 'chatMessages')
+    `
+    const found = new Set(rows.map((r) => r.column_name))
+    const required = ["lastResetAt", "tokenVersion", "caseId", "parentId", "chatMessages"]
+    if (!required.every((col) => found.has(col))) {
+      tables = "schema_incomplete"
     }
+  } catch {
+    tables = "error"
   }
 
-  // AI upstream probe: lightweight connectivity check (no API key needed for
-  // a HEAD — a 401/404 still proves the host is reachable; 5xx or timeout
-  // means degraded).
-  let aiUpstream: "ok" | "unconfigured" | "unreachable" | "error" = "unconfigured"
+  return { database, tables }
+}
+
+/** Probe NVIDIA AI upstream reachability. */
+async function probeAIUpstream(): Promise<"ok" | "unconfigured" | "unreachable" | "error"> {
   try {
     const hasKey = !!process.env.NVIDIA_API_KEY?.trim()
     if (!hasKey) {
-      aiUpstream = "unconfigured"
+      return "unconfigured"
+    }
+    const probe = await Promise.race([
+      fetch(AI_BASE_URL, { method: "HEAD", signal: AbortSignal.timeout(3000) }),
+      new Promise<"timeout">((resolve) =>
+        setTimeout(() => resolve("timeout"), 3000),
+      ),
+    ])
+    if (probe === "timeout") {
+      return "unreachable"
+    } else if (typeof probe === "object" && probe.status >= 500) {
+      return "error"
     } else {
-      const probe = await Promise.race([
-        fetch(AI_BASE_URL, { method: "HEAD", signal: AbortSignal.timeout(3000) }),
-        new Promise<"timeout">((resolve) =>
-          setTimeout(() => resolve("timeout"), 3000),
-        ),
-      ])
-      if (probe === "timeout") {
-        aiUpstream = "unreachable"
-      } else if (typeof probe === "object" && probe.status >= 500) {
-        aiUpstream = "error"
-      } else {
-        aiUpstream = "ok"
-      }
+      return "ok"
     }
   } catch {
-    aiUpstream = "error"
+    return "error"
   }
+}
 
-  // Stripe API probe: verify the secret key is present and syntactically valid.
-  let stripeApi: "ok" | "unconfigured" | "error" = "unconfigured"
+/** Probe Stripe API key validity. */
+async function probeStripeApi(): Promise<"ok" | "unconfigured" | "error"> {
   try {
     const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim() ?? ""
     if (!stripeSecret) {
-      stripeApi = "unconfigured"
+      return "unconfigured"
     } else if (!stripeSecret.startsWith("sk_")) {
-      stripeApi = "error"
+      return "error"
     } else {
-      stripeApi = "ok"
+      return "ok"
     }
   } catch {
-    stripeApi = "error"
+    return "error"
   }
+}
+
+export async function GET(req: NextRequest) {
+  const reqId = generateReqId()
+  const headers = { "x-request-id": reqId }
+
+  // Light rate limit on health endpoint to prevent DoS amplification.
+  // 60 requests per IP per minute is generous for uptime probes.
+  const rl = await rateLimitByIp(req, 60, "1 m")
+  if (!rl.allowed) {
+    return new NextResponse(null, { status: 429, headers })
+  }
+
+  // Serve cached result if still fresh.
+  if (healthCache) {
+    const age = Date.now() - healthCache.timestamp
+    const maxAge = healthCache.result.healthy ? CACHE_TTL_MS : ERROR_CACHE_TTL_MS
+    if (age < maxAge) {
+      const expected = process.env.HEALTH_CHECK_SECRET?.trim() ?? ""
+      const provided = req.headers.get("x-health-token") ?? ""
+      const authorized = expected.length > 0 && safeTokenEquals(provided, expected)
+
+      if (!authorized) {
+        return new NextResponse(null, {
+          status: healthCache.result.healthy ? 200 : 503,
+          headers,
+        })
+      }
+
+      return NextResponse.json(
+        {
+          ...healthCache.result,
+          timestamp: new Date(healthCache.timestamp).toISOString(),
+        },
+        { status: healthCache.result.healthy ? 200 : 503, headers },
+      )
+    }
+  }
+
+  const missingCore = getMissingCoreEnv()
+  const missingStripe = getMissingEnv(REQUIRED_STRIPE_ENV)
+
+  // Run all probes in parallel — Redis, DB+schema, AI upstream, and Stripe
+  // are all independent and can execute concurrently.
+  const [rateLimiter, dbResult, aiUpstream, stripeApi] = await Promise.all([
+    probeRateLimiter(),
+    probeDatabase(),
+    probeAIUpstream(),
+    probeStripeApi(),
+  ])
+
+  const { database, tables } = dbResult
 
   const healthy =
     missingCore.length === 0 &&
@@ -154,6 +216,17 @@ export async function GET(req: NextRequest) {
     aiUpstream !== "unreachable" &&
     !(process.env.NODE_ENV === "production" && aiUpstream === "unconfigured") &&
     stripeApi !== "error"
+
+  const env = {
+    core: missingCore.length === 0 ? ("ok" as const) : ("missing" as const),
+    stripe: missingStripe.length === 0 ? ("ok" as const) : ("missing" as const),
+  }
+
+  // Cache the result for subsequent requests.
+  healthCache = {
+    result: { database, tables, rateLimiter, aiUpstream, stripeApi, env, healthy },
+    timestamp: Date.now(),
+  }
 
   // Public response is intentionally minimal — uptime/deploy checks still get
   // a 200/503 but learn nothing about WHICH subsystem is degraded. Internal
@@ -177,10 +250,7 @@ export async function GET(req: NextRequest) {
     rateLimiter,
     aiUpstream,
     stripeApi,
-    env: {
-      core: missingCore.length === 0 ? "ok" : "missing",
-      stripe: missingStripe.length === 0 ? "ok" : "missing",
-    },
+    env,
   }
 
   return NextResponse.json(body, { status: healthy ? 200 : 503, headers })

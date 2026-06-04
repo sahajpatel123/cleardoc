@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import type { LoadingStage } from "@/lib/types"
 import { Grid, Vignette } from "@/components/ui/Atmosphere"
@@ -85,7 +85,12 @@ export default function AnalysisSessionLoading({
   stage: LoadingStage
   fileName?: string
 }) {
-  const [elapsed, setElapsed] = useState(0)
+  // Use a ref for the elapsed counter to avoid triggering a re-render on every
+  // 1-second tick. Instead, we drive re-renders from a separate counter state
+  // that increments at a lower frequency (2s) for progress updates, and use a
+  // ref for the precise elapsed value used in patience line logic.
+  const elapsedRef = useRef(0)
+  const [tick, setTick] = useState(0) // low-frequency re-render driver
   const [beatIdx, setBeatIdx] = useState(0)
   const [tipIdx, setTipIdx] = useState(0)
   const [logs, setLogs] = useState<string[]>([])
@@ -95,6 +100,7 @@ export default function AnalysisSessionLoading({
 
   const progress = useMemo(() => {
     const base = stageBaseProgress(stage)
+    const elapsed = elapsedRef.current
     if (stage === "analyzing") {
       const creep = Math.min(46, elapsed * 0.55)
       return Math.min(86, base + creep)
@@ -103,10 +109,19 @@ export default function AnalysisSessionLoading({
       return Math.min(98, base + elapsed * 2)
     }
     return base
-  }, [stage, elapsed])
+  }, [stage, tick]) // tick triggers recalc; elapsedRef.current is the actual value
 
+  // Elapsed counter: increment ref every 1s, re-render every 2s for progress.
+  // This cuts re-renders from ~60-90 (1s timer) to ~30-45 (2s timer) while
+  // keeping the progress bar smooth enough.
   useEffect(() => {
-    const t = setInterval(() => setElapsed((n) => n + 1), 1000)
+    const t = setInterval(() => {
+      elapsedRef.current += 1
+      // Trigger a React re-render every 2 seconds for progress updates
+      if (elapsedRef.current % 2 === 0) {
+        setTick((n) => n + 1)
+      }
+    }, 1000)
     return () => clearInterval(t)
   }, [])
 
@@ -134,11 +149,11 @@ export default function AnalysisSessionLoading({
   }, [current.log])
 
   const patienceLine =
-    elapsed > 90
+    elapsedRef.current > 90
       ? "Deep documents take longer — we're still working. Worth the wait."
-      : elapsed > 45
+      : elapsedRef.current > 45
         ? "Almost there — polishing your response letter and next steps."
-        : elapsed > 20
+        : elapsedRef.current > 20
           ? "Good documents take a moment. We're matching against thousands of templates."
           : "Stay on this page — your analysis will appear here automatically."
 
@@ -167,7 +182,7 @@ export default function AnalysisSessionLoading({
               className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0"
               style={{ background: "var(--ember)" }}
             />
-            WORKING · {elapsed}s
+            WORKING · {elapsedRef.current}s
           </div>
         </div>
 
@@ -198,9 +213,9 @@ export default function AnalysisSessionLoading({
             </p>
             <div className="mt-6 h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--hairline)" }}>
               <motion.div
-                className="h-full origin-left rounded-full"
-                style={{ background: "var(--ember)" }}
-                animate={{ width: `${progress}%` }}
+                className="h-full rounded-full"
+                style={{ background: "var(--ember)", transformOrigin: "left" }}
+                animate={{ scaleX: progress / 100 }}
                 transition={{ duration: 0.5, ease: EASE }}
               />
             </div>

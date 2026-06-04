@@ -1,3 +1,11 @@
+// Bug #7 fix: Sharp image processing uses libuv threadpool threads. The default
+// pool size is 4, which is insufficient when 5 concurrent image analyses (matching
+// the AI semaphore) each run sharp operations — DNS lookups and other I/O can
+// stall. UV_THREADPOOL_SIZE can only be set before the first libuv operation, so
+// it must be the very first executable statement in this module, before any imports
+// that may trigger libuv work (e.g., sharp, crypto, dns, net).
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || "8"
+
 import { NextRequest, NextResponse } from "next/server"
 import { createHash } from "node:crypto"
 import { extractDocumentFromBuffer, getFileMimeType } from "@/lib/pdf-parser"
@@ -30,8 +38,19 @@ export const maxDuration = 120
 
 const log = createLogger("analyze")
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB — pre-load gate to prevent buffering oversized files into memory
 const CACHE_TTL_SECONDS = 60 * 60 * 24 // 24 hours
 
+/**
+ * Build a deterministic cache key for an analysis result.
+ *
+ * Performance note (Bug #8): SHA-256 on the full file buffer is synchronous
+ * CPU work on the main thread. For the expected file sizes (up to 10 MB per
+ * the upload limit), this takes <10 ms on modern hardware. Streaming the hash
+ * would avoid a brief thread block but adds significant complexity for no
+ * measurable gain at these sizes. Revisit only if file limits increase
+ * substantially or if profiling shows this step as a bottleneck.
+ */
 function buildCacheKey(userId: string, buffer: Buffer, context: string, parentId: string | undefined): string {
   const hash = createHash("sha256")
     .update(buffer)
@@ -114,12 +133,12 @@ async function extractAndValidateFormData(
     throwResponse(NextResponse.json({ error: "No file provided" }, { status: 400 }))
   }
 
-  const MAX_FILE_SIZE = 10 * 1024 * 1024
   if (file.size > MAX_FILE_SIZE) {
+    emitMetric("analysis", "rejected_oversized", { fileSize: file.size, maxSize: MAX_FILE_SIZE })
     throwResponse(
       NextResponse.json(
         { error: `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`, maxSize: MAX_FILE_SIZE },
-        { status: 400 },
+        { status: 413 },
       ),
     )
   }
@@ -150,9 +169,10 @@ async function resolveUserAndRateLimits(
   session: { user: { id: string; email: string } },
   req: NextRequest,
   reqId: string,
-): Promise<{ userProfile: NonNullable<Awaited<ReturnType<typeof getOrCreateUser>>>; pro: boolean }> {
+): Promise<{ userProfile: NonNullable<Awaited<ReturnType<typeof getOrCreateUser>>>; pro: boolean; quotaReserved: boolean }> {
   const userEmail = session.user.email
 
+  let quotaReserved = false
   let userProfile: Awaited<ReturnType<typeof getOrCreateUser>>
   try {
     userProfile = await getOrCreateUser(session.user.id, userEmail)
@@ -178,48 +198,59 @@ async function resolveUserAndRateLimits(
   const userId = userProfile.id
   const pro = isProUser(userProfile)
 
-  let ipRate: { allowed: boolean; limit?: number; remaining?: number; reset?: number }
-  try {
-    ipRate = await rateLimitByIp(req, ANALYZE_RATE_LIMITS.ipPerHour, "1 h")
-  } catch (rlErr) {
-    captureException(rlErr, { component: "analyze", reqId, extra: { phase: "rate-limit-ip" } })
-    throwResponse(
-      NextResponse.json(
-        { error: "Service temporarily unavailable. Please retry shortly." },
-        { status: 503, headers: { "Retry-After": "30", "x-request-id": reqId } },
-      ),
-    )
-  }
-  if (!ipRate.allowed) {
-    emitMetric("analysis", "rate_limited", { type: "ip", reqId })
-    throwResponse(
-      NextResponse.json(
-        { error: "Too many requests", limit: ipRate.limit, remaining: ipRate.remaining, reset: ipRate.reset },
-        { status: 429 },
-      ),
-    )
-  }
-
-  let userRate: { allowed: boolean; limit?: number; remaining?: number; reset?: number }
-  try {
-    userRate = await rateLimitByUserId(
+  // Run both rate limit checks in parallel for lower latency
+  const [ipSettled, userSettled] = await Promise.allSettled([
+    rateLimitByIp(req, ANALYZE_RATE_LIMITS.ipPerHour, "1 h"),
+    rateLimitByUserId(
       userId,
       pro ? ANALYZE_RATE_LIMITS.proUserPerHour : ANALYZE_RATE_LIMITS.freeUserPerHour,
       "1 h",
+    ),
+  ])
+
+  // Collect errors: any Redis failure or rate-limit rejection blocks the request (fail-closed)
+  let blockedBy: "ip" | "user" | null = null
+  let blockResponse: NextResponse | null = null
+
+  // IP rate limit result
+  if (ipSettled.status === "rejected") {
+    captureException(ipSettled.reason, { component: "analyze", reqId, extra: { phase: "rate-limit-ip" } })
+    // Redis error -> 503 (fail-closed, but prefer 429 if user is also rate-limited)
+    blockedBy = "ip"
+    blockResponse = NextResponse.json(
+      { error: "Service temporarily unavailable. Please retry shortly." },
+      { status: 503, headers: { "Retry-After": "30", "x-request-id": reqId } },
     )
-  } catch (rlErr) {
-    captureException(rlErr, { component: "analyze", reqId, extra: { phase: "rate-limit-user" } })
-    throwResponse(
-      NextResponse.json(
+  } else {
+    const ipRate = ipSettled.value
+    if (!ipRate.allowed) {
+      emitMetric("analysis", "rate_limited", { type: "ip", reqId })
+      blockedBy = "ip"
+      blockResponse = NextResponse.json(
+        { error: "Too many requests", limit: ipRate.limit, remaining: ipRate.remaining, reset: ipRate.reset },
+        { status: 429 },
+      )
+    }
+  }
+
+  // User rate limit result — always evaluated even if IP already failed (both ran in parallel)
+  if (userSettled.status === "rejected") {
+    captureException(userSettled.reason, { component: "analyze", reqId, extra: { phase: "rate-limit-user" } })
+    // Redis error -> 503; if we already have a 429 block, keep the 429 (more specific)
+    if (!blockedBy) {
+      blockedBy = "user"
+      blockResponse = NextResponse.json(
         { error: "Service temporarily unavailable. Please retry shortly." },
         { status: 503, headers: { "Retry-After": "30", "x-request-id": reqId } },
-      ),
-    )
-  }
-  if (!userRate.allowed) {
-    emitMetric("analysis", "rate_limited", { type: "user", userId, pro, reqId })
-    throwResponse(
-      NextResponse.json(
+      )
+    }
+  } else {
+    const userRate = userSettled.value
+    if (!userRate.allowed) {
+      emitMetric("analysis", "rate_limited", { type: "user", userId, pro, reqId })
+      // 429 from user always overrides — it's the more restrictive / more actionable error
+      blockedBy = "user"
+      blockResponse = NextResponse.json(
         {
           error: "Too many analyses. Please wait before trying again.",
           limit: userRate.limit,
@@ -227,14 +258,19 @@ async function resolveUserAndRateLimits(
           reset: userRate.reset,
         },
         { status: 429 },
-      ),
-    )
+      )
+    }
+  }
+
+  if (blockedBy && blockResponse) {
+    throwResponse(blockResponse)
   }
 
   if (!pro) {
     let quota: { ok: boolean; status: { limit: number; used: number; remaining: number; resetsAt: string } }
     try {
       quota = await reserveFreeAnalysisQuota(userId)
+      quotaReserved = quota.ok // Only mark reserved if the reservation succeeded
     } catch (quotaErr) {
       captureException(quotaErr, { component: "analyze", reqId, extra: { phase: "quota-reserve" } })
       throwResponse(
@@ -263,7 +299,7 @@ async function resolveUserAndRateLimits(
     }
   }
 
-  return { userProfile, pro }
+  return { userProfile, pro, quotaReserved }
 }
 
 async function runAnalysisWithCache(
@@ -335,8 +371,20 @@ async function runAnalysisWithCache(
 export async function POST(req: NextRequest) {
   const reqId = generateReqId()
   let userId: string | null = null
+  let pro = false
+  let quotaReserved = false
   const reqLog = log.child({ reqId })
   const signal = req.signal
+
+  // Register abort handler to release quota on timeout/serverless kill
+  signal.addEventListener("abort", () => {
+    reqLog.warn({ userId, reqId }, "request aborted - quota will be released asynchronously")
+    if (userId && quotaReserved) {
+      releaseFreeAnalysisQuota(userId).catch((err) => {
+        reqLog.error({ err, userId, reqId }, "failed to release quota on abort")
+      })
+    }
+  })
 
   try {
     assertServerEnv()
@@ -363,8 +411,10 @@ export async function POST(req: NextRequest) {
 
     const { file, context, parentId } = await extractAndValidateFormData(req)
 
-    const { userProfile, pro } = await resolveUserAndRateLimits(session, req, reqId)
-    userId = userProfile.id
+    const { userProfile: userProfile_, pro: pro_, quotaReserved: wasReserved } = await resolveUserAndRateLimits(session, req, reqId)
+    pro = pro_
+    userId = userProfile_.id
+    quotaReserved = wasReserved
 
     if (parentId) {
       const cuidRegex = /^c[a-z0-9]{24}$/
@@ -485,6 +535,7 @@ export async function POST(req: NextRequest) {
         // Compensating decrement: the Redis optimistic counter was incremented
         // before the AI call, but the DB transaction ultimately rejected the save.
         // Roll back the Redis reservation so the user doesn't lose a free analysis.
+        quotaReserved = false
         await releaseFreeAnalysisQuota(userId)
         const status = await getFreeDailyQuotaStatus(userId)
         throwResponse(
@@ -504,6 +555,7 @@ export async function POST(req: NextRequest) {
         )
       }
       analysisId = outcome.id
+      quotaReserved = true // Mark successful consumption
     }
 
     reqLog.info(
@@ -524,6 +576,12 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json(responseBody)
   } catch (err: unknown) {
+    // Release quota on unhandled errors that occurred after successful reservation
+    if (!(err instanceof ResponseError) && !pro && userId) {
+      releaseFreeAnalysisQuota(userId).catch((releaseErr) => {
+        reqLog.error({ releaseErr, userId, reqId }, "failed to release quota on unexpected error")
+      })
+    }
     if (err instanceof ResponseError) {
       return err.response
     }
