@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 /**
- * Edge middleware that protects authenticated surfaces and enforces a strict
- * CSP. Two responsibilities:
+ * Edge proxy (formerly `middleware.ts` in Next.js ≤ 15) that protects
+ * authenticated surfaces and enforces a strict CSP. Two responsibilities:
  *
  *   1. Auth gate for /dashboard, /analyze, /analyze/session, /analyze/[id].
  *      Unauthenticated requests get a 302 to /login?redirect=… instead of
@@ -67,7 +67,9 @@ function base64Encode(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
-export function middleware(req: NextRequest) {
+const IS_DEV = process.env.NODE_ENV !== "production"
+
+export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl
 
   const isExempt = AUTH_EXEMPT_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
@@ -94,9 +96,19 @@ export function middleware(req: NextRequest) {
   crypto.getRandomValues(nonceBytes)
   const nonce = base64Encode(nonceBytes)
 
+  // React 19 dev mode uses `eval()` to reconstruct call stacks from
+  // a different environment. Blocking it crashes the browser console
+  // with "eval() is not supported in this environment" and breaks
+  // dev-only debugging features. Production CSP must NOT include
+  // 'unsafe-eval' (XSS mitigation per D003). The dev-only branch below
+  // adds it back so `next dev` is usable out of the box.
+  const scriptSrc = IS_DEV
+    ? `script-src 'self' 'nonce-${nonce}' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com`
+    : `script-src 'self' 'nonce-${nonce}' https://js.stripe.com`
+
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' https://js.stripe.com`,
+    scriptSrc,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob:",
     "font-src 'self' https://fonts.gstatic.com",
