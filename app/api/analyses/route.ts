@@ -69,9 +69,9 @@ export async function GET(req: NextRequest) {
     if (!cursor && redis) {
       try {
         const cached = await redis.get<unknown>(cacheKey)
-        // The cache stores the array directly; wrap in the paginated response shape
+        // The cache stores the array directly; return it as-is for backward compat
         if (Array.isArray(cached) && isValidAnalysesSummaryArray(cached)) {
-          // Convert cached array to { data, nextCursor } format for consistency
+          // Normalize createdAt to string for consistency with DB response
           const cachedData = cached.map((r) => ({
             ...r,
             createdAt: typeof r.createdAt === "string" ? r.createdAt : new Date(r.createdAt).toISOString(),
@@ -100,10 +100,9 @@ export async function GET(req: NextRequest) {
 
     // Only cache the first page
     if (!cursor) {
-      const redis = getRedis()
       if (redis) {
         try {
-          await redis.set(`cleardoc:dashboard:${session.user.id}`, result.data, { ex: 10 })
+          await redis.set(cacheKey, result.data, { ex: 10 })
         } catch (err) {
           log.warn({ err, userId: session.user.id }, "dashboard cache write failed — request continues without caching")
         }

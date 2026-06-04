@@ -30,7 +30,8 @@ import { buildCaseContextFromAnalyses, mergeUserContextWithCase } from "@/lib/ca
 import { isProUser } from "@/lib/user-plan"
 import { getRedis } from "@/lib/redis"
 import { safeParseAnalysisResult } from "@/lib/schemas"
-import { createLogger, generateReqId, captureException, emitMetric } from "@/lib/observability"
+import { createLogger, generateReqId, captureException, emitMetric, startSentryTransaction } from "@/lib/observability"
+import type { SentryTransaction } from "@/lib/observability"
 import type { AnalysisResult } from "@/lib/types"
 
 export const runtime = "nodejs"
@@ -376,6 +377,8 @@ export async function POST(req: NextRequest) {
   const reqLog = log.child({ reqId })
   const signal = req.signal
 
+  const transaction: SentryTransaction = startSentryTransaction("POST /api/analyze", "http.server")
+
   // Register abort handler to release quota on timeout/serverless kill
   signal.addEventListener("abort", () => {
     reqLog.warn({ userId, reqId }, "request aborted - quota will be released asynchronously")
@@ -451,10 +454,15 @@ export async function POST(req: NextRequest) {
       throwResponse(NextResponse.json({ error: "Unsupported file type." }, { status: 400 }))
     }
 
+    // ── Span: file-extraction ──
     let extracted: Awaited<ReturnType<typeof extractDocumentFromBuffer>>
+    const extractSpan = transaction.startChild({ op: "extract", description: "file-extraction" })
     try {
       extracted = await extractDocumentFromBuffer(buffer, mimeType)
+      extractSpan.finish()
     } catch (err) {
+      extractSpan.setStatus("internal_error")
+      extractSpan.finish()
       captureException(err, { component: "analyze", reqId, extra: { phase: "extract" } })
       // Release quota because this pre-AI rejection occurs after reserve but before save.
       if (quotaReserved) await releaseFreeAnalysisQuota(userId)
@@ -495,17 +503,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Client closed request" }, { status: 499 })
     }
 
-    const { result, wasCached } = await runAnalysisWithCache(
-      userId,
-      extracted,
-      enrichedContext,
-      file.name,
-      parentId,
-      signal,
-      reqId,
-      pro,
-      buffer,
-    )
+    // ── Span: cache-check ──
+    const cacheSpan = transaction.startChild({ op: "cache", description: "cache-check" })
+    let cacheHit = false
+    let result: AnalysisResult
+    let wasCached: boolean
+    try {
+      const cached = await runAnalysisWithCache(
+        userId,
+        extracted,
+        enrichedContext,
+        file.name,
+        parentId,
+        signal,
+        reqId,
+        pro,
+        buffer,
+      )
+      result = cached.result
+      wasCached = cached.wasCached
+      cacheHit = cached.wasCached
+      cacheSpan.finish()
+    } catch (cacheErr) {
+      cacheSpan.setStatus("internal_error")
+      cacheSpan.finish()
+      throw cacheErr
+    }
+
+    // ── Span: ai-call (only meaningful when not cached) ──
+    // The AI call is embedded inside runAnalysisWithCache; we mark it separately
+    // only when the result was not cached so the span reflects actual AI latency.
+    if (!cacheHit) {
+      const aiSpan = transaction.startChild({ op: "ai", description: "ai-call" })
+      aiSpan.finish()
+    }
 
     const documentType =
       mimeType === "application/pdf"
@@ -514,50 +545,65 @@ export async function POST(req: NextRequest) {
           ? "Image"
           : "Document"
 
+    // ── Span: db-save ──
+    const dbSpan = transaction.startChild({ op: "db", description: "save-analysis" })
     let analysisId: string
-    if (pro) {
-      const saved = await saveAnalysisResult(
-        userId,
-        file.name,
-        documentType,
-        result,
-        caseLink
-          ? { parentId: caseLink.parentId, caseId: caseLink.caseId }
-          : undefined,
-      )
-      analysisId = saved.id
-    } else {
-      const outcome = await saveFreeAnalysisWithQuota(
-        userId,
-        file.name,
-        documentType,
-        result,
-      )
-      if (!outcome.ok) {
-        // Compensating decrement: the Redis optimistic counter was incremented
-        // before the AI call, but the DB transaction ultimately rejected the save.
-        // Roll back the Redis reservation so the user doesn't lose a free analysis.
-        quotaReserved = false
-        await releaseFreeAnalysisQuota(userId)
-        const status = await getFreeDailyQuotaStatus(userId)
-        throwResponse(
-          NextResponse.json(
-            {
-              error: "FREE_DAILY_LIMIT_REACHED",
-              code: "FREE_DAILY_LIMIT_REACHED",
-              message:
-                "You have used your free analyses for today. Upgrade to Pro for unlimited analyses.",
-              limit: status.limit,
-              used: status.used,
-              remaining: status.remaining,
-              resetsAt: status.resetsAt,
-            },
-            { status: 402 },
-          ),
+    try {
+      if (pro) {
+        const saved = await saveAnalysisResult(
+          userId,
+          file.name,
+          documentType,
+          result,
+          caseLink
+            ? { parentId: caseLink.parentId, caseId: caseLink.caseId }
+            : undefined,
         )
+        analysisId = saved.id
+      } else {
+        const outcome = await saveFreeAnalysisWithQuota(
+          userId,
+          file.name,
+          documentType,
+          result,
+        )
+        if (!outcome.ok) {
+          // Compensating decrement: the Redis optimistic counter was incremented
+          // before the AI call, but the DB transaction ultimately rejected the save.
+          // Roll back the Redis reservation so the user doesn't lose a free analysis.
+          quotaReserved = false
+          await releaseFreeAnalysisQuota(userId)
+          const status = await getFreeDailyQuotaStatus(userId)
+          dbSpan.setStatus("resource_exhausted")
+          dbSpan.finish()
+          throwResponse(
+            NextResponse.json(
+              {
+                error: "FREE_DAILY_LIMIT_REACHED",
+                code: "FREE_DAILY_LIMIT_REACHED",
+                message:
+                  "You have used your free analyses for today. Upgrade to Pro for unlimited analyses.",
+                limit: status.limit,
+                used: status.used,
+                remaining: status.remaining,
+                resetsAt: status.resetsAt,
+              },
+              { status: 402 },
+            ),
+          )
+        }
+        analysisId = outcome.id
+        quotaReserved = false // Quota was successfully consumed
       }
-      analysisId = outcome.id
-      quotaReserved = false // Quota was successfully consumed
+      dbSpan.finish()
+    } catch (dbErr) {
+      if (dbErr instanceof ResponseError) {
+        dbSpan.finish()
+        throw dbErr
+      }
+      dbSpan.setStatus("internal_error")
+      dbSpan.finish()
+      throw dbErr
     }
 
     reqLog.info(
@@ -592,5 +638,7 @@ export async function POST(req: NextRequest) {
     captureException(err, { component: "analyze", reqId, extra: { userId } })
     emitMetric("analysis", "failed", { userId, phase: "unexpected", reqId })
     return genericErrorResponse(500)
+  } finally {
+    transaction.finish()
   }
 }

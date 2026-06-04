@@ -19,14 +19,15 @@ const REQUIRED_COLUMNS: ReadonlyArray<{ table: "User" | "Analysis"; column: stri
 ]
 
 /**
- * Best-effort runtime guard that adds columns introduced in later migrations
- * when `prisma migrate deploy` could not run during the Vercel build.
+ * Runtime guard that verifies schema completeness in production and optionally
+ * applies schema guards in non-production environments.
  *
- * Two safety properties:
- *  1. Read-first — if the required columns exist (normal production state),
- *     zero DDL runs. The catalog SELECT needs no table ownership.
- *  2. Never fatal — any DDL failure is logged and swallowed. The request
- *     proceeds; missing columns surface as precise query errors instead.
+ * In production:
+ *   - Only READS to verify schema health (no DDL)
+ *   - FAILS LOUDLY if schema is incomplete — prevents silent runtime errors
+ *
+ * In non-production:
+ *   - Adds missing columns (best-effort, never fatal to request)
  *
  * Runs once per server instance. Each DDL statement uses $executeRaw (tagged
  * template) rather than $executeRawUnsafe so Prisma's parameterisation layer
@@ -34,11 +35,9 @@ const REQUIRED_COLUMNS: ReadonlyArray<{ table: "User" | "Analysis"; column: stri
  * All values here are hard-coded constants with no user input, but the safer
  * API is used by default to prevent footguns if the code is later modified.
  *
- * NOTE: In production, this function only READS to verify schema health.
- * Runtime DDL is intentionally disabled - migrations must be applied at
- * build time via `prisma migrate deploy` (scripts/prebuild-migrate.mjs).
- * If ensureDatabaseSchema returns in production but schema is incomplete,
- * the server still boots but queries will fail with column errors.
+ * Migrations must be applied at build time via `prisma migrate deploy`
+ * (scripts/prebuild-migrate.mjs). Runtime DDL in production is disabled to
+ * avoid table locks, cold-start latency, and race conditions.
  */
 export async function ensureDatabaseSchema(): Promise<void> {
   if (process.env.NODE_ENV === "production") {
@@ -46,16 +45,19 @@ export async function ensureDatabaseSchema(): Promise<void> {
     // `prisma migrate deploy` (scripts/prebuild-migrate.mjs). Runtime DDL
     // is disabled to avoid table locks, cold-start latency, and the
     // information_schema probe tax on every health check.
-    // We still probe for schema health to detect misconfiguration.
     const complete = await schemaIsComplete().catch((err) => {
       captureException(err, { component: "ensure-schema", extra: { phase: "probe-production" } })
       return false
     })
     if (!complete) {
-      captureException(new Error("Production schema incomplete at boot — migrations were not applied"), {
+      // FAIL LOUDLY in production — schema must be complete at boot.
+      const err = new Error("Production schema incomplete at boot — migrations were not applied. " +
+        "Set DIRECT_URL to a session pooler (port 6543) or direct connection in vercel.json.")
+      captureException(err, {
         component: "ensure-schema",
         extra: { phase: "schema-incomplete" },
       })
+      throw err
     }
     return
   }
@@ -100,14 +102,6 @@ async function tryDdl(label: string, fn: () => Promise<unknown>): Promise<void> 
 
 async function applySchemaGuards(): Promise<void> {
   const complete = await schemaIsComplete()
-
-  // In production, migrations must be applied at build time via
-  // `prisma migrate deploy` (see scripts/prebuild-migrate.mjs). Running DDL
-  // inside request handlers causes dangerous race conditions, table locks, and
-  // cold-start latency on serverless platforms. We skip entirely in production.
-  if (process.env.NODE_ENV === "production") {
-    return
-  }
 
   if (complete) return
 

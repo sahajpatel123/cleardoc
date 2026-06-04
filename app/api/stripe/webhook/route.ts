@@ -7,16 +7,38 @@ import {
   upgradeUserToPro,
   updateUserSubscriptionByCustomerId,
   cancelSubscriptionForCustomer,
+  recordPaymentFailure,
+  evaluateSubscriptionDownshift,
 } from "@/lib/db"
 import { claimStripeEvent, releaseStripeEventClaim } from "@/lib/stripe-events"
 import { createLogger, generateReqId, captureException } from "@/lib/observability"
 import { trackWebhook } from "@/lib/webhook-inflight"
-import { isProUser } from "@/lib/user-plan"
 import Stripe from "stripe"
 
 export const runtime = "nodejs"
 
 const log = createLogger("stripe-webhook")
+
+/**
+ * Normalize Stripe subscription status to our internal status values.
+ * Idempotent mapping: all subscription status transitions go through this single point.
+ */
+function mapSubscriptionStatus(stripeStatus: string): string {
+  // Active/trialing states grant Pro access
+  if (stripeStatus === "active" || stripeStatus === "trialing") {
+    return "active"
+  }
+  // Delinquent state - tracked but doesn't auto-downgrade
+  if (stripeStatus === "past_due") {
+    return "past_due"
+  }
+  // Canceled/unpaid states
+  if (stripeStatus === "canceled" || stripeStatus === "unpaid" || stripeStatus === "incomplete_expired") {
+    return "cancelled"
+  }
+  // All other states (incomplete, canceled, unpaid, etc.) - default to inactive
+  return "inactive"
+}
 
 /**
  * Stripe webhook bodies are typically <100KB. We cap at 1MB to bound
@@ -99,20 +121,24 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
         break
       }
 
-      // Race safe: preserve existing Pro status unless subscription is explicitly past_due.
-      // The checkout.session.completed webhook already upgrades to Pro with subscriptionStatus: "active".
-      // Without this check, a subscription webhook from before checkout completed (or with status
-      // "incomplete") could race and incorrectly set plan: "free", revoking Pro access prematurely.
-      const isActive = sub.status === "active" || sub.status === "trialing"
-      const isPastDue = sub.status === "past_due"
-      const alreadyPro = isProUser(user)
-      const plan: string = isPastDue ? "free" : (isActive || alreadyPro) ? "pro" : user.plan
-      const subscriptionStatus: string = isActive ? "active" : isPastDue ? "past_due" : (user.subscriptionStatus ?? "inactive")
+      // IDEMPOTENT STATE MACHINE: subscription.updated NEVER downgrades Pro users.
+      // It only updates subscription metadata. Payment failure tracking and any
+      // necessary downgrades are handled separately by invoice.payment_failed webhook
+      // which uses evaluateSubscriptionDownshift() to atomically check the failure
+      // threshold before downgrading. This prevents races between:
+      //   - subscription.updated (could revoke Pro on past_due)
+      //   - invoice.payment_failed (could downgrade on attempt_count >= 3)
+      // Both events could fire and race, causing inconsistent state.
       await updateUserSubscriptionByCustomerId(customerId, {
         stripeSubscriptionId: sub.id,
-        plan,
-        subscriptionStatus,
+        plan: "pro", // Preserve existing Pro status; state machine handles transitions
+        subscriptionStatus: mapSubscriptionStatus(sub.status),
       })
+
+      // After status update, check if payment failure threshold has been reached
+      // This is idempotent: evaluateSubscriptionDownshift only downgrades if
+      // paymentFailedAttempts >= 3 AND user is currently Pro
+      await evaluateSubscriptionDownshift(customerId)
       break
     }
 
@@ -163,16 +189,11 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
         "payment failed",
       )
 
-      // After 3 failed attempts, downgrade to past_due to revoke Pro access.
-      // Race-safe: only downgrade users who are actually on Pro. A concurrent
-      // subscription.updated webhook setting plan: "pro" could race with this,
-      // so we protect against incorrectly downgrading a newly upgraded user.
-      if (invoice.attempt_count >= 3 && isProUser(user)) {
-        await updateUserSubscriptionByCustomerId(customerId, {
-          plan: "free",
-          subscriptionStatus: "past_due",
-        })
-      }
+      // IDEMPOTENT STATE MACHINE: Record the failure attempt and let the state machine
+      // decide if downgrades are needed. This uses the same advisory lock as
+      // subscription.updated, preventing race conditions. The threshold check (3 attempts)
+      // and downgrade happen atomically in recordPaymentFailure/evaluateSubscriptionDownshift.
+      await recordPaymentFailure(customerId, invoice.attempt_count)
       break
     }
 

@@ -7,12 +7,17 @@ import {
   getOrCreateUser,
   parseChatMessages,
 } from "@/lib/db"
-import { generateChatReply, CHAT_MESSAGE_LIMITS } from "@/lib/analysis-ai"
+import {
+  generateChatReply,
+  generateChatReplyStream,
+  CHAT_MESSAGE_LIMITS,
+} from "@/lib/analysis-ai"
 import { FEATURE_RATE_LIMITS, rateLimitByUserId } from "@/lib/rate-limit"
 import { parseAnalysisResultLenient } from "@/lib/validate-analysis"
 import { isProUser } from "@/lib/user-plan"
 import { ChatRequestSchema, parseOrError } from "@/lib/schemas"
-import { generateReqId, captureException } from "@/lib/observability"
+import { generateReqId, captureException, startSentryTransaction } from "@/lib/observability"
+import type { SentryTransaction } from "@/lib/observability"
 import type { ChatMessage } from "@/lib/types"
 
 export const runtime = "nodejs"
@@ -20,11 +25,13 @@ export const maxDuration = 30
 
 export async function POST(req: NextRequest) {
   const reqId = generateReqId()
+  const transaction: SentryTransaction = startSentryTransaction("POST /api/chat", "http.server")
 
   try {
     assertServerEnv()
   } catch (err) {
     captureException(err, { component: "chat", reqId, extra: { phase: "assert-env" } })
+    transaction.finish()
     return NextResponse.json(
       { error: "Chat is temporarily unavailable." },
       { status: 503, headers: { "x-request-id": reqId } },
@@ -79,8 +86,11 @@ export async function POST(req: NextRequest) {
     }
     const { analysisId, message } = parsed.data
 
+    // ── Span: db-lookup (user + analysis) ──
+    const dbSpan = transaction.startChild({ op: "db", description: "db-lookup" })
     const userProfile = await getOrCreateUser(session.user.id, session.user.email)
     if (!userProfile) {
+      dbSpan.finish()
       return NextResponse.json(
         { error: "Session stale. Please sign in again." },
         { status: 401, headers: { "x-request-id": reqId } },
@@ -88,6 +98,8 @@ export async function POST(req: NextRequest) {
     }
     const pro = isProUser(userProfile)
 
+    // ── Span: rate-limit ──
+    const rateLimitSpan = transaction.startChild({ op: "rate_limit", description: "rate-limit" })
     let rate: { allowed: boolean; reset?: number }
     try {
       rate = await rateLimitByUserId(
@@ -96,12 +108,16 @@ export async function POST(req: NextRequest) {
         "1 h",
       )
     } catch (rlErr) {
+      rateLimitSpan.setStatus("internal_error")
+      rateLimitSpan.finish()
       captureException(rlErr, { component: "chat", reqId, extra: { phase: "rate-limit" } })
       return NextResponse.json(
         { error: "Service temporarily unavailable. Please retry shortly." },
         { status: 503, headers: { "Retry-After": "30", "x-request-id": reqId } },
       )
     }
+    rateLimitSpan.finish()
+
     if (!rate.allowed) {
       const retryAfter = rate.reset
         ? String(Math.max(1, Math.ceil((rate.reset - Date.now()) / 1000)))
@@ -114,6 +130,7 @@ export async function POST(req: NextRequest) {
 
     const row = await getAnalysisById(userProfile.id, analysisId)
     if (!row) {
+      dbSpan.finish()
       return NextResponse.json(
         { error: "Analysis not found." },
         { status: 404, headers: { "x-request-id": reqId } },
@@ -125,11 +142,13 @@ export async function POST(req: NextRequest) {
     // chat, rephrase, and dashboard loads for those rows.
     const analysis = parseAnalysisResultLenient(row.result)
     if (!analysis) {
+      dbSpan.finish()
       return NextResponse.json(
         { error: "Analysis data is invalid." },
         { status: 500, headers: { "x-request-id": reqId } },
       )
     }
+    dbSpan.finish()
 
     const history = parseChatMessages(row.chatMessages)
     const limit = pro ? CHAT_MESSAGE_LIMITS.pro : CHAT_MESSAGE_LIMITS.free
@@ -185,10 +204,102 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     }
 
+    // ── Streaming path: opt-in via Accept: text/event-stream ──
+    const wantsSSE = req.headers.get("accept")?.includes("text/event-stream")
+
+    if (wantsSSE) {
+      const aiSpan = transaction.startChild({ op: "ai", description: "ai-call-stream" })
+      const userId = userProfile.id
+      const aiLimit = limit
+      const encoder = new TextEncoder()
+
+      const sseStream = new ReadableStream({
+        async start(controller) {
+          let fullReply = ""
+          let streamError = false
+          try {
+            for await (const event of generateChatReplyStream(
+              analysis,
+              history,
+              sanitizedMessage,
+              req.signal,
+              reqId,
+            )) {
+              if (event.type === "token") {
+                fullReply += event.content
+                controller.enqueue(
+                  encoder.encode(`event: token\ndata: ${JSON.stringify({ content: event.content })}\n\n`),
+                )
+              } else if (event.type === "error") {
+                streamError = true
+                controller.enqueue(
+                  encoder.encode(`event: error\ndata: ${JSON.stringify({ error: event.error })}\n\n`),
+                )
+                aiSpan.setStatus("internal_error")
+              } else if (event.type === "done") {
+                fullReply = event.reply
+                // Persist messages before closing the stream
+                const assistantMsg: ChatMessage = {
+                  role: "assistant",
+                  content: fullReply,
+                  createdAt: new Date().toISOString(),
+                }
+                const appended = await appendChatMessages(
+                  userId,
+                  analysisId,
+                  [userMsg, assistantMsg],
+                  aiLimit,
+                )
+                if (!appended.ok) {
+                  const errReason =
+                    appended.reason === "limit" ? "Chat limit reached." : "Failed to save messages."
+                  controller.enqueue(
+                    encoder.encode(`event: error\ndata: ${JSON.stringify({ error: errReason })}\n\n`),
+                  )
+                } else {
+                  controller.enqueue(
+                    encoder.encode(
+                      `event: done\ndata: ${JSON.stringify({ reply: fullReply, messages: appended.messages })}\n\n`,
+                    ),
+                  )
+                }
+              }
+            }
+            aiSpan.finish()
+          } catch (err) {
+            if (!streamError) {
+              aiSpan.setStatus("internal_error")
+              captureException(err, { component: "chat", reqId, extra: { phase: "ai-stream" } })
+              controller.enqueue(
+                encoder.encode(`event: error\ndata: ${JSON.stringify({ error: "AI response failed. Try again." })}\n\n`),
+              )
+            }
+          } finally {
+            aiSpan.finish()
+            controller.close()
+          }
+        },
+      })
+
+      return new Response(sseStream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-store",
+          Connection: "keep-alive",
+          "x-request-id": reqId,
+        },
+      })
+    }
+
+    // ── Span: ai-call (non-streaming) ──
+    const aiSpan = transaction.startChild({ op: "ai", description: "ai-call" })
     let replyText: string
     try {
       replyText = await generateChatReply(analysis, history, sanitizedMessage, req.signal, reqId)
+      aiSpan.finish()
     } catch (aiErr) {
+      aiSpan.setStatus("internal_error")
+      aiSpan.finish()
       captureException(aiErr, { component: "chat", reqId, extra: { phase: "ai" } })
       return NextResponse.json(
         { error: "AI response failed. Try again." },
@@ -225,6 +336,8 @@ export async function POST(req: NextRequest) {
       { error: "Could not process chat.", reqId },
       { status: 500, headers: { "x-request-id": reqId } },
     )
+  } finally {
+    transaction.finish()
   }
 }
 

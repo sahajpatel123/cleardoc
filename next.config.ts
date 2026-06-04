@@ -1,4 +1,20 @@
 import type { NextConfig } from "next"
+
+// Build-time guard: fail fast if critical environment variables are missing.
+// This prevents deploying a build that will crash at runtime due to missing
+// NVIDIA_API_KEY, NEXTAUTH_SECRET, or DATABASE_URL. Only enforced on Vercel
+// or CI builds so local `next build` without a full env still works.
+const isDeployBuild = process.env.VERCEL === "1" || process.env.CI === "true"
+if (isDeployBuild) {
+  const REQUIRED_BUILD_ENV = ["DATABASE_URL", "NEXTAUTH_SECRET", "NVIDIA_API_KEY"] as const
+  const missingBuildEnv = REQUIRED_BUILD_ENV.filter((key) => !process.env[key]?.trim())
+  if (missingBuildEnv.length > 0) {
+    throw new Error(
+      `Missing required environment variables at build time: ${missingBuildEnv.join(", ")}. ` +
+        "Set them in your build environment before deploying."
+    )
+  }
+}
 // Build-time security headers. Middleware (middleware.ts) is the canonical
 // path: it sets a per-request nonce and emits the active CSP. These build-
 // time headers are the FALLBACK for static export / middleware-bypassed
@@ -44,6 +60,7 @@ const SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
+  compress: true,
   serverExternalPackages: ["pdf2json"],
   experimental: {
     optimizePackageImports: ["framer-motion", "lucide-react"],

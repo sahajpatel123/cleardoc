@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useState } from "react"
+import { useAuth } from "@/context/AuthContext"
 
 /** Validate that a URL returned by our server is on an expected Stripe origin. */
 function isStripeUrl(url: string): boolean {
@@ -42,6 +43,7 @@ function isSafeInternalRedirect(url: string): boolean {
 export function useBilling() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const { refreshProfile } = useAuth()
 
   const startCheckout = useCallback(async () => {
     setLoading(true)
@@ -61,6 +63,7 @@ export function useBilling() {
           setError("Unexpected checkout URL. Please try again.")
           return
         }
+        // Profile will be fresh after Stripe redirect completes (webhook updates DB)
         window.location.href = url
         return
       }
@@ -91,6 +94,8 @@ export function useBilling() {
           setError("Unexpected server response. Please try again.")
           return
         }
+        // Refresh profile after portal interaction so UI shows updated status
+        await refreshProfile()
         window.location.href = redirectTo
         return
       }
@@ -99,6 +104,8 @@ export function useBilling() {
           setError("Unexpected billing portal URL. Please try again.")
           return
         }
+        // Refresh profile after portal interaction so UI shows updated status
+        await refreshProfile()
         window.location.href = url
         return
       }
@@ -108,7 +115,7 @@ export function useBilling() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [refreshProfile])
 
   return { startCheckout, openPortal, loading, error, setError }
 }

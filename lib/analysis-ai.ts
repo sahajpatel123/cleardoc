@@ -5,6 +5,28 @@ import { withAiClient } from "./ai-client"
 import { logAiUsage } from "@/lib/observability"
 import { withRetry } from "./ai-retry"
 
+// ── Streaming event types ──
+
+/** A token delta emitted as the AI generates text. */
+export interface StreamTokenEvent {
+  type: "token"
+  content: string
+}
+
+/** Stream completed successfully; carries the full reply text. */
+export interface StreamDoneEvent {
+  type: "done"
+  reply: string
+}
+
+/** Stream encountered an error. */
+export interface StreamErrorEvent {
+  type: "error"
+  error: string
+}
+
+export type StreamEvent = StreamTokenEvent | StreamDoneEvent | StreamErrorEvent
+
 // const log = createLogger("analysis-ai")
 
 const CHAT_SYSTEM = `You are ClearDoc's call-prep advocate — the same fierce, practical ally who analyzed the user's document. You help them prepare for phone calls, negotiations, and follow-up actions.
@@ -47,6 +69,47 @@ function truncateHistory(history: ChatMessage[], maxTokens: number): ChatMessage
   return result
 }
 
+/** Build the OpenAI message array for a chat completion call. Shared by
+ *  both streaming and non-streaming paths so the prompt is identical. */
+function buildChatMessages(
+  analysis: AnalysisResult,
+  history: ChatMessage[],
+  userMessage: string,
+): OpenAI.ChatCompletionMessageParam[] {
+  const contextBlock = JSON.stringify({
+    plain_summary: analysis.plain_summary,
+    overall_verdict: analysis.overall_verdict,
+    red_flags: analysis.red_flags,
+    next_steps: analysis.next_steps,
+    response_letter: analysis.response_letter.slice(0, 1500),
+    deadlines: analysis.deadlines ?? [],
+  })
+
+  // Budget: ~30K tokens total. Reserve ~8K for analysis context + system prompt.
+  // User message gets ~2K. Remaining ~20K for history.
+  const historyBudget = 20000
+  const truncatedHistory = truncateHistory(history, historyBudget)
+
+  return [
+    { role: "system", content: `${CHAT_SYSTEM}\n\nDocument analysis JSON:\n${contextBlock}` },
+    ...truncatedHistory.map((m) => ({
+      role: m.role as "user" | "assistant",
+      // Re-tag historical user content the same way to prevent injection
+      // vectors smuggled in via past saved chat turns. Past assistant
+      // replies are trusted; past user turns are wrapped to maintain the
+      // same data/instruction boundary.
+      content:
+        m.role === "user"
+          ? `<<USER_MESSAGE>>\n${m.content}\n<</USER_MESSAGE>>`
+          : m.content,
+    })),
+    {
+      role: "user",
+      content: `<<USER_MESSAGE>>\n${userMessage}\n<</USER_MESSAGE>>`,
+    },
+  ]
+}
+
 export async function generateChatReply(
   analysis: AnalysisResult,
   history: ChatMessage[],
@@ -56,38 +119,7 @@ export async function generateChatReply(
 ): Promise<string> {
   return withRetry(async () => {
     const startTime = Date.now()
-    const contextBlock = JSON.stringify({
-        plain_summary: analysis.plain_summary,
-        overall_verdict: analysis.overall_verdict,
-        red_flags: analysis.red_flags,
-        next_steps: analysis.next_steps,
-        response_letter: analysis.response_letter.slice(0, 1500),
-        deadlines: analysis.deadlines ?? [],
-      })
-
-    // Budget: ~30K tokens total. Reserve ~8K for analysis context + system prompt.
-    // User message gets ~2K. Remaining ~20K for history.
-    const historyBudget = 20000
-    const truncatedHistory = truncateHistory(history, historyBudget)
-
-    const messages: OpenAI.ChatCompletionMessageParam[] = [
-      { role: "system", content: `${CHAT_SYSTEM}\n\nDocument analysis JSON:\n${contextBlock}` },
-      ...truncatedHistory.map((m) => ({
-        role: m.role as "user" | "assistant",
-        // Re-tag historical user content the same way to prevent injection
-        // vectors smuggled in via past saved chat turns. Past assistant
-        // replies are trusted; past user turns are wrapped to maintain the
-        // same data/instruction boundary.
-        content:
-          m.role === "user"
-            ? `<<USER_MESSAGE>>\n${m.content}\n<</USER_MESSAGE>>`
-            : m.content,
-      })),
-      {
-        role: "user",
-        content: `<<USER_MESSAGE>>\n${userMessage}\n<</USER_MESSAGE>>`,
-      },
-    ]
+    const messages = buildChatMessages(analysis, history, userMessage)
 
     const response = await withTimeout(
       (composedSignal) =>
@@ -121,6 +153,95 @@ export async function generateChatReply(
     })
     return text.trim() || "I couldn't generate a response. Please try rephrasing your question."
   }, 3, "chat reply", signal, reqId, undefined, "analysis-ai")
+}
+
+/**
+ * Streaming variant of generateChatReply.
+ *
+ * Yields StreamEvent objects as the AI generates tokens:
+ *   { type: "token", content: "<chunk>" }  — each token delta
+ *   { type: "done", reply: "<full>" }       — final event with full reply
+ *   { type: "error", error: "<message>" }    — on failure
+ *
+ * The caller is responsible for:
+ *   - Persisting chat messages after receiving the "done" event
+ *   - Formatting SSE events for the HTTP response
+ *   - Rate limiting, auth, and CSRF checks (before calling this)
+ *
+ * The `done` event carries only the raw reply text; the caller constructs
+ * the full response (including persisted messages) for the client.
+ */
+export async function* generateChatReplyStream(
+  analysis: AnalysisResult,
+  history: ChatMessage[],
+  userMessage: string,
+  signal: AbortSignal,
+  reqId: string,
+): AsyncGenerator<StreamEvent> {
+  const messages = buildChatMessages(analysis, history, userMessage)
+  const startTime = Date.now()
+  let fullText = ""
+
+  try {
+    const stream = await withRetry(
+      async () => {
+        const stream = await withTimeout(
+          async (composedSignal) =>
+            withAiClient(
+              (client) =>
+                client.chat.completions.create(
+                  {
+                    ...nimCompletionParams({
+                      model: AI_MODEL,
+                      max_tokens: 1024,
+                      temperature: 0.3,
+                      messages,
+                    }),
+                    stream: true,
+                  },
+                  { signal: composedSignal },
+                ),
+              composedSignal,
+            ),
+          AI_TIMEOUT_MS_SHORT,
+          "chat reply stream",
+          signal,
+        )
+        return stream
+      },
+      3,
+      "chat reply stream",
+      signal,
+      reqId,
+      undefined,
+      "analysis-ai",
+    )
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content
+      if (delta) {
+        fullText += delta
+        yield { type: "token" as const, content: delta }
+      }
+    }
+
+    const replyText =
+      fullText.trim() || "I couldn't generate a response. Please try rephrasing your question."
+    logAiUsage({
+      model: AI_MODEL,
+      promptTokens: undefined, // streaming doesn't expose usage
+      completionTokens: undefined,
+      totalTokens: undefined,
+      durationMs: Date.now() - startTime,
+      reqId,
+    })
+    yield { type: "done" as const, reply: replyText }
+  } catch (err) {
+    yield {
+      type: "error" as const,
+      error: err instanceof Error ? err.message : "AI response failed. Try again.",
+    }
+  }
 }
 
 const TONE_PROMPTS: Record<LetterTone, string> = {

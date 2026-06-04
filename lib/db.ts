@@ -244,21 +244,15 @@ export async function updateUserSubscriptionByCustomerId(
   },
 ) {
   try {
-    // RACE CONDITION FIX: Use atomic transaction with advisory lock to protect the
-    // upgrade path. checkout.session.completed fires before customer.subscription.created,
-    // and may set plan: "pro" before this handler runs. Without protection,
-    // subscription events with incomplete/pending status could downgrade a Pro user.
+    // IDEMPOTENT STATE MACHINE: Use atomic transaction with advisory lock.
+    // The lock serializes all subscription events for the same customer, preventing
+    // races between subscription.updated and invoice.payment_failed.
     //
-    // The advisory lock serializes all subscription events for the same customer,
-    // preventing the race where:
-    //   - checkout.session.completed reads plan="free", writes plan="pro"
-    //   - customer.subscription.created reads plan="free" (uncommitted), writes plan="free"
-    // Both commit, user ends up "free" instead of "pro".
+    // Recovery logic: When subscription becomes active/trialing, reset paymentFailedAttempts
+    // to 0 so subsequent failures restart the 3-attempt counter.
     //
-    // Idempotency: Never downgrade to "free" if already on "pro". If the user is
-    // already Pro, preserve that status regardless of subscription status transitions.
-    // This handles: (1) webhook ordering races, (2) incomplete status during migration,
-    // (3) past_due grace periods where Pro access should not be immediately revoked.
+    // Idempotency: Never downgrade Pro status here. The state machine in
+    // evaluateSubscriptionDownshift() handles downgrades based on paymentFailedAttempts.
     return await withDbTimeout(
       prisma.$transaction(async (tx) => {
         // Lock on stripeCustomerId to serialize all events for this customer
@@ -266,7 +260,7 @@ export async function updateUserSubscriptionByCustomerId(
 
         const user = await tx.user.findUnique({
           where: { stripeCustomerId },
-          select: { plan: true },
+          select: { plan: true, paymentFailedAttempts: true },
         })
 
         if (!user) {
@@ -278,12 +272,18 @@ export async function updateUserSubscriptionByCustomerId(
         const shouldPreservePro = user.plan === "pro"
         const effectivePlan = shouldPreservePro ? "pro" : data.plan
 
+        // Reset payment failure counter when subscription recovers (active/trialing)
+        // This ensures we start fresh if payment fails again later
+        const isRecovered = data.subscriptionStatus === "active" || data.subscriptionStatus === "trialing"
+        const paymentFailedAttempts = isRecovered ? 0 : user.paymentFailedAttempts
+
         return await tx.user.update({
           where: { stripeCustomerId },
           data: {
             ...(data.stripeSubscriptionId !== undefined && { stripeSubscriptionId: data.stripeSubscriptionId }),
             plan: effectivePlan,
             subscriptionStatus: data.subscriptionStatus,
+            paymentFailedAttempts,
           },
         })
       }),
@@ -297,6 +297,112 @@ export async function updateUserSubscriptionByCustomerId(
         : undefined
     if (code === "P2025") {
       log.warn({ stripeCustomerId, op: "updateUserSubscriptionByCustomerId" }, "user not found for customer")
+      return null
+    }
+    throw err
+  }
+}
+
+/**
+ * Idempotent state machine for payment failures.
+ *
+ * NEVER downgrades Pro users directly. Instead, tracks failed payment attempts
+ * atomically and only downgrades when the threshold (3 attempts) is reached.
+ * This prevents race conditions where:
+ *   - subscription.updated sets status="past_due", plan="free"
+ *   - invoice.payment_failed also tries to downgrade
+ * Both could race and cause inconsistent state.
+ *
+ * Uses advisory lock on stripeCustomerId to serialize with other subscription
+ * operations (checkout.session.completed, subscription.created/updated).
+ */
+export async function recordPaymentFailure(customerId: string, attemptCount: number) {
+  try {
+    return await withDbTimeout(
+      prisma.$transaction(async (tx) => {
+        // Lock on stripeCustomerId to serialize all events for this customer
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${customerId}, 0))`
+
+        const user = await tx.user.findUnique({
+          where: { stripeCustomerId: customerId },
+          select: { plan: true, paymentFailedAttempts: true },
+        })
+
+        if (!user) {
+          log.warn({ customerId, op: "recordPaymentFailure" }, "user not found for customer")
+          return null
+        }
+
+        // Only track failures for Pro users; never downgrade here
+        // The subscription state machine will handle plan transitions
+        if (user.plan === "pro") {
+          return await tx.user.update({
+            where: { stripeCustomerId: customerId },
+            data: {
+              paymentFailedAttempts: Math.max(user.paymentFailedAttempts, attemptCount),
+              subscriptionStatus: "past_due",
+            },
+          })
+        }
+        return user
+      }),
+      10000,
+      "recordPaymentFailure",
+    )
+  } catch (err: unknown) {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? (err as { code: string }).code
+        : undefined
+    if (code === "P2025") {
+      log.warn({ customerId, op: "recordPaymentFailure" }, "user not found for customer")
+      return null
+    }
+    throw err
+  }
+}
+
+/**
+ * Check if a user should be downgraded due to payment failures.
+ * Called after subscription status is updated to determine final plan state.
+ * Idempotent: returns the correct plan based on failure history.
+ */
+export async function evaluateSubscriptionDownshift(customerId: string) {
+  try {
+    return await withDbTimeout(
+      prisma.$transaction(async (tx) => {
+        // Lock on stripeCustomerId to serialize all events for this customer
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${customerId}, 0))`
+
+        const user = await tx.user.findUnique({
+          where: { stripeCustomerId: customerId },
+          select: { plan: true, paymentFailedAttempts: true },
+        })
+
+        if (!user) {
+          log.warn({ customerId, op: "evaluateSubscriptionDownshift" }, "user not found for customer")
+          return null
+        }
+
+        // Only downgrade if payment failures reached threshold
+        if (user.paymentFailedAttempts >= 3 && user.plan === "pro") {
+          return await tx.user.update({
+            where: { stripeCustomerId: customerId },
+            data: { plan: "free" },
+          })
+        }
+        return user
+      }),
+      10000,
+      "evaluateSubscriptionDownshift",
+    )
+  } catch (err: unknown) {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? (err as { code: string }).code
+        : undefined
+    if (code === "P2025") {
+      log.warn({ customerId, op: "evaluateSubscriptionDownshift" }, "user not found for customer")
       return null
     }
     throw err

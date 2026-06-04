@@ -127,7 +127,9 @@ export function captureException(
 
   log.error({ err, reqId: context?.reqId, ...safeExtra }, "captured exception")
 
-  const dsn = process.env.SENTRY_DSN?.trim()
+  const dsn =
+    process.env.SENTRY_DSN?.trim() ??
+    (typeof window !== "undefined" ? process.env.NEXT_PUBLIC_SENTRY_DSN?.trim() : undefined)
   if (!dsn) return
   try {
     // Dynamic require so dev runs without Sentry installed do not pay the
@@ -261,6 +263,90 @@ export function emitMetric(
  * Pricing (NVIDIA NIM trial endpoint, approximate — operator should verify):
  *   Nemotron 3 Nano Omni: ~$0.0001 / 1K input tokens, ~$0.0002 / 1K output tokens
  */
+// ── Distributed Tracing (Sentry Transactions) ──────────────────────
+
+/**
+ * A no-op span that safely discards all tracing calls when Sentry is
+ * unconfigured. Every method mirrors the Sentry Span surface so callers
+ * never need to check for null/undefined.
+ */
+class NoOpSpan {
+  private declare _op: string
+  private declare _description: string
+
+  startChild(_opts: { op: string; description?: string }): NoOpSpan {
+    return new NoOpSpan()
+  }
+
+  setStatus(_status: string): NoOpSpan {
+    return this
+  }
+
+  finish(): void {
+    // no-op
+  }
+}
+
+/**
+ * A no-op transaction that safely discards all tracing calls when Sentry
+ * is unconfigured. Mirrors the Sentry Transaction surface.
+ */
+class NoOpTransaction extends NoOpSpan {
+  private declare _name: string
+
+  constructor(_name: string, _op: string) {
+    super()
+  }
+
+  override startChild(_opts: { op: string; description?: string }): NoOpSpan {
+    return new NoOpSpan()
+  }
+
+  setName(_name: string): void {
+    // no-op
+  }
+}
+
+export type SentryTransaction = NoOpTransaction | {
+  startChild(opts: { op: string; description?: string }): SentrySpan
+  finish(): void
+  setName(name: string): void
+}
+
+export type SentrySpan = NoOpSpan | {
+  setStatus(status: string): SentrySpan
+  finish(): void
+}
+
+/**
+ * Start a Sentry transaction for distributed tracing. Returns a no-op
+ * transaction when Sentry is not configured (missing SENTRY_DSN), so
+ * callers never need to guard against null.
+ *
+ * Uses dynamic require (matching the pattern in captureException) so
+ * that dev builds without @sentry/nextjs installed do not fail.
+ *
+ * @param name Transaction name, e.g. "POST /api/analyze"
+ * @param op   Operation type, e.g. "http.server"
+ */
+export function startSentryTransaction(name: string, op: string): NoOpTransaction | SentryTransaction {
+  const dsn =
+    process.env.SENTRY_DSN?.trim() ??
+    (typeof window !== "undefined" ? process.env.NEXT_PUBLIC_SENTRY_DSN?.trim() : undefined)
+  if (!dsn) {
+    return new NoOpTransaction(name, op)
+  }
+  try {
+    // Dynamic require so dev runs without Sentry installed do not pay the
+    // import cost or fail typecheck.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Sentry = require("@sentry/nextjs")
+    return Sentry.startTransaction({ name, op })
+  } catch {
+    return new NoOpTransaction(name, op)
+  }
+}
+
 export function logAiUsage(params: {
   model: string
   promptTokens?: number

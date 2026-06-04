@@ -34,7 +34,7 @@ jobs:
       # errors before they reach production. `prisma migrate diff` checks
       # that the current schema.prisma is consistent with existing migrations.
       - name: Validate migrations (dry-run)
-        run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --script > /dev/null 2>&1 || echo "⚠ Migration drift detected — run `prisma migrate dev` locally to create a new migration."
+        run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --script > /dev/null
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

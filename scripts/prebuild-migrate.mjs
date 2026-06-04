@@ -164,8 +164,9 @@ if (!configureMigrationEnv()) {
 /**
  * Prebuild migration runner with resilient failure recovery.
  *
- * - On transient build-env DB unreachability (P1001) or timeout: skip
- *   gracefully (exit 0) so deploys succeed.
+ * - On transient build-env DB unreachability (P1001) or timeout:
+ *   - Production: FAIL LOUDLY (exit 1) — migrations MUST run at build time.
+ *   - Non-production: skip gracefully (exit 0) so deploys succeed.
  * - On P3018 (failed migration blocking the queue): attempt to resolve the
  *   failed migration as applied when it is the known historical incident
  *   "20260526180000_analysis_features". This migration only adds optional
@@ -179,13 +180,20 @@ try {
   if (out) process.stdout.write(out)
 } catch (err) {
   if (isUnreachableError(err) || err.killed || err.signal === "SIGTERM") {
-    // Vercel's build environment cannot reach Supabase's pooler (builds
-    // run on an isolated network, and Supabase's pooler only allows
-    // runtime IPs, not Vercel build IPs). The deploy still succeeds — the
-    // runtime Prisma client will run pending migrations on first request
-    // (via lib/ensure-schema.ts) — so skipping here is the safe default.
-    // Log to stdout (informational), not stderr, so Vercel does not flag
-    // the build as having warnings.
+    if (process.env.NODE_ENV === "production") {
+      // FAIL LOUDLY in production — migrations MUST run at build time.
+      // A runtime server with incomplete schema will fail unpredictably.
+      console.error(
+        "[migrate] FATAL: Build environment cannot reach Supabase pooler in production. " +
+          "Migrations were NOT applied.\n" +
+          "[migrate] Set DIRECT_URL to a session pooler (port 6543) or direct connection. " +
+          "Or use a dedicated migration step before build.\n" +
+          "[migrate] The server will fail at runtime with column errors.\n",
+      )
+      process.exit(1)
+    }
+    // Non-production: skip gracefully (exit 0) so deploys succeed.
+    // The runtime Prisma client will apply pending migrations on first request.
     process.stdout.write(
       "[migrate] Build env cannot reach Supabase pooler — skipping prisma migrate deploy.\n" +
         "[migrate] Runtime will apply pending schema via lib/ensure-schema.ts. " +

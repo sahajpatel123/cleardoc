@@ -28,7 +28,7 @@ export async function DELETE(
     if (!rl.allowed) {
       return NextResponse.json(
         { error: "Too many delete requests. Try again later." },
-        { status: 429, headers: { "x-request-id": reqId, "Retry-After": String(Math.ceil((rl.reset ?? Date.now()) / 1000)) } },
+        { status: 429, headers: { "x-request-id": reqId, "Retry-After": String(Math.max(1, Math.ceil(((rl.reset ?? Date.now()) - Date.now()) / 1000))) } },
       )
     }
 

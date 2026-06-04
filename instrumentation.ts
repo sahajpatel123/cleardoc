@@ -30,11 +30,17 @@ export async function register(): Promise<void> {
       logWarmupFailure("ai-client", warmupErr)
     }
 
-    // Graceful shutdown on container termination (Vercel / Docker / K8s).
+    // Graceful shutdown on container termination (Vercel / Docker / K8s) or fatal errors.
     // In serverless, the runtime may not always send SIGTERM, but when it
     // does we disconnect Prisma cleanly to avoid connection pool leaks.
     // IMPORTANT: Wait for in-flight webhooks to complete before shutting down.
-    const gracefulShutdown = async (_signalName: string) => {
+    const gracefulShutdown = async (signalName: string, isError = false) => {
+      const timeout = setTimeout(() => {
+        // eslint-disable-next-line no-console
+        console.error(`[instrumentation] Graceful shutdown timed out (${signalName}) — forcing exit`)
+        process.exit(1)
+      }, 10_000)
+
       try {
         // First, drain any in-flight webhooks so Vercel deploy doesn't lose them
         try {
@@ -51,26 +57,43 @@ export async function register(): Promise<void> {
           const { prisma } = await import("@/lib/prisma")
           await prisma.$disconnect()
         } catch {}
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`[instrumentation] Error during graceful shutdown (${signalName}):`, err)
       } finally {
-        process.exit(0)
+        clearTimeout(timeout)
+        process.exit(isError ? 1 : 0)
       }
     }
-    process.on("SIGTERM", () => gracefulShutdown("SIGTERM"))
-    process.on("SIGINT", () => gracefulShutdown("SIGINT"))
+    process.on("SIGTERM", () => { void gracefulShutdown("SIGTERM") })
+    process.on("SIGINT", () => { void gracefulShutdown("SIGINT") })
 
     // Catch unhandled exceptions and promise rejections that slip through — prevents
     // the Node process from silently crashing with exit code 1 and no stack trace
     // in serverless. Worker threads can reject without a .catch() handler if
     // the caller's timeout wins the race before the worker's promise settles.
+    const handleFatalError = async (errorType: string, error: unknown) => {
+      // Log full error details for debugging
+      if (error instanceof Error) {
+        console.error(`[instrumentation] ${errorType}: ${error.message}`, {
+          name: error.name,
+          stack: error.stack,
+        })
+      } else {
+        console.error(`[instrumentation] ${errorType}:`, error)
+      }
+      await gracefulShutdown(errorType)
+    }
+
+    // Catch unhandled promise rejections — same protection for async throws.
     process.on("unhandledRejection", (reason: unknown) => {
-      // eslint-disable-next-line no-console
-      console.error("[instrumentation] Unhandled promise rejection:", reason)
+      void handleFatalError("Unhandled promise rejection", reason)
     })
 
     // Catch synchronous uncaught exceptions — same protection for sync throws.
+    // A thrown exception means the process may be in a corrupted state.
     process.on("uncaughtException", (err: Error) => {
-      // eslint-disable-next-line no-console
-      console.error("[instrumentation] Uncaught exception:", err)
+      void handleFatalError("Uncaught exception", err)
     })
   }
   if (process.env.NEXT_RUNTIME === "edge") {

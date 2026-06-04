@@ -20,6 +20,14 @@
       // — disable them entirely.
       replaysSessionSampleRate: 0,
       replaysOnErrorSampleRate: 0,
+      beforeBreadcrumb(breadcrumb: { data?: Record<string, unknown> }) {
+        if (breadcrumb.data) {
+          delete breadcrumb.data.body
+          delete breadcrumb.data.headers
+          delete breadcrumb.data.cookies
+        }
+        return breadcrumb
+      },
     })
   }
 }
