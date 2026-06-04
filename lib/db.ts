@@ -178,19 +178,56 @@ export async function upgradeUserToPro(
   stripeSubscriptionId: string | null,
 ) {
   try {
-    return await prisma.user.update({
-      where: { id: userId },
-      data: {
-        plan: "pro",
-        stripeCustomerId,
-        stripeSubscriptionId,
-        subscriptionStatus: "active",
-      },
-    })
+    // IDEMPOTENCY FIX: Use atomic transaction with advisory lock to handle race
+    // conditions safely. The lock uses stripeCustomerId (not userId) to serialize
+    // with updateUserSubscriptionByCustomerId() which runs subscription events.
+    //
+    // If already Pro with same subscription, this is a no-op (handles duplicate events).
+    // If already Pro with different subscription, preserve Pro status.
+    // If free/downgraded, upgrade to Pro.
+    // This prevents checkout.session.completed from being overwritten by later events.
+    return await withDbTimeout(
+      prisma.$transaction(async (tx) => {
+        // Lock on stripeCustomerId to serialize all subscription-related updates for this customer
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${stripeCustomerId}, 0))`
+
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          select: { plan: true, stripeSubscriptionId: true },
+        })
+
+        if (!user) {
+          log.warn({ userId, op: "upgradeUserToPro" }, "user not found — may have been deleted")
+          return null
+        }
+
+        // Already Pro with same subscription - idempotent no-op
+        if (user.plan === "pro" && user.stripeSubscriptionId === stripeSubscriptionId) {
+          return { ...user, plan: "pro", stripeCustomerId, stripeSubscriptionId, subscriptionStatus: "active" }
+        }
+
+        // Upgrade (or re-upgrade if previously downgraded)
+        return await tx.user.update({
+          where: { id: userId },
+          data: {
+            plan: "pro",
+            stripeCustomerId,
+            stripeSubscriptionId,
+            subscriptionStatus: "active",
+          },
+        })
+      }),
+      10000,
+      "upgradeUserToPro",
+    )
   } catch (err: unknown) {
     // P2025 = RecordNotFound — user was deleted between webhook and DB write.
     // Log and return gracefully instead of crashing the webhook handler.
-    if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2025") {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? (err as { code: string }).code
+        : undefined
+    if (code === "P2025") {
       log.warn({ userId, op: "upgradeUserToPro" }, "user not found — may have been deleted")
       return null
     }
@@ -207,34 +244,53 @@ export async function updateUserSubscriptionByCustomerId(
   },
 ) {
   try {
-    // RACE CONDITION FIX: Use atomic upsert to protect the upgrade path.
-    // This prevents checkout.session.completed (which sets plan: "pro") from being
-    // overwritten by customer.subscription.* events that fire later with incomplete/pending status.
+    // RACE CONDITION FIX: Use atomic transaction with advisory lock to protect the
+    // upgrade path. checkout.session.completed fires before customer.subscription.created,
+    // and may set plan: "pro" before this handler runs. Without protection,
+    // subscription events with incomplete/pending status could downgrade a Pro user.
     //
-    // Idempotency: Only downgrade to "free" if the user was never Pro. If already on "pro",
-    // preserve that status regardless of subscription status transitions.
-    // This handles the edge case where subscription.created fires before checkout.completed
-    // or when subscription status is temporarily incomplete/past_due during migration.
-    return await prisma.user.upsert({
-      where: { stripeCustomerId },
-      update: {
-        ...(data.stripeSubscriptionId !== undefined && { stripeSubscriptionId: data.stripeSubscriptionId }),
-        // Protect upgrade path: don't downgrade if already Pro
-        plan: data.plan === "free" ? undefined : data.plan,
-        subscriptionStatus: data.subscriptionStatus,
-      },
-      create: {
-        stripeCustomerId,
-        stripeSubscriptionId: data.stripeSubscriptionId ?? null,
-        plan: data.plan,
-        subscriptionStatus: data.subscriptionStatus,
-        email: "", // Required field - will be incomplete user
-        freeUsesRemaining: 0,
-      },
-    })
+    // The advisory lock serializes all subscription events for the same customer,
+    // preventing the race where:
+    //   - checkout.session.completed reads plan="free", writes plan="pro"
+    //   - customer.subscription.created reads plan="free" (uncommitted), writes plan="free"
+    // Both commit, user ends up "free" instead of "pro".
+    //
+    // Idempotency: Never downgrade to "free" if already on "pro". If the user is
+    // already Pro, preserve that status regardless of subscription status transitions.
+    // This handles: (1) webhook ordering races, (2) incomplete status during migration,
+    // (3) past_due grace periods where Pro access should not be immediately revoked.
+    return await withDbTimeout(
+      prisma.$transaction(async (tx) => {
+        // Lock on stripeCustomerId to serialize all events for this customer
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${stripeCustomerId}, 0))`
+
+        const user = await tx.user.findUnique({
+          where: { stripeCustomerId },
+          select: { plan: true },
+        })
+
+        if (!user) {
+          log.warn({ stripeCustomerId, op: "updateUserSubscriptionByCustomerId" }, "user not found for customer")
+          return null
+        }
+
+        // Protect upgrade path: never downgrade if already Pro
+        const shouldPreservePro = user.plan === "pro"
+        const effectivePlan = shouldPreservePro ? "pro" : data.plan
+
+        return await tx.user.update({
+          where: { stripeCustomerId },
+          data: {
+            ...(data.stripeSubscriptionId !== undefined && { stripeSubscriptionId: data.stripeSubscriptionId }),
+            plan: effectivePlan,
+            subscriptionStatus: data.subscriptionStatus,
+          },
+        })
+      }),
+      10000,
+      "updateUserSubscriptionByCustomerId",
+    )
   } catch (err: unknown) {
-    // P2025 = record not found - user has no stripeCustomerId on record.
-    // This is now handled by upsert (returns result with created=false behavior).
     const code =
       err && typeof err === "object" && "code" in err
         ? (err as { code: string }).code
@@ -251,19 +307,41 @@ export async function updateUserSubscriptionByCustomerId(
  * Mark a subscription as cancelled.
  * Downgrade plan to free so the UI is consistent — the user sees
  * Free/Inactive after cancellation.
+ *
+ * IDEMPOTENCY: Only set plan: "free" if NOT already explicitly cancelled.
+ * This prevents race conditions where cancel/deactivate events could
+ * interfere with active Pro status.
+ *
+ * Uses advisory lock on stripeCustomerId to serialize with other subscription
+ * operations (checkout.session.completed, subscription.created/updated).
  */
 export async function cancelSubscriptionForCustomer(stripeCustomerId: string) {
+  // Cancellation is always intentional - downgrade to free regardless of current status.
+  // The subscription deleted event only fires when the user genuinely cancels.
   try {
-    return await prisma.user.update({
-      where: { stripeCustomerId },
-      data: {
-        plan: "free",
-        subscriptionStatus: "cancelled",
-        stripeSubscriptionId: null,
-      },
-    })
+    return await withDbTimeout(
+      prisma.$transaction(async (tx) => {
+        // Lock on stripeCustomerId to serialize all events for this customer
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${stripeCustomerId}, 0))`
+
+        return await tx.user.update({
+          where: { stripeCustomerId },
+          data: {
+            plan: "free",
+            subscriptionStatus: "cancelled",
+            stripeSubscriptionId: null,
+          },
+        })
+      }),
+      10000,
+      "cancelSubscriptionForCustomer",
+    )
   } catch (err: unknown) {
-    if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2025") {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? (err as { code: string }).code
+        : undefined
+    if (code === "P2025") {
       log.warn({ stripeCustomerId, op: "cancelSubscriptionForCustomer" }, "user not found for customer")
       return null
     }

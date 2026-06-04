@@ -33,14 +33,31 @@ const REQUIRED_COLUMNS: ReadonlyArray<{ table: "User" | "Analysis"; column: stri
  * is still active for the parts of the statement that accept parameters.
  * All values here are hard-coded constants with no user input, but the safer
  * API is used by default to prevent footguns if the code is later modified.
+ *
+ * NOTE: In production, this function only READS to verify schema health.
+ * Runtime DDL is intentionally disabled - migrations must be applied at
+ * build time via `prisma migrate deploy` (scripts/prebuild-migrate.mjs).
+ * If ensureDatabaseSchema returns in production but schema is incomplete,
+ * the server still boots but queries will fail with column errors.
  */
-export function ensureDatabaseSchema(): Promise<void> {
+export async function ensureDatabaseSchema(): Promise<void> {
   if (process.env.NODE_ENV === "production") {
     // In production, migrations MUST be applied at build time via
     // `prisma migrate deploy` (scripts/prebuild-migrate.mjs). Runtime DDL
     // is disabled to avoid table locks, cold-start latency, and the
     // information_schema probe tax on every health check.
-    return Promise.resolve()
+    // We still probe for schema health to detect misconfiguration.
+    const complete = await schemaIsComplete().catch((err) => {
+      captureException(err, { component: "ensure-schema", extra: { phase: "probe-production" } })
+      return false
+    })
+    if (!complete) {
+      captureException(new Error("Production schema incomplete at boot — migrations were not applied"), {
+        component: "ensure-schema",
+        extra: { phase: "schema-incomplete" },
+      })
+    }
+    return
   }
 
   if (!schemaReady) {

@@ -35,6 +35,7 @@ type StoredRecord = {
   fileType: string
   context: string
   parentAnalysisId?: string
+  consumed?: boolean
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -94,6 +95,8 @@ async function readFromIdb(): Promise<PendingAnalysisPayload | null> {
       req.onerror = () => reject(req.error ?? new Error("IndexedDB get failed"))
     })
     if (!record?.blob) return null
+    // Crash recovery: skip consumed records
+    if (record.consumed === true) return null
     const file = new File([record.blob], record.fileName, {
       type: record.fileType || "application/octet-stream",
     })
@@ -105,6 +108,34 @@ async function readFromIdb(): Promise<PendingAnalysisPayload | null> {
   } catch (err) {
     captureException(err, { component: "pending-analysis", extra: { phase: "idb-read" } })
     return null
+  }
+}
+
+// Mark the in-memory record as consumed without deleting. Used for crash recovery.
+// If a page crashes after take() but before clear(), the next page load can still
+// recover the data, but won't re-process if marked consumed.
+async function markIdbConsumed(): Promise<void> {
+  try {
+    const db = await openDb()
+    // Read the current record, set consumed flag, and write back
+    const record = await new Promise<StoredRecord | undefined>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readonly")
+      tx.onerror = () => reject(tx.error ?? new Error("IndexedDB read failed"))
+      const req = tx.objectStore(STORE).get(KEY)
+      req.onsuccess = () => resolve(req.result as StoredRecord | undefined)
+      req.onerror = () => reject(req.error ?? new Error("IndexedDB get failed"))
+    })
+    if (record && record.blob) {
+      record.consumed = true
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE, "readwrite")
+        tx.oncomplete = () => resolve()
+        tx.onerror = () => reject(tx.error ?? new Error("IndexedDB write failed"))
+        tx.objectStore(STORE).put(record, KEY)
+      })
+    }
+  } catch (err) {
+    captureException(err, { component: "pending-analysis", extra: { phase: "idb-mark-consumed" } })
   }
 }
 
@@ -134,19 +165,26 @@ export async function setPendingAnalysis(payload: PendingAnalysisPayload): Promi
  * Mark the pending analysis as "consumed" without fully deleting it.
  * Returns the payload for immediate use. If the caller crashes after this
  * returns but before they actually submit to /api/analyze, the stale data
- * can be recovered on a fresh page load (graceful crash recovery).
+ * can be recovered on a fresh page load (graceful crash recovery) but will
+ * be skipped because we mark it consumed in IndexedDB.
  *
  * The caller MUST call `clearPendingAnalysis()` after a successful submit.
  */
 export async function takePendingAnalysis(): Promise<PendingAnalysisPayload | null> {
   // Return in-memory value without clearing — let clearPendingAnalysis handle cleanup
   if (memory) {
-    const value = memory
-    // Mark as consumed by setting a flag; clearIdb is handled separately
-    return value
+    // Mark IDB as consumed for crash recovery. If the page crashes after this
+    // returns but before clearPendingAnalysis(). is called, the next page load
+    // will see the consumed flag and return null instead of re-processing.
+    void markIdbConsumed()
+    return memory
   }
-  // For IndexedDB, return without immediately clearing to allow recovery
+  // For IndexedDB fallback: read the data, then mark as consumed
   const fromIdb = await readFromIdb()
+  if (fromIdb) {
+    // Mark as consumed for crash recovery - idempotent
+    void markIdbConsumed()
+  }
   return fromIdb
 }
 

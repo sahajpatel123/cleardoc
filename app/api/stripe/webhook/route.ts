@@ -11,6 +11,7 @@ import {
 import { claimStripeEvent, releaseStripeEventClaim } from "@/lib/stripe-events"
 import { createLogger, generateReqId, captureException } from "@/lib/observability"
 import { trackWebhook } from "@/lib/webhook-inflight"
+import { isProUser } from "@/lib/user-plan"
 import Stripe from "stripe"
 
 export const runtime = "nodejs"
@@ -98,12 +99,19 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
         break
       }
 
+      // Race safe: preserve existing Pro status unless subscription is explicitly past_due.
+      // The checkout.session.completed webhook already upgrades to Pro with subscriptionStatus: "active".
+      // Without this check, a subscription webhook from before checkout completed (or with status
+      // "incomplete") could race and incorrectly set plan: "free", revoking Pro access prematurely.
       const isActive = sub.status === "active" || sub.status === "trialing"
       const isPastDue = sub.status === "past_due"
+      const alreadyPro = isProUser(user)
+      const plan: string = isPastDue ? "free" : (isActive || alreadyPro) ? "pro" : user.plan
+      const subscriptionStatus: string = isActive ? "active" : isPastDue ? "past_due" : (user.subscriptionStatus ?? "inactive")
       await updateUserSubscriptionByCustomerId(customerId, {
         stripeSubscriptionId: sub.id,
-        plan: isActive ? "pro" : isPastDue ? user.plan : "free",
-        subscriptionStatus: isActive ? "active" : isPastDue ? "past_due" : "inactive",
+        plan,
+        subscriptionStatus,
       })
       break
     }
@@ -156,8 +164,10 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       )
 
       // After 3 failed attempts, downgrade to past_due to revoke Pro access.
-      // Stripe retries automatically; this prevents indefinite free Pro access.
-      if (invoice.attempt_count >= 3) {
+      // Race-safe: only downgrade users who are actually on Pro. A concurrent
+      // subscription.updated webhook setting plan: "pro" could race with this,
+      // so we protect against incorrectly downgrading a newly upgraded user.
+      if (invoice.attempt_count >= 3 && isProUser(user)) {
         await updateUserSubscriptionByCustomerId(customerId, {
           plan: "free",
           subscriptionStatus: "past_due",
@@ -278,32 +288,33 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const handlerPromise = (async () => {
-    try {
-      await handleStripeEvent(event)
-    } catch (err) {
-      // Only release claim on actual errors - tombstone cases intentionally skip this
-      await releaseStripeEventClaim(event.id)
-      captureException(err, { component: "stripe-webhook", reqId, extra: { stripeEventType: event.type } })
-      throw err
-    }
-  })()
+  // Track in-flight webhook for graceful shutdown draining.
+  // handleStripeEvent manages claim release internally for recoverable errors.
+  // For tombstone cases (e.g., missing userId), it returns without releasing
+  // to leave a tombstone for manual reconciliation.
+  const handlerPromise = handleStripeEvent(event)
 
   trackWebhook(event.id, handlerPromise)
 
   // Wait for handler to complete before returning response.
   // The draining logic in gracefulShutdown will also wait via trackWebhook.
+  let handlerErrored = false
   try {
     await handlerPromise
-  } catch {
-    // Error already logged and claim released in the wrapper above
+  } catch (err) {
+    handlerErrored = true
+    // Note: handleStripeEvent already released the claim for recoverable errors
+    // For tombstone cases, we intentionally leave the claim unreleased
+    captureException(err, { component: "stripe-webhook", reqId, extra: { stripeEventType: event.type } })
+  }
+
+  if (handlerErrored) {
     return NextResponse.json(
       { error: "Webhook handler error" },
       { status: 500, headers },
     )
   }
 
-  // Only return 200 if we actually processed successfully.
-  // Tombstone cases (missing userId) return 200 but with no processing.
+  // 200 OK - event was processed or tombstoned (no release needed for tombstones)
   return NextResponse.json({ received: true }, { headers })
 }

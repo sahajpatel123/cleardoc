@@ -64,31 +64,35 @@ export async function GET(req: NextRequest) {
     const limit = limitParam ? Math.min(Math.max(parseInt(limitParam, 10), 1), 100) : undefined
 
     // Only cache the first page (no cursor) — paginated results are dynamic
-    if (!cursor) {
-      const redis = getRedis()
-      const cacheKey = `cleardoc:dashboard:${session.user.id}`
-      if (redis) {
-        try {
-          const cached = await redis.get<unknown>(cacheKey)
-          if (Array.isArray(cached) && isValidAnalysesSummaryArray(cached)) {
-            return NextResponse.json({ data: cached, nextCursor: null }, {
-              headers: { "Cache-Control": "no-store", "x-request-id": reqId, "x-cache": "HIT" },
-            })
-          }
-          if (cached) {
-            // Cache poisoning: schema-violating payload in Redis. Discard
-            // and fall through to DB. We do NOT delete the bad key from
-            // the request path (a write race could be in flight); it will
-            // be overwritten in 10s by the next MISS path below.
-            log.warn(
-              { userId: session.user.id, cacheKey, payloadType: typeof cached },
-              "dashboard cache hit failed validation — discarding poisoned entry",
-            )
-          }
-        } catch (err) {
-          // Redis miss/error on READ — fall through to DB.
-          log.debug({ err, userId: session.user.id, cacheKey }, "dashboard cache read error — falling through to DB")
+    const redis = getRedis()
+    const cacheKey = `cleardoc:dashboard:${session.user.id}`
+    if (!cursor && redis) {
+      try {
+        const cached = await redis.get<unknown>(cacheKey)
+        // The cache stores the array directly; wrap in the paginated response shape
+        if (Array.isArray(cached) && isValidAnalysesSummaryArray(cached)) {
+          // Convert cached array to { data, nextCursor } format for consistency
+          const cachedData = cached.map((r) => ({
+            ...r,
+            createdAt: typeof r.createdAt === "string" ? r.createdAt : new Date(r.createdAt).toISOString(),
+          }))
+          return NextResponse.json({ data: cachedData, nextCursor: null }, {
+            headers: { "Cache-Control": "no-store", "x-request-id": reqId, "x-cache": "HIT" },
+          })
         }
+        if (cached) {
+          // Cache poisoning: schema-violating payload in Redis. Discard
+          // and fall through to DB. We do NOT delete the bad key from
+          // the request path (a write race could be in flight); it will
+          // be overwritten in 10s by the next MISS path below.
+          log.warn(
+            { userId: session.user.id, cacheKey, payloadType: typeof cached },
+            "dashboard cache hit failed validation — discarding poisoned entry",
+          )
+        }
+      } catch (err) {
+        // Redis miss/error on READ — fall through to DB.
+        log.debug({ err, userId: session.user.id, cacheKey }, "dashboard cache read error — falling through to DB")
       }
     }
 

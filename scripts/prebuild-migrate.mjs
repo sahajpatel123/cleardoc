@@ -146,7 +146,18 @@ function extractFailedMigrationName(err) {
 }
 
 if (!configureMigrationEnv()) {
-  process.stdout.write("[migrate] No database URL — skipping prisma migrate deploy" + "\n")
+  // In production, missing database URL means migrations were NOT applied.
+  // This is a critical misconfiguration - fail the build to prevent runtime errors.
+  // The Vercel build environment may not have access to Supabase, but a direct URL
+  // or a dedicated migration step should always be provided.
+  if (process.env.NODE_ENV === "production") {
+    console.error(
+      "[migrate] FATAL: No database URL configured in production — " +
+        "migrations were not run. Set DATABASE_URL or DIRECT_URL to fix.",
+    )
+    process.exit(1)
+  }
+  process.stdout.write("[migrate] No database URL — skipping prisma migrate deploy (dev)" + "\n")
   process.exit(0)
 }
 
