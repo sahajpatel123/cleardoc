@@ -23,10 +23,36 @@ export async function register(): Promise<void> {
     // Eagerly warm heavy singletons so the first request does not pay the
     // 500ms-1.5s cold-start cost (Prisma connect + AI client init + auth).
     // Fire-and-forget: failures are non-fatal; the first request will retry.
-    try { await (await import("@/lib/prisma")).prisma.$connect() } catch (warmupErr) {
+    //
+    // Skip guards: when DATABASE_URL / NVIDIA_API_KEY are not configured
+    // (common in fresh dev setups), the warm-up would fail loudly even
+    // though the app is otherwise usable — the first request will
+    // surface a clear error if the user actually hits a route that
+    // needs the service. We pre-check env presence and emit a single
+    // friendly hint instead of an error trace.
+    try {
+      const env = await import("@/lib/env")
+      if (env.hasDatabaseUrl()) {
+        await (await import("@/lib/prisma")).prisma.$connect()
+      } else {
+        logWarmupSkip(
+          "prisma",
+          "DATABASE_URL (or POSTGRES_PRISMA_URL / POSTGRES_URL) is not set; skipping connect warm-up. The first DB query will surface a clear error if you hit a route that needs the database.",
+        )
+      }
+    } catch (warmupErr) {
       logWarmupFailure("prisma", warmupErr)
     }
-    try { (await import("@/lib/ai-client")).getAiClient() } catch (warmupErr) {
+    try {
+      if (process.env.NVIDIA_API_KEY?.trim()) {
+        (await import("@/lib/ai-client")).getAiClient()
+      } else {
+        logWarmupSkip(
+          "ai-client",
+          "NVIDIA_API_KEY is not set; skipping AI client warm-up. The first AI call will surface a clear error if you hit a route that needs the model.",
+        )
+      }
+    } catch (warmupErr) {
       logWarmupFailure("ai-client", warmupErr)
     }
 
@@ -109,4 +135,9 @@ function logWarmupFailure(component: string, err: unknown) {
   const msg = err instanceof Error ? err.message : String(err)
   // eslint-disable-next-line no-console
   console.warn(`[instrumentation] Warm-up failed for ${component}: ${msg}`)
+}
+
+function logWarmupSkip(component: string, reason: string) {
+  // eslint-disable-next-line no-console
+  console.warn(`[instrumentation] Warm-up skipped for ${component}: ${reason}`)
 }
