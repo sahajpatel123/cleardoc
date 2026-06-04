@@ -64,7 +64,16 @@ function DashboardContent() {
       })
       .then((data: unknown) => {
         if (aborted) return
-        setAnalyses(Array.isArray(data) ? (data as AnalysisSummary[]) : [])
+        // API returns { data: AnalysisSummary[], nextCursor: string | null }
+        // Backward-compatible: also accept a raw array from older cache entries.
+        if (Array.isArray(data)) {
+          setAnalyses(data as AnalysisSummary[])
+        } else if (data && typeof data === "object" && "data" in data) {
+          const paginated = data as { data: AnalysisSummary[]; nextCursor: string | null }
+          setAnalyses(Array.isArray(paginated.data) ? paginated.data : [])
+        } else {
+          setAnalyses([])
+        }
       })
       .catch((err) => {
         if (aborted || err?.name === "AbortError") return
@@ -367,7 +376,7 @@ function DashboardContent() {
   )
 }
 
-export default function DashboardPage() {
+export function DashboardClient() {
   return (
     <Suspense fallback={<div className="min-h-screen" />}>
       <DashboardContent />

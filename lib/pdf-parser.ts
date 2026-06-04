@@ -14,6 +14,8 @@
  * pdfjs-dist or another parser.
  */
 
+import { emitMetric, captureException } from "@/lib/observability"
+
 export type VisionMediaType = "image/png" | "image/jpeg" | "image/webp"
 
 export type ExtractDocumentResult =
@@ -113,6 +115,14 @@ async function extractPdfText(buffer: Buffer): Promise<{ text: string; isScanned
   }
 
   // Fallback: parse on main thread (timeout will be best-effort for CPU work).
+  // This path runs when worker_threads is unavailable (e.g. some Edge/minimal
+  // runtimes). Emit a metric and Sentry event so operators can track how often
+  // this degraded path is hit — sustained hits indicate an environment problem.
+  emitMetric("pdf", "main_thread_fallback", { reason: "worker_threads_unavailable" })
+  captureException(new Error("PDF parser fell back to main thread — worker_threads unavailable"), {
+    component: "pdf-parser",
+    extra: { fallback: true },
+  })
   if (typeof console !== "undefined") {
     // eslint-disable-next-line no-console
     console.warn("[pdf-parser] worker_threads unavailable — PDF parsing will block the event loop. Timeouts may not interrupt CPU-bound work.")

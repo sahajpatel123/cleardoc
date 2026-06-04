@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/cleanup",
       "schedule": "0 4 * * 0"
+    },
+    {
+      "path": "/api/cron/quota-reconcile",
+      "schedule": "0 * * * *"
     }
   ],
   "functions": {

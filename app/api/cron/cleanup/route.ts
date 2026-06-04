@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { cleanupProcessedStripeEvents } from "@/lib/db"
+import { cleanupProcessedStripeEvents } from "@/lib/stripe-events"
 import { generateReqId, captureException } from "@/lib/observability"
 import { timingSafeEqual } from "node:crypto"
 

@@ -3,7 +3,7 @@ import { auth } from "@/auth"
 import { getOrCreateUser } from "@/lib/db"
 import { createBillingPortalSession } from "@/lib/stripe"
 import { rateLimitByUserId, BILLING_RATE_LIMITS } from "@/lib/rate-limit"
-import { assertStripeEnv } from "@/lib/env"
+import { assertStripeEnv, isValidOrigin } from "@/lib/env"
 import { createLogger } from "@/lib/observability"
 
 export const runtime = "nodejs"
@@ -14,6 +14,14 @@ export async function POST(req: NextRequest) {
   const contentType = req.headers.get("content-type") ?? ""
   if (!contentType.startsWith("application/json")) {
     return NextResponse.json({ error: "Unsupported Media Type" }, { status: 415 })
+  }
+
+  // CSRF defense: state-changing billing route. See /api/stripe/create-checkout
+  // for rationale. The portal route returns a redirect URL, which is the most
+  // attractive CSRF target — an attacker who can submit this request gets the
+  // user to a Stripe billing page that looks like the real thing.
+  if (!isValidOrigin(req)) {
+    return NextResponse.json({ error: "Invalid origin." }, { status: 403 })
   }
 
   try {

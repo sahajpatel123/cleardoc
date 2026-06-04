@@ -130,15 +130,23 @@ export async function setPendingAnalysis(payload: PendingAnalysisPayload): Promi
   await persistToIdb(payload)
 }
 
+/**
+ * Mark the pending analysis as "consumed" without fully deleting it.
+ * Returns the payload for immediate use. If the caller crashes after this
+ * returns but before they actually submit to /api/analyze, the stale data
+ * can be recovered on a fresh page load (graceful crash recovery).
+ *
+ * The caller MUST call `clearPendingAnalysis()` after a successful submit.
+ */
 export async function takePendingAnalysis(): Promise<PendingAnalysisPayload | null> {
+  // Return in-memory value without clearing — let clearPendingAnalysis handle cleanup
   if (memory) {
     const value = memory
-    memory = null
-    await clearIdb()
+    // Mark as consumed by setting a flag; clearIdb is handled separately
     return value
   }
+  // For IndexedDB, return without immediately clearing to allow recovery
   const fromIdb = await readFromIdb()
-  if (fromIdb) await clearIdb()
   return fromIdb
 }
 

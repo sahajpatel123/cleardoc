@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import { captureException } from "@/lib/observability"
 
 // global-error replaces the root layout, so globals.css is NOT loaded here.
 // Styles are inlined to keep the brand intact even in a catastrophic failure.
@@ -13,6 +14,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error("[app/global-error]", error)
+    captureException(error, { component: "global-error-boundary", extra: { digest: error.digest } })
   }, [error])
 
   return (

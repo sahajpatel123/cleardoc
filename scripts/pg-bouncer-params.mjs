@@ -61,12 +61,19 @@ export function applyPgBouncerParams(rawUrl) {
       parsed.searchParams.set("prepared_statements", "false")
       changed = true
     }
+    // Cap Prisma's connection pool to prevent pool exhaustion under burst
+    // traffic on Vercel serverless (PgBouncer free tier maxes at ~20 conns).
+    if (!parsed.searchParams.has("connection_limit")) {
+      parsed.searchParams.set("connection_limit", "5")
+      changed = true
+    }
     return changed ? parsed.toString() : rawUrl
   } catch {
     const hasParams = rawUrl.includes("?")
     const extra = [
       !rawUrl.includes("pgbouncer=") ? "pgbouncer=true" : "",
       !rawUrl.includes("prepared_statements=") ? "prepared_statements=false" : "",
+      !rawUrl.includes("connection_limit=") ? "connection_limit=5" : "",
     ]
       .filter(Boolean)
       .join("&")

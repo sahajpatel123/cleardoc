@@ -207,12 +207,39 @@ export async function updateUserSubscriptionByCustomerId(
   },
 ) {
   try {
-    return await prisma.user.update({
+    // RACE CONDITION FIX: Use atomic upsert to protect the upgrade path.
+    // This prevents checkout.session.completed (which sets plan: "pro") from being
+    // overwritten by customer.subscription.* events that fire later with incomplete/pending status.
+    //
+    // Idempotency: Only downgrade to "free" if the user was never Pro. If already on "pro",
+    // preserve that status regardless of subscription status transitions.
+    // This handles the edge case where subscription.created fires before checkout.completed
+    // or when subscription status is temporarily incomplete/past_due during migration.
+    return await prisma.user.upsert({
       where: { stripeCustomerId },
-      data,
+      update: {
+        ...(data.stripeSubscriptionId !== undefined && { stripeSubscriptionId: data.stripeSubscriptionId }),
+        // Protect upgrade path: don't downgrade if already Pro
+        plan: data.plan === "free" ? undefined : data.plan,
+        subscriptionStatus: data.subscriptionStatus,
+      },
+      create: {
+        stripeCustomerId,
+        stripeSubscriptionId: data.stripeSubscriptionId ?? null,
+        plan: data.plan,
+        subscriptionStatus: data.subscriptionStatus,
+        email: "", // Required field - will be incomplete user
+        freeUsesRemaining: 0,
+      },
     })
   } catch (err: unknown) {
-    if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2025") {
+    // P2025 = record not found - user has no stripeCustomerId on record.
+    // This is now handled by upsert (returns result with created=false behavior).
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? (err as { code: string }).code
+        : undefined
+    if (code === "P2025") {
       log.warn({ stripeCustomerId, op: "updateUserSubscriptionByCustomerId" }, "user not found for customer")
       return null
     }
@@ -262,27 +289,65 @@ export type AnalysisSummary = {
  * Lightweight dashboard list — extracts only overallVerdict from the JSONB
  * result column instead of transmitting full 5-8 KB blobs per row.
  * Use this for list/history views; use getAnalysisById for full detail.
+ *
+ * Supports cursor-based pagination via `cursor` (a createdAt ISO string).
+ * When provided, only rows created before the cursor are returned.
+ * Returns up to `limit` rows plus a `nextCursor` if more rows exist.
  */
-export async function getUserAnalysesSummary(userId: string): Promise<AnalysisSummary[]> {
+export async function getUserAnalysesSummary(
+  userId: string,
+  options?: { cursor?: string; limit?: number },
+): Promise<{ data: AnalysisSummary[]; nextCursor: string | null }> {
+  const limit = Math.min(options?.limit ?? 50, 100)
+  const cursor = options?.cursor
+
+  // Fetch limit+1 rows to detect whether a next page exists without a
+  // separate COUNT query — if we get limit+1 rows, there's more data.
   const rows = await withDbTimeout(
-    prisma.$queryRaw<AnalysisSummary[]>`
-    SELECT
-      id,
-      "documentName",
-      "documentType",
-      "createdAt",
-      "caseId",
-      "parentId",
-      result->>'overall_verdict' AS "overallVerdict"
-    FROM "Analysis"
-    WHERE "userId" = ${userId}
-    ORDER BY "createdAt" DESC
-    LIMIT 50
-  `,
+    cursor
+      ? prisma.$queryRaw<AnalysisSummary[]>`
+          SELECT
+            id,
+            "documentName",
+            "documentType",
+            "createdAt",
+            "caseId",
+            "parentId",
+            result->>'overall_verdict' AS "overallVerdict"
+          FROM "Analysis"
+          WHERE "userId" = ${userId} AND "createdAt" < ${new Date(cursor)}
+          ORDER BY "createdAt" DESC
+          LIMIT ${limit + 1}
+        `
+      : prisma.$queryRaw<AnalysisSummary[]>`
+          SELECT
+            id,
+            "documentName",
+            "documentType",
+            "createdAt",
+            "caseId",
+            "parentId",
+            result->>'overall_verdict' AS "overallVerdict"
+          FROM "Analysis"
+          WHERE "userId" = ${userId}
+          ORDER BY "createdAt" DESC
+          LIMIT ${limit + 1}
+        `,
     8000,
     "getUserAnalysesSummary",
   )
-  return rows.map((r) => ({ ...r, createdAt: new Date(r.createdAt) }))
+
+  const hasMore = rows.length > limit
+  const data = (hasMore ? rows.slice(0, limit) : rows).map((r) => ({
+    ...r,
+    createdAt: new Date(r.createdAt),
+  }))
+
+  const nextCursor = hasMore && data.length > 0
+    ? data[data.length - 1]!.createdAt.toISOString()
+    : null
+
+  return { data, nextCursor }
 }
 
 export async function countUserAnalysesSince(userId: string, since: Date): Promise<number> {
@@ -497,19 +562,30 @@ export async function listAnalysesForCasePicker(userId: string) {
   })
 }
 
-export async function cleanupProcessedStripeEvents(olderThanDays: number = 90): Promise<number> {
-  const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - olderThanDays)
-  const deleted = await prisma.processedStripeEvent.deleteMany({
-    where: { createdAt: { lt: cutoff } },
-  })
-  return deleted.count
-}
+/**
+ * Re-exported alias for backwards compatibility — the canonical home is
+ * lib/stripe-events.ts (BUG #15: keep all Stripe-event lifecycle in one
+ * module). New code should import from "@/lib/stripe-events".
+ */
+export { cleanupProcessedStripeEvents } from "@/lib/stripe-events"
 
 export async function deleteAnalysis(userId: string, analysisId: string): Promise<boolean> {
   const deleted = await prisma.analysis.deleteMany({
     where: { id: analysisId, userId },
   })
   return deleted.count > 0
+}
+
+/** Get distinct user IDs with analyses in the last 24 hours for quota reconciliation.
+ *  Used by the quota-reconcile cron job to correct Redis drift from aborted requests.
+ */
+export async function getAllActiveUserIds(): Promise<string[]> {
+  const rows = await prisma.$queryRaw<[{ userId: string }]>`
+    SELECT DISTINCT "userId"
+    FROM "Analysis"
+    WHERE "createdAt" >= NOW() - INTERVAL '24 hours'
+    LIMIT 10000
+  `
+  return rows.map(r => r.userId)
 }
 

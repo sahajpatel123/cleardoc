@@ -10,11 +10,20 @@ import {
 } from "@/lib/db"
 import { claimStripeEvent, releaseStripeEventClaim } from "@/lib/stripe-events"
 import { createLogger, generateReqId, captureException } from "@/lib/observability"
+import { trackWebhook } from "@/lib/webhook-inflight"
 import Stripe from "stripe"
 
 export const runtime = "nodejs"
 
 const log = createLogger("stripe-webhook")
+
+/**
+ * Stripe webhook bodies are typically <100KB. We cap at 1MB to bound
+ * memory exposure and prevent an attacker from OOMing the function with
+ * an oversized payload before we ever reach the signature check. Stripe
+ * itself documents that webhook payloads fit in well under 256KB.
+ */
+const MAX_WEBHOOK_BODY_BYTES = 1_048_576
 
 async function handleStripeEvent(event: Stripe.Event): Promise<void> {
   switch (event.type) {
@@ -176,7 +185,32 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // Reject oversized payloads BEFORE buffering the body. Content-Length is
+  // a hint (an attacker can omit or lie about it), but a present-and-large
+  // header is the common case for an oversized request and lets us return
+  // a clean 413 without allocating gigabytes. We also enforce the cap
+  // unconditionally by streaming up to the limit below.
+  const contentLength = req.headers.get("content-length")
+  if (contentLength) {
+    const length = Number(contentLength)
+    if (Number.isFinite(length) && length > MAX_WEBHOOK_BODY_BYTES) {
+      log.error({ reqId, contentLength, max: MAX_WEBHOOK_BODY_BYTES }, "Rejecting oversized Stripe webhook payload")
+      return NextResponse.json(
+        { error: "Payload too large" },
+        { status: 413, headers },
+      )
+    }
+  }
+
   const rawBody = await req.text()
+  if (rawBody.length > MAX_WEBHOOK_BODY_BYTES) {
+    log.error({ reqId, bodyLength: rawBody.length, max: MAX_WEBHOOK_BODY_BYTES }, "Rejecting Stripe webhook body exceeding size cap")
+    return NextResponse.json(
+      { error: "Payload too large" },
+      { status: 413, headers },
+    )
+  }
+
   const sig = req.headers.get("stripe-signature")
 
   if (!sig) {
@@ -244,16 +278,32 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  const handlerPromise = (async () => {
+    try {
+      await handleStripeEvent(event)
+    } catch (err) {
+      // Only release claim on actual errors - tombstone cases intentionally skip this
+      await releaseStripeEventClaim(event.id)
+      captureException(err, { component: "stripe-webhook", reqId, extra: { stripeEventType: event.type } })
+      throw err
+    }
+  })()
+
+  trackWebhook(event.id, handlerPromise)
+
+  // Wait for handler to complete before returning response.
+  // The draining logic in gracefulShutdown will also wait via trackWebhook.
   try {
-    await handleStripeEvent(event)
-  } catch (err) {
-    await releaseStripeEventClaim(event.id)
-    captureException(err, { component: "stripe-webhook", reqId, extra: { stripeEventType: event.type } })
+    await handlerPromise
+  } catch {
+    // Error already logged and claim released in the wrapper above
     return NextResponse.json(
       { error: "Webhook handler error" },
       { status: 500, headers },
     )
   }
 
+  // Only return 200 if we actually processed successfully.
+  // Tombstone cases (missing userId) return 200 but with no processing.
   return NextResponse.json({ received: true }, { headers })
 }

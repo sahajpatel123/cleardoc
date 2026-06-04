@@ -33,12 +33,27 @@ export async function register(): Promise<void> {
     // Graceful shutdown on container termination (Vercel / Docker / K8s).
     // In serverless, the runtime may not always send SIGTERM, but when it
     // does we disconnect Prisma cleanly to avoid connection pool leaks.
+    // IMPORTANT: Wait for in-flight webhooks to complete before shutting down.
     const gracefulShutdown = async (_signalName: string) => {
       try {
-        const { prisma } = await import("@/lib/prisma")
-        await prisma.$disconnect()
-      } catch {}
-      process.exit(0)
+        // First, drain any in-flight webhooks so Vercel deploy doesn't lose them
+        try {
+          const { drainInFlight } = await import("@/lib/webhook-inflight")
+          await drainInFlight()
+        } catch (drainErr) {
+          // Log but continue - we must exit eventually
+          // eslint-disable-next-line no-console
+          console.error("[instrumentation] Failed to drain webhooks:", drainErr)
+        }
+
+        // Then disconnect Prisma cleanly
+        try {
+          const { prisma } = await import("@/lib/prisma")
+          await prisma.$disconnect()
+        } catch {}
+      } finally {
+        process.exit(0)
+      }
     }
     process.on("SIGTERM", () => gracefulShutdown("SIGTERM"))
     process.on("SIGINT", () => gracefulShutdown("SIGINT"))

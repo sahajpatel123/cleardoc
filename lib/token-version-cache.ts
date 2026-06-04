@@ -29,8 +29,17 @@ const TTL_SECONDS = 30
 
 // Per-instance hot-path cache. Lost on cold start, but most calls hit it.
 const _mem = new Map<string, { version: number; expiresAt: number }>()
-const MEM_TTL_MS = 5_000 // 5 seconds — short enough to never be the bottleneck
+const MEM_TTL_MS = 5_000 // 5 seconds — short enough to never be the the bottleneck
 const MEM_MAX_ENTRIES = 5_000
+
+/**
+ * Return the current number of in-memory token-version cache entries. Used by
+ * the health endpoint for leak monitoring — a growing count indicates either
+ * high user volume (expected) or a failure to evict expired entries (bug).
+ */
+export function getTokenCacheSize(): number {
+  return _mem.size
+}
 
 function memGet(userId: string): number | null {
   const entry = _mem.get(userId)

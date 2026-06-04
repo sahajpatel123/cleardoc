@@ -84,6 +84,15 @@ class Circuit {
 const MAX_CIRCUITS = 64
 const _circuits = new Map<string, Circuit>()
 
+/**
+ * Return the current number of circuit breaker entries. Used by the health
+ * endpoint for leak monitoring — a continuously growing count indicates
+ * that new service names are being created per request (a key-format bug).
+ */
+export function getCircuitCount(): number {
+  return _circuits.size
+}
+
 export function getCircuit(name: string, opts?: Partial<CircuitOptions>): Circuit {
   let c = _circuits.get(name)
   if (!c) {

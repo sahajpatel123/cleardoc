@@ -2,12 +2,16 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import dynamic from "next/dynamic"
 import {
   motion, useScroll, useTransform, AnimatePresence, useMotionValueEvent,
 } from "framer-motion"
 import Link from "next/link"
 import UploadZone from "@/components/ui/UploadZone"
-import PricingModal from "@/components/ui/PricingModal"
+
+// Lazy-loaded: PricingModal is only rendered when showPricing is true, so
+// deferring its chunk reduces initial JS payload for the homepage.
+const PricingModal = dynamic(() => import("@/components/ui/PricingModal"))
 // Free tier analysis limit is now handled via freeUsesRemaining in user record
 // import { FREE_DAILY_ANALYSIS_LIMIT } from "@/lib/free-quota"
 import { useAuth } from "@/context/AuthContext"
@@ -490,9 +494,11 @@ function HomeContent() {
     if (!user || !isPro) return
     const controller = new AbortController()
     fetch("/api/analyses", { signal: controller.signal })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: { id: string; documentName: string; createdAt: string }[]) => {
-        if (Array.isArray(data)) setPriorAnalyses(data)
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((res: { data?: { id: string; documentName: string; createdAt: string }[] } | { id: string; documentName: string; createdAt: string }[]) => {
+        // Backward-compatible: accept both { data, nextCursor } and raw array
+        const arr = Array.isArray(res) ? res : (res as { data: unknown }).data
+        if (Array.isArray(arr)) setPriorAnalyses(arr as { id: string; documentName: string; createdAt: string }[])
       })
       .catch((err) => {
         if (err?.name === "AbortError") return

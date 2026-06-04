@@ -5,18 +5,19 @@ import { auth } from "@/auth"
 import { Providers } from "@/components/Providers"
 import Navbar from "@/components/ui/Navbar"
 import Footer from "@/components/ui/Footer"
+import { WebVitals } from "@/app/web-vitals"
 import { resolveSiteUrl } from "@/lib/site-url"
 
 const syne = Syne({
   subsets: ["latin"],
   variable: "--font-syne",
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600"],
 })
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-dm-sans",
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "600"],
 })
 
 const SITE_URL = resolveSiteUrl()
@@ -87,6 +88,7 @@ export default async function RootLayout({
     <html lang="en" className={`${syne.variable} ${dmSans.variable}`}>
       <body className="antialiased min-h-screen flex flex-col">
         <Providers session={session}>
+          <WebVitals />
           <Navbar />
           <main className="flex-1 relative">{children}</main>
           <Footer />

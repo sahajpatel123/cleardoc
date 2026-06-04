@@ -3,7 +3,7 @@ import { auth } from "@/auth"
 import { createCheckoutSession } from "@/lib/stripe"
 import { getOrCreateUser } from "@/lib/db"
 import { rateLimitByUserId, BILLING_RATE_LIMITS } from "@/lib/rate-limit"
-import { assertStripeEnv } from "@/lib/env"
+import { assertStripeEnv, isValidOrigin } from "@/lib/env"
 import { createLogger } from "@/lib/observability"
 
 export const runtime = "nodejs"
@@ -14,6 +14,16 @@ export async function POST(req: NextRequest) {
   const contentType = req.headers.get("content-type") ?? ""
   if (!contentType.startsWith("application/json")) {
     return NextResponse.json({ error: "Unsupported Media Type" }, { status: 415 })
+  }
+
+  // CSRF defense: state-changing billing route. A cross-origin attacker
+  // who tricks a logged-in user into POSTing to /api/stripe/create-checkout
+  // would trigger a real Stripe Checkout session creation — which would
+  // either be useless (no payment) or, worse, mask a phishing flow that
+  // collects the user's card on a lookalike Stripe-hosted page if the
+  // server-side session/return URL is not what the user expected.
+  if (!isValidOrigin(req)) {
+    return NextResponse.json({ error: "Invalid origin." }, { status: 403 })
   }
 
   try {

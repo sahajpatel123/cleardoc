@@ -8,9 +8,9 @@ describe("isProUser", () => {
     assert.equal(isProUser(undefined), false)
   })
 
-  it("requires plan pro and subscription active", () => {
+  it("requires plan pro and subscription active or trialing", () => {
     assert.equal(isProUser({ plan: "pro", subscriptionStatus: "active" }), true)
-    assert.equal(isProUser({ plan: "pro", subscriptionStatus: "trialing" }), false)
+    assert.equal(isProUser({ plan: "pro", subscriptionStatus: "trialing" }), true)
     assert.equal(isProUser({ plan: "pro", subscriptionStatus: "inactive" }), false)
     assert.equal(isProUser({ plan: "free", subscriptionStatus: "active" }), false)
   })

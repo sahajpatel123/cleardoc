@@ -36,3 +36,21 @@ export async function releaseStripeEventClaim(eventId: string): Promise<void> {
     }
   }
 }
+
+/**
+ * Delete processed-stripe-event tombstones older than the given age. Stripe
+ * retries for at most 3 days, so the standard 90-day retention gives
+ * comfortable headroom for late retries while keeping the table small.
+ * Called from the daily cron route (app/api/cron/cleanup/route.ts).
+ *
+ * Moved from lib/db.ts to keep all Stripe-event concerns (claim, release,
+ * cleanup) in a single focused module — see BUG #15.
+ */
+export async function cleanupProcessedStripeEvents(olderThanDays: number = 90): Promise<number> {
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - olderThanDays)
+  const deleted = await prisma.processedStripeEvent.deleteMany({
+    where: { createdAt: { lt: cutoff } },
+  })
+  return deleted.count
+}

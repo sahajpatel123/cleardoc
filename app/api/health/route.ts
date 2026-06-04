@@ -7,8 +7,10 @@ import {
   assertProductionRateLimiter,
 } from "@/lib/env"
 import { ensureDatabaseSchema } from "@/lib/ensure-schema"
-import { rateLimitByIp } from "@/lib/rate-limit"
-import { generateReqId } from "@/lib/observability"
+import { rateLimitByIp, getMemoryStoreSize } from "@/lib/rate-limit"
+import { getCircuitCount } from "@/lib/circuit-breaker"
+import { getTokenCacheSize } from "@/lib/token-version-cache"
+import { generateReqId, emitMetric } from "@/lib/observability"
 import { Redis } from "@upstash/redis"
 import { timingSafeEqual } from "node:crypto"
 
@@ -207,6 +209,15 @@ export async function GET(req: NextRequest) {
   ])
 
   const { database, tables } = dbResult
+
+  // ── Memory leak monitoring ──
+  // Emit periodic metrics for in-memory Map sizes. A continuously growing count
+  // when Redis is configured indicates a leak (entries not being evicted).
+  emitMetric("health", "memory_maps", {
+    circuitBreakers: getCircuitCount(),
+    rateLimitMemory: getMemoryStoreSize(),
+    tokenVersionCache: getTokenCacheSize(),
+  })
 
   const healthy =
     missingCore.length === 0 &&

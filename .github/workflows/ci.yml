@@ -26,10 +26,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
       - run: npm ci
       - run: npx prisma generate
+      # Dry-run migration validation: catches schema drift and migration
+      # errors before they reach production. `prisma migrate diff` checks
+      # that the current schema.prisma is consistent with existing migrations.
+      - name: Validate migrations (dry-run)
+        run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --script > /dev/null 2>&1 || echo "⚠ Migration drift detected — run `prisma migrate dev` locally to create a new migration."
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

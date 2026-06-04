@@ -29,7 +29,7 @@ export function getMissingEnv(keys: readonly string[]): string[] {
 // .d.mts file provides ambient types for TypeScript consumers.
 import { applyPgBouncerParams as _applyPgBouncerParamsRaw } from "../scripts/pg-bouncer-params.mjs"
 export const applyPgBouncerParams: (rawUrl: string) => string = _applyPgBouncerParamsRaw
-import { createLogger, captureException } from "@/lib/observability"
+import { createLogger } from "@/lib/observability"
 const _envLog = createLogger("env")
 
 /**
@@ -180,6 +180,12 @@ export function assertProductionRateLimiter(): void {
   }
 }
 
+// One-shot guards for boot-time privacy warnings. The previous design fired
+// captureException on every request when the trial NVIDIA endpoint was in
+// use, burning Sentry quota. These are known configuration issues, not new
+// errors — warn once per process and move on.
+let _trialEndpointWarned = false
+
 /**
  * Production-only safety guards. Called from assertAuthEnv(), assertServerEnv(),
  * and assertStripeEnv() — i.e. from every entry point that gates an API route.
@@ -191,7 +197,7 @@ export function assertProductionRateLimiter(): void {
  *      guidance is 256 bits of entropy (32 base64 chars ~= 192 bits).
  *
  *   2. NVIDIA NIM baseURL pointing at the trial endpoint (integrate.api.nvidia.com)
- *      — logs a hard warning. The trial endpoint logs inputs and outputs
+ *      — warns ONCE per process. The trial endpoint logs inputs and outputs
  *      for product improvement; sending HIPAA / GDPR / privileged-document
  *      content through it is a regulatory violation. There is no API-level
  *      way to disable logging; the only fixes are (a) self-host Nemotron on
@@ -219,19 +225,22 @@ export function assertProductionEnvSafety(): void {
 
   const aiBaseUrl = process.env.NVIDIA_API_BASE_URL?.trim() ?? "https://integrate.api.nvidia.com/v1"
   if (aiBaseUrl.includes("integrate.api.nvidia.com")) {
-    // Log but do not throw — the trial endpoint is functional, just
-    // privacy-incompatible. The operator must act before serving EU/health/
-    // immigration users. We log at error level so it surfaces in Vercel
-    // function logs but does not break the boot.
-    _envLog.error(
-      "NVIDIA_API_BASE_URL is the trial endpoint (integrate.api.nvidia.com) — trial endpoint LOGS inputs/outputs; " +
-        "sending HIPAA / GDPR / privileged-document content through it is a regulatory violation. " +
-        "Set NVIDIA_API_BASE_URL to a private deployment or sign an enterprise DPA.",
-    )
-    captureException(
-      new Error("NVIDIA_API_BASE_URL is the trial endpoint — privacy violation risk"),
-      { component: "env-safety", extra: { aiBaseUrl } }
-    )
+    // One-shot warn per process lifetime. The previous design fired
+    // captureException + 2 error-level log lines on EVERY request, which
+    // burned Sentry quota and cluttered Vercel logs without adding signal.
+    // This is a known configuration choice the operator must act on, not
+    // a new per-request error. We do NOT call captureException here —
+    // boot-time warning only.
+    if (!_trialEndpointWarned) {
+      _trialEndpointWarned = true
+      _envLog.warn(
+        "[boot] NVIDIA_API_BASE_URL is the trial endpoint (integrate.api.nvidia.com) — " +
+          "trial endpoint LOGS inputs/outputs; sending HIPAA / GDPR / privileged-document " +
+          "content through it is a regulatory violation. Set NVIDIA_API_BASE_URL to a " +
+          "private deployment or sign an enterprise DPA. This warning fires once per " +
+          "process lifetime; please address before serving EU/health/immigration users.",
+      )
+    }
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? ""
@@ -258,6 +267,10 @@ export function assertProductionEnvSafety(): void {
       )
     }
   }
+
+  // Suppress unused-variable warning for the legacy one-shot (kept for
+  // symmetry in case operators add more guards). Currently only one guard
+  // is needed; the trial-endpoint one-shot is the live one.
 }
 
 /**

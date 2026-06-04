@@ -1,4 +1,5 @@
 import { getRedis } from "@/lib/redis"
+import { withRedisCircuit } from "@/lib/redis-circuit"
 
 /** Free tier: saved analyses per UTC calendar day. */
 export const FREE_DAILY_ANALYSIS_LIMIT = 3
@@ -65,26 +66,35 @@ export async function reserveFreeAnalysisQuota(
   const dateStr = startOfUtcDay().toISOString().slice(0, 10)
   const key = `cleardoc:quota-reserve:${userId}:${dateStr}`
 
-  try {
-    const count = await redis.incr(key)
-    if (count === 1) {
-      const ttlSec = Math.max(1, Math.floor((nextUtcMidnight().getTime() - Date.now()) / 1000))
-      await redis.expire(key, ttlSec)
-    }
-    if (count > FREE_DAILY_ANALYSIS_LIMIT) {
-      await redis.decr(key)
-      return { ok: false, status }
-    }
-  } catch {
-    // Redis failure — fall through to DB-only check
-    return { ok: true, status }
-  }
-
-  return { ok: true, status }
+  // Circuit-breaker: a transient Upstash outage would otherwise hang every
+  // analyze call waiting for HTTP timeouts. The DB-side
+  // saveFreeAnalysisWithQuota (lib/db.ts) still enforces the hard limit via
+  // a transaction-scoped advisory lock + COUNT, so a Redis-bypass path is
+  // safe — the worst case is a brief over-count which the next DB read will
+  // catch. The circuit fast-fails and returns the DB-only-check fallback.
+  return withRedisCircuit(
+    "quota",
+    async () => {
+      const count = await redis.incr(key)
+      if (count === 1) {
+        const ttlSec = Math.max(1, Math.floor((nextUtcMidnight().getTime() - Date.now()) / 1000))
+        await redis.expire(key, ttlSec)
+      }
+      if (count > FREE_DAILY_ANALYSIS_LIMIT) {
+        await redis.decr(key)
+        return { ok: false as const, status }
+      }
+      return { ok: true as const, status }
+    },
+    // Fallback: return current DB-derived status. If the user is at the
+    // limit, ok=false blocks; otherwise ok=true with the DB snapshot.
+    () => ({ ok: status.remaining > 0, status }),
+  )
 }
 
 /** Compensating decrement: call when the DB transaction ultimately rejects
  *  the save so the Redis optimistic counter stays consistent with reality.
+ *  Also call when a request is aborted/timeout to prevent permanent drift.
  */
 export async function releaseFreeAnalysisQuota(userId: string): Promise<void> {
   const redis = getRedis()
@@ -96,6 +106,37 @@ export async function releaseFreeAnalysisQuota(userId: string): Promise<void> {
   } catch {
     // Best-effort; TTL will eventually reconcile.
   }
+}
+
+/** Reconcile Redis optimistic counter with actual DB count for a user.
+ *  Use this for background jobs to correct drift from aborted requests.
+ *  Returns { corrected: boolean, redisCount: number, dbCount: number }
+ */
+export async function reconcileFreeQuota(userId: string): Promise<{ corrected: boolean; redisCount: number; dbCount: number }> {
+  const redis = getRedis()
+  if (!redis) return { corrected: false, redisCount: 0, dbCount: await getFreeDailyQuotaStatus(userId).then(s => s.used) }
+
+  const dateStr = startOfUtcDay().toISOString().slice(0, 10)
+  const key = `cleardoc:quota-reserve:${userId}:${dateStr}`
+
+  const [redisCountStr, dbStatus] = await Promise.all([
+    redis.get<string>(key).then(v => v ? parseInt(v, 10) : 0),
+    getFreeDailyQuotaStatus(userId),
+  ])
+
+  const redisCount = redisCountStr < 0 ? 0 : redisCountStr // Clamp negative values
+  const dbCount = dbStatus.used
+
+  if (redisCount !== dbCount) {
+    // Set Redis to match DB exactly
+    if (dbCount >= FREE_DAILY_ANALYSIS_LIMIT) {
+      await redis.set(key, FREE_DAILY_ANALYSIS_LIMIT)
+    } else {
+      await redis.set(key, String(dbCount))
+    }
+    return { corrected: true, redisCount, dbCount }
+  }
+  return { corrected: false, redisCount, dbCount }
 }
 
 export function formatQuotaResetLabel(iso: string): string {

@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { hashPassword, validateEmail, validatePassword } from "@/lib/password"
 import { rateLimitByIp, rateLimitByKey } from "@/lib/rate-limit"
-import { assertAuthEnv } from "@/lib/env"
+import { assertAuthEnv, isValidOrigin } from "@/lib/env"
 import { createLogger, generateReqId, captureException } from "@/lib/observability"
 
 export const runtime = "nodejs"
@@ -20,6 +20,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Account signup is temporarily unavailable. Please try again later." },
       { status: 503, headers: { "x-request-id": reqId } },
+    )
+  }
+
+  // CSRF defense: signup is a state-changing POST. Although the route accepts
+  // application/json (a malicious <form> would have to use enctype="text/plain"
+  // to bypass the Content-Type check, and even then the body is not
+  // auto-parseable as JSON), defense in depth: require an Origin header that
+  // matches our canonical URL. This blocks any cross-origin attacker that
+  // manages to construct a request that reaches this handler.
+  if (!isValidOrigin(req)) {
+    return NextResponse.json(
+      { error: "Invalid origin." },
+      { status: 403, headers: { "x-request-id": reqId } },
     )
   }
 

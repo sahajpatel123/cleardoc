@@ -2,8 +2,12 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { generateReqId, captureException } from "@/lib/observability"
+import { rateLimitByUserId } from "@/lib/rate-limit"
 
 export const runtime = "nodejs"
+
+/** Delete rate limit: 20 per user per hour — prevents bulk-deletion abuse. */
+const DELETE_RATE_LIMIT = { max: 20, window: "1 h" as const }
 
 export async function DELETE(
   _req: Request,
@@ -16,6 +20,15 @@ export async function DELETE(
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401, headers: { "x-request-id": reqId } },
+      )
+    }
+
+    // Rate-limit deletes per user to prevent bulk-deletion scripts.
+    const rl = await rateLimitByUserId(session.user.id, DELETE_RATE_LIMIT.max, DELETE_RATE_LIMIT.window)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many delete requests. Try again later." },
+        { status: 429, headers: { "x-request-id": reqId, "Retry-After": String(Math.ceil((rl.reset ?? Date.now()) / 1000)) } },
       )
     }
 
@@ -36,7 +49,7 @@ export async function DELETE(
 
     return NextResponse.json(
       { deleted: true },
-      { headers: { "x-request-id": reqId } },
+      { headers: { "Cache-Control": "no-store", "x-request-id": reqId } },
     )
   } catch (err) {
     captureException(err, { component: "analyses-delete", reqId })

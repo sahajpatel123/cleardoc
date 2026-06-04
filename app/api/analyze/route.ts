@@ -270,7 +270,6 @@ async function resolveUserAndRateLimits(
     let quota: { ok: boolean; status: { limit: number; used: number; remaining: number; resetsAt: string } }
     try {
       quota = await reserveFreeAnalysisQuota(userId)
-      quotaReserved = quota.ok // Only mark reserved if the reservation succeeded
     } catch (quotaErr) {
       captureException(quotaErr, { component: "analyze", reqId, extra: { phase: "quota-reserve" } })
       throwResponse(
@@ -297,6 +296,7 @@ async function resolveUserAndRateLimits(
         ),
       )
     }
+    quotaReserved = true
   }
 
   return { userProfile, pro, quotaReserved }
@@ -457,7 +457,7 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       captureException(err, { component: "analyze", reqId, extra: { phase: "extract" } })
       // Release quota because this pre-AI rejection occurs after reserve but before save.
-      if (!pro) await releaseFreeAnalysisQuota(userId)
+      if (quotaReserved) await releaseFreeAnalysisQuota(userId)
       throwResponse(
         NextResponse.json(
           {
@@ -471,7 +471,7 @@ export async function POST(req: NextRequest) {
 
     if (extracted.kind === "text" && extracted.isScanned) {
       // Release quota because this pre-AI rejection occurs after reserve but before save.
-      if (!pro) await releaseFreeAnalysisQuota(userId)
+      if (quotaReserved) await releaseFreeAnalysisQuota(userId)
       throwResponse(
         NextResponse.json(
           { error: "This PDF appears to be scanned and contains no extractable text. Please describe the document in the context field for accurate analysis." },
@@ -490,6 +490,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (signal.aborted) {
+      // Release quota on abort during case-link phase
+      if (quotaReserved) await releaseFreeAnalysisQuota(userId)
       return NextResponse.json({ error: "Client closed request" }, { status: 499 })
     }
 
@@ -555,7 +557,7 @@ export async function POST(req: NextRequest) {
         )
       }
       analysisId = outcome.id
-      quotaReserved = true // Mark successful consumption
+      quotaReserved = false // Quota was successfully consumed
     }
 
     reqLog.info(
@@ -576,10 +578,12 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json(responseBody)
   } catch (err: unknown) {
-    // Release quota on unhandled errors that occurred after successful reservation
-    if (!(err instanceof ResponseError) && !pro && userId) {
+    // Release quota on any error that occurred after successful reservation.
+    // This handles abort signals during async operations where the signal event
+    // handler cannot be guaranteed to run before the async stack unwinds.
+    if (quotaReserved && userId && !pro) {
       releaseFreeAnalysisQuota(userId).catch((releaseErr) => {
-        reqLog.error({ releaseErr, userId, reqId }, "failed to release quota on unexpected error")
+        reqLog.error({ releaseErr, userId, reqId }, "failed to release quota on error")
       })
     }
     if (err instanceof ResponseError) {

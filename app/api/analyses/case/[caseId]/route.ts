@@ -21,7 +21,7 @@ export async function GET(
 
     const { caseId } = await params
     const rows = await getCaseAnalyses(session.user.id, caseId)
-    return NextResponse.json(rows, { headers: { "x-request-id": reqId } })
+    return NextResponse.json(rows, { headers: { "Cache-Control": "no-store", "x-request-id": reqId } })
   } catch (err) {
     captureException(err, { component: "analyses-case", reqId })
     return NextResponse.json(

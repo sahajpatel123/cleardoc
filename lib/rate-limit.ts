@@ -2,6 +2,7 @@ import { Ratelimit } from "@upstash/ratelimit"
 import { Redis } from "@upstash/redis"
 import { NextRequest } from "next/server"
 import { createLogger } from "@/lib/observability"
+import { withRedisCircuit } from "@/lib/redis-circuit"
 
 const log = createLogger("rate-limit")
 
@@ -89,6 +90,15 @@ function windowToMs(window: Window): number {
 const memoryStore = new Map<string, { count: number; resetAt: number }>()
 const MEMORY_STORE_MAX_KEYS = 10_000
 
+/**
+ * Return the current number of in-memory rate-limit entries. Used by the health
+ * endpoint for leak monitoring — a continuously growing count when Redis is
+ * configured would indicate a bug in the circuit-breaker fallback path.
+ */
+export function getMemoryStoreSize(): number {
+  return memoryStore.size
+}
+
 function sweepExpired(now: number) {
   let swept = 0
   for (const [key, entry] of memoryStore) {
@@ -117,24 +127,44 @@ export async function rateLimitByKey(
     return rateLimitInMemory(key, limit, window)
   }
 
-  // Memoize Ratelimit instances by (limit, window) to avoid allocating
-  // thousands of closures per minute on high-RPS routes like /api/analyze.
-  const cacheKey = `${limit}:${window}`
-  let ratelimit = _ratelimitCache.get(cacheKey)
-  if (!ratelimit) {
-    ratelimit = new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(limit, window),
-    })
-    _ratelimitCache.set(cacheKey, ratelimit)
-  }
-  const result = await ratelimit.limit(key)
-  return {
-    allowed: result.success,
-    limit: result.limit,
-    remaining: result.remaining,
-    reset: result.reset,
-  }
+  // Circuit-breaker around the Redis round-trip. A transient Upstash outage
+  // would otherwise hang every call for ~10-50s waiting for the HTTP timeout
+  // and cascade into 503s across all routes. The circuit opens after 3
+  // failures within 30s, then falls back to in-memory for 30s before retrying.
+  // In production this is permissive-per-instance (each instance opens
+  // independently) but recovers automatically when Redis comes back.
+  return withRedisCircuit(
+    "rate-limit",
+    async () => {
+      // Memoize Ratelimit instances by (limit, window) to avoid allocating
+      // thousands of closures per minute on high-RPS routes like /api/analyze.
+      const cacheKey = `${limit}:${window}`
+      let ratelimit = _ratelimitCache.get(cacheKey)
+      if (!ratelimit) {
+        ratelimit = new Ratelimit({
+          redis,
+          limiter: Ratelimit.slidingWindow(limit, window),
+        })
+        _ratelimitCache.set(cacheKey, ratelimit)
+      }
+      const result = await ratelimit.limit(key)
+      return {
+        allowed: result.success,
+        limit: result.limit,
+        remaining: result.remaining,
+        reset: result.reset,
+      }
+    },
+    () => {
+      // Fallback during circuit-open. In-memory is per-instance only — the
+      // whole point is to keep the app responsive when Redis is down. This
+      // is strictly more permissive than the distributed path, but it
+      // accepts the trade-off: a 30s window of degraded rate limiting is
+      // much less harmful than a 30s full outage.
+      log.warn({ key, limit, window }, "rate-limit circuit open — falling back to in-memory")
+      return rateLimitInMemory(key, limit, window)
+    },
+  )
 }
 
 function rateLimitInMemory(key: string, limit: number, window: Window): RateLimitResult {

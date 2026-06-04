@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import Link from "next/link"
 import { RotateCcw, ArrowUpRight } from "lucide-react"
+import { captureException } from "@/lib/observability"
 
 export default function Error({
   error,
@@ -13,6 +14,7 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error("[app/error]", error)
+    captureException(error, { component: "error-boundary", extra: { digest: error.digest } })
   }, [error])
 
   return (

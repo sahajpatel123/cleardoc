@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
-import { assertServerEnv } from "@/lib/env"
+import { assertServerEnv, isValidOrigin } from "@/lib/env"
 import { getAnalysisById, getOrCreateUser, updateAnalysisResult } from "@/lib/db"
 import { rephraseResponseLetter } from "@/lib/analysis-ai"
 import { FEATURE_RATE_LIMITS, rateLimitByUserId } from "@/lib/rate-limit"
@@ -40,6 +40,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Unsupported Media Type" },
         { status: 415, headers: { "x-request-id": reqId } },
+      )
+    }
+
+    // CSRF defense: state-changing route. Same defense-in-depth as /api/chat
+    // — see comments there for rationale.
+    if (!isValidOrigin(req)) {
+      return NextResponse.json(
+        { error: "Invalid origin." },
+        { status: 403, headers: { "x-request-id": reqId } },
       )
     }
 
@@ -167,7 +176,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { letter: rewritten, tone },
-      { headers: { "x-request-id": reqId } },
+      { headers: { "Cache-Control": "no-store", "x-request-id": reqId } },
     )
   } catch (err) {
     captureException(err, { component: "rephrase-letter", reqId })

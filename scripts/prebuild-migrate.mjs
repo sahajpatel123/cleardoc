@@ -13,7 +13,7 @@
  * scripts/pg-bouncer-params.mjs and is imported by both this script and
  * lib/env.ts so the two call sites cannot drift.
  */
-import { execSync } from "node:child_process"
+import { execFileSync } from "node:child_process"
 import { applyPgBouncerParams, isPoolerUrl, toSessionPoolerUrl, DATABASE_URL_KEYS, DIRECT_DATABASE_URL_KEYS, getFirstEnvValue } from "./pg-bouncer-params.mjs"
 
 function configureMigrationEnv() {
@@ -97,8 +97,16 @@ function configureMigrationEnv() {
   return false
 }
 
+// Hardened to prevent command injection. The previous version interpolated
+// `migrationName` directly into a shell string — a name containing `$`, `;`,
+// or backticks could execute arbitrary shell. We now use execFileSync with an
+// argv array, and validate the migration name against a strict regex (cuid-
+// shaped migration directories, with optional `.sql` suffix) before passing
+// to prisma. Anything that fails the regex is treated as a build error.
+const MIGRATION_NAME_RE = /^[a-z0-9_]{8,40}$/i
+
 function runMigrate() {
-  return execSync("npx prisma migrate deploy", {
+  return execFileSync("npx", ["prisma", "migrate", "deploy"], {
     encoding: "utf8",
     env: process.env,
     timeout: 120_000,
@@ -106,7 +114,12 @@ function runMigrate() {
 }
 
 function runResolveApplied(migrationName) {
-  return execSync(`npx prisma migrate resolve --applied "${migrationName}"`, {
+  if (!MIGRATION_NAME_RE.test(migrationName)) {
+    throw new Error(
+      `[migrate] Refusing to resolve migration with invalid name: ${JSON.stringify(migrationName)}`,
+    )
+  }
+  return execFileSync("npx", ["prisma", "migrate", "resolve", "--applied", migrationName], {
     encoding: "utf8",
     env: process.env,
     timeout: 45_000,

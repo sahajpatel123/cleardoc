@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
-import { assertServerEnv } from "@/lib/env"
+import { assertServerEnv, isValidOrigin } from "@/lib/env"
 import {
   appendChatMessages,
   getAnalysisById,
@@ -45,6 +45,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Unsupported Media Type" },
         { status: 415, headers: { "x-request-id": reqId } },
+      )
+    }
+
+    // CSRF defense: even though Content-Type is locked to application/json
+    // (which forces a CORS preflight for cross-origin XHR), defense in depth
+    // requires a same-origin check. Without this, a browser extension or a
+    // same-origin XSS could submit a chat mutation that consumes quota and
+    // produces AI spend on behalf of a logged-in user.
+    if (!isValidOrigin(req)) {
+      return NextResponse.json(
+        { error: "Invalid origin." },
+        { status: 403, headers: { "x-request-id": reqId } },
       )
     }
 
@@ -134,13 +146,37 @@ export async function POST(req: NextRequest) {
       return limitReached
     }
 
-    // Sanitize user message before sending to the AI to mitigate prompt injection.
+    // Defensive normalization before passing to the AI. Note: the structural
+    // prompt-injection defense lives in lib/analysis-ai.ts (USER_MESSAGE
+    // block + explicit system-prompt rule). This layer is belt-and-braces:
+    // strip zero-width and bidirectional-override characters that some
+    // attackers use to hide injected instructions from human review,
+    // collapse runs of whitespace, and cap the message at 2K chars.
+    //
+    // We do NOT try to regex-strip "ignore previous" etc — that approach is
+    // trivially bypassed (whitespace, unicode confusables, code blocks) and
+    // gives a false sense of security. The data/instruction boundary in the
+    // prompt structure is the real defense.
+    // Strip the zero-width and bidi-override codepoints most commonly used
+    // to hide prompt-injection text from human reviewers. We assemble the
+    // character class via String.fromCharCode so the source file stays pure
+    // ASCII and no editor / tool / encoding layer can mangle the codepoints.
+    // Covers: U+200B–U+200F, U+202A–U+202E, U+2060–U+2069, U+FEFF.
+    const ZERO_WIDTH_AND_BIDI = new RegExp(
+      "[" +
+        [0x200b, 0x200c, 0x200d, 0x200e, 0x200f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2060, 0x2061, 0x2062, 0x2063, 0x2064, 0x2066, 0x2067, 0x2068, 0x2069, 0xfeff]
+          .map((cp) => String.fromCharCode(cp))
+          .join("") +
+        "]" +
+        "g",
+    )
+    const CONTROL_CHARS = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g
+
     const sanitizedMessage = message
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
-      .replace(/^\s*(system|user|assistant)\s*:/gim, "")
-      .replace(/ignore\s+(all\s+)?(previous|above|prior)\s+instructions/gi, "[REMOVED]")
-      .replace(/new\s+system\s+prompt/gi, "[REMOVED]")
-      .replace(/<system\b[^>]*>[\s\S]*?<\/system>/gi, "[REMOVED]")
+      .replace(ZERO_WIDTH_AND_BIDI, "")
+      .replace(CONTROL_CHARS, "")
+      .replace(/\n{4,}/g, "\n\n\n")
+      .slice(0, 2000)
       .trim()
 
     const userMsg: ChatMessage = {
@@ -181,7 +217,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { reply: replyText, messages: appended.messages },
-      { headers: { "x-request-id": reqId } },
+      { headers: { "Cache-Control": "no-store", "x-request-id": reqId } },
     )
   } catch (err) {
     captureException(err, { component: "chat", reqId })
@@ -221,7 +257,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       { messages: parseChatMessages(row.chatMessages) },
-      { headers: { "x-request-id": reqId } },
+      { headers: { "Cache-Control": "no-store", "x-request-id": reqId } },
     )
   } catch (err) {
     captureException(err, { component: "chat", reqId, extra: { phase: "get" } })
