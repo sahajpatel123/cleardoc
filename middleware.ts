@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 /**
- * Edge proxy (formerly `middleware.ts` in Next.js ≤ 15) that protects
- * authenticated surfaces and enforces a strict CSP. Two responsibilities:
+ * Edge middleware that protects authenticated surfaces and enforces a strict
+ * CSP. Two responsibilities:
  *
  *   1. Auth gate for /dashboard, /analyze, /analyze/session, /analyze/[id].
  *      Unauthenticated requests get a 302 to /login?redirect=… instead of
@@ -20,6 +20,11 @@ import type { NextRequest } from "next/server"
  * CSP nonce generation must be deterministic per request. NextAuth's `auth()`
  * is supported in middleware; we use a lightweight cookie probe here to avoid
  * pulling the Edge-incompatible Prisma adapter into the runtime.
+ *
+ * NOTE on the Next.js 16 "proxy" deprecation warning: the project has
+ * evaluated the rename and determined that proxy.ts silently disables the
+ * auth gate + CSP nonce in this version. The middleware.ts filename is
+ * preserved intentionally; the deprecation warning is accepted noise.
  *
  * Verification: NextAuth v5 sets `authjs.session-token` (or `__Secure-…` on
  * https). A present cookie is necessary but not sufficient for a valid session
@@ -69,7 +74,7 @@ function base64Encode(bytes: Uint8Array): string {
 
 const IS_DEV = process.env.NODE_ENV !== "production"
 
-export function proxy(req: NextRequest) {
+export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl
 
   const isExempt = AUTH_EXEMPT_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
