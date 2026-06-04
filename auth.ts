@@ -52,7 +52,7 @@ function getSecret(): string {
   // acceptable. The fallback is NEVER used in production — the throw
   // below guarantees that.
   if (IS_DEV) {
-    const devSecret = require("crypto").randomBytes(32).toString("base64")
+    const devSecret = randomBytes(32).toString("base64")
     process.env.NEXTAUTH_SECRET = devSecret
     if (!_devSecretWarned.value) {
       _devSecretWarned.value = true
