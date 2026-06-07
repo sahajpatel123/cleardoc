@@ -68,6 +68,7 @@
   setTimeout(()=>{ if(loader)loader.style.display='none'; startSite(); }, 2800);
   function heroIntro(){
     const chars=splitHeadline();
+    if(!chars.length)return;
     if(noMotion){gsap.set(chars,{opacity:1});return;}
     gsap.set('.char',{willChange:'transform,opacity,filter'});
     gsap.fromTo(chars,{yPercent:120,opacity:0,filter:'blur(8px)'},{yPercent:0,opacity:1,filter:'blur(0px)',duration:.6,ease:EASE.enter,stagger:.02,
@@ -94,7 +95,7 @@
   /* ================= INIT ================= */
   function initAll(){
     const page=(document.body.dataset.page)||'home';
-    const always=[wireScrollCTAs,tickerLoop];
+    const always=[wireScrollCTAs,mobileNav,tickerLoop];
     const byPage={
       home:[heroClarifier,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,faq],
@@ -114,6 +115,24 @@
     $$('[data-scroll-to]').forEach(b=>b.addEventListener('click',()=>{ const dest=b.dataset.scrollTo;
       if(dest && dest.charAt(0)==='#'){ scrollToEl(dest); const inp=$('#heroInput'); if(inp) setTimeout(()=>inp.focus({preventScroll:true}),noMotion?0:500); }
       else { window.location.href=dest; } }));
+  }
+
+  function mobileNav(){
+    const nav=$('nav'),btn=$('.menu-toggle'),links=$('.navlinks');
+    if(!nav||!btn||!links)return;
+    const mq=matchMedia('(max-width: 900px)');
+    function setOpen(open){
+      nav.classList.toggle('open',open);
+      btn.setAttribute('aria-expanded',open?'true':'false');
+      btn.setAttribute('aria-label',open?'Close navigation':'Open navigation');
+    }
+    btn.addEventListener('click',()=>setOpen(!nav.classList.contains('open')));
+    links.addEventListener('click',e=>{ if(e.target.closest('a'))setOpen(false); });
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape')setOpen(false); });
+    document.addEventListener('click',e=>{ if(mq.matches && nav.classList.contains('open') && !nav.contains(e.target))setOpen(false); });
+    const onModeChange=e=>{ if(!e.matches)setOpen(false); };
+    if(mq.addEventListener)mq.addEventListener('change',onModeChange);
+    else mq.addListener(onModeChange);
   }
 
   /* ---- HERO clarifier (the product, in the hero) ---- */
