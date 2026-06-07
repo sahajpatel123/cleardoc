@@ -479,7 +479,8 @@
     const btn=$('#analyzeBtn'),clearBtn=$('#clearBtn'),fileInput=$('#fileInput'),
           emptyEl=$('#resultEmpty'),panel=$('#resultPanel'),plainOut=$('#plainOut'),
           riskList=$('#riskList'),riskNote=$('#riskNote'),levelFrom=$('#levelFrom'),levelTo=$('#levelTo'),
-          jargonCount=$('#jargonCount'),askInput=$('#askInput'),askBtn=$('#askBtn'),askOut=$('#askOut'),msg=$('#analyzeMsg');
+          jargonCount=$('#jargonCount'),askInput=$('#askInput'),askBtn=$('#askBtn'),askOut=$('#askOut'),msg=$('#analyzeMsg'),
+          attachTray=$('#attachTray');
 
     // trap/risk patterns — severity g(note) a(watch) r(trap)
     const RISK=[
@@ -522,11 +523,19 @@
       // 3) risk radar
       const flags=[]; sentences.forEach((s,i)=>{ for(const rule of RISK){ if(rule.re.test(s)){ flags.push({i,s,rule}); break; } } });
       riskList.innerHTML='';
-      if(!flags.length){ riskNote.textContent='No obvious traps detected — but always read the whole thing.'; }
-      else { riskNote.textContent=flags.length+' clause'+(flags.length>1?'s':'')+' worth your attention:'; }
-      flags.forEach(f=>{ const c=RISK_COLORS[f.rule.sev]; const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev;
-        row.innerHTML='<span class="rbar" style="background:'+c+'"></span><span class="ro">“'+esc(trunc(f.s,130))+'”<br><b style="color:var(--ink);font-style:normal">'+f.rule.why+'</b></span><span class="rflag" style="background:'+c+';opacity:1;transform:none">'+f.rule.label+'</span>';
+      if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
+      else {
+        const cnt={r:0,a:0,g:0}; flags.forEach(f=>cnt[f.rule.sev]++);
+        const tally=[];
+        if(cnt.r) tally.push('<span class="rk-tally rk-tally--r">'+cnt.r+' trap'+(cnt.r>1?'s':'')+'</span>');
+        if(cnt.a) tally.push('<span class="rk-tally rk-tally--a">'+cnt.a+' watch</span>');
+        if(cnt.g) tally.push('<span class="rk-tally rk-tally--g">'+cnt.g+' note'+(cnt.g>1?'s':'')+'</span>');
+        riskNote.innerHTML='<span class="riskNote-lead">'+flags.length+' flagged</span> '+tally.join('');
+      }
+      flags.forEach(f=>{ const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev;
+        row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>';
         riskList.appendChild(row); });
+      if(!noMotion && window.gsap) gsap.from('#riskList .rrow',{opacity:0,y:12,stagger:.07,duration:DUR.base,ease:EASE.enter});
       // reveal results
       if(emptyEl) emptyEl.hidden=true; panel.hidden=false; if(askOut) askOut.innerHTML='';
       if(!noMotion && window.gsap) gsap.fromTo(panel,{opacity:0,y:14},{opacity:1,y:0,duration:DUR.base,ease:EASE.enter});
@@ -545,10 +554,56 @@
     }
 
     if(btn) btn.addEventListener('click',analyze);
-    if(clearBtn) clearBtn.addEventListener('click',()=>{ input.value=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} input.focus(); });
-    $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ input.value=q.dataset.fill; analyze(); }));
-    if(fileInput) fileInput.addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(!f)return;
-      const rd=new FileReader(); rd.onload=()=>{ input.value=String(rd.result).slice(0,20000); analyze(); }; rd.onerror=()=>{ msg.textContent='Could not read that file. Paste the text instead.'; msg.className='analyze-msg err'; }; rd.readAsText(f); });
+    if(clearBtn) clearBtn.addEventListener('click',()=>{ input.value=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); input.focus(); });
+    $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ input.value=q.dataset.fill; clearAttachments(); analyze(); }));
+
+    /* ---- FILE ATTACHMENT — accepts text, PDF, images & common office formats ---- */
+    const TEXT_EXT=/\.(txt|text|md|markdown|csv|tsv|log|json|xml|html?|rtf)$/i;
+    const IMG_EXT=/\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif|tiff?)$/i;
+    const PDF_EXT=/\.pdf$/i;
+    let chipUrls=[];
+    function fmtSize(b){ if(b<1024)return b+' B'; if(b<1048576)return Math.round(b/1024)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+    function extOf(n){ const m=/\.([a-z0-9]+)$/i.exec(n); return m?m[1].toUpperCase():'FILE'; }
+    function kindOf(n){ if(IMG_EXT.test(n))return'img'; if(PDF_EXT.test(n))return'pdf'; if(/\.(docx?|odt|pages)$/i.test(n))return'doc'; return'txt'; }
+    function clearAttachments(){ if(!attachTray)return; chipUrls.forEach(u=>{try{URL.revokeObjectURL(u);}catch(_){}}); chipUrls=[]; attachTray.innerHTML=''; attachTray.hidden=true; if(fileInput)fileInput.value=''; }
+    function setSub(chip,cls,txt){ const sub=chip.querySelector('.fsub'); sub.className='fsub '+cls; sub.innerHTML='<span class="dot"></span>'+esc(txt); }
+    function makeChip(file){
+      const kind=kindOf(file.name);
+      const chip=document.createElement('div'); chip.className='attach-chip'; chip.dataset.kind=kind;
+      let visual;
+      if(kind==='img'){ const url=URL.createObjectURL(file); chipUrls.push(url); visual='<img class="thumb" alt="" src="'+url+'">'; }
+      else { visual='<span class="ficon">'+esc(extOf(file.name))+'</span>'; }
+      chip.innerHTML=visual+'<div class="fmeta"><div class="fname">'+esc(file.name)+'</div><div class="fsub work"><span class="dot"></span>'+esc(fmtSize(file.size))+'</div></div><button class="fx" type="button" aria-label="Remove attachment">✕</button>';
+      chip.querySelector('.fx').addEventListener('click',clearAttachments);
+      attachTray.innerHTML=''; attachTray.appendChild(chip); attachTray.hidden=false;
+      return chip;
+    }
+    function readText(file,chip){ const rd=new FileReader();
+      rd.onload=()=>{ input.value=String(rd.result).slice(0,20000); setSub(chip,'ok','Loaded · '+fmtSize(file.size)); analyze(); };
+      rd.onerror=()=>{ setSub(chip,'warn','Could not read — paste the text instead'); };
+      rd.readAsText(file); }
+    async function readPdf(file,chip){
+      if(!window.pdfjsLib){ setSub(chip,'warn','PDF attached · paste the text to analyze'); return; }
+      try{ setSub(chip,'work','Reading PDF…');
+        const buf=await file.arrayBuffer();
+        const pdf=await window.pdfjsLib.getDocument({data:buf}).promise;
+        const max=Math.min(pdf.numPages,30); let out='';
+        for(let p=1;p<=max;p++){ const page=await pdf.getPage(p); const tc=await page.getTextContent(); out+=tc.items.map(i=>i.str).join(' ')+'\n\n'; }
+        out=out.trim();
+        if(!out){ setSub(chip,'warn','No selectable text (scanned PDF?) — paste it instead'); return; }
+        input.value=out.slice(0,20000);
+        setSub(chip,'ok','Read '+max+' page'+(max>1?'s':'')+(pdf.numPages>max?' of '+pdf.numPages:''));
+        analyze();
+      }catch(err){ console.error(err); setSub(chip,'warn','Could not read this PDF — paste the text instead'); }
+    }
+    function handleFile(file){ if(!file||!attachTray)return; const chip=makeChip(file); const n=file.name;
+      if(PDF_EXT.test(n)) readPdf(file,chip);
+      else if(IMG_EXT.test(n)) setSub(chip,'ok','Image attached · preview');
+      else if(TEXT_EXT.test(n)||(file.type&&file.type.indexOf('text')===0)) readText(file,chip);
+      else if(/\.(docx?|odt|pages)$/i.test(n)) setSub(chip,'warn','Office doc attached · paste the text to analyze');
+      else readText(file,chip);
+    }
+    if(fileInput) fileInput.addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(f) handleFile(f); });
     if(askBtn) askBtn.addEventListener('click',ask);
     if(askInput) askInput.addEventListener('keydown',e=>{ if(e.key==='Enter') ask(); });
   }

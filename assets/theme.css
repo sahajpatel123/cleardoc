@@ -4,7 +4,7 @@
     --accent:#FF3B00;        /* large display + decoration only */
     --accent-text:#D62E00;   /* orange that carries words (WCAG) */
     --green:#176B53; --danger:#C6361F; --amber:#9A6A00;
-    --fog:#7a746a; --green-tint:#e6f0ec; --danger-tint:#fbe8e4; --accent-glow:rgba(255,59,0,.16);
+    --fog:#7a746a; --green-tint:#e6f0ec; --danger-tint:#fbe8e4; --amber-tint:#f4ecd3; --accent-glow:rgba(255,59,0,.16);
     --on-dark:var(--paper2);
     /* spacing 8px rhythm */
     --s1:8px; --s2:14px; --s3:18px; --s4:26px; --s5:34px; --s6:46px; --s7:54px; --pad-x:26px;
@@ -165,12 +165,18 @@
   .connector{position:absolute;inset:0;pointer-events:none;z-index:5}
   .connector path{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:1;stroke-dashoffset:1}
   /* act3 */
-  .risk-list{display:flex;flex-direction:column;border:1px solid var(--ink)}
-  .rrow{display:grid;grid-template-columns:8px 1fr auto;gap:var(--s2);align-items:center;padding:var(--s2) var(--s3);border-bottom:1px solid var(--ink);position:relative}
-  .rrow:last-child{border-bottom:none}
-  .rrow .rbar{width:8px;height:100%;position:absolute;left:0;top:0;background:transparent}
-  .rrow .ro{font-family:'Fraunces',serif;font-style:italic;font-size:var(--t-card);color:var(--ink-soft);padding-left:6px}
-  .rflag{font-family:'JetBrains Mono';font-size:var(--t-micro);font-weight:700;text-transform:uppercase;padding:4px 9px;color:#fff;opacity:0}
+  .risk-list{display:flex;flex-direction:column;gap:8px;border:none}
+  /* risk cards — shared by the live analyzer (.risk-built) and the scripted demo (.risk-list) */
+  .rrow{display:flex;align-items:stretch;position:relative;overflow:hidden;background:#fff;border:var(--bd-hair) solid var(--ink);transition:transform .2s ease,box-shadow .2s ease}
+  .rrow .rbar{flex:0 0 8px;align-self:stretch;background:transparent}
+  .rrow .ro{flex:1;min-width:0;padding:12px 14px;font-family:'Fraunces',serif;font-style:italic;font-size:var(--t-card);color:var(--ink-soft);line-height:1.4}
+  .rrow .ro b{display:block;margin-top:7px;font-family:'Archivo',sans-serif;font-style:normal;font-weight:600;font-size:var(--t-meta);color:var(--ink);line-height:1.45;letter-spacing:0}
+  .rflag{align-self:flex-start;flex:0 0 auto;margin:12px 12px 0 0;font-family:'JetBrains Mono';font-size:var(--t-micro);font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:4px 9px;color:#fff;white-space:nowrap;opacity:0}
+  /* severity palette — inline styles set by the demo's GSAP timeline still override during reveal */
+  .rrow[data-risk="r"]{background:var(--danger-tint)} .rrow[data-risk="r"] .rbar{background:var(--danger)} .rrow[data-risk="r"] .rflag{background:var(--danger)}
+  .rrow[data-risk="a"]{background:var(--amber-tint)} .rrow[data-risk="a"] .rbar{background:var(--amber)} .rrow[data-risk="a"] .rflag{background:var(--amber)}
+  .rrow[data-risk="g"]{background:var(--green-tint)} .rrow[data-risk="g"] .rbar{background:var(--green)} .rrow[data-risk="g"] .rflag{background:var(--green)}
+  .rrow[data-risk="r"] .rflag::before{content:"\2715  "} .rrow[data-risk="a"] .rflag::before{content:"\0021  "} .rrow[data-risk="g"] .rflag::before{content:"\2713  "}
   .a3radar{position:absolute;right:var(--s4);top:var(--s4);width:80px;height:80px;border-radius:50%;border:1px solid var(--ink-soft);overflow:hidden}
   .a3radar .sweep{position:absolute;inset:0;background:conic-gradient(from 0deg,var(--accent-glow),transparent 45%);animation:sweep 2.4s linear infinite}
   @keyframes sweep{to{transform:rotate(360deg)}}
@@ -408,8 +414,17 @@
 .rewrite b{color:var(--green);background:var(--green-tint);padding:0 3px}
 .metaline{display:flex;gap:var(--s4);flex-wrap:wrap;font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-top:var(--s2)}
 .metaline b{color:var(--green)}
-.risk-built{display:flex;flex-direction:column;border:1px solid var(--ink);margin-top:var(--s2)}
-.risk-built .rrow{position:relative}
+.risk-built{display:flex;flex-direction:column;gap:12px;border:none;margin-top:var(--s3)}
+.risk-built .rrow{border:var(--bd) solid var(--ink);box-shadow:var(--shadow-sm)}
+.risk-built .rrow:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink)}
+.risk-built .rrow .rbar{flex:0 0 12px}
+.risk-built .rrow .ro{padding:16px 18px;font-size:var(--t-body)}
+.risk-built .rrow .ro b{font-size:var(--t-card);margin-top:9px}
+.risk-built .rflag{margin:16px 16px 0 0;font-size:var(--t-meta-sm);padding:5px 11px;border:2px solid var(--ink)}
+/* risk tally badges in the note line */
+.rk-tally{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono';font-size:var(--t-meta-sm);font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 9px;color:#fff;margin-right:6px}
+.rk-tally--r{background:var(--danger)} .rk-tally--a{background:var(--amber)} .rk-tally--g{background:var(--green)}
+.riskNote-lead{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-right:8px}
 .askbox{display:flex;gap:0;border:var(--bd) solid var(--ink);margin-top:var(--s2)}
 .askbox input{flex:1;min-width:0;border:none;background:#fff;padding:13px 14px;font-family:'JetBrains Mono';font-size:var(--t-card);outline:none;color:var(--ink)}
 .askbox input:focus{box-shadow:inset 0 -3px 0 var(--accent)}
@@ -424,4 +439,20 @@
 .page-hero h1{font-family:'Archivo Black';font-size:var(--d3);text-transform:uppercase;letter-spacing:-.03em;line-height:.92;margin:var(--s2) 0}
 .page-hero h1 .red{color:var(--accent)}
 .page-hero p{font-size:var(--t-body-lg);color:var(--ink-soft);max-width:60ch;line-height:1.5}
+/* ---- ATTACHMENT TRAY ---- */
+.attach-tray{display:flex;flex-direction:column;gap:10px;margin-top:var(--s2)}
+.attach-chip{display:flex;align-items:center;gap:12px;border:var(--bd) solid var(--ink);background:#fff;padding:10px 12px;box-shadow:var(--shadow-sm);position:relative;animation:chipIn .32s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes chipIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+.attach-chip .thumb{width:48px;height:48px;flex:0 0 auto;object-fit:cover;border:2px solid var(--ink);background:var(--paper2);display:block}
+.attach-chip .ficon{width:48px;height:48px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;border:2px solid var(--ink);font-family:'Archivo Black';font-size:10px;text-transform:uppercase;background:var(--ink);color:var(--paper);letter-spacing:.02em}
+.attach-chip[data-kind="img"] .ficon{background:var(--green)} .attach-chip[data-kind="pdf"] .ficon{background:var(--danger)} .attach-chip[data-kind="doc"] .ficon{background:var(--amber)}
+.attach-chip .fmeta{flex:1;min-width:0}
+.attach-chip .fname{font-family:'JetBrains Mono';font-size:var(--t-meta);font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.attach-chip .fsub{font-family:'JetBrains Mono';font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-top:4px;display:flex;align-items:center;gap:6px}
+.attach-chip .fsub.ok{color:var(--green)} .attach-chip .fsub.work{color:var(--amber)} .attach-chip .fsub.warn{color:var(--danger)}
+.attach-chip .fsub .dot{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block}
+.attach-chip .fsub.work .dot{animation:chipPulse 1s ease-in-out infinite}
+@keyframes chipPulse{0%,100%{opacity:1}50%{opacity:.25}}
+.attach-chip .fx{flex:0 0 auto;margin-left:4px;border:2px solid var(--ink);background:var(--paper);cursor:pointer;font-family:'JetBrains Mono';font-size:14px;line-height:1;color:var(--ink);width:28px;height:28px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.attach-chip .fx:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
 @media(max-width:900px){.work{grid-template-columns:1fr}.work .col.in{border-right:none;border-bottom:var(--bd) solid var(--ink)}}

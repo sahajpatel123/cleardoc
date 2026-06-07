@@ -45,8 +45,9 @@
         <button class="qf" data-fill="Tenant shall forfeit the security deposit in the event that written notice is not tendered sixty days prior to termination, and shall remain liable for all damages howsoever caused during the tenancy.">try: Lease</button>
         <button class="qf" data-fill="Patient acknowledges that facility fees, notwithstanding any insurance adjustment, shall be the sole responsibility of the patient pursuant to the terms set forth herein, and that balance billing may apply.">try: Medical Bill</button>
         <button class="qf" data-fill="The aforementioned subscriber shall be liable for all charges incurred heretofore, and the provider reserves the right to modify these terms at any time at its sole discretion without notice.">try: Terms</button>
-        <label class="filelbl">Upload .txt<input id="fileInput" type="file" accept=".txt,.md,.text,.html,.csv" hidden></label>
+        <label class="filelbl">Attach file<input id="fileInput" type="file" accept=".txt,.text,.md,.markdown,.csv,.tsv,.log,.json,.xml,.html,.htm,.rtf,.pdf,.doc,.docx,.odt,.pages,.png,.jpg,.jpeg,.gif,.webp,.bmp,.svg,.heic,.heif,.avif,.tif,.tiff,application/pdf,image/*,text/*" hidden></label>
       </div>
+      <div class="attach-tray" id="attachTray" hidden aria-live="polite"></div>
       <div class="run-row">
         <button class="analyze-btn" id="analyzeBtn">Analyze →</button>
         <button class="ghost-btn" id="clearBtn">Clear</button>
@@ -94,6 +95,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
 <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}</script>
 <script src="assets/app.js"></script>
 </body>
 </html>
