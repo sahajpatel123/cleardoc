@@ -78,7 +78,6 @@
   .hero-main{padding:var(--s7) var(--pad-x) var(--s6);border-right:var(--bd) solid var(--ink);position:relative;overflow:hidden}
   #fogcanvas{position:absolute;inset:0;z-index:0;opacity:.3;pointer-events:none}
   .hero-main>*{position:relative;z-index:1}
-  .kicker{font-size:var(--t-meta);font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent-text);border-bottom:2px solid var(--accent);padding-bottom:3px;display:inline-block;margin-bottom:var(--s4);font-family:'JetBrains Mono'}
   .hero h1{font-family:'Archivo Black';font-size:var(--d1);line-height:.84;letter-spacing:-.05em;text-transform:uppercase;min-height:1.7em}
   .hero h1 .red{color:var(--accent)}
   .typeset{position:relative;display:inline-block}
