@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearDoc — Concept 1: The Lens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F4EFE6; --paper-2:#EAE3D4; --ink:#161410; --ink-soft:#4A453C;
+    --accent:#1F6B5C; --accent-2:#C6452B; --line:rgba(22,20,16,.14);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden}
+  ::selection{background:var(--accent);color:var(--paper)}
+  .grain{position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.4;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E")}
+
+  /* NAV */
+  nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;
+    align-items:center;padding:22px 40px;mix-blend-mode:multiply}
+  .logo{font-family:'Fraunces',serif;font-weight:600;font-size:22px;letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+  .logo .mark{width:26px;height:26px;border:2px solid var(--ink);border-radius:50%;position:relative;overflow:hidden}
+  .logo .mark::after{content:"";position:absolute;left:-2px;top:50%;width:30px;height:2px;background:var(--ink);transform-origin:center}
+  .navlinks{display:flex;gap:34px;font-size:13px;text-transform:uppercase;letter-spacing:.14em;font-weight:500}
+  .navlinks a{color:var(--ink);text-decoration:none;opacity:.7;transition:opacity .2s}
+  .navlinks a:hover{opacity:1}
+  .navcta{font-family:'JetBrains Mono',monospace;font-size:12px;border:1.5px solid var(--ink);
+    padding:9px 16px;border-radius:30px;cursor:pointer;background:transparent;transition:.25s}
+  .navcta:hover{background:var(--ink);color:var(--paper)}
+
+  /* HERO */
+  header{min-height:100vh;display:grid;grid-template-columns:1.05fr 1fr;gap:0;position:relative;z-index:2}
+  .hero-left{padding:140px 50px 60px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--line)}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:26px;display:flex;align-items:center;gap:12px}
+  .eyebrow::before{content:"";width:34px;height:1px;background:var(--accent)}
+  h1{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(46px,6vw,86px);line-height:.96;
+    letter-spacing:-.025em;margin-bottom:28px}
+  h1 em{font-style:italic;color:var(--accent)}
+  h1 .strike{position:relative;color:var(--ink-soft)}
+  h1 .strike::after{content:"";position:absolute;left:-2%;top:54%;width:104%;height:3px;background:var(--accent-2);
+    transform:scaleX(0);transform-origin:left;animation:strike 1s cubic-bezier(.7,0,.3,1) 1.1s forwards}
+  @keyframes strike{to{transform:scaleX(1)}}
+  .lede{font-size:18px;line-height:1.6;color:var(--ink-soft);max-width:430px;margin-bottom:38px}
+  .cta-row{display:flex;gap:16px;align-items:center}
+  .btn-primary{font-family:'Inter';font-weight:600;font-size:15px;background:var(--ink);color:var(--paper);
+    border:none;padding:15px 26px;border-radius:40px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:.25s}
+  .btn-primary:hover{background:var(--accent);transform:translateY(-2px)}
+  .btn-primary .arr{transition:transform .25s}
+  .btn-primary:hover .arr{transform:translateX(4px)}
+  .btn-ghost{font-family:'JetBrains Mono',monospace;font-size:13px;background:none;border:none;cursor:pointer;
+    color:var(--ink);text-decoration:underline;text-underline-offset:4px;opacity:.8}
+
+  /* HERO RIGHT — the lens demo */
+  .hero-right{position:relative;background:var(--paper-2);display:flex;align-items:center;justify-content:center;padding:40px;overflow:hidden}
+  .doc-frame{width:100%;max-width:460px;height:560px;background:#fff;box-shadow:0 30px 80px -30px rgba(0,0,0,.35);
+    border-radius:4px;position:relative;overflow:hidden;transform:rotate(-1.4deg)}
+  .doc-label{position:absolute;top:14px;left:16px;font-family:'JetBrains Mono',monospace;font-size:10px;
+    letter-spacing:.15em;text-transform:uppercase;z-index:6;color:var(--ink-soft)}
+  .doc-label.right{left:auto;right:16px;color:var(--accent)}
+  .layer{position:absolute;inset:0;padding:54px 34px;font-size:13.5px;line-height:1.75}
+  .layer.before{color:#7a766c;font-family:'Fraunces',serif}
+  .layer.before .jx{color:#9a3b27;border-bottom:1px dashed #c6452b;cursor:help;position:relative}
+  .layer.after{background:#fff;font-family:'Inter';color:var(--ink);clip-path:inset(0 0 0 50%)}
+  .layer.after b{color:var(--accent);font-weight:600}
+  .layer.after .chip{display:inline-block;background:#e8f1ee;color:var(--accent);font-size:11px;
+    padding:1px 8px;border-radius:20px;font-family:'JetBrains Mono',monospace;margin:0 2px}
+  .divider{position:absolute;top:0;bottom:0;left:50%;width:2px;background:var(--accent);z-index:8;cursor:ew-resize}
+  .divider .knob{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:42px;height:42px;
+    background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;
+    color:#fff;box-shadow:0 6px 20px rgba(31,107,92,.5)}
+  .divider .knob svg{width:20px;height:20px}
+  .tip{position:fixed;z-index:99;background:var(--ink);color:var(--paper);font-size:12px;line-height:1.4;
+    padding:8px 12px;border-radius:8px;max-width:220px;pointer-events:none;opacity:0;transform:translateY(6px);
+    transition:.15s;font-family:'Inter'}
+  .tip.on{opacity:1;transform:translateY(0)}
+  .tip b{color:#7fd4c2;font-family:'JetBrains Mono',monospace;display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
+
+  .scrollhint{position:absolute;bottom:24px;left:50px;font-family:'JetBrains Mono',monospace;font-size:11px;
+    letter-spacing:.15em;text-transform:uppercase;color:var(--ink-soft);display:flex;align-items:center;gap:10px;z-index:5}
+  .scrollhint .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+
+  /* MARQUEE */
+  .marquee{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:18px 0;
+    overflow:hidden;white-space:nowrap;position:relative;z-index:2}
+  .marquee .track{display:inline-block;animation:scroll 26s linear infinite;font-family:'Fraunces',serif;
+    font-size:28px;font-style:italic}
+  .marquee .track span{margin:0 28px;color:var(--ink-soft)}
+  .marquee .track b{color:var(--accent);font-style:normal;font-weight:600}
+  @keyframes scroll{to{transform:translateX(-50%)}}
+
+  /* FEATURES — "what we remove" ledger */
+  .ledger{max-width:1100px;margin:90px auto;padding:0 40px;position:relative;z-index:2}
+  .ledger h2{font-family:'Fraunces',serif;font-size:clamp(30px,4vw,52px);font-weight:400;
+    letter-spacing:-.02em;margin-bottom:8px}
+  .ledger .sub{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.15em;
+    text-transform:uppercase;color:var(--accent);margin-bottom:40px}
+  .row{display:grid;grid-template-columns:60px 1fr 1fr 90px;gap:24px;padding:26px 0;border-top:1px solid var(--line);
+    align-items:center;cursor:default;transition:.3s}
+  .row:hover{padding-left:14px;background:linear-gradient(90deg,rgba(31,107,92,.06),transparent)}
+  .row .num{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--accent)}
+  .row .from{font-family:'Fraunces',serif;font-size:22px;color:var(--ink-soft);text-decoration:line-through;text-decoration-color:var(--accent-2)}
+  .row .to{font-size:18px;font-weight:600}
+  .row .to small{display:block;font-weight:400;font-size:13px;color:var(--ink-soft);margin-top:3px}
+  .row .ar{justify-self:end;font-size:22px;color:var(--accent);transition:transform .3s}
+  .row:hover .ar{transform:translateX(6px)}
+
+  /* CTA band */
+  .band{margin:100px 0 0;background:var(--ink);color:var(--paper);padding:90px 40px;text-align:center;position:relative;z-index:2}
+  .band h2{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(34px,5vw,68px);letter-spacing:-.02em;margin-bottom:24px}
+  .band h2 em{font-style:italic;color:#7fd4c2}
+  .band .btn-primary{background:var(--paper);color:var(--ink);margin:0 auto}
+  .band .btn-primary:hover{background:#7fd4c2}
+  footer{padding:30px 40px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-soft);display:flex;justify-content:space-between;position:relative;z-index:2}
+
+  @media(max-width:860px){header{grid-template-columns:1fr}.hero-right{min-height:80vh}.hero-left{border-right:none;padding-top:110px}
+    .row{grid-template-columns:30px 1fr;gap:10px}.row .to,.row .ar{display:none}.navlinks{display:none}}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<nav>
+  <div class="logo"><span class="mark"></span>ClearDoc</div>
+  <div class="navlinks">
+    <a href="#">Simplify</a><a href="#">Ask</a><a href="#">For Pros</a><a href="#">Pricing</a>
+  </div>
+  <button class="navcta">Open a document →</button>
+</nav>
+
+<header>
+  <div class="hero-left">
+    <div class="eyebrow">Document Simplifier + AI Reader</div>
+    <h1>Every <span class="strike">impenetrable</span><br><em>document,</em><br>finally clear.</h1>
+    <p class="lede">Drop in a contract, a medical bill, a lease, a research paper. ClearDoc rewrites the jargon into plain language — and lets you ask it anything.</p>
+    <div class="cta-row">
+      <button class="btn-primary">Clarify a document <span class="arr">→</span></button>
+      <button class="btn-ghost">see how it reads_</button>
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <div class="doc-frame" id="frame">
+      <span class="doc-label">Original · §4.2 Indemnification</span>
+      <span class="doc-label right">ClearDoc</span>
+
+      <div class="layer before">
+        The party of the first part shall <span class="jx" data-tip="To pay for / cover any loss the other side suffers.">indemnify</span> and hold harmless the party of the second part from and against any and all <span class="jx" data-tip="Money you might have to pay if things go wrong.">liabilities</span>, claims, damages, and expenses, including reasonable attorneys' fees, arising out of or in connection with any breach <span class="jx" data-tip="By the way / despite anything else written.">notwithstanding</span> any provision herein to the contrary, and such obligation shall survive the termination <span class="jx" data-tip="Forever — even after the deal ends.">in perpetuity</span>.
+      </div>
+
+      <div class="layer after">
+        <b>What this means for you:</b><br><br>
+        If you break this agreement, you have to <b>pay for any losses</b> the other side suffers — including their <span class="chip">legal fees</span>.<br><br>
+        This stays true <b>even after the contract ends</b>, with no time limit.<br><br>
+        <span class="chip">⚠ watch this</span> "in perpetuity" means forever.
+      </div>
+
+      <div class="divider" id="divider">
+        <div class="knob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg></div>
+      </div>
+    </div>
+    <div class="scrollhint"><span class="dot"></span> drag the line · hover the underlined words</div>
+  </div>
+</header>
+
+<div class="marquee">
+  <div class="track">
+    <span>contracts</span><b>→ clear</b><span>medical bills</span><b>→ clear</b><span>leases</span><b>→ clear</b><span>terms of service</span><b>→ clear</b><span>research papers</span><b>→ clear</b>
+    <span>contracts</span><b>→ clear</b><span>medical bills</span><b>→ clear</b><span>leases</span><b>→ clear</b><span>terms of service</span><b>→ clear</b><span>research papers</span><b>→ clear</b>
+  </div>
+</div>
+
+<section class="ledger">
+  <div class="sub">// the translation ledger</div>
+  <h2>We delete the fog, not the meaning.</h2>
+  <div style="height:30px"></div>
+  <div class="row"><span class="num">01</span><span class="from">"heretofore"</span><span class="to">"until now"<small>Every legal relic, swapped for a word you actually use.</small></span><span class="ar">→</span></div>
+  <div class="row"><span class="num">02</span><span class="from">14-page EOB</span><span class="to">"You owe $240. Here's why."<small>Medical bills decoded into what you pay and why.</small></span><span class="ar">→</span></div>
+  <div class="row"><span class="num">03</span><span class="from">"the lessee shall…"</span><span class="to">"you can / you can't"<small>Leases turned into a plain list of your rights.</small></span><span class="ar">→</span></div>
+  <div class="row"><span class="num">04</span><span class="from">"per the abstract…"</span><span class="to">Ask it directly<small>Chat with any paper — get cited answers, not guesses.</small></span><span class="ar">→</span></div>
+</section>
+
+<section class="band">
+  <h2>Stop pretending<br>you <em>read the fine print.</em></h2>
+  <button class="btn-primary">Make your first document clear <span class="arr">→</span></button>
+</section>
+
+<footer>
+  <span>ClearDoc — concept 01 · "The Lens"</span>
+  <span>fog → clarity</span>
+</footer>
+
+<div class="tip" id="tip"></div>
+
+<script>
+  // Draggable clarity divider
+  const frame=document.getElementById('frame'),divider=document.getElementById('divider'),
+        after=document.querySelector('.layer.after');
+  let drag=false;
+  function setPos(x){
+    const r=frame.getBoundingClientRect();
+    let p=(x-r.left)/r.width; p=Math.max(.06,Math.min(.94,p));
+    divider.style.left=(p*100)+'%';
+    after.style.clipPath=`inset(0 0 0 ${p*100}%)`;
+  }
+  divider.addEventListener('mousedown',()=>drag=true);
+  window.addEventListener('mouseup',()=>drag=false);
+  window.addEventListener('mousemove',e=>{if(drag)setPos(e.clientX)});
+  frame.addEventListener('mousemove',e=>{if(!drag && e.buttons===0){} });
+  // touch
+  divider.addEventListener('touchstart',()=>drag=true);
+  window.addEventListener('touchend',()=>drag=false);
+  window.addEventListener('touchmove',e=>{if(drag)setPos(e.touches[0].clientX)},{passive:true});
+
+  // Jargon tooltips
+  const tip=document.getElementById('tip');
+  document.querySelectorAll('.jx').forEach(el=>{
+    el.addEventListener('mouseenter',e=>{
+      tip.innerHTML='<b>plain english</b>'+el.dataset.tip;tip.classList.add('on');
+    });
+    el.addEventListener('mousemove',e=>{tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';});
+    el.addEventListener('mouseleave',()=>tip.classList.remove('on'));
+  });
+</script>
+</body>
+</html>

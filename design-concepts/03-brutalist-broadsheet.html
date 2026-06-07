@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearDoc — Concept 3: Brutalist Broadsheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--paper:#F2F0EB;--ink:#0B0B0B;--accent:#FF3B00;--accent2:#0047FF;--line:#0B0B0B}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--paper);color:var(--ink);font-family:'Archivo',sans-serif;overflow-x:hidden}
+  ::selection{background:var(--accent);color:var(--paper)}
+  a{color:inherit}
+
+  /* top ticker */
+  .ticker{background:var(--ink);color:var(--paper);overflow:hidden;white-space:nowrap;border-bottom:3px solid var(--ink)}
+  .ticker .t{display:inline-block;animation:tick 28s linear infinite;font-family:'JetBrains Mono';font-size:12px;
+    letter-spacing:.08em;padding:9px 0;text-transform:uppercase}
+  .ticker .t span{margin:0 22px}.ticker .t b{color:var(--accent)}
+  @keyframes tick{to{transform:translateX(-50%)}}
+
+  nav{display:flex;justify-content:space-between;align-items:center;padding:16px 28px;border-bottom:3px solid var(--ink)}
+  .brand{font-family:'Archivo Black';font-size:30px;letter-spacing:-.04em;text-transform:uppercase;display:flex;align-items:baseline;gap:8px}
+  .brand sup{font-family:'JetBrains Mono';font-size:11px;color:var(--accent);font-weight:700}
+  .navlinks{display:flex;gap:0;font-family:'JetBrains Mono';font-size:12px;text-transform:uppercase;letter-spacing:.1em}
+  .navlinks a{text-decoration:none;padding:8px 16px;border-left:2px solid var(--ink);transition:.15s}
+  .navlinks a:hover{background:var(--ink);color:var(--paper)}
+  .navlinks a.cta{background:var(--accent);color:#fff;font-weight:700}
+  .navlinks a.cta:hover{background:var(--ink)}
+
+  /* MASTHEAD */
+  .masthead{border-bottom:3px solid var(--ink);padding:10px 28px;display:flex;justify-content:space-between;
+    font-family:'JetBrains Mono';font-size:11px;text-transform:uppercase;letter-spacing:.12em}
+
+  /* HERO grid */
+  .hero{display:grid;grid-template-columns:1.4fr 1fr;border-bottom:3px solid var(--ink)}
+  .hero-main{padding:40px 28px 30px;border-right:3px solid var(--ink)}
+  .kicker{font-family:'JetBrains Mono';font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+    color:var(--accent);margin-bottom:18px;display:inline-block;border-bottom:2px solid var(--accent);padding-bottom:3px}
+  .hero h1{font-family:'Archivo Black';font-size:clamp(48px,9vw,128px);line-height:.86;letter-spacing:-.05em;
+    text-transform:uppercase;margin-bottom:26px}
+  .hero h1 .out{-webkit-text-stroke:2px var(--ink);color:transparent}
+  .hero h1 .red{color:var(--accent)}
+  .deck{font-size:19px;line-height:1.45;max-width:620px;font-weight:500;border-top:2px solid var(--ink);padding-top:20px;
+    columns:2;column-gap:30px}
+  @media(max-width:700px){.deck{columns:1}}
+  .actions{display:flex;gap:0;margin-top:30px;border:3px solid var(--ink);width:fit-content;max-width:100%;flex-wrap:wrap}
+  .actions input{font-family:'JetBrains Mono';font-size:14px;border:none;padding:16px 18px;background:var(--paper);outline:none;min-width:240px;flex:1}
+  .actions button{font-family:'Archivo Black';font-size:14px;text-transform:uppercase;letter-spacing:.02em;
+    background:var(--ink);color:var(--paper);border:none;padding:16px 26px;cursor:pointer;border-left:3px solid var(--ink);transition:.15s}
+  .actions button:hover{background:var(--accent)}
+
+  /* hero side — before/after stamp */
+  .hero-side{display:flex;flex-direction:column}
+  .stamp{flex:1;padding:24px 24px;border-bottom:3px solid var(--ink);position:relative}
+  .stamp:last-child{border-bottom:none}
+  .stamp .lab{font-family:'JetBrains Mono';font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px;display:flex;justify-content:space-between}
+  .stamp.before{background:repeating-linear-gradient(45deg,transparent,transparent 22px,rgba(11,11,11,.04) 22px,rgba(11,11,11,.04) 24px)}
+  .stamp.before .lab{color:#8a8a8a}
+  .stamp.before p{font-size:13px;line-height:1.55;color:#6b6b6b;font-family:'JetBrains Mono'}
+  .stamp.after .lab{color:var(--accent)}
+  .stamp.after p{font-size:16px;line-height:1.5;font-weight:600}
+  .stamp.after .mark{background:var(--accent);color:#fff;padding:0 4px}
+  .stamp .seal{position:absolute;bottom:14px;right:14px;font-family:'Archivo Black';font-size:11px;text-transform:uppercase;
+    border:2px solid var(--accent);color:var(--accent);border-radius:50%;width:64px;height:64px;display:flex;align-items:center;
+    justify-content:center;text-align:center;line-height:1;transform:rotate(-12deg);padding:8px}
+
+  /* BIG STAT ROW */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:3px solid var(--ink)}
+  .stat{padding:30px 28px;border-right:3px solid var(--ink)}
+  .stat:last-child{border-right:none}
+  .stat .n{font-family:'Archivo Black';font-size:clamp(40px,6vw,76px);line-height:1;letter-spacing:-.04em}
+  .stat .n.r{color:var(--accent)}.stat .n.b{color:var(--accent2)}
+  .stat .l{font-family:'JetBrains Mono';font-size:12px;text-transform:uppercase;letter-spacing:.1em;margin-top:10px;color:#444}
+
+  /* COLUMNS — how it works as articles */
+  .cols{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:3px solid var(--ink)}
+  .col{padding:30px 28px;border-right:3px solid var(--ink)}
+  .col:last-child{border-right:none}
+  .col .no{font-family:'Archivo Black';font-size:50px;color:var(--accent);line-height:1}
+  .col h3{font-family:'Archivo Black';font-size:24px;text-transform:uppercase;letter-spacing:-.02em;margin:14px 0 12px;line-height:1}
+  .col p{font-size:15px;line-height:1.55}
+  .col .drop::first-letter{font-family:'Archivo Black';font-size:46px;float:left;line-height:.8;margin:4px 8px 0 0;color:var(--accent)}
+
+  /* QUOTE */
+  .pull{padding:70px 28px;border-bottom:3px solid var(--ink);text-align:center}
+  .pull blockquote{font-family:'Archivo Black';font-size:clamp(28px,5vw,64px);line-height:.98;letter-spacing:-.03em;text-transform:uppercase;max-width:16ch;margin:0 auto}
+  .pull blockquote .red{color:var(--accent)}
+  .pull cite{font-family:'JetBrains Mono';font-size:12px;text-transform:uppercase;letter-spacing:.12em;display:block;margin-top:26px;color:#444}
+
+  /* CTA */
+  .end{background:var(--ink);color:var(--paper);padding:80px 28px;text-align:center}
+  .end h2{font-family:'Archivo Black';font-size:clamp(36px,7vw,96px);text-transform:uppercase;letter-spacing:-.04em;line-height:.9;margin-bottom:30px}
+  .end h2 .red{color:var(--accent)}
+  .end .out{-webkit-text-stroke:2px var(--paper);color:transparent}
+  .end button{font-family:'Archivo Black';font-size:16px;text-transform:uppercase;background:var(--accent);color:#fff;
+    border:none;padding:20px 40px;cursor:pointer;transition:.15s}
+  .end button:hover{background:var(--paper);color:var(--ink)}
+  footer{padding:18px 28px;font-family:'JetBrains Mono';font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:flex;justify-content:space-between;border-top:3px solid var(--accent)}
+
+  @media(max-width:760px){.hero,.stats,.cols{grid-template-columns:1fr}.hero-main{border-right:none;border-bottom:3px solid var(--ink)}
+    .stat,.col{border-right:none;border-bottom:3px solid var(--ink)}.navlinks{display:none}}
+</style>
+</head>
+<body>
+
+<div class="ticker"><div class="t">
+  <span>📄 AVG. AMERICAN SIGNS <b>9 CONTRACTS / YEAR</b> THEY NEVER READ</span><span>///</span>
+  <span>MEDICAL BILLS CONTAIN ERRORS <b>80% OF THE TIME</b></span><span>///</span>
+  <span>CLEARDOC READS IT IN <b>SECONDS</b></span><span>///</span>
+  <span>📄 AVG. AMERICAN SIGNS <b>9 CONTRACTS / YEAR</b> THEY NEVER READ</span><span>///</span>
+  <span>MEDICAL BILLS CONTAIN ERRORS <b>80% OF THE TIME</b></span><span>///</span>
+  <span>CLEARDOC READS IT IN <b>SECONDS</b></span><span>///</span>
+</div></div>
+
+<nav>
+  <div class="brand">CLEARDOC<sup>™</sup></div>
+  <div class="navlinks">
+    <a href="#">Simplify</a><a href="#">Ask</a><a href="#">For Pros</a><a href="#">Pricing</a><a href="#" class="cta">Open Document ↗</a>
+  </div>
+</nav>
+
+<div class="masthead">
+  <span>No. 001 — The Clarity Edition</span>
+  <span>Plain Language · Cited Answers · Risk Flags</span>
+  <span>Est. 2026</span>
+</div>
+
+<section class="hero">
+  <div class="hero-main">
+    <span class="kicker">Document Simplifier + AI Reader</span>
+    <h1>NOBODY<br>READS THE<br><span class="red">FINE</span> <span class="out">PRINT.</span></h1>
+    <p class="deck">So we built a machine that does. ClearDoc ingests the contracts, bills, leases and papers you're supposed to understand — and hands them back in language a human can actually read. Then it stays in the room to answer whatever you ask, with the exact source line cited every time.</p>
+    <div class="actions">
+      <input placeholder="paste a link or drop a PDF…">
+      <button>Clarify →</button>
+    </div>
+  </div>
+  <div class="hero-side">
+    <div class="stamp before">
+      <div class="lab"><span>▲ As Written</span><span>§7.1</span></div>
+      <p>"Notwithstanding the foregoing, Subscriber's right to terminate shall be subject to a non-refundable early-cancellation assessment equal to the aggregate of remaining periodic charges…"</p>
+      <div class="seal">UNREAD</div>
+    </div>
+    <div class="stamp after">
+      <div class="lab"><span>✦ ClearDoc</span><span>plain</span></div>
+      <p>If you quit early, you still <span class="mark">pay for every remaining month</span>. There's no refund.</p>
+      <div class="seal" style="border-color:var(--ink);color:var(--ink)">CLEAR</div>
+    </div>
+  </div>
+</section>
+
+<section class="stats">
+  <div class="stat"><div class="n r">8th</div><div class="l">grade reading level, every time</div></div>
+  <div class="stat"><div class="n">100%</div><div class="l">answers cited to the source line</div></div>
+  <div class="stat"><div class="n b">0</div><div class="l">law degrees required</div></div>
+</section>
+
+<section class="cols">
+  <div class="col"><div class="no">01</div><h3>Drop It In</h3><p class="drop">Paste a link or upload anything — a lease, an EOB, terms of service, a 40-page contract, a dense research PDF. ClearDoc handles the mess.</p></div>
+  <div class="col"><div class="no">02</div><h3>Read It Clear</h3><p class="drop">Get a side-by-side rewrite in plain English. Jargon defined inline. Traps — auto-renewals, penalties, "in perpetuity" — flagged in red.</p></div>
+  <div class="col"><div class="no">03</div><h3>Ask It Anything</h3><p class="drop">"Can I cancel? What's my deadline? What am I liable for?" Every answer points back to the exact clause it came from.</p></div>
+</section>
+
+<section class="pull">
+  <blockquote>The fine print stopped being <span class="red">fine print.</span></blockquote>
+  <cite>— what every ClearDoc user says, eventually</cite>
+</section>
+
+<section class="end">
+  <h2>READ WHAT<br>YOU <span class="red">SIGN.</span><br><span class="out">FINALLY.</span></h2>
+  <button>Clarify your first document — free →</button>
+</section>
+
+<footer>
+  <span>ClearDoc — concept 03 · "Brutalist Broadsheet"</span>
+  <span>fog → clarity</span>
+</footer>
+</body>
+</html>

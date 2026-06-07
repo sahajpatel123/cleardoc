@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearDoc — Concept 05: The Masterpiece</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;900&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EDE7D8; --paper2:#E3DBC8; --ink:#14120E; --ink-soft:#5A554A;
+    --accent:#FF3B00; --green:#176B53; --amber:#C98A00; --danger:#C6361F; --line:#14120E;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{overflow-x:hidden}
+  html{scroll-behavior:auto}
+  body{background:var(--paper);color:var(--ink);font-family:'Archivo',sans-serif;-webkit-font-smoothing:antialiased;cursor:none}
+  ::selection{background:var(--accent);color:var(--paper)}
+  a{color:inherit;text-decoration:none}
+  @media (pointer:coarse){body{cursor:auto}}
+
+  /* film grain */
+  .grain{position:fixed;inset:0;pointer-events:none;z-index:9000;opacity:.32;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.45'/%3E%3C/svg%3E")}
+
+  /* ---------- PRELOADER ---------- */
+  #loader{position:fixed;inset:0;z-index:10000;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:24px}
+  #loader .lword{font-family:'Archivo Black';font-size:clamp(40px,9vw,120px);letter-spacing:-.05em;text-transform:uppercase;
+    filter:blur(18px);opacity:.4;transition:filter 1.2s cubic-bezier(.5,0,.15,1),opacity 1.2s}
+  #loader.go .lword{filter:blur(0);opacity:1}
+  #loader .lbar{width:min(340px,70vw);height:2px;background:rgba(237,231,216,.2);position:relative;overflow:hidden}
+  #loader .lbar i{position:absolute;left:0;top:0;height:100%;width:0;background:var(--accent)}
+  #loader .lmeta{font-family:'JetBrains Mono';font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);display:flex;gap:14px}
+  #loader .lmeta b{color:var(--accent)}
+  .reveal-panel{position:fixed;inset:0;z-index:9999;background:var(--accent);transform:translateY(100%)}
+
+  /* ---------- CUSTOM CURSOR / CLARITY LENS ---------- */
+  #cur{position:fixed;top:0;left:0;width:10px;height:10px;border-radius:50%;background:var(--accent);
+    pointer-events:none;z-index:9500;transform:translate(-50%,-50%);mix-blend-mode:difference}
+  #ring{position:fixed;top:0;left:0;width:46px;height:46px;border:1.5px solid var(--ink);border-radius:50%;
+    pointer-events:none;z-index:9499;transform:translate(-50%,-50%);transition:width .3s,height .3s,border-color .3s,background .3s}
+  #ring.lens{width:170px;height:170px;border-color:var(--accent);border-width:2px;background:rgba(255,59,0,.04);
+    box-shadow:0 0 0 9999px rgba(20,18,14,.07)}
+  #ring .lenslabel{position:absolute;bottom:-26px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono';
+    font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);white-space:nowrap;opacity:0;transition:.3s}
+  #ring.lens .lenslabel{opacity:1}
+  @media (pointer:coarse){#cur,#ring{display:none}}
+
+  /* ---------- TICKER ---------- */
+  .ticker{background:var(--ink);color:var(--paper);overflow:hidden;white-space:nowrap;position:relative;z-index:40}
+  .ticker .t{display:inline-block;animation:tick 32s linear infinite;font-family:'JetBrains Mono';font-size:12px;letter-spacing:.08em;padding:9px 0;text-transform:uppercase}
+  .ticker .t span{margin:0 22px}.ticker .t b{color:var(--accent)}
+  @keyframes tick{to{transform:translateX(-50%)}}
+
+  /* ---------- NAV ---------- */
+  nav{display:flex;justify-content:space-between;align-items:center;padding:14px 26px;border-bottom:3px solid var(--ink);position:sticky;top:0;z-index:400;background:var(--paper)}
+  .brand{font-family:'Archivo Black';font-size:28px;letter-spacing:-.045em;text-transform:uppercase;display:flex;align-items:baseline;gap:7px;overflow:hidden}
+  .brand sup{font-family:'JetBrains Mono';font-size:10px;color:var(--accent);font-weight:700}
+  .navlinks{display:flex;font-family:'JetBrains Mono';font-size:12px;text-transform:uppercase;letter-spacing:.1em}
+  .navlinks a{padding:8px 15px;border-left:2px solid var(--ink);transition:.15s}
+  .navlinks a:hover{background:var(--ink);color:var(--paper)}
+  .navlinks a.cta{background:var(--accent);color:#fff;font-weight:700}.navlinks a.cta:hover{background:var(--ink)}
+  .masthead{display:flex;justify-content:space-between;padding:8px 26px;border-bottom:3px solid var(--ink);font-family:'JetBrains Mono';font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft);background:var(--paper);position:relative;z-index:40}
+
+  /* ---------- HERO ---------- */
+  .hero{display:grid;grid-template-columns:1.25fr 1fr;border-bottom:3px solid var(--ink);position:relative}
+  .hero-main{padding:54px 26px 40px;border-right:3px solid var(--ink);position:relative;overflow:hidden}
+  #fogcanvas{position:absolute;inset:0;z-index:0;opacity:.5;pointer-events:none}
+  .hero-main>*{position:relative;z-index:1}
+  .kicker{font-family:'JetBrains Mono';font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);border-bottom:2px solid var(--accent);padding-bottom:3px;display:inline-block;margin-bottom:26px}
+  .hero h1{font-family:'Archivo Black';font-size:clamp(46px,8.2vw,116px);line-height:.84;letter-spacing:-.05em;text-transform:uppercase}
+  .hero h1 .serif{font-family:'Fraunces',serif;font-weight:400;font-style:italic;text-transform:none;letter-spacing:-.02em}
+  .hero h1 .red{color:var(--accent)}
+  .char{display:inline-block;will-change:transform,opacity,filter}
+  .word{display:inline-block;overflow:hidden;padding:0 .02em}
+  .deck{font-size:18px;line-height:1.5;max-width:560px;font-weight:500;margin-top:26px;border-top:2px solid var(--ink);padding-top:20px}
+  .actions{display:flex;margin-top:28px;border:3px solid var(--ink);width:fit-content;max-width:100%;flex-wrap:wrap}
+  .actions input{font-family:'JetBrains Mono';font-size:14px;border:none;padding:15px 16px;background:var(--paper);outline:none;min-width:230px;flex:1;color:var(--ink)}
+  .actions button{font-family:'Archivo Black';font-size:13px;text-transform:uppercase;background:var(--ink);color:var(--paper);border:none;padding:15px 24px;cursor:none;border-left:3px solid var(--ink);transition:.15s}
+  .actions button:hover{background:var(--accent)}
+  .hint{font-family:'JetBrains Mono';font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-top:18px}
+
+  /* hero lens document */
+  .hero-lens{background:var(--paper2);display:flex;align-items:center;justify-content:center;padding:34px;position:relative}
+  .doc{width:100%;max-width:430px;height:540px;background:#fff;box-shadow:0 26px 70px -28px rgba(0,0,0,.45);position:relative;overflow:hidden;border:1px solid var(--ink)}
+  .doc-lab{position:absolute;top:12px;font-family:'JetBrains Mono';font-size:10px;letter-spacing:.13em;text-transform:uppercase;z-index:6}
+  .doc-lab.l{left:14px;color:var(--ink-soft)}.doc-lab.r{right:14px;color:var(--green)}
+  .layer{position:absolute;inset:0;padding:48px 28px;font-size:13.5px;line-height:1.72}
+  .layer.fog{color:#8f897d;font-family:'Fraunces',serif;font-style:italic}
+  .layer.clear{font-family:'Archivo';color:var(--ink);
+    -webkit-mask-image:radial-gradient(circle 85px at -200px -200px,#000 60%,transparent 72%);
+    mask-image:radial-gradient(circle 85px at -200px -200px,#000 60%,transparent 72%)}
+  .layer.clear b{color:var(--green);font-weight:700}
+  .layer.clear .warn{color:var(--danger);font-weight:700}
+  .lens-cap{position:absolute;bottom:16px;left:34px;font-family:'JetBrains Mono';font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}
+
+  /* ---------- MARQUEE ---------- */
+  .mq{border-bottom:3px solid var(--ink);overflow:hidden;white-space:nowrap;background:var(--paper)}
+  .mq .row{display:inline-block;font-family:'Archivo Black';font-size:clamp(30px,5vw,64px);text-transform:uppercase;letter-spacing:-.03em;padding:14px 0}
+  .mq .row span{margin:0 26px}.mq .row .o{-webkit-text-stroke:1.5px var(--ink);color:transparent}.mq .row .red{color:var(--accent)}
+
+  /* ---------- STATS ---------- */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:3px solid var(--ink)}
+  .stat{padding:30px 26px;border-right:3px solid var(--ink)}.stat:last-child{border-right:none}
+  .stat .n{font-family:'Archivo Black';font-size:clamp(38px,5.5vw,76px);line-height:1;letter-spacing:-.04em}
+  .stat .n.r{color:var(--accent)}.stat .n.g{color:var(--green)}
+  .stat .l{font-family:'JetBrains Mono';font-size:11px;text-transform:uppercase;letter-spacing:.1em;margin-top:10px;color:var(--ink-soft)}
+
+  /* ---------- HORIZONTAL PINNED ---------- */
+  .horiz{position:relative;border-bottom:3px solid var(--ink);overflow:hidden}
+  .htrack{display:flex;width:max-content;will-change:transform}
+  .hpanel{width:100vw;min-height:100vh;display:grid;grid-template-columns:1fr 1fr;border-right:3px solid var(--ink)}
+  .hpanel .htext{padding:80px 50px;display:flex;flex-direction:column;justify-content:center}
+  .hpanel .hno{font-family:'Archivo Black';font-size:clamp(80px,14vw,220px);line-height:.8;color:var(--paper2);-webkit-text-stroke:2px var(--ink);letter-spacing:-.05em}
+  .hpanel h3{font-family:'Archivo Black';font-size:clamp(34px,4.5vw,68px);text-transform:uppercase;letter-spacing:-.03em;line-height:.9;margin:20px 0 18px}
+  .hpanel h3 .red{color:var(--accent)}
+  .hpanel p{font-size:18px;line-height:1.5;max-width:440px;color:var(--ink-soft)}
+  .hpanel .hvis{background:var(--paper2);display:flex;align-items:center;justify-content:center;padding:50px;position:relative;overflow:hidden}
+  .hpanel:nth-child(2) .hvis{background:var(--ink)}
+  .hbig{font-family:'Fraunces',serif;font-style:italic;font-size:clamp(40px,6vw,90px);color:var(--ink-soft);text-align:center;line-height:1.05}
+  .hbig .red{color:var(--accent);font-family:'Archivo Black';font-style:normal;display:block;text-transform:uppercase}
+  .hvis .chatbox{background:var(--paper);border:2px solid var(--paper);width:100%;max-width:380px;color:var(--ink)}
+  .hvis .chatbox .q{background:var(--accent);color:#fff;padding:12px 16px;font-family:'JetBrains Mono';font-size:13px}
+  .hvis .chatbox .a{padding:16px;font-size:15px;line-height:1.5}.hvis .chatbox .a .src{font-family:'JetBrains Mono';font-size:11px;color:var(--green);margin-top:10px;display:block}
+  .radar{width:260px;height:260px;position:relative}
+  .radar .ringc{position:absolute;border:1.5px solid rgba(237,231,216,.25);border-radius:50%;inset:0}
+  .radar .ringc.r2{inset:18%}.radar .ringc.r3{inset:36%}
+  .radar .sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,rgba(255,59,0,.45),transparent 40%);animation:sweep 3s linear infinite}
+  @keyframes sweep{to{transform:rotate(360deg)}}
+  .radar .blip{position:absolute;width:12px;height:12px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+
+  /* ---------- SCROLL-SCRUB TRANSLATION ---------- */
+  .scrolly{display:grid;grid-template-columns:1fr 1fr;border-bottom:3px solid var(--ink)}
+  .scrolly .sticky{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;justify-content:center;padding:0 26px;border-right:3px solid var(--ink);background:var(--paper)}
+  .scrolly .sticky .k{font-family:'JetBrains Mono';font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:16px}
+  .scrolly .sticky h2{font-family:'Archivo Black';font-size:clamp(32px,4vw,60px);text-transform:uppercase;letter-spacing:-.03em;line-height:.9}
+  .meterwrap{margin-top:30px}
+  .meterwrap .pct{font-family:'Archivo Black';font-size:90px;line-height:1;-webkit-text-stroke:2px var(--ink);color:var(--paper2)}
+  .meterwrap .track{height:8px;background:var(--paper2);border:2px solid var(--ink);margin-top:14px;position:relative}
+  .meterwrap .track i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--accent)}
+  .scrolly .feed{padding:42vh 26px}
+  .line{font-family:'Fraunces',serif;font-size:clamp(20px,2.4vw,30px);line-height:1.4;color:var(--ink-soft);font-style:italic;margin-bottom:52px;filter:blur(4px);opacity:.4;transition:.5s}
+  .line.clear{font-family:'Archivo';font-style:normal;font-weight:600;color:var(--ink);filter:blur(0);opacity:1}
+  .line .new{color:var(--green)}
+  .line .tag{display:block;font-family:'JetBrains Mono';font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;font-style:normal}
+
+  /* ---------- PULL ---------- */
+  .pull{padding:90px 26px;text-align:center;border-bottom:3px solid var(--ink);overflow:hidden}
+  .pull blockquote{font-family:'Archivo Black';font-size:clamp(28px,5vw,70px);line-height:.98;letter-spacing:-.03em;text-transform:uppercase;max-width:18ch;margin:0 auto}
+  .pull blockquote .red{color:var(--accent)}.pull blockquote .serif{font-family:'Fraunces',serif;font-style:italic;text-transform:none;font-weight:400}
+  .pull cite{font-family:'JetBrains Mono';font-size:12px;text-transform:uppercase;letter-spacing:.12em;display:block;margin-top:26px;color:var(--ink-soft)}
+
+  /* ---------- END / KINETIC FOOTER ---------- */
+  .end{background:var(--ink);color:var(--paper);padding:90px 26px 40px;text-align:center;position:relative;overflow:hidden}
+  .end h2{font-family:'Archivo Black';font-size:clamp(38px,7vw,104px);text-transform:uppercase;letter-spacing:-.045em;line-height:.86;margin-bottom:30px;position:relative;z-index:2}
+  .end h2 .red{color:var(--accent)}
+  .end button{font-family:'Archivo Black';font-size:16px;text-transform:uppercase;background:var(--accent);color:#fff;border:none;padding:20px 42px;cursor:none;position:relative;z-index:2;transition:.15s}
+  .end button:hover{background:var(--paper);color:var(--ink)}
+  .kinetic{font-family:'Archivo Black';font-size:clamp(70px,22vw,320px);line-height:.8;letter-spacing:-.05em;text-transform:uppercase;
+    -webkit-text-stroke:2px rgba(237,231,216,.25);color:transparent;white-space:nowrap;margin-top:50px;will-change:transform}
+  footer{padding:16px 26px;font-family:'JetBrains Mono';font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:flex;justify-content:space-between;background:var(--ink);color:var(--ink-soft);border-top:3px solid var(--accent)}
+
+  @media(max-width:860px){.hero,.stats,.scrolly,.hpanel{grid-template-columns:1fr}
+    .hero-main{border-right:none;border-bottom:3px solid var(--ink)}.stat{border-right:none;border-bottom:3px solid var(--ink)}
+    .scrolly .sticky{position:relative;height:auto;padding:40px 26px;border-right:none;border-bottom:3px solid var(--ink)}
+    .scrolly .feed{padding:30px 26px}.navlinks{display:none}.hpanel{min-height:auto}.hpanel .htext{padding:50px 26px}.hpanel .hvis{min-height:50vh}}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<!-- PRELOADER -->
+<div id="loader">
+  <div class="lword">ClearDoc</div>
+  <div class="lbar"><i></i></div>
+  <div class="lmeta"><span>loading clarity</span><b id="lpct">0%</b></div>
+</div>
+<div class="reveal-panel"></div>
+
+<!-- CURSOR -->
+<div id="cur"></div>
+<div id="ring"><span class="lenslabel">clarity lens</span></div>
+
+<!-- TICKER -->
+<div class="ticker"><div class="t">
+  <span>📰 THE CLARITY PRESS — NO. 001</span><span>///</span><span>9 OF 10 PEOPLE SIGN CONTRACTS THEY <b>NEVER READ</b></span><span>///</span><span>80% OF MEDICAL BILLS CONTAIN <b>ERRORS</b></span><span>///</span><span>CLEARDOC TRANSLATES THE FINE PRINT IN <b>SECONDS</b></span><span>///</span>
+  <span>📰 THE CLARITY PRESS — NO. 001</span><span>///</span><span>9 OF 10 PEOPLE SIGN CONTRACTS THEY <b>NEVER READ</b></span><span>///</span><span>80% OF MEDICAL BILLS CONTAIN <b>ERRORS</b></span><span>///</span><span>CLEARDOC TRANSLATES THE FINE PRINT IN <b>SECONDS</b></span><span>///</span>
+</div></div>
+
+<!-- NAV -->
+<nav>
+  <div class="brand" data-cursor="grow">CLEARDOC<sup>™</sup></div>
+  <div class="navlinks"><a href="#" data-cursor="grow">Simplify</a><a href="#" data-cursor="grow">Ask</a><a href="#radar" data-cursor="grow">Risk Radar</a><a href="#" data-cursor="grow">Pricing</a><a href="#" class="cta" data-cursor="grow">Open Document ↗</a></div>
+</nav>
+<div class="masthead"><span>The Clarity Edition</span><span>Plain Language · Cited Answers · Risk Flags</span><span>Est. 2026</span></div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-main">
+    <canvas id="fogcanvas"></canvas>
+    <span class="kicker">Document Simplifier + AI Reader</span>
+    <h1 id="headline">Every <span class="serif">impenetrable</span> document, <span class="red">clear.</span></h1>
+    <p class="deck reveal">Drop in a contract, a medical bill, a lease, a research paper. ClearDoc strips the legalese into language a human can read — then stays in the room to answer anything, citing the exact source line every time.</p>
+    <div class="actions reveal">
+      <input placeholder="paste a link or drop a PDF…">
+      <button data-cursor="grow">Clarify →</button>
+    </div>
+    <div class="hint reveal">↳ move your cursor over the document — the lens clarifies what it touches</div>
+  </div>
+
+  <div class="hero-lens">
+    <div class="doc" id="doc" data-cursor="lens">
+      <span class="doc-lab l">Original · §4.2 Indemnification</span>
+      <span class="doc-lab r">ClearDoc ✦</span>
+      <div class="layer fog">
+        The party of the first part shall indemnify and hold harmless the party of the second part from and against any and all liabilities, claims, damages and expenses, including reasonable attorneys' fees, notwithstanding any provision herein to the contrary, and such obligation shall survive termination in perpetuity.
+      </div>
+      <div class="layer clear" id="clearLayer">
+        If you break this agreement, you must <b>pay for any losses</b> the other side suffers — including their legal fees. This applies <b>even after the contract ends</b>. <span class="warn">⚠ "in perpetuity" means forever, with no time limit.</span>
+      </div>
+      <div class="lens-cap">drag your clarity lens across the page</div>
+    </div>
+  </div>
+</section>
+
+<!-- MARQUEE -->
+<div class="mq"><div class="row" id="mqrow">
+  <span>CONTRACTS</span><span class="red">→ CLEAR</span><span class="o">MEDICAL BILLS</span><span class="red">→ CLEAR</span><span>LEASES</span><span class="red">→ CLEAR</span><span class="o">TERMS OF SERVICE</span><span class="red">→ CLEAR</span><span>PAPERS</span><span class="red">→ CLEAR</span>
+  <span>CONTRACTS</span><span class="red">→ CLEAR</span><span class="o">MEDICAL BILLS</span><span class="red">→ CLEAR</span><span>LEASES</span><span class="red">→ CLEAR</span><span class="o">TERMS OF SERVICE</span><span class="red">→ CLEAR</span><span>PAPERS</span><span class="red">→ CLEAR</span>
+</div></div>
+
+<!-- STATS -->
+<section class="stats">
+  <div class="stat"><div class="n r" data-count="8" data-suffix="th">0</div><div class="l">grade reading level — guaranteed</div></div>
+  <div class="stat"><div class="n" data-count="100" data-suffix="%">0</div><div class="l">answers cited to the source line</div></div>
+  <div class="stat"><div class="n g" data-count="0" data-suffix="">0</div><div class="l">law degrees required</div></div>
+</section>
+
+<!-- HORIZONTAL PINNED -->
+<section class="horiz" id="horiz">
+  <div class="htrack" id="htrack">
+    <div class="hpanel">
+      <div class="htext"><div class="hno">01</div><h3>Drop <span class="red">anything</span> in.</h3><p>A lease, an EOB, terms of service, a 40-page contract, a dense research PDF. Paste a link or upload the file — ClearDoc handles the mess.</p></div>
+      <div class="hvis"><div class="hbig">heretofore<span class="red">until now</span></div></div>
+    </div>
+    <div class="hpanel">
+      <div class="htext"><div class="hno">02</div><h3>Read it <span class="red">clear.</span></h3><p>A side-by-side plain-English rewrite at an 8th-grade level — no nuance lost. Jargon defined inline. The traps flagged in red before they bite.</p></div>
+      <div class="hvis"><div class="chatbox"><div class="q">→ can I cancel early?</div><div class="a">Yes — but you'll pay for the remaining months. There's no refund clause.<span class="src">cited · §7.1 termination</span></div></div></div>
+    </div>
+    <div class="hpanel">
+      <div class="htext"><div class="hno">03</div><h3>Ask it <span class="red">anything.</span></h3><p>"What am I liable for? What's my deadline? What's the catch?" Every answer points back to the exact clause — no hallucinations, just the source.</p></div>
+      <div class="hvis"><div class="radar"><div class="ringc"></div><div class="ringc r2"></div><div class="ringc r3"></div><div class="sweep"></div><div class="blip" style="top:30%;left:60%"></div><div class="blip" style="top:65%;left:40%"></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCROLL-SCRUB TRANSLATION -->
+<section class="scrolly" id="radar">
+  <div class="sticky">
+    <div class="k">// live translation</div>
+    <h2>Watch a lease<br>become readable.</h2>
+    <div class="meterwrap"><div class="pct" id="pct">0%</div><div class="track"><i id="meterbar"></i></div></div>
+  </div>
+  <div class="feed" id="feed">
+    <p class="line" data-new="You're responsible for any damage during your stay."><span class="tag">§2 · liability</span>Tenant shall be liable for all damages howsoever caused during the tenancy.</p>
+    <p class="line" data-new="Guests can't live here more than 14 days."><span class="tag">§5 · guests</span>No occupant other than those named herein shall reside upon the premises in excess of fourteen (14) consecutive days.</p>
+    <p class="line" data-new="To leave, give 60 days written notice — or lose your deposit."><span class="tag">§9 · termination</span>Lessee shall provide sixty (60) days' written notice, failing which the security deposit shall be forfeit.</p>
+    <p class="line" data-new="The landlord can enter with 24 hours notice."><span class="tag">§11 · entry</span>Lessor reserves the right of entry upon twenty-four (24) hours' prior notification.</p>
+  </div>
+</section>
+
+<!-- PULL -->
+<section class="pull">
+  <blockquote id="pullq">The <span class="serif">fine print</span> was never meant to be <span class="red">read.</span></blockquote>
+  <cite>— so we built the machine that reads it for you</cite>
+</section>
+
+<!-- END -->
+<section class="end">
+  <h2 class="reveal">READ WHAT<br>YOU <span class="red">SIGN.</span> FINALLY.</h2>
+  <button data-cursor="grow">Clarify your first document — free →</button>
+  <div class="kinetic" id="kinetic">CLEARDOC · CLEARDOC · CLEARDOC ·&nbsp;</div>
+</section>
+<footer><span>ClearDoc — concept 05 · "The Masterpiece"</span><span>fog → clarity</span></footer>
+
+<!-- LIBS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
+<script>
+(function(){
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- SPLIT HEADLINE INTO CHARS ---------- */
+  const hl=document.getElementById('headline');
+  (function split(){
+    const walk=(node)=>{
+      const kids=[...node.childNodes];
+      kids.forEach(n=>{
+        if(n.nodeType===3){ // text
+          const frag=document.createDocumentFragment();
+          n.textContent.split(/(\s+)/).forEach(tok=>{
+            if(tok.trim()===''){frag.appendChild(document.createTextNode(tok));return;}
+            const w=document.createElement('span');w.className='word';
+            tok.split('').forEach(ch=>{const c=document.createElement('span');c.className='char';c.textContent=ch;w.appendChild(c);});
+            frag.appendChild(w);
+          });
+          node.replaceChild(frag,n);
+        } else if(n.nodeType===1){ walk(n); }
+      });
+    };
+    walk(hl);
+  })();
+  const chars=hl.querySelectorAll('.char');
+
+  /* ---------- GSAP / LENIS SETUP ---------- */
+  let lenis;
+  if(window.gsap){
+    gsap.registerPlugin(ScrollTrigger);
+    if(window.Lenis && !reduce){
+      lenis=new Lenis({lerp:.09,wheelMultiplier:1});
+      lenis.on('scroll',ScrollTrigger.update);
+      gsap.ticker.add(t=>lenis.raf(t*1000));
+      gsap.ticker.lagSmoothing(0);
+    }
+  }
+
+  /* ---------- PRELOADER ---------- */
+  const loader=document.getElementById('loader'),bar=loader.querySelector('.lbar i'),lpct=document.getElementById('lpct'),
+        panel=document.querySelector('.reveal-panel');
+  function startSite(){
+    if(!window.gsap){loader.style.display='none';return;}
+    const obj={v:0};
+    const tl=gsap.timeline();
+    tl.to(obj,{v:100,duration:1.4,ease:'power2.inOut',onStart:()=>loader.classList.add('go'),
+        onUpdate:()=>{bar.style.width=obj.v+'%';lpct.textContent=Math.round(obj.v)+'%';}})
+      .to('#loader .lword,#loader .lbar,#loader .lmeta',{y:-30,opacity:0,duration:.5,ease:'power2.in',stagger:.05})
+      .set(loader,{display:'none'})
+      .fromTo(panel,{y:'0%'},{y:'-100%',duration:.9,ease:'power4.inOut'},'<')
+      .add(introAnim,'-=.3');
+  }
+  function introAnim(){
+    if(reduce){gsap.set(chars,{opacity:1});return;}
+    gsap.fromTo(chars,{yPercent:120,opacity:0,filter:'blur(12px)'},
+      {yPercent:0,opacity:1,filter:'blur(0px)',duration:1,ease:'power4.out',stagger:{each:.02,from:'start'}});
+    gsap.fromTo('.reveal',{y:30,opacity:0},{y:0,opacity:1,duration:.9,ease:'power3.out',stagger:.12,delay:.4});
+  }
+  window.addEventListener('load',()=>setTimeout(startSite,200));
+
+  /* ---------- CUSTOM CURSOR + CLARITY LENS ---------- */
+  const cur=document.getElementById('cur'),ring=document.getElementById('ring'),
+        doc=document.getElementById('doc'),clearLayer=document.getElementById('clearLayer');
+  let mx=innerWidth/2,my=innerHeight/2,rx=mx,ry=my;
+  const setCur = window.gsap?gsap.quickSetter(cur,'css'):null;
+  addEventListener('mousemove',e=>{
+    mx=e.clientX;my=e.clientY;
+    if(setCur)setCur({left:mx+'px',top:my+'px'}); else {cur.style.left=mx+'px';cur.style.top=my+'px';}
+    // doc lens mask
+    const r=doc.getBoundingClientRect();
+    if(mx>=r.left&&mx<=r.right&&my>=r.top&&my<=r.bottom){
+      const lx=mx-r.left,ly=my-r.top;
+      const mask=`radial-gradient(circle 85px at ${lx}px ${ly}px,#000 60%,transparent 72%)`;
+      clearLayer.style.webkitMaskImage=mask;clearLayer.style.maskImage=mask;
+    }
+  });
+  (function ringLoop(){ rx+=(mx-rx)*.18; ry+=(my-ry)*.18; ring.style.left=rx+'px';ring.style.top=ry+'px'; requestAnimationFrame(ringLoop); })();
+  document.querySelectorAll('[data-cursor="grow"]').forEach(el=>{
+    el.addEventListener('mouseenter',()=>{ring.style.width='80px';ring.style.height='80px';ring.style.borderColor='var(--accent)';});
+    el.addEventListener('mouseleave',()=>{ring.style.width='46px';ring.style.height='46px';ring.style.borderColor='var(--ink)';});
+  });
+  doc.addEventListener('mouseenter',()=>ring.classList.add('lens'));
+  doc.addEventListener('mouseleave',()=>{ring.classList.remove('lens');clearLayer.style.maskImage='radial-gradient(circle 85px at -200px -200px,#000 60%,transparent 72%)';clearLayer.style.webkitMaskImage=clearLayer.style.maskImage;});
+
+  /* ---------- FOG CANVAS (hero bg) ---------- */
+  (function fog(){
+    const cv=document.getElementById('fogcanvas');if(!cv)return;const ctx=cv.getContext('2d');
+    let W,H;function rs(){W=cv.width=cv.offsetWidth;H=cv.height=cv.offsetHeight;}rs();addEventListener('resize',rs);
+    const puffs=Array.from({length:14},(_,i)=>({x:Math.random(),y:Math.random(),r:.2+Math.random()*.4,s:.0003+Math.random()*.0006,p:Math.random()*9}));
+    let t=0;
+    function draw(){
+      ctx.clearRect(0,0,W,H);ctx.globalCompositeOperation='multiply';
+      puffs.forEach(pf=>{
+        const cx=(pf.x+Math.sin(t*pf.s+pf.p)*.18)*W, cy=(pf.y+Math.cos(t*pf.s*1.2+pf.p)*.18)*H, rad=pf.r*Math.max(W,H);
+        const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rad);
+        g.addColorStop(0,'rgba(90,85,74,.10)');g.addColorStop(1,'rgba(90,85,74,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,rad,0,7);ctx.fill();
+      });
+      t++;requestAnimationFrame(draw);
+    }
+    if(!reduce)draw();
+  })();
+
+  if(!window.gsap){return;} // graceful fallback
+
+  /* ---------- MARQUEE drift on scroll ---------- */
+  gsap.to('#mqrow',{xPercent:-50,repeat:-1,duration:24,ease:'none'});
+  ScrollTrigger.create({trigger:'.mq',start:'top bottom',end:'bottom top',
+    onUpdate:self=>gsap.to('#mqrow',{x:self.getVelocity()/-60,duration:.4,overwrite:true})});
+
+  /* ---------- STAT COUNTERS ---------- */
+  gsap.utils.toArray('[data-count]').forEach(el=>{
+    const end=+el.dataset.count,suf=el.dataset.suffix||'';const o={v:0};
+    ScrollTrigger.create({trigger:el,start:'top 85%',once:true,onEnter:()=>{
+      gsap.to(o,{v:end,duration:1.4,ease:'power2.out',onUpdate:()=>el.textContent=Math.round(o.v)+suf});
+    }});
+  });
+
+  /* ---------- HORIZONTAL PINNED ---------- */
+  const track=document.getElementById('htrack');
+  function dist(){return track.scrollWidth-innerWidth;}
+  gsap.to(track,{x:()=>-dist(),ease:'none',
+    scrollTrigger:{trigger:'#horiz',start:'top top',end:()=>'+='+dist(),scrub:1,pin:true,anticipatePin:1,invalidateOnRefresh:true}});
+
+  /* ---------- SCROLL-SCRUB TRANSLATION ---------- */
+  const lines=gsap.utils.toArray('.line'),pct=document.getElementById('pct'),meterbar=document.getElementById('meterbar');
+  lines.forEach(l=>{
+    ScrollTrigger.create({trigger:l,start:'top 70%',once:true,onEnter:()=>{
+      if(!l.classList.contains('clear')){l.classList.add('clear');l.innerHTML=l.querySelector('.tag').outerHTML+'<span class="new">'+l.dataset.new+'</span>';upd();}
+    }});
+  });
+  function upd(){const d=lines.filter(l=>l.classList.contains('clear')).length;const p=Math.round(d/lines.length*100);pct.textContent=p+'%';meterbar.style.width=p+'%';}
+
+  /* ---------- PULL QUOTE word reveal ---------- */
+  gsap.fromTo('#pullq',{opacity:.15},{opacity:1,ease:'none',scrollTrigger:{trigger:'#pullq',start:'top 80%',end:'top 35%',scrub:true}});
+
+  /* ---------- KINETIC FOOTER text ---------- */
+  gsap.to('#kinetic',{xPercent:-30,scrollTrigger:{trigger:'.end',start:'top bottom',end:'bottom top',scrub:1}});
+
+  /* hero document parallax */
+  gsap.to('.hero-lens .doc',{y:-40,scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:1}});
+
+  ScrollTrigger.refresh();
+})();
+</script>
+</body>
+</html>

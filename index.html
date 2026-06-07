@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearDoc — Read what you sign. Finally.</title>
+<meta name="description" content="ClearDoc turns dense legal, medical and financial documents into plain English — and answers your questions cited to the exact line.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;900&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/theme.css">
+</head>
+<body data-page="home">
+<a href="#main" class="skip">Skip to content</a>
+<div class="grain" aria-hidden="true"></div>
+
+<!-- PRELOADER -->
+<div id="loader" aria-hidden="true"><div class="lword">ClearDoc</div><div class="lbar"><i></i></div><div class="lmeta mono"><span>loading clarity</span><b id="lpct">0%</b></div></div>
+<div class="reveal-panel" aria-hidden="true"></div>
+
+<!-- TICKER -->
+<div class="ticker" aria-hidden="true"><div class="t mono" id="ticker">
+  <span>📰 THE CLARITY PRESS</span><span>///</span><span>9 OF 10 PEOPLE SIGN CONTRACTS THEY <b>NEVER READ</b></span><span>///</span><span>80% OF MEDICAL BILLS CONTAIN <b>ERRORS</b></span><span>///</span><span>CLEARDOC TRANSLATES THE FINE PRINT IN <b>SECONDS</b></span><span>///</span>
+  <span>📰 THE CLARITY PRESS</span><span>///</span><span>9 OF 10 PEOPLE SIGN CONTRACTS THEY <b>NEVER READ</b></span><span>///</span><span>80% OF MEDICAL BILLS CONTAIN <b>ERRORS</b></span><span>///</span><span>CLEARDOC TRANSLATES THE FINE PRINT IN <b>SECONDS</b></span><span>///</span>
+</div></div>
+
+<!-- NAV -->
+<nav aria-label="Primary">
+  <a class="brand" href="index.html">CLEARDOC<sup>™</sup></a>
+  <div class="navlinks">
+    <a href="analyze.html">Simplify</a><a href="#press" data-scroll>Live Demo</a><a href="#cost" data-scroll>The Cost</a><a href="pricing.html">Pricing</a><a href="analyze.html" class="cta">Open a Document ↗</a>
+  </div>
+</nav>
+<div class="masthead"><span>THE CLARITY EDITION — No. <b>0042</b></span><span>PLAIN LANGUAGE / CITED ANSWERS / RISK FLAGS</span><span>EST. 2026</span></div>
+
+<main id="main">
+
+<!-- ===== HERO ===== -->
+<section class="hero" id="hero" aria-labelledby="heroTitle">
+  <div class="hero-main">
+    <canvas id="fogcanvas" aria-hidden="true"></canvas>
+    <span class="kicker">Document Simplifier + AI Reader</span>
+    <h1 id="heroTitle">Every <span class="typeset"><span class="fog">impenetrable</span><span class="sharp">impenetrable</span><span class="galley" aria-hidden="true"></span></span> document, <span class="red">clear.</span></h1>
+    <p class="subhead">Paste any contract, bill, lease or policy. ClearDoc rewrites the legalese into <b>plain English</b> — and answers your questions <b>cited to the exact line</b>.</p>
+    <div class="clarifier">
+      <label class="lbl" for="heroInput">Try it now — paste a line of legalese</label>
+      <div class="actions">
+        <input id="heroInput" type="text" placeholder="e.g. Lessee shall indemnify lessor in perpetuity…" value="Lessee shall, notwithstanding any provision herein, indemnify lessor in perpetuity.">
+        <button id="heroGo">Clarify →</button>
+      </div>
+      <p class="hero-msg mono" id="heroMsg" role="status" aria-live="polite">↳ no signup to read your first document</p>
+    </div>
+  </div>
+  <div class="hero-side">
+    <div class="doc hcard" id="hcard">
+      <span class="doc-lab l">Your text · original</span><span class="doc-lab r">ClearDoc ✦</span>
+      <div class="hscan" aria-hidden="true"></div>
+      <div class="layer fogl" id="hfog">Lessee shall, notwithstanding any provision herein, indemnify lessor in perpetuity.</div>
+      <div class="layer clearl" id="hclear">You (the renter) must <b>cover the landlord's losses</b> — <span class="w">forever</span>, no matter what else the contract says.</div>
+      <div class="cardcap mono">↑ your sentence, set in plain English</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== INDEX ===== -->
+<div class="idxcap"><span>BY THE NUMBERS · WHY CLARITY MATTERS</span></div>
+<section class="stats" aria-label="Impact figures">
+  <div class="stat"><div class="n r" data-count="4200000" data-fmt="m">0</div><div class="l">documents demystified</div><div class="foot">since launch</div></div>
+  <div class="stat"><div class="n" data-count="2900000" data-fmt="m">0</div><div class="l">traps flagged before signature</div><div class="foot">cumulative</div></div>
+  <div class="stat"><div class="n g" data-count="48700000" data-fmt="dollarm">0</div><div class="l">in fees &amp; errors caught</div><div class="foot">user-reported</div></div>
+  <div class="stat"><div class="n" data-count="8" data-fmt="th">0</div><div class="l">guaranteed reading level</div><div class="foot">every rewrite</div></div>
+</section>
+
+<!-- ===== PRESS ROOM ===== -->
+<section class="pressroom" id="press" aria-labelledby="pressTitle">
+  <div class="seclead"><div class="k">// the press room · scripted walkthrough</div><h2 id="pressTitle">See ClearDoc <span class="red">read a contract.</span></h2><p>A guided demo of the product on a sample contract. Pick a channel to study one step, or let it play.</p></div>
+  <div class="device">
+    <div class="urlbar">
+      <span class="sq" aria-hidden="true"></span><span class="sq" aria-hidden="true"></span><span class="sq" aria-hidden="true"></span>
+      <span class="u">cleardoc.app/demo · <b>DEMO</b> · sample contract</span>
+      <button class="pausebtn" id="pauseDemo" aria-pressed="false">❚❚ Pause demo</button>
+    </div>
+    <div class="stagewrap">
+      <div class="rail">
+        <div class="demolabel"><span class="d" aria-hidden="true"></span> scripted</div>
+        <div role="tablist" aria-label="Demo channels" id="tablist">
+          <button class="tab" role="tab" id="tab0" aria-selected="true" aria-controls="act0">01 · Simplify</button>
+          <button class="tab" role="tab" id="tab1" aria-selected="false" aria-controls="act1" tabindex="-1">02 · Ask</button>
+          <button class="tab" role="tab" id="tab2" aria-selected="false" aria-controls="act2" tabindex="-1">03 · Risk Radar</button>
+          <button class="tab" role="tab" id="tab3" aria-selected="false" aria-controls="act3" tabindex="-1">04 · Before→After</button>
+        </div>
+      </div>
+
+      <div class="stage" id="stage">
+        <div class="actprog" id="actprog" aria-hidden="true"></div>
+        <div class="scanline" aria-hidden="true"></div>
+        <div class="act" id="act0" role="tabpanel" aria-labelledby="tab0" tabindex="0">
+          <div class="a1scan" id="a1scan" aria-hidden="true"></div>
+          <div class="a1line" data-clear="If you break this deal, you <b>cover the other side's losses</b>.">The party of the first part shall indemnify the party of the second part,</div>
+          <div class="a1line" data-clear="That includes <b>their legal fees</b>.">including any and all reasonable attorneys' fees and expenses,</div>
+          <div class="a1line" data-clear="It applies <span class='w'>no matter what else this contract says</span>.">notwithstanding any provision herein to the contrary,</div>
+          <div class="a1line" data-clear="And it <span class='w'>never expires</span> — not even after the deal ends.">and such obligation shall survive termination in perpetuity.</div>
+          <div class="rl-chip mono">READING LEVEL <b id="a1rl">12th</b></div>
+        </div>
+        <div class="act" id="act1" role="tabpanel" aria-labelledby="tab1" tabindex="0">
+          <svg class="connector" id="connector" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path id="connpath" pathLength="1" d="M 80 82 C 52 74, 28 52, 14 16"/></svg>
+          <div class="chat">
+            <div class="src-clause" id="srcClause">§7.1 — “Subscriber may not terminate prior to the expiry of the committed term; remaining periodic charges shall become immediately due.”</div>
+            <div class="bubble q"><span id="askType"></span><span class="caret" aria-hidden="true">&nbsp;</span></div>
+            <div class="bubble a" id="ansBubble"><span class="think" id="think" aria-hidden="true"><i></i><i></i><i></i></span><span id="ansText"></span><span class="cite" id="cite">cited · §7.1 Termination</span></div>
+          </div>
+        </div>
+        <div class="act" id="act2" role="tabpanel" aria-labelledby="tab2" tabindex="0">
+          <div class="a3radar" aria-hidden="true"><div class="sweep"></div></div>
+          <div class="risk-list">
+            <div class="rrow" data-risk="g"><span class="rbar"></span><span class="ro">“This Agreement commences on the Effective Date.”</span><span class="rflag">Safe</span></div>
+            <div class="rrow" data-risk="a"><span class="rbar"></span><span class="ro">“…renews automatically for successive 12-month terms…”</span><span class="rflag">Watch</span></div>
+            <div class="rrow" data-risk="r"><span class="rbar"></span><span class="ro">“…non-refundable early-cancellation assessment…”</span><span class="rflag">Trap</span></div>
+            <div class="rrow" data-risk="g"><span class="rbar"></span><span class="ro">“Notices shall be sent to the address on file.”</span><span class="rflag">Safe</span></div>
+            <div class="rrow" data-risk="r"><span class="rbar"></span><span class="ro">“…waives the right to trial by jury and class action…”</span><span class="rflag">Trap</span></div>
+          </div>
+          <div class="a3count mono" id="a3count">RISK SCORE · 0 TRAPS</div>
+        </div>
+        <div class="act" id="act3" role="tabpanel" aria-labelledby="tab3" tabindex="0">
+          <div class="ba">
+            <div class="page dense" id="baDense"></div>
+            <div class="page clean" id="baClean"><b>The plain version.</b><br><br>You cover their losses, including legal fees. It never expires. You can't cancel early without paying out the remaining term.</div>
+            <div class="ba-stamp" id="baStamp">1,400 → 180 words · 87% shorter</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rail right">
+        <div class="transcript" aria-hidden="true">
+          <span class="tt">▸ run log</span>
+          <div class="tl" id="tl0">00:02 · simplified 4 clauses</div>
+          <div class="tl" id="tl1">00:07 · answered w/ <b>citation</b></div>
+          <div class="tl" id="tl2">00:12 · flagged <b>2 traps</b></div>
+          <div class="tl" id="tl3">00:18 · condensed <b>87%</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== BYOF ===== -->
+<section class="byof" id="byof" aria-labelledby="byofTitle">
+  <div class="seclead" style="padding-left:0;padding-right:0"><div class="k">// the composing bench</div><h2 id="byofTitle">Bring your own <span class="red">fog.</span></h2><p>Paste a longer passage and watch it set in plain English — runs entirely in your browser, nothing leaves this page.</p></div>
+  <div class="byof-wrap">
+    <label class="vh" for="byofIn">Paste legalese to clarify</label>
+    <textarea id="byofIn">The aforementioned policyholder shall be liable for any and all deductibles pursuant to the terms set forth herein, notwithstanding any adjustment tendered by the insurer.</textarea>
+    <div class="ctl">
+      <button class="qf" data-fill="Tenant shall forfeit the security deposit in the event that notice is not tendered sixty days prior to termination.">try: Lease</button>
+      <button class="qf" data-fill="Patient acknowledges that facility fees, notwithstanding insurance adjustment, shall be the sole responsibility of the patient.">try: Medical Bill</button>
+      <button class="qf" data-fill="Notwithstanding the foregoing, lessee shall indemnify and hold lessor harmless heretofore and in perpetuity.">try: Contract</button>
+      <button class="go" id="byofGo">Set in plain English →</button>
+    </div>
+    <div class="galleyout"><div class="byofscan" id="byofScan" aria-hidden="true"></div><div class="pre mono">PLAIN ENGLISH ✦</div><div class="out" id="byofOut" role="status" aria-live="polite">Paste or pick a sample, then press “Set in plain English”.</div></div>
+    <div class="meta"><span>JARGON FOUND: <b id="byofJargon">0</b></span><span>READING LEVEL 12th → <b>7th</b></span><span>↳ 100% OFFLINE</span></div>
+  </div>
+</section>
+
+<!-- ===== TWO PRESSES ===== -->
+<section class="twopress" aria-labelledby="tpTitle">
+  <div class="seclead" style="padding-left:0;padding-right:0"><div class="k">// the two presses</div><h2 id="tpTitle">One clause. <span class="red">Two readings.</span></h2><p>The same sentence — as it's written, and as ClearDoc sets it. Drag the rule (or use arrow keys) to compare.</p></div>
+  <div class="tp-wrap">
+    <div class="tp-stage" id="tpStage">
+      <span class="tp-side-lab l">As written</span><span class="tp-side-lab r">ClearDoc</span>
+      <div class="tp-layer tp-fog">Lessee shall, notwithstanding any provision herein, indemnify and hold lessor harmless in perpetuity from any and all liabilities.</div>
+      <div class="tp-layer tp-clear" id="tpClear">You must <b>cover the landlord's losses</b> if something goes wrong — and this <b>never expires</b>, no matter what else the lease says.</div>
+      <div class="tp-handle" id="tpHandle" role="slider" tabindex="0" aria-label="Reveal the plain-English version" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><div class="knob" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg></div></div>
+    </div>
+    <div class="tp-hint">◂ drag to compare ▸</div>
+  </div>
+</section>
+
+<!-- ===== CONSEQUENCES ===== -->
+<section class="conseq" id="cost" aria-labelledby="costTitle">
+  <div class="seclead"><div class="k">// the consequences desk</div><h2 id="costTitle">The cost of <span class="red">not reading.</span></h2><p>Illustrative cases. Watch each trap climb — then watch ClearDoc catch it.</p></div>
+  <div class="case" data-target="2400"><div class="dateline">illustrative case · auto-renewal</div><div class="cl">“Auto-renews at $200/mo unless cancelled 30 days prior.”<span class="strike"></span></div><div><div class="amt" data-amt>$0</div><div class="verdict">Caught · Saved $2,400</div></div></div>
+  <div class="case" data-target="1900"><div class="dateline">illustrative case · medical bill</div><div class="cl">“Facility fee — billed in addition to services rendered.”<span class="strike"></span></div><div><div class="amt" data-amt>$0</div><div class="verdict">Caught · Saved $1,900</div></div></div>
+  <div class="case" data-target="3200"><div class="dateline">illustrative case · lease deposit</div><div class="cl">“Deposit forfeited on under-60-days notice.”<span class="strike"></span></div><div><div class="amt" data-amt>$0</div><div class="verdict">Caught · Deposit Saved</div></div></div>
+  <div class="total"><span>Total averted <span class="illus">· illustrative composite</span></span><span><b id="conseqTotal">$0</b> — in one reading.</span></div>
+</section>
+
+<!-- ===== CROSSWORD ===== -->
+<section class="cross" aria-labelledby="crossTitle">
+  <div class="gridside">
+    <div class="xgrid" id="xgrid" aria-hidden="true"></div>
+    <div class="banner">ALL FORMATS, ONE READER — PDF · DOCX · SCANS (OCR) · LINKS · EMAIL</div>
+  </div>
+  <div class="clueside">
+    <div class="seclead" style="padding:0 0 var(--s4)"><div class="k">// it fills in the blanks</div><h2 id="crossTitle">Every format, <span class="red">solved.</span></h2></div>
+    <h3>Across</h3>
+    <p class="clue" data-clue="0">1. The paper that decides where you live (5) — <span class="ans">LEASE</span><span class="strike2"></span></p>
+    <p class="clue" data-clue="1">4. The scary thing in the mail (4) — <span class="ans">BILL</span><span class="strike2"></span></p>
+    <h3 style="margin-top:var(--s3)">Down</h3>
+    <p class="clue" data-clue="2">2. The fine print you accept unread (5) — <span class="ans">TERMS</span><span class="strike2"></span></p>
+    <p class="clue" data-clue="3">3. The insurer letter nobody gets (3) — <span class="ans">EOB</span><span class="strike2"></span></p>
+  </div>
+</section>
+
+<!-- ===== VAULT ===== -->
+<section class="vault" aria-labelledby="vaultTitle">
+  <div class="ledger">
+    <h2 id="vaultTitle">The Sealed Vault</h2>
+    <div class="vrow"><span class="sec">§1</span><span class="txt">Encrypted in transit &amp; at rest.</span><span class="stamp" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span></div>
+    <div class="vrow"><span class="sec">§2</span><span class="txt">Never used to train models.</span><span class="stamp" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span></div>
+    <div class="vrow"><span class="sec">§3</span><span class="txt">Auto-purged within 24h — or on request.</span><span class="stamp" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span></div>
+    <div class="vrow"><span class="sec">§4</span><span class="txt">SOC-2 <span class="prog">in progress</span> · GDPR-ready.</span><span class="stamp" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span></div>
+    <div class="vsold" style="margin-top:var(--s4)">We've sold <b style="color:var(--accent)">0</b> documents. We never will.</div>
+  </div>
+  <div class="demo">
+    <div class="shreddoc" id="shreddoc" aria-hidden="true"><div class="vscan" id="vscan"></div><div class="ln" style="width:auto"></div><div class="ln"></div><div class="ln"></div><div class="ln"></div><div class="ln"></div></div>
+    <div class="vtimer mono">uploaded → processed → <b>auto-deleted 0:00</b></div>
+    <div class="seals"><div class="seal">Encrypted</div><div class="seal">Never trained on</div><div class="seal">Auto-deleted</div><div class="seal">GDPR-ready</div></div>
+  </div>
+</section>
+
+<!-- ===== CLASSIFIEDS ===== -->
+<section class="classi" id="price" aria-labelledby="priceTitle">
+  <div class="seclead" style="padding-left:0;padding-right:0"><div class="k">// the classifieds · rates</div><h2 id="priceTitle">Read the fine print <span class="red">for less.</span></h2></div>
+  <div class="toggle" role="group" aria-label="Billing period">
+    <button data-cycle="mo" aria-pressed="true">Monthly</button><button data-cycle="yr" aria-pressed="false">Annually</button>
+  </div><span class="savecue" id="saveCue" hidden>Save ~20% · 2 months free</span>
+  <div class="ads">
+    <div class="ad">
+      <div class="name">Reader</div>
+      <div class="price"><span class="amt" data-mo="0" data-yr="0">$0</span><small>/mo</small></div>
+      <p class="copy"><b>For the occasional scary letter.</b> Your first document: full power, free — 5 reads a month, plain-English rewrites, basic risk flags.</p>
+      <button class="order" data-scroll-to="analyze.html">Start free →</button>
+    </div>
+    <div class="ad pick">
+      <div class="pickstrip">Editor's Pick</div>
+      <div class="name">Professional</div>
+      <div class="price"><span class="amt" data-mo="19" data-yr="15">$19</span><small>/mo</small></div>
+      <p class="copy"><b>For anyone who signs things.</b> Unlimited documents, the full Risk Radar, AI chat cited to the line, every file type.</p>
+      <button class="order" data-scroll-to="analyze.html">Place this order →</button>
+    </div>
+    <div class="ad">
+      <div class="name">The Firm</div>
+      <div class="price"><span class="amt" data-mo="49" data-yr="39">$49</span><small>/seat</small></div>
+      <p class="copy"><b>For teams &amp; counsel.</b> A shared workspace, API access, and a priority desk for the documents that can't wait.</p>
+      <button class="order" data-scroll-to="analyze.html">Enquire →</button>
+    </div>
+  </div>
+  <div class="lostfound">LOST: 3 HOURS, EVERY LEASE. <b>FOUND: HERE.</b></div>
+</section>
+
+<!-- ===== LETTERS ===== -->
+<section class="letters" aria-labelledby="lettersTitle">
+  <div class="seclead" style="padding-left:0;padding-right:0"><div class="k">// letters to the editor</div><h2 id="lettersTitle">From the <span class="red">readers.</span></h2></div>
+  <div class="lettergrid">
+    <div class="letter"><div class="sal">To the Editor —</div>the bill said <span class="scary">“facility fee, balance billing applies.”</span><span class="clarified">it means: you may be double-charged — dispute line 7.</span> ClearDoc caught it instantly.<div class="signoff">M. Alvarez · decoded a $4,200 ER bill <b>✓ verified</b></div></div>
+    <div class="letter"><div class="sal">To the Editor —</div>across 9 vendor contracts I found <span class="scary">“an automatic evergreen renewal clause”</span><span class="clarified">it means: it renews forever unless you cancel early.</span> in every third one. I read them all in a night.<div class="signoff">J. Okafor · General Counsel, seed-stage SaaS <b>✓ verified</b></div></div>
+    <div class="letter"><div class="sal">To the Editor —</div>my lease said <span class="scary">“joint and several liability.”</span><span class="clarified">it means: you can be charged for your roommate's whole rent.</span> I finally understood the deposit clause.<div class="signoff">A relieved first-time tenant <b>✓ verified</b></div></div>
+  </div>
+</section>
+
+<!-- ===== FAQ ===== -->
+<section class="faq" aria-labelledby="faqTitle">
+  <div class="seclead" style="padding-left:0;padding-right:0"><div class="k">// corrections &amp; clarifications</div><h2 id="faqTitle">The Corrections <span class="red">Desk.</span></h2></div>
+  <div class="faq-wrap" id="faq">
+    <div class="qa"><button class="q" aria-expanded="false" aria-controls="fa0"><span><span class="re">RE: </span><span class="qt serif">Is this legal or medical advice?</span></span><span class="pm" aria-hidden="true">+</span></button><div class="a" id="fa0"><div class="a-in"><div class="arule" aria-hidden="true"></div><span class="ans-text">No — ClearDoc explains what your document says in plain English. It is not a substitute for a lawyer or doctor, and it tells you when something genuinely needs one.</span><br><span class="corrected">Corrected ✓</span></div></div></div>
+    <div class="qa"><button class="q" aria-expanded="false" aria-controls="fa1"><span><span class="re">RE: </span><span class="qt serif">Does the AI make things up?</span></span><span class="pm" aria-hidden="true">+</span></button><div class="a" id="fa1"><div class="a-in"><div class="arule" aria-hidden="true"></div><span class="ans-text">Every answer is grounded in your document and cited to the exact line. If it isn't in your text, ClearDoc says so rather than guessing — the precision a professional can actually rely on.</span><br><span class="corrected">Corrected ✓</span></div></div></div>
+    <div class="qa"><button class="q" aria-expanded="false" aria-controls="fa2"><span><span class="re">RE: </span><span class="qt serif">What can I upload?</span></span><span class="pm" aria-hidden="true">+</span></button><div class="a" id="fa2"><div class="a-in"><div class="arule" aria-hidden="true"></div><span class="ans-text">PDFs, Word docs, scanned images (OCR'd automatically), plain text, email, and web links — up to 200 pages.</span><br><span class="corrected">Corrected ✓</span></div></div></div>
+    <div class="qa"><button class="q" aria-expanded="false" aria-controls="fa3"><span><span class="re">RE: </span><span class="qt serif">How long do you keep my file?</span></span><span class="pm" aria-hidden="true">+</span></button><div class="a" id="fa3"><div class="a-in"><div class="arule" aria-hidden="true"></div><span class="ans-text">Auto-deleted within 24 hours, or immediately on request. We never sell or train on your documents.</span><br><span class="corrected">Corrected ✓</span></div></div></div>
+  </div>
+</section>
+
+</main>
+
+<!-- ===== LAST WORD ===== -->
+<section class="end" aria-labelledby="endTitle">
+  <div class="edline">THE CLARITY PRESS · EDITION No. 0042</div>
+  <div class="proof serif" id="proof">Caught a $1,900 billing error.</div>
+  <div class="enddoc" id="enddoc" aria-hidden="true">
+    <div class="ed-fog">Lessee shall indemnify lessor in perpetuity notwithstanding any provision herein to the contrary and shall hold harmless from all liabilities…</div>
+    <div class="ed-clear">You cover their losses. It includes legal fees. It never expires. Cancel early and you pay out the term.</div>
+    <span class="shock" id="shock"></span>
+    <div class="fname mono">your-lease.pdf</div>
+    <div class="stampbig" id="stampbig">Clear ✦</div>
+  </div>
+  <h2 id="endTitle">READ WHAT<br>YOU <span class="red">SIGN.</span> FINALLY.</h2>
+  <button class="cta" id="endCta" data-scroll-to="analyze.html">Clarify your first document — free →</button>
+  <div class="kinetic" id="kinetic" aria-hidden="true">CLEARDOC · CLEARDOC · CLEARDOC ·&nbsp;</div>
+</section>
+<footer><span>ClearDoc — concept 07 · “The Living Press” · fog → clarity</span><span>built with GSAP + Lenis</span></footer>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

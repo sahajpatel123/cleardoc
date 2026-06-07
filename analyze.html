@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearDoc — Analyze a document</title>
+<meta name="description" content="Paste or upload a document — ClearDoc rewrites it in plain English, flags the traps, and answers your questions cited to the line. Runs in your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;900&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/theme.css">
+</head>
+<body data-page="analyze">
+<a href="#main" class="skip">Skip to content</a>
+<div class="grain" aria-hidden="true"></div>
+
+<div id="loader" aria-hidden="true"><div class="lword">ClearDoc</div><div class="lbar"><i></i></div><div class="lmeta mono"><span>loading clarity</span><b id="lpct">0%</b></div></div>
+<div class="reveal-panel" aria-hidden="true"></div>
+
+<div class="ticker" aria-hidden="true"><div class="t mono" id="ticker">
+  <span>📰 THE CLARITY PRESS</span><span>///</span><span>PASTE IT · READ IT CLEAR · ASK IT ANYTHING</span><span>///</span><span>RUNS ENTIRELY IN YOUR <b>BROWSER</b></span><span>///</span><span>NOTHING LEAVES THIS <b>PAGE</b></span><span>///</span>
+  <span>📰 THE CLARITY PRESS</span><span>///</span><span>PASTE IT · READ IT CLEAR · ASK IT ANYTHING</span><span>///</span><span>RUNS ENTIRELY IN YOUR <b>BROWSER</b></span><span>///</span><span>NOTHING LEAVES THIS <b>PAGE</b></span><span>///</span>
+</div></div>
+
+<nav aria-label="Primary">
+  <a class="brand" href="index.html">CLEARDOC<sup>™</sup></a>
+  <div class="navlinks">
+    <a href="analyze.html">Simplify</a><a href="index.html#press">Live Demo</a><a href="index.html#cost">The Cost</a><a href="pricing.html">Pricing</a><a href="analyze.html" class="cta">Open a Document ↗</a>
+  </div>
+</nav>
+<div class="masthead"><span>THE CLARITY EDITION — No. <b>0042</b></span><span>PLAIN LANGUAGE / CITED ANSWERS / RISK FLAGS</span><span>EST. 2026</span></div>
+
+<main id="main">
+  <div class="page-hero">
+    <div class="seclead" style="padding:0"><div class="k">// the analyzer</div></div>
+    <h1>Read what you're <span class="red">about to sign.</span></h1>
+    <p>Paste a clause, a contract, or a bill — or upload a text file. ClearDoc rewrites it in plain English, flags the traps, and answers your questions, all in your browser. Nothing leaves this page.</p>
+  </div>
+
+  <section class="work" aria-label="Document analyzer">
+    <div class="col in">
+      <label class="lbl" for="docInput">Your document or clause</label>
+      <textarea id="docInput">This Agreement shall automatically renew for successive twelve-month terms unless either party provides sixty days' written notice. Lessee shall indemnify and hold lessor harmless from any and all liabilities in perpetuity. In the event of early termination, a non-refundable cancellation assessment equal to the remaining charges shall become immediately due. Subscriber hereby waives the right to trial by jury and to participate in any class action.</textarea>
+      <div class="ctl">
+        <button class="qf" data-fill="Tenant shall forfeit the security deposit in the event that written notice is not tendered sixty days prior to termination, and shall remain liable for all damages howsoever caused during the tenancy.">try: Lease</button>
+        <button class="qf" data-fill="Patient acknowledges that facility fees, notwithstanding any insurance adjustment, shall be the sole responsibility of the patient pursuant to the terms set forth herein, and that balance billing may apply.">try: Medical Bill</button>
+        <button class="qf" data-fill="The aforementioned subscriber shall be liable for all charges incurred heretofore, and the provider reserves the right to modify these terms at any time at its sole discretion without notice.">try: Terms</button>
+        <label class="filelbl">Upload .txt<input id="fileInput" type="file" accept=".txt,.md,.text,.html,.csv" hidden></label>
+      </div>
+      <div class="run-row">
+        <button class="analyze-btn" id="analyzeBtn">Analyze →</button>
+        <button class="ghost-btn" id="clearBtn">Clear</button>
+      </div>
+      <p class="analyze-msg" id="analyzeMsg" role="status" aria-live="polite"></p>
+    </div>
+
+    <div class="col out">
+      <div class="empty-state" id="resultEmpty">
+        <div class="big">Your reading appears here</div>
+        <p>Press <b>Analyze</b> for a plain-English rewrite, a risk radar that flags the traps, and a Q&amp;A you can interrogate — every answer cited to the sentence it came from.</p>
+      </div>
+      <div id="resultPanel" hidden>
+        <div class="result-block">
+          <span class="rh">✦ Plain-English rewrite</span>
+          <div class="rewrite" id="plainOut"></div>
+          <div class="metaline"><span>Reading level <b id="levelFrom">—</b> → <b id="levelTo">—</b></span><span>Jargon found: <b id="jargonCount">0</b></span></div>
+        </div>
+        <div class="result-block">
+          <span class="rh">⚠ Risk radar</span>
+          <p class="analyze-msg" id="riskNote" style="margin-top:0"></p>
+          <div class="risk-built" id="riskList"></div>
+        </div>
+        <div class="result-block">
+          <span class="rh">💬 Ask this document</span>
+          <div class="askbox"><input id="askInput" type="text" placeholder="e.g. Can I cancel early? What am I liable for?" aria-label="Ask a question about your document" disabled><button id="askBtn" disabled>Ask</button></div>
+          <div class="ask-out" id="askOut"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="faq" aria-labelledby="faqTitle">
+    <div class="seclead" style="padding-left:0;padding-right:0"><div class="k">// corrections &amp; clarifications</div><h2 id="faqTitle">Good to <span class="red">know.</span></h2></div>
+    <div class="faq-wrap" id="faq">
+      <div class="qa"><button class="q" aria-expanded="false" aria-controls="fa0"><span><span class="re">RE: </span><span class="qt serif">Does my document get uploaded anywhere?</span></span><span class="pm" aria-hidden="true">+</span></button><div class="a" id="fa0"><div class="a-in"><div class="arule" aria-hidden="true"></div><span class="ans-text">No. This analyzer runs entirely in your browser — your text never leaves this page and nothing is sent to a server.</span><br><span class="corrected">Corrected ✓</span></div></div></div>
+      <div class="qa"><button class="q" aria-expanded="false" aria-controls="fa1"><span><span class="re">RE: </span><span class="qt serif">Is this legal advice?</span></span><span class="pm" aria-hidden="true">+</span></button><div class="a" id="fa1"><div class="a-in"><div class="arule" aria-hidden="true"></div><span class="ans-text">No — ClearDoc explains what your document says in plain English and flags common traps. It is not a substitute for a lawyer, and it tells you when something genuinely needs one.</span><br><span class="corrected">Corrected ✓</span></div></div></div>
+      <div class="qa"><button class="q" aria-expanded="false" aria-controls="fa2"><span><span class="re">RE: </span><span class="qt serif">How accurate is the rewrite?</span></span><span class="pm" aria-hidden="true">+</span></button><div class="a" id="fa2"><div class="a-in"><div class="arule" aria-hidden="true"></div><span class="ans-text">This is a fast plain-language pass that swaps common legalese and surfaces risky clauses. For high-stakes documents, use it to understand the shape — then confirm the details.</span><br><span class="corrected">Corrected ✓</span></div></div></div>
+    </div>
+  </section>
+</main>
+
+<footer><span>ClearDoc — the analyzer · fog → clarity</span><span><a href="index.html">← back to home</a></span></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

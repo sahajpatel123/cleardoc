@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearDoc — Concept 06: The Living Press</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;900&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EDE7D8; --paper2:#E3DBC8; --ink:#14120E; --ink-soft:#5A554A;
+    --accent:#FF3B00; --green:#176B53; --amber:#C98A00; --danger:#C6361F; --line:#14120E;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{overflow-x:hidden}
+  body{background:var(--paper);color:var(--ink);font-family:'Archivo',sans-serif;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--accent);color:var(--paper)}
+  a{color:inherit;text-decoration:none}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .serif{font-family:'Fraunces',serif;font-style:italic}
+
+  /* film grain */
+  .grain{position:fixed;inset:0;pointer-events:none;z-index:9000;opacity:.3;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.45'/%3E%3C/svg%3E")}
+
+  /* ---------- PRELOADER ---------- */
+  #loader{position:fixed;inset:0;z-index:10000;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px}
+  #loader .lword{font-family:'Archivo Black';font-size:clamp(40px,9vw,120px);letter-spacing:-.05em;text-transform:uppercase;filter:blur(18px);opacity:.4;transition:filter 1.2s cubic-bezier(.5,0,.15,1),opacity 1.2s}
+  #loader.go .lword{filter:blur(0);opacity:1}
+  #loader .lbar{width:min(340px,70vw);height:2px;background:rgba(237,231,216,.2);position:relative;overflow:hidden}
+  #loader .lbar i{position:absolute;left:0;top:0;height:100%;width:0;background:var(--accent)}
+  #loader .lmeta{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);display:flex;gap:14px}
+  #loader .lmeta b{color:var(--accent)}
+  .reveal-panel{position:fixed;inset:0;z-index:9999;background:var(--accent);transform:translateY(100%)}
+
+  /* ---------- TICKER ---------- */
+  .ticker{background:var(--ink);color:var(--paper);overflow:hidden;white-space:nowrap;position:relative;z-index:40}
+  .ticker .t{display:inline-block;font-size:12px;letter-spacing:.08em;padding:9px 0;text-transform:uppercase;will-change:transform}
+  .ticker .t span{margin:0 22px}.ticker .t b{color:var(--accent)}
+
+  /* ---------- NAV / MASTHEAD ---------- */
+  nav{display:flex;justify-content:space-between;align-items:center;padding:14px 26px;border-bottom:3px solid var(--ink);position:sticky;top:0;z-index:400;background:var(--paper)}
+  .brand{font-family:'Archivo Black';font-size:28px;letter-spacing:-.045em;text-transform:uppercase;display:flex;align-items:baseline;gap:7px}
+  .brand sup{font-size:10px;color:var(--accent);font-weight:700;font-family:'JetBrains Mono'}
+  .navlinks{display:flex;font-size:12px;text-transform:uppercase;letter-spacing:.1em;font-family:'JetBrains Mono'}
+  .navlinks a{padding:8px 15px;border-left:2px solid var(--ink);transition:.15s}
+  .navlinks a:hover{background:var(--ink);color:var(--paper)}
+  .navlinks a.cta{background:var(--accent);color:#fff;font-weight:700}.navlinks a.cta:hover{background:var(--ink)}
+  .masthead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:8px 26px;border-bottom:3px solid var(--ink);font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft);background:var(--paper);position:relative;z-index:40;font-family:'JetBrains Mono'}
+  .masthead b{color:var(--accent)}
+
+  /* ---------- shared section header ---------- */
+  .seclead{padding:54px 26px 8px}
+  .seclead .k{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;font-family:'JetBrains Mono'}
+  .seclead h2{font-family:'Archivo Black';font-size:clamp(28px,4.6vw,58px);text-transform:uppercase;letter-spacing:-.03em;line-height:.9}
+  .seclead h2 .red{color:var(--accent)}
+  .seclead p{font-size:16px;color:var(--ink-soft);max-width:600px;margin-top:14px;line-height:1.5}
+
+  /* ---------- doc card (shared) ---------- */
+  .doc{background:#fff;box-shadow:0 22px 60px -28px rgba(0,0,0,.4);position:relative;overflow:hidden;border:1px solid var(--ink)}
+  .doc-lab{position:absolute;top:12px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;z-index:6;font-family:'JetBrains Mono'}
+  .doc-lab.l{left:14px;color:var(--ink-soft)}.doc-lab.r{right:14px;color:var(--green)}
+  .chip{display:inline-block;background:#e6f0ec;color:var(--green);font-size:11px;padding:1px 8px;border-radius:3px;font-family:'JetBrains Mono'}
+  .chip.warn{background:#fbe8e4;color:var(--danger)}
+
+  /* ---------- HERO (Typesetter) ---------- */
+  .hero{display:grid;grid-template-columns:1.25fr 1fr;border-bottom:3px solid var(--ink)}
+  .hero-main{padding:56px 26px 44px;border-right:3px solid var(--ink);position:relative;overflow:hidden}
+  #fogcanvas{position:absolute;inset:0;z-index:0;opacity:.45;pointer-events:none}
+  .hero-main>*{position:relative;z-index:1}
+  .kicker{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);border-bottom:2px solid var(--accent);padding-bottom:3px;display:inline-block;margin-bottom:26px;font-family:'JetBrains Mono'}
+  .hero h1{font-family:'Archivo Black';font-size:clamp(44px,8vw,112px);line-height:.84;letter-spacing:-.05em;text-transform:uppercase}
+  .hero h1 .red{color:var(--accent)}
+  .typeset{position:relative;display:inline-block}
+  .typeset .fog{font-family:'Fraunces',serif;font-weight:400;font-style:italic;text-transform:none;letter-spacing:-.02em;color:var(--ink-soft)}
+  .typeset .sharp{position:absolute;left:0;top:0;font-family:'Archivo Black';font-style:normal;text-transform:uppercase;letter-spacing:-.05em;color:var(--ink);white-space:nowrap;clip-path:inset(0 100% 0 0)}
+  .galley{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);opacity:0}
+  .char{display:inline-block;will-change:transform,opacity,filter}.word{display:inline-block;overflow:hidden;padding:0 .02em}
+  .gauge{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-top:26px;font-family:'JetBrains Mono'}
+  .gauge b{color:var(--green)}
+  .deck{font-size:17px;line-height:1.5;max-width:540px;font-weight:500;margin-top:18px;border-top:2px solid var(--ink);padding-top:18px}
+  .actions{display:flex;margin-top:24px;border:3px solid var(--ink);width:fit-content;max-width:100%;flex-wrap:wrap}
+  .actions input{font-size:14px;border:none;padding:15px 16px;background:var(--paper);outline:none;min-width:220px;flex:1;color:var(--ink);font-family:'JetBrains Mono'}
+  .actions button{font-family:'Archivo Black';font-size:13px;text-transform:uppercase;background:var(--ink);color:var(--paper);border:none;padding:15px 24px;cursor:pointer;border-left:3px solid var(--ink);transition:.15s}
+  .actions button:hover{background:var(--accent)}
+  .hint{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-top:16px;font-family:'JetBrains Mono'}
+  .hero-side{background:var(--paper2);display:flex;align-items:center;justify-content:center;padding:32px;position:relative}
+  .hcard{width:100%;max-width:400px;height:440px}
+  .hcard .layer{position:absolute;inset:0;padding:46px 26px;font-size:13.5px;line-height:1.7}
+  .hcard .fogl{font-family:'Fraunces',serif;font-style:italic;color:#8f897d}
+  .hcard .clearl{font-family:'Archivo';color:var(--ink);opacity:0}
+  .hcard .clearl b{color:var(--green);font-weight:700}.hcard .clearl .w{color:var(--danger);font-weight:700}
+  .hscan{position:absolute;left:0;right:0;height:34px;top:40px;background:linear-gradient(180deg,transparent,rgba(255,59,0,.16),transparent);opacity:0}
+
+  /* ---------- LIVING INDEX (stats) ---------- */
+  .idxcap{display:flex;align-items:center;gap:10px;padding:10px 26px;border-bottom:3px solid var(--ink);font-family:'JetBrains Mono';font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+  .livedot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:breathe 1.6s infinite}
+  @keyframes breathe{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.1)}}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:3px solid var(--ink)}
+  .stat{padding:28px 24px;border-right:3px solid var(--ink)}.stat:last-child{border-right:none}
+  .stat .n{font-family:'Archivo Black';font-size:clamp(30px,3.6vw,54px);line-height:1;letter-spacing:-.04em}
+  .stat .n.r{color:var(--accent)}.stat .n.g{color:var(--green)}
+  .stat .l{font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-top:10px;color:var(--ink-soft);font-family:'JetBrains Mono'}
+
+  /* ---------- PRESS ROOM (flagship) ---------- */
+  .pressroom{border-bottom:3px solid var(--ink);background:var(--paper2);position:relative}
+  .device{margin:0;border-top:3px solid var(--ink);position:relative;background:var(--paper)}
+  .urlbar{display:flex;align-items:center;gap:8px;padding:10px 18px;border-bottom:3px solid var(--ink);font-family:'JetBrains Mono';font-size:12px;color:var(--ink-soft)}
+  .urlbar .sq{width:11px;height:11px;background:var(--ink)}
+  .urlbar .u{margin-left:10px}.urlbar .u b{color:var(--accent)}
+  .platen{height:4px;background:var(--paper2);position:relative;border-bottom:3px solid var(--ink)}
+  .platen i{position:absolute;left:0;top:0;bottom:0;width:100%;background:var(--accent);transform:scaleX(0);transform-origin:left}
+  .stagewrap{display:grid;grid-template-columns:200px 1fr 220px;min-height:540px}
+  .rail{border-right:3px solid var(--ink);padding:20px 0;position:relative}
+  .onair{display:flex;align-items:center;gap:8px;padding:0 18px 16px;font-family:'JetBrains Mono';font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--danger)}
+  .onair .d{width:8px;height:8px;border-radius:50%;background:var(--danger);animation:breathe 1.2s infinite}
+  .tab{padding:14px 18px;font-family:'JetBrains Mono';font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);cursor:pointer;position:relative;transition:color .25s}
+  .tab.on{color:var(--ink);font-weight:700}
+  .tabline{position:absolute;left:0;top:0;width:4px;height:48px;background:var(--accent)}
+  .stage{position:relative;overflow:hidden;background:#fff}
+  .act{position:absolute;inset:0;padding:40px 36px;opacity:0;pointer-events:none}
+  .act.show{opacity:1}
+  /* act1 */
+  .a1line{font-family:'Fraunces',serif;font-style:italic;color:#8f897d;font-size:16px;line-height:1.6;margin-bottom:14px;filter:blur(5px);opacity:.45;will-change:filter,opacity}
+  .a1line.clear{font-family:'Archivo';font-style:normal;color:var(--ink);filter:blur(0);opacity:1;font-weight:500}
+  .a1line.clear b{color:var(--green)}.a1line.clear .w{color:var(--danger)}
+  .a1scan{position:absolute;left:24px;right:24px;height:40px;background:linear-gradient(180deg,transparent,rgba(255,59,0,.18),transparent);top:30px;opacity:0}
+  .rl-chip{position:absolute;right:30px;bottom:26px;font-family:'JetBrains Mono';font-size:11px;background:var(--ink);color:var(--paper);padding:5px 10px}
+  .rl-chip b{color:#7fd4c2}
+  /* act2 chat */
+  .chat{display:flex;flex-direction:column;height:100%;justify-content:flex-end;gap:14px}
+  .src-clause{font-family:'Fraunces',serif;font-style:italic;color:#8f897d;font-size:14px;line-height:1.6;border-left:3px solid var(--paper2);padding:10px 14px;margin-bottom:auto;transition:background .3s,border-color .3s}
+  .src-clause.flash{background:rgba(255,59,0,.12);border-color:var(--accent)}
+  .bubble{max-width:88%;padding:12px 15px;font-size:14px;line-height:1.5}
+  .bubble.q{align-self:flex-end;background:var(--accent);color:#fff;font-family:'JetBrains Mono';font-size:13px}
+  .caret{display:inline-block;width:8px;background:#fff;margin-left:1px;animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .bubble.a{align-self:flex-start;background:var(--paper2);color:var(--ink);position:relative}
+  .think{display:inline-flex;gap:4px}.think i{width:6px;height:6px;border-radius:50%;background:var(--ink-soft);animation:think 1s infinite}
+  .think i:nth-child(2){animation-delay:.15s}.think i:nth-child(3){animation-delay:.3s}
+  @keyframes think{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
+  .cite{display:inline-block;margin-top:10px;font-family:'JetBrains Mono';font-size:11px;background:#e6f0ec;color:var(--green);padding:3px 9px;opacity:0}
+  .connector{position:absolute;inset:0;pointer-events:none;z-index:5}
+  .connector path{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:1;stroke-dashoffset:1}
+  /* act3 risk */
+  .risk-list{display:flex;flex-direction:column;gap:0;border:1px solid var(--ink)}
+  .rrow{display:grid;grid-template-columns:8px 1fr auto;gap:14px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--ink);position:relative}
+  .rrow:last-child{border-bottom:none}
+  .rrow .rbar{width:8px;height:100%;position:absolute;left:0;top:0;background:transparent}
+  .rrow .ro{font-family:'Fraunces',serif;font-style:italic;font-size:14px;color:var(--ink-soft);padding-left:6px}
+  .rflag{font-family:'JetBrains Mono';font-size:10px;font-weight:700;text-transform:uppercase;padding:4px 9px;color:#fff;opacity:0;transform:scale(.4)}
+  .a3radar{position:absolute;right:28px;top:24px;width:80px;height:80px;border-radius:50%;border:1px solid var(--ink-soft);overflow:hidden}
+  .a3radar .sweep{position:absolute;inset:0;background:conic-gradient(from 0deg,rgba(255,59,0,.5),transparent 45%);animation:sweep 2.4s linear infinite}
+  @keyframes sweep{to{transform:rotate(360deg)}}
+  .a3count{position:absolute;left:36px;bottom:26px;font-family:'JetBrains Mono';font-size:11px;background:var(--danger);color:#fff;padding:5px 10px}
+  /* act4 before/after */
+  .ba{position:relative;height:100%}
+  .ba .page{position:absolute;inset:0;padding:6px 6px}
+  .ba .dense{font-family:'Fraunces',serif;font-style:italic;color:#8f897d;font-size:11px;line-height:1.5}
+  .ba .clean{font-family:'Archivo';color:var(--ink);font-size:15px;line-height:1.6;background:#fff;clip-path:inset(0 100% 0 0)}
+  .ba .clean b{color:var(--green)}
+  .ba-stamp{position:absolute;right:24px;bottom:30px;font-family:'Archivo Black';font-size:14px;text-transform:uppercase;color:#fff;background:var(--green);padding:8px 14px;transform:rotate(-4deg) scale(.4);opacity:0}
+  .transcript{padding:18px 16px;font-family:'JetBrains Mono';font-size:11px;color:var(--ink-soft);line-height:1.8}
+  .transcript .tt{font-weight:700;color:var(--ink);letter-spacing:.1em;display:block;margin-bottom:12px}
+  .transcript .tl{opacity:0;transform:translateX(8px)}
+  .transcript .tl b{color:var(--green)}
+  .scanline{position:absolute;inset:0;pointer-events:none;z-index:7;opacity:.5;background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(20,18,14,.03) 2px 3px)}
+
+  /* ---------- BRING YOUR OWN FOG ---------- */
+  .byof{border-bottom:3px solid var(--ink);padding:0 26px 56px}
+  .byof-wrap{max-width:760px;margin:0 auto}
+  .byof textarea{width:100%;min-height:90px;border:3px solid var(--ink);background:#fff;padding:16px;font-family:'JetBrains Mono';font-size:14px;line-height:1.6;color:var(--ink);resize:vertical;outline:none}
+  .byof .ctl{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+  .byof .qf{font-family:'JetBrains Mono';font-size:11px;text-transform:uppercase;letter-spacing:.06em;border:2px solid var(--ink);padding:7px 12px;cursor:pointer;background:var(--paper);transition:.15s}
+  .byof .qf:hover{background:var(--ink);color:var(--paper)}
+  .byof .go{font-family:'Archivo Black';font-size:13px;text-transform:uppercase;background:var(--accent);color:#fff;border:none;padding:11px 22px;cursor:pointer;margin-left:auto}
+  .byof .go:hover{background:var(--ink)}
+  .galleyout{border:3px solid var(--ink);border-top:none;background:var(--paper2);min-height:90px;padding:18px;position:relative;overflow:hidden}
+  .galleyout .pre{font-family:'JetBrains Mono';font-size:11px;color:var(--green);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+  .galleyout .out{font-size:17px;line-height:1.55;font-weight:500}
+  .galleyout .out b{color:var(--green);background:#e6f0ec;padding:0 4px;border-radius:3px}
+  .galleyout .out .w{color:var(--danger);background:#fbe8e4}
+  .byofscan{position:absolute;left:0;right:0;height:40px;background:linear-gradient(180deg,transparent,rgba(255,59,0,.16),transparent);top:-50px;opacity:0}
+  .byof .meta{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:10px;font-family:'JetBrains Mono';font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft)}
+  .byof .meta b{color:var(--green)}
+
+  /* ---------- TWO PRESSES ---------- */
+  .twopress{position:relative;border-bottom:3px solid var(--ink);display:grid;grid-template-columns:1fr 1fr;min-height:460px;overflow:hidden;user-select:none}
+  .tp-side{padding:46px 34px}
+  .tp-side h3{font-family:'Archivo Black';font-size:clamp(22px,2.6vw,34px);text-transform:uppercase;letter-spacing:-.02em;margin-bottom:24px}
+  .tp-old{color:var(--ink-soft)}
+  .tp-old h3{color:var(--ink-soft)}
+  .tp-old .row{font-family:'Fraunces',serif;font-style:italic;font-size:18px;margin-bottom:18px;filter:blur(1.6px)}
+  .tp-old .stamp{position:absolute;top:50%;left:25%;transform:translate(-50%,-50%) rotate(-14deg);border:3px solid var(--danger);color:var(--danger);font-family:'Archivo Black';font-size:26px;text-transform:uppercase;padding:6px 14px;opacity:.8;pointer-events:none}
+  .tp-new{background:var(--paper);border-left:3px solid var(--ink)}
+  .tp-new h3 .red{color:var(--accent)}
+  .tp-new .row{font-size:18px;font-weight:600;margin-bottom:18px;display:flex;gap:10px;align-items:flex-start}
+  .tp-new .row::before{content:"✓";color:var(--green);font-weight:900}
+  .tp-handle{position:absolute;top:0;bottom:0;left:50%;width:3px;background:var(--ink);z-index:10;cursor:ew-resize;transform:translateX(-50%)}
+  .tp-handle .knob{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:42px;height:42px;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center}
+  .tp-handle .knob svg{width:18px;height:18px}
+  .tp-handle .lab{position:absolute;top:14px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:'JetBrains Mono';font-size:10px;letter-spacing:.12em;text-transform:uppercase;background:var(--ink);color:var(--paper);padding:4px 8px}
+
+  /* ---------- CONSEQUENCES ---------- */
+  .conseq{border-bottom:3px solid var(--ink)}
+  .case{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;padding:26px;border-top:3px solid var(--ink);position:relative}
+  .case .dateline{position:absolute;top:8px;left:26px;font-family:'JetBrains Mono';font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--danger)}
+  .case .cl{font-family:'Fraunces',serif;font-style:italic;font-size:18px;color:var(--ink-soft);max-width:560px;margin-top:8px;position:relative}
+  .case .cl .strike{position:absolute;left:0;right:0;top:50%;height:2px;background:var(--danger);transform:scaleX(0);transform-origin:left}
+  .case .amt{font-family:'Archivo Black';font-size:clamp(30px,4vw,56px);color:var(--danger);text-align:right;letter-spacing:-.03em}
+  .case .verdict{font-family:'Archivo Black';font-size:13px;text-transform:uppercase;color:#fff;background:var(--green);padding:7px 12px;display:inline-block;margin-top:8px;transform:scale(.4) rotate(-3deg);opacity:0}
+  .conseq .total{padding:28px 26px;border-top:3px solid var(--ink);background:var(--ink);color:var(--paper);font-family:'Archivo Black';font-size:clamp(24px,3.4vw,44px);text-transform:uppercase;letter-spacing:-.02em;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  .conseq .total b{color:var(--accent)}
+
+  /* ---------- CROSSWORD ---------- */
+  .cross{display:grid;grid-template-columns:1fr 1fr;border-bottom:3px solid var(--ink)}
+  .cross .gridside{padding:46px 34px;border-right:3px solid var(--ink);display:flex;flex-direction:column;align-items:center;gap:20px}
+  .xgrid{display:grid;grid-template-columns:repeat(7,40px);grid-template-rows:repeat(7,40px);gap:0}
+  .cell{border:1px solid var(--ink);position:relative;background:var(--ink)}
+  .cell.open{background:#fff}
+  .cell .num{position:absolute;top:1px;left:2px;font-family:'JetBrains Mono';font-size:8px;color:var(--ink-soft)}
+  .cell .ch{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Archivo Black';font-size:18px;text-transform:uppercase;opacity:0;transform:scale(.3)}
+  .cross .banner{font-family:'JetBrains Mono';font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);text-align:center}
+  .cross .clueside{padding:46px 34px}
+  .cross .clueside h3{font-family:'Archivo Black';font-size:22px;text-transform:uppercase;margin:0 0 14px}
+  .clue{font-family:'Archivo';font-size:15px;line-height:1.5;margin-bottom:10px;color:var(--ink-soft);position:relative;padding-left:4px}
+  .clue.done{color:var(--ink)}
+  .clue.done .ans{color:var(--green);font-weight:700}
+  .clue .strike2{position:absolute;left:0;right:0;top:50%;height:2px;background:var(--green);transform:scaleX(0);transform-origin:left}
+
+  /* ---------- SEALED VAULT (inverted) ---------- */
+  .vault{background:var(--ink);color:var(--paper);border-bottom:3px solid var(--ink);display:grid;grid-template-columns:1fr 1fr}
+  .vault .ledger{padding:54px 34px;border-right:3px solid var(--paper2)}
+  .vault .ledger h2{font-family:'Archivo Black';font-size:clamp(26px,3.4vw,44px);text-transform:uppercase;letter-spacing:-.03em;margin-bottom:24px}
+  .vrow{display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-top:1px solid rgba(237,231,216,.2)}
+  .vrow .sec{font-family:'JetBrains Mono';font-size:12px;color:var(--green)}
+  .vrow .txt{font-size:16px}
+  .vrow .stamp{margin-left:auto;width:24px;height:24px;flex:0 0 auto}
+  .vrow .stamp svg{width:24px;height:24px;stroke:var(--green);fill:none;stroke-width:2.5}
+  .vault .demo{padding:54px 34px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px}
+  .shreddoc{width:140px;height:180px;background:var(--paper);position:relative;overflow:hidden}
+  .shreddoc .ln{height:6px;background:var(--ink-soft);margin:14px 14px 0;opacity:.5}
+  .shreddoc .vscan{position:absolute;left:0;right:0;height:20px;background:rgba(255,59,0,.4);top:-24px}
+  .shard{position:absolute;width:14px;background:var(--paper);bottom:0}
+  .vtimer{font-family:'JetBrains Mono';font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--paper2);text-align:center}
+  .vtimer b{color:var(--green)}
+  .seals{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+  .seal{width:84px;height:84px;border-radius:50%;border:2px solid var(--green);color:var(--green);display:flex;align-items:center;justify-content:center;text-align:center;font-family:'JetBrains Mono';font-size:9px;line-height:1.2;text-transform:uppercase;padding:8px;transform:scale(.3) rotate(-12deg);opacity:0}
+  .vsold{font-family:'JetBrains Mono';font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--paper2)}
+  .vsold b{color:var(--accent)}
+
+  /* ---------- CLASSIFIEDS (pricing) ---------- */
+  .classi{border-bottom:3px solid var(--ink);padding:0 26px 56px}
+  .toggle{display:inline-flex;border:3px solid var(--ink);margin:0 0 26px;font-family:'JetBrains Mono';font-size:12px;text-transform:uppercase}
+  .toggle button{padding:9px 16px;border:none;background:var(--paper);cursor:pointer;letter-spacing:.06em}
+  .toggle button.on{background:var(--ink);color:var(--paper)}
+  .ads{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:3px solid var(--ink)}
+  .ad{padding:28px 22px;border-right:3px solid var(--ink);position:relative}
+  .ad:last-child{border-right:none}
+  .ad.pick{background:var(--paper2)}
+  .ad .pickstrip{position:absolute;top:0;left:0;right:0;background:var(--accent);color:#fff;font-family:'JetBrains Mono';font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:4px 0;text-align:center}
+  .ad .name{font-family:'JetBrains Mono';font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-top:14px}
+  .ad .price{font-family:'Archivo Black';font-size:52px;letter-spacing:-.04em;line-height:1;margin:6px 0;position:relative;display:inline-block}
+  .ad .price .ring{position:absolute;inset:-12px -16px;pointer-events:none}
+  .ad .price .ring path{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-dasharray:1;stroke-dashoffset:1}
+  .ad .price small{font-size:14px;font-family:'JetBrains Mono';color:var(--ink-soft)}
+  .ad .tag{font-family:'Fraunces',serif;font-style:italic;color:var(--ink-soft);font-size:15px;margin-bottom:16px}
+  .ad ul{list-style:none;font-size:14px;line-height:1.9}
+  .ad ul li::before{content:"✦ ";color:var(--accent)}
+  .ad .order{display:inline-block;margin-top:18px;font-family:'Archivo Black';font-size:12px;text-transform:uppercase;border:2px solid var(--ink);padding:9px 16px;cursor:pointer;transition:.15s}
+  .ad .order:hover{background:var(--ink);color:var(--paper)}
+  .lostfound{margin-top:20px;font-family:'JetBrains Mono';font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);text-align:center}
+  .lostfound b{color:var(--accent)}
+
+  /* ---------- LETTERS ---------- */
+  .letters{border-bottom:3px solid var(--ink);padding:0 26px 60px}
+  .lettergrid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  .letter{background:#fff;border:1px solid var(--ink);box-shadow:6px 6px 0 var(--ink);padding:24px;font-size:15px;line-height:1.55}
+  .letter .sal{font-family:'Fraunces',serif;font-style:italic;color:var(--ink-soft);margin-bottom:10px}
+  .letter .scary{font-family:'Fraunces',serif;font-style:italic;color:#8f897d;filter:blur(3px);display:inline}
+  .letter .clarified{color:var(--green);font-weight:600;opacity:0;display:none}
+  .letter .signoff{font-family:'JetBrains Mono';font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-top:14px;border-top:1px solid var(--paper2);padding-top:10px}
+  .letter .signoff b{color:var(--green)}
+  .letter:nth-child(1){transform:rotate(-1.5deg)}.letter:nth-child(2){transform:rotate(1deg)}.letter:nth-child(3){transform:rotate(-.6deg)}
+
+  /* ---------- CORRECTIONS (FAQ) ---------- */
+  .faq{border-bottom:3px solid var(--ink);padding:0 26px 50px}
+  .faq-wrap{max-width:820px;margin:0 auto;border-top:3px solid var(--ink)}
+  .qa{border-bottom:3px solid var(--ink)}
+  .qa .q{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:22px 8px;cursor:pointer}
+  .qa .q .qt{font-family:'Fraunces',serif;font-style:italic;font-size:20px}
+  .qa .q .re{font-family:'JetBrains Mono';font-size:10px;color:var(--accent);letter-spacing:.1em}
+  .qa .q .pm{font-family:'Archivo Black';font-size:24px;transition:transform .3s}
+  .qa.open .q .pm{transform:rotate(45deg)}
+  .qa .a{max-height:0;overflow:hidden}
+  .qa .a-in{padding:0 8px 22px;font-size:16px;line-height:1.6;position:relative}
+  .qa .arule{height:2px;background:var(--accent);transform:scaleX(0);transform-origin:left;margin-bottom:16px}
+  .qa .corrected{font-family:'Archivo Black';font-size:11px;color:#fff;background:var(--danger);padding:4px 8px;display:inline-block;margin-top:12px;transform:scale(.4);opacity:0}
+
+  /* ---------- LAST WORD ---------- */
+  .end{background:var(--ink);color:var(--paper);padding:80px 26px 30px;text-align:center;position:relative;overflow:hidden}
+  .end .edline{font-family:'JetBrains Mono';font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px}
+  .end .proof{font-family:'Fraunces',serif;font-style:italic;font-size:18px;color:var(--paper2);height:26px;margin-bottom:34px}
+  .enddoc{width:200px;height:120px;margin:0 auto 30px;position:relative;background:var(--paper);overflow:hidden}
+  .enddoc .ed-fog{position:absolute;inset:0;padding:14px;font-family:'Fraunces',serif;font-style:italic;font-size:9px;color:#8f897d;filter:blur(3px)}
+  .enddoc .ed-clear{position:absolute;inset:0;padding:14px;font-family:'Archivo';font-size:10px;color:var(--ink);opacity:0}
+  .enddoc .fname{position:absolute;bottom:6px;right:8px;font-family:'JetBrains Mono';font-size:8px;color:var(--ink-soft)}
+  .stampbig{position:absolute;top:-120px;left:50%;transform:translateX(-50%) rotate(-8deg);font-family:'Archivo Black';font-size:42px;text-transform:uppercase;color:var(--accent);border:4px solid var(--accent);padding:6px 18px;z-index:6}
+  .shock{position:absolute;left:50%;top:90px;width:20px;height:20px;border:2px solid var(--accent);border-radius:50%;transform:translate(-50%,-50%) scale(0);opacity:0;z-index:2}
+  .end h2{font-family:'Archivo Black';font-size:clamp(38px,7vw,100px);text-transform:uppercase;letter-spacing:-.045em;line-height:.86;margin-bottom:28px;position:relative;z-index:2}
+  .end h2 .red{color:var(--accent)}
+  .end .cta{font-family:'Archivo Black';font-size:16px;text-transform:uppercase;background:var(--accent);color:#fff;border:none;padding:20px 40px;cursor:pointer;position:relative;z-index:2;transition:.15s}
+  .end .cta:hover{background:var(--paper);color:var(--ink)}
+  .kinetic{font-family:'Archivo Black';font-size:clamp(60px,18vw,260px);line-height:.8;letter-spacing:-.05em;text-transform:uppercase;-webkit-text-stroke:2px rgba(237,231,216,.22);color:transparent;white-space:nowrap;margin-top:40px;will-change:transform}
+  footer{padding:16px 26px;font-family:'JetBrains Mono';font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--ink);color:var(--ink-soft);border-top:3px solid var(--accent)}
+
+  @media(max-width:900px){
+    .hero,.stats,.stagewrap,.twopress,.cross,.vault,.ads,.lettergrid{grid-template-columns:1fr}
+    .hero-main{border-right:none;border-bottom:3px solid var(--ink)}
+    .stat{border-right:none;border-bottom:3px solid var(--ink)}
+    .stagewrap{grid-template-columns:1fr}.rail{border-right:none;border-bottom:3px solid var(--ink);display:flex;flex-wrap:wrap;padding:10px}.rail.right{order:3}
+    .tab{flex:1;text-align:center}.tabline{display:none}
+    .stage{min-height:480px}
+    .tp-new{border-left:none;border-top:3px solid var(--ink)}.tp-handle{display:none}
+    .vault .ledger{border-right:none;border-bottom:3px solid var(--paper2)}
+    .ad{border-right:none;border-bottom:3px solid var(--ink)}.ad:last-child{border-bottom:none}
+    .cross .gridside{border-right:none;border-bottom:3px solid var(--ink)}
+    .lettergrid{gap:30px}.letter{transform:none!important}
+    .navlinks{display:none}
+  }
+  @media(prefers-reduced-motion:reduce){*{animation-duration:.001s!important}}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<!-- PRELOADER -->
+<div id="loader"><div class="lword">ClearDoc</div><div class="lbar"><i></i></div><div class="lmeta mono"><span>loading clarity</span><b id="lpct">0%</b></div></div>
+<div class="reveal-panel"></div>
+
+<!-- TICKER -->
+<div class="ticker"><div class="t mono" id="ticker">
+  <span>📰 THE CLARITY PRESS · LIVE EDITION</span><span>///</span><span>9 OF 10 PEOPLE SIGN CONTRACTS THEY <b>NEVER READ</b></span><span>///</span><span>80% OF MEDICAL BILLS CONTAIN <b>ERRORS</b></span><span>///</span><span>CLEARDOC TRANSLATES THE FINE PRINT IN <b>SECONDS</b></span><span>///</span>
+  <span>📰 THE CLARITY PRESS · LIVE EDITION</span><span>///</span><span>9 OF 10 PEOPLE SIGN CONTRACTS THEY <b>NEVER READ</b></span><span>///</span><span>80% OF MEDICAL BILLS CONTAIN <b>ERRORS</b></span><span>///</span><span>CLEARDOC TRANSLATES THE FINE PRINT IN <b>SECONDS</b></span><span>///</span>
+</div></div>
+
+<!-- NAV -->
+<nav>
+  <div class="brand">CLEARDOC<sup>™</sup></div>
+  <div class="navlinks"><a href="#press">Live Demo</a><a href="#byof">Try It</a><a href="#risk">Risk</a><a href="#price">Pricing</a><a href="#price" class="cta">Open Document ↗</a></div>
+</nav>
+<div class="masthead"><span>THE CLARITY EDITION — No. <b id="edition">0042</b></span><span>PLAIN LANGUAGE / CITED ANSWERS / RISK FLAGS</span><span>EST. 2026</span></div>
+
+<!-- ===== HERO: THE TYPESETTER ===== -->
+<section class="hero">
+  <div class="hero-main">
+    <canvas id="fogcanvas"></canvas>
+    <span class="kicker">Document Simplifier + AI Reader</span>
+    <h1 id="headline">Every <span class="typeset"><span class="fog">impenetrable</span><span class="sharp">impenetrable</span><span class="galley"></span></span> document, <span class="red">clear.</span></h1>
+    <div class="gauge">JARGON: <b id="gJargon">41</b> → 0 · READING LEVEL: <b id="gLevel">12th</b> → 8th · INK: DRYING…</div>
+    <p class="deck">Drop in a contract, a medical bill, a lease, a research paper. ClearDoc strips the legalese into language a human can read — then stays in the room to answer anything, citing the exact source line every time.</p>
+    <div class="actions"><input placeholder="paste a link or drop a PDF…"><button>Clarify →</button></div>
+    <div class="hint">↳ no signup to read your first document</div>
+  </div>
+  <div class="hero-side">
+    <div class="doc hcard" id="hcard">
+      <span class="doc-lab l">Original · clause</span><span class="doc-lab r">ClearDoc ✦</span>
+      <div class="hscan"></div>
+      <div class="layer fogl" id="hfog">The party of the first part shall indemnify and hold harmless the party of the second part from and against any and all liabilities, claims, and expenses notwithstanding any provision herein to the contrary.</div>
+      <div class="layer clearl" id="hclear">If you break this deal, you <b>pay for the other side's losses</b> — including their legal fees. <span class="w">This applies even if the contract ends.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== LIVING INDEX ===== -->
+<div class="idxcap"><span class="livedot"></span> CIRCULATION &amp; INDEX BOARD · UPDATED LIVE</div>
+<section class="stats">
+  <div class="stat"><div class="n r" data-count="4182991" id="idxDocs">0</div><div class="l">documents demystified</div></div>
+  <div class="stat"><div class="n" data-count="2900000" data-suffix="">0</div><div class="l">traps flagged before signature</div></div>
+  <div class="stat"><div class="n g" data-count="48700000" data-prefix="$" id="idxSaved">0</div><div class="l">in fees &amp; errors caught</div></div>
+  <div class="stat"><div class="n" data-count="8" data-suffix="th">0</div><div class="l">guaranteed reading level</div></div>
+</section>
+
+<!-- ===== PRESS ROOM (FLAGSHIP) ===== -->
+<section class="pressroom" id="press">
+  <div class="seclead"><div class="k">// the press room · self-playing</div><h2>Watch ClearDoc <span class="red">actually work.</span></h2><p>No clicking required — this is a live recording of the product reading a real contract, on a loop. (Tap a channel to jump.)</p></div>
+  <div class="device">
+    <div class="urlbar"><span class="sq"></span><span class="sq"></span><span class="sq"></span><span class="u">cleardoc.app/press-room · <b>LIVE ●</b></span></div>
+    <div class="platen"><i id="platen"></i></div>
+    <div class="stagewrap">
+      <div class="rail">
+        <div class="onair"><span class="d"></span> on air</div>
+        <div class="tabline" id="tabline"></div>
+        <div class="tab on" data-act="0">01 · Simplify</div>
+        <div class="tab" data-act="1">02 · Ask</div>
+        <div class="tab" data-act="2">03 · Risk Radar</div>
+        <div class="tab" data-act="3">04 · Before→After</div>
+      </div>
+
+      <div class="stage" id="stage">
+        <div class="scanline"></div>
+        <!-- ACT 1 -->
+        <div class="act show" id="act0">
+          <div class="a1scan" id="a1scan"></div>
+          <div class="a1line" data-clear="If you break this deal, you <b>cover the other side's losses</b>.">The party of the first part shall indemnify the party of the second part,</div>
+          <div class="a1line" data-clear="That includes <b>their legal fees</b>.">including any and all reasonable attorneys' fees and expenses,</div>
+          <div class="a1line" data-clear="It applies <span class='w'>no matter what else this contract says</span>.">notwithstanding any provision herein to the contrary,</div>
+          <div class="a1line" data-clear="And it <span class='w'>never expires</span> — not even after the deal ends.">and such obligation shall survive termination in perpetuity.</div>
+          <div class="rl-chip mono">READING LEVEL <b id="a1rl">12th</b></div>
+        </div>
+        <!-- ACT 2 -->
+        <div class="act" id="act1">
+          <svg class="connector" id="connector" viewBox="0 0 100 100" preserveAspectRatio="none"><path id="connpath" pathLength="1" d="M 80 82 C 52 74, 28 52, 14 16"/></svg>
+          <div class="chat">
+            <div class="src-clause" id="srcClause">§7.1 — “Subscriber may not terminate prior to the expiry of the committed term; remaining periodic charges shall become immediately due.”</div>
+            <div class="bubble q"><span id="askType"></span><span class="caret">&nbsp;</span></div>
+            <div class="bubble a" id="ansBubble"><span class="think" id="think"><i></i><i></i><i></i></span><span id="ansText"></span><span class="cite" id="cite">cited · §7.1 Termination</span></div>
+          </div>
+        </div>
+        <!-- ACT 3 -->
+        <div class="act" id="act2">
+          <div class="a3radar"><div class="sweep"></div></div>
+          <div class="risk-list">
+            <div class="rrow" data-risk="g"><span class="rbar"></span><span class="ro">“This Agreement commences on the Effective Date.”</span><span class="rflag">Safe</span></div>
+            <div class="rrow" data-risk="a"><span class="rbar"></span><span class="ro">“…renews automatically for successive 12-month terms…”</span><span class="rflag">Watch</span></div>
+            <div class="rrow" data-risk="r"><span class="rbar"></span><span class="ro">“…non-refundable early-cancellation assessment…”</span><span class="rflag">Trap</span></div>
+            <div class="rrow" data-risk="g"><span class="rbar"></span><span class="ro">“Notices shall be sent to the address on file.”</span><span class="rflag">Safe</span></div>
+            <div class="rrow" data-risk="r"><span class="rbar"></span><span class="ro">“…waives the right to trial by jury and class action…”</span><span class="rflag">Trap</span></div>
+          </div>
+          <div class="a3count mono" id="a3count">RISK SCORE · 0 TRAPS</div>
+        </div>
+        <!-- ACT 4 -->
+        <div class="act" id="act3">
+          <div class="ba">
+            <div class="page dense" id="baDense"></div>
+            <div class="page clean" id="baClean"><b>The plain version.</b><br><br>You cover their losses. It includes legal fees. It never expires. You can't cancel early without paying out the term.</div>
+            <div class="ba-stamp" id="baStamp">1,400 → 180 · 92% SHORTER</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rail right">
+        <div class="transcript">
+          <span class="tt">▸ transcript · live</span>
+          <div class="tl" id="tl0">00:02 · simplified 6 clauses</div>
+          <div class="tl" id="tl1">00:07 · answered w/ <b>citation</b></div>
+          <div class="tl" id="tl2">00:12 · flagged <b>2 traps</b></div>
+          <div class="tl" id="tl3">00:18 · condensed <b>92%</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== BRING YOUR OWN FOG ===== -->
+<section class="byof" id="byof">
+  <div class="seclead" style="padding-left:0;padding-right:0"><div class="k">// bring your own fog</div><h2>Paste a line of legalese. <span class="red">Watch it clear.</span></h2><p>Right here, right now — runs entirely in your browser. Nothing leaves this page.</p></div>
+  <div class="byof-wrap">
+    <textarea id="byofIn">Lessee shall, notwithstanding any provision herein, indemnify lessor in perpetuity and shall heretofore hold lessor harmless.</textarea>
+    <div class="ctl">
+      <span class="qf" data-fill="The aforementioned policyholder shall be liable for any and all deductibles pursuant to the terms set forth herein.">⟳ Insurance</span>
+      <span class="qf" data-fill="Tenant shall forfeit the security deposit in the event that notice is not tendered sixty days prior to termination.">⟳ Lease</span>
+      <span class="qf" data-fill="Patient acknowledges that facility fees, notwithstanding insurance adjustment, shall be the sole responsibility of the patient.">⟳ Medical Bill</span>
+      <button class="go" id="byofGo">Clarify This →</button>
+    </div>
+    <div class="galleyout"><div class="byofscan" id="byofScan"></div><div class="pre mono">PLAIN ENGLISH ✦</div><div class="out" id="byofOut">Click “Clarify This” to translate the line above.</div></div>
+    <div class="meta"><span>JARGON FOUND: <b id="byofJargon">0</b></span><span>READING LEVEL 12th → <b id="byofLevel">7th</b></span><span>↳ 100% OFFLINE</span></div>
+  </div>
+</section>
+
+<!-- ===== TWO PRESSES ===== -->
+<section class="twopress" id="compare">
+  <div class="tp-side tp-old">
+    <h3>The Old Way</h3>
+    <div class="row">Read 47 pages yourself.</div>
+    <div class="row">Google “indemnify” for the 4th time.</div>
+    <div class="row">$400/hr lawyer for one clause.</div>
+    <div class="row">Sign it and pray.</div>
+    <div class="stamp">Illegible</div>
+  </div>
+  <div class="tp-side tp-new" id="tpNew">
+    <h3>With <span class="red">ClearDoc</span></h3>
+    <div class="row">Plain English in ~10 seconds.</div>
+    <div class="row">Jargon defined inline, every time.</div>
+    <div class="row">$0 for your first full read.</div>
+    <div class="row">Know the traps before you sign.</div>
+  </div>
+  <div class="tp-handle" id="tpHandle"><div class="lab">drag to compare</div><div class="knob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg></div></div>
+</section>
+
+<!-- ===== CONSEQUENCES ===== -->
+<section class="conseq" id="risk">
+  <div class="seclead"><div class="k">// the consequences desk</div><h2>The cost of <span class="red">not reading.</span></h2><p>Real traps, real numbers. Watch each one climb — then watch ClearDoc catch it.</p></div>
+  <div class="case" data-target="2400"><div class="dateline">filed · tuesday · 03:14 am</div><div class="cl">“Auto-renews at $200/mo unless cancelled 30 days prior.”<span class="strike"></span></div><div><div class="amt" data-amt>$0</div><div class="verdict">Caught · Saved $2,400</div></div></div>
+  <div class="case" data-target="1900"><div class="dateline">filed · line item 7</div><div class="cl">“Facility fee — billed in addition to services rendered.”<span class="strike"></span></div><div><div class="amt" data-amt>$0</div><div class="verdict">Caught · Saved $1,900</div></div></div>
+  <div class="case" data-target="3200"><div class="dateline">filed · §9 termination</div><div class="cl">“Deposit forfeited on under-60-days notice.”<span class="strike"></span></div><div><div class="amt" data-amt>$0</div><div class="verdict">Caught · Deposit Saved</div></div></div>
+  <div class="total"><span>Total damages averted</span><span><b id="conseqTotal">$0</b> — in one reading.</span></div>
+</section>
+
+<!-- ===== CROSSWORD ===== -->
+<section class="cross">
+  <div class="gridside">
+    <div class="xgrid" id="xgrid"></div>
+    <div class="banner">ALL FORMATS, ONE READER — PDF · DOCX · SCANS (OCR) · LINKS · EMAIL</div>
+  </div>
+  <div class="clueside">
+    <div class="seclead" style="padding:0 0 20px"><div class="k">// it fills in the blanks</div><h2>Every format, <span class="red">solved.</span></h2></div>
+    <h3>Across</h3>
+    <div class="clue" data-clue="0">1. The paper that decides where you live (5) — <span class="ans">LEASE</span><span class="strike2"></span></div>
+    <div class="clue" data-clue="1">4. The scary thing in the mail (4) — <span class="ans">BILL</span><span class="strike2"></span></div>
+    <h3 style="margin-top:18px">Down</h3>
+    <div class="clue" data-clue="2">2. The fine print you accept unread (5) — <span class="ans">TERMS</span><span class="strike2"></span></div>
+    <div class="clue" data-clue="3">3. The insurer letter nobody gets (3) — <span class="ans">EOB</span><span class="strike2"></span></div>
+  </div>
+</section>
+
+<!-- ===== SEALED VAULT ===== -->
+<section class="vault">
+  <div class="ledger">
+    <h2>The Sealed Vault</h2>
+    <div class="vrow"><span class="sec">§1</span><span class="txt">Encrypted in transit &amp; at rest.</span><span class="stamp"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span></div>
+    <div class="vrow"><span class="sec">§2</span><span class="txt">Never used to train models.</span><span class="stamp"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span></div>
+    <div class="vrow"><span class="sec">§3</span><span class="txt">Auto-purged within 24h — or on request.</span><span class="stamp"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span></div>
+    <div class="vrow"><span class="sec">§4</span><span class="txt">SOC-2 path · GDPR-ready.</span><span class="stamp"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span></div>
+    <div class="vsold" style="margin-top:20px">DOCUMENTS SOLD · <b>0</b></div>
+  </div>
+  <div class="demo">
+    <div class="shreddoc" id="shreddoc"><div class="vscan" id="vscan"></div><div class="ln" style="width:auto"></div><div class="ln"></div><div class="ln"></div><div class="ln"></div><div class="ln"></div></div>
+    <div class="vtimer mono">uploaded → processed → <b>auto-deleted 0:00</b></div>
+    <div class="seals">
+      <div class="seal">Encrypted</div><div class="seal">Never trained on</div><div class="seal">Auto-deleted</div><div class="seal">SOC-2 path</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CLASSIFIEDS (PRICING) ===== -->
+<section class="classi" id="price">
+  <div class="seclead" style="padding-left:0;padding-right:0"><div class="k">// the classifieds</div><h2>Rates &amp; <span class="red">subscriptions.</span></h2></div>
+  <div class="toggle"><button class="on" data-cycle="mo">Monthly</button><button data-cycle="yr">Billed Annually</button></div>
+  <div class="ads">
+    <div class="ad"><div class="name">Reader</div><div class="price"><span class="amt" data-mo="0" data-yr="0">$0</span><small>/mo</small></div><div class="tag">for the occasional scary letter.</div><ul><li>5 docs / month</li><li>Plain-English rewrite</li><li>Basic risk flags</li></ul><div class="order">Place this order →</div></div>
+    <div class="ad pick"><div class="pickstrip">★ Editor's Pick</div><div class="name">Professional</div><div class="price"><span class="amt" data-mo="19" data-yr="15">$19</span><small>/mo</small><svg class="ring" viewBox="0 0 120 70"><path d="M10 35 C 10 12, 110 12, 110 35 C 110 58, 10 58, 12 33"/></svg></div><div class="tag">for anyone who signs things.</div><ul><li>Unlimited docs</li><li>Full Risk Radar</li><li>Cited AI chat</li><li>All file types</li></ul><div class="order">Place this order →</div></div>
+    <div class="ad"><div class="name">The Firm</div><div class="price"><span class="amt" data-mo="49" data-yr="39">$49</span><small>/seat</small></div><div class="tag">for teams &amp; counsel.</div><ul><li>Shared workspace</li><li>API access</li><li>Priority desk</li></ul><div class="order">Place this order →</div></div>
+  </div>
+  <div class="lostfound">LOST: 3 HOURS, EVERY LEASE. <b>FOUND: HERE.</b></div>
+</section>
+
+<!-- ===== LETTERS ===== -->
+<section class="letters">
+  <div class="seclead" style="padding-left:0;padding-right:0"><div class="k">// letters to the editor</div><h2>From the <span class="red">readers.</span></h2></div>
+  <div class="lettergrid">
+    <div class="letter"><div class="sal">To the Editor —</div>the bill said <span class="scary">“facility fee, balance billing applies.”</span><span class="clarified">it means: you may be double-charged — dispute line 7.</span> ClearDoc caught it instantly.<div class="signoff">M. Alvarez · decoded a $4,200 ER bill · Tucson, AZ <b>✓ verified</b></div></div>
+    <div class="letter"><div class="sal">To the Editor —</div>I reviewed 9 vendor contracts in one night and <span class="scary">“an automatic evergreen renewal clause”</span><span class="clarified">it means: it renews forever unless you cancel early.</span> turned up in every third one.<div class="signoff">Founder · seed-stage SaaS <b>✓ verified</b></div></div>
+    <div class="letter"><div class="sal">To the Editor —</div>my lease said <span class="scary">“joint and several liability.”</span><span class="clarified">it means: you can be charged for your roommate's whole rent.</span> I finally understood the deposit clause.<div class="signoff">A relieved first-time tenant <b>✓ verified</b></div></div>
+  </div>
+</section>
+
+<!-- ===== CORRECTIONS (FAQ) ===== -->
+<section class="faq">
+  <div class="seclead" style="padding-left:0;padding-right:0"><div class="k">// corrections &amp; clarifications</div><h2>The Corrections <span class="red">Desk.</span></h2></div>
+  <div class="faq-wrap" id="faq">
+    <div class="qa"><div class="q"><span><span class="re">RE: </span><span class="qt serif">Is this legal or medical advice?</span></span><span class="pm">+</span></div><div class="a"><div class="a-in"><div class="arule"></div><span class="ans-text">No — ClearDoc explains what your document says in plain English. It is not a substitute for a lawyer or doctor, and it tells you when something genuinely needs one.</span><br><span class="corrected">Corrected ✓</span></div></div></div>
+    <div class="qa"><div class="q"><span><span class="re">RE: </span><span class="qt serif">Does the AI make things up?</span></span><span class="pm">+</span></div><div class="a"><div class="a-in"><div class="arule"></div><span class="ans-text">Every answer is grounded in your document and cited to the exact line. If it is not in your text, ClearDoc says so rather than guessing.</span><br><span class="corrected">Corrected ✓</span></div></div></div>
+    <div class="qa"><div class="q"><span><span class="re">RE: </span><span class="qt serif">What can I upload?</span></span><span class="pm">+</span></div><div class="a"><div class="a-in"><div class="arule"></div><span class="ans-text">PDFs, Word docs, scanned images (OCR'd automatically), plain text, email, and web links — up to 200 pages.</span><br><span class="corrected">Corrected ✓</span></div></div></div>
+    <div class="qa"><div class="q"><span><span class="re">RE: </span><span class="qt serif">How long do you keep my file?</span></span><span class="pm">+</span></div><div class="a"><div class="a-in"><div class="arule"></div><span class="ans-text">Auto-deleted within 24 hours, or immediately on request. We never sell or train on your documents.</span><br><span class="corrected">Corrected ✓</span></div></div></div>
+  </div>
+</section>
+
+<!-- ===== LAST WORD ===== -->
+<section class="end">
+  <div class="edline">THE CLARITY PRESS · EDITION No. <span id="edition2">0042</span> · LIVE</div>
+  <div class="proof serif" id="proof">Caught a $1,900 billing error.</div>
+  <div class="enddoc" id="enddoc">
+    <div class="ed-fog">Lessee shall indemnify lessor in perpetuity notwithstanding any provision herein to the contrary and shall hold harmless from all liabilities…</div>
+    <div class="ed-clear">You cover their losses. It includes legal fees. It never expires. Cancel early and you pay out the term.</div>
+    <span class="shock" id="shock"></span>
+    <div class="fname mono">your-lease.pdf</div>
+    <div class="stampbig" id="stampbig">Clear ✦</div>
+  </div>
+  <h2>READ WHAT<br>YOU <span class="red">SIGN.</span> FINALLY.</h2>
+  <button class="cta">Clarify your first document — free →</button>
+  <div class="kinetic" id="kinetic">CLEARDOC · CLEARDOC · CLEARDOC ·&nbsp;</div>
+</section>
+<footer><span>ClearDoc — concept 06 · “The Living Press” · fog → clarity</span><span>built with GSAP + Lenis</span></footer>
+
+<!-- LIBS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
+<script>
+(function(){
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (s,el)=> (el||document).querySelector(s);
+  const $$ = (s,el)=> [...(el||document).querySelectorAll(s)];
+  const hasGSAP = !!window.gsap;
+  if(hasGSAP) gsap.registerPlugin(ScrollTrigger);
+
+  /* ---------- SPLIT HEADLINE (only top-level text, leave .typeset intact) ---------- */
+  const hl=$('#headline');
+  // split only the plain text nodes around the spans
+  (function(){
+    [...hl.childNodes].forEach(n=>{
+      if(n.nodeType===3 && n.textContent.trim()){
+        const frag=document.createDocumentFragment();
+        n.textContent.split(/(\s+)/).forEach(tok=>{
+          if(tok.trim()===''){frag.appendChild(document.createTextNode(tok));return;}
+          const w=document.createElement('span');w.className='word';
+          tok.split('').forEach(ch=>{const c=document.createElement('span');c.className='char';c.textContent=ch;w.appendChild(c);});
+          frag.appendChild(w);
+        });
+        hl.replaceChild(frag,n);
+      }
+    });
+  })();
+  const heroChars=$$('#headline .char');
+
+  /* ---------- LENIS (smoother) ---------- */
+  let lenis;
+  if(hasGSAP && window.Lenis && !reduce){
+    lenis=new Lenis({lerp:0.08, wheelMultiplier:0.9, smoothWheel:true, syncTouch:false});
+    lenis.on('scroll',ScrollTrigger.update);
+    gsap.ticker.add(t=>lenis.raf(t*1000));
+    gsap.ticker.lagSmoothing(0);
+  }
+
+  /* ---------- PRELOADER ---------- */
+  const loader=$('#loader'),bar=$('#loader .lbar i'),lpct=$('#lpct'),panel=$('.reveal-panel');
+  function boot(){
+    if(!hasGSAP){loader.style.display='none';initAll();return;}
+    const o={v:0};
+    gsap.timeline()
+      .to(o,{v:100,duration:1.3,ease:'power2.inOut',onStart:()=>loader.classList.add('go'),onUpdate:()=>{bar.style.width=o.v+'%';lpct.textContent=Math.round(o.v)+'%';}})
+      .to('#loader .lword,#loader .lbar,#loader .lmeta',{y:-26,opacity:0,duration:.5,ease:'power2.in',stagger:.05})
+      .set(loader,{display:'none'})
+      .fromTo(panel,{y:'0%'},{y:'-100%',duration:.9,ease:'power4.inOut'},'<')
+      .add(()=>{ heroIntro(); initAll(); },'-=.3');
+  }
+  function heroIntro(){
+    if(reduce){gsap.set(heroChars,{opacity:1});return;}
+    gsap.fromTo(heroChars,{yPercent:120,opacity:0,filter:'blur(10px)'},{yPercent:0,opacity:1,filter:'blur(0px)',duration:1,ease:'power4.out',stagger:.02});
+  }
+  window.addEventListener('load',()=>setTimeout(boot,150));
+
+  /* ================= INIT ALL ================= */
+  function initAll(){
+    [fogCanvas,editionTick,tickerLoop,heroLoops,indexBoard,pressRoom,byof,twoPresses,
+     consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift]
+      .forEach(fn=>{ try{ fn(); }catch(e){ console.error('[init '+fn.name+']',e); } });
+    if(hasGSAP) ScrollTrigger.refresh();
+  }
+  function gate(el, tl){ // play/pause a timeline by visibility
+    if(!hasGSAP) return;
+    ScrollTrigger.create({trigger:el,start:'top 85%',end:'bottom 15%',
+      onToggle:self=>{ self.isActive ? tl.play() : tl.pause(); }});
+  }
+
+  /* ---------- FOG CANVAS ---------- */
+  function fogCanvas(){
+    const cv=$('#fogcanvas');if(!cv)return;const ctx=cv.getContext('2d');let W,H;
+    function rs(){W=cv.width=cv.offsetWidth;H=cv.height=cv.offsetHeight;}rs();addEventListener('resize',rs);
+    const puffs=Array.from({length:12},(_,i)=>({x:(i*97%100)/100,y:(i*53%100)/100,r:.25+(i%5)*.06,s:.0004+(i%4)*.0002,p:i}));
+    let t=0,run=true;
+    if(hasGSAP) ScrollTrigger.create({trigger:'.hero',start:'top bottom',end:'bottom top',onToggle:s=>run=s.isActive});
+    function draw(){
+      if(run){ctx.clearRect(0,0,W,H);ctx.globalCompositeOperation='multiply';
+        puffs.forEach(pf=>{const cx=(pf.x+Math.sin(t*pf.s+pf.p)*.18)*W,cy=(pf.y+Math.cos(t*pf.s*1.2+pf.p)*.18)*H,rad=pf.r*Math.max(W,H);
+          const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rad);g.addColorStop(0,'rgba(90,85,74,.10)');g.addColorStop(1,'rgba(90,85,74,0)');
+          ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,rad,0,7);ctx.fill();});
+        t++;}
+      requestAnimationFrame(draw);
+    }
+    if(!reduce)draw();
+  }
+
+  /* ---------- EDITION TICK ---------- */
+  function editionTick(){
+    let n=42;const e1=$('#edition'),e2=$('#edition2');
+    if(reduce)return;
+    setInterval(()=>{n++;const s=String(n).padStart(4,'0');if(e1)e1.textContent=s;if(e2)e2.textContent=s;},9000);
+  }
+
+  /* ---------- TICKER ---------- */
+  function tickerLoop(){
+    const row=$('#ticker');if(!row||!hasGSAP)return;
+    const tw=gsap.to(row,{xPercent:-50,duration:30,ease:'none',repeat:-1});
+    ScrollTrigger.create({trigger:'.ticker',start:'top bottom',end:'bottom top',
+      onUpdate:s=>gsap.to(row,{x:`+=${s.getVelocity()/-120}`,duration:.4,overwrite:'auto'})});
+  }
+
+  /* ---------- HERO LOOPS ---------- */
+  function heroLoops(){
+    if(!hasGSAP) return;
+    const galley=$('#headline .galley'),sharp=$('#headline .sharp');
+    const gJ=$('#gJargon'),gL=$('#gLevel');
+    if(reduce){gsap.set(sharp,{clipPath:'inset(0 0 0 0)'});$('#hclear').style.opacity=1;return;}
+    // Loop A — retypeset the word
+    const a=gsap.timeline({repeat:-1,repeatDelay:1.4});
+    a.set(galley,{opacity:1,left:'0%'}).set(sharp,{clipPath:'inset(0 100% 0 0)'})
+     .to(galley,{left:'100%',duration:1.1,ease:'power1.inOut'},0)
+     .to(sharp,{clipPath:'inset(0 0% 0 0)',duration:1.1,ease:'power1.inOut'},0)
+     .to(galley,{opacity:0,duration:.3})
+     .to({},{duration:1.6})
+     .to(sharp,{clipPath:'inset(0 100% 0 0)',duration:.01});
+    gate($('.hero'),a);
+    // gauge counters
+    const g={j:41,l:12};
+    const gt=gsap.timeline({repeat:-1,repeatDelay:2});
+    gt.to(g,{j:0,duration:2,ease:'power1.out',onUpdate:()=>{if(gJ)gJ.textContent=Math.round(g.j);}})
+      .to(g,{l:8,duration:2,ease:'none',onUpdate:()=>{if(gL)gL.textContent=Math.round(g.l)+'th';}},0)
+      .to({},{duration:1.5}).set(g,{j:41,l:12});
+    gate($('.hero'),gt);
+    // hero card cycle
+    const clauses=[
+      {f:'The party of the first part shall indemnify and hold harmless the party of the second part from and against any and all liabilities and expenses.',c:'If you break this deal, you <b>pay for the other side\'s losses</b> — including their legal fees.'},
+      {f:'Notwithstanding the foregoing, this obligation shall survive the termination of this agreement in perpetuity.',c:'<span class="w">This never expires</span> — not even after the contract ends.'},
+      {f:'Lessee shall provide sixty (60) days written notice, failing which the security deposit shall be forfeit.',c:'Give <b>60 days notice</b> to leave — or you <span class="w">lose your deposit</span>.'}
+    ];
+    const hfog=$('#hfog'),hclear=$('#hclear'),hscan=$('.hscan');
+    const card=gsap.timeline({repeat:-1});
+    clauses.forEach(cl=>{
+      card.set(hfog,{innerHTML:cl.f,opacity:1}).set(hclear,{innerHTML:cl.c,opacity:0,y:10}).set(hscan,{opacity:0,top:'40px'})
+        .to(hscan,{opacity:1,duration:.2})
+        .to(hscan,{top:'80%',duration:1.1,ease:'power1.inOut'})
+        .to(hfog,{opacity:0,duration:.4},'-=.5')
+        .to(hclear,{opacity:1,y:0,duration:.5},'-=.3')
+        .to(hscan,{opacity:0,duration:.3})
+        .to({},{duration:2.2});
+    });
+    gate($('.hero'),card);
+  }
+
+  /* ---------- LIVING INDEX ---------- */
+  function indexBoard(){
+    if(!hasGSAP) return;
+    const fmt=(n,pre,suf)=>{ pre=pre||''; suf=suf||'';
+      if(n>=1000000) return pre+(n/1000000).toFixed(1)+'M'+suf;
+      return pre+Math.round(n).toLocaleString()+suf;
+    };
+    $$('[data-count]').forEach(el=>{
+      const end=+el.dataset.count, pre=el.dataset.prefix||'', suf=el.dataset.suffix||'', o={v:0};
+      ScrollTrigger.create({trigger:el,start:'top 88%',once:true,onEnter:()=>{
+        if(reduce){el.textContent=fmt(end,pre,suf);return;}
+        gsap.to(o,{v:end,duration:1.5,ease:'power2.out',onUpdate:()=>el.textContent=fmt(o.v,pre,suf)});
+      }});
+    });
+    // idle live tick on two figures
+    if(reduce)return;
+    let docs=4182991, saved=48700000;
+    setInterval(()=>{ docs+=Math.round(3+ (docs%7)); const d=$('#idxDocs'); if(d) d.textContent=(docs/1000000).toFixed(1)+'M'; },4000);
+    setInterval(()=>{ saved+=Math.round(900+(saved%500)); const s=$('#idxSaved'); if(s) s.textContent='$'+(saved/1000000).toFixed(1)+'M'; },5200);
+  }
+
+  /* ---------- PRESS ROOM (flagship) ---------- */
+  function pressRoom(){
+    if(!hasGSAP) return;
+    const acts=$$('.act'),tabs=$$('.tab'),tabline=$('#tabline'),platen=$('#platen');
+    const showAct=i=>{acts.forEach((a,k)=>a.classList.toggle('show',k===i));tabs.forEach((t,k)=>t.classList.toggle('on',k===i));
+      const tab=tabs[i];if(tab)gsap.to(tabline,{top:tab.offsetTop,height:tab.offsetHeight,duration:.3,ease:'power2.out'});};
+    if(reduce){ acts.forEach(a=>a.classList.add('show')); buildReducedPress(); return; }
+
+    // act1 prep
+    const a1lines=$$('#act0 .a1line'),a1scan=$('#a1scan'),a1rl=$('#a1rl');
+    // act2 nodes
+    const askType=$('#askType'),think=$('#think'),ansText=$('#ansText'),cite=$('#cite'),conn=$('#connpath'),src=$('#srcClause');
+    const Q='Can I cancel early without penalty?';
+    const A="No — you'd owe the remaining 7 months. There is no early-out clause.";
+    // act3
+    const rrows=$$('#act2 .rrow'),a3count=$('#a3count');const colors={g:'var(--green)',a:'var(--amber)',r:'var(--danger)'};
+    // act4
+    const baDense=$('#baDense'),baClean=$('#baClean'),baStamp=$('#baStamp');
+    baDense.innerHTML = ('The party of the first part shall indemnify and hold harmless… '.repeat(8));
+    // transcript
+    const tls=$$('.transcript .tl');
+
+    const master=gsap.timeline({repeat:-1, paused:true});
+
+    // ACT 1
+    master.add('act1lbl').call(()=>{showAct(0);resetA1();})
+      .fromTo(a1scan,{opacity:0,top:20},{opacity:1,duration:.2},'act1lbl')
+      .to(a1scan,{top:'78%',duration:3,ease:'none'},'act1lbl+=.2');
+    a1lines.forEach((ln,k)=>{
+      master.call(()=>clearLine(ln),null,'act1lbl+='+(0.5+k*0.7));
+    });
+    master.to(a1scan,{opacity:0,duration:.3})
+      .to({v:12},{v:8,duration:.6,onUpdate:function(){a1rl.textContent=Math.round(this.targets()[0].v)+'th';}},'<')
+      .call(()=>logTL(tls[0]))
+      .to({},{duration:1.2});
+
+    // ACT 2
+    master.add('act2lbl').call(()=>{showAct(1);resetA2();})
+      .to({i:0},{i:Q.length,duration:1.6,ease:'none',onUpdate:function(){askType.textContent=Q.slice(0,Math.round(this.targets()[0].i));}})
+      .set(think,{display:'inline-flex'})
+      .to({},{duration:.9})
+      .set(think,{display:'none'})
+      .to({n:0},{n:A.split(' ').length,duration:2,ease:'none',onUpdate:function(){ansText.textContent=A.split(' ').slice(0,Math.round(this.targets()[0].n)).join(' ');}})
+      .fromTo(cite,{opacity:0,scale:1.3},{opacity:1,scale:1,duration:.4,ease:'back.out(2)'})
+      .fromTo(conn,{strokeDashoffset:1},{strokeDashoffset:0,duration:.7,ease:'power2.inOut'})
+      .to(src,{backgroundColor:'rgba(255,59,0,.12)',borderColor:'var(--accent)',duration:.3,onStart:()=>src.classList.add('flash')})
+      .call(()=>logTL(tls[1]))
+      .to({},{duration:1.3})
+      .to(src,{backgroundColor:'rgba(0,0,0,0)',duration:.3});
+
+    // ACT 3
+    master.add('act3lbl').call(()=>{showAct(2);resetA3();});
+    let traps=0;
+    rrows.forEach((row,k)=>{
+      master.call(()=>{
+        const risk=row.dataset.risk;const bar=row.querySelector('.rbar');const flag=row.querySelector('.rflag');
+        gsap.to(bar,{backgroundColor:colors[risk],duration:.2});
+        gsap.fromTo(flag,{opacity:0,scale:.4},{opacity:1,scale:1,duration:.4,ease:'back.out(2.4)'});
+        gsap.set(flag,{backgroundColor:colors[risk]});
+        if(risk==='r'){traps++;a3count.textContent='RISK SCORE · '+traps+' TRAPS';}
+      },null,'act3lbl+='+(0.4+k*0.6));
+    });
+    master.call(()=>logTL(tls[2]),null,'act3lbl+=3.4').to({},{duration:1.3});
+
+    // ACT 4
+    master.add('act4lbl').call(()=>{showAct(3);resetA4();})
+      .fromTo(baClean,{clipPath:'inset(0 100% 0 0)'},{clipPath:'inset(0 50% 0 0)',duration:1.2,ease:'power2.inOut'})
+      .to({},{duration:.6})
+      .to(baClean,{clipPath:'inset(0 0% 0 0)',duration:1,ease:'power2.inOut'})
+      .fromTo(baStamp,{opacity:0,scale:.4,rotation:-4},{opacity:1,scale:1,duration:.5,ease:'back.out(2.2)'})
+      .call(()=>logTL(tls[3]))
+      .to({},{duration:1.4});
+
+    // platen across whole timeline
+    master.to(platen,{scaleX:1,duration:master.duration(),ease:'none'},0);
+
+    // resets
+    function resetA1(){a1lines.forEach(ln=>{ln.classList.remove('clear');ln.innerHTML=ln.dataset.orig;});a1rl.textContent='12th';gsap.set(a1scan,{opacity:0});}
+    function clearLine(ln){ln.classList.add('clear');ln.innerHTML=ln.dataset.clear;}
+    function resetA2(){askType.textContent='';ansText.textContent='';gsap.set(cite,{opacity:0});gsap.set(conn,{strokeDashoffset:1});src.classList.remove('flash');gsap.set(src,{backgroundColor:'rgba(0,0,0,0)',borderColor:'var(--paper2)'});gsap.set(think,{display:'none'});}
+    function resetA3(){traps=0;a3count.textContent='RISK SCORE · 0 TRAPS';rrows.forEach(r=>{gsap.set(r.querySelector('.rbar'),{backgroundColor:'transparent'});gsap.set(r.querySelector('.rflag'),{opacity:0,scale:.4});});}
+    function resetA4(){gsap.set(baClean,{clipPath:'inset(0 100% 0 0)'});gsap.set(baStamp,{opacity:0,scale:.4});}
+    function logTL(el){if(!el)return;gsap.fromTo(el,{opacity:0,x:8},{opacity:1,x:0,duration:.4});}
+
+    // store originals for act1
+    a1lines.forEach(ln=>ln.dataset.orig=ln.innerHTML);
+    resetA1();resetA2();resetA3();resetA4();gsap.set(tls,{opacity:0});
+
+    // tabs seek
+    tabs.forEach((tab,i)=>tab.addEventListener('click',()=>{const lbl=['act1lbl','act2lbl','act3lbl','act4lbl'][i];master.play();master.seek(lbl);}));
+    // gate
+    ScrollTrigger.create({trigger:'.pressroom',start:'top 70%',end:'bottom 30%',
+      onToggle:self=>{ if(self.isActive){master.restart();} else {master.pause();} }});
+  }
+  function buildReducedPress(){ const cap=document.createElement('div');cap.className='mono';cap.style.cssText='padding:12px 18px;color:var(--ink-soft);font-size:11px';cap.textContent='LIVE DEMO — paused for reduced motion.';const s=$('.device');if(s)s.appendChild(cap);
+    $$('#act0 .a1line').forEach(l=>{l.classList.add('clear');l.innerHTML=l.dataset.clear;});
+    $('#askType').textContent='Can I cancel early without penalty?';$('#ansText').textContent="No — you'd owe the remaining 7 months. There is no early-out clause.";$('#cite').style.opacity=1;
+    $$('#act2 .rrow').forEach(r=>{const c={g:'var(--green)',a:'var(--amber)',r:'var(--danger)'}[r.dataset.risk];r.querySelector('.rbar').style.background=c;const f=r.querySelector('.rflag');f.style.opacity=1;f.style.transform='scale(1)';f.style.background=c;});
+    $('#baClean').style.clipPath='inset(0 0 0 0)';$('#baStamp').style.opacity=1;$('#baStamp').style.transform='rotate(-4deg) scale(1)';
+  }
+
+  /* ---------- BRING YOUR OWN FOG ---------- */
+  function byof(){
+    const JARGON=[
+      [/\bnotwithstanding\b/gi,'despite'],[/\bin perpetuity\b/gi,'forever'],[/\bheretofore\b/gi,'until now'],
+      [/\bindemnify\b/gi,'cover the losses of'],[/\bhold (\w+ )?harmless\b/gi,'not blame'],[/\blessee\b/gi,'you (the renter)'],
+      [/\blessor\b/gi,'the landlord'],[/\baforementioned\b/gi,'already-mentioned'],[/\bpursuant to\b/gi,'under'],
+      [/\bherein\b/gi,'in this document'],[/\bshall\b/gi,'must'],[/\bforfeit\b/gi,'lose'],[/\bdeductibles?\b/gi,'out-of-pocket costs'],
+      [/\bpolicyholder\b/gi,'you'],[/\btendered\b/gi,'given'],[/\bset forth\b/gi,'written'],[/\bliable\b/gi,'responsible'],
+      [/\bfacility fees?\b/gi,'extra hospital charges'],[/\bset forth herein\b/gi,'written here']
+    ];
+    const inEl=$('#byofIn'),out=$('#byofOut'),scan=$('#byofScan'),jc=$('#byofJargon'),go=$('#byofGo');
+    function clarify(){
+      let text=inEl.value.trim();if(!text){out.textContent='Type something to clarify.';return;}
+      let found=0;
+      JARGON.forEach(([re,plain])=>{ if(re.test(text)){ found++; text=text.replace(re, m=>`§§${plain}§§`); } });
+      // capitalize, simplify
+      let html=text.replace(/§§(.+?)§§/g,'<b>$1</b>');
+      html='You: '+html.charAt(0).toUpperCase()+html.slice(1);
+      if(jc)jc.textContent=found;
+      if(reduce||!hasGSAP){out.innerHTML=html;return;}
+      // scan + stream
+      gsap.set(scan,{opacity:1,top:-50});
+      gsap.to(scan,{top:'110%',duration:.9,ease:'power1.inOut',onComplete:()=>gsap.to(scan,{opacity:0,duration:.2})});
+      const words=html.split(' ');out.innerHTML='';let i=0;
+      gsap.to({n:0},{n:words.length,duration:1.1,ease:'none',delay:.2,onUpdate:function(){const k=Math.round(this.targets()[0].n);if(k!==i){i=k;out.innerHTML=words.slice(0,k).join(' ');}}});
+    }
+    if(go)go.addEventListener('click',clarify);
+    $$('.byof .qf').forEach(q=>q.addEventListener('click',()=>{inEl.value=q.dataset.fill;clarify();}));
+    if(hasGSAP) ScrollTrigger.create({trigger:'.byof',start:'top 70%',once:true,onEnter:clarify});
+  }
+
+  /* ---------- TWO PRESSES (drag) ---------- */
+  function twoPresses(){
+    const sec=$('#compare'),handle=$('#tpHandle');if(!sec||!handle)return;
+    let drag=false;
+    function setRatio(px){const r=sec.getBoundingClientRect();let p=(px-r.left)/r.width;p=Math.max(.18,Math.min(.82,p));
+      handle.style.left=(p*100)+'%';sec.style.gridTemplateColumns=`${p}fr ${1-p}fr`;}
+    handle.addEventListener('pointerdown',e=>{drag=true;try{handle.setPointerCapture(e.pointerId);}catch(_){}});
+    addEventListener('pointerup',()=>{drag=false;});
+    addEventListener('pointermove',e=>{if(drag)setRatio(e.clientX);});
+    if(!hasGSAP||reduce)return;
+    const tl=gsap.timeline({paused:true});
+    tl.from('.tp-new .row',{x:20,opacity:0,filter:'blur(6px)',stagger:.08,duration:.5,ease:'power3.out'})
+      .from('.tp-old .stamp',{scale:.4,rotation:-40,opacity:0,duration:.5,ease:'back.out(2)'},'-=.2');
+    ScrollTrigger.create({trigger:sec,start:'top 75%',once:true,onEnter:()=>tl.play()});
+  }
+
+  /* ---------- CONSEQUENCES ---------- */
+  function consequences(){
+    if(!hasGSAP)return;let grand=0;const tot=$('#conseqTotal');
+    $$('.case').forEach(c=>{
+      const target=+c.dataset.target,amtEl=c.querySelector('[data-amt]'),strike=c.querySelector('.strike'),verdict=c.querySelector('.verdict');
+      ScrollTrigger.create({trigger:c,start:'top 80%',once:true,onEnter:()=>{
+        if(reduce){amtEl.textContent='$'+target.toLocaleString();gsap.set(verdict,{opacity:1,scale:1});grand+=target;tot.textContent='$'+grand.toLocaleString();return;}
+        const o={v:0};
+        gsap.timeline()
+          .to(o,{v:target,duration:1.4,ease:'power1.in',onUpdate:()=>amtEl.textContent='$'+Math.round(o.v).toLocaleString()})
+          .to(strike,{scaleX:1,duration:.4,ease:'power2.out'})
+          .fromTo(verdict,{opacity:0,scale:.4,rotation:-3},{opacity:1,scale:1,duration:.5,ease:'back.out(2)'})
+          .add(()=>{grand+=target;gsap.to({g:grand-target},{g:grand,duration:.6,onUpdate:function(){tot.textContent='$'+Math.round(this.targets()[0].g).toLocaleString();}});});
+      }});
+    });
+  }
+
+  /* ---------- CROSSWORD ---------- */
+  function crossword(){
+    const grid=$('#xgrid');if(!grid)return;
+    // 7x7. place: LEASE across row1 c1-5; BILL across row4 c3-6; TERMS down col2 r1-5; EOB down col4 r1-3
+    const N=7,cells={};
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++){const d=document.createElement('div');d.className='cell';d.dataset.k=r+'-'+c;grid.appendChild(d);cells[r+'-'+c]=d;}
+    // valid interlock: LEASE×TERMS share E at (1,1); LEASE×EOB share E at (1,4); BILL standalone
+    const words=[
+      {ans:'LEASE',cells:[[1,0],[1,1],[1,2],[1,3],[1,4]],num:2},
+      {ans:'BILL',cells:[[5,1],[5,2],[5,3],[5,4]],num:4},
+      {ans:'TERMS',cells:[[0,1],[1,1],[2,1],[3,1],[4,1]],num:1},
+      {ans:'EOB',cells:[[1,4],[2,4],[3,4]],num:3},
+    ];
+    // open + label cells
+    const labeled={};
+    words.forEach(w=>{w.cells.forEach(([r,c],i)=>{const el=cells[r+'-'+c];el.classList.add('open');
+      if(!el.querySelector('.ch')){const ch=document.createElement('div');ch.className='ch';ch.dataset.letter=w.ans[i];el.appendChild(ch);}
+      else{el.querySelector('.ch').dataset.letter=w.ans[i];}});
+      const [r0,c0]=w.cells[0];if(!labeled[r0+'-'+c0]){const num=document.createElement('div');num.className='num';num.textContent=w.num;cells[r0+'-'+c0].appendChild(num);labeled[r0+'-'+c0]=1;}});
+    const clues=$$('.clue');
+    if(reduce||!hasGSAP){ $$('.ch').forEach(c=>{c.textContent=c.dataset.letter;c.style.opacity=1;c.style.transform='scale(1)';});clues.forEach(cl=>{cl.classList.add('done');cl.querySelector('.strike2').style.transform='scaleX(1)';});return;}
+    const tl=gsap.timeline({repeat:-1,repeatDelay:2.2,paused:true});
+    words.forEach((w,wi)=>{
+      w.cells.forEach(([r,c],i)=>{const ch=cells[r+'-'+c].querySelector('.ch');
+        tl.call(()=>{ch.textContent=ch.dataset.letter;}).fromTo(ch,{opacity:0,scale:.3},{opacity:1,scale:1,duration:.12,ease:'back.out(2)'});});
+      const clue=clues[wi];
+      tl.add(()=>{clue.classList.add('done');}).fromTo(clue.querySelector('.strike2'),{scaleX:0},{scaleX:1,duration:.3});
+    });
+    tl.to({},{duration:1.5}).add(()=>{ $$('.ch').forEach(c=>{c.textContent='';gsap.set(c,{opacity:0,scale:.3});});clues.forEach(cl=>{cl.classList.remove('done');gsap.set(cl.querySelector('.strike2'),{scaleX:0});}); });
+    gate('.cross',tl);
+  }
+
+  /* ---------- VAULT ---------- */
+  function vault(){
+    if(!hasGSAP)return;
+    const stamps=$$('.vrow .stamp svg path');stamps.forEach(p=>{const len=p.getTotalLength?p.getTotalLength():40;p.style.strokeDasharray=len;p.style.strokeDashoffset=len;});
+    const tl=gsap.timeline({paused:true});
+    tl.from('.vrow',{y:14,opacity:0,stagger:.1,duration:.5,ease:'power3.out'})
+      .to('.vrow .stamp svg path',{strokeDashoffset:0,duration:.4,stagger:.08},'-=.4')
+      .fromTo('.seal',{opacity:0,scale:.3,rotation:-12},{opacity:1,scale:1,rotation:-8,duration:.5,stagger:.08,ease:'back.out(2)'},'-=.2');
+    ScrollTrigger.create({trigger:'.vault',start:'top 70%',once:true,onEnter:()=>tl.play()});
+    // shred loop
+    if(reduce)return;
+    const doc=$('#shreddoc'),scan=$('#vscan');
+    const shredTl=gsap.timeline({repeat:-1,repeatDelay:1.2,paused:true});
+    // build shards
+    for(let i=0;i<10;i++){const s=document.createElement('div');s.className='shard';s.style.left=(i*14)+'px';s.style.height='180px';doc.appendChild(s);}
+    const shards=$$('.shard',doc);
+    shredTl.set(scan,{top:-24,opacity:1}).set(shards,{y:0,opacity:0})
+      .to(scan,{top:184,duration:1,ease:'none'})
+      .set(scan,{opacity:0})
+      .set(shards,{opacity:1})
+      .to(shards,{y:200,opacity:0,duration:1,ease:'power1.in',stagger:.04})
+      .to({},{duration:1});
+    gate('.vault',shredTl);
+  }
+
+  /* ---------- CLASSIFIEDS ---------- */
+  function classifieds(){
+    const ringPaths=$$('.ad .ring path');ringPaths.forEach(p=>{const len=p.getTotalLength?p.getTotalLength():300;p.style.strokeDasharray=len;p.style.strokeDashoffset=len;});
+    if(hasGSAP && !reduce){
+      const tl=gsap.timeline({paused:true});
+      tl.from('.ad',{y:24,opacity:0,stagger:.1,duration:.5,ease:'power3.out'})
+        .to('.ad .ring path',{strokeDashoffset:0,duration:.8,ease:'power2.inOut'},'-=.2');
+      ScrollTrigger.create({trigger:'.classi',start:'top 70%',once:true,onEnter:()=>tl.play()});
+    } else { ringPaths.forEach(p=>p.style.strokeDashoffset=0); }
+    // toggle
+    const btns=$$('.toggle button'),amts=$$('.ad .amt');
+    btns.forEach(b=>b.addEventListener('click',()=>{
+      btns.forEach(x=>x.classList.remove('on'));b.classList.add('on');const cy=b.dataset.cycle;
+      amts.forEach(a=>{const v=cy==='yr'?a.dataset.yr:a.dataset.mo;
+        if(hasGSAP&&!reduce){const o={v:parseInt(a.textContent.replace(/\D/g,''))||0};gsap.to(o,{v:+v,duration:.5,ease:'power2.out',onUpdate:()=>a.textContent='$'+Math.round(o.v)});}
+        else a.textContent='$'+v;});
+    }));
+  }
+
+  /* ---------- LETTERS ---------- */
+  function letters(){
+    if(!hasGSAP)return;
+    $$('.letter').forEach(card=>{
+      const scary=card.querySelector('.scary'),clear=card.querySelector('.clarified');
+      ScrollTrigger.create({trigger:card,start:'top 82%',once:true,onEnter:()=>{
+        if(reduce){scary.style.display='none';clear.style.display='inline';clear.style.opacity=1;return;}
+        gsap.timeline()
+          .from(card,{y:20,opacity:0,duration:.5,ease:'power3.out'})
+          .to(scary,{filter:'blur(6px)',opacity:0,duration:.5},'+=.4')
+          .set(scary,{display:'none'}).set(clear,{display:'inline'})
+          .fromTo(clear,{opacity:0,filter:'blur(6px)'},{opacity:1,filter:'blur(0)',duration:.5});
+      }});
+    });
+  }
+
+  /* ---------- FAQ ---------- */
+  function faq(){
+    const items=$$('.qa');
+    function open(item){
+      const a=item.querySelector('.a'),inner=item.querySelector('.a-in'),rule=item.querySelector('.arule'),txt=item.querySelector('.ans-text'),corr=item.querySelector('.corrected');
+      const full=txt.dataset.full||txt.textContent;txt.dataset.full=full;
+      items.forEach(o=>{if(o!==item&&o.classList.contains('open')){o.classList.remove('open');gsap.to(o.querySelector('.a'),{height:0,duration:.3});}});
+      const isOpen=item.classList.contains('open');
+      if(isOpen){item.classList.remove('open');gsap.to(a,{height:0,duration:.3});return;}
+      item.classList.add('open');
+      gsap.set(a,{height:'auto'});const h=a.offsetHeight;gsap.fromTo(a,{height:0},{height:h,duration:.4,ease:'power2.out',onComplete:()=>gsap.set(a,{height:'auto'})});
+      if(reduce||!hasGSAP){txt.textContent=full;gsap.set(corr,{opacity:1,scale:1});gsap.set(rule,{scaleX:1});return;}
+      gsap.fromTo(rule,{scaleX:0},{scaleX:1,duration:.4,ease:'power2.out'});
+      gsap.set(corr,{opacity:0,scale:.4});txt.textContent='';
+      gsap.to({i:0},{i:full.length,duration:Math.min(1.6,full.length*0.012),ease:'none',onUpdate:function(){txt.textContent=full.slice(0,Math.round(this.targets()[0].i));},onComplete:()=>gsap.to(corr,{opacity:1,scale:1,duration:.4,ease:'back.out(2)'})});
+    }
+    items.forEach(item=>{ item.querySelector('.ans-text').dataset.full=item.querySelector('.ans-text').textContent;
+      item.querySelector('.q').addEventListener('click',()=>open(item)); });
+    // pre-open first
+    if(items[0]) setTimeout(()=>open(items[0]),400);
+  }
+
+  /* ---------- LAST WORD ---------- */
+  function lastWord(){
+    if(!hasGSAP)return;
+    const proofs=['Caught a $1,900 billing error.','Killed an auto-renew trap.','Read my lease in 90 seconds.'];let pi=0;const pEl=$('#proof');
+    if(!reduce)setInterval(()=>{pi=(pi+1)%proofs.length;gsap.to(pEl,{opacity:0,duration:.3,onComplete:()=>{pEl.textContent=proofs[pi];gsap.to(pEl,{opacity:1,duration:.3});}});},3000);
+    const stamp=$('#stampbig'),clear=$('.ed-clear'),fog=$('.ed-fog'),shock=$('#shock');
+    if(reduce){gsap.set(stamp,{top:30,opacity:1,rotation:-8});gsap.set(clear,{opacity:1});gsap.set(fog,{opacity:0});return;}
+    gsap.set(stamp,{top:-120,opacity:0});
+    const tl=gsap.timeline({paused:true});
+    tl.to(stamp,{top:30,opacity:1,scale:1.15,duration:.5,ease:'power3.in'})
+      .to(stamp,{scale:1,duration:.2,ease:'power2.out'})
+      .to(fog,{opacity:0,duration:.3},'<')
+      .to(clear,{opacity:1,duration:.3},'<')
+      .fromTo(shock,{scale:0,opacity:.8},{scale:14,opacity:0,duration:.7,ease:'power2.out'},'<');
+    ScrollTrigger.create({trigger:'.end',start:'top 65%',once:true,onEnter:()=>tl.play()});
+  }
+
+  /* ---------- KINETIC FOOTER ---------- */
+  function kineticDrift(){
+    if(!hasGSAP)return;
+    gsap.to('#kinetic',{xPercent:-28,scrollTrigger:{trigger:'.end',start:'top bottom',end:'bottom top',scrub:1}});
+  }
+
+})();
+</script>
+</body>
+</html>
