@@ -60,8 +60,6 @@
   .navlinks a:hover{background:var(--ink);color:var(--paper)}
   .navlinks a:active{transform:translateY(1px)}
   .navlinks a.cta{background:var(--accent);color:#fff;font-weight:700}.navlinks a.cta:hover{background:var(--ink)}
-  .masthead{display:flex;justify-content:space-between;gap:var(--s2);flex-wrap:wrap;padding:var(--s1) var(--pad-x);border-bottom:var(--bd) solid var(--ink);font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft);background:var(--paper);position:relative;z-index:40;font-family:'JetBrains Mono'}
-  .masthead b{color:var(--accent-text)}
 
   /* shared section header */
   .seclead{padding:var(--s7) var(--pad-x) var(--s1)}
