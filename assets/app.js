@@ -480,14 +480,16 @@
           emptyEl=$('#resultEmpty'),panel=$('#resultPanel'),plainOut=$('#plainOut'),
           riskList=$('#riskList'),riskNote=$('#riskNote'),levelFrom=$('#levelFrom'),levelTo=$('#levelTo'),
           jargonCount=$('#jargonCount'),askInput=$('#askInput'),askBtn=$('#askBtn'),askOut=$('#askOut'),msg=$('#analyzeMsg'),
-          attachTray=$('#attachTray');
+          attachTray=$('#attachTray'),draftOut=$('#draftOut'),draftNote=$('#draftNote'),copyDraftBtn=$('#copyDraftBtn'),
+          downloadDraftBtn=$('#downloadDraftBtn');
+    const sampleText=input.value.trim();
 
     // trap/risk patterns — severity g(note) a(watch) r(trap)
     const RISK=[
       {re:/in perpetuity|perpetual|survive (the )?termination/i, sev:'r', label:'Trap', why:'Never expires — there is no time limit.'},
       {re:/indemnif|hold\s+\w*\s*harmless/i, sev:'r', label:'Trap', why:"You may have to cover the other side's losses, including legal fees."},
       {re:/waiv\w*.{0,30}(jury|class action)|class action waiver|trial by jury/i, sev:'r', label:'Trap', why:'You give up the right to sue in court or join a class action.'},
-      {re:/non-?refundable|forfeit|liquidated damages/i, sev:'r', label:'Trap', why:"Money you won't get back."},
+      {re:/non[-\s]?refundable|forfeit|liquidated damages/i, sev:'r', label:'Trap', why:"Money you won't get back."},
       {re:/auto(matically)?\s*renew|evergreen|successive\s+\w+\s+terms|renew\w* for/i, sev:'a', label:'Watch', why:'Renews automatically unless you cancel in time.'},
       {re:/sole discretion|at any time|without (prior )?notice|reserves the right/i, sev:'a', label:'Watch', why:'The other party can change or act unilaterally.'},
       {re:/late fee|penalty|default interest|assessment/i, sev:'a', label:'Watch', why:'Extra charges may apply.'},
@@ -500,10 +502,16 @@
       return Math.max(4,Math.min(18,Math.round(4 + wps*0.45 + longish*22))); }
     function trunc(s,n){ s=s.trim(); return s.length>n? s.slice(0,n)+'…' : s; }
     function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
-    let lastSentences=[];
+    let lastSentences=[],lastFlags=[],lastRaw='',attachedText='',attachedFile=null,chipUrls=[];
+    function activeDocumentText(){
+      const typed=input.value.trim();
+      if(attachedText && (!typed || typed===sampleText)) return attachedText;
+      if(attachedText && typed) return attachedText+'\n\nUser context:\n'+typed;
+      return typed;
+    }
 
     function analyze(){
-      const raw=input.value.trim();
+      const raw=activeDocumentText().trim();
       if(!raw){ msg.textContent='Paste a document or a clause first — or load a sample below.'; msg.className='analyze-msg err'; input.focus(); return; }
       msg.textContent=''; msg.className='analyze-msg';
       if(btn){ btn.setAttribute('aria-busy','true'); btn.dataset.label=btn.textContent; btn.textContent='Reading…'; }
@@ -511,7 +519,7 @@
       if(noMotion) finish(); else setTimeout(finish, 600);
     }
     function render(raw){
-      const sentences=splitSentences(raw); lastSentences=sentences;
+      const sentences=splitSentences(raw); lastSentences=sentences; lastRaw=raw;
       // 1) plain-english rewrite
       let html='', totalJargon=0;
       sentences.forEach(s=>{ const r=clarify(s); totalJargon+=r.found; html+='<p>'+(r.changed?r.html:esc(s))+'</p>'; });
@@ -522,6 +530,7 @@
       if(levelFrom) levelFrom.textContent=before+'th'; if(levelTo) levelTo.textContent=after+'th';
       // 3) risk radar
       const flags=[]; sentences.forEach((s,i)=>{ for(const rule of RISK){ if(rule.re.test(s)){ flags.push({i,s,rule}); break; } } });
+      lastFlags=flags;
       riskList.innerHTML='';
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
       else {
@@ -535,37 +544,113 @@
       flags.forEach(f=>{ const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev;
         row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>';
         riskList.appendChild(row); });
+      if(draftOut){
+        draftOut.value=buildDraft(raw, flags);
+        if(draftNote) draftNote.textContent='Ready-to-edit draft. Fill in names, dates, and contact details before sending.';
+      }
       if(!noMotion && window.gsap) gsap.from('#riskList .rrow',{opacity:0,y:12,stagger:.07,duration:DUR.base,ease:EASE.enter});
       // reveal results
       if(emptyEl) emptyEl.hidden=true; panel.hidden=false; if(askOut) askOut.innerHTML='';
       if(!noMotion && window.gsap) gsap.fromTo(panel,{opacity:0,y:14},{opacity:1,y:0,duration:DUR.base,ease:EASE.enter});
       if(askInput) askInput.disabled=false; if(askBtn) askBtn.disabled=false;
     }
-    function ask(){
-      const q=(askInput&&askInput.value||'').trim(); if(!q) return;
-      if(!lastSentences.length){ askOut.innerHTML='Analyze a document first, then ask about it.'; return; }
+    function pickBestSentence(question){
+      if(!question) return null;
       const stop=new Set('the a an of to in on for and or is are be shall must you your i it this that with from at as by will would can may any all not no its their our'.split(' '));
-      const kw=q.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>2 && !stop.has(w));
+      const kw=question.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>2 && !stop.has(w));
       let best=null,bestScore=0;
       lastSentences.forEach((s,i)=>{ const low=s.toLowerCase(); let sc=0; kw.forEach(w=>{ if(low.indexOf(w)>-1) sc++; }); if(sc>bestScore){ bestScore=sc; best={s,i}; } });
-      if(!best || bestScore===0){ askOut.innerHTML='<span style="color:var(--danger)">I couldn’t find that in your document.</span> Try rephrasing — or it may be implied rather than stated.'; return; }
-      const r=clarify(best.s);
-      askOut.innerHTML='<div class="ans-line">'+(r.changed?r.html:esc(best.s))+'</div><div class="cite" style="opacity:1">cited · sentence '+(best.i+1)+' of '+lastSentences.length+'</div>';
+      return bestScore>0?best:null;
+    }
+    function localAnswer(q){
+      const lowerDoc=lastRaw.toLowerCase(),lowerQ=q.toLowerCase(),best=pickBestSentence(q);
+      if(/deposit|security/.test(lowerQ) && /forfeit|security deposit|non-refundable|non refundable/.test(lowerDoc)){
+        const notice=/sixty|60/.test(lowerDoc)?' The document points to a 60-day written-notice condition.':'';
+        return {text:"Not automatically. If you met the notice requirement and there are no valid damage deductions, this text does not clearly say they can keep 100% of your deposit."+notice+" If you missed that condition, it gives them language to argue forfeiture, so ask for the exact reason and an itemized deduction list.", cite:best};
+      }
+      if(/refund|back|return|get.*fee|money/.test(lowerQ) && /non[-\s]?refundable|non refundable|forfeit/.test(lowerDoc)){
+        const refundSentence=lastSentences.find((s)=>/non[-\s]?refundable|non refundable|forfeit/i.test(s));
+        return {text:"Probably not based on this wording. The document says the relevant fee or charge is non-refundable, so you should ask the college for a written refund policy or exception before assuming you will get it back.", cite:refundSentence?{s:refundSentence,i:lastSentences.indexOf(refundSentence)}:best};
+      }
+      if(/cancel|terminate|early/.test(lowerQ) && /early termination|remaining charges|cancel/.test(lowerDoc)){
+        return {text:"Probably not without cost. The document appears to say early termination can trigger the remaining charges or a cancellation assessment, so ask for the exact clause and the dollar calculation before agreeing.", cite:best};
+      }
+      if(/liable|responsible|pay|owe|cost|fee/.test(lowerQ)){
+        return {text:best?"The closest sentence says: "+best.s:"I do not see a clear liability answer in the text. Look for words like liable, responsible, indemnify, fee, penalty, or assessment.", cite:best};
+      }
+      return {text:best?"The closest supported answer is based on this sentence: "+best.s:"I could not find that directly in the document. It may be implied, missing, or worded differently.", cite:best};
+    }
+    async function ask(){
+      const q=(askInput&&askInput.value||'').trim(); if(!q) return;
+      if(!lastSentences.length){ askOut.innerHTML='Analyze a document first, then ask about it.'; return; }
+      const local=localAnswer(q);
+      askOut.innerHTML='<span class="think" style="display:inline-flex"><i></i><i></i><i></i></span> Asking Gemini…';
+      if(askBtn) askBtn.disabled=true;
+      let answered=false;
+      try{
+        const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          question:q,
+          document:lastRaw.slice(0,30000),
+          rewrite:plainOut?plainOut.textContent.slice(0,6000):'',
+          risks:lastFlags.map(f=>({sentence:f.s,reason:f.rule.why,label:f.rule.label})).slice(0,12),
+          fileName:attachedFile&&attachedFile.name
+        })});
+        const data=await res.json().catch(()=>({}));
+        if(res.ok && data.answer){
+          const cite=data.citation?'<div class="cite" style="opacity:1">'+esc(data.citation)+'</div>':'';
+          askOut.innerHTML='<div class="ans-line">'+esc(data.answer)+'</div>'+cite;
+          answered=true;
+        }
+      }catch(_){}
+      if(!answered){
+        const cite=local.cite?'<div class="cite" style="opacity:1">local fallback · sentence '+(local.cite.i+1)+' of '+lastSentences.length+'</div>':'<div class="cite" style="opacity:1">local fallback</div>';
+        askOut.innerHTML='<div class="ans-line">'+esc(local.text)+'</div>'+cite;
+      }
+      if(askBtn) askBtn.disabled=false;
+    }
+    function buildDraft(raw, flags){
+      const firstRisk=flags[0];
+      const issue=firstRisk?firstRisk.rule.why:'Please confirm the document terms in plain language.';
+      const quote=firstRisk?'Relevant text: "'+trunc(firstRisk.s,220)+'"':'Relevant document text: "'+trunc(raw,220)+'"';
+      return [
+        'Subject: Request for clarification and correction',
+        '',
+        'Hello,',
+        '',
+        'I am writing about the attached document/notice. I need a clear written explanation of the terms before I agree, pay, sign, or waive any rights.',
+        '',
+        quote,
+        '',
+        'My concern: '+issue,
+        '',
+        'Please send me:',
+        '1. A plain-English explanation of this term and how it applies to me.',
+        '2. Any itemized calculation, policy, lease clause, invoice line, or rule you are relying on.',
+        '3. The deadline for my response, appeal, payment, or cancellation, if any.',
+        '4. Confirmation that no fees, penalties, forfeitures, or adverse action will be added while this clarification is pending.',
+        '',
+        'I am not agreeing to the disputed term or charge by asking for this clarification. Please reply in writing.',
+        '',
+        'Sincerely,',
+        '[YOUR NAME]',
+        '[YOUR CONTACT INFORMATION]'
+      ].join('\n');
     }
 
     if(btn) btn.addEventListener('click',analyze);
-    if(clearBtn) clearBtn.addEventListener('click',()=>{ input.value=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); input.focus(); });
-    $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ input.value=q.dataset.fill; clearAttachments(); analyze(); }));
+    if(clearBtn) clearBtn.addEventListener('click',()=>{ input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); input.focus(); });
+    $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ input.value=q.dataset.fill; clearAttachments(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} }));
+    if(copyDraftBtn) copyDraftBtn.addEventListener('click',async()=>{ if(!draftOut||!draftOut.value)return; try{ await navigator.clipboard.writeText(draftOut.value); copyDraftBtn.textContent='Copied'; setTimeout(()=>copyDraftBtn.textContent='Copy draft',1400); }catch(_){ draftOut.focus(); draftOut.select(); } });
+    if(downloadDraftBtn) downloadDraftBtn.addEventListener('click',()=>{ if(!draftOut||!draftOut.value)return; const url=URL.createObjectURL(new Blob([draftOut.value],{type:'text/plain'})); const a=document.createElement('a'); a.href=url; a.download='cleardoc-response-draft.txt'; a.click(); URL.revokeObjectURL(url); });
 
     /* ---- FILE ATTACHMENT — accepts text, PDF, images & common office formats ---- */
     const TEXT_EXT=/\.(txt|text|md|markdown|csv|tsv|log|json|xml|html?|rtf)$/i;
     const IMG_EXT=/\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif|tiff?)$/i;
     const PDF_EXT=/\.pdf$/i;
-    let chipUrls=[];
     function fmtSize(b){ if(b<1024)return b+' B'; if(b<1048576)return Math.round(b/1024)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
     function extOf(n){ const m=/\.([a-z0-9]+)$/i.exec(n); return m?m[1].toUpperCase():'FILE'; }
     function kindOf(n){ if(IMG_EXT.test(n))return'img'; if(PDF_EXT.test(n))return'pdf'; if(/\.(docx?|odt|pages)$/i.test(n))return'doc'; return'txt'; }
-    function clearAttachments(){ if(!attachTray)return; chipUrls.forEach(u=>{try{URL.revokeObjectURL(u);}catch(_){}}); chipUrls=[]; attachTray.innerHTML=''; attachTray.hidden=true; if(fileInput)fileInput.value=''; }
+    function clearAttachments(){ if(!attachTray)return; chipUrls.forEach(u=>{try{URL.revokeObjectURL(u);}catch(_){}}); chipUrls=[]; attachedText=''; attachedFile=null; attachTray.innerHTML=''; attachTray.hidden=true; if(fileInput)fileInput.value=''; }
     function setSub(chip,cls,txt){ const sub=chip.querySelector('.fsub'); sub.className='fsub '+cls; sub.innerHTML='<span class="dot"></span>'+esc(txt); }
     function makeChip(file){
       const kind=kindOf(file.name);
@@ -578,8 +663,9 @@
       attachTray.innerHTML=''; attachTray.appendChild(chip); attachTray.hidden=false;
       return chip;
     }
+    function prepareForAttachment(){ if(input.value.trim()===sampleText) input.value=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='File attached. Add your question or context on the left, then press Analyze.';msg.className='analyze-msg';} }
     function readText(file,chip){ const rd=new FileReader();
-      rd.onload=()=>{ input.value=String(rd.result).slice(0,20000); setSub(chip,'ok','Loaded · '+fmtSize(file.size)); analyze(); };
+      rd.onload=()=>{ attachedText=String(rd.result).slice(0,30000); setSub(chip,'ok','Ready · press Analyze'); prepareForAttachment(); };
       rd.onerror=()=>{ setSub(chip,'warn','Could not read — paste the text instead'); };
       rd.readAsText(file); }
     async function readPdf(file,chip){
@@ -591,14 +677,14 @@
         for(let p=1;p<=max;p++){ const page=await pdf.getPage(p); const tc=await page.getTextContent(); out+=tc.items.map(i=>i.str).join(' ')+'\n\n'; }
         out=out.trim();
         if(!out){ setSub(chip,'warn','No selectable text (scanned PDF?) — paste it instead'); return; }
-        input.value=out.slice(0,20000);
-        setSub(chip,'ok','Read '+max+' page'+(max>1?'s':'')+(pdf.numPages>max?' of '+pdf.numPages:''));
-        analyze();
+        attachedText=out.slice(0,30000);
+        setSub(chip,'ok','Read '+max+' page'+(max>1?'s':'')+(pdf.numPages>max?' of '+pdf.numPages:'')+' · press Analyze');
+        prepareForAttachment();
       }catch(err){ console.error(err); setSub(chip,'warn','Could not read this PDF — paste the text instead'); }
     }
-    function handleFile(file){ if(!file||!attachTray)return; const chip=makeChip(file); const n=file.name;
+    function handleFile(file){ if(!file||!attachTray)return; attachedFile=file; attachedText=''; const chip=makeChip(file); const n=file.name;
       if(PDF_EXT.test(n)) readPdf(file,chip);
-      else if(IMG_EXT.test(n)) setSub(chip,'ok','Image attached · preview');
+      else if(IMG_EXT.test(n)){ setSub(chip,'warn','Image attached · add text/context, then Analyze'); prepareForAttachment(); }
       else if(TEXT_EXT.test(n)||(file.type&&file.type.indexOf('text')===0)) readText(file,chip);
       else if(/\.(docx?|odt|pages)$/i.test(n)) setSub(chip,'warn','Office doc attached · paste the text to analyze');
       else readText(file,chip);

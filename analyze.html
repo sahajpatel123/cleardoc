@@ -34,7 +34,7 @@
   <div class="page-hero">
     <div class="seclead" style="padding:0"><div class="k">// the analyzer</div></div>
     <h1>Read what you're <span class="red">about to sign.</span></h1>
-    <p>Paste a clause, a contract, or a bill — or upload a text file. ClearDoc rewrites it in plain English, flags the traps, and answers your questions, all in your browser. Nothing leaves this page.</p>
+    <p>Paste a clause, a contract, or a bill — or attach a file. ClearDoc rewrites it in plain English, flags the traps, drafts a response, and answers your questions with AI when configured.</p>
   </div>
 
   <section class="work" aria-label="Document analyzer">
@@ -70,6 +70,15 @@
           <span class="rh">⚠ Risk radar</span>
           <p class="analyze-msg" id="riskNote" style="margin-top:0"></p>
           <div class="risk-built" id="riskList"></div>
+        </div>
+        <div class="result-block">
+          <span class="rh">✍ Written draft</span>
+          <p class="analyze-msg" id="draftNote" style="margin-top:0">A ready-to-edit email or letter based on this document.</p>
+          <textarea id="draftOut" class="draft-box" readonly aria-label="Generated response draft"></textarea>
+          <div class="draft-actions">
+            <button class="ghost-btn" id="copyDraftBtn" type="button">Copy draft</button>
+            <button class="ghost-btn" id="downloadDraftBtn" type="button">Download .txt</button>
+          </div>
         </div>
         <div class="result-block">
           <span class="rh">💬 Ask this document</span>
