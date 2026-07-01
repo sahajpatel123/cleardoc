@@ -1,0 +1,55 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Unit + smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies (playwright only — serverless code uses built-ins)
+        run: npm install --no-save playwright
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Validate JSON config files
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('vercel.json','utf8'))" && echo "vercel.json: valid"
+
+      - name: Parse-check all JS
+        run: |
+          for f in assets/app.js api/_safety.js api/analyze.js api/chat.js api/health.js; do
+            node --check "$f" && echo "$f: OK" || (echo "$f: SYNTAX ERROR"; exit 1)
+          done
+
+      - name: Unit tests (api/_safety.js)
+        run: node --test test/safety.test.js
+
+      - name: Browser smoke tests (Playwright)
+        run: node --test test/smoke.test.js
+        env:
+          CI: 'true'
+
+      - name: Integration tests (mock AI)
+        run: node --test test/integration.test.js
+        env:
+          CI: 'true'
+
+      - name: Summary
+        if: always()
+        run: echo "All checks completed. Status: ${{ job.status }}."

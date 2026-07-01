@@ -500,7 +500,10 @@
           riskList=$('#riskList'),riskNote=$('#riskNote'),levelFrom=$('#levelFrom'),levelTo=$('#levelTo'),
           jargonCount=$('#jargonCount'),askInput=$('#askInput'),askBtn=$('#askBtn'),askOut=$('#askOut'),msg=$('#analyzeMsg'),
           attachTray=$('#attachTray'),draftOut=$('#draftOut'),draftNote=$('#draftNote'),copyDraftBtn=$('#copyDraftBtn'),
-          downloadDraftBtn=$('#downloadDraftBtn');
+          downloadDraftBtn=$('#downloadDraftBtn'),
+          analyzeLoading=$('#analyzeLoading'),verdictBlock=$('#verdictBlock'),verdictDisplay=$('#verdictDisplay'),
+          deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
+          nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList');
     const sampleText=input.value.trim();
 
     // trap/risk patterns — severity g(note) a(watch) r(trap)
@@ -533,22 +536,85 @@
       const raw=activeDocumentText().trim();
       if(!raw){ msg.textContent='Paste a document or a clause first — or load a sample below.'; msg.className='analyze-msg err'; input.focus(); return; }
       msg.textContent=''; msg.className='analyze-msg';
-      if(btn){ btn.setAttribute('aria-busy','true'); btn.dataset.label=btn.textContent; btn.textContent='Reading…'; }
-      const finish=()=>{ if(btn){ btn.removeAttribute('aria-busy'); btn.textContent=btn.dataset.label||'Analyze →'; } try{ render(raw); }catch(e){ console.error(e); msg.textContent="Couldn't read that — try pasting plain text."; msg.className='analyze-msg err'; } };
-      if(noMotion) finish(); else setTimeout(finish, 600);
+      // Guard against double-click — only one analysis at a time
+      if(btn && btn.disabled) return;
+      if(btn){ btn.setAttribute('aria-busy','true'); btn.dataset.label=btn.textContent; btn.textContent='Reading…'; btn.disabled=true; }
+      // show loading state — empty + result hidden, loading visible
+      if(panel) panel.hidden=true;
+      if(emptyEl) emptyEl.hidden=true;
+      if(analyzeLoading) analyzeLoading.hidden=false;
+      runAnalysis(raw);
     }
-    function render(raw){
+
+    async function runAnalysis(raw){
+      // Always seed local analysis so chat/risks work even if API fails.
+      let localResult=null;
+      try { localResult=buildLocalAnalysis(raw); } catch(e){ console.error('[local-analysis]',e); }
+
+      // Try AI-backed analysis first; fall back to local on any failure.
+      let ai=null, aiError=null;
+      try{
+        const controller=new AbortController();
+        const t=setTimeout(()=>controller.abort(), 45000);
+        const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({document:raw.slice(0,40000)}),signal:controller.signal});
+        clearTimeout(t);
+        const data=await res.json().catch(()=>({}));
+        if(res.ok && data && data.analysis){ ai=data.analysis; }
+        else { aiError=(data&&data.error)||('HTTP '+res.status); }
+      }catch(err){
+        aiError=(err&&(err.name==='AbortError'?'AI timed out':err.message))||'AI unavailable';
+        console.warn('[analyze] AI path failed:',aiError);
+      }
+
+      // Hide loading, restore button
+      if(analyzeLoading) analyzeLoading.hidden=true;
+      if(btn){ btn.removeAttribute('aria-busy'); btn.textContent=btn.dataset.label||'Analyze →'; btn.disabled=false; }
+
+      try{
+        render(raw, {ai, local:localResult, aiError});
+      }catch(e){
+        console.error('[render]',e);
+        msg.textContent="Couldn't read that — try pasting plain text.";
+        msg.className='analyze-msg err';
+        if(emptyEl) emptyEl.hidden=false;
+      }
+    }
+    function render(raw, ctx){
+      ctx=ctx||{};
+      const ai=ctx.ai||null;
+      const local=ctx.local||null;
       const sentences=splitSentences(raw); lastSentences=sentences; lastRaw=raw;
-      // 1) plain-english rewrite
+
+      // 1) plain-english rewrite — prefer AI, fall back to local clarify
       let html='', totalJargon=0;
-      sentences.forEach(s=>{ const r=clarify(s); totalJargon+=r.found; html+='<p>'+(r.changed?r.html:esc(s))+'</p>'; });
+      if(ai && ai.plainEnglishRewrite){
+        // AI returned markdown-ish HTML wrapped in <b>/<br>; render with light sanitization
+        html=sanitizeAiRewrite(ai.plainEnglishRewrite);
+      } else {
+        sentences.forEach(s=>{ const r=clarify(s); totalJargon+=r.found; html+='<p>'+(r.changed?r.html:esc(s))+'</p>'; });
+      }
       plainOut.innerHTML=html || '<p>'+esc(raw)+'</p>';
-      if(jargonCount) jargonCount.textContent=totalJargon;
-      // 2) reading level
-      const before=gradeLevel(raw); const after=Math.max(5,Math.min(before-2,gradeLevel(plainOut.textContent)));
+      if(jargonCount) jargonCount.textContent = ai && Number.isFinite(ai.jargonFound) ? ai.jargonFound : totalJargon;
+
+      // 2) reading level — prefer AI, fall back to local gradeLevel
+      const before=ai && ai.readingLevel && ai.readingLevel.before ? ai.readingLevel.before : gradeLevel(raw);
+      const after=ai && ai.readingLevel && ai.readingLevel.after ? ai.readingLevel.after : Math.max(5,Math.min(before-2,gradeLevel(plainOut.textContent)));
       if(levelFrom) levelFrom.textContent=before+'th'; if(levelTo) levelTo.textContent=after+'th';
-      // 3) risk radar
-      const flags=[]; sentences.forEach((s,i)=>{ for(const rule of RISK){ if(rule.re.test(s)){ flags.push({i,s,rule}); break; } } });
+
+      // 3) risk radar — prefer AI risks, fall back to local regex flags
+      let flags=[];
+      if(ai && Array.isArray(ai.risks) && ai.risks.length){
+        flags=ai.risks.map(r=>{
+          const sev = r.severity==='trap' ? 'r' : r.severity==='watch' ? 'a' : 'g';
+          const label = r.severity==='trap' ? 'Trap' : r.severity==='watch' ? 'Watch' : 'Note';
+          const sentence = String(r.clause||'').slice(0,300);
+          return { i:-1, s:sentence, rule:{sev, label, why:String(r.explanation||'').slice(0,400)} };
+        });
+      } else if(local && local.flags){
+        flags=local.flags;
+      } else {
+        sentences.forEach((s,i)=>{ for(const rule of RISK){ if(rule.re.test(s)){ flags.push({i,s,rule}); break; } } });
+      }
       lastFlags=flags;
       riskList.innerHTML='';
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
@@ -563,6 +629,69 @@
       flags.forEach(f=>{ const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev;
         row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>';
         riskList.appendChild(row); });
+
+      // 4) verdict — AI only
+      if(verdictDisplay){
+        verdictDisplay.innerHTML='';
+        if(ai && ai.verdict && ai.verdict.label){
+          const label=String(ai.verdict.label).trim();
+          const summary=String(ai.verdict.summary||'').trim();
+          const tone=label.toLowerCase().includes('fair')?'fair'
+                   : label.toLowerCase().includes('suspicious')?'suspicious'
+                   : label.toLowerCase().includes('illegal')?'illegal'
+                   :'review';
+          verdictDisplay.innerHTML='<span class="verdict-label '+tone+'">'+esc(label)+'</span>'
+            +'<div class="verdict-summary">'+esc(summary||'')+'</div>';
+          if(verdictBlock) verdictBlock.hidden=false;
+        } else {
+          if(verdictBlock) verdictBlock.hidden=true;
+        }
+      }
+
+      // 5) deadlines — AI only
+      if(deadlinesList){
+        deadlinesList.innerHTML='';
+        const dls = (ai && Array.isArray(ai.deadlines)) ? ai.deadlines : [];
+        if(dls.length){
+          dls.forEach(d=>{
+            const row=document.createElement('div');
+            row.className='deadline-row';
+            row.innerHTML='<span class="deadline-date">'+esc(String(d.date||'').slice(0,80))+'</span>'
+              +'<span class="deadline-desc">'+esc(String(d.description||'').slice(0,300))+'</span>';
+            deadlinesList.appendChild(row);
+          });
+          if(deadlinesBlock) deadlinesBlock.hidden=false;
+        } else {
+          if(deadlinesBlock) deadlinesBlock.hidden=true;
+        }
+      }
+
+      // 6) next steps — AI only
+      if(nextStepsList){
+        nextStepsList.innerHTML='';
+        const steps = (ai && Array.isArray(ai.nextSteps)) ? ai.nextSteps : [];
+        if(steps.length){
+          steps.forEach(s=>{
+            const li=document.createElement('li');
+            li.textContent=String(s).slice(0,400);
+            nextStepsList.appendChild(li);
+          });
+          if(nextStepsBlock) nextStepsBlock.hidden=false;
+        } else {
+          if(nextStepsBlock) nextStepsBlock.hidden=true;
+        }
+      }
+
+      // 7) status message — note AI status for transparency
+      if(ctx.aiError && msg){
+        msg.textContent='AI analysis unavailable ('+ctx.aiError+') — showing local scan only.';
+        msg.className='analyze-msg';
+      } else if(!ai && msg){
+        msg.textContent='Showing local scan — AI analysis did not return a result.';
+        msg.className='analyze-msg';
+      }
+
+      // 8) draft
       if(draftOut){
         draftOut.value=buildDraft(raw, flags);
         if(draftNote) draftNote.textContent='Ready-to-edit draft. Fill in names, dates, and contact details before sending.';
@@ -572,6 +701,33 @@
       if(emptyEl) emptyEl.hidden=true; panel.hidden=false; if(askOut) askOut.innerHTML='';
       if(!noMotion && window.gsap) gsap.fromTo(panel,{opacity:0,y:14},{opacity:1,y:0,duration:DUR.base,ease:EASE.enter});
       if(askInput) askInput.disabled=false; if(askBtn) askBtn.disabled=false;
+    }
+
+    // Build a local-only analysis snapshot (plain rewrite + regex flags) for fallback
+    function buildLocalAnalysis(raw){
+      const sentences=splitSentences(raw);
+      const flags=[];
+      sentences.forEach((s,i)=>{ for(const rule of RISK){ if(rule.re.test(s)){ flags.push({i,s,rule}); break; } } });
+      let html='', totalJargon=0;
+      sentences.forEach(s=>{ const r=clarify(s); totalJargon+=r.found; html+='<p>'+(r.changed?r.html:esc(s))+'</p>'; });
+      return {plainEnglishRewrite:html||raw, risks:[], verdict:null, deadlines:[], nextSteps:[], readingLevel:null, jargonFound:totalJargon, flags};
+    }
+
+    // Light sanitizer for AI rewrite HTML — only allow safe tags, neutralize anything else
+    function sanitizeAiRewrite(html){
+      let s=String(html||'');
+      // normalize line breaks before/after <br>
+      s=s.replace(/\r/g,'');
+      // strip <script>/<style> blocks entirely
+      s=s.replace(/<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi,'');
+      // whitelist allowed tags — non-global regex so .test() is stateless across calls
+      const allowed=/^<\/?(?:b|strong|i|em|u|br|p|ul|ol|li|h[1-6])(?:\s[^>]*)?>$/i;
+      s=s.replace(/<[^>]+>/g, function(m){ return allowed.test(m) ? m : ''; });
+      // normalize paragraph breaks if AI didn't include them
+      if(!/<\s*br/i.test(s) && !/<\s*p[\s>]/i.test(s)) s=s.replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>');
+      // strip any leftover on* event handlers (defense-in-depth)
+      s=s.replace(/\son\w+\s*=\s*"[^"]*"/gi,'').replace(/\son\w+\s*=\s*'[^']*'/gi,'');
+      return s;
     }
     function pickBestSentence(question){
       if(!question) return null;

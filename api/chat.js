@@ -2,17 +2,12 @@ const DEFAULT_MODEL = "gemini-2.5-flash";
 const MAX_DOCUMENT_CHARS = 30000;
 const MAX_REWRITE_CHARS = 6000;
 const MAX_QUESTION_CHARS = 1000;
+const MAX_REQUEST_BYTES = 128 * 1024;       // 128KB hard cap on raw body
+const MIN_QUESTION_CHARS = 3;
+const MIN_DOCUMENT_CHARS = 10;
+const RATE_LIMIT_PER_MINUTE = 30;           // per-IP cap (chat is cheaper)
 
-function json(res, status, body) {
-  res.statusCode = status;
-  res.setHeader("Content-Type", "application/json");
-  res.setHeader("Cache-Control", "no-store");
-  res.end(JSON.stringify(body));
-}
-
-function asString(value, max) {
-  return typeof value === "string" ? value.slice(0, max).trim() : "";
-}
+const { json, asString, getIp, rateLimit, readCappedBody } = require("./_safety.js");
 
 function extractText(data) {
   const candidate = data?.candidates?.[0];
@@ -63,15 +58,29 @@ module.exports = async function handler(req, res) {
     return json(res, 405, { error: "Method not allowed." });
   }
 
+  // Rate limit before doing any work — fail-closed on excess traffic
+  const ip = getIp(req);
+  const rl = rateLimit(ip, RATE_LIMIT_PER_MINUTE);
+  if (!rl.ok) {
+    res.setHeader("Retry-After", String(rl.retryAfter));
+    return json(res, 429, { error: "Too many requests. Try again shortly." });
+  }
+
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
   if (!apiKey) {
     return json(res, 503, { error: "Gemini is not configured." });
   }
 
-  let body = req.body;
-  if (typeof body === "string") {
+  // Read body with a hard byte cap
+  const got = await readCappedBody(req, MAX_REQUEST_BYTES);
+  if (got.error) return json(res, got.error.status, { error: got.error.message });
+
+  let body;
+  if (!got.raw) {
+    body = req.body;
+  } else {
     try {
-      body = JSON.parse(body);
+      body = JSON.parse(got.raw);
     } catch (_) {
       return json(res, 400, { error: "Invalid JSON." });
     }
@@ -84,6 +93,12 @@ module.exports = async function handler(req, res) {
 
   if (!question || !document) {
     return json(res, 400, { error: "Question and analyzed document are required." });
+  }
+  if (question.length < MIN_QUESTION_CHARS) {
+    return json(res, 400, { error: "Question is too short." });
+  }
+  if (document.length < MIN_DOCUMENT_CHARS) {
+    return json(res, 400, { error: "Document is too short to chat about." });
   }
 
   const model = (process.env.GEMINI_CHAT_MODEL || DEFAULT_MODEL).trim();
