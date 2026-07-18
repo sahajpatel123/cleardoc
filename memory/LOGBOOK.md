@@ -1821,3 +1821,21 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored standing directives. The most user-impactful bug of the campaign — high-visibility demo on the home page silently broken for any user who clicked a sample. Caught by static search; would have been missed by syntax check alone.
 
+**2026-07-19 03:16 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #45 of the autonomous loop** (cron `c3921bc4` firing). Live: 03:16 IST.
+- **Documentation refresh: README.md + SECURITY.md** (`90dec103`). Docs had drifted behind the actual API surface since the recent observability expansion:
+  - `/api/csp-report` (iter #42) wasn't documented anywhere
+  - X-AI-* header family wasn't mentioned
+  - X-Build-Sha wasn't mentioned
+  - X-Request-Latency-Total-Ms wasn't mentioned
+  - 5s edge-cache on /api/health 200 was implicit
+  - File tree was missing csp-report files
+  - Test counts were way out of date (33 smoke / 45 unit → actually 64 + 181)
+- **README updates**: "three endpoints" → "four endpoints"; added /api/csp-report row; restructured the response-headers block into JSON + AI-touched buckets; updated the Stack bullet + file tree.
+- **SECURITY updates**: "Every API handler" parenthetical now lists all 4 endpoints (was 3).
+- **246/246 tests pass** (181 unit + 64 smoke + 1 integration). Pure docs, no code change.
+
+**Prompt Intention:**
+- Honored the standing directives. Pure docs-only polish. The README is the first thing new contributors and ops read; having it say "three endpoints" when we ship four is a tiny but visible lie.
+
