@@ -214,77 +214,92 @@ function parseJsonFromText(text) {
 /* ── handler ─────────────────────────────────────────────── */
 
 module.exports = async function handler(req, res) {
-  if (req.method !== "POST") {
-    return json(res, 405, { error: "Method not allowed." });
-  }
+  try {
+    if (req.method !== "POST") {
+      return json(res, 405, { error: "Method not allowed." });
+    }
 
-  // Rate limit before doing any work — fail-closed on excess traffic
-  const ip = getIp(req);
-  const rl = rateLimit(ip, RATE_LIMIT_PER_MINUTE);
-  applyRateLimitHeaders(res, rl);
-  if (!rl.ok) {
-    return json(res, 429, { error: "Too many requests. Try again shortly." });
-  }
+    // Rate limit before doing any work — fail-closed on excess traffic
+    const ip = getIp(req);
+    const rl = rateLimit(ip, RATE_LIMIT_PER_MINUTE);
+    applyRateLimitHeaders(res, rl);
+    if (!rl.ok) {
+      return json(res, 429, { error: "Too many requests. Try again shortly." });
+    }
 
-  // Read body with a hard byte cap (rejects 413 before parsing)
-  const got = await readCappedBody(req, MAX_REQUEST_BYTES);
-  if (got.error) return json(res, got.error.status, { error: got.error.message });
+    // Read body with a hard byte cap (rejects 413 before parsing)
+    const got = await readCappedBody(req, MAX_REQUEST_BYTES);
+    if (got.error) return json(res, got.error.status, { error: got.error.message });
 
-  let body;
-  if (!got.raw) {
-    body = req.body; // tolerate Vercel-parsed bodies when present
-  } else {
+    let body;
+    if (!got.raw) {
+      body = req.body; // tolerate Vercel-parsed bodies when present
+    } else {
+      try {
+        body = JSON.parse(got.raw);
+      } catch (_) {
+        return json(res, 400, { error: "Invalid JSON." });
+      }
+    }
+
+    const document = asString(body?.document, MAX_DOCUMENT_CHARS);
+    if (!document) {
+      return json(res, 400, { error: "Document text is required." });
+    }
+    if (document.length < MAX_DOCUMENT_MIN_CHARS) {
+      return json(res, 400, { error: "Document is too short to analyze." });
+    }
+
+    // Try OpenRouter first, then fall back to Gemini
+    let result = await callOpenRouter(document);
+    let provider = "openrouter";
+
+    if (!result) {
+      result = await callGemini(document);
+      provider = "gemini";
+    }
+
+    if (!result) {
+      return json(res, 502, {
+        error: "AI analysis failed. Please try again.",
+        provider: "none",
+      });
+    }
+
+    // Strict fail-closed schema validation (RULES.md: "Strict zod validation").
+    // Partial legal data is more dangerous than no data — if the AI's payload
+    // has wrong types, missing fields, or out-of-enum values, reject the whole
+    // response rather than shipping a degraded shape to the user.
+    const parsed = safeParseAnalysisResult(result);
+    if (!parsed.ok) {
+      console.error("[analyze] AI returned an invalid response shape:", {
+        provider,
+        errors: parsed.errors,
+      });
+      return json(res, 502, {
+        error: "AI returned an invalid response. Please try again.",
+        reason: "invalid_ai_response",
+        provider,
+      });
+    }
+
+    return json(res, 200, {
+      analysis: parsed.value,
+      provider,
+      model: provider === "openrouter" ? GEMMA_MODEL : GEMINI_MODEL_DEFAULT,
+    });
+  } catch (err) {
+    // Last-resort safety net: never let an uncaught throw leak Vercel's
+    // HTML 500 page (which echoes stack frames and module paths). Surface
+    // a structured JSON 500 with no internals. If the response has already
+    // started streaming, just bail — there's nothing safe left to send.
+    if (res && res.headersSent) return;
+    const msg = err && err.message ? err.message : String(err);
+    console.error("[analyze] unhandled error:", msg);
     try {
-      body = JSON.parse(got.raw);
+      return json(res, 500, { error: "An internal error occurred. Please try again." });
     } catch (_) {
-      return json(res, 400, { error: "Invalid JSON." });
+      // res.end() threw (broken pipe, etc.) — nothing more we can do.
     }
   }
-
-  const document = asString(body?.document, MAX_DOCUMENT_CHARS);
-  if (!document) {
-    return json(res, 400, { error: "Document text is required." });
-  }
-  if (document.length < MAX_DOCUMENT_MIN_CHARS) {
-    return json(res, 400, { error: "Document is too short to analyze." });
-  }
-
-  // Try OpenRouter first, then fall back to Gemini
-  let result = await callOpenRouter(document);
-  let provider = "openrouter";
-
-  if (!result) {
-    result = await callGemini(document);
-    provider = "gemini";
-  }
-
-  if (!result) {
-    return json(res, 502, {
-      error: "AI analysis failed. Please try again.",
-      provider: "none",
-    });
-  }
-
-  // Strict fail-closed schema validation (RULES.md: "Strict zod validation").
-  // Partial legal data is more dangerous than no data — if the AI's payload
-  // has wrong types, missing fields, or out-of-enum values, reject the whole
-  // response rather than shipping a degraded shape to the user.
-  const parsed = safeParseAnalysisResult(result);
-  if (!parsed.ok) {
-    console.error("[analyze] AI returned an invalid response shape:", {
-      provider,
-      errors: parsed.errors,
-    });
-    return json(res, 502, {
-      error: "AI returned an invalid response. Please try again.",
-      reason: "invalid_ai_response",
-      provider,
-    });
-  }
-
-  return json(res, 200, {
-    analysis: parsed.value,
-    provider,
-    model: provider === "openrouter" ? GEMMA_MODEL : GEMINI_MODEL_DEFAULT,
-  });
 };
