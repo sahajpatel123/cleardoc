@@ -304,6 +304,8 @@
   .ad .price{font-family:'Archivo Black';font-size:clamp(34px,5vw,48px);letter-spacing:-.04em;line-height:1.05;margin:6px 0}
   .ad .price small{font-size:var(--t-meta);font-family:'JetBrains Mono';color:var(--ink-soft)}
   .ad .copy{font-family:'Fraunces',serif;font-style:italic;color:var(--ink-soft);font-size:var(--t-card);line-height:1.5;margin-bottom:var(--s3)}
+  .ad .yr-hint{display:block;font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.04em;color:var(--green);background:var(--green-tint);border-top:2px solid var(--green);border-bottom:2px solid var(--green);padding:6px 0;margin:-2px 0 var(--s2);text-align:center}
+  .ad .yr-hint[hidden]{display:none}
   .ad .copy b{font-style:normal;font-family:'Archivo';color:var(--ink)}
   .ad .order{font-family:'Archivo Black';font-size:var(--t-meta);text-transform:uppercase;border:var(--bd) solid var(--ink);padding:9px 16px;cursor:pointer;background:none;transition:background .18s}
   .ad .order:hover{background:var(--ink);color:var(--paper)}.ad .order:active{transform:translateY(1px)}

@@ -891,6 +891,53 @@ skip("pricing toggle: clicking Annually switches prices and reveals save cue", a
   await page.close();
 });
 
+skip("pricing: each non-free card shows an annual hint (total + savings) that updates with the toggle", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const pricingHtml = fs.readFileSync(path.join(ROOT, "pricing.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Every non-free card exposes a .yr-hint slot
+  const cards = pricingHtml.match(/<div class="ad[\s\S]+?<\/div>/g) || [];
+  assert.ok(cards.length === 3, `pricing.html must have 3 plan cards, got ${cards.length}`);
+  // Reader has a static hint baked into HTML (no update needed); other two rely on JS
+  for (const card of cards){
+    assert.match(card, /class="yr-hint"/, "every pricing card must carry a .yr-hint slot");
+  }
+
+  // Source-pattern: updateYearlyHints computes and writes the hint
+  assert.match(appSrc, /function updateYearlyHints\(/, "updateYearlyHints helper must exist");
+  assert.match(appSrc, /annualTotal\s*=\s*yr\s*\*\s*12/, "updateYearlyHints must compute yr*12");
+  assert.match(appSrc, /monthlyTotal\s*=\s*mo\s*\*\s*12/, "updateYearlyHints must compute mo*12");
+  // The toggle click handler must invoke updateYearlyHints
+  assert.match(appSrc, /updateYearlyHints\(yr\)/, "click handler must call updateYearlyHints with the new state");
+
+  // CSS rule for the hint
+  assert.match(themeSrc, /\.ad \.yr-hint\{/, ".yr-hint CSS rule must exist");
+
+  // Live: monthly view (default) — Pro + Firm hints show annual total
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/pricing.html`, { waitUntil: "networkidle" });
+
+  const proHintMonthly = await page.$eval(".ad.pick .yr-hint", (el) => el.textContent || "");
+  assert.ok(/\$180/.test(proHintMonthly), `Pro monthly hint must show $180/yr total, got "${proHintMonthly}"`);
+  assert.ok(/save \$48/.test(proHintMonthly), `Pro hint must mention saving $48, got "${proHintMonthly}"`);
+
+  const firmHints = await page.$$eval(".ad:not(.pick) .yr-hint", (els) => els.map(el => el.textContent || ""));
+  // The non-pick non-Reader ad is the Firm card
+  assert.ok(/\$468/.test(firmHints.join("|") || ""), `Firm hint must mention $468 total, got ${JSON.stringify(firmHints)}`);
+
+  // Click Annually — hint text must update
+  await page.click('button[data-cycle="yr"]');
+  await page.waitForTimeout(150);
+  const proHintAnnual = await page.$eval(".ad.pick .yr-hint", (el) => el.textContent || "");
+  assert.match(proHintAnnual, /Billed \$180 yearly/, `Pro annual hint must say 'Billed $180 yearly', got "${proHintAnnual}"`);
+
+  await page.close();
+});
+
 skip("sw: service worker file exists, parses, and registers without error", async () => {
   if (!HAS_BROWSER) return;
   // 1. sw.js exists and parses

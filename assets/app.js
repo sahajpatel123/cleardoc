@@ -787,10 +787,41 @@
   function classifieds(){
     const btns=$$('.toggle button'),amts=$$('.ad .amt'),cue=$('#saveCue'); if(!$('.classi')) return;
     if(hasGSAP&&!noMotion){ const tl=gsap.timeline({paused:true}); tl.from('.ad',{y:20,opacity:0,stagger:.1,duration:DUR.base,ease:EASE.enter}); ScrollTrigger.create({trigger:'.classi',start:'top 75%',once:true,onEnter:()=>tl.play()}); }
+
+    /* Update each .yr-hint to show the annual total + savings relative
+     * to the monthly toggle rate. The Reader hint is static ('free'). */
+    function updateYearlyHints(isAnnual){
+      $$('.ad').forEach(ad => {
+        const amt = ad.querySelector('.amt');
+        const hint = ad.querySelector('.yr-hint');
+        if(!amt || !hint) return;
+        const mo = parseInt(amt.dataset.mo, 10) || 0;
+        const yr = parseInt(amt.dataset.yr, 10) || 0;
+        if(mo === 0 && yr === 0){
+          // Reader — already a free-forever hint in the markup
+          return;
+        }
+        const annualTotal = yr * 12;
+        const monthlyTotal = mo * 12;
+        const saved = monthlyTotal - annualTotal;
+        if(!isAnnual){
+          hint.hidden = false;
+          hint.textContent = '$' + annualTotal.toLocaleString() + (ad.querySelector('.price small') && /seat/.test(ad.querySelector('.price small').textContent || '') ? '/seat/yr' : '/yr') + ' · save $' + saved + ' annually';
+        } else {
+          hint.hidden = false;
+          hint.textContent = 'Billed $' + annualTotal.toLocaleString() + ' yearly — saving $' + saved + ' vs monthly';
+        }
+      });
+    }
+
     btns.forEach(b=>b.addEventListener('click',()=>{ btns.forEach(x=>x.setAttribute('aria-pressed','false')); b.setAttribute('aria-pressed','true');
       const yr=b.dataset.cycle==='yr'; cue.hidden=!yr;
       amts.forEach(a=>{ const v=yr?a.dataset.yr:a.dataset.mo;
-        if(noMotion){a.textContent='$'+v;} else {const o={v:parseInt(a.textContent.replace(/\D/g,''))||0};gsap.to(o,{v:+v,duration:DUR.base,ease:'power2.out',onUpdate:()=>a.textContent='$'+Math.round(o.v)});} }); }));
+        if(noMotion){a.textContent='$'+v;} else {const o={v:parseInt(a.textContent.replace(/\D/g,''))||0};gsap.to(o,{v:+v,duration:DUR.base,ease:'power2.out',onUpdate:()=>a.textContent='$'+Math.round(o.v)});} });
+      updateYearlyHints(yr);
+    }));
+    // Initial paint (default = monthly)
+    updateYearlyHints(false);
   }
 
   /* ---- LETTERS ---- */
