@@ -1266,3 +1266,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Audit-only sweep. Documented the latest state.
+
+**2026-07-18 15:14 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #17 of the autonomous loop** (15-min cadence). Live: 15:13 → 15:14 IST.
+- **Audit-only iteration**. Two substantial parallel-session commits since last sweep:
+  - `docs(contributing): add CONTRIBUTING.md with dev setup, test commands, commit conventions` (`707e5012`) — comprehensive dev onboarding doc: prerequisites (Node 22 via `.nvmrc`), local setup (no `npm install` of locked deps; only `npm install --no-save playwright`), test commands (`npm test` / `npm run test:unit` / `npm run test:smoke` / `npm run test:integration` / `npm run check`), commit-message conventions (conventional commits, scope-first, 72-char subject), PR process.
+  - `feat(faq): 'Expand all' / 'Collapse all' controls on every FAQ section` (`0dd359fd`) — power-reader UX feature: small `.faq-controls` row on home / analyze / pricing with two `<button>`s; keyboard-accessible, marked `.no-print`, hooks into the existing per-item typewriter animation so opening all items plays the reveal correctly. Source-pattern + live tests.
+- **Both shipped clean.** CONTRIBUTING.md covers the full dev loop. FAQ feature integrates with existing accessibility primitives without duplication.
+- **No code changes this iteration.** The codebase is at a stable hardened plateau and shipping speculative changes would only add surface area. The loop continues.
+
+**Prompt Intention:**
+- Honored the standing directives. Audit-only sweep.
