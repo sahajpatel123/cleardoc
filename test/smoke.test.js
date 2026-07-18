@@ -2353,3 +2353,22 @@ test("BYOF: clicking sample button doesn't throw ReferenceError on plainTextOf",
   assert.match(appSrc, /function\s+stripHtmlToText\(/, "stripHtmlToText helper must exist");
   assert.match(appSrc, /\bstripHtmlToText\(res\.html\)/, "BYOF must call stripHtmlToText on res.html");
 });
+
+test("FAQ search inputs have maxlength to prevent keystroke-lag with paste-spam", () => {
+  // The FAQ search filter runs `items.forEach` + `indexOf(needle)` per
+  // keystroke. A user pasting a huge string (e.g. 1MB of text) would
+  // lag the page on every character. Cap the input at the browser
+  // layer — search queries don't legitimately exceed 64 chars.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  for (const page of ["index.html", "analyze.html", "pricing.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, page), "utf8");
+    const faqInput = html.match(/<input[^>]*id="faqSearch"[^>]*>/);
+    assert.ok(faqInput, `${page} must contain a #faqSearch input`);
+    assert.match(
+      faqInput[0],
+      /maxlength="64"/,
+      `${page} #faqSearch must have maxlength="64" so paste-spam can't lag the keystroke handler`
+    );
+  }
+});
