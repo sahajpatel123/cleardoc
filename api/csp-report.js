@@ -59,6 +59,21 @@ module.exports = async function handler(req, res) {
       return json(res, 405, { error: "Method not allowed." });
     }
 
+    // Content-Type enforcement — browsers send CSP reports as
+    // application/csp-report (legacy), application/reports+json (newer),
+    // or application/json (curl/dev-tools). A form-encoded body or a
+    // client that lies about the type is a misuse signal — reject with
+    // 415 before parsing. The check is case-insensitive on the
+    // parameter (Vercel/Node lowercases header values) and tolerates
+    // a charset suffix (e.g. "application/json; charset=utf-8").
+    const ctype = (req.headers && (req.headers["content-type"] || req.headers["Content-Type"])) || "";
+    const baseType = ctype.split(";")[0].trim().toLowerCase();
+    const ALLOWED_CT = new Set(["application/json", "application/csp-report", "application/reports+json"]);
+    if (!ALLOWED_CT.has(baseType)) {
+      res.setHeader("Accept", "application/json, application/csp-report, application/reports+json");
+      return json(res, 415, { error: "Unsupported Media Type. Expected application/json, application/csp-report, or application/reports+json." });
+    }
+
     // Rate-limit per IP so a misbehaving browser can't flood us with
     // bogus reports (which is an actual attack pattern — CSP report
     // endpoints are sometimes DDoS'd to amplify CPU costs).

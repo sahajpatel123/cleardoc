@@ -121,7 +121,7 @@ test("csp-report handler: extractViolations handles empty / missing / wrong shap
     };
     const req = {
       method: "POST",
-      headers: {},
+      headers: { "content-type": "application/csp-report" },
       body: undefined,
       socket: { remoteAddress: "127.0.0.1" },
       url: "/api/csp-report",
@@ -148,4 +148,18 @@ test("csp-report handler: extractViolations handles empty / missing / wrong shap
   const bad = await runWithBody("{ not valid json");
   assert.equal(bad.statusCode, 400);
   assert.match(bad._body, /Invalid JSON/);
+});
+
+test("csp-report handler: enforces Content-Type allowlist (415 otherwise)", () => {
+  // Browsers send CSP reports as application/csp-report (legacy) or
+  // application/reports+json (newer). application/json is also
+  // accepted for curl/dev-tools. Anything else (form-encoded, plain
+  // text) is a misuse signal — reject with 415 before parsing.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/csp-report.js"), "utf8");
+  assert.match(src, /Content-Type/i, "must inspect the Content-Type header");
+  assert.match(src, /application\/csp-report/, "must accept application/csp-report");
+  assert.match(src, /application\/reports\+json/, "must accept application/reports+json");
+  assert.match(src, /415/, "must return 415 for unsupported content types");
 });
