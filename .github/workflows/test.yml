@@ -19,7 +19,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          # No `cache: npm` — this repo has no package.json (static site;
+          # serverless code uses Node built-ins, only playwright is installed
+          # via `npm install --no-save` below). Without a lockfile setup-node
+          # hard-fails with: "Dependencies lock file is not found …".
 
       - name: Install dependencies (playwright only — serverless code uses built-ins)
         run: npm install --no-save playwright
