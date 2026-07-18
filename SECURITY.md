@@ -56,7 +56,7 @@ ClearDoc is built with a "fail-closed" philosophy: every API handler validates i
 
 ### API Endpoint Security
 
-Every API handler (`/api/analyze`, `/api/chat`, `/api/health`) implements:
+Every API handler (`/api/analyze`, `/api/chat`, `/api/health`, `/api/csp-report`) implements:
 
 - **Per-IP rate limiting** with `X-RateLimit-Limit / -Remaining / -Reset` headers
 - **Hard request-body size cap** (128 KB for `/api/chat`, 256 KB for `/api/analyze`)
