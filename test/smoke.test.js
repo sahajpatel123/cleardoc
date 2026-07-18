@@ -2414,3 +2414,22 @@ test("docInput + byofIn textareas have maxlength matching the server cap (40000)
     );
   }
 });
+
+test("heroInput has maxlength to cap single-line clarifier paste-spam", () => {
+  // The #heroInput on the home page hero is a single-line `<input
+  // type="text">` for a one-sentence legalese snippet. Without a
+  // maxlength, a user can paste arbitrarily long strings and lag the
+  // page on each keystroke. The downstream `clarify()` does cap at
+  // 40K chars (CLARIFY_MAX_CHARS), but the input lag happens before
+  // that point. 500 chars is generous for a single sentence.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const input = html.match(/<input[^>]*id="heroInput"[^>]*>/);
+  assert.ok(input, "index.html must contain #heroInput");
+  assert.match(
+    input[0],
+    /maxlength="500"/,
+    "#heroInput must have maxlength=\"500\" so paste-spam can't lag the single-line input"
+  );
+});
