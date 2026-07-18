@@ -701,6 +701,68 @@ test("applyAiResponseHeaders: no-ops once headers have been sent", () => {
   assert.deepEqual(res.headers, {}, "must not call setHeader when response is already streaming");
 });
 
+// ── applyAiResponseHeaders: X-AI-Model (optional 4th arg) ────────────
+
+test("applyAiResponseHeaders: writes X-AI-Model when model is provided", () => {
+  const res = mockRes();
+  applyAiResponseHeaders(res, "openrouter", 1500, "google/gemma-4-31b-it:free");
+  assert.equal(res.headers["X-AI-Provider"], "openrouter");
+  assert.equal(res.headers["X-AI-Response-Time-Ms"], "1500");
+  assert.equal(res.headers["X-AI-Model"], "google/gemma-4-31b-it:free");
+});
+
+test("applyAiResponseHeaders: omits X-AI-Model when model arg is omitted (backward compat)", () => {
+  // Existing 3-arg call sites must keep working without the new header.
+  const res = mockRes();
+  applyAiResponseHeaders(res, "openrouter", 500);
+  assert.equal(res.headers["X-AI-Model"], undefined, "no X-AI-Model when 4th arg omitted");
+  assert.equal(res.headers["X-AI-Provider"], "openrouter");
+});
+
+test("applyAiResponseHeaders: rejects model strings outside the ASCII charset allowlist", () => {
+  // CR/LF/spaces/quotes would break the header or smuggle extra fields.
+  // Defense-in-depth: even though model strings originate from constants in
+  // api handlers, future code paths might pass through user-influenced input.
+  for (const bad of [
+    "model\nwith-newline",
+    "model with space",
+    "model<script>",
+    "model\"quoted",
+    "model;DROP",
+    "",
+  ]) {
+    const res = mockRes();
+    applyAiResponseHeaders(res, "openrouter", 100, bad);
+    assert.equal(res.headers["X-AI-Model"], undefined, `bad model "${bad}" must be skipped`);
+  }
+});
+
+test("applyAiResponseHeaders: caps model at 128 chars to bound header size", () => {
+  const tooLong = "a".repeat(129);
+  const res = mockRes();
+  applyAiResponseHeaders(res, "openrouter", 100, tooLong);
+  assert.equal(res.headers["X-AI-Model"], undefined, "model >128 chars must be rejected");
+  const exactly128 = "a".repeat(128);
+  const res2 = mockRes();
+  applyAiResponseHeaders(res2, "openrouter", 100, exactly128);
+  assert.equal(res2.headers["X-AI-Model"], exactly128, "model ≤128 chars accepted");
+});
+
+test("applyAiResponseHeaders: accepts the canonical model identifiers", () => {
+  // Real-world model IDs use letters, digits, dots, underscores, slashes, colons, hyphens, plus.
+  for (const m of [
+    "google/gemma-4-31b-it:free",
+    "gemini-2.5-flash",
+    "anthropic/claude-3.5-sonnet",
+    "openai/gpt-4o-2024-08-06",
+    "meta-llama/llama-3.1-70b-instruct",
+  ]) {
+    const res = mockRes();
+    applyAiResponseHeaders(res, "gemini", 100, m);
+    assert.equal(res.headers["X-AI-Model"], m, `real model ID "${m}" must be accepted`);
+  }
+});
+
 // ── json() auto-latency header + attachRequestId start-time capture ────
 
 test("attachRequestId: captures __requestStartedAt for the latency header", () => {

@@ -354,7 +354,7 @@ function applyAiResponseHeaders(res, provider, latencyMs, model) {
   if (Number.isFinite(latencyMs) && latencyMs >= 0 && latencyMs <= 600000) {
     res.setHeader("X-AI-Response-Time-Ms", String(Math.round(latencyMs)));
   }
-  if (typeof model === "string" && model.length > 0 && model.length < 128) {
+  if (typeof model === "string" && model.length > 0 && model.length <= 128) {
     // Length cap + ASCII charset check defends against header-injection via
     // a model string the caller passed through unsanitized input.
     if (/^[A-Za-z0-9._:/+-]+$/.test(model)) {
