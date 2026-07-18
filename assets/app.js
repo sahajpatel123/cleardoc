@@ -1031,7 +1031,26 @@
     ];
     function splitSentences(t){ return t.replace(/\s+/g,' ').trim().split(/(?<=[.!?;])\s+/).filter(s=>s.trim().length>1); }
     function trunc(s,n){ s=s.trim(); return s.length>n? s.slice(0,n)+'…' : s; }
-    function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+    function esc(s){
+      // Defense-in-depth: escape &, <, > plus BOTH quote flavours.
+      // Templates interpolate `esc(...)` into BOTH text context (`>esc(t)<`)
+      // and attribute context (`aria-label="...esc(t)..."`). The text-context
+      // chars alone (&<>) are sufficient for the text case, but if a value
+      // contains `"` or `'` it can break out of a quoted attribute and add
+      // an event handler (e.g. `" onmouseover="alert(1)`). Escaping the
+      // quotes here covers every existing call site without code changes,
+      // since `&quot;` and `&#39;` render identically in browsers.
+      return s.replace(/[&<>"']/g, function(c){
+        switch(c){
+          case '&': return '&amp;';
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '"': return '&quot;';
+          case "'": return '&#39;';
+        }
+        return c;
+      });
+    }
 
     // Mirrors the server-side cap in api/analyze.js — restores must not push
     // a multi-megabyte document back into the textarea.
@@ -1112,12 +1131,21 @@
       try{ localStorage.removeItem(SNAPSHOT_KEY); }catch(_){}
     }
     // Comma-separated tag parser — normalises case + length + dedupes.
+    // Belt-and-braces against attribute-context interpolation:
+    // esc() escapes &<>"', but we also strip anything that could form an
+    // attribute bound (space, quote, =, <, >) BEFORE length-capping. This way
+    // even if a future template forgets to esc() a tag, the tag itself is
+    // also already safe-by-construction. Whitespace inside a tag is also
+    // collapsed: a tag is one token, not a multi-attribute payload.
     function parseTags(raw){
       const seen = new Set();
       return String(raw || '')
         .split(',')
         .map(t => t.trim().toLowerCase())
+        // drop any char that could escape an attribute or tag context
+        .map(t => t.replace(/[<>"'`=\s]/g, ''))
         .filter(t => t.length > 0 && t.length <= 32)
+        .filter(t => /^[a-z0-9._-]+$/.test(t))
         .filter(t => { if(seen.has(t)) return false; seen.add(t); return true; })
         .slice(0, 8); // cap to 8 tags per analysis
     }
