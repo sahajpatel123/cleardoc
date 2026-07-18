@@ -1103,3 +1103,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Audit-driven: a careful read of `gunzipString` revealed that the encoded-side cap (6000 base64url) was meaningless if the *decompressed* side was unbounded. Patched the actual gap with a streaming counter + cancel pattern that's both correct and GC-friendly.
+
+**2026-07-18 13:12 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #11 of the autonomous loop** (15-min cadence). Live: 13:07 → 13:12 IST.
+- **Cap the v1 share decoder input size** (`27920e1b sec(share)`). The v2 (gzipped) path was defended in iteration #10 with a 1 MiB cap on decompressed bytes via a streaming counter in `gunzipString`. The v1 (uncompressed) fallback path was only *implicitly* bounded by browser URL-fragment limits — no explicit cap on the raw b64urlDecoded bytes. `decodeSharePayload` now rejects any input whose raw byte length exceeds `DECODE_MAX_BYTES` (1 MiB), returning null. Both code paths now share a single defensive cap.
+- **Test coverage** (`test/smoke.test.js`): new "share decoder rejects oversized v1 payloads (input-side cap)" test walks `decodeSharePayload` source and asserts the `DECODE_MAX_BYTES` constant exists, `safe.length > DECODE_MAX_BYTES` gates the rejection, and the function returns null on overflow. 39/39 smoke tests pass.
+- **Why this matters**: defense-in-depth. Browsers won't accept multi-MB URL fragments in practice, but an explicit check protects against any future code path that bypasses the URL fragment — deep links, Share-to-API integration, copy-paste of malformed share tokens, etc.
+
+**Prompt Intention:**
+- Honored the standing directives. Picked the smallest concrete parity fix — the v1 share decoder deserved the same defensive cap as v2, and the symmetry makes the security contract easier to reason about.
