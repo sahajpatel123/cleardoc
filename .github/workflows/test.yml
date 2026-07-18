@@ -19,10 +19,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          # No `cache: npm` — this repo has no package.json (static site;
-          # serverless code uses Node built-ins, only playwright is installed
-          # via `npm install --no-save` below). Without a lockfile setup-node
-          # hard-fails with: "Dependencies lock file is not found …".
+          # No `cache: npm` — this repo has package.json but no lockfile
+          # (static site; serverless code uses Node built-ins, only
+          # playwright is installed via `npm install --no-save` below).
+          # Without a lockfile setup-node hard-fails the cache step.
 
       - name: Install dependencies (playwright only — serverless code uses built-ins)
         run: npm install --no-save playwright
@@ -31,40 +31,42 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Validate JSON config files
-        run: |
-          node -e "JSON.parse(require('fs').readFileSync('vercel.json','utf8'))" && echo "vercel.json: valid"
+        run: npm run validate:json
 
       - name: Parse-check all JS
-        run: |
-          for f in assets/app.js api/_safety.js api/analyze.js api/chat.js api/health.js test/analyze-schema.test.js test/chat-schema.test.js test/analyze-error.test.js test/chat-error.test.js test/health-error.test.js; do
-            node --check "$f" && echo "$f: OK" || (echo "$f: SYNTAX ERROR"; exit 1)
-          done
+        run: npm run syntax
 
-      - name: Unit tests (api/_safety.js)
-        run: node --test test/safety.test.js
+      - name: Unit tests (api/_safety.js core: json/asString/getIp/rateLimit/readCappedBody)
+        run: npm run test:unit -- --test-name-pattern="^(json|asString|getIp|rateLimit|applyRateLimitHeaders|readCappedBody)"
+
+      - name: Unit tests (request-id, errLog, accessLog helpers)
+        run: npm run test:unit -- --test-name-pattern="(generateRequestId|sanitizeIncomingRequestId|attachRequestId|errLog|accessLog)"
 
       - name: Unit tests (analyze schema validator)
-        run: node --test test/analyze-schema.test.js
+        run: npm run test:unit -- --test-name-pattern="safeParseAnalysisResult"
 
       - name: Unit tests (chat schema validator)
-        run: node --test test/chat-schema.test.js
+        run: npm run test:unit -- --test-name-pattern="safeParseChatResult"
+
+      - name: Unit tests (AI provider reachability probe)
+        run: npm run test:unit -- --test-name-pattern="(probeProvider|probeProviderCached|clearProbeCache)"
 
       - name: Unit tests (analyze handler error safety net)
-        run: node --test test/analyze-error.test.js
+        run: npm run test:unit -- --test-name-pattern="analyze handler"
 
       - name: Unit tests (chat handler error safety net)
-        run: node --test test/chat-error.test.js
+        run: npm run test:unit -- --test-name-pattern="chat handler"
 
       - name: Unit tests (health handler error safety net)
-        run: node --test test/health-error.test.js
+        run: npm run test:unit -- --test-name-pattern="health handler"
 
       - name: Browser smoke tests (Playwright)
-        run: node --test test/smoke.test.js
+        run: npm run test:smoke
         env:
           CI: 'true'
 
       - name: Integration tests (mock AI)
-        run: node --test test/integration.test.js
+        run: npm run test:integration
         env:
           CI: 'true'
 

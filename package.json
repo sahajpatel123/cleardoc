@@ -1,0 +1,22 @@
+{
+  "name": "cleardoc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ClearDoc — AI document analysis static site + Vercel serverless API",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "npm run test:unit && npm run test:smoke && npm run test:integration",
+    "test:unit": "node --test test/safety.test.js test/analyze-schema.test.js test/chat-schema.test.js test/analyze-error.test.js test/chat-error.test.js test/health-error.test.js",
+    "test:smoke": "node --test test/smoke.test.js",
+    "test:integration": "node test/integration.test.js",
+    "syntax": "node -e \"const f=require('node:fs');['assets/app.js','api/_safety.js','api/analyze.js','api/chat.js','api/health.js','assets/pdfjs-bootstrap.js'].forEach(p=>{require('node:child_process').execSync('node --check '+p,{stdio:'inherit'});})\"",
+    "validate:json": "node -e \"['vercel.json','site.webmanifest'].forEach(p=>{JSON.parse(require('node:fs').readFileSync(p,'utf8'));console.log(p+': valid');})\"",
+    "check": "npm run validate:json && npm run syntax && npm test"
+  },
+  "devDependencies": {
+    "playwright": "^1.60.0"
+  }
+}
