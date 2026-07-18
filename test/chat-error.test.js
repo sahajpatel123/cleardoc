@@ -335,3 +335,12 @@ test("chat handler: passes fallbackUsed to applyAiResponseHeaders (Gemini primar
   const callsWithFallback = [...handlerBody.matchAll(/applyAiResponseHeaders\(res,\s*[^,]+,\s*[^,]+(?:,\s*[^,]+)?,\s*(true|false|undefined|fallbackUsed)\s*,\s*[^)]*\)/g)];
   assert.ok(callsWithFallback.length >= 3, "must pass fallbackUsed + per-provider latency on all 3 AI-touched applyAiResponseHeaders call sites");
 });
+
+// ── Content-Type enforcement (iter #53) ───────────────────────────
+
+test("chat handler: 415s non-JSON Content-Type before parsing the body", () => {
+  // Same defense as /api/analyze — fail early with a precise 415
+  // before letting JSON.parse produce a confusing 400.
+  assert.match(CHAT_SOURCE, /application\/json\b/i, "must enforce application/json");
+  assert.match(CHAT_SOURCE, /json\(res,\s*415/, "must respond 415");
+});

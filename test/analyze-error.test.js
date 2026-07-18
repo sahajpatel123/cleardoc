@@ -309,3 +309,26 @@ test("analyze handler: rejects documents shorter than MAX_DOCUMENT_MIN_CHARS (10
     "must compare document.length against MAX_DOCUMENT_MIN_CHARS"
   );
 });
+
+// ── Content-Type enforcement (iter #53) ───────────────────────────
+
+test("analyze handler: 415s non-JSON Content-Type before parsing the body", () => {
+  // Without this, a form-encoded or plain-text POST would 400 with
+  // a confusing "Invalid JSON" message. Fail more precisely so the
+  // caller knows to set the right header.
+  assert.match(
+    ANALYZE_SOURCE,
+    /content-type/i,
+    "must read Content-Type header (case-insensitive)"
+  );
+  assert.match(
+    ANALYZE_SOURCE,
+    /application\/json\b/i,
+    "must enforce application.json Content-Type"
+  );
+  assert.match(
+    ANALYZE_SOURCE,
+    /json\(res,\s*415/,
+    "must respond 415 Unsupported Media Type for wrong Content-Type"
+  );
+});

@@ -375,6 +375,16 @@ module.exports = async function handler(req, res) {
     const got = await readCappedBody(req, MAX_REQUEST_BYTES);
     if (got.error) return json(res, got.error.status, { error: got.error.message });
 
+    // Content-Type must be application/json. Browsers and API clients
+    // can post form-encoded, multipart, or even plain text by accident
+    // — accept any of those and JSON.parse below would 400 with a
+    // confusing "Invalid JSON" message. Fail more precisely with a
+    // 415 so callers know to set the right header.
+    const ct = (req && req.headers && (req.headers["content-type"] || req.headers["Content-Type"])) || "";
+    if (ct.length > 0 && !/^\s*application\/json\b/i.test(ct)) {
+      return json(res, 415, { error: "Content-Type must be application/json." });
+    }
+
     let body;
     if (!got.raw) {
       body = req.body; // tolerate Vercel-parsed bodies when present
