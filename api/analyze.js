@@ -261,10 +261,12 @@ module.exports = async function handler(req, res) {
     const aiStart = Date.now();
     let result = await callOpenRouter(document);
     let provider = "openrouter";
+    let model = GEMMA_MODEL;
 
     if (!result) {
       result = await callGemini(document);
       provider = "gemini";
+      model = (process.env.GEMINI_CHAT_MODEL || GEMINI_MODEL_DEFAULT).trim();
     }
     const aiLatencyMs = Date.now() - aiStart;
 
@@ -286,7 +288,7 @@ module.exports = async function handler(req, res) {
     // response rather than shipping a degraded shape to the user.
     const parsed = safeParseAnalysisResult(result);
     if (!parsed.ok) {
-      applyAiResponseHeaders(res, provider, aiLatencyMs);
+      applyAiResponseHeaders(res, provider, aiLatencyMs, model);
       errLog(res, "analyze", new Error(`invalid AI response from ${provider}: ${JSON.stringify(parsed.errors)}`));
       // Malformed-shape responses are typically transient (retry lands on a
       // different sample). 60s is a sensible back-off window.
@@ -298,11 +300,11 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    applyAiResponseHeaders(res, provider, aiLatencyMs);
+    applyAiResponseHeaders(res, provider, aiLatencyMs, model);
     return json(res, 200, {
       analysis: parsed.value,
       provider,
-      model: provider === "openrouter" ? GEMMA_MODEL : GEMINI_MODEL_DEFAULT,
+      model,
     });
   } catch (err) {
     // Last-resort safety net: never let an uncaught throw leak Vercel's

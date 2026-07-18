@@ -158,13 +158,13 @@ test("analyze handler: wires applyAiResponseHeaders with provider + latency on e
   // The 502 invalid_ai path must report the actual provider that answered
   assert.match(
     handlerBody,
-    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs\)/,
+    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs(?:\s*,\s*model)?\)/,
     "502 invalid_ai path must call applyAiResponseHeaders with the actual provider"
   );
   // The 200 success path must also set the headers
   assert.match(
     handlerBody,
-    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs\)/,
+    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs(?:\s*,\s*model)?\)/,
     "200 success path must call applyAiResponseHeaders with the provider"
   );
 });

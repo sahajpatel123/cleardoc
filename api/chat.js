@@ -302,7 +302,7 @@ module.exports = async function handler(req, res) {
       model: out.model,
     });
     if (!parsed.ok) {
-      applyAiResponseHeaders(res, out.provider, aiLatencyMs);
+      applyAiResponseHeaders(res, out.provider, aiLatencyMs, out.model);
       errLog(res, "chat", new Error(`invalid AI response from ${out.provider}: ${JSON.stringify(parsed.errors)}`));
       // Schema-invalid responses are transient (next sample usually ok).
       res.setHeader("Retry-After", "60");
@@ -312,7 +312,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    applyAiResponseHeaders(res, out.provider, aiLatencyMs);
+    applyAiResponseHeaders(res, out.provider, aiLatencyMs, out.model);
     return json(res, 200, Object.assign({}, parsed.value, { provider: out.provider }));
   } catch (err) {
     // Last-resort safety net: never let an uncaught throw leak Vercel's

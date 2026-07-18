@@ -325,6 +325,9 @@ function applyRateLimitHeaders(res, rl) {
  *   X-AI-Provider         — "openrouter" | "gemini" | "none"
  *   X-AI-Response-Time-Ms — integer milliseconds spent on AI calls (sum of all
  *                            attempted providers in the chain)
+ *   X-AI-Model            — (optional) the exact model identifier that
+ *                            answered, e.g. "google/gemma-4-31b-it:free" or
+ *                            "gemini-2.5-flash"
  *
  * Call this BEFORE `json()` on every response that actually involved an AI
  * call (200 success, 502 invalid_ai_response, 502 both-providers-failed). For
@@ -332,10 +335,14 @@ function applyRateLimitHeaders(res, rl) {
  * entirely — the absence of these headers is itself a signal that the request
  * never reached the provider.
  *
- * Both fields are best-effort: any non-conforming input is silently ignored
+ * All fields are best-effort: any non-conforming input is silently ignored
  * so the helper is safe to call unconditionally. No throw on bad input.
+ *
+ * Backward compatible: the existing 2-arg call site (res, provider, latencyMs)
+ * works without modification. Pass a model string as the 4th argument to
+ * also emit X-AI-Model.
  */
-function applyAiResponseHeaders(res, provider, latencyMs) {
+function applyAiResponseHeaders(res, provider, latencyMs, model) {
   if (!res || typeof res.setHeader !== "function" || res.headersSent) return;
   if (typeof provider === "string" && provider.length > 0 && provider.length < 64) {
     // Allowlist of provider strings — keeps the header value honest even
@@ -346,6 +353,13 @@ function applyAiResponseHeaders(res, provider, latencyMs) {
   }
   if (Number.isFinite(latencyMs) && latencyMs >= 0 && latencyMs <= 600000) {
     res.setHeader("X-AI-Response-Time-Ms", String(Math.round(latencyMs)));
+  }
+  if (typeof model === "string" && model.length > 0 && model.length < 128) {
+    // Length cap + ASCII charset check defends against header-injection via
+    // a model string the caller passed through unsanitized input.
+    if (/^[A-Za-z0-9._:/+-]+$/.test(model)) {
+      res.setHeader("X-AI-Model", model);
+    }
   }
 }
 

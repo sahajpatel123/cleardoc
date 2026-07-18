@@ -277,7 +277,7 @@ test("chat handler: wires applyAiResponseHeaders with provider + latency on ever
   // 502 invalid_ai and 200 success must report out.provider
   assert.match(
     handlerBody,
-    /applyAiResponseHeaders\(res,\s*out\.provider\s*,\s*aiLatencyMs\)/,
+    /applyAiResponseHeaders\(res,\s*out\.provider\s*,\s*aiLatencyMs(?:\s*,\s*out\.model)?\)/,
     "success / invalid_ai paths must call applyAiResponseHeaders with out.provider"
   );
 });
