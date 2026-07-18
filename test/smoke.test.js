@@ -2467,3 +2467,27 @@ test("tagsInput has maxlength matching parseTags caps", () => {
     "#tagsInput must have maxlength=\"300\" matching parseTags worst-case (8 × 32 + 7 commas)"
   );
 });
+
+test("docs/API.md: exists and documents every API endpoint + every response header", () => {
+  // Source-driven guard: the file must exist AND cite every endpoint
+  // AND every standard observability header. A drift between docs and
+  // source is a real reliability bug — ops dashboards key off these
+  // names; if the field changes, the doc has to follow.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const docPath = path.resolve(__dirname, "..", "docs", "API.md");
+  assert.ok(fs.existsSync(docPath), "docs/API.md must exist on disk");
+  const doc = fs.readFileSync(docPath, "utf8");
+  // Every endpoint documented
+  for (const ep of ["/api/health", "/api/analyze", "/api/chat", "/api/csp-report"]) {
+    assert.ok(doc.includes(ep), `docs/API.md must mention ${ep}`);
+  }
+  // Every standard observability header documented
+  for (const h of [
+    "X-Request-Id", "X-Request-Latency-Total-Ms", "X-Build-Sha", "X-Endpoint",
+    "X-RateLimit-Limit", "X-AI-Provider", "X-AI-Model", "X-AI-Response-Time-Ms",
+    "X-AI-Fallback", "X-AI-OpenRouter-Ms", "X-AI-Gemini-Ms", "ETag", "Last-Modified",
+  ]) {
+    assert.ok(doc.includes(h), `docs/API.md must mention ${h}`);
+  }
+});
