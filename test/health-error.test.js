@@ -241,15 +241,14 @@ test("health handler: 200 + HEAD emit edge-cacheable Cache-Control (max-age + s-
   // Reduces Vercel invocations: monitoring services polling every second
   // collapse into a single function call per 5s edge-cache window. 503
   // responses still use no-store (must be fresh on outage).
-  const fnStart = HEALTH_SOURCE.indexOf("module.exports = async function handler");
-  assert.ok(fnStart > -1);
-  const handlerBody = HEALTH_SOURCE.slice(fnStart);
+  // The Cache-Control directive lives in setHealthOkHeaders() helper
+  // (shared by both GET and HEAD), so we look at the whole source.
 
   // Must use a short max-age (5s) — a long cache would hide outages.
   // Match either a literal number (`max-age=5`) or a template-literal
   // constant (`max-age=${HEALTH_CACHE_MAX_AGE}` where the constant is a
   // module-level binding).
-  const cacheMatches = [...handlerBody.matchAll(/max-age=(\d+|\$\{[^}]+\})/g)];
+  const cacheMatches = [...HEALTH_SOURCE.matchAll(/max-age=(\d+|\$\{[^}]+\})/g)];
   assert.ok(cacheMatches.length >= 1, "must reference max-age somewhere");
   for (const m of cacheMatches) {
     // Skip template-literal constants — they don't have a literal numeric
@@ -267,14 +266,19 @@ test("health handler: 200 + HEAD emit edge-cacheable Cache-Control (max-age + s-
     assert.ok(seconds > 0 && seconds <= 60, `HEALTH_CACHE_MAX_AGE=${seconds}s must be 1..60s`);
   }
 
-  // 200 path must use `public` + `s-maxage` so CDN caches dedupe
-  // multi-region monitoring traffic. The literal literal below is fine
-  // because the constant is fixed at module load.
+  // The cacheable directive must use `public` + `s-maxage` so CDN caches
+  // dedupe multi-region monitoring traffic.
   assert.match(
-    handlerBody,
+    HEALTH_SOURCE,
     /setHeader\(\s*["']Cache-Control["']\s*,\s*[`"']public,\s*max-age=\$\{[^}]+\},\s*s-maxage=\$\{[^}]+\}/,
-    "200 must set Cache-Control: public, max-age=N, s-maxage=N (template literal)"
+    "must set Cache-Control: public, max-age=N, s-maxage=N (template literal)"
   );
+
+  // Both the GET 200 path (via sendOkCached) and the HEAD path must invoke
+  // the shared header helper. Lock the helper call in both branches.
+  const fnStart = HEALTH_SOURCE.indexOf("module.exports = async function handler");
+  const handlerBody = HEALTH_SOURCE.slice(fnStart);
+  assert.match(handlerBody, /setHealthOkHeaders\(res\)/, "handler must invoke setHealthOkHeaders for the 200 path");
 });
 
 test("health handler: 503 paths still use no-store (outage must be fresh)", () => {
@@ -300,30 +304,36 @@ test("health handler: 503 paths still use no-store (outage must be fresh)", () =
   const lastCacheableIndex = handlerBody.lastIndexOf("return sendOkCached(");
   assert.ok(lastCacheableIndex > last503Index,
     "sendOkCached must be the 200 path's return — called AFTER all 503 branches exit");
-  // The cacheable template literal lives in sendOkCached + the HEAD
-  // block (both 200 paths). Verify it appears exactly twice in source.
+  // The cacheable template literal lives in setHealthOkHeaders (called
+  // by both sendOkCached and HEAD). Verify it appears exactly once in source
+  // (the shared helper, not duplicated).
   const cacheableUses = [...HEALTH_SOURCE.matchAll(/`public, max-age=\$\{HEALTH_CACHE_MAX_AGE\}, s-maxage=\$\{HEALTH_CACHE_MAX_AGE\}`/g)].length;
-  assert.equal(cacheableUses, 2, "cacheable header literal must appear exactly twice (sendOkCached + HEAD)");
+  assert.equal(cacheableUses, 1, "cacheable header literal must appear exactly once (in the shared setHealthOkHeaders helper)");
 });
 
 test("health handler: sendOkCached helper exists and emits the standard observability family", () => {
-  // /api/health's 200 path goes through a local sendOkCached() helper
-  // (bypasses json() to set the edge-cacheable Cache-Control). The
-  // helper must still set the standard observability headers so
-  // parity with /api/analyze and /api/chat is preserved.
+  // Both sendOkCached and HEAD now use the shared setHealthOkHeaders
+  // helper instead of inlining the header calls.
+  assert.match(
+    HEALTH_SOURCE,
+    /function\s+setHealthOkHeaders\(/,
+    "setHealthOkHeaders helper must exist (shared by GET 200 + HEAD)"
+  );
+  // sendOkCached should still exist as the GET-with-body path
   assert.match(
     HEALTH_SOURCE,
     /function\s+sendOkCached\(/,
-    "sendOkCached helper must exist"
+    "sendOkCached helper must exist (GET 200 with body)"
   );
-  // Look for each required observability header inside the source
-  // AFTER the sendOkCached helper definition starts. Cheap + robust
-  // (no fragile body-extraction regex).
-  const helperStart = HEALTH_SOURCE.indexOf("function sendOkCached(");
+  // /api/health's GET 200 path goes through sendOkCached() which calls
+  // setHealthOkHeaders() for the standard observability family. The
+  // shared setHealthOkHeaders helper sets every header so the source
+  // check looks in its body.
+  const helperStart = HEALTH_SOURCE.indexOf("function setHealthOkHeaders(");
   const helperRegion = HEALTH_SOURCE.slice(helperStart);
-  assert.match(helperRegion, /X-Request-Id/, "sendOkCached must echo X-Request-Id");
-  assert.match(helperRegion, /X-Request-Latency-Total-Ms/, "sendOkCached must emit latency header");
-  assert.match(helperRegion, /applyBuildShaHeader/, "sendOkCached must invoke applyBuildShaHeader (emits X-Build-Sha)");
+  assert.match(helperRegion, /X-Request-Id/, "setHealthOkHeaders must echo X-Request-Id");
+  assert.match(helperRegion, /X-Request-Latency-Total-Ms/, "setHealthOkHeaders must emit latency header");
+  assert.match(helperRegion, /applyBuildShaHeader/, "setHealthOkHeaders must invoke applyBuildShaHeader (emits X-Build-Sha)");
   assert.match(helperRegion, /Cache-Control/, "sendOkCached must set Cache-Control header");
   assert.match(helperRegion, /Content-Type/, "sendOkCached must set Content-Type header");
 });

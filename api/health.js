@@ -18,19 +18,20 @@ const VERSION = "1.0.0";
 const RATE_LIMIT_PER_MINUTE = 60; // health checks can be polled frequently
 const HEALTH_CACHE_MAX_AGE = 5;   // edge-cache TTL on 200 responses
 
-/* Send the 200 response with edge-cacheable headers + the standard observability
- * family. Mirrors what json() does but overrides Cache-Control to permit a
- * short shared cache (5s). Both client (`max-age`) and CDN (`s-maxage`)
- * caches honor the directive so monitoring services hammering the endpoint
- * collapse to ~one upstream call per 5s window per edge node.
+/* Set the standard /api/health 200 response headers. Shared between the
+ * GET path (sendOkCached) and the HEAD path (inline), so future header
+ * additions land in one place. Order matters — every header must be set
+ * before res.end() / the json() call.
  *
- * Headers must be set in this order to land BEFORE res.end():
- *   Content-Type + Cache-Control → X-Request-Id → X-Request-Latency-Total-Ms →
- *   X-Build-Sha → body.
+ *   Content-Type  → Cache-Control → X-Request-Id →
+ *   X-Request-Latency-Total-Ms → X-Build-Sha → body.
+ *
+ * Safe no-op when:
+ *   - `headersSent` is true (response already streaming)
+ *   - `res` is missing or lacks setHeader
  */
-function sendOkCached(res, payload) {
-  if (res.headersSent) return;
-  res.statusCode = 200;
+function setHealthOkHeaders(res) {
+  if (!res || typeof res.setHeader !== "function" || res.headersSent) return;
   res.setHeader("Content-Type", "application/json");
   res.setHeader(
     "Cache-Control",
@@ -44,6 +45,18 @@ function sendOkCached(res, payload) {
     }
   }
   applyBuildShaHeader(res);
+}
+
+/* Send the 200 response with edge-cacheable headers + the standard observability
+ * family. Mirrors what json() does but overrides Cache-Control to permit a
+ * short shared cache (5s). Both client (`max-age`) and CDN (`s-maxage`)
+ * caches honor the directive so monitoring services hammering the endpoint
+ * collapse to ~one upstream call per 5s window per edge node.
+ */
+function sendOkCached(res, payload) {
+  if (res.headersSent) return;
+  res.statusCode = 200;
+  setHealthOkHeaders(res);
   res.end(JSON.stringify(payload));
 }
 
@@ -199,23 +212,11 @@ module.exports = async function handler(req, res) {
 
     if (req.method === "HEAD") {
       // HEAD must carry the same cacheable headers as the equivalent GET
-      // (RFC 7231 §4.3.2). skip the body — the cacheable 200 helper would
-      // otherwise serialize JSON we don't need to send.
+      // (RFC 7231 §4.3.2) but skip the body — shared helper sets every
+      // header, sendOkCached handles the GET body.
       if (!res.headersSent) {
         res.statusCode = 200;
-        res.setHeader("Content-Type", "application/json");
-        res.setHeader(
-          "Cache-Control",
-          `public, max-age=${HEALTH_CACHE_MAX_AGE}, s-maxage=${HEALTH_CACHE_MAX_AGE}`
-        );
-        if (res.__requestId) res.setHeader("X-Request-Id", res.__requestId);
-        if (typeof res.__requestStartedAt === "number") {
-          const elapsed = Date.now() - res.__requestStartedAt;
-          if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= 600000) {
-            res.setHeader("X-Request-Latency-Total-Ms", String(Math.round(elapsed)));
-          }
-        }
-        applyBuildShaHeader(res);
+        setHealthOkHeaders(res);
       }
       return res.end();
     }
