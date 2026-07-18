@@ -1736,3 +1736,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored the standing directives. CSP violations were the one observability area still completely silent — no way for ops to know when a third-party script was being blocked, when a browser was trying to load something disallowed, or when our CSP needed to be relaxed to admit a new domain. The endpoint makes the silent visible.
 
+
+**2026-07-19 01:50 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #9 of /loop 10minutes** — autonomous DevSecOps guardian.
+- **Recon:** parallel session shipped `3fe91458 feat(ui): print stylesheet — clean PDF export from every page`, `e569df41 feat(ui): print-optimized stylesheet`, `f87dff75 docs(changelog): document print-optimized stylesheet`, `c66a4942 docs(memory): log iteration #41 — print stylesheet + 0.5ms lower-bound`. Every HTML page now loads assets/print.css with media="print" so users get clean PDFs from browser Print → Save as PDF.
+- **Shipped `8c5f38d5 sec(ui): reject OCR images > 10MB before loading Tesseract`.** The analyze page's file attachment flow caps PDFs at 30 pages and text at 30K chars, but `readImage()` (the OCR path) had no size gate. A user dropping a 50MB phone photo would load the 1MB+ Tesseract.js runtime + language pack, decompress into a canvas, OOM the tab mid-recognition, and surface only the generic "OCR failed" toast. Fix: gate on file.size up front, reject > 10MB with a clear "Image too large for OCR (NN.N MB · max 10 MB)" toast BEFORE Tesseract loads. Smoke test extended to lock in MAX_OCR_BYTES constant + readImage check + user-visible rejection.
+- **Verification:** 241/241 tests pass (178 unit + 62 smoke + 1 integration). Pushed `8c5f38d5` to origin/main.
+
+**Prompt Intention:**
+- Honored standing directives. Picked a UX/availability bug — wasted runtime on a user who can't get a result. The fix is defense in depth: protects both the user (bandwidth/time) and the app (memory exhaustion risk).
+
