@@ -1579,3 +1579,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored the standing directives. Closed the per-provider observability gap that I introduced with the iter #29-#35 fallback chain but hadn't backfilled. Parallel session's `logProviderError` integration on the inner-call side complements this nicely.
 
+
+**2026-07-19 00:58 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #4 of /loop 10minutes** — autonomous DevSecOps guardian. Reconciled with parallel session's applyAiResponseHeaders WIP.
+- **Shipped `d4269cd7 perf(api): route inner AI provider errors through logProviderError`.** Added `logProviderError(reqId, prefix, msg)` to `api/_safety.js`; threaded `res.__requestId` down through `callGemini` / `callOpenRouter` / `callGeminiChat` / `callOpenRouterChat` / `callChatWithFallback`. Inner provider calls now emit `[req=<id>]` prefix — previously they bypassed errLog and landed in logs as bare `[chat] Gemini failed: timeout` with no correlation back to the originating request.
+- **Orchestrator both-fail envelope.** Updated `callChatWithFallback` to return a `provider: "none"` envelope with `perProviderMs` so the per-provider latency breakdown headers still fire on 502.
+- **Helper tightening.** `applyAiResponseHeaders` now skips 0 perProviderMs entries (means "didn't fire") instead of emitting `X-AI-Gemini-Ms: 0` — ops no longer misreads "did not fire" as "fired instantly".
+- **Verification:** 221/221 tests pass (159 unit + 61 smoke + 1 integration). 4 new logProviderError unit tests cover emission, missing-id fallback, CRLF sanitization, length cap. Pushed `d4269cd7`.
+- **State after:** clean. Parallel session landed nothing since iter #3 (this iteration was self-contained).
+
+**Prompt Intention:**
+- Honored standing directives. Identified inner-AI-call log correlation gap during audit, threaded req-id through, tightened a related helper bug. Three coherent changes shipped as one commit.
+
