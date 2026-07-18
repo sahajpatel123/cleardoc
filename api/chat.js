@@ -7,7 +7,7 @@ const MIN_QUESTION_CHARS = 3;
 const MIN_DOCUMENT_CHARS = 10;
 const RATE_LIMIT_PER_MINUTE = 30;           // per-IP cap (chat is cheaper)
 
-const { json, asString, getIp, rateLimit, readCappedBody } = require("./_safety.js");
+const { json, asString, getIp, rateLimit, readCappedBody, safeParseChatResult } = require("./_safety.js");
 
 function extractText(data) {
   const candidate = data?.candidates?.[0];
@@ -138,11 +138,23 @@ module.exports = async function handler(req, res) {
       return json(res, 502, { error: "Gemini returned an empty answer." });
     }
 
-    return json(res, 200, {
+    // Strict fail-closed schema validation (RULES.md #3). Same principle as
+    // /api/analyze: any malformed field (wrong type, missing, overflow) fails
+    // the whole response rather than shipping a degraded shape to the user.
+    const parsed = safeParseChatResult({
       answer,
       citation: "Gemini answer · based on analyzed document",
       model,
     });
+    if (!parsed.ok) {
+      console.error("[chat] invalid AI response shape:", parsed.errors);
+      return json(res, 502, {
+        error: "Chat returned an invalid response. Please try again.",
+        reason: "invalid_ai_response",
+      });
+    }
+
+    return json(res, 200, parsed.value);
   } catch (err) {
     const timedOut = err && err.name === "AbortError";
     return json(res, timedOut ? 504 : 500, {

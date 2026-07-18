@@ -12,6 +12,8 @@
  *   ANALYSIS_LIMITS                               — single source of truth for AI output caps
  *   validSeverity(s) / validVerdictLabel(s)       — enum guards returning string or null
  *   safeParseAnalysisResult(obj)                  — strict fail-closed validator for /api/analyze results
+ *   CHAT_LIMITS                                   — single source of truth for /api/chat caps
+ *   safeParseChatResult(obj)                      — strict fail-closed validator for /api/chat results
  */
 
 function json(res, status, body) {
@@ -351,6 +353,87 @@ function safeParseAnalysisResult(obj) {
   };
 }
 
+/* ── Chat schema validation (STRICT RULE: fail-closed) ────────────────
+ *
+ * The /api/chat handler returns { answer, citation, model }. The shape is
+ * simpler than /api/analyze but the same RULES.md #3 principle applies: any
+ * malformed field (wrong type, missing, overflow) fails the whole response
+ * rather than shipping a degraded shape to the user.
+ *
+ * The frontend already escapes AI text via esc() before innerHTML insertion
+ * (assets/app.js), so XSS is defended at the render layer. The validator
+ * here catches structural / length regressions at the API edge.
+ *
+ * Gemini is configured with maxOutputTokens: 700 in api/chat.js. Real
+ * output is typically 1–3KB of plain text; the 8000-char cap is generous
+ * with headroom for future model bumps while still rejecting pathological
+ * megabyte payloads from a misconfigured provider.
+ */
+
+const CHAT_LIMITS = Object.freeze({
+  answerMin: 1,
+  answerMax: 8000,
+  modelMax: 100,
+  citationMax: 200,
+});
+
+function safeParseChatResult(obj) {
+  const errors = [];
+  if (obj === null || typeof obj !== "object" || Array.isArray(obj)) {
+    return { ok: false, errors: ["top-level must be an object"] };
+  }
+
+  // answer — required, non-empty string, capped at CHAT_LIMITS.answerMax
+  let answer = "";
+  if (typeof obj.answer !== "string") {
+    errors.push("answer: must be a string");
+  } else {
+    const trimmed = obj.answer.trim();
+    if (trimmed.length < CHAT_LIMITS.answerMin) {
+      errors.push("answer: must not be empty");
+    } else {
+      answer = obj.answer.slice(0, CHAT_LIMITS.answerMax);
+    }
+  }
+
+  // model — required, non-empty string, capped at CHAT_LIMITS.modelMax
+  let model = "";
+  if (typeof obj.model !== "string") {
+    errors.push("model: must be a string");
+  } else {
+    const trimmed = obj.model.trim();
+    if (trimmed.length < 1) {
+      errors.push("model: must not be empty");
+    } else {
+      model = obj.model.slice(0, CHAT_LIMITS.modelMax);
+    }
+  }
+
+  // citation — required, non-empty string, capped at CHAT_LIMITS.citationMax
+  let citation = "";
+  if (typeof obj.citation !== "string") {
+    errors.push("citation: must be a string");
+  } else {
+    const trimmed = obj.citation.trim();
+    if (trimmed.length < 1) {
+      errors.push("citation: must not be empty");
+    } else {
+      citation = obj.citation.slice(0, CHAT_LIMITS.citationMax);
+    }
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+
+  return {
+    ok: true,
+    value: {
+      answer,
+      model,
+      citation,
+    },
+  };
+}
+
 module.exports = {
   json,
   asString,
@@ -363,4 +446,6 @@ module.exports = {
   validSeverity,
   validVerdictLabel,
   safeParseAnalysisResult,
+  CHAT_LIMITS,
+  safeParseChatResult,
 };
