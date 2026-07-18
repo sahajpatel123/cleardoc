@@ -408,6 +408,46 @@ skip("FAQ accordion: clicking a question toggles aria-expanded", async () => {
   await page.close();
 });
 
+skip("FAQ: 'Expand all' / 'Collapse all' controls open and close every item", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Every public page with an FAQ exposes the controls
+  for (const page of ["index.html", "analyze.html", "pricing.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, page), "utf8");
+    assert.match(html, /class="faq-controls/, `${page} must expose .faq-controls`);
+    assert.match(html, /data-faq-action="open"/, `${page} must expose the 'open' button`);
+    assert.match(html, /data-faq-action="close"/, `${page} must expose the 'close' button`);
+  }
+  // Source-pattern: handler exists and dispatches on data-faq-action
+  assert.match(appSrc, /openAll\(\)/, "openAll helper must exist");
+  assert.match(appSrc, /closeAll\(\)/, "closeAll helper must exist");
+  assert.match(appSrc, /data-faq-action/, "app must dispatch on [data-faq-action]");
+
+  // Live: load pricing, click Expand all, every q.aria-expanded flips to true
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/pricing.html`, { waitUntil: "networkidle" });
+  // Initial: all items collapsed
+  const initial = await page.$$eval(".qa .q", (els) => els.map(e => e.getAttribute("aria-expanded")));
+  assert.ok(initial.every(v => v === "false"), `all FAQ items must start collapsed, got ${JSON.stringify(initial)}`);
+
+  // Click Expand all
+  await page.click('[data-faq-action="open"]');
+  await page.waitForTimeout(150);
+  const afterExpand = await page.$$eval(".qa .q", (els) => els.map(e => e.getAttribute("aria-expanded")));
+  assert.ok(afterExpand.every(v => v === "true"), `after Expand all, every item must be open, got ${JSON.stringify(afterExpand)}`);
+
+  // Click Collapse all
+  await page.click('[data-faq-action="close"]');
+  await page.waitForTimeout(150);
+  const afterCollapse = await page.$$eval(".qa .q", (els) => els.map(e => e.getAttribute("aria-expanded")));
+  assert.ok(afterCollapse.every(v => v === "false"), `after Collapse all, every item must be closed, got ${JSON.stringify(afterCollapse)}`);
+
+  await page.close();
+});
+
 skip("hero clarifier: pasting legalese and clicking Clarify renders the plain-English rewrite", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();

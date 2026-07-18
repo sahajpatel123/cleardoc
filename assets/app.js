@@ -833,6 +833,21 @@
       const it=items[0];it.classList.add('open');it.querySelector('.q').setAttribute('aria-expanded','true');
       it.querySelector('.a').style.maxHeight='none';it.querySelector('.corrected').style.opacity=1;
     }
+
+    /* Expand / collapse all — wired when the page exposes .faq-controls. */
+    function openAll(){
+      items.forEach(it => { if(!it.classList.contains('open')) toggle(it, true); });
+    }
+    function closeAll(){
+      items.forEach(it => { if(it.classList.contains('open')) close(it); });
+    }
+    $$('[data-faq-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-faq-action');
+        if(action === 'open') openAll();
+        else if(action === 'close') closeAll();
+      });
+    });
   }
 
   /* ---- LAST WORD ---- */
