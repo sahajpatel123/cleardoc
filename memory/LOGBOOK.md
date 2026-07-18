@@ -2082,3 +2082,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored the standing directives. Closed the last meaningful HTTP-semantics gap. /api/health now has RFC-correct dual conditional-request support, working both for modern ETag-aware clients (Chrome DevTools, k6) and legacy / generic HTTP caches that only know date-based caching.
 
+
+**2026-07-19 04:46 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #16 of the 10-minute autonomous engineer loop** (`/loop 10minutes`). Documentation gap fill.
+- **Documented three parallel-agent features** (`pending commit`):
+  - **`Content-Type: application/json` enforcement on `/api/analyze` + `/api/chat`** — `61a0b2b5 feat(api): enforce Content-Type: application/json on /api/analyze + /api/chat`. Rejects non-JSON bodies with 415 before any parsing or rate-limit consumption. Defends against accidental form-encoded or multipart abuse.
+  - **`Content-Type` allowlist on `/api/csp-report`** — `a3e17b25 sec(api): enforce Content-Type allowlist on /api/csp-report`. Accepts `application/csp-report` (RFC 9110 §8.3) and `application/reports+json` (RFC 9701 reporting API) — the two content types real browsers send. Other types get 415.
+  - **`/api/health` honors `If-Modified-Since` → `304`** — `d7ecdda6 feat(api): /api/health supports both If-Modified-Since + Last-Modified`. Wider compatibility with monitoring clients that only support HTTP-date conditional GETs.
+- **Verification:** Tests pass (visible from last check: 252+ tests). Working tree clean before commit.
+
+**Prompt Intention:**
+- Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #16 closed three more documentation gaps. Next iteration scheduled to fire in 10 minutes.
