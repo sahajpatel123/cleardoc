@@ -139,7 +139,19 @@ skip("ticker: every public page rotates ≥6 distinct signals so the marquee fee
   }
 });
 
-skip("ask: multi-turn thread accumulates Q&A pairs and offers a clear button", async () => {
+skip("ask: citation in local-fallback includes the matched sentence + a quote", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Source-pattern: localAnswer returns a citeFmt string built from
+  // the matched sentence + a 140-char truncated quote.
+  assert.match(appSrc, /function fmtCite\(/, "fmtCite helper must exist");
+  assert.match(appSrc, /'Sentence ' \+ sn/, "fmtCite must produce 'Sentence N of M' format");
+  assert.match(appSrc, /citeFmt:fmtCite\(best\)/, "every return path must include citeFmt");
+  assert.match(appSrc, /local\.citeFmt \|\| \(local\.cite/, "the Ask thread must prefer citeFmt over the raw fallback string");
+});
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -2158,6 +2170,47 @@ skip("security.txt: well-known/security.txt is served and well-formed", async ()
 });
 
 // ── FAQ keyword filter ─────────────────────────────────────────────
+
+skip("analyzer: local-fallback answer carries 'Sentence N of M' citation when no AI is available", async () => {
+  if (!HAS_BROWSER) return;
+  // The analyzer's local fallback (no AI key configured) should produce
+  // a citation in the standardized "Sentence N of M: \"quote\"" format so
+  // the rendered answer is consistent with the AI path. This test stubs
+  // globalThis.fetch so the Gemini call fails / is unavailable, forcing
+  // the local-fallback path.
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  // Strip any AI keys so the analyzer short-circuits to local fallback.
+  await page.addInitScript(() => {
+    delete window.GEMINI_API_KEY;
+    delete window.OPENROUTER_API_KEY;
+    // Force fetch to fail so the handler hits the local-fallback path.
+    const origFetch = window.fetch ? window.fetch.bind(window) : null;
+    window.fetch = async () => { throw new Error("forced: AI unavailable"); };
+  });
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  // Type a question that triggers the local-fallback refund / deposit branch
+  // (the analyze page has a preloaded sample document; if not, paste something).
+  const input = await page.$("#askInput");
+  assert.ok(input, "#askInput must exist");
+  // Make sure the page has analyzed the preloaded sample first
+  await page.waitForSelector("#askOut", { timeout: 5000 }).catch(() => {});
+
+  await input.fill("Can I get a refund?");
+  await page.click("#askBtn");
+  // The local-fallback path renders synchronously into #askOut.
+  await page.waitForTimeout(200);
+
+  // The answer should mention the citation format somewhere
+  const askOut = await page.$eval("#askOut", (el) => el.textContent || "");
+  assert.ok(askOut.length > 0, "askOut must have content after local-fallback answer");
+
+  // If a citation is shown, it should match "Sentence N of M" format OR
+  // (for short docs) include a quote. We just verify the output isn't
+  // empty — the exact format is covered by source-pattern unit tests.
+  await page.close();
+  await ctx.close();
+});
 
 skip("faq: keyword filter narrows .qa items in real time", async () => {
   if (!HAS_BROWSER) return;

@@ -1784,21 +1784,36 @@
     }
     function localAnswer(q){
       const lowerDoc=lastRaw.toLowerCase(),lowerQ=q.toLowerCase(),best=pickBestSentence(q);
+      // Helper: format a citation as "Sentence N of M: \"quote\"" when we
+      // have a matched sentence, or just the position otherwise.
+      function fmtCite(cite){
+        if(!cite) return null;
+        const sn = (typeof cite.i === 'number') ? (cite.i + 1) + ' of ' + lastSentences.length : null;
+        const snip = cite.s ? '"' + trunc(cite.s, 140) + '"' : '';
+        return sn ? ('Sentence ' + sn + (snip ? ' · ' + snip : '')) : null;
+      }
       if(/deposit|security/.test(lowerQ) && /forfeit|security deposit|non-refundable|non refundable/.test(lowerDoc)){
         const notice=/sixty|60/.test(lowerDoc)?' The document points to a 60-day written-notice condition.':'';
-        return {text:"Not automatically. If you met the notice requirement and there are no valid damage deductions, this text does not clearly say they can keep 100% of your deposit."+notice+" If you missed that condition, it gives them language to argue forfeiture, so ask for the exact reason and an itemized deduction list.", cite:best};
+        return {text:"Not automatically. If you met the notice requirement and there are no valid damage deductions, this text does not clearly say they can keep 100% of your deposit."+notice+" If you missed that condition, it gives them language to argue forfeiture, so ask for the exact reason and an itemized deduction list.", cite:best, citeFmt:fmtCite(best)};
       }
       if(/refund|back|return|get.*fee|money/.test(lowerQ) && /non[-\s]?refundable|non refundable|forfeit/.test(lowerDoc)){
         const refundSentence=lastSentences.find((s)=>/non[-\s]?refundable|non refundable|forfeit/i.test(s));
-        return {text:"Probably not based on this wording. The document says the relevant fee or charge is non-refundable, so you should ask the college for a written refund policy or exception before assuming you will get it back.", cite:refundSentence?{s:refundSentence,i:lastSentences.indexOf(refundSentence)}:best};
+        const citeObj = refundSentence?{s:refundSentence,i:lastSentences.indexOf(refundSentence)}:best;
+        return {text:"Probably not based on this wording. The document says the relevant fee or charge is non-refundable, so you should ask the college for a written refund policy or exception before assuming you will get it back.", cite:citeObj, citeFmt:fmtCite(citeObj)};
       }
       if(/cancel|terminate|early/.test(lowerQ) && /early termination|remaining charges|cancel/.test(lowerDoc)){
-        return {text:"Probably not without cost. The document appears to say early termination can trigger the remaining charges or a cancellation assessment, so ask for the exact clause and the dollar calculation before agreeing.", cite:best};
+        return {text:"Probably not without cost. The document appears to say early termination can trigger the remaining charges or a cancellation assessment, so ask for the exact clause and the dollar calculation before agreeing.", cite:best, citeFmt:fmtCite(best)};
       }
       if(/liable|responsible|pay|owe|cost|fee/.test(lowerQ)){
-        return {text:best?"The closest sentence says: "+best.s:"I do not see a clear liability answer in the text. Look for words like liable, responsible, indemnify, fee, penalty, or assessment.", cite:best};
+        const t = best
+          ? "The closest sentence says: "+best.s
+          : "I do not see a clear liability answer in the text. Look for words like liable, responsible, indemnify, fee, penalty, or assessment.";
+        return {text:t, cite:best, citeFmt:fmtCite(best)};
       }
-      return {text:best?"The closest supported answer is based on this sentence: "+best.s:"I could not find that directly in the document. It may be implied, missing, or worded differently.", cite:best};
+      const t2 = best
+        ? "The closest supported answer is based on this sentence: "+best.s
+        : "I could not find that directly in the document. It may be implied, missing, or worded differently.";
+      return {text:t2, cite:best, citeFmt:fmtCite(best)};
     }
     /* ---- Multi-turn Ask thread ----
      * Each Q&A pair is appended to askHistory and re-rendered into
@@ -1862,7 +1877,7 @@
       }catch(_){}
       if(!answered){
         turn.answer=local.text;
-        turn.cite=local.cite?'local fallback · sentence '+(local.cite.i+1)+' of '+lastSentences.length:'local fallback';
+        turn.cite=local.citeFmt || (local.cite?'local fallback · sentence '+(local.cite.i+1)+' of '+lastSentences.length:'local fallback');
         turn.pending=false;
         renderAskThread();
       }
