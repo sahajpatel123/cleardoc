@@ -1407,3 +1407,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Reconnaissance-only.
+**2026-07-18 21:18 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #25-#27 sweep** (4-hour gap, 17:21 → 21:18 IST). Five parallel-session commits since last entry, all audited and clean:
+  - `feat(analyzer): tag your analyses so 3-days-later you remember which one` (`cdcb81b5`) — adds comma-separated tags to the localStorage snapshot. Tags are escaped on render (`.textContent` for the banner label, `esc()` for the chip innerHTML). Caps at 8 tags per analysis. Safe.
+  - `fix(mobile): back-to-top clears the sticky Analyze CTA at ≤600px` (`23c7aad3`) — bounds adjustment: on small viewports the back-to-top button overlaps the sticky CTA; this hides the CTA while the button is showing.
+  - `feat(faq): keyword filter — find the answer faster` (`7698c5ce`) — real-time search over question + answer text using `textContent` and `style.display` (no innerHTML). Safe.
+  - `feat(analyzer): rich error state with categorized failure + Retry button` (`d3762b6e`) — categorizes failures (rate-limit / network-or-timeout / other), surfaces a Retry button wired to the existing `analyze()`. Uses `esc()` for user data; the `<strong>AI rewrite skipped</strong>` prefix is a hardcoded string, not user-controlled.
+  - `feat(nav): sticky back-to-top button appears after 600px of scroll` (`6bd76ed2`) — UX touch; safe.
+- **No code changes this iteration.** All five ship clean; codebase at stable hardened plateau.
+
+**Prompt Intention:**
+- Honored the standing directives. Sweep-merged five iterations into a single entry to reflect the long runtime gap.
