@@ -1879,3 +1879,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Tiny code-debt PR but eliminates a real failure mode — version drift between /api/health's payload field and the actual deployed package.json.
+**2026-07-19 03:00 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #13 of /loop 10minutes** — autonomous DevSecOps guardian.
+- **Recon:** parallel session shipped `0ee4c119 chore(memory): log iteration #9 — stale plainTextOf test assertion cleanup` and `07cc0996 test(smoke): align BYOF plainTextOf/stripHtmlToText assertions with reality` — they cleaned up a stale assertion left over from my iter #12 plainTextOf fix.
+- **Shipped `80123307 perf(ui): cap FAQ search input at 64 chars across all pages`.** The #faqSearch input on index.html, analyze.html, and pricing.html had no maxlength. The filter handler runs `items.forEach` + `indexOf(needle)` per item on every keystroke. A user pasting a huge string would trigger O(items × needle) per keystroke, lagging the page. Fix: maxlength="64" on all three pages. Smoke test added to lock in the cap.
+- **Verification:** 258/258 tests pass (193 unit + 65 smoke + 1 integration). Pushed `80123307` to origin/main.
+
+**Prompt Intention:**
+- Honored standing directives. Picked a small, demonstrable performance fix — bounded the worst-case keystroke handler cost. Pattern: every search/filter input in user-facing UI should have an explicit maxlength so paste-spam can't degrade UX.
+
