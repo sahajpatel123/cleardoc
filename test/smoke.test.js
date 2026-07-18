@@ -2372,3 +2372,25 @@ test("FAQ search inputs have maxlength to prevent keystroke-lag with paste-spam"
     );
   }
 });
+
+test("every FAQ search input is capped at maxlength=64 across pages", async () => {
+  // Defense-in-depth: cap the FAQ search field so a misbehaving extension
+  // or absurdly-long copy-paste can't pump unbounded keys through the
+  // client-side filter. 64 chars is comfortably above any plausible
+  // search query (longest genuine English FAQ search is ~40 chars).
+  const fs = require("node:fs");
+  const path = require("node:path");
+  for (const page of ["index.html", "analyze.html", "pricing.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, page), "utf8");
+    // The FAQ search input always uses id="faqSearch" — find it and verify
+    // the maxlength attribute. The search is unconditional; any/all
+    // helper lets the test break fast on real regressions.
+    const inputMatch = html.match(/<input[^>]*id=["']faqSearch["'][^>]*>/);
+    assert.ok(inputMatch, `${page} must contain an input with id="faqSearch"`);
+    assert.match(
+      inputMatch[0],
+      /maxlength=["']64["']/,
+      `${page} FAQ search input must have maxlength="64"`
+    );
+  }
+});
