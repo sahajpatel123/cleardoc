@@ -34,6 +34,34 @@ const HEALTH_CACHE_MAX_AGE = 5;   // edge-cache TTL on 200 responses
  *   - `headersSent` is true (response already streaming)
  *   - `res` is missing or lacks setHeader
  */
+/* Compute a stable ETag for the current health payload. The tag changes
+ * when any of these inputs change: git SHA, which providers have keys set,
+ * or Vercel region. Stable across probes / cache hits / counter increments
+ * so monitoring clients that re-poll within a deploy don't keep paying
+ * for the body when nothing meaningful changed.
+ *
+ * Uses a simple FNV-1a 32-bit hash + JSON.stringify of the inputs. We
+ * don't need cryptographic strength; we just need a stable identifier
+ * that flips when the deploy shape changes.
+ */
+function computeHealthEtag({ gitSha, hasGemini, hasOpenRouter, region }) {
+  const parts = [
+    String(gitSha || ""),
+    hasGemini ? "g:1" : "g:0",
+    hasOpenRouter ? "o:1" : "o:0",
+    String(region || ""),
+  ];
+  const input = parts.join("|");
+  // FNV-1a 32-bit hash (deterministic, no crypto dep)
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  // Force unsigned 32-bit hex
+  return '"' + (h >>> 0).toString(16).padStart(8, "0") + '"';
+}
+
 function setHealthOkHeaders(res) {
   if (!res || typeof res.setHeader !== "function" || res.headersSent) return;
   res.setHeader("Content-Type", "application/json");
@@ -61,6 +89,7 @@ function sendOkCached(res, payload) {
   if (res.headersSent) return;
   res.statusCode = 200;
   setHealthOkHeaders(res);
+  if (res.__currentEtag) res.setHeader("ETag", res.__currentEtag);
   res.end(JSON.stringify(payload));
 }
 
@@ -256,6 +285,32 @@ module.exports = async function handler(req, res) {
       return json(res, 503, payload);
     }
 
+    // Compute ETag for conditional requests (If-None-Match → 304).
+    // Stable for the lifetime of a deploy; changes only when git SHA,
+    // provider key set, or Vercel region changes. Lets monitoring
+    // clients that re-poll every second avoid re-downloading the full
+    // ~3KB payload when nothing meaningful moved.
+    const etag = computeHealthEtag({
+      gitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
+      hasGemini,
+      hasOpenRouter,
+      region: process.env.VERCEL_REGION || null,
+    });
+    // If the client sent If-None-Match matching our tag, the payload
+    // hasn't changed — return 304 with no body (saves bandwidth + parse).
+    // 304 still gets X-Build-Sha + latency headers via setHealthOkHeaders
+    // so ops can correlate the conditional-hit against a deploy.
+    const incomingTag = req && req.headers && req.headers["if-none-match"];
+    if (typeof incomingTag === "string" && incomingTag === etag) {
+      res.statusCode = 304;
+      setHealthOkHeaders(res);
+      res.setHeader("ETag", etag);
+      return res.end();
+    }
+    // Forward the tag to the cached/HEAD paths so it lands in headers
+    // — they read `res.__currentEtag` to attach it to the response.
+    res.__currentEtag = etag;
+
     if (req.method === "HEAD") {
       // HEAD must carry the same cacheable headers as the equivalent GET
       // (RFC 7231 §4.3.2) but skip the body — shared helper sets every
@@ -263,6 +318,7 @@ module.exports = async function handler(req, res) {
       if (!res.headersSent) {
         res.statusCode = 200;
         setHealthOkHeaders(res);
+        if (res.__currentEtag) res.setHeader("ETag", res.__currentEtag);
       }
       return res.end();
     }
@@ -290,3 +346,4 @@ module.exports = async function handler(req, res) {
 // invokes `module.exports` as a request handler, so attaching additional
 // properties is harmless (the runtime reads module.exports as a function).
 module.exports.buildSummary = buildSummary;
+module.exports.computeHealthEtag = computeHealthEtag;

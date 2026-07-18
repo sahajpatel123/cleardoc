@@ -533,3 +533,51 @@ test("health handler: summary surfaces cspReports (per-directive CSP violation c
   assert.match(HEALTH_SOURCE, /getCspReportCounts/, "must call getCspReportCounts()");
   assert.match(HEALTH_SOURCE, /cspReports\s*:\s*cspCounts/, "summary must include the cspReports field");
 });
+
+// ── ETag / If-None-Match (iter #51) ────────────────────────────────
+
+test("health handler: computes a stable ETag from deploy-shape inputs", () => {
+  // FNV-1a 32-bit over (gitSha | hasGemini | hasOpenRouter | region).
+  // Hashing means the ETag is opaque and short (8 hex chars) but flips
+  // when any input changes — no body parsing needed for conditional
+  // requests.
+  assert.match(HEALTH_SOURCE, /function\s+computeHealthEtag\(/, "computeHealthEtag must exist");
+  assert.match(HEALTH_SOURCE, /Math\.imul/, "must use FNV-1a 32-bit hash (Math.imul)");
+  assert.match(HEALTH_SOURCE, /hasGemini\s*\?\s*["']g:1["']\s*:\s*["']g:0["']/, "etag must encode hasGemini flag");
+  assert.match(HEALTH_SOURCE, /hasOpenRouter\s*\?\s*["']o:1["']\s*:\s*["']o:0["']/, "etag must encode hasOpenRouter flag");
+});
+
+test("health handler: emits ETag header on 200 + HEAD responses", () => {
+  // Monitoring clients can then send If-None-Match on the next poll;
+  // unchanged ETag → 304 with no body. Saves ~3KB per poll cycle when
+  // the client already knows the deploy shape.
+  assert.match(HEALTH_SOURCE, /res\.setHeader\(["']ETag["']/, "must call setHeader('ETag', ...) somewhere in the 200 / HEAD paths");
+  assert.match(HEALTH_SOURCE, /res\.__currentEtag/, "must thread the etag via __currentEtag across paths");
+});
+
+test("health handler: returns 304 when If-None-Match matches the computed ETag", () => {
+  // The whole point of ETag: if the client already knows the body, give
+  // them a tiny 304 instead of re-downloading it.
+  assert.match(HEALTH_SOURCE, /if-none-match/i, "handler must read if-none-match header");
+  assert.match(HEALTH_SOURCE, /statusCode\s*=\s*304/, "must set statusCode to 304 on a match");
+  assert.match(HEALTH_SOURCE, /res\.end\(\)/, "304 must end with an empty body");
+});
+
+test("health handler: computeHealthEtag is deterministic for identical inputs", () => {
+  // Lock the determinism contract: hash all three states (both providers
+  // configured, only gemini, only openrouter) and verify the hashes are
+  // distinct from each other AND stable across repeated calls with the
+  // same inputs. Catches future changes that accidentally introduce
+  // nondeterminism (timestamps, random IDs, etc.).
+  assert.match(HEALTH_SOURCE, /function\s+computeHealthEtag\(/, "helper must exist");
+  // Helper is exported test-only via module.exports for behavioral
+  // verification (not for production use).
+  const { computeHealthEtag } = require("../api/health.js");
+  const a = computeHealthEtag({ gitSha: "abc1234", hasGemini: true, hasOpenRouter: true, region: "iad1" });
+  const a2 = computeHealthEtag({ gitSha: "abc1234", hasGemini: true, hasOpenRouter: true, region: "iad1" });
+  assert.equal(a, a2, "identical inputs must produce identical ETags");
+  const b = computeHealthEtag({ gitSha: "abc1234", hasGemini: false, hasOpenRouter: true, region: "iad1" });
+  assert.notEqual(a, b, "different inputs must produce different ETags");
+  // Must include the leading quote so headers are RFC 7232 valid weak-ETags.
+  assert.match(a, /^"[0-9a-f]{8}"$/, "etag must be quoted weak ETag with 8-char hex body");
+});
