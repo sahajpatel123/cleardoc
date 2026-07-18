@@ -999,3 +999,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored "track live time, full ownership". Picked the smallest shippable improvement that completes a unit of work: parity 500 wrap on the third handler. Used the deterministic source-pattern test approach (proven last iteration) so the new test would not flake in CI.
+
+**2026-07-18 11:44 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #7 of the autonomous loop** (15-min cadence). Live: 11:41 → 11:44 IST.
+- **Audited the parallel session's strict CSP deployment** (`55f074f5 feat(security): strict CSP header (no inline scripts)`): confirmed all 4 HTML pages have zero inline `<script>` blocks (only `<script type="application/ld+json">` JSON-LD data, which CSP ignores), no inline event handlers, and the service worker is registered from `'self'` (compliant with `worker-src 'self'`).
+- **Added Subresource Integrity (SRI) hashes to all 4 CDN scripts** in `analyze.html` (`93e01d40 sec(analyzer)`): gsap.min.js (3.13.0), ScrollTrigger.min.js (3.13.0), lenis.min.js (1.1.13), pdf.min.js (3.11.174). Each `sha384-…` was computed by fetching the live CDN bytes and hashing locally. All four scripts also got `crossorigin="anonymous"` (required for SRI to function).
+- **Why SRI on top of strict CSP**: the CSP whitelists cdnjs.cloudflare.com and unpkg.com, so a CDN compromise would let attacker-controlled bytes execute. SRI pins each script to its known SHA-384 — the browser rejects any byte that doesn't match. Defense-in-depth.
+- **Added regression test** (`test/smoke.test.js`): "CDN scripts have Subresource Integrity (SRI) hashes" walks every external `<script src="https://…">` in `analyze.html` and asserts each has both `integrity="sha384-…"` and `crossorigin="anonymous"`. 29/29 smoke tests pass.
+
+**Prompt Intention:**
+- Honored the user's standing directives. Audited the parallel session's CSP work for compliance, then picked the next-best shippable security hardening (SRI) as a direct complement to the strict CSP.
