@@ -1670,3 +1670,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the last ops-dashboard observability gap — the nested `providers` object was always fine for diagnostics but dashboards that want one number per dimension shouldn't have to walk children. Rollup complements the existing detail without changing it.
+
+**2026-07-19 02:26 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #40 of the autonomous loop** (cron `c3921bc4` firing). Live: 02:26 IST.
+- **Refactored: extracted `setHealthOkHeaders()` helper** (`0265c066`). The 200 GET (sendOkCached) and 200 HEAD (inline) responses were duplicating 5 identical setHeader calls (Content-Type, Cache-Control, X-Request-Id, X-Request-Latency-Total-Ms, X-Build-Sha). 10 lines of bit-rotting mirror code eliminated; future X-* header additions now land in ONE place.
+- **Implementation**: new local `setHealthOkHeaders(res)` helper. Both sendOkCached + the HEAD inline block call it. Defensive (no-op when `headersSent` or `setHeader` missing). The cacheable Cache-Control template literal exists in exactly one source location (locked by a test counting it == 1).
+- **235/235 tests pass** (173 unit + 61 smoke + 1 integration). Pure refactor — no behavior change.
+- **3 source-pattern tests updated**: 200+HEAD emit cacheable Cache-Control (checks helper call + single template literal); 503 still no-store (now asserts template literal count == 1); sendOkCached helper family (asserts setHealthOkHeaders emits the standard observability family).
+
+**Prompt Intention:**
+- Honored the standing directives. Pure structural polish — no feature work this iteration, just eliminated the last bit of duplicated header-setting code that I'd introduced myself in iter #38. A future header addition will land in one place.
