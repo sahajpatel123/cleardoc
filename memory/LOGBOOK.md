@@ -1859,3 +1859,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Real user-facing feature: a programmatic dashboard that was scanning 100 docs/minute was paying full analyze cost on every scan; this lets them cut the cost by ~5x for the verdict-only use case without writing a different code path.
+**2026-07-19 03:32 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #10 of the 10-minute autonomous engineer loop** (`/loop 10minutes`). Documentation gap fill.
+- **Documented `/api/analyze?format=verdict-only`** (`pending commit`):
+  - **README.md** — updated the `/api/analyze` row in the endpoint table to mention `?format=verdict-only` for cheaper batch scans.
+  - **CHANGELOG.md** — added the verdict-only flag under Reliability (lighter AI prompt, fewer output tokens, lower per-request latency; same auth + rate limit + observability headers as the full response).
+  - Parallel-agent commit `6bcfaac9 feat(api): /api/analyze ?format=verdict-only for cheaper/faster verdicts` shipped the flag without CHANGELOG/README updates.
+- **Verification:** 246/246 tests pass. Working tree clean before commit.
+
+**Prompt Intention:**
+- Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #10 closed another documentation gap. Next iteration scheduled to fire in 10 minutes.

@@ -22,7 +22,7 @@ ClearDoc turns intimidating legal, medical, and financial documents into plain E
 
 | Endpoint | Method | Purpose | Rate limit | Body cap |
 | -------- | ------ | ------- | ---------- | -------- |
-| `/api/analyze` | POST | Document analysis | 10 req/min/IP | 256 KB |
+| `/api/analyze` | POST | Document analysis (use `?format=verdict-only` for cheaper batch scans) | 10 req/min/IP | 256 KB |
 | `/api/chat` | POST | Q&A about an analyzed document | 30 req/min/IP | 128 KB |
 | `/api/health` | GET | Public health check (reachable at `/health`) | 60 req/min/IP | — |
 | `/api/csp-report` | POST | CSP violation reports (browser → ops) | 60 req/min/IP | 16 KB |
