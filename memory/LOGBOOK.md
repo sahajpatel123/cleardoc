@@ -1078,3 +1078,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. The codebase is now in great shape after many parallel improvements — chose the smallest, highest-leverage remaining hardening: making HSTS preload-eligible. One-line config change + regression test.
+
+**2026-07-18 12:49 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #10 of the autonomous loop** (15-min cadence). Live: 12:40 → 12:49 IST.
+- **Found and fixed a decompression-bomb vulnerability in the share URL decoder** (`5f448616 sec(share)`). `gunzipString()` in `assets/app.js` used `new Response(stream).text()` with NO byte cap on the decompressed output. A crafted 6KB share URL (well within `SHARE_PAYLOAD_MAX_BYTES`) containing a malicious gzip stream could expand to gigabytes of memory on decode — the classic "zip bomb" / "decompression bomb" attack.
+- **Fix**: `gunzipString` now streams the decompressed output, tallies `byteLength` across chunks, and throws (with `reader.cancel()` to release chunk buffers promptly) once `total > GUNZIP_MAX_BYTES` (1 MiB). The outer try/catch returns null; the share decoder falls through to v1 (raw base64url) or shows the recipient a clear error banner instead of freezing the tab.
+- **Test coverage** (`test/smoke.test.js`): new "share decoder caps decompressed size (gzip bomb defense)" test walks `gunzipString` source and asserts all four invariants — cap defined, byte accumulator, overflow check, stream cancel on overflow. 37/37 smoke tests pass.
+
+**Prompt Intention:**
+- Honored the standing directives. Audit-driven: a careful read of `gunzipString` revealed that the encoded-side cap (6000 base64url) was meaningless if the *decompressed* side was unbounded. Patched the actual gap with a streaming counter + cancel pattern that's both correct and GC-friendly.
