@@ -2071,3 +2071,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Shipped `a3e17b25 sec(api): enforce Content-Type allowlist on /api/csp-report`.** The csp-report endpoint (shipped iter #42) accepted any body that JSON.parse could handle — including form-encoded payloads. Added Content-Type allowlist (application/json, application/csp-report, application/reports+json) with 415 reject for everything else. Accept header advertises the three valid types so well-behaved clients self-correct. Updated existing extractViolations test to include `content-type: application/csp-report` on its stub request, matching the new contract.
 - **Verification:** 277/277 tests pass (206 unit + 70 smoke + 1 integration). Pushed to origin/main.
 
+**2026-07-19 04:45 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #54 of the autonomous loop** (cron `c3921bc4` firing). Live: 04:45 IST.
+- **Shipped dual conditional-request support on /api/health: `Last-Modified` + `If-Modified-Since` → 304** (`d7ecdda6`). Iter #51 added ETag/If-None-Match; this iteration closes the date-based counterpart. Both are RFC 7232 §3.3 forms of the same conditional-request semantics; clients that understand ETag use If-None-Match, clients that understand date-based cache use If-Modified-Since.
+- **New header on 200 + HEAD + 304**: `Last-Modified: <RFC 7231 IMF-fixdate>` (e.g. `Sun, 19 Jul 2026 04:45:00 GMT`). Pure `httpDate(ms)` helper formats a Date in the standard IMF-fixdate format.
+- **304 path on If-Modified-Since**: when client's `If-Modified-Since` timestamp is `>= START_TS` (the RFC's inclusive comparison), we return 304 with no body.
+- **280/280 tests pass** (209 unit + 70 smoke + 1 integration). 3 new source-pattern tests.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the last meaningful HTTP-semantics gap. /api/health now has RFC-correct dual conditional-request support, working both for modern ETag-aware clients (Chrome DevTools, k6) and legacy / generic HTTP caches that only know date-based caching.
+
