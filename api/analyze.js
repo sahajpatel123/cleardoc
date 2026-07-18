@@ -271,10 +271,11 @@ module.exports = async function handler(req, res) {
     const aiLatencyMs = Date.now() - aiStart;
 
     if (!result) {
-      applyAiResponseHeaders(res, "none", aiLatencyMs);
       // Both providers in the chain are unreachable / errored / rate-limited.
-      // Emit a Retry-After so monitoring clients and the Ask-thread UI back
-      // off rather than hammering — same convention as /api/health on 503.
+      // Fallback was attempted (gemini did fire after openrouter failed) but
+      // neither provider ultimately answered. Emit Retry-After + the standard
+      // header family so monitoring can correlate.
+      applyAiResponseHeaders(res, "none", aiLatencyMs, undefined, true);
       res.setHeader("Retry-After", "60");
       return json(res, 502, {
         error: "AI analysis failed. Please try again.",
@@ -286,9 +287,10 @@ module.exports = async function handler(req, res) {
     // Partial legal data is more dangerous than no data — if the AI's payload
     // has wrong types, missing fields, or out-of-enum values, reject the whole
     // response rather than shipping a degraded shape to the user.
+    const fallbackUsed = provider === "gemini";
     const parsed = safeParseAnalysisResult(result);
     if (!parsed.ok) {
-      applyAiResponseHeaders(res, provider, aiLatencyMs, model);
+      applyAiResponseHeaders(res, provider, aiLatencyMs, model, fallbackUsed);
       errLog(res, "analyze", new Error(`invalid AI response from ${provider}: ${JSON.stringify(parsed.errors)}`));
       // Malformed-shape responses are typically transient (retry lands on a
       // different sample). 60s is a sensible back-off window.
@@ -300,7 +302,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    applyAiResponseHeaders(res, provider, aiLatencyMs, model);
+    applyAiResponseHeaders(res, provider, aiLatencyMs, model, fallbackUsed);
     return json(res, 200, {
       analysis: parsed.value,
       provider,

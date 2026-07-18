@@ -282,12 +282,9 @@ module.exports = async function handler(req, res) {
 
     if (!out) {
       // Both providers were unreachable, errored, timed out, or returned
-      // empty content. Generic, non-leaky copy — the per-provider detail
-      // is already in the logs via console.error. X-AI-Provider: none lets
-      // ops tell this 502 apart from the per-provider failures above.
-      applyAiResponseHeaders(res, "none", aiLatencyMs);
-      // Tell clients to back off — same convention as /api/health on 503.
-      // Avoids hot-loop retries that would just re-burn rate limits.
+      // empty content. Fallback was attempted (OpenRouter fired after
+      // Gemini failed) but neither ultimately answered.
+      applyAiResponseHeaders(res, "none", aiLatencyMs, undefined, true);
       res.setHeader("Retry-After", "60");
       return json(res, 502, { error: "Chat failed. Both providers were unreachable." });
     }
@@ -295,6 +292,9 @@ module.exports = async function handler(req, res) {
     // Strict fail-closed schema validation (RULES.md #3). Same principle as
     // /api/analyze: any malformed field (wrong type, missing, overflow) fails
     // the whole response rather than shipping a degraded shape to the user.
+    // For /api/chat, the PRIMARY is Gemini — so fallback activated iff
+    // out.provider === "openrouter".
+    const fallbackUsed = out.provider === "openrouter";
     const providerLabel = out.provider === "openrouter" ? "OpenRouter" : "Gemini";
     const parsed = safeParseChatResult({
       answer: out.answer,
@@ -302,7 +302,7 @@ module.exports = async function handler(req, res) {
       model: out.model,
     });
     if (!parsed.ok) {
-      applyAiResponseHeaders(res, out.provider, aiLatencyMs, out.model);
+      applyAiResponseHeaders(res, out.provider, aiLatencyMs, out.model, fallbackUsed);
       errLog(res, "chat", new Error(`invalid AI response from ${out.provider}: ${JSON.stringify(parsed.errors)}`));
       // Schema-invalid responses are transient (next sample usually ok).
       res.setHeader("Retry-After", "60");
@@ -312,7 +312,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    applyAiResponseHeaders(res, out.provider, aiLatencyMs, out.model);
+    applyAiResponseHeaders(res, out.provider, aiLatencyMs, out.model, fallbackUsed);
     return json(res, 200, Object.assign({}, parsed.value, { provider: out.provider }));
   } catch (err) {
     // Last-resort safety net: never let an uncaught throw leak Vercel's

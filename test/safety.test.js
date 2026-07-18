@@ -763,6 +763,39 @@ test("applyAiResponseHeaders: accepts the canonical model identifiers", () => {
   }
 });
 
+// ── applyAiResponseHeaders: X-AI-Fallback (optional 5th arg) ───────────
+
+test("applyAiResponseHeaders: writes X-AI-Fallback: true when 5th arg is true", () => {
+  const res = mockRes();
+  applyAiResponseHeaders(res, "openrouter", 1500, undefined, true);
+  assert.equal(res.headers["X-AI-Fallback"], "true");
+});
+
+test("applyAiResponseHeaders: writes X-AI-Fallback: false when 5th arg is false", () => {
+  const res = mockRes();
+  applyAiResponseHeaders(res, "gemini", 1500, undefined, false);
+  assert.equal(res.headers["X-AI-Fallback"], "false");
+});
+
+test("applyAiResponseHeaders: omits X-AI-Fallback when 5th arg is not a boolean (backward compat)", () => {
+  // Existing 3-arg and 4-arg call sites must keep working.
+  for (const bad of [undefined, null, "true", 1, 0, {}, []]) {
+    const res = mockRes();
+    applyAiResponseHeaders(res, "openrouter", 100, undefined, bad);
+    assert.equal(res.headers["X-AI-Fallback"], undefined, `bad fallbackUsed ${JSON.stringify(bad)} must be skipped`);
+  }
+});
+
+test("applyAiResponseHeaders: X-AI-Fallback coexists with all other AI headers", () => {
+  // All five headers written together — the full observability surface.
+  const res = mockRes();
+  applyAiResponseHeaders(res, "openrouter", 1234, "google/gemma-4-31b-it:free", true);
+  assert.equal(res.headers["X-AI-Provider"], "openrouter");
+  assert.equal(res.headers["X-AI-Response-Time-Ms"], "1234");
+  assert.equal(res.headers["X-AI-Model"], "google/gemma-4-31b-it:free");
+  assert.equal(res.headers["X-AI-Fallback"], "true");
+});
+
 // ── json() auto-latency header + attachRequestId start-time capture ────
 
 test("attachRequestId: captures __requestStartedAt for the latency header", () => {

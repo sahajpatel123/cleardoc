@@ -328,6 +328,12 @@ function applyRateLimitHeaders(res, rl) {
  *   X-AI-Model            — (optional) the exact model identifier that
  *                            answered, e.g. "google/gemma-4-31b-it:free" or
  *                            "gemini-2.5-flash"
+ *   X-AI-Fallback         — (optional) "true" when the primary provider
+ *                            failed and the fallback answered; "false"
+ *                            when the primary answered outright. Lets ops
+ *                            distinguish a clean primary hit from a
+ *                            silent fallback activation without reading
+ *                            logs.
  *
  * Call this BEFORE `json()` on every response that actually involved an AI
  * call (200 success, 502 invalid_ai_response, 502 both-providers-failed). For
@@ -338,11 +344,10 @@ function applyRateLimitHeaders(res, rl) {
  * All fields are best-effort: any non-conforming input is silently ignored
  * so the helper is safe to call unconditionally. No throw on bad input.
  *
- * Backward compatible: the existing 2-arg call site (res, provider, latencyMs)
- * works without modification. Pass a model string as the 4th argument to
- * also emit X-AI-Model.
+ * Backward compatible: existing 3-arg and 4-arg call sites work without
+ * modification. Pass a boolean as the 5th argument to also emit X-AI-Fallback.
  */
-function applyAiResponseHeaders(res, provider, latencyMs, model) {
+function applyAiResponseHeaders(res, provider, latencyMs, model, fallbackUsed) {
   if (!res || typeof res.setHeader !== "function" || res.headersSent) return;
   if (typeof provider === "string" && provider.length > 0 && provider.length < 64) {
     // Allowlist of provider strings — keeps the header value honest even
@@ -360,6 +365,9 @@ function applyAiResponseHeaders(res, provider, latencyMs, model) {
     if (/^[A-Za-z0-9._:/+-]+$/.test(model)) {
       res.setHeader("X-AI-Model", model);
     }
+  }
+  if (typeof fallbackUsed === "boolean") {
+    res.setHeader("X-AI-Fallback", fallbackUsed ? "true" : "false");
   }
 }
 

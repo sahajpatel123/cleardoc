@@ -271,13 +271,13 @@ test("chat handler: wires applyAiResponseHeaders with provider + latency on ever
   // 502 both-fail must report provider "none"
   assert.match(
     handlerBody,
-    /applyAiResponseHeaders\(res,\s*"none"\s*,\s*aiLatencyMs\)/,
+    /applyAiResponseHeaders\(res,\s*"none"\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?\)/,
     "502 both-fail path must call applyAiResponseHeaders with provider='none'"
   );
   // 502 invalid_ai and 200 success must report out.provider
   assert.match(
     handlerBody,
-    /applyAiResponseHeaders\(res,\s*out\.provider\s*,\s*aiLatencyMs(?:\s*,\s*out\.model)?\)/,
+    /applyAiResponseHeaders\(res,\s*out\.provider\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?\)/,
     "success / invalid_ai paths must call applyAiResponseHeaders with out.provider"
   );
 });
@@ -312,4 +312,23 @@ test("chat handler: emits Retry-After on both 502 paths so clients back off", ()
     const searchRegion = handlerBody.slice(noProvider503Match.index, noProvider503Match.index + 400);
     assert.equal(/Retry-After/.test(searchRegion), false, "503 neither-configured path must NOT set Retry-After (config, not outage)");
   }
+});
+
+test("chat handler: passes fallbackUsed to applyAiResponseHeaders (Gemini primary, OpenRouter fallback)", () => {
+  // For /api/chat the PRIMARY is Gemini. Fallback activated iff the
+  // answering provider is OpenRouter. (Mirror of /api/analyze where the
+  // primary/fallback roles are reversed.)
+  const fnStart = CHAT_SOURCE.indexOf("module.exports = async function handler");
+  assert.ok(fnStart > -1);
+  const handlerBody = CHAT_SOURCE.slice(fnStart);
+
+  // The computation must match — derived from the orchestrator's out.provider
+  assert.match(
+    handlerBody,
+    /fallbackUsed\s*=\s*out\.provider\s*===\s*"openrouter"/,
+    "must compute fallbackUsed = out.provider === 'openrouter' (Gemini is primary)"
+  );
+  // All three AI-touched applyAiResponseHeaders calls must pass fallbackUsed.
+  const callsWithFallback = [...handlerBody.matchAll(/applyAiResponseHeaders\(res,\s*[^,]+,\s*[^,]+(?:,\s*[^,]+)?,\s*(true|false|undefined|fallbackUsed)\s*\)/g)];
+  assert.ok(callsWithFallback.length >= 3, "must pass fallbackUsed on all 3 AI-touched applyAiResponseHeaders call sites");
 });

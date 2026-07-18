@@ -149,22 +149,24 @@ test("analyze handler: wires applyAiResponseHeaders with provider + latency on e
     );
   }
 
-  // The 502 "both-fail" path must report provider "none"
+  // The 502 "both-fail" path must report provider "none". The optional
+  // 4th (model) and 5th (fallbackUsed) args may or may not be present —
+  // both forms are accepted.
   assert.match(
     handlerBody,
-    /applyAiResponseHeaders\(res,\s*"none"\s*,\s*aiLatencyMs\)/,
+    /applyAiResponseHeaders\(res,\s*"none"\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?\)/,
     "502 both-fail path must call applyAiResponseHeaders with provider='none'"
   );
-  // The 502 invalid_ai path must report the actual provider that answered
+  // The 502 invalid_ai path must report the actual provider that answered.
   assert.match(
     handlerBody,
-    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs(?:\s*,\s*model)?\)/,
+    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?\)/,
     "502 invalid_ai path must call applyAiResponseHeaders with the actual provider"
   );
   // The 200 success path must also set the headers
   assert.match(
     handlerBody,
-    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs(?:\s*,\s*model)?\)/,
+    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?\)/,
     "200 success path must call applyAiResponseHeaders with the provider"
   );
 });
@@ -195,4 +197,23 @@ test("analyze handler: emits Retry-After on both 502 paths so clients back off",
     (m) => m.index > between502and200.length - 1
   );
   assert.equal(retryAfterInSuccessRegion, false, "Retry-After must not appear in the 200 success region");
+});
+
+test("analyze handler: passes fallbackUsed to applyAiResponseHeaders (OpenRouter primary, Gemini fallback)", () => {
+  // For /api/analyze the PRIMARY is OpenRouter. Fallback activated iff the
+  // answering provider is Gemini. The handler must compute and pass that.
+  const fnStart = ANALYZE_SOURCE.indexOf("module.exports = async function handler");
+  assert.ok(fnStart > -1);
+  const handlerBody = ANALYZE_SOURCE.slice(fnStart);
+
+  // The computation must be present (used at every AI-touched response site)
+  assert.match(
+    handlerBody,
+    /fallbackUsed\s*=\s*provider\s*===\s*"gemini"/,
+    "must compute fallbackUsed = provider === 'gemini' (OpenRouter is primary)"
+  );
+  // All three AI-touched applyAiResponseHeaders calls must pass fallbackUsed
+  // as the 5th argument (both-fail, invalid_ai, success).
+  const callsWithFallback = [...handlerBody.matchAll(/applyAiResponseHeaders\(res,\s*[^,]+,\s*[^,]+(?:,\s*[^,]+)?,\s*(true|false|undefined|fallbackUsed)\s*\)/g)];
+  assert.ok(callsWithFallback.length >= 3, "must pass fallbackUsed on all 3 AI-touched applyAiResponseHeaders call sites");
 });
