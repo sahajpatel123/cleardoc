@@ -1975,3 +1975,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored the standing directives. Closed the last observability gap on /api/health — now ops can monitor both AI probe rates AND CSP rejection rates in one place, both counting the same kind of thing (in-process behavior of the API surface).
 
+
+**2026-07-19 04:10 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #13 of the 10-minute autonomous engineer loop** (`/loop 10minutes`). Documentation gap fill.
+- **Documented two parallel-agent features** (`pending commit`):
+  - **`/api/health` CSP-report aggregation counters** — `e439aa64 feat(api): /api/health surfaces CSP report aggregation counters` added `cspReportsLast24h` + `cspReportsByViolation` (keyed by `violated-directive` + `blocked-uri`) to the rollup. Lets ops see at-a-glance whether the `report-uri` directive is firing and which directives are highest-friction.
+  - **Hero clarifier input cap at 500 chars** — `b90c5f72 perf(ui): cap heroInput single-line clarifier at 500 chars` added `maxlength="500"` to the single-line `heroInput` on the homepage + analyze.html hero. Closes the same defensive input-cap family as FAQ / clarify / OCR / doc + byof.
+- **Verification:** 250/250 tests pass (181 unit + 68 smoke + 1 integration). Working tree clean before commit.
+
+**Prompt Intention:**
+- Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #13 closed two more documentation gaps. Next iteration scheduled to fire in 10 minutes.
