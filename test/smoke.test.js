@@ -1626,3 +1626,31 @@ test("CSP: inline <script> via page.evaluate() is blocked by the browser", async
   await page.close();
   await ctx.close();
 });
+
+// ── RFC 9116 security.txt ────────────────────────────────────────
+
+skip("security.txt: well-known/security.txt is served and well-formed", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  // File must exist on disk
+  const txtPath = path.join(ROOT, "public", ".well-known", "security.txt");
+  assert.ok(fs.existsSync(txtPath), `${txtPath} must exist`);
+  const txt = fs.readFileSync(txtPath, "utf8");
+
+  // RFC 9116 § 4.1: Contact is REQUIRED
+  assert.match(txt, /^Contact:\s*\S+/m, "Contact field required");
+  // RFC 9116 § 4.2: Expires is REQUIRED
+  assert.match(txt, /^Expires:\s*\S+/m, "Expires field required");
+  // Expires must be a valid ISO 8601 timestamp
+  const expiresMatch = txt.match(/^Expires:\s*(\S+)/m);
+  const expiresTs = Date.parse(expiresMatch[1]);
+  assert.ok(!Number.isNaN(expiresTs), `Expires must be a parseable timestamp, got: ${expiresMatch[1]}`);
+  assert.ok(expiresTs > Date.now(), "Expires must be in the future");
+  // Canonical must point to the live URL
+  assert.match(txt, /^Canonical:\s*https:\/\/cleardoc\.app\/.well-known\/security\.txt/m, "Canonical must be the live URL");
+
+  // Optional fields: present and well-formed
+  assert.match(txt, /^Preferred-Languages:\s*en/m, "Preferred-Languages should be en");
+  assert.match(txt, /^Policy:\s*https:\/\/cleardoc\.app\/SECURITY\.md/m, "Policy should link to SECURITY.md");
+});
