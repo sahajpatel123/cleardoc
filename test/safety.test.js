@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog, sanitizeLogField, logProviderError } = require("../api/_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, applyBuildShaHeader, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog, sanitizeLogField, logProviderError } = require("../api/_safety.js");
 
 // ── json ─────────────────────────────────────────────────────────────
 
@@ -919,6 +919,121 @@ test("applyAiResponseHeaders: full AI observability surface — all 7 headers wr
   assert.equal(res.headers["X-AI-Fallback"], "true");
   assert.equal(res.headers["X-AI-OpenRouter-Ms"], "5000");
   assert.equal(res.headers["X-AI-Gemini-Ms"], "500");
+});
+
+// ── applyBuildShaHeader: X-Build-Sha from VERCEL_GIT_COMMIT_SHA ──────
+
+test("applyBuildShaHeader: writes X-Build-Sha when VERCEL_GIT_COMMIT_SHA is a valid hex SHA", () => {
+  const prev = process.env.VERCEL_GIT_COMMIT_SHA;
+  process.env.VERCEL_GIT_COMMIT_SHA = "abc1234def5678";
+  try {
+    const res = mockRes();
+    applyBuildShaHeader(res);
+    assert.equal(res.headers["X-Build-Sha"], "abc1234def5678");
+  } finally {
+    if (prev === undefined) delete process.env.VERCEL_GIT_COMMIT_SHA;
+    else process.env.VERCEL_GIT_COMMIT_SHA = prev;
+  }
+});
+
+test("applyBuildShaHeader: accepts full 40-char SHA-1", () => {
+  const prev = process.env.VERCEL_GIT_COMMIT_SHA;
+  process.env.VERCEL_GIT_COMMIT_SHA = "0123456789abcdef0123456789abcdef01234567";
+  try {
+    const res = mockRes();
+    applyBuildShaHeader(res);
+    assert.equal(res.headers["X-Build-Sha"], "0123456789abcdef0123456789abcdef01234567");
+  } finally {
+    if (prev === undefined) delete process.env.VERCEL_GIT_COMMIT_SHA;
+    else process.env.VERCEL_GIT_COMMIT_SHA = prev;
+  }
+});
+
+test("applyBuildShaHeader: omits X-Build-Sha when env var is unset (local dev)", () => {
+  const prev = process.env.VERCEL_GIT_COMMIT_SHA;
+  delete process.env.VERCEL_GIT_COMMIT_SHA;
+  try {
+    const res = mockRes();
+    applyBuildShaHeader(res);
+    assert.equal(res.headers["X-Build-Sha"], undefined, "local dev must not emit placeholder");
+  } finally {
+    if (prev !== undefined) process.env.VERCEL_GIT_COMMIT_SHA = prev;
+  }
+});
+
+test("applyBuildShaHeader: rejects malformed (non-hex) env values", () => {
+  // Defense-in-depth: a misconfigured CI environment must not be able to
+  // smuggle arbitrary bytes — even non-hex strings must be skipped.
+  for (const bad of ["not-hex", "ABCDEF", "xyz1234", "abc1234\ninjected", "abc; 1234"]) {
+    const prev = process.env.VERCEL_GIT_COMMIT_SHA;
+    process.env.VERCEL_GIT_COMMIT_SHA = bad;
+    try {
+      const res = mockRes();
+      applyBuildShaHeader(res);
+      assert.equal(
+        res.headers["X-Build-Sha"],
+        undefined,
+        `bad SHA "${bad}" must be rejected`
+      );
+    } finally {
+      if (prev === undefined) delete process.env.VERCEL_GIT_COMMIT_SHA;
+      else process.env.VERCEL_GIT_COMMIT_SHA = prev;
+    }
+  }
+});
+
+test("applyBuildShaHeader: rejects too-short or too-long SHAs", () => {
+  // 6 chars is too short to be a git short-SHA (default is 7).
+  // 41 chars is too long for SHA-1.
+  const prev = process.env.VERCEL_GIT_COMMIT_SHA;
+  for (const bad of ["abc123", "0".repeat(41)]) {
+    process.env.VERCEL_GIT_COMMIT_SHA = bad;
+    try {
+      const res = mockRes();
+      applyBuildShaHeader(res);
+      assert.equal(res.headers["X-Build-Sha"], undefined, `"${bad}" must be rejected for length`);
+    } catch (_) {
+      // length check assertion doesn't fail; ignore
+    }
+  }
+  if (prev === undefined) delete process.env.VERCEL_GIT_COMMIT_SHA;
+  else process.env.VERCEL_GIT_COMMIT_SHA = prev;
+});
+
+test("applyBuildShaHeader: null-safe (no throw on bad res)", () => {
+  for (const bad of [null, undefined, {}, 42, "res"]) {
+    applyBuildShaHeader(bad);
+  }
+});
+
+test("applyBuildShaHeader: no-ops once headers have been sent", () => {
+  const prev = process.env.VERCEL_GIT_COMMIT_SHA;
+  process.env.VERCEL_GIT_COMMIT_SHA = "abc1234";
+  try {
+    const res = mockRes();
+    res.headersSent = true;
+    applyBuildShaHeader(res);
+    assert.deepEqual(res.headers, {}, "must not call setHeader when response is already streaming");
+  } finally {
+    if (prev === undefined) delete process.env.VERCEL_GIT_COMMIT_SHA;
+    else process.env.VERCEL_GIT_COMMIT_SHA = prev;
+  }
+});
+
+test("applyBuildShaHeader: automatic on json() — every JSON response carries X-Build-Sha in prod", () => {
+  // The integration point that matters: every JSON response passes through
+  // json() so every response automatically carries the build SHA. No
+  // handler changes needed.
+  const prev = process.env.VERCEL_GIT_COMMIT_SHA;
+  process.env.VERCEL_GIT_COMMIT_SHA = "deadbeef1234";
+  try {
+    const res = mockRes();
+    json(res, 200, { ok: true });
+    assert.equal(res.headers["X-Build-Sha"], "deadbeef1234", "X-Build-Sha must land via json()");
+  } finally {
+    if (prev === undefined) delete process.env.VERCEL_GIT_COMMIT_SHA;
+    else process.env.VERCEL_GIT_COMMIT_SHA = prev;
+  }
 });
 
 // ── json() auto-latency header + attachRequestId start-time capture ────

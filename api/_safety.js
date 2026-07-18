@@ -14,7 +14,19 @@
  *   safeParseAnalysisResult(obj)                  — strict fail-closed validator for /api/analyze results
  *   CHAT_LIMITS                                   — single source of truth for /api/chat caps
  *   safeParseChatResult(obj)                      — strict fail-closed validator for /api/chat results
+ *   applyBuildShaHeader(res)                      — emits X-Build-Sha from VERCEL_GIT_COMMIT_SHA
  */
+
+function applyBuildShaHeader(res) {
+  if (!res || typeof res.setHeader !== "function" || res.headersSent) return;
+  const raw = process.env.VERCEL_GIT_COMMIT_SHA;
+  if (typeof raw !== "string" || raw.length === 0) return;
+  // Restrict to a realistic git-SHA hex shape (7..40 lowercase hex chars)
+  // so a misconfigured CI environment can't smuggle arbitrary bytes into
+  // the header. 7 accepts short SHAs; 40 accepts full SHA-1.
+  if (!/^[a-f0-9]{7,40}$/.test(raw)) return;
+  res.setHeader("X-Build-Sha", raw);
+}
 
 function json(res, status, body) {
   res.statusCode = status;
@@ -36,6 +48,11 @@ function json(res, status, body) {
       res.setHeader("X-Request-Latency-Total-Ms", String(Math.round(elapsed)));
     }
   }
+  // X-Build-Sha: every JSON response carries the deployed commit SHA so
+  // ops can correlate a curl response with the exact commit that built it.
+  // VERCEL_GIT_COMMIT_SHA is set automatically on every Vercel production
+  // deploy; null in local dev → header simply omitted (no value to expose).
+  applyBuildShaHeader(res);
   res.end(JSON.stringify(body));
 }
 
@@ -766,6 +783,7 @@ module.exports = {
   rateLimit,
   applyRateLimitHeaders,
   applyAiResponseHeaders,
+  applyBuildShaHeader,
   readCappedBody,
   generateRequestId,
   sanitizeIncomingRequestId,

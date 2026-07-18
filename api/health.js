@@ -7,7 +7,7 @@
  * Lightweight: no upstream calls, no auth. Rate-limited per IP to avoid abuse.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, errLog, accessLog, getIp, probeProviderCached } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, errLog, accessLog, getIp, probeProviderCached } = require("./_safety.js");
 
 const START_TS = Date.now();
 const VERSION = "1.0.0";
@@ -111,7 +111,8 @@ module.exports = async function handler(req, res) {
       // HEAD responses must carry the same headers as the equivalent GET
       // (RFC 7231 §4.3.2). Since we bypass json() to avoid serializing the
       // payload body, set Content-Type + Cache-Control + latency header
-      // explicitly so monitoring clients see a well-formed response.
+      // + build SHA explicitly so monitoring clients see a well-formed
+      // response.
       if (!res.headersSent) {
         res.setHeader("Content-Type", "application/json");
         res.setHeader("Cache-Control", "no-store");
@@ -121,6 +122,7 @@ module.exports = async function handler(req, res) {
             res.setHeader("X-Request-Latency-Total-Ms", String(Math.round(elapsed)));
           }
         }
+        applyBuildShaHeader(res);
       }
       res.statusCode = 200;
       return res.end();
