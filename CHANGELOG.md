@@ -50,6 +50,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Mobile drawer focus trap** + keyboard shortcuts.
 - **FAQ expand-all / collapse-all** controls on every FAQ section.
 - **Service worker** (`assets/sw.js`) precaches the shell, network-first for HTML, cache-first for assets.
+- **Print-optimized stylesheet** (`assets/print.css`) — when users hit *Print → Save as PDF* on any ClearDoc page, the output strips nav / footer / sticky CTAs / mobile drawer, switches to black-on-white, and renders the canonical URL + printed-on timestamp so the artifact is self-identifying. Loaded with `media="print"` so it never blocks screen render.
 
 ### Documentation
 - `README.md` — refreshed to reflect the 3-endpoint API, Node 22+ requirement, full project layout.
