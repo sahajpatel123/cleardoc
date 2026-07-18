@@ -1,10 +1,14 @@
 /* api/health.js — public health endpoint for uptime checks.
  *
  * Returns:
- *   200 { ok: true, status: "ok", version, uptimeSec }
- *   503 { ok: false, status: "degraded", reason }   — when downstream AI is unavailable
+ *   200 { ok: true, status: "ok", version, uptimeSec, providers }   — edge-cacheable 5s
+ *   503 { ok: false, status: "degraded", reason }                  — fresh on outage
  *
- * Lightweight: no upstream calls, no auth. Rate-limited per IP to avoid abuse.
+ * Lightweight: no upstream AI calls, no auth. Rate-limited per IP to avoid abuse.
+ * 200-path responses carry `Cache-Control: public, max-age=5, s-maxage=5` so
+ * monitoring services polling every second collapse into a single function
+ * invocation per 5-second edge-cache window — meaningful Vercel cost savings
+ * for the most-polled endpoint in any deployment.
  */
 
 const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, errLog, accessLog, getIp, probeProviderCached } = require("./_safety.js");
@@ -12,6 +16,36 @@ const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHe
 const START_TS = Date.now();
 const VERSION = "1.0.0";
 const RATE_LIMIT_PER_MINUTE = 60; // health checks can be polled frequently
+const HEALTH_CACHE_MAX_AGE = 5;   // edge-cache TTL on 200 responses
+
+/* Send the 200 response with edge-cacheable headers + the standard observability
+ * family. Mirrors what json() does but overrides Cache-Control to permit a
+ * short shared cache (5s). Both client (`max-age`) and CDN (`s-maxage`)
+ * caches honor the directive so monitoring services hammering the endpoint
+ * collapse to ~one upstream call per 5s window per edge node.
+ *
+ * Headers must be set in this order to land BEFORE res.end():
+ *   Content-Type + Cache-Control → X-Request-Id → X-Request-Latency-Total-Ms →
+ *   X-Build-Sha → body.
+ */
+function sendOkCached(res, payload) {
+  if (res.headersSent) return;
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader(
+    "Cache-Control",
+    `public, max-age=${HEALTH_CACHE_MAX_AGE}, s-maxage=${HEALTH_CACHE_MAX_AGE}`
+  );
+  if (res.__requestId) res.setHeader("X-Request-Id", res.__requestId);
+  if (typeof res.__requestStartedAt === "number") {
+    const elapsed = Date.now() - res.__requestStartedAt;
+    if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= 600000) {
+      res.setHeader("X-Request-Latency-Total-Ms", String(Math.round(elapsed)));
+    }
+  }
+  applyBuildShaHeader(res);
+  res.end(JSON.stringify(payload));
+}
 
 module.exports = async function handler(req, res) {
   attachRequestId(res, req);
@@ -86,6 +120,8 @@ module.exports = async function handler(req, res) {
     };
 
     // 503 only when EVERY provider is unreachable or unconfigured.
+    // 503 must NOT be cached (Cache-Control: no-store, from json()) so
+    // monitoring sees fresh outage state immediately.
     const allUnreachable =
       (payload.providers.gemini.configured ? !payload.providers.gemini.reachable : true) &&
       (payload.providers.openrouter.configured ? !payload.providers.openrouter.reachable : true);
@@ -108,14 +144,17 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === "HEAD") {
-      // HEAD responses must carry the same headers as the equivalent GET
-      // (RFC 7231 §4.3.2). Since we bypass json() to avoid serializing the
-      // payload body, set Content-Type + Cache-Control + latency header
-      // + build SHA explicitly so monitoring clients see a well-formed
-      // response.
+      // HEAD must carry the same cacheable headers as the equivalent GET
+      // (RFC 7231 §4.3.2). skip the body — the cacheable 200 helper would
+      // otherwise serialize JSON we don't need to send.
       if (!res.headersSent) {
+        res.statusCode = 200;
         res.setHeader("Content-Type", "application/json");
-        res.setHeader("Cache-Control", "no-store");
+        res.setHeader(
+          "Cache-Control",
+          `public, max-age=${HEALTH_CACHE_MAX_AGE}, s-maxage=${HEALTH_CACHE_MAX_AGE}`
+        );
+        if (res.__requestId) res.setHeader("X-Request-Id", res.__requestId);
         if (typeof res.__requestStartedAt === "number") {
           const elapsed = Date.now() - res.__requestStartedAt;
           if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= 600000) {
@@ -124,10 +163,9 @@ module.exports = async function handler(req, res) {
         }
         applyBuildShaHeader(res);
       }
-      res.statusCode = 200;
       return res.end();
     }
-    return json(res, 200, payload);
+    return sendOkCached(res, payload);
   } catch (err) {
     // Last-resort safety net: same pattern as /api/analyze and /api/chat.
     // /api/health.js is fully synchronous so a throw is extremely unlikely,

@@ -164,9 +164,13 @@ test("health handler: 200 happy path does NOT set Retry-After", () => {
   // 200 responses must not include Retry-After (only 429 + 503 should).
   // This prevents clients from misinterpreting a healthy response as
   // "try again later".
-  // Find the 200 return path (the `return json(res, 200, payload)` line)
-  const ok200Match = HEALTH_SOURCE.match(/return\s+json\(res,\s*200,\s*payload\)/);
-  assert.ok(ok200Match, "200 happy-path return must exist");
+  // Find the 200 return path (either the legacy `return json(res, 200, ...)`
+  // or the new `sendOkCached(res, ...)` helper that emits edge-cacheable
+  // Cache-Control on the 200 path).
+  const ok200Match =
+    HEALTH_SOURCE.match(/return\s+json\(res,\s*200,\s*payload\)/) ||
+    HEALTH_SOURCE.match(/return\s+sendOkCached\(res,\s*payload\)/);
+  assert.ok(ok200Match, "200 happy-path return must exist (json(...) or sendOkCached(...))");
   // Look for Retry-After BEFORE this match in the source — if it's
   // before the 200 return, it might be in a code path that runs before
   // 200 returns (like rate limit or 405). That's allowed. The check that
@@ -216,13 +220,105 @@ test("health handler: HEAD path sets Content-Type, Cache-Control, and latency he
   // The HEAD block must set Content-Type explicitly
   assert.match(
     HEALTH_SOURCE,
-    /setHeader\(\s*["']Content-Type["']\s*,\s*["']application\/json["']\s*\)/,
+    /setHeader\(\s*["']Content-Type["']\s*,\s*["']application\/json["']/,
     "HEAD response must set Content-Type: application/json"
   );
-  // ... and Cache-Control
+  // HEAD and GET share the same cacheable Cache-Control: public, max-age=N, s-maxage=N
+  // so monitoring services can dedupe across both verbs.
   assert.match(
     HEALTH_SOURCE,
-    /setHeader\(\s*["']Cache-Control["']\s*,\s*["']no-store["']\s*\)/,
-    "HEAD response must set Cache-Control: no-store"
+    /setHeader\(\s*["']Cache-Control["']\s*,\s*[`"']public,\s*max-age=/,
+    "HEAD/GET 200 must use Cache-Control: public, max-age=..."
   );
+});
+
+test("health handler: 200 + HEAD emit edge-cacheable Cache-Control (max-age + s-maxage)", () => {
+  // Reduces Vercel invocations: monitoring services polling every second
+  // collapse into a single function call per 5s edge-cache window. 503
+  // responses still use no-store (must be fresh on outage).
+  const fnStart = HEALTH_SOURCE.indexOf("module.exports = async function handler");
+  assert.ok(fnStart > -1);
+  const handlerBody = HEALTH_SOURCE.slice(fnStart);
+
+  // Must use a short max-age (5s) — a long cache would hide outages.
+  // Match either a literal number (`max-age=5`) or a template-literal
+  // constant (`max-age=${HEALTH_CACHE_MAX_AGE}` where the constant is a
+  // module-level binding).
+  const cacheMatches = [...handlerBody.matchAll(/max-age=(\d+|\$\{[^}]+\})/g)];
+  assert.ok(cacheMatches.length >= 1, "must reference max-age somewhere");
+  for (const m of cacheMatches) {
+    // Skip template-literal constants — they don't have a literal numeric
+    // value at this source-pattern layer. The literal numeric matches above
+    // (if any) cover the bound check; if the source uses only a constant,
+    // HEALTH_CACHE_MAX_AGE at the top of the file is verified separately.
+    if (/\$\{/.test(m[1])) continue;
+    const seconds = parseInt(m[1], 10);
+    assert.ok(seconds > 0 && seconds <= 60, `max-age=${seconds}s must be 1..60s`);
+  }
+  // Also verify HEALTH_CACHE_MAX_AGE is sane (1..60s) if the source uses it
+  const constMatch = HEALTH_SOURCE.match(/HEALTH_CACHE_MAX_AGE\s*=\s*(\d+)/);
+  if (constMatch) {
+    const seconds = parseInt(constMatch[1], 10);
+    assert.ok(seconds > 0 && seconds <= 60, `HEALTH_CACHE_MAX_AGE=${seconds}s must be 1..60s`);
+  }
+
+  // 200 path must use `public` + `s-maxage` so CDN caches dedupe
+  // multi-region monitoring traffic. The literal literal below is fine
+  // because the constant is fixed at module load.
+  assert.match(
+    handlerBody,
+    /setHeader\(\s*["']Cache-Control["']\s*,\s*[`"']public,\s*max-age=\$\{[^}]+\},\s*s-maxage=\$\{[^}]+\}/,
+    "200 must set Cache-Control: public, max-age=N, s-maxage=N (template literal)"
+  );
+});
+
+test("health handler: 503 paths still use no-store (outage must be fresh)", () => {
+  // Critical asymmetry: 503 means there's an active problem. Caching
+  // it would hide the outage from monitoring — must stay no-store.
+  // json() defaults to no-store so the 503 paths naturally inherit
+  // the correct behavior. Verify the 503 paths use json() and not
+  // the new sendOkCached helper.
+  const fnStart = HEALTH_SOURCE.indexOf("module.exports = async function handler");
+  assert.ok(fnStart > -1);
+  const handlerBody = HEALTH_SOURCE.slice(fnStart);
+
+  // The two 503 paths must call json() not sendOkCached()
+  const json503CallCount = [
+    ...handlerBody.matchAll(/return\s+json\(res,\s*503,/g),
+  ].length;
+  assert.ok(json503CallCount >= 2, "must have at least 2 json(res, 503, ...) calls for outage paths");
+
+  // No 503 path should call sendOkCached (the cacheable helper).
+  // Verify by checking that the cacheable helper appears AFTER the last
+  // 503 json() call (i.e., 503 branches exit before the 200 path runs).
+  const last503Index = handlerBody.lastIndexOf("return json(res, 503,");
+  const lastCacheableIndex = handlerBody.lastIndexOf("return sendOkCached(");
+  assert.ok(lastCacheableIndex > last503Index,
+    "sendOkCached must be the 200 path's return — called AFTER all 503 branches exit");
+  // The cacheable template literal lives in sendOkCached + the HEAD
+  // block (both 200 paths). Verify it appears exactly twice in source.
+  const cacheableUses = [...HEALTH_SOURCE.matchAll(/`public, max-age=\$\{HEALTH_CACHE_MAX_AGE\}, s-maxage=\$\{HEALTH_CACHE_MAX_AGE\}`/g)].length;
+  assert.equal(cacheableUses, 2, "cacheable header literal must appear exactly twice (sendOkCached + HEAD)");
+});
+
+test("health handler: sendOkCached helper exists and emits the standard observability family", () => {
+  // /api/health's 200 path goes through a local sendOkCached() helper
+  // (bypasses json() to set the edge-cacheable Cache-Control). The
+  // helper must still set the standard observability headers so
+  // parity with /api/analyze and /api/chat is preserved.
+  assert.match(
+    HEALTH_SOURCE,
+    /function\s+sendOkCached\(/,
+    "sendOkCached helper must exist"
+  );
+  // Look for each required observability header inside the source
+  // AFTER the sendOkCached helper definition starts. Cheap + robust
+  // (no fragile body-extraction regex).
+  const helperStart = HEALTH_SOURCE.indexOf("function sendOkCached(");
+  const helperRegion = HEALTH_SOURCE.slice(helperStart);
+  assert.match(helperRegion, /X-Request-Id/, "sendOkCached must echo X-Request-Id");
+  assert.match(helperRegion, /X-Request-Latency-Total-Ms/, "sendOkCached must emit latency header");
+  assert.match(helperRegion, /applyBuildShaHeader/, "sendOkCached must invoke applyBuildShaHeader (emits X-Build-Sha)");
+  assert.match(helperRegion, /Cache-Control/, "sendOkCached must set Cache-Control header");
+  assert.match(helperRegion, /Content-Type/, "sendOkCached must set Content-Type header");
 });

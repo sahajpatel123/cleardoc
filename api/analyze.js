@@ -1,7 +1,7 @@
 const GEMMA_MODEL = "google/gemma-4-31b-it:free";
 const GEMINI_MODEL_DEFAULT = "gemini-2.5-flash";
 const MAX_DOCUMENT_CHARS = 40000;
-const REQUEST_TIMEOUT_MS = 50000;
+const REQUEST_TIMEOUT_MS = 25000;            // per-provider budget — keeps primary + fallback chain < 60s Vercel ceiling
 const MAX_REQUEST_BYTES = 256 * 1024;       // 256KB hard cap on raw body
 const MAX_DOCUMENT_MIN_CHARS = 10;          // reject empty / trivial inputs
 const RATE_LIMIT_PER_MINUTE = 10;           // per-IP cap (analyze is expensive)
