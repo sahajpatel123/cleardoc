@@ -12,6 +12,7 @@ const {
   getIp,
   rateLimit,
   applyRateLimitHeaders,
+  applyAiResponseHeaders,
   attachRequestId,
   errLog,
   accessLog,
@@ -254,7 +255,10 @@ module.exports = async function handler(req, res) {
       return json(res, 400, { error: "Document is too short to analyze." });
     }
 
-    // Try OpenRouter first, then fall back to Gemini
+    // Try OpenRouter first, then fall back to Gemini. We capture the wall-
+    // clock AI latency so the X-AI-Response-Time-Ms header reports the
+    // total time spent across the chain (OpenRouter + Gemini if both fire).
+    const aiStart = Date.now();
     let result = await callOpenRouter(document);
     let provider = "openrouter";
 
@@ -262,8 +266,10 @@ module.exports = async function handler(req, res) {
       result = await callGemini(document);
       provider = "gemini";
     }
+    const aiLatencyMs = Date.now() - aiStart;
 
     if (!result) {
+      applyAiResponseHeaders(res, "none", aiLatencyMs);
       return json(res, 502, {
         error: "AI analysis failed. Please try again.",
         provider: "none",
@@ -276,6 +282,7 @@ module.exports = async function handler(req, res) {
     // response rather than shipping a degraded shape to the user.
     const parsed = safeParseAnalysisResult(result);
     if (!parsed.ok) {
+      applyAiResponseHeaders(res, provider, aiLatencyMs);
       errLog(res, "analyze", new Error(`invalid AI response from ${provider}: ${JSON.stringify(parsed.errors)}`));
       return json(res, 502, {
         error: "AI returned an invalid response. Please try again.",
@@ -284,6 +291,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    applyAiResponseHeaders(res, provider, aiLatencyMs);
     return json(res, 200, {
       analysis: parsed.value,
       provider,

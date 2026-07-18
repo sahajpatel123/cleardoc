@@ -284,6 +284,36 @@ function applyRateLimitHeaders(res, rl) {
   if (Number.isFinite(rl.retryAfter)) res.setHeader("Retry-After", String(rl.retryAfter));
 }
 
+/* Per-request AI provider observability headers.
+ *
+ * Sets:
+ *   X-AI-Provider         — "openrouter" | "gemini" | "none"
+ *   X-AI-Response-Time-Ms — integer milliseconds spent on AI calls (sum of all
+ *                            attempted providers in the chain)
+ *
+ * Call this BEFORE `json()` on every response that actually involved an AI
+ * call (200 success, 502 invalid_ai_response, 502 both-providers-failed). For
+ * 400 / 405 / 413 / 429 / 503 paths where no AI was invoked, skip the helper
+ * entirely — the absence of these headers is itself a signal that the request
+ * never reached the provider.
+ *
+ * Both fields are best-effort: any non-conforming input is silently ignored
+ * so the helper is safe to call unconditionally. No throw on bad input.
+ */
+function applyAiResponseHeaders(res, provider, latencyMs) {
+  if (!res || typeof res.setHeader !== "function" || res.headersSent) return;
+  if (typeof provider === "string" && provider.length > 0 && provider.length < 64) {
+    // Allowlist of provider strings — keeps the header value honest even
+    // if a future caller passes something weird from the request body.
+    if (provider === "openrouter" || provider === "gemini" || provider === "none") {
+      res.setHeader("X-AI-Provider", provider);
+    }
+  }
+  if (Number.isFinite(latencyMs) && latencyMs >= 0 && latencyMs <= 600000) {
+    res.setHeader("X-AI-Response-Time-Ms", String(Math.round(latencyMs)));
+  }
+}
+
 /* Stream-read the body with a hard byte cap. Vercel silently truncates
  * at 4.5MB; we reject earlier to bound CPU/memory and to keep error
  * semantics tight. Returns:
@@ -635,6 +665,7 @@ module.exports = {
   getIp,
   rateLimit,
   applyRateLimitHeaders,
+  applyAiResponseHeaders,
   readCappedBody,
   generateRequestId,
   sanitizeIncomingRequestId,

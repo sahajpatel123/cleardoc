@@ -32,7 +32,7 @@ const MAX_HISTORY_FIELD_CHARS = 500;        // per-field cap inside each turn
 const RATE_LIMIT_PER_MINUTE = 30;           // per-IP cap (chat is cheaper)
 const REQUEST_TIMEOUT_MS = 25000;           // per-provider budget — keeps total < 60s Vercel ceiling
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, attachRequestId, errLog, accessLog, readCappedBody, safeParseChatResult } = require("./_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, attachRequestId, errLog, accessLog, readCappedBody, safeParseChatResult } = require("./_safety.js");
 
 /* ── prompt ──────────────────────────────────────────────── */
 
@@ -274,13 +274,18 @@ module.exports = async function handler(req, res) {
       return json(res, 400, { error: "Document is too short to chat about." });
     }
 
+    const aiStart = Date.now();
     const out = await callChatWithFallback(
       buildPrompt({ question, document, rewrite, risks: body?.risks, fileName, history: body?.history })
     );
+    const aiLatencyMs = Date.now() - aiStart;
+
     if (!out) {
       // Both providers were unreachable, errored, timed out, or returned
       // empty content. Generic, non-leaky copy — the per-provider detail
-      // is already in the logs via console.error.
+      // is already in the logs via console.error. X-AI-Provider: none lets
+      // ops tell this 502 apart from the per-provider failures above.
+      applyAiResponseHeaders(res, "none", aiLatencyMs);
       return json(res, 502, { error: "Chat failed. Both providers were unreachable." });
     }
 
@@ -294,6 +299,7 @@ module.exports = async function handler(req, res) {
       model: out.model,
     });
     if (!parsed.ok) {
+      applyAiResponseHeaders(res, out.provider, aiLatencyMs);
       errLog(res, "chat", new Error(`invalid AI response from ${out.provider}: ${JSON.stringify(parsed.errors)}`));
       return json(res, 502, {
         error: "Chat returned an invalid response. Please try again.",
@@ -301,6 +307,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    applyAiResponseHeaders(res, out.provider, aiLatencyMs);
     return json(res, 200, Object.assign({}, parsed.value, { provider: out.provider }));
   } catch (err) {
     // Last-resort safety net: never let an uncaught throw leak Vercel's
