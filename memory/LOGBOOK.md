@@ -1725,3 +1725,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored the standing directives. Closed the last meaningful user-facing gap — every other iteration has been API-side; this one put polish on the page itself. Real users value "Save as PDF" for analysis because they email/share the output, and the current screen stylesheet (gradient backgrounds, sticky CTAs everywhere) prints poorly.
 
+**2026-07-19 02:49 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #42 of the autonomous loop** (cron `c3921bc4` firing). Live: 02:49 IST.
+- **Shipped `/api/csp-report` endpoint + `report-uri` directive in CSP** (`351a21ab`). Closes the last meaningful observability gap on the enforcement side: when a browser blocks a script/style/etc. against our CSP, it used to be silently dropped. Now every violation POSTs to /api/csp-report, gets logged structured as `[csp-report]` lines, and ops can grep server logs to see exactly what was blocked where.
+- **Implementation**: ~110 LOC endpoint. Accepts both CSP Level 3 legacy `{"csp-report": {...}}` envelope and modern Reporting API `{"reports": [...]}` array. Production-grade defenses: 16KB body cap (CSP reports are tiny), 60-req/min per-IP rate limit (CSP report endpoints are a known DDoS amplification vector), 204 No Content response (per RFC, browsers don't read it), URL paths sanitized via `sanitizeUrl()` before logging (never leak session tokens via query strings). `report-uri /api/csp-report` added to `vercel.json`'s global CSP directive.
+- **11 new tests** in `test/csp-report-error.test.js` covering POST-only, rate-limit, body cap, malformed JSON, both report shapes, structured logging, 204 response, error logging on empty body, vercel.json wiring, full safety net, plus 1 behavioral (empty body → 204, malformed JSON → 400).
+- **241/241 tests pass** (178 unit + 62 smoke + 1 integration).
+
+**Prompt Intention:**
+- Honored the standing directives. CSP violations were the one observability area still completely silent — no way for ops to know when a third-party script was being blocked, when a browser was trying to load something disallowed, or when our CSP needed to be relaxed to admit a new domain. The endpoint makes the silent visible.
+
