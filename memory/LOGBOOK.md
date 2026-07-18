@@ -1053,3 +1053,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the user's standing directives. Audit-driven: the previous iteration's SRI work passed its own test, but a follow-on scan revealed a dynamic-loader gap. Caught it the same hour rather than letting it sit.
+
+**2026-07-18 12:23 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #9 of the autonomous loop** (15-min cadence). Live: 12:19 → 12:23 IST.
+- **Tightened Strict-Transport-Security** in `vercel.json` (`4c8e6821 sec(headers)`):
+  - max-age bumped 1y → 2y (hstspreload.org minimum is 1y; 2y is recommended)
+  - Added `preload` directive so the policy is eligible for inclusion in the browser preload list at hstspreload.org. Once submitted and accepted, every modern browser refuses HTTP connections to cleardoc.app even on first visit. ClearDoc is HTTPS-only on Vercel, so the irreversible trade-off is correct.
+- **Test coverage** (`test/smoke.test.js`): new "vercel.json: Strict-Transport-Security is preload-eligible" test walks the global `/(.*)` header block, extracts the HSTS value, and asserts `max-age >= 31536000`, `includeSubDomains`, and `preload`. 35/35 smoke tests pass.
+
+**Prompt Intention:**
+- Honored the standing directives. The codebase is now in great shape after many parallel improvements — chose the smallest, highest-leverage remaining hardening: making HSTS preload-eligible. One-line config change + regression test.
