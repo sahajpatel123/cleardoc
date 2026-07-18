@@ -1963,3 +1963,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored standing directives. Pattern continuation from iter #15: every user-facing text input now has a maxlength matching its effective cap (server-side or runtime). Five user inputs capped across iters #1, #11, #13, #15, #16.
 
+**2026-07-19 04:06 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #50 of the autonomous loop** (cron `c3921bc4` firing). Live: 04:06 IST.
+- **Shipped `/api/health` summary exposes CSP report-aggregation counters** (`e439aa64`). The CSP report-uri endpoint (iter #42) logs each violation individually, but counting them programmatically required log scraping. Now surface the counters in the summary instead.
+- **New field on /api/health summary**: `cspReports: { total: N, byDirective: { "script-src": 12, "img-src": 3, ... } }`. Lets ops graph CSP rejection rate at a glance. A sudden spike in script-src violations is the early-warning for an unsafe script being injected (a CSP regression on a third-party widget, etc.).
+- **Implementation**: `_safety.js` adds `_cspDirectiveCounts` Map (oldest-evicting at 50 keys to prevent unbounded growth from a hostile path) + `_cspTotalReports` counter + `recordCspReport(directive)` + `getCspReportCounts()` helpers. Directive string is normalized (whitespace-trimmed, lowercase, only the directive name — not the full argument list) so reports land in the same bucket regardless of CSP report-shape variation.
+- **Wiring**: `/api/csp-report.js` calls `recordCspReport(rawDirective)` per violation. `/api/health.js`'s `buildSummary()` includes `cspReports: getCspReportCounts()`.
+- **265/265 tests pass** (196 unit + 68 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the last observability gap on /api/health — now ops can monitor both AI probe rates AND CSP rejection rates in one place, both counting the same kind of thing (in-process behavior of the API surface).
+
