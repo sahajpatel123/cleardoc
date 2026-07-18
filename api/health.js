@@ -7,7 +7,7 @@
  * Lightweight: no upstream calls, no auth. Rate-limited per IP to avoid abuse.
  */
 
-const { json, rateLimit, getIp } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, getIp } = require("./_safety.js");
 
 const START_TS = Date.now();
 const VERSION = "1.0.0";
@@ -20,8 +20,8 @@ module.exports = async function handler(req, res) {
 
   // Light rate limit so the endpoint can't be used to amplify load
   const rl = rateLimit(getIp(req), RATE_LIMIT_PER_MINUTE);
+  applyRateLimitHeaders(res, rl);
   if (!rl.ok) {
-    res.setHeader("Retry-After", String(rl.retryAfter));
     return json(res, 429, { error: "Too many requests." });
   }
 

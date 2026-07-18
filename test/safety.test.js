@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 
-const { json, asString, getIp, rateLimit, readCappedBody } = require("../api/_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, readCappedBody } = require("../api/_safety.js");
 
 // ── json ─────────────────────────────────────────────────────────────
 
@@ -78,6 +78,72 @@ test("rateLimit: rejects the (N+1)th request with retryAfter", () => {
   const blocked = rateLimit(ip, 3);
   assert.equal(blocked.ok, false);
   assert.ok(blocked.retryAfter >= 1 && blocked.retryAfter <= 60, `retryAfter ${blocked.retryAfter} should be 1..60`);
+});
+
+test("rateLimit: returns limit, remaining, reset on every response (allowed + rejected)", () => {
+  const ip = `test-fields-${Date.now()}-${Math.random()}`;
+  const r1 = rateLimit(ip, 3);
+  assert.equal(r1.ok, true);
+  assert.equal(r1.limit, 3, "limit must echo maxPerMinute");
+  assert.equal(r1.remaining, 2, "remaining decrements after each allowed request");
+  assert.ok(Number.isInteger(r1.reset) && r1.reset > 0, "reset must be a positive UNIX seconds");
+
+  const r2 = rateLimit(ip, 3);
+  assert.equal(r2.remaining, 1, "remaining should be 1 after second request");
+
+  const r3 = rateLimit(ip, 3);
+  assert.equal(r3.remaining, 0, "remaining should be 0 at the cap");
+
+  const r4 = rateLimit(ip, 3);
+  assert.equal(r4.ok, false, "4th request should be rejected");
+  assert.equal(r4.limit, 3, "rejection still echoes limit");
+  assert.equal(r4.remaining, 0, "rejection always reports 0 remaining");
+  assert.ok(Number.isInteger(r4.reset) && r4.reset > 0, "rejection still carries reset");
+  assert.ok(r4.retryAfter >= 1 && r4.retryAfter <= 60);
+});
+
+test("rateLimit: disabled limit (maxPerMinute <= 0) reports zeroed fields", () => {
+  const r = rateLimit("test-disabled", 0);
+  assert.equal(r.ok, true);
+  assert.equal(r.limit, 0);
+  assert.equal(r.remaining, 0);
+  assert.equal(r.reset, 0);
+});
+
+// ── applyRateLimitHeaders ──────────────────────────────────────────
+
+test("applyRateLimitHeaders: writes X-RateLimit-Limit, -Remaining, -Reset on allowed", () => {
+  const res = mockRes();
+  applyRateLimitHeaders(res, { ok: true, limit: 10, remaining: 7, reset: 1700000000 });
+  assert.equal(res.headers["X-RateLimit-Limit"], "10");
+  assert.equal(res.headers["X-RateLimit-Remaining"], "7");
+  assert.equal(res.headers["X-RateLimit-Reset"], "1700000000");
+  assert.equal(res.headers["Retry-After"], undefined, "Retry-After is omitted on allowed responses");
+});
+
+test("applyRateLimitHeaders: writes Retry-After on rejected in addition to the trio", () => {
+  const res = mockRes();
+  applyRateLimitHeaders(res, { ok: false, limit: 10, remaining: 0, reset: 1700000000, retryAfter: 42 });
+  assert.equal(res.headers["X-RateLimit-Limit"], "10");
+  assert.equal(res.headers["X-RateLimit-Remaining"], "0");
+  assert.equal(res.headers["X-RateLimit-Reset"], "1700000000");
+  assert.equal(res.headers["Retry-After"], "42");
+});
+
+test("applyRateLimitHeaders: is null-safe (no throw on null/undefined/empty)", () => {
+  for (const bad of [null, undefined, {}, "", 0]) {
+    const res = mockRes();
+    applyRateLimitHeaders(res, bad);
+    assert.deepEqual(res.headers, {}, `no headers should be set for ${JSON.stringify(bad)}`);
+  }
+});
+
+test("applyRateLimitHeaders: skips fields that aren't finite numbers", () => {
+  const res = mockRes();
+  applyRateLimitHeaders(res, { ok: true, limit: "ten", remaining: NaN, reset: null });
+  assert.equal(res.headers["X-RateLimit-Limit"], undefined);
+  assert.equal(res.headers["X-RateLimit-Remaining"], undefined);
+  assert.equal(res.headers["X-RateLimit-Reset"], undefined);
 });
 
 test("rateLimit: limits are isolated per IP", () => {

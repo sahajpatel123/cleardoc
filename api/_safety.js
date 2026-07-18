@@ -44,8 +44,16 @@ function getIp(req) {
 
 /* Per-IP sliding-window rate limit. In-memory; resets when the function
  * instance is recycled (typical on serverless). Returns:
- *   { ok: true }                          — allowed
- *   { ok: false, retryAfter: <seconds> }  — rejected; include Retry-After
+ *   { ok: true,  limit, remaining, reset }                          — allowed
+ *   { ok: false, retryAfter: <seconds>, limit, remaining: 0, reset }  — rejected
+ *
+ * `limit`     = maxPerMinute (echoed for client-side throttling)
+ * `remaining` = slots left in the current window after this request
+ * `reset`     = UNIX seconds at which the oldest in-window entry expires
+ *               (i.e. when at least one slot becomes available again)
+ *
+ * Use `applyRateLimitHeaders(res, rl)` to emit the standard X-RateLimit-*
+ * response headers from the returned object.
  */
 const _buckets = new Map();
 const _RATE_WINDOW_MS = 60_000;
@@ -54,7 +62,9 @@ const _RATE_PRUNE_INTERVAL_MS = 30_000;
 let _lastPrune = Date.now();
 
 function rateLimit(ip, maxPerMinute) {
-  if (!Number.isFinite(maxPerMinute) || maxPerMinute <= 0) return { ok: true };
+  if (!Number.isFinite(maxPerMinute) || maxPerMinute <= 0) {
+    return { ok: true, limit: 0, remaining: 0, reset: 0 };
+  }
   const now = Date.now();
 
   // periodic prune of stale entries to bound memory growth
@@ -70,8 +80,15 @@ function rateLimit(ip, maxPerMinute) {
   const arr = _buckets.get(key) || [];
   while (arr.length && arr[0] < now - _RATE_WINDOW_MS) arr.shift();
   if (arr.length >= maxPerMinute) {
-    const retryAfter = Math.max(1, Math.ceil((arr[0] + _RATE_WINDOW_MS - now) / 1000));
-    return { ok: false, retryAfter };
+    const resetMs = arr.length ? arr[0] + _RATE_WINDOW_MS : now + _RATE_WINDOW_MS;
+    const retryAfter = Math.max(1, Math.ceil((resetMs - now) / 1000));
+    return {
+      ok: false,
+      retryAfter,
+      limit: maxPerMinute,
+      remaining: 0,
+      reset: Math.ceil(resetMs / 1000),
+    };
   }
   arr.push(now);
   _buckets.set(key, arr);
@@ -86,7 +103,30 @@ function rateLimit(ip, maxPerMinute) {
       removed++;
     }
   }
-  return { ok: true };
+  const remaining = Math.max(0, maxPerMinute - arr.length);
+  const resetMs = arr[0] + _RATE_WINDOW_MS; // oldest entry's expiry
+  return {
+    ok: true,
+    limit: maxPerMinute,
+    remaining,
+    reset: Math.ceil(resetMs / 1000),
+  };
+}
+
+/* Emit the standard rate-limit response headers on every response that
+ * consulted rateLimit(). Standard names: X-RateLimit-Limit, -Remaining,
+ * -Reset (UNIX seconds). Always call BEFORE `json()` — once the body is
+ * streamed, headers must already be on the response.
+ *
+ * Also sets the de-facto `RateLimit` / `RateLimit-Policy` triplet (IETF
+ * draft-ietf-httpapi-ratelimit-headers) when the request is rejected.
+ */
+function applyRateLimitHeaders(res, rl) {
+  if (!rl || typeof rl !== "object") return;
+  if (Number.isFinite(rl.limit)) res.setHeader("X-RateLimit-Limit", String(rl.limit));
+  if (Number.isFinite(rl.remaining)) res.setHeader("X-RateLimit-Remaining", String(rl.remaining));
+  if (Number.isFinite(rl.reset)) res.setHeader("X-RateLimit-Reset", String(rl.reset));
+  if (Number.isFinite(rl.retryAfter)) res.setHeader("Retry-After", String(rl.retryAfter));
 }
 
 /* Stream-read the body with a hard byte cap. Vercel silently truncates
@@ -439,6 +479,7 @@ module.exports = {
   asString,
   getIp,
   rateLimit,
+  applyRateLimitHeaders,
   readCappedBody,
   ANALYSIS_LIMITS,
   VALID_SEVERITIES,

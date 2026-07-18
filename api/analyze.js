@@ -11,6 +11,7 @@ const {
   asString,
   getIp,
   rateLimit,
+  applyRateLimitHeaders,
   readCappedBody,
   safeParseAnalysisResult,
 } = require("./_safety.js");
@@ -220,8 +221,8 @@ module.exports = async function handler(req, res) {
   // Rate limit before doing any work — fail-closed on excess traffic
   const ip = getIp(req);
   const rl = rateLimit(ip, RATE_LIMIT_PER_MINUTE);
+  applyRateLimitHeaders(res, rl);
   if (!rl.ok) {
-    res.setHeader("Retry-After", String(rl.retryAfter));
     return json(res, 429, { error: "Too many requests. Try again shortly." });
   }
 

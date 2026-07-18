@@ -7,7 +7,7 @@ const MIN_QUESTION_CHARS = 3;
 const MIN_DOCUMENT_CHARS = 10;
 const RATE_LIMIT_PER_MINUTE = 30;           // per-IP cap (chat is cheaper)
 
-const { json, asString, getIp, rateLimit, readCappedBody, safeParseChatResult } = require("./_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, readCappedBody, safeParseChatResult } = require("./_safety.js");
 
 function extractText(data) {
   const candidate = data?.candidates?.[0];
@@ -61,8 +61,8 @@ module.exports = async function handler(req, res) {
   // Rate limit before doing any work — fail-closed on excess traffic
   const ip = getIp(req);
   const rl = rateLimit(ip, RATE_LIMIT_PER_MINUTE);
+  applyRateLimitHeaders(res, rl);
   if (!rl.ok) {
-    res.setHeader("Retry-After", String(rl.retryAfter));
     return json(res, 429, { error: "Too many requests. Try again shortly." });
   }
 
