@@ -967,6 +967,23 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - "100% ownership" — picked the most impactful remaining security gap. CSP without `'unsafe-inline'` for script-src is the single biggest defense against stored XSS, and the only blocker (one inline script) was small enough to refactor in one iteration. The CSP is intentionally tight for the current asset graph; future scripts will need to be added to the allowlist explicitly, which is the right friction.
 
+**2026-07-18 11:57 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #9 of the autonomous loop** (10-min cadence). Live: 11:52:21 → 11:57:02 IST.
+- **Two parallel-session commits shipped** during this window:
+  - `93e01d40 sec(analyzer): add Subresource Integrity hashes for all 4 CDN scripts` — SRI hashes on the gsap / ScrollTrigger / lenis / pdf.js `<script src=>` tags so the browser refuses to execute any CDN response that doesn't byte-match the hash. Defense in depth on top of CSP `script-src` allowlist.
+  - `0d7d4b27 feat(analyzer): inline OCR for image attachments via lazy Tesseract.js` — image attachments (jpg/png/webp/heic/tiff/...) previously dead-ended at "paste the text instead" because the regex analyzer can't read pixels. Now lazy-loads Tesseract.js from unpkg the first time a user attaches an image, runs OCR client-side, feeds the result into the analyzer. 30s timeout + cancel handles stale workers. Only loaded when actually needed (no overhead for text-only users).
+- **My contribution this iteration**: added 2 CSP-runtime smoke tests + fixed the smoke test server to inject the actual `vercel.json` CSP header. Without the server fix, the CSP tests would have been a no-op (the test server never sends the policy). My changes got bundled into `0d7d4b27` by the parallel session's commit.
+- **2 new smoke tests** in `test/smoke.test.js`:
+  - "every page response carries the strict Content-Security-Policy header" — loads `/`, `/analyze.html`, `/pricing.html`, `/404.html` and asserts each response includes a CSP with `script-src` containing NO `'unsafe-inline'` and required directives present.
+  - "CSP: inline `<script>` via page.evaluate() is blocked by the browser" — defense-in-depth: tries to inject an inline `<script>` element via DOM API (the standard XSS vector) and asserts `window.__csp_bypass_marker` never gets set. This is the test that proves the CSP isn't just declared — it's enforced.
+- **Bug caught**: my initial CSP runtime tests failed because the smoke test's `serveStatic()` doesn't read `vercel.json` to inject headers — it just serves files. Fixed by reading the global CSP at server start and `res.setHeader`-ing it on every response. Now the test server mirrors Vercel's prod behavior.
+- **Test totals locally**: 30 smoke (2 new CSP runtime tests) + 75 unit + 1 integration = **106/106 passing**.
+- **CI result**: `0d7d4b27 feat(analyzer): inline OCR for image attachments via lazy Tesseract.js` — **GREEN** on first run.
+
+**Prompt Intention:**
+- Continued the security hardening. After this iteration the full chain is: TLS (HSTS) + strict CSP + `connect-src` allowlist of AI providers + SRI on every CDN script + safety-net 500 responses on all 3 handlers + strict fail-closed schema validation on AI output + X-RateLimit-* headers. The OCR feature (parallel session) addresses a real UX gap (image attachments couldn't be analyzed). Next logical gaps: cross-origin CSRF check on POST, removing `'unsafe-inline'` from `style-src` via nonces (currently allowed because GSAP uses inline `style=""` attrs).
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
