@@ -942,6 +942,31 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Continued the safety-net pattern across all Vercel handlers. With both `/api/analyze` and `/api/chat` now wrapped, the entire public API surface is fail-closed against uncaught throws. The structural pattern (outer try/catch + `res.headersSent` guard + sanitized 500) is now consistent. `/api/health` is the next handler — it's simpler but the same pattern should apply for parity.
 
+**2026-07-18 11:39 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #8 of the autonomous loop** (10-min cadence). Live: 11:34:41 → 11:39:44 IST.
+- **Closed the Content-Security-Policy gap**. The site shipped strong security headers (HSTS, X-Frame-Options, Permissions-Policy, COOP) but **no CSP** — meaning a single XSS sink would have a free pass to load any external script. Added a strict CSP with no `unsafe-inline` for `script-src`, plus per-route tightening on `/api/*` (`default-src 'none'`).
+- **Refactored the lone inline `<script>`**: `analyze.html` had `<script>if(window.pdfjsLib){...}</script>` for PDF.js worker config. Moved to `assets/pdfjs-bootstrap.js` (external, src-tagged). JSON-LD structured data is NOT covered by `script-src` so it stays inline.
+- **`vercel.json`**: added `Content-Security-Policy` to the global header block. Directives:
+  - `default-src 'self'`
+  - `script-src 'self' https://cdnjs.cloudflare.com https://unpkg.com` (no `'unsafe-inline'`)
+  - `style-src 'self' https://fonts.googleapis.com 'unsafe-inline'` (theme uses inline style attrs for GSAP-driven sizing)
+  - `font-src 'self' https://fonts.gstatic.com`
+  - `img-src 'self' data:`
+  - `connect-src 'self' https://generativelanguage.googleapis.com https://openrouter.ai`
+  - `worker-src 'self'` (PWA service worker)
+  - `manifest-src 'self'` (PWA manifest)
+  - `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`
+- **`/api/*` CSP override**: `default-src 'none'; frame-ancestors 'none'` — these endpoints only return JSON, so nothing should be loaded from them at all.
+- **2 new smoke tests** in `test/smoke.test.js`:
+  - "vercel.json: emits a strict Content-Security-Policy on every page" — asserts `script-src` does NOT contain `'unsafe-inline'` and that all required directives are present.
+  - "HTML pages ship zero inline `<script>` blocks (CSP enforcer)" — regex-checks every HTML page (JSON-LD stripped first since it's not script-src governed).
+- **Test totals locally**: 28 smoke + 75 unit + 1 integration = **104/104 passing**.
+- **CI result**: `55f074f5 feat(security): strict CSP header (no inline scripts) + external PDF.js worker bootstrap` — **GREEN** on first run.
+
+**Prompt Intention:**
+- "100% ownership" — picked the most impactful remaining security gap. CSP without `'unsafe-inline'` for script-src is the single biggest defense against stored XSS, and the only blocker (one inline script) was small enough to refactor in one iteration. The CSP is intentionally tight for the current asset graph; future scripts will need to be added to the allowlist explicitly, which is the right friction.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
