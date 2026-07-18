@@ -104,7 +104,11 @@ module.exports = async function handler(req, res) {
       const sample = v.sample ? ` sample=${sanitizeLogField(String(v.sample), 120)}` : "";
       // console.log (not console.error) — these are real telemetry
       // reports, not errors in our code. Tagged [csp-report] for grep.
-      console.log(`[req=${res.__requestId}] [csp-report] ${req.method} ${req.url} -> blocked=${blockedUri} directive=${directive} document=${documentUri}${sample}`);
+      // req.url is run through sanitizeLogField so a crafted URL with
+      // control characters can't smuggle a fake log line into the
+      // stream. Parity with the accessLog() call in the finally block.
+      const safeUrl = sanitizeLogField(req && req.url ? req.url : "?", 512);
+      console.log(`[req=${res.__requestId}] [csp-report] ${req.method} ${safeUrl} -> blocked=${blockedUri} directive=${directive} document=${documentUri}${sample}`);
     }
 
     // Always 204 — browsers don't care about the response body
