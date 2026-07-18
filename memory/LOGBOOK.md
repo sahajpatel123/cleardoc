@@ -1360,3 +1360,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Audit-only sweep.
+
+**2026-07-18 16:09 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #20 of the autonomous loop** (15-min cadence). Live: 16:04 → 16:09 IST.
+- **Found and fixed a silent bug in the multi-turn Ask thread feature.** The parallel session shipped `feat(analyzer): multi-turn Ask Q&A thread` which adds `askHistory` rendering to the UI and sends `history: [{ q, a }]` to `/api/chat` for each turn. But the backend's `buildPrompt` destructured only `question, document, rewrite, risks, fileName` — the `history` field was silently dropped. The feature appeared to work (questions/answers showed in the UI) but each turn was independent — no conversational context reached Gemini.
+- **Fix** (`e9dc5feb feat(api)`): `buildPrompt` now accepts a 6th `history` argument and renders a `PRIOR CONVERSATION:` section in the prompt. Defense-in-depth: `MAX_HISTORY_TURNS = 10` caps the array length and `MAX_HISTORY_FIELD_CHARS = 500` caps each q and a. Worst-case prompt padding is ~10 KB — well within Gemini's 700-token maxOutputTokens / 30s timeout budget.
+- **Test coverage** (`test/chat-error.test.js`): two new source-pattern tests assert (1) `buildPrompt({ history: body?.history })` forwarding and (2) both caps applied inside the function body. 6/6 chat-error tests pass.
+
+**Prompt Intention:**
+- Honored the standing directives. Audit-driven: a careful read of the parallel session's new feature surfaced a silent drop in the backend, fixed with a defensive cap design.
