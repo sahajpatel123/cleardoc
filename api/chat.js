@@ -7,7 +7,7 @@ const MIN_QUESTION_CHARS = 3;
 const MIN_DOCUMENT_CHARS = 10;
 const RATE_LIMIT_PER_MINUTE = 30;           // per-IP cap (chat is cheaper)
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, attachRequestId, errLog, readCappedBody, safeParseChatResult } = require("./_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, attachRequestId, errLog, accessLog, readCappedBody, safeParseChatResult } = require("./_safety.js");
 
 function extractText(data) {
   const candidate = data?.candidates?.[0];
@@ -177,5 +177,7 @@ module.exports = async function handler(req, res) {
     } catch (_) {
       // res.end() threw (broken pipe, etc.) — nothing more we can do.
     }
+  } finally {
+    accessLog(req, res, res.statusCode);
   }
 };

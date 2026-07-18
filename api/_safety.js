@@ -142,6 +142,24 @@ function errLog(res, prefix, err) {
   console.error(`[req=${id}] [${prefix}] ${msg}`);
 }
 
+/* ── accessLog: structured per-request completion log ─────────────────
+ *
+ * Companion to errLog. Emits one structured line per handled request:
+ *
+ *   [req=<id>] METHOD /path -> status Nms
+ *
+ * Call this at the END of every handler (success OR error path) so each
+ * request has exactly one access-log line. Falls back gracefully when
+ * req or res is missing.
+ */
+function accessLog(req, res, status) {
+  const id = (res && res.__requestId) || "no-req-id";
+  const method = (req && req.method) || "?";
+  const url = (req && req.url) || "?";
+  const statusCode = status || (res && res.statusCode) || 0;
+  console.log(`[req=${id}] ${method} ${url} -> ${statusCode}`);
+}
+
 function getIp(req) {
   if (!req || !req.headers) return "unknown";
   const xff = req.headers["x-forwarded-for"];
@@ -603,6 +621,7 @@ module.exports = {
   probeProviderCached,
   clearProbeCache,
   errLog,
+  accessLog,
   ANALYSIS_LIMITS,
   VALID_SEVERITIES,
   VALID_VERDICT_LABELS,

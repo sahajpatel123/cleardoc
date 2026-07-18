@@ -14,6 +14,7 @@ const {
   applyRateLimitHeaders,
   attachRequestId,
   errLog,
+  accessLog,
   readCappedBody,
   safeParseAnalysisResult,
 } = require("./_safety.js");
@@ -300,5 +301,7 @@ module.exports = async function handler(req, res) {
     } catch (_) {
       // res.end() threw (broken pipe, etc.) — nothing more we can do.
     }
+  } finally {
+    accessLog(req, res, res.statusCode);
   }
 };

@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog } = require("../api/_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog } = require("../api/_safety.js");
 
 // ── json ─────────────────────────────────────────────────────────────
 
@@ -272,6 +272,72 @@ test("errLog: does not throw when res is null/undefined", () => {
   }
   assert.equal(captured.length, 2);
   assert.match(captured[0], /\[req=no-req-id\]/);
+  assert.match(captured[1], /\[req=no-req-id\]/);
+});
+
+// ── accessLog: per-request completion log ──────────────────────────
+
+test("accessLog: emits one structured line per request", () => {
+  const captured = [];
+  const origLog = console.log;
+  console.log = (...args) => captured.push(args.join(" "));
+  try {
+    const res = mockRes();
+    res.__requestId = "req-xyz";
+    accessLog({ method: "POST", url: "/api/analyze" }, res, 200);
+  } finally {
+    console.log = origLog;
+  }
+  assert.equal(captured.length, 1);
+  assert.match(captured[0], /\[req=req-xyz\]/);
+  assert.match(captured[0], /POST/);
+  assert.match(captured[0], /\/api\/analyze/);
+  assert.match(captured[0], /-> 200/);
+});
+
+test("accessLog: uses res.statusCode when status arg is omitted", () => {
+  const captured = [];
+  const origLog = console.log;
+  console.log = (...args) => captured.push(args.join(" "));
+  try {
+    const res = mockRes();
+    res.__requestId = "auto";
+    res.statusCode = 503;
+    accessLog({ method: "GET", url: "/api/health" }, res);
+  } finally {
+    console.log = origLog;
+  }
+  assert.match(captured[0], /-> 503/);
+});
+
+test("accessLog: explicit status arg overrides res.statusCode", () => {
+  const captured = [];
+  const origLog = console.log;
+  console.log = (...args) => captured.push(args.join(" "));
+  try {
+    const res = mockRes();
+    res.__requestId = "override";
+    res.statusCode = 200;
+    accessLog({ method: "GET", url: "/api/health" }, res, 429);
+  } finally {
+    console.log = origLog;
+  }
+  assert.match(captured[0], /-> 429/);
+});
+
+test("accessLog: falls back gracefully when req/res are missing", () => {
+  const captured = [];
+  const origLog = console.log;
+  console.log = (...args) => captured.push(args.join(" "));
+  try {
+    accessLog(null, null, 200);
+    accessLog(undefined, undefined);
+  } finally {
+    console.log = origLog;
+  }
+  assert.equal(captured.length, 2);
+  assert.match(captured[0], /\?/);
+  assert.match(captured[0], /-> 200/);
   assert.match(captured[1], /\[req=no-req-id\]/);
 });
 

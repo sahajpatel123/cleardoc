@@ -7,7 +7,7 @@
  * Lightweight: no upstream calls, no auth. Rate-limited per IP to avoid abuse.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, errLog, getIp, probeProviderCached } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, errLog, accessLog, getIp, probeProviderCached } = require("./_safety.js");
 
 const START_TS = Date.now();
 const VERSION = "1.0.0";
@@ -107,5 +107,7 @@ module.exports = async function handler(req, res) {
     } catch (_) {
       // res.end() threw (broken pipe, etc.) — nothing more we can do.
     }
+  } finally {
+    accessLog(req, res, res.statusCode);
   }
 };
