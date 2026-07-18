@@ -1314,3 +1314,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Audit-only sweep.
+
+**2026-07-18 15:48 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #19 of the autonomous loop** (15-min cadence). Live: 15:47 → 15:48 IST.
+- **Audit-only iteration**. Three parallel-session commits since last sweep:
+  - `feat(security): add RFC 9116 security.txt at /.well-known/security.txt` (`cf693d9c`) — implements the IETF-standardized vulnerability disclosure endpoint with `Contact`, `Expires` (required by §4), `Preferred-Languages: en`, `Canonical`, `Policy` (linking to SECURITY.md), and `Acknowledgments`. Standardizes the way security researchers and automated scanners find the disclosure policy without guessing.
+  - `feat(ticker): expand to ≥6 distinct signals per page` (`3559ce24`) — UX polish so the marquee reads like a real news wire instead of a fixed carousel.
+  - `README.md` substantially rewritten to reflect the current state (PWA section, security posture summary, env vars table, full project layout tree, RFC 9116 link in Security section).
+- **All shipped clean.** RFC 9116 compliance is a meaningful upgrade — many scanners (Google's, Bugcrowd's, etc.) auto-fetch `/.well-known/security.txt` before scanning. README is now accurate and discoverable.
+- **No code changes this iteration.** Codebase at stable hardened plateau.
+
+**Prompt Intention:**
+- Honored the standing directives. Audit-only sweep.
