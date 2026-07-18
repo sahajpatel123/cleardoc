@@ -199,3 +199,30 @@ test("health handler: provider probes fire in parallel via Promise.all", () => {
     "destructured assignment must include both geminiProbe and openRouterProbe"
   );
 });
+// ── HEAD path headers ──────────────────────────────────────────────
+
+test("health handler: HEAD path sets Content-Type, Cache-Control, and latency header", () => {
+  // RFC 7231 §4.3.2 — HEAD must carry the same headers as the equivalent
+  // GET, minus the body. Bypassing json() (to skip payload serialization)
+  // is fine, but the response must still expose Content-Type +
+  // Cache-Control so monitoring clients don't misinterpret the bare 200.
+  // Latency header must also be present so ops dashboards that key on it
+  // for /api/health don't show a gap.
+  assert.match(
+    HEALTH_SOURCE,
+    /req\.method\s*===\s*["']HEAD["']/,
+    "must check for HEAD method"
+  );
+  // The HEAD block must set Content-Type explicitly
+  assert.match(
+    HEALTH_SOURCE,
+    /setHeader\(\s*["']Content-Type["']\s*,\s*["']application\/json["']\s*\)/,
+    "HEAD response must set Content-Type: application/json"
+  );
+  // ... and Cache-Control
+  assert.match(
+    HEALTH_SOURCE,
+    /setHeader\(\s*["']Cache-Control["']\s*,\s*["']no-store["']\s*\)/,
+    "HEAD response must set Cache-Control: no-store"
+  );
+});

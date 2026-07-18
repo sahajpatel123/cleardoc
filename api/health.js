@@ -108,6 +108,20 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === "HEAD") {
+      // HEAD responses must carry the same headers as the equivalent GET
+      // (RFC 7231 §4.3.2). Since we bypass json() to avoid serializing the
+      // payload body, set Content-Type + Cache-Control + latency header
+      // explicitly so monitoring clients see a well-formed response.
+      if (!res.headersSent) {
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Cache-Control", "no-store");
+        if (typeof res.__requestStartedAt === "number") {
+          const elapsed = Date.now() - res.__requestStartedAt;
+          if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= 600000) {
+            res.setHeader("X-Request-Latency-Total-Ms", String(Math.round(elapsed)));
+          }
+        }
+      }
       res.statusCode = 200;
       return res.end();
     }
