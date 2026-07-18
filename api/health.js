@@ -7,7 +7,7 @@
  * Lightweight: no upstream calls, no auth. Rate-limited per IP to avoid abuse.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, getIp, probeProviderCached } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, errLog, getIp, probeProviderCached } = require("./_safety.js");
 
 const START_TS = Date.now();
 const VERSION = "1.0.0";
@@ -101,8 +101,7 @@ module.exports = async function handler(req, res) {
     // it surfaces a structured JSON 500 with no internals rather than
     // leaking Vercel's HTML 500 page.
     if (res && res.headersSent) return;
-    const msg = err && err.message ? err.message : String(err);
-    console.error("[health] unhandled error:", msg);
+    errLog(res, "health", err);
     try {
       return json(res, 500, { error: "An internal error occurred. Please try again." });
     } catch (_) {

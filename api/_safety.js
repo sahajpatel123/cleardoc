@@ -128,6 +128,20 @@ function clearProbeCache() {
   _probeCache.clear();
 }
 
+/* ── errLog: tagged error logging with the active X-Request-Id ─────────
+ *
+ * Every console.error call inside the request handlers should route through
+ * this helper so the request id (set via attachRequestId()) is prepended to
+ * the log line. Ops can then grep server logs by id when a user reports
+ * an error. Falls back to a plain console.error if `res` is missing or
+ * hasn't had attachRequestId() called on it yet.
+ */
+function errLog(res, prefix, err) {
+  const id = (res && res.__requestId) || "no-req-id";
+  const msg = err && err.message ? err.message : String(err);
+  console.error(`[req=${id}] [${prefix}] ${msg}`);
+}
+
 function getIp(req) {
   if (!req || !req.headers) return "unknown";
   const xff = req.headers["x-forwarded-for"];
@@ -588,6 +602,7 @@ module.exports = {
   probeProvider,
   probeProviderCached,
   clearProbeCache,
+  errLog,
   ANALYSIS_LIMITS,
   VALID_SEVERITIES,
   VALID_VERDICT_LABELS,

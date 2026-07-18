@@ -7,7 +7,7 @@ const MIN_QUESTION_CHARS = 3;
 const MIN_DOCUMENT_CHARS = 10;
 const RATE_LIMIT_PER_MINUTE = 30;           // per-IP cap (chat is cheaper)
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, attachRequestId, readCappedBody, safeParseChatResult } = require("./_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, attachRequestId, errLog, readCappedBody, safeParseChatResult } = require("./_safety.js");
 
 function extractText(data) {
   const candidate = data?.candidates?.[0];
@@ -149,7 +149,7 @@ module.exports = async function handler(req, res) {
         model,
       });
       if (!parsed.ok) {
-        console.error("[chat] invalid AI response shape:", parsed.errors);
+        errLog(res, "chat", new Error(`invalid AI response: ${JSON.stringify(parsed.errors)}`));
         return json(res, 502, {
           error: "Chat returned an invalid response. Please try again.",
           reason: "invalid_ai_response",
@@ -171,8 +171,7 @@ module.exports = async function handler(req, res) {
     // a structured JSON 500 with no internals. If the response has already
     // started streaming, just bail — there's nothing safe left to send.
     if (res && res.headersSent) return;
-    const msg = err && err.message ? err.message : String(err);
-    console.error("[chat] unhandled error:", msg);
+    errLog(res, "chat", err);
     try {
       return json(res, 500, { error: "An internal error occurred. Please try again." });
     } catch (_) {

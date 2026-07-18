@@ -13,6 +13,7 @@ const {
   rateLimit,
   applyRateLimitHeaders,
   attachRequestId,
+  errLog,
   readCappedBody,
   safeParseAnalysisResult,
 } = require("./_safety.js");
@@ -274,10 +275,7 @@ module.exports = async function handler(req, res) {
     // response rather than shipping a degraded shape to the user.
     const parsed = safeParseAnalysisResult(result);
     if (!parsed.ok) {
-      console.error("[analyze] AI returned an invalid response shape:", {
-        provider,
-        errors: parsed.errors,
-      });
+      errLog(res, "analyze", new Error(`invalid AI response from ${provider}: ${JSON.stringify(parsed.errors)}`));
       return json(res, 502, {
         error: "AI returned an invalid response. Please try again.",
         reason: "invalid_ai_response",
@@ -296,8 +294,7 @@ module.exports = async function handler(req, res) {
     // a structured JSON 500 with no internals. If the response has already
     // started streaming, just bail — there's nothing safe left to send.
     if (res && res.headersSent) return;
-    const msg = err && err.message ? err.message : String(err);
-    console.error("[analyze] unhandled error:", msg);
+    errLog(res, "analyze", err);
     try {
       return json(res, 500, { error: "An internal error occurred. Please try again." });
     } catch (_) {

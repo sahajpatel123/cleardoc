@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache } = require("../api/_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog } = require("../api/_safety.js");
 
 // ── json ─────────────────────────────────────────────────────────────
 
@@ -205,6 +205,74 @@ test("clearProbeCache: forces a refetch on next call", async () => {
     globalThis.fetch = origFetch;
     clearProbeCache();
   }
+});
+
+// ── errLog: tagged error logging with request id ─────────────────
+
+test("errLog: includes the active request id in the log line", () => {
+  const res = mockRes();
+  res.__requestId = "abc-123-test";
+  const captured = [];
+  const origErr = console.error;
+  console.error = (...args) => captured.push(args.join(" "));
+  try {
+    errLog(res, "analyze", new Error("boom"));
+  } finally {
+    console.error = origErr;
+  }
+  assert.equal(captured.length, 1);
+  assert.match(captured[0], /\[req=abc-123-test\]/);
+  assert.match(captured[0], /\[analyze\]/);
+  assert.match(captured[0], /boom/);
+});
+
+test("errLog: falls back to 'no-req-id' when res has no attached id", () => {
+  const res = mockRes();
+  const captured = [];
+  const origErr = console.error;
+  console.error = (...args) => captured.push(args.join(" "));
+  try {
+    errLog(res, "chat", new Error("missing id"));
+  } finally {
+    console.error = origErr;
+  }
+  assert.match(captured[0], /\[req=no-req-id\]/);
+  assert.match(captured[0], /\[chat\]/);
+});
+
+test("errLog: handles non-Error values via String coercion", () => {
+  const res = mockRes();
+  res.__requestId = "test-id";
+  const captured = [];
+  const origErr = console.error;
+  console.error = (...args) => captured.push(args.join(" "));
+  try {
+    errLog(res, "health", "plain string error");
+    errLog(res, "health", null);
+    errLog(res, "health", undefined);
+    errLog(res, "health", { code: "E_THING" });
+  } finally {
+    console.error = origErr;
+  }
+  assert.match(captured[0], /plain string error/);
+  assert.match(captured[1], /null/);
+  assert.match(captured[2], /undefined/);
+  assert.match(captured[3], /\[object Object\]|\{ code: 'E_THING' \}/);
+});
+
+test("errLog: does not throw when res is null/undefined", () => {
+  const captured = [];
+  const origErr = console.error;
+  console.error = (...args) => captured.push(args.join(" "));
+  try {
+    errLog(null, "test", new Error("x"));
+    errLog(undefined, "test", new Error("y"));
+  } finally {
+    console.error = origErr;
+  }
+  assert.equal(captured.length, 2);
+  assert.match(captured[0], /\[req=no-req-id\]/);
+  assert.match(captured[1], /\[req=no-req-id\]/);
 });
 
 // ── asString ─────────────────────────────────────────────────────────
