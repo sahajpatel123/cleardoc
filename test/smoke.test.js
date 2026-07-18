@@ -116,6 +116,29 @@ skip("home: loads without console errors and has expected landmarks", async () =
   assert.deepEqual(errors, [], "home: console errors");
 });
 
+skip("ticker: every public page rotates ≥6 distinct signals so the marquee feels like a news wire", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+
+  // Each page declares its ticker twice (the GSAP loop reads the second
+  // copy as a seamless continuation), so the number of unique signal labels
+  // must be ≥ 6 and each label must appear an even number of times (twice).
+  for (const page of ["index.html", "analyze.html", "pricing.html", "404.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, page), "utf8");
+    const labels = [...html.matchAll(/data-label="([^"]+)"/g)].map(m => m[1]);
+    assert.ok(labels.length >= 6, `${page} ticker must have ≥6 signal elements, got ${labels.length}`);
+    const unique = [...new Set(labels)];
+    assert.ok(unique.length >= 6, `${page} ticker must declare ≥6 unique signal labels, got ${unique.length}`);
+    // Each unique label must appear exactly twice (the GSAP loop expects the
+    // second copy to be a verbatim duplicate of the first for a seamless wrap).
+    for (const lab of unique) {
+      const count = labels.filter(l => l === lab).length;
+      assert.equal(count, 2, `${page} signal label "${lab}" must appear exactly twice (got ${count})`);
+    }
+  }
+});
+
 skip("home: has OG / Twitter / canonical / favicon meta", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
