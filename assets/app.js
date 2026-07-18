@@ -99,7 +99,10 @@
     let text=(raw||"").trim(); let found=0;
     // wrap replacements in printable sentinels, THEN HTML-escape user text, so input can never inject markup
     JARGON.forEach(([re,plain])=>{ const r=new RegExp(re.source,re.flags); if(r.test(text)){found++; text=text.replace(new RegExp(re.source,re.flags),"[[B]]"+plain+"[[/B]]");} });
-    text=text.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+    // Use the shared `esc()` so quote escaping (&quot; / &#39;) applies here
+    // too — defense-in-depth against any future template that interpolates
+    // clarify()'s html into attribute context.
+    text = esc(text);
     const html=text.split("[[B]]").join("<b>").split("[[/B]]").join("</b>");
     return {html, found, changed:found>0, empty:!text};
   }
