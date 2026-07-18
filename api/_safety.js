@@ -88,6 +88,20 @@ function attachRequestId(res, req) {
 const _probeCache = new Map();
 const _PROBE_TTL_MS = 60_000;
 const _PROBE_TIMEOUT_MS = 3000;
+const _PROBE_CACHE_MAX = 100; // hard cap; oldest entry evicted on overflow
+
+function _probeCacheTouch(key, value) {
+  // LRU touch: delete + re-set to move the key to the end of iteration order.
+  // Keeps the cache bounded at _PROBE_CACHE_MAX by evicting the oldest
+  // entry when overflow would occur.
+  if (_probeCache.has(key)) _probeCache.delete(key);
+  _probeCache.set(key, value);
+  while (_probeCache.size > _PROBE_CACHE_MAX) {
+    const oldest = _probeCache.keys().next().value;
+    if (oldest === undefined) break;
+    _probeCache.delete(oldest);
+  }
+}
 
 async function probeProvider(url) {
   const controller = new AbortController();
@@ -117,10 +131,12 @@ async function probeProviderCached(key, url) {
   const now = Date.now();
   const cached = _probeCache.get(key);
   if (cached && now - cached.checkedAt < _PROBE_TTL_MS) {
+    // Touch on hit so the entry stays "fresh" in LRU terms.
+    _probeCacheTouch(key, cached);
     return Object.assign({}, cached, { cached: true });
   }
   const fresh = await probeProvider(url);
-  _probeCache.set(key, fresh);
+  _probeCacheTouch(key, fresh);
   return Object.assign({}, fresh, { cached: false });
 }
 

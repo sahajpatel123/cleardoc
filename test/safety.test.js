@@ -207,6 +207,76 @@ test("clearProbeCache: forces a refetch on next call", async () => {
   }
 });
 
+test("probe cache: evicts oldest entry when over the 100-key cap", async () => {
+  // Seed 101 unique keys, then verify the first one is gone after overflow.
+  // We can't directly inspect the cache (it's a closure-private Map), but we
+  // CAN prove eviction by forcing a refetch on the evicted key while a fresh
+  // probe on the newest key still hits the cache.
+  const origFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async (url) => {
+    calls++;
+    return { status: 200, ok: true, _u: String(url) };
+  };
+  try {
+    clearProbeCache();
+    // Insert 100 distinct keys (1..100)
+    for (let i = 1; i <= 100; i++) {
+      await probeProviderCached(`k${i}`, `https://example.test/${i}`);
+    }
+    const callsAfter100 = calls;
+    assert.equal(callsAfter100, 100);
+    // 101st insertion — should trigger eviction of k1 (oldest)
+    await probeProviderCached("k101", "https://example.test/101");
+    assert.equal(calls, 101, "101st unique key must trigger a fresh fetch");
+    // Touching k2 should still be cached (it's NOT the oldest after k1 was
+    // evicted; k2 is now the oldest, but it's only evicted on the NEXT overflow).
+    // Verify by accessing k2 — its cache.hit returns cached:true with no new fetch.
+    const beforeK2 = calls;
+    const k2 = await probeProviderCached("k2", "https://example.test/2");
+    assert.equal(calls, beforeK2, "k2 still in cache after the first eviction");
+    assert.equal(k2.cached, true);
+    // But k1 (the evicted one) must be missing from the cache.
+    const k1 = await probeProviderCached("k1", "https://example.test/1");
+    assert.equal(k1.cached, false, "k1 (oldest) must have been evicted");
+    assert.equal(k1.latencyMs >= 0, true);
+    assert.ok(calls > beforeK2, "k1 should trigger a fresh fetch after eviction");
+  } finally {
+    globalThis.fetch = origFetch;
+    clearProbeCache();
+  }
+});
+
+test("probe cache: LRU touch on cache hit moves key to end (recent)", async () => {
+  const origFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return { status: 200, ok: true }; };
+  try {
+    clearProbeCache();
+    // Insert 100 keys — fills the cache, k1 is the oldest.
+    for (let i = 1; i <= 100; i++) {
+      await probeProviderCached(`lru-${i}`, `https://example.test/${i}`);
+    }
+    // Touch k1 (cache hit) — should move it to the end of LRU order.
+    const beforeTouch = calls;
+    const touched = await probeProviderCached("lru-1", "https://example.test/1");
+    assert.equal(touched.cached, true);
+    assert.equal(calls, beforeTouch, "cache hit must not refetch");
+    // Now insert the 101st key — lru-2 should be evicted (it became oldest
+    // when lru-1 was touched), not lru-1.
+    await probeProviderCached("lru-101", "https://example.test/101");
+    // lru-1 should still be cached
+    const r = await probeProviderCached("lru-1", "https://example.test/1");
+    assert.equal(r.cached, true, "lru-1 should still be cached after touch");
+    // lru-2 should have been evicted
+    const r2 = await probeProviderCached("lru-2", "https://example.test/2");
+    assert.equal(r2.cached, false, "lru-2 should have been evicted (it's now oldest)");
+  } finally {
+    globalThis.fetch = origFetch;
+    clearProbeCache();
+  }
+});
+
 // ── errLog: tagged error logging with request id ─────────────────
 
 test("errLog: includes the active request id in the log line", () => {
