@@ -603,3 +603,43 @@ test("health handler: memory block's usedPercent uses heapUsed / limitMb * 1000 
     "usedPercent computation must divide by 10 after multiplying by 1000 to produce 1-decimal precision"
   );
 });
+
+// ── Last-Modified + If-Modified-Since (iter #54) ──────────────────
+
+test("health handler: emits Last-Modified header on 200 + HEAD + 304 responses", () => {
+  // Dual conditional-request support: clients that understand ETag use
+  // If-None-Match; clients that understand date-based cache use
+  // If-Modified-Since. Both must succeed. Last-Modified is required by
+  // RFC 7232 §3.3 for the date-based form to work.
+  assert.match(HEALTH_SOURCE, /res\.setHeader\(["']Last-Modified["']/, "must set Last-Modified header somewhere in the 200/304/HEAD paths");
+  assert.match(HEALTH_SOURCE, /function\s+httpDate\(/, "httpDate helper must exist (RFC 7231 §7.1.1.1)");
+});
+
+test("health handler: returns 304 when If-Modified-Since is fresher than START_TS", () => {
+  // Per RFC 7232 §3.3: if the client has a copy dated >= our Last-Modified,
+  // we return 304 without a body. Comparison is "less than" the response
+  // timestamp (inclusive: clientTs >= START_TS means client has our copy).
+  assert.match(HEALTH_SOURCE, /if-modified-since/i, "must read if-modified-since header");
+  assert.match(HEALTH_SOURCE, /Date\.parse/, "must parse If-Modified-Since as a date");
+  assert.match(HEALTH_SOURCE, /START_TS\s*<=\s*clientTs/, "must compare START_TS vs client timestamp (inclusive)");
+});
+
+test("health handler: sendOkCached + HEAD inline block both attach Last-Modified", () => {
+  // /api/health responses must carry Last-Modified on both the GET-with-body
+  // (sendOkCached) and the HEAD-no-body paths. The parallel
+  // `res.__lastModified` field carries the precomputed value so each
+  // path just sets the header.
+  const sendOkCachedRegion = HEALTH_SOURCE.match(/function\s+sendOkCached\([\s\S]+?\n\}/);
+  assert.ok(sendOkCachedRegion, "sendOkCached must exist");
+  assert.match(
+    sendOkCachedRegion[0],
+    /Last-Modified/,
+    "sendOkCached must set Last-Modified"
+  );
+  // HEAD block must also set Last-Modified
+  assert.match(
+    HEALTH_SOURCE,
+    /req\.method\s*===\s*["']HEAD["'][\s\S]+?Last-Modified/,
+    "HEAD block must set Last-Modified"
+  );
+});

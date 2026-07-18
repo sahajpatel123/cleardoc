@@ -62,6 +62,15 @@ function computeHealthEtag({ gitSha, hasGemini, hasOpenRouter, region }) {
   return '"' + (h >>> 0).toString(16).padStart(8, "0") + '"';
 }
 
+/* Format a Unix-ms timestamp as an HTTP-date string per RFC 7231 §7.1.1.1.
+ * Per spec, conditional-request date formats use RFC 1123 / IMF-fixdate
+ * precision (seconds, GMT). Pure function — no global state. */
+function httpDate(ms) {
+  const d = new Date(ms);
+  // Use toUTCString() which formats as RFC 7231 IMF-fixdate ("Sun, 06 Nov 1994 08:49:37 GMT")
+  return d.toUTCString();
+}
+
 function setHealthOkHeaders(res) {
   if (!res || typeof res.setHeader !== "function" || res.headersSent) return;
   res.setHeader("Content-Type", "application/json");
@@ -90,6 +99,7 @@ function sendOkCached(res, payload) {
   res.statusCode = 200;
   setHealthOkHeaders(res);
   if (res.__currentEtag) res.setHeader("ETag", res.__currentEtag);
+  if (res.__lastModified) res.setHeader("Last-Modified", res.__lastModified);
   res.end(JSON.stringify(payload));
 }
 
@@ -319,11 +329,30 @@ module.exports = async function handler(req, res) {
       res.statusCode = 304;
       setHealthOkHeaders(res);
       res.setHeader("ETag", etag);
+      res.setHeader("Last-Modified", httpDate(START_TS));
       return res.end();
+    }
+    // If-None-Match failed or was absent — also support If-Modified-Since
+    // (RFC 7232 §3.3). Some legacy monitoring clients (or generic HTTP
+    // caches) understand only the date-based form. Compare the
+    // header's date against our module-load timestamp; if the response
+    // hasn't been modified since the client's view, return 304.
+    const incomingIMS = req && req.headers && (req.headers["if-modified-since"] || req.headers["If-Modified-Since"]);
+    if (typeof incomingIMS === "string" && incomingIMS.length > 0) {
+      const clientTs = Date.parse(incomingIMS);
+      if (Number.isFinite(clientTs) && START_TS <= clientTs) {
+        // Client has a fresh-enough copy; return 304 without body.
+        res.statusCode = 304;
+        setHealthOkHeaders(res);
+        res.setHeader("ETag", etag);
+        res.setHeader("Last-Modified", httpDate(START_TS));
+        return res.end();
+      }
     }
     // Forward the tag to the cached/HEAD paths so it lands in headers
     // — they read `res.__currentEtag` to attach it to the response.
     res.__currentEtag = etag;
+    res.__lastModified = httpDate(START_TS);
 
     if (req.method === "HEAD") {
       // HEAD must carry the same cacheable headers as the equivalent GET
@@ -333,6 +362,7 @@ module.exports = async function handler(req, res) {
         res.statusCode = 200;
         setHealthOkHeaders(res);
         if (res.__currentEtag) res.setHeader("ETag", res.__currentEtag);
+        if (res.__lastModified) res.setHeader("Last-Modified", res.__lastModified);
       }
       return res.end();
     }
