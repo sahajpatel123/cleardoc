@@ -280,3 +280,32 @@ test("analyze handler: compact mode response includes format: 'verdict-only'", (
     "200 compact-mode response must declare `format: 'verdict-only'`"
   );
 });
+
+test("analyze handler: rejects documents shorter than MAX_DOCUMENT_MIN_CHARS (10)", () => {
+  // The 10-char minimum keeps trivial / accidental inputs (single word,
+  // stray newline) out of the AI queue — they burn quota and produce
+  // useless analysis. Source-pattern lock so a future tightening or
+  // loosening of the bound is caught in CI.
+  assert.match(
+    ANALYZE_SOURCE,
+    /MAX_DOCUMENT_MIN_CHARS\s*=\s*\d+/,
+    "MAX_DOCUMENT_MIN_CHARS must be a defined constant"
+  );
+  const minMatch = ANALYZE_SOURCE.match(/MAX_DOCUMENT_MIN_CHARS\s*=\s*(\d+)/);
+  const min = parseInt(minMatch[1], 10);
+  assert.ok(min >= 1 && min <= 100, `MAX_DOCUMENT_MIN_CHARS=${min} should be 1..100`);
+
+  // The 400 error message must exist
+  assert.match(
+    ANALYZE_SOURCE,
+    /Document is too short to analyze\./,
+    "must return the documented sanitized 400 message on too-short input"
+  );
+
+  // The handler must check `document.length < MAX_DOCUMENT_MIN_CHARS`
+  assert.match(
+    ANALYZE_SOURCE,
+    /document\.length\s*<\s*MAX_DOCUMENT_MIN_CHARS/,
+    "must compare document.length against MAX_DOCUMENT_MIN_CHARS"
+  );
+});
