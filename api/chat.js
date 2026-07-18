@@ -1,4 +1,26 @@
+/* api/chat.js — per-analysis chat endpoint with provider-fallback chain.
+ *
+ * Mirrors the /api/analyze provider chain so chat isn't a single point of
+ * failure if one provider is rate-limited or down. The chain is:
+ *
+ *   1. Gemini  (primary — configured via GEMINI_API_KEY / GOOGLE_GEMINI_API_KEY)
+ *   2. OpenRouter (fallback — configured via OPENROUTER_API_KEY)
+ *
+ * Either can be absent; the chain degrades gracefully. If both are absent
+ * we surface a clear 503 ("No AI provider is configured.") up front rather
+ * than burning a request slot on a guaranteed 502.
+ *
+ * Strict fail-closed validation (RULES.md #3) applies identically to either
+ * provider: malformed AI responses are rejected as 502 invalid_ai_response.
+ *
+ * Response shape (parity with /api/analyze):
+ *   { answer, citation, model, provider }
+ *
+ * Run with: node --test test/chat-error.test.js test/chat-schema.test.js
+ */
+
 const DEFAULT_MODEL = "gemini-2.5-flash";
+const OPENROUTER_CHAT_MODEL_DEFAULT = "google/gemma-4-31b-it:free";
 const MAX_DOCUMENT_CHARS = 30000;
 const MAX_REWRITE_CHARS = 6000;
 const MAX_QUESTION_CHARS = 1000;
@@ -8,15 +30,11 @@ const MIN_DOCUMENT_CHARS = 10;
 const MAX_HISTORY_TURNS = 10;               // max prior Q&A pairs in chat context
 const MAX_HISTORY_FIELD_CHARS = 500;        // per-field cap inside each turn
 const RATE_LIMIT_PER_MINUTE = 30;           // per-IP cap (chat is cheaper)
+const REQUEST_TIMEOUT_MS = 25000;           // per-provider budget — keeps total < 60s Vercel ceiling
 
 const { json, asString, getIp, rateLimit, applyRateLimitHeaders, attachRequestId, errLog, accessLog, readCappedBody, safeParseChatResult } = require("./_safety.js");
 
-function extractText(data) {
-  const candidate = data?.candidates?.[0];
-  const parts = candidate?.content?.parts;
-  if (!Array.isArray(parts)) return "";
-  return parts.map((part) => (typeof part.text === "string" ? part.text : "")).join("").trim();
-}
+/* ── prompt ──────────────────────────────────────────────── */
 
 function buildPrompt({ question, document, rewrite, risks, fileName, history }) {
   const riskLines = Array.isArray(risks)
@@ -68,6 +86,140 @@ function buildPrompt({ question, document, rewrite, risks, fileName, history }) 
     .join("\n");
 }
 
+/* ── Gemini path (primary) ────────────────────────────────── */
+
+function extractGeminiText(data) {
+  const candidate = data?.candidates?.[0];
+  const parts = candidate?.content?.parts;
+  if (!Array.isArray(parts)) return "";
+  return parts.map((part) => (typeof part.text === "string" ? part.text : "")).join("").trim();
+}
+
+async function callGeminiChat(prompt) {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  const model = (process.env.GEMINI_CHAT_MODEL || DEFAULT_MODEL).trim();
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 700,
+        },
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error("[chat] Gemini error:", res.status, data?.error?.message || "");
+      return null;
+    }
+
+    const text = extractGeminiText(data);
+    if (!text) {
+      console.error("[chat] Gemini returned empty content");
+      return null;
+    }
+
+    return { answer: text, model };
+  } catch (err) {
+    const timedOut = err && err.name === "AbortError";
+    console.error("[chat] Gemini failed:", timedOut ? "timeout" : (err && err.message) || String(err));
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* ── OpenRouter path (fallback) ───────────────────────────── */
+
+async function callOpenRouterChat(prompt) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return null;
+
+  const model = (process.env.OPENROUTER_CHAT_MODEL || OPENROUTER_CHAT_MODEL_DEFAULT).trim();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://cleardoc.app",
+        "X-Title": "ClearDoc Chat",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.2,
+        max_tokens: 700,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error("[chat] OpenRouter error:", res.status, data?.error?.message || "");
+      return null;
+    }
+
+    const text = data?.choices?.[0]?.message?.content?.trim();
+    if (!text) {
+      console.error("[chat] OpenRouter returned empty content");
+      return null;
+    }
+
+    return { answer: text, model };
+  } catch (err) {
+    console.error("[chat] OpenRouter failed:", (err && (err.name || err.message)) || String(err));
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* ── Fallback orchestrator ────────────────────────────────── */
+
+async function callChatWithFallback(prompt) {
+  // Try the primary provider first, then fall through to the next on any
+  // non-result (null = provider missing, errored, timed out, or returned
+  // empty content). Either provider can be absent: the chain degrades
+  // gracefully to whichever is configured.
+  const gemini = await callGeminiChat(prompt);
+  if (gemini) return Object.assign({ provider: "gemini" }, gemini);
+
+  const openrouter = await callOpenRouterChat(prompt);
+  if (openrouter) return Object.assign({ provider: "openrouter" }, openrouter);
+
+  return null;
+}
+
+/* ── handler ──────────────────────────────────────────────── */
+
 module.exports = async function handler(req, res) {
   attachRequestId(res, req);
   try {
@@ -83,9 +235,13 @@ module.exports = async function handler(req, res) {
       return json(res, 429, { error: "Too many requests. Try again shortly." });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
-    if (!apiKey) {
-      return json(res, 503, { error: "Gemini is not configured." });
+    // Surface a clear 503 if NEITHER provider is configured — otherwise the
+    // user gets a misleading "Chat failed" 502 every time. This is a config
+    // problem, not an outage, and the message tells ops exactly what to fix.
+    const hasGemini = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY);
+    const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
+    if (!hasGemini && !hasOpenRouter) {
+      return json(res, 503, { error: "No AI provider is configured." });
     }
 
     // Read body with a hard byte cap
@@ -118,68 +274,34 @@ module.exports = async function handler(req, res) {
       return json(res, 400, { error: "Document is too short to chat about." });
     }
 
-    const model = (process.env.GEMINI_CHAT_MODEL || DEFAULT_MODEL).trim();
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 25000);
-
-    try {
-      const geminiRes = await fetch(url, {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: buildPrompt({ question, document, rewrite, risks: body?.risks, fileName, history: body?.history }) }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 700,
-          },
-        }),
-      });
-
-      const data = await geminiRes.json().catch(() => ({}));
-      if (!geminiRes.ok) {
-        return json(res, 502, { error: "Gemini response failed." });
-      }
-
-      const answer = extractText(data);
-      if (!answer) {
-        return json(res, 502, { error: "Gemini returned an empty answer." });
-      }
-
-      // Strict fail-closed schema validation (RULES.md #3). Same principle as
-      // /api/analyze: any malformed field (wrong type, missing, overflow) fails
-      // the whole response rather than shipping a degraded shape to the user.
-      const parsed = safeParseChatResult({
-        answer,
-        citation: "Gemini answer · based on analyzed document",
-        model,
-      });
-      if (!parsed.ok) {
-        errLog(res, "chat", new Error(`invalid AI response: ${JSON.stringify(parsed.errors)}`));
-        return json(res, 502, {
-          error: "Chat returned an invalid response. Please try again.",
-          reason: "invalid_ai_response",
-        });
-      }
-
-      return json(res, 200, parsed.value);
-    } catch (err) {
-      const timedOut = err && err.name === "AbortError";
-      return json(res, timedOut ? 504 : 502, {
-        error: timedOut ? "Gemini timed out." : "Chat failed.",
-      });
-    } finally {
-      clearTimeout(timer);
+    const out = await callChatWithFallback(
+      buildPrompt({ question, document, rewrite, risks: body?.risks, fileName, history: body?.history })
+    );
+    if (!out) {
+      // Both providers were unreachable, errored, timed out, or returned
+      // empty content. Generic, non-leaky copy — the per-provider detail
+      // is already in the logs via console.error.
+      return json(res, 502, { error: "Chat failed. Both providers were unreachable." });
     }
+
+    // Strict fail-closed schema validation (RULES.md #3). Same principle as
+    // /api/analyze: any malformed field (wrong type, missing, overflow) fails
+    // the whole response rather than shipping a degraded shape to the user.
+    const providerLabel = out.provider === "openrouter" ? "OpenRouter" : "Gemini";
+    const parsed = safeParseChatResult({
+      answer: out.answer,
+      citation: `${providerLabel} answer · based on analyzed document`,
+      model: out.model,
+    });
+    if (!parsed.ok) {
+      errLog(res, "chat", new Error(`invalid AI response from ${out.provider}: ${JSON.stringify(parsed.errors)}`));
+      return json(res, 502, {
+        error: "Chat returned an invalid response. Please try again.",
+        reason: "invalid_ai_response",
+      });
+    }
+
+    return json(res, 200, Object.assign({}, parsed.value, { provider: out.provider }));
   } catch (err) {
     // Last-resort safety net: never let an uncaught throw leak Vercel's
     // HTML 500 page (which echoes stack frames and module paths). Surface
