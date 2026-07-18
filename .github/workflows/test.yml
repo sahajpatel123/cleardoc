@@ -36,7 +36,7 @@ jobs:
 
       - name: Parse-check all JS
         run: |
-          for f in assets/app.js api/_safety.js api/analyze.js api/chat.js api/health.js test/analyze-schema.test.js test/chat-schema.test.js test/analyze-error.test.js test/chat-error.test.js; do
+          for f in assets/app.js api/_safety.js api/analyze.js api/chat.js api/health.js test/analyze-schema.test.js test/chat-schema.test.js test/analyze-error.test.js test/chat-error.test.js test/health-error.test.js; do
             node --check "$f" && echo "$f: OK" || (echo "$f: SYNTAX ERROR"; exit 1)
           done
 
@@ -54,6 +54,9 @@ jobs:
 
       - name: Unit tests (chat handler error safety net)
         run: node --test test/chat-error.test.js
+
+      - name: Unit tests (health handler error safety net)
+        run: node --test test/health-error.test.js
 
       - name: Browser smoke tests (Playwright)
         run: node --test test/smoke.test.js
