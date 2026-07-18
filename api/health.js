@@ -11,7 +11,7 @@
  * for the most-polled endpoint in any deployment.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts } = require("./_safety.js");
 
 const START_TS = Date.now();
 // Read the version from package.json — single source of truth. Without
@@ -162,6 +162,7 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
 
 module.exports = async function handler(req, res) {
   attachRequestId(res, req);
+  applyEndpointHeader(res, "health");
   try {
     if (req.method !== "GET" && req.method !== "HEAD") {
       return json(res, 405, { error: "Method not allowed." });

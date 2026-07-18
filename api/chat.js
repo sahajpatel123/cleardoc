@@ -32,7 +32,7 @@ const MAX_HISTORY_FIELD_CHARS = 500;        // per-field cap inside each turn
 const RATE_LIMIT_PER_MINUTE = 30;           // per-IP cap (chat is cheaper)
 const REQUEST_TIMEOUT_MS = 25000;           // per-provider budget — keeps total < 60s Vercel ceiling
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, attachRequestId, errLog, accessLog, readCappedBody, safeParseChatResult, logProviderError } = require("./_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, applyEndpointHeader, attachRequestId, errLog, accessLog, readCappedBody, safeParseChatResult, logProviderError } = require("./_safety.js");
 
 /* ── prompt ──────────────────────────────────────────────── */
 
@@ -251,6 +251,7 @@ async function callChatWithFallback(prompt, reqId) {
 
 module.exports = async function handler(req, res) {
   attachRequestId(res, req);
+  applyEndpointHeader(res, "chat");
   try {
     if (req.method !== "POST") {
       return json(res, 405, { error: "Method not allowed." });

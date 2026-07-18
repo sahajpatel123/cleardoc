@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, applyBuildShaHeader, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog, sanitizeLogField, logProviderError, isValidLatencyMs, safeParseCompactAnalysisResult } = require("../api/_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, applyBuildShaHeader, applyEndpointHeader, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog, sanitizeLogField, logProviderError, isValidLatencyMs, safeParseCompactAnalysisResult } = require("../api/_safety.js");
 
 // ── json ─────────────────────────────────────────────────────────────
 
@@ -1286,4 +1286,46 @@ test("chat handler: MAX_REQUEST_BYTES is a sane body cap (128KB by default)", ()
   const kb = parseInt(capMatch[1], 10);
   assert.ok(kb >= 64 && kb <= 1024, `MAX_REQUEST_BYTES=${kb}KB must be 64..1024 KB`);
   assert.match(src, /readCappedBody\(req,\s*MAX_REQUEST_BYTES\)/, "must wire readCappedBody to MAX_REQUEST_BYTES");
+});
+
+// ── applyEndpointHeader helper (iter #55) ──────────────────────────
+
+test("applyEndpointHeader: sets X-Endpoint when name is valid ASCII", () => {
+  const res = mockRes();
+  applyEndpointHeader(res, "analyze");
+  assert.equal(res.headers["X-Endpoint"], "analyze");
+});
+
+test("applyEndpointHeader: respects headersSent guard", () => {
+  const res = mockRes();
+  res.headersSent = true;
+  applyEndpointHeader(res, "analyze");
+  assert.deepEqual(res.headers, {}, "must not call setHeader when response is already streaming");
+});
+
+test("applyEndpointHeader: rejects names outside the allowlist (defense vs header-injection)", () => {
+  for (const bad of ["", "a b", "analyze\nfoo", "analyze;evil", "名前", "analyze/path"]) {
+    const res = mockRes();
+    applyEndpointHeader(res, bad);
+    assert.equal(res.headers["X-Endpoint"], undefined, `bad name "${bad}" must be rejected`);
+  }
+});
+
+test("applyEndpointHeader: caps name length at 32 chars", () => {
+  const res = mockRes();
+  applyEndpointHeader(res, "a".repeat(33));
+  assert.equal(res.headers["X-Endpoint"], undefined, "33-char name must be rejected");
+  const res2 = mockRes();
+  applyEndpointHeader(res2, "a".repeat(32));
+  assert.equal(res2.headers["X-Endpoint"], "a".repeat(32), "32-char name accepted");
+});
+
+test("applyEndpointHeader: null-safe (no throw on bad res / names)", () => {
+  for (const bad of [null, undefined, {}, 42, "res"]) {
+    applyEndpointHeader(bad, "analyze");
+  }
+  for (const bad of [null, undefined, 42, true, []]) {
+    const res = mockRes();
+    applyEndpointHeader(res, bad);
+  }
 });

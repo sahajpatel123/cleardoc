@@ -16,7 +16,7 @@
  * before logging, and we cap the body length on read.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, errLog, accessLog, getIp, readCappedBody, sanitizeLogField, recordCspReport } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyEndpointHeader, errLog, accessLog, getIp, readCappedBody, sanitizeLogField, recordCspReport } = require("./_safety.js");
 
 const MAX_BODY_BYTES = 16 * 1024;       // CSP reports are tiny (~1KB typical)
 const RATE_LIMIT_PER_MINUTE = 60;        // browsers don't usually spam; rate-limit anyway
@@ -54,6 +54,7 @@ function sanitizeUrl(u) {
 
 module.exports = async function handler(req, res) {
   attachRequestId(res, req);
+  applyEndpointHeader(res, "csp-report");
   try {
     if (req.method !== "POST") {
       return json(res, 405, { error: "Method not allowed." });

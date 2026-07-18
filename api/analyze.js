@@ -13,6 +13,7 @@ const {
   rateLimit,
   applyRateLimitHeaders,
   applyAiResponseHeaders,
+  applyEndpointHeader,
   attachRequestId,
   errLog,
   accessLog,
@@ -358,6 +359,7 @@ function parseJsonFromText(text) {
 
 module.exports = async function handler(req, res) {
   attachRequestId(res, req);
+  applyEndpointHeader(res, "analyze");
   try {
     if (req.method !== "POST") {
       return json(res, 405, { error: "Method not allowed." });

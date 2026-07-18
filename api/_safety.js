@@ -28,6 +28,27 @@ function applyBuildShaHeader(res) {
   res.setHeader("X-Build-Sha", raw);
 }
 
+/* Mark the API endpoint that produced this response. Lets ops dashboards
+ * group response-header metrics per endpoint without parsing URLs (the
+ * X-Endpoint value is stable across path rewrites; the URL is not).
+ * Caller passes a short ASCII name (e.g. "analyze", "chat", "health",
+ * "csp-report"). Anything else is silently ignored to keep the header
+ * allowlisted.
+ *
+ * Safe no-op:
+ *   - `res` missing or lacks setHeader
+ *   - `headersSent` is already true
+ *   - name not a 1..32-char ASCII string
+ */
+function applyEndpointHeader(res, name) {
+  if (!res || typeof res.setHeader !== "function" || res.headersSent) return;
+  if (typeof name !== "string") return;
+  if (name.length < 1 || name.length > 32) return;
+  // Allowlist: letters, digits, dash, underscore. No whitespace, no punctuation.
+  if (!/^[A-Za-z0-9_-]+$/.test(name)) return;
+  res.setHeader("X-Endpoint", name);
+}
+
 function json(res, status, body) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
@@ -958,6 +979,7 @@ module.exports = {
   applyRateLimitHeaders,
   applyAiResponseHeaders,
   applyBuildShaHeader,
+  applyEndpointHeader,
   readCappedBody,
   generateRequestId,
   sanitizeIncomingRequestId,
