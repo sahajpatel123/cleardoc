@@ -1156,6 +1156,23 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Closed the "README is stale" gap. After 20 iterations of security hardening + new endpoints + new tests + new docs (SECURITY, CONTRIBUTING, security.txt), the README was inaccurate: it claimed 2 endpoints when there are 3, named the wrong model, listed a tiny project tree that omitted most of the new files. A visitor cloning the repo got a misleading picture of what ClearDoc is.
 
+**2026-07-18 16:04 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #22 of the autonomous loop** (10-min cadence). Live: 16:02:36 → 16:04:45 IST.
+- **Added `CHANGELOG.md`** (58 lines, new file). User-facing release notes derived from the 21 prior iterations of work, organized by category:
+  - **Security hardening** — CSP, SRI, HSTS preload, safety nets, X-Request-Id, rate-limit headers, reachability probe, RFC 9116 security.txt
+  - **Reliability** — fail-closed validators, gzip bomb defenses, lazy OCR
+  - **Observability** — per-request IDs, errLog/accessLog, git SHA in /api/health
+  - **Features** — share via URL, local persistence, forget-my-data, sticky mobile CTA, live text-stats, per-verdict Copy, drawer focus trap, FAQ expand-all, service worker
+  - **Documentation** — README, SECURITY.md, CONTRIBUTING.md, CHANGELOG.md (this), security.txt, LOGBOOK
+  - **Operations** — package.json, .nvmrc, .github/workflows/test.yml
+- **Format notes** explicitly distinguish this file from `LOGBOOK.md` (internal agent history) and `git log` (verbose raw). User-facing release notes are a separate artifact.
+- **Test impact**: none. CHANGELOG is documentation; CI doesn't validate markdown.
+- **CI result**: `721ac57b docs(changelog): add CHANGELOG.md summarizing the 2026-07 hardening iterations` — **GREEN** on first run.
+
+**Prompt Intention:**
+- Closed the "release notes missing" gap. Until now, a user could discover what changed between deploys only by reading `git log` (verbose) or `LOGBOOK.md` (internal agent history). CHANGELOG is the canonical user-facing artifact — like a release notes file but for a continuously-deployed site.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
