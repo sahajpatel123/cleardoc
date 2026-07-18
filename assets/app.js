@@ -948,6 +948,31 @@
         else if(action === 'close') closeAll();
       });
     });
+
+    /* FAQ search — filters .qa items by keyword against the question text. */
+    const faqSearch = $('#faqSearch');
+    const faqSearchEmpty = $('#faqSearchEmpty');
+    if(faqSearch){
+      function applyFaqFilter(q){
+        const needle = String(q || '').trim().toLowerCase();
+        let visible = 0;
+        items.forEach(item => {
+          const qtext = (item.querySelector('.qt') || {}).textContent || '';
+          const atext = (item.querySelector('.ans-text') || {}).textContent || '';
+          const hay = (qtext + ' ' + atext).toLowerCase();
+          const match = !needle || hay.indexOf(needle) !== -1;
+          item.style.display = match ? '' : 'none';
+          if(match) visible++;
+        });
+        if(faqSearchEmpty) faqSearchEmpty.hidden = needle === '' || visible > 0;
+      }
+      faqSearch.addEventListener('input', (e) => applyFaqFilter(e.target.value));
+      faqSearch.addEventListener('search', (e) => applyFaqFilter(e.target.value));
+      // Escape clears the filter
+      faqSearch.addEventListener('keydown', (e) => {
+        if(e.key === 'Escape'){ faqSearch.value=''; applyFaqFilter(''); }
+      });
+    }
   }
 
   /* ---- LAST WORD ---- */

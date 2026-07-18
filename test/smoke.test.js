@@ -939,6 +939,58 @@ skip("BYOF: glossary lists each jargon term that was replaced + its plain-Englis
   await page.close();
 });
 
+skip("FAQ: keyword filter shows only matching questions + a 'no matches' hint", async () => {
+  if (!HAS_BROWSER) return;
+  const path = require("node:path");
+  const fs = require("node:fs");
+  for (const page of ["index.html", "analyze.html", "pricing.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, page), "utf8");
+    assert.match(html, /id="faqSearch"/, `${page} must expose #faqSearch`);
+    assert.match(html, /id="faqSearchEmpty"/, `${page} must expose the empty-state hint`);
+  }
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Source-pattern: filter function exists and is wired to the input
+  assert.match(appSrc, /function applyFaqFilter\(/, "applyFaqFilter must exist");
+  assert.match(appSrc, /faqSearch\.addEventListener\('input'/, "input event must drive the filter");
+  assert.match(appSrc, /qtext \+ ' ' \+ atext/, "filter must search both question + answer text");
+
+  // CSS rule
+  assert.match(themeSrc, /\.faq-search input\[type="search"\]/, ".faq-search input CSS rule must exist");
+
+  // Live: load the home page, type into the search input, assert filtering
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
+  // Wait for the FAQ to render (GSAP auto-opens the first item)
+  await page.waitForTimeout(300);
+  const allCount = await page.$$eval(".qa", (els) => els.filter(el => el.style.display !== 'none').length);
+  assert.ok(allCount >= 3, `home FAQ must have ≥3 questions visible, got ${allCount}`);
+
+  // Type a keyword that matches one question but not others
+  await page.fill("#faqSearch", "legal");
+  await page.waitForTimeout(60);
+  const filteredCount = await page.$$eval(".qa", (els) => els.filter(el => el.style.display !== 'none').length);
+  assert.ok(filteredCount > 0, `at least one question must match 'legal', got ${filteredCount}`);
+  assert.ok(filteredCount < allCount, `filter must hide non-matching questions, got ${filteredCount} of ${allCount}`);
+
+  // Empty filter restores everything
+  await page.fill("#faqSearch", "");
+  await page.waitForTimeout(60);
+  const restored = await page.$$eval(".qa", (els) => els.filter(el => el.style.display !== 'none').length);
+  assert.equal(restored, allCount, `empty filter must restore all ${allCount} questions, got ${restored}`);
+
+  // Empty-state hint: type a word that matches nothing
+  await page.fill("#faqSearch", "xqzxqzxqz_nope");
+  await page.waitForTimeout(60);
+  const emptyVisible = await page.$eval("#faqSearchEmpty", (el) => !el.hidden);
+  assert.equal(emptyVisible, true, "empty-state hint must show when no questions match");
+
+  await page.close();
+  await ctx.close();
+});
+
 skip("analyzer: AI failure shows a Retry button + categorizes the failure (rate-limit / network / other)", async () => {
   if (!HAS_BROWSER) return;
   const path = require("node:path");
