@@ -2255,6 +2255,13 @@
     const IMG_EXT=/\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif|tiff?)$/i;
     const PDF_EXT=/\.pdf$/i;
     const OCR_TIMEOUT_MS = 30000;        // abort if Tesseract hasn't returned after 30s
+    // Hard cap on image size fed to Tesseract. Tesseract is single-threaded
+    // and runs entirely in the browser; an oversize image (e.g. a 50 MB
+    // phone photo) will exhaust tab memory long before OCR_TIMEOUT_MS fires.
+    // 10 MB is generous — most OCR-friendly scans come in well under 2 MB.
+    // Above the cap, refuse the image up front with a clear toast (vs. the
+    // existing opaque "OCR failed" failure mode).
+    const MAX_OCR_BYTES = 10 * 1024 * 1024;
     const TESSERACT_SRC = 'https://unpkg.com/tesseract.js@5/dist/tesseract.min.js';
     // SHA-384 of the live tesseract.min.js@5 bytes, for Subresource Integrity.
     // If unpkg is compromised and serves different bytes, the browser refuses
@@ -2321,6 +2328,15 @@
       return _tesseractPromise;
     }
     async function readImage(file,chip){
+      // Size gate BEFORE loading Tesseract. A multi-MB image would
+      // load the 1MB+ OCR runtime, then OOM the tab partway through
+      // recognition — wasted bandwidth + an opaque "OCR failed"
+      // toast. Reject up front instead.
+      if(file && typeof file.size === 'number' && file.size > MAX_OCR_BYTES){
+        const mb = (file.size / (1024 * 1024)).toFixed(1);
+        setSub(chip,'warn','Image too large for OCR (' + mb + ' MB · max 10 MB) — resize it or paste the text instead');
+        return;
+      }
       setSub(chip,'work','Loading OCR engine…');
       let Tesseract;
       try{ Tesseract = await loadTesseract(); }

@@ -1414,6 +1414,15 @@ skip("OCR: image attachments lazy-load Tesseract.js with timeout + cancel", asyn
   // cancels the OCR. Verify the wiring hasn't regressed.
   const fxWiring = appSrc.match(/chip\.querySelector\(['"]\.fx['"]\)\.addEventListener\(['"]click['"],\s*clearAttachments\)/);
   assert.ok(fxWiring, "chip remove (.fx) must call clearAttachments");
+
+  // OCR size cap — must reject images > 10MB before loading Tesseract.
+  // Without the gate, a 50 MB phone photo would load the 1MB+ Tesseract
+  // runtime, then OOM the tab partway through recognition.
+  assert.match(appSrc, /MAX_OCR_BYTES\s*=\s*\d+\s*\*\s*1024\s*\*\s*1024/, "MAX_OCR_BYTES must be defined in MB units");
+  const readImageBlock = appSrc.match(/async function readImage\([\s\S]+?\n    \}/);
+  assert.ok(readImageBlock, "readImage must exist");
+  assert.match(readImageBlock[0], /MAX_OCR_BYTES/, "readImage must consult MAX_OCR_BYTES before loading Tesseract");
+  assert.match(readImageBlock[0], /too large for OCR/, "oversize image must produce a clear user-visible rejection");
 });
 
 skip("BYOF: reading level is computed live from the input (not hardcoded 12th→7th)", async () => {
