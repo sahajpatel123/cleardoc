@@ -999,6 +999,20 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Closed the "request correlation" gap. With `X-Request-Id` now on every response (including errors), a user pasting an error message into support gives us the ID, and we can grep server logs for that exact request — no more "I got an error, sometime around noon". The pattern is fully defensive: upstream IDs are sanitized against header-injection, fallbacks exist for missing crypto, the same `json()` path serves both success and error responses.
 
+**2026-07-18 12:48 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #11 of the autonomous loop** (10-min cadence). Live: 12:32:26 → 12:48:58 IST.
+- **Closed the AI provider observability gap** — `/api/health` previously only checked env-var presence (a missing key vs. a real outage looked identical from outside). Now it probes each configured provider's host with a 3s-timeout HEAD request, reports `reachable: bool`, `latencyMs: int`, and `cached: bool` per provider, and only flips to 503 when EVERY configured provider is unreachable.
+- **`api/_safety.js`**: 3 new exports — `probeProvider(url)` (HEAD with AbortController-based 3s timeout, returns `{ok, status|error, latencyMs, checkedAt}`), `probeProviderCached(key, url)` (60s TTL cache so polling doesn't become an outbound firehose), `clearProbeCache()` (test helper). Parallel session landed the probe implementation as `88353b43`; I wired it into the handler and added tests.
+- **`api/health.js`**: payload shape per provider is now `{configured, reachable, latencyMs, error?, cached}`. New 503 condition: `allUnreachable` (every configured provider must be unreachable). The old "neither provider configured" 503 path is preserved. `probeProviderCached` is gated on `hasGemini` / `hasOpenRouter` so we don't waste a network call on providers without credentials.
+- **`test/safety.test.js`**: 7 new unit tests for the probe — 2xx/3xx/4xx returns `ok: true`, 5xx returns `ok: false`, fetch throw returns the error string, AbortError returns `'timeout'`, cache hit/miss, different keys don't share cache entries, `clearProbeCache` forces refetch. All use `globalThis.fetch` mock so no real network is exercised.
+- **`test/health-error.test.js`**: 3 new source-pattern tests — both `probeProviderCached` calls are wired, payload shape includes the new reachability fields, 503 condition is gated on `allUnreachable`.
+- **Test totals locally**: 30 smoke + 100 unit (was 84) + 1 integration = **131/131 passing**.
+- **CI result**: `6639a808 feat(health): wire reachability probes into /api/health + cache + tests` — **GREEN** on first run.
+
+**Prompt Intention:**
+- Ops signal upgrade. Before this change, a Slack alert on the health endpoint could only say "GEMINI_API_KEY not set" or "ok" — no way to distinguish a missing env var from a real provider outage. Now the payload distinguishes the three states explicitly: unconfigured, configured-and-reachable (with latency), and configured-but-unreachable (with the underlying error). The 60s cache means monitoring scrapers can poll at any reasonable cadence without amplifying load.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
