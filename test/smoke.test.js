@@ -776,3 +776,69 @@ skip("sw: cache strategy uses network-first for HTML and cache-first for assets"
   assert.match(cdnBlock[0], /cache\.match/, "CDN strategy must read from cache first");
   assert.match(cdnBlock[0], /cache\.put/, "CDN strategy must refresh the cache in the background");
 });
+// ── Content-Security-Policy (vercel.json header) ────────────────────
+
+test("vercel.json: emits a strict Content-Security-Policy on every page", async () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const vercel = JSON.parse(fs.readFileSync(path.join(ROOT, "vercel.json"), "utf8"));
+
+  // Find the global /(.*) header block — it must contain a CSP entry.
+  const globalBlock = vercel.headers.find((h) => h.source === "/(.*)");
+  assert.ok(globalBlock, "vercel.json must have a /(.*) header block");
+  const csp = globalBlock.headers.find((h) => h.key === "Content-Security-Policy");
+  assert.ok(csp, "global header block must include Content-Security-Policy");
+
+  // The policy must NOT allow 'unsafe-inline' for script-src — that's the
+  // whole point of the strict CSP. Inline styles can keep 'unsafe-inline'
+  // (theme uses inline style="..." attrs for GSAP-driven sizing).
+  assert.ok(
+    !/script-src[^;]*'unsafe-inline'/.test(csp.value),
+    `script-src must NOT include 'unsafe-inline', got: ${csp.value}`
+  );
+
+  // Required directives for the current asset graph.
+  for (const directive of [
+    "default-src 'self'",
+    "script-src 'self' https://cdnjs.cloudflare.com https://unpkg.com",
+    "style-src 'self' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self'",
+    "connect-src 'self' https://generativelanguage.googleapis.com https://openrouter.ai",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+  ]) {
+    assert.ok(
+      csp.value.includes(directive),
+      `CSP must include "${directive}", got: ${csp.value}`
+    );
+  }
+
+  // The /api/* block must lock down even harder — these endpoints only return JSON.
+  const apiBlock = vercel.headers.find((h) => h.source === "/api/(.*)");
+  assert.ok(apiBlock, "vercel.json must have a /api/(.*) header block");
+  const apiCsp = apiBlock.headers.find((h) => h.key === "Content-Security-Policy");
+  assert.ok(apiCsp, "/api/ header block must include Content-Security-Policy");
+  assert.match(apiCsp.value, /default-src 'none'/, "API CSP must deny all default sources");
+  assert.match(apiCsp.value, /frame-ancestors 'none'/, "API CSP must forbid embedding");
+});
+
+test("HTML pages ship zero inline <script> blocks (CSP enforcer)", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  // JSON-LD blocks use type="application/ld+json" — those are structured
+  // data, not JavaScript execution context, and CSP's `script-src` doesn't
+  // apply to them. We strip those before checking.
+  const strippedScriptRe = /<script\b[^>]*\btype=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi;
+  for (const page of ["index.html", "analyze.html", "pricing.html", "404.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, page), "utf8");
+    const withoutLD = html.replace(strippedScriptRe, "");
+    const inlineScripts = withoutLD.match(/<script(?![^>]*\bsrc=)[^>]*>[^<]+<\/script>/g) || [];
+    assert.deepEqual(
+      inlineScripts,
+      [],
+      `${page} must have zero inline <script> blocks (CSP requires src=...); found: ${inlineScripts.join(" | ")}`
+    );
+  }
+});
