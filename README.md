@@ -2,22 +2,38 @@
 
 > Read what you're about to sign.
 
-ClearDoc turns intimidating legal, medical, and financial documents into plain English — flags the traps, gives you a verdict, and tells you exactly what to do next. Built as a static editorial site with two Vercel serverless API endpoints.
+ClearDoc turns intimidating legal, medical, and financial documents into plain English — flags the traps, gives you a verdict, and tells you exactly what to do next. Built as a static editorial site with three Vercel serverless API endpoints.
 
 ## Stack
 
-- **Frontend** — Hand-crafted editorial / brutalist design with GSAP animations, Lenis smooth scroll, PDF.js attachment support. Vanilla JS, no framework.
-- **API** — Two Vercel serverless functions (`/api/analyze`, `/api/chat`) with shared safety helpers (`/api/_safety.js`). OpenRouter (Google Gemma 4) with automatic Gemini fallback.
-- **Deploy** — Vercel. Static output + serverless functions.
+- **Frontend** — Hand-crafted editorial / brutalist design with GSAP animations, Lenis smooth scroll, PDF.js + Tesseract.js attachment support. Vanilla JS, no framework.
+- **API** — Three Vercel serverless functions (`/api/analyze`, `/api/chat`, `/api/health`) with shared safety helpers (`/api/_safety.js`). OpenRouter (`google/gemma-4-31b-it:free`) with automatic Gemini fallback.
+- **Deploy** — Vercel. Static output + serverless functions, edge-cached where possible.
+- **PWA** — Service worker (`assets/sw.js`) precaches the shell, network-first for HTML, cache-first for assets.
 
 ## Pages
 
 - `/` (`index.html`) — Home with hero clarifier, sample clauses, illustrative cases
 - `/analyze` (`analyze.html`) — Full document analyzer (paste, upload, ask)
 - `/pricing` (`pricing.html`) — Pricing page
-- `/api/health` — Public health check (also reachable at `/health`)
-- `/api/analyze` — POST: analyze a document (rate-limited 10 req/min/IP, 256KB cap)
-- `/api/chat` — POST: ask a question about an analyzed document (30 req/min/IP, 128KB cap)
+- `/404` (`404.html`) — Custom not-found page
+
+## API endpoints
+
+| Endpoint | Method | Purpose | Rate limit | Body cap |
+| -------- | ------ | ------- | ---------- | -------- |
+| `/api/analyze` | POST | Document analysis | 10 req/min/IP | 256 KB |
+| `/api/chat` | POST | Q&A about an analyzed document | 30 req/min/IP | 128 KB |
+| `/api/health` | GET | Public health check (reachable at `/health`) | 60 req/min/IP | — |
+
+Every response includes:
+
+- `X-Request-Id` — per-request UUID for log correlation
+- `X-RateLimit-Limit`, `-Remaining`, `-Reset` — sliding-window budget
+- `Cache-Control: no-store` — never cached
+- Structured JSON 500 (sanitized — no stack frames, no `err.message` leak) on uncaught throws
+
+See [SECURITY.md](./SECURITY.md) for the full security posture and disclosure policy.
 
 ## Local development
 
@@ -38,13 +54,13 @@ npx vercel dev
 npm run check
 ```
 
-API endpoints need Node 18+ and run on Vercel's serverless runtime. For local development, `vercel dev` runs both the static site and the functions.
+API endpoints need Node 22+ and run on Vercel's serverless runtime. For local development, `vercel dev` runs both the static site and the functions.
 
 ### Environment variables
 
 | Variable | Required for | Notes |
 |----------|-------------|-------|
-| `OPENROUTER_API_KEY` | `/api/analyze` | Preferred provider (free Gemma 4 model) |
+| `OPENROUTER_API_KEY` | `/api/analyze` | Preferred provider (free `google/gemma-4-31b-it:free` model) |
 | `GEMINI_API_KEY` | `/api/analyze` (fallback) + `/api/chat` | Also accepts `GOOGLE_GEMINI_API_KEY` |
 | `GEMINI_CHAT_MODEL` | `/api/chat` | Defaults to `gemini-2.5-flash` |
 
@@ -54,24 +70,54 @@ If neither AI key is set, the analyzer falls back to a fully local regex-based s
 
 ```
 .
-├── index.html          # Home
-├── analyze.html        # Document analyzer
-├── pricing.html        # Pricing
+├── index.html, analyze.html, pricing.html, 404.html
+│                                 Static editorial pages (no framework)
 ├── assets/
-│   ├── app.js          # Frontend logic (vanilla JS, IIFE)
-│   └── theme.css       # Editorial design system
+│   ├── app.js                    Frontend logic (vanilla JS, IIFE; ~2000 lines)
+│   ├── theme.css                 Editorial design system + animations
+│   ├── sw.js                     Service worker (network-first HTML, cache-first assets)
+│   ├── pdfjs-bootstrap.js        PDF.js worker config (extracted to enable strict CSP)
+│   └── og-card.svg               1200×630 social-share preview
 ├── api/
-│   ├── _safety.js      # Shared helpers (json, getIp, rateLimit, readCappedBody)
-│   ├── analyze.js      # Document analysis (OpenRouter → Gemini)
-│   ├── chat.js         # Per-document Q&A (Gemini)
-│   └── health.js       # Public health check
-├── vercel.json         # Routing, security headers, build config
-└── memory/             # Project memory system (see memory/MEMORY.md)
+│   ├── _safety.js                Shared helpers: json, getIp, rateLimit, readCappedBody,
+│   │                             applyRateLimitHeaders, attachRequestId, errLog, accessLog,
+│   │                             probeProvider(+Cached), safeParseAnalysisResult,
+│   │                             safeParseChatResult
+│   ├── analyze.js                Document analysis (OpenRouter → Gemini)
+│   ├── chat.js                   Per-document Q&A (Gemini)
+│   └── health.js                 Public health check + AI-provider reachability probe
+├── test/
+│   ├── safety.test.js            45+ unit tests for _safety.js helpers
+│   ├── analyze-schema.test.js    28 tests for safeParseAnalysisResult
+│   ├── chat-schema.test.js       13 tests for safeParseChatResult
+│   ├── analyze-error.test.js     4 source-pattern tests for analyze.js safety net
+│   ├── chat-error.test.js        4 source-pattern tests for chat.js safety net
+│   ├── health-error.test.js      7 source-pattern tests for health.js safety net
+│   ├── smoke.test.js             33 Playwright browser tests (load + CSP + share + a11y)
+│   └── integration.test.js       1 end-to-end test against a mock AI server
+├── public/
+│   └── .well-known/
+│       └── security.txt          RFC 9116 disclosure endpoint
+├── SECURITY.md                   Vulnerability disclosure policy + posture summary
+├── CONTRIBUTING.md               Dev setup, test commands, commit conventions, PR checklist
+├── vercel.json                   Routing, security headers, build config
+├── site.webmanifest              PWA manifest
+├── package.json                  npm scripts: test, syntax, validate:json, check
+├── .nvmrc                        Node 22 pin
+└── memory/                       Multi-agent memory system (see memory/MEMORY.md)
 ```
 
 ## Memory system
 
-This project uses an agent memory protocol — see `memory/MEMORY.md`. Every CLI agent must read MEMORY / DECISIONS / RULES / TODO at the start of a session and append to `memory/LOGBOOK.md` after meaningful work.
+This project uses an agent memory protocol — see `memory/MEMORY.md`. Every CLI agent must read `MEMORY.md`, `DECISIONS.md`, `RULES.md`, `TODO.md` at the start of a session and append to `memory/LOGBOOK.md` after meaningful work.
+
+## Security & disclosure
+
+See [SECURITY.md](./SECURITY.md) for the full security posture (CSP, SRI, fail-closed validators, safety nets, X-Request-Id, rate-limit headers, etc.) and disclosure policy. The well-known [RFC 9116 `security.txt`](./public/.well-known/security.txt) is served at `/.well-known/security.txt`.
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full dev workflow (setup, test commands, commit conventions, PR checklist).
 
 ## License
 
