@@ -1839,3 +1839,12 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored the standing directives. Pure docs-only polish. The README is the first thing new contributors and ops read; having it say "three endpoints" when we ship four is a tiny but visible lie.
 
+
+**2026-07-19 03:18 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #9 of the 10-minute autonomous engineer loop** (`/loop 10minutes`). Stale test-assertion cleanup.
+- **Aligned stale `plainTextOf` assertion in skip()'d BYOF test** (`07cc0996 test(smoke): align BYOF plainTextOf/stripHtmlToText assertions with reality`). The IIFE-level helper block at `test/smoke.test.js:1428` was wrapped in `skip()` so the assertion never ran, but it was still misleading documentation: it claimed `function plainTextOf(html)` must exist. After the 02c3afcc rename to `stripHtmlToText`, the assertion would have failed if any environment had playwright installed. Updated the regex and added a comment pointing to 02c3afcc so future readers know why the old name is gone.
+- **Verification:** 246/246 tests pass (181 unit + 64 smoke + 1 integration). Working tree clean before commit.
+
+**Prompt Intention:**
+- Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #9 caught a stale test assertion left over from the plainTextOf bug fix. Next iteration scheduled to fire in 10 minutes.
