@@ -962,6 +962,30 @@ test("lazy Tesseract.js loader pins integrity + crossOrigin (SRI for dynamic scr
     "loadTesseract() must set s.crossOrigin = 'anonymous'");
 });
 
+test("vercel.json: Strict-Transport-Security is preload-eligible", () => {
+  // HSTS preload is irreversible — once a domain is in the browser preload
+  // list, browsers will refuse HTTP connections even on first visit, until
+  // max-age expires. ClearDoc is HTTPS-only on Vercel, so the trade-off is
+  // correct: tighter enforcement at the cost of removing the option to
+  // ever serve this domain over HTTP.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const vercel = JSON.parse(fs.readFileSync(path.join(ROOT, "vercel.json"), "utf8"));
+  const global = vercel.headers.find((h) => h.source === "/(.*)");
+  assert.ok(global, "vercel.json must have a /(.*) header block");
+  const hsts = global.headers.find((h) => h.key === "Strict-Transport-Security");
+  assert.ok(hsts, "/(.*) must set Strict-Transport-Security");
+  // hstspreload.org requires max-age >= 31536000 (1y). 2y is recommended.
+  const m = hsts.value.match(/max-age=(\d+)/);
+  assert.ok(m, `HSTS must include max-age=N, got: ${hsts.value}`);
+  assert.ok(
+    Number(m[1]) >= 31536000,
+    `HSTS max-age must be >= 31536000 (1 year) for preload eligibility, got ${m[1]}`
+  );
+  assert.match(hsts.value, /includeSubDomains/, "HSTS must include includeSubDomains");
+  assert.match(hsts.value, /preload/, "HSTS must include preload to be eligible for the browser preload list");
+});
+
 // ── CSP response-header validation ─────────────────────────────────
 //
 // The vercel.json test verifies the policy is *declared* in config. This
