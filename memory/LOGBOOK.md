@@ -2094,3 +2094,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #16 closed three more documentation gaps. Next iteration scheduled to fire in 10 minutes.
+
+**2026-07-19 04:59 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #55 of the autonomous loop** (cron `c3921bc4` firing). Live: 04:59 IST.
+- **Shipped `X-Endpoint` marker header on every /api route** (`54a80352`). Ops dashboards want to group response-header metrics per endpoint without parsing the request URL (which can rewrite, and which would require normalizing every error path too). New header on every `/api/*` response: `X-Endpoint: analyze | chat | health | csp-report`.
+- **Implementation**: `applyEndpointHeader(res, name)` helper in `_safety.js` handles the `headersSent` guard, the missing-res case, and a strict allowlist (`1..32` chars of `[A-Za-z0-9_-]`) so a future caller can't smuggle header-injection bytes. Each endpoint calls `applyEndpointHeader(res, "<name>")` immediately after `attachRequestId(res, req)`, so every code path (200/415/429/4xx/5xx) emits it via shared upstream.
+- **285/285 tests pass** (214 unit + 70 smoke + 1 integration). 5 new tests on the helper.
+
+**Prompt Intention:**
+- Honored the standing directives. Tiny header addition with outsized value for monitoring. Lets ops dashboards filter the entire response-header matrix by endpoint without URL parsing — and the strict allowlist keeps the helper safe even if a future call site passes through misbehaving input.
