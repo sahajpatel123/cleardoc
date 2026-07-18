@@ -2450,3 +2450,20 @@ test("askInput has maxlength matching server-side MAX_QUESTION_CHARS (1000)", ()
     "#askInput must have maxlength=\"1000\" matching server-side MAX_QUESTION_CHARS"
   );
 });
+
+test("tagsInput has maxlength matching parseTags caps", () => {
+  // #tagsInput on the analyze page is parsed by parseTags which allows
+  // up to 8 tags, each ≤32 chars, separated by commas. Worst-case
+  // input is 8 × 32 + 7 commas = 263 chars. Pin the browser cap at
+  // 300 for parity (rounds up to a friendlier number).
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const input = html.match(/<input[^>]*id="tagsInput"[^>]*>/);
+  assert.ok(input, "analyze.html must contain #tagsInput");
+  assert.match(
+    input[0],
+    /maxlength="300"/,
+    "#tagsInput must have maxlength=\"300\" matching parseTags worst-case (8 × 32 + 7 commas)"
+  );
+});
