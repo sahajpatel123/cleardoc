@@ -425,3 +425,58 @@ test("health handler: buildSummary computes correct counts from probe state", ()
   assert.equal(r.slowestProviderMs, null);
   assert.equal(r.cacheHits, 0);
 });
+
+// ── process info payload (iter #43) ─────────────────────────────────
+
+test("health handler: 200 payload includes a process info block (memory + node version)", () => {
+  // Lets ops diagnose V8 heap leaks and runtime regressions from
+  // /api/health without RDP/SSH into the function. Cheaper than
+  // ssh'ing and surfaces regressions automatically.
+  assert.match(HEALTH_SOURCE, /process\s*:\s*\{/, "200 payload must include a `process` block");
+  // Must include memory + nodeVersion + platform at minimum
+  assert.match(HEALTH_SOURCE, /nodeVersion\s*:\s*process\.version/, "must surface process.version");
+  assert.match(HEALTH_SOURCE, /platform\s*:\s*process\.platform/, "must surface process.platform");
+  assert.match(HEALTH_SOURCE, /processUptimeSec\s*:\s*Math\.round\(process\.uptime\(\)\)/, "must surface process.uptime() rounded to seconds");
+  assert.match(HEALTH_SOURCE, /process\.memoryUsage\(\)/, "must call process.memoryUsage()");
+  // Memory fields should be in MB (rounded), not raw bytes — JSON
+  // bloat otherwise and dashboards care about the order of magnitude.
+  assert.match(HEALTH_SOURCE, /\/ 1048576/, "memory values must be converted to MB (divided by 1048576)");
+  // Must include the 5 standard V8 memory fields
+  for (const field of ["rss", "heapTotal", "heapUsed", "external", "arrayBuffers"]) {
+    assert.match(HEALTH_SOURCE, new RegExp(`${field}Mb\\s*:`), `${field}Mb must be present`);
+  }
+});
+
+test("health handler: 200 payload's process info is reachable via the rendered endpoint", async () => {
+  // Behavioral check: rendering /api/health actually surfaces the
+  // process fields. Mirrors the production shape so the source-pattern
+  // tests above can't drift from runtime behavior.
+  if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY && !process.env.GOOGLE_GEMINI_API_KEY) {
+    process.env.OPENROUTER_API_KEY = "test-stub-key-health-proc";
+  }
+  const handler = require("../api/health.js");
+  const res = {
+    statusCode: 200, _body: null, headers: {}, headersSent: false,
+    setHeader(k, v) { this.headers[k] = v; },
+    end(s) { this._body = s; this.headersSent = true; },
+  };
+  const req = {
+    method: "GET", headers: {}, socket: { remoteAddress: "127.0.0.1" },
+  };
+  await handler(req, res);
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res._body);
+  assert.ok(body.process, "200 payload must expose a process object");
+  // Shape
+  assert.equal(typeof body.process.nodeVersion, "string");
+  assert.match(body.process.nodeVersion, /^v\d+\.\d+\.\d+/, "nodeVersion should look like a Node version string");
+  assert.equal(typeof body.process.platform, "string");
+  assert.equal(typeof body.process.arch, "string");
+  assert.equal(typeof body.process.pid, "number");
+  assert.equal(typeof body.process.processUptimeSec, "number");
+  assert.ok(body.process.processUptimeSec >= 0, "process uptime should be non-negative");
+  assert.ok(body.process.memory, "memory block must exist");
+  for (const k of ["rssMb", "heapTotalMb", "heapUsedMb", "externalMb", "arrayBuffersMb"]) {
+    assert.equal(typeof body.process.memory[k], "number", `memory.${k} must be a number`);
+  }
+});

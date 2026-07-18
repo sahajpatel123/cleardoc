@@ -163,6 +163,29 @@ module.exports = async function handler(req, res) {
         geminiProbe,
         openRouterProbe,
       }),
+      // ── process info ───────────────────────────────────────────────
+      // Runtime telemetry for ops dashboards that want to diagnose V8
+      // heap leaks, runtime regressions, or unexpected platform drift
+      // without RDP/SSHing into the function instance. Cheap (~0.1ms)
+      // and additive — no sensitive data exposed (no env vars, no file
+      // paths, only safe V8 stats).
+      process: {
+        nodeVersion: process.version,
+        platform: process.platform,
+        arch: process.arch,
+        pid: process.pid,
+        processUptimeSec: Math.round(process.uptime()),
+        memory: (() => {
+          const m = process.memoryUsage();
+          return {
+            rssMb: Math.round(m.rss / 1048576),
+            heapTotalMb: Math.round(m.heapTotal / 1048576),
+            heapUsedMb: Math.round(m.heapUsed / 1048576),
+            externalMb: Math.round(m.external / 1048576),
+            arrayBuffersMb: Math.round(m.arrayBuffers / 1048576),
+          };
+        })(),
+      },
       providers: {
         gemini: hasGemini
           ? {
