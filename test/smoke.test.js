@@ -152,6 +152,8 @@ skip("ask: citation in local-fallback includes the matched sentence + a quote", 
   assert.match(appSrc, /citeFmt:fmtCite\(best\)/, "every return path must include citeFmt");
   assert.match(appSrc, /local\.citeFmt \|\| \(local\.cite/, "the Ask thread must prefer citeFmt over the raw fallback string");
 });
+
+skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
