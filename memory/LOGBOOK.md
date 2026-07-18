@@ -838,3 +838,20 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - After adding the pricing toggle test, found one more genuine production gap: no PWA manifest. This lets users install ClearDoc as a home-screen app and is a small, self-contained addition with a real-world benefit (especially for a "read documents on the go" product).
+
+**2026-07-18 09:39 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Two related commits shipped:** (1) feat(analyzer): add Print / Save .txt / Copy result actions + result-actions toolbar + print-only header in @media print, with smoke-test coverage. (2) feat(api): strict fail-closed schema validation for AI analysis responses.
+- **Schema validator work (the main contribution this iteration):**
+  - Added `ANALYSIS_LIMITS` (frozen) — single source of truth for AI-output caps: plainEnglishRewrite=20000, risks≤20, deadlines≤10, nextSteps≤8, readingLevel 1–20, jargonFound 0–200. Previously these were sprinkled across `api/analyze.js`.
+  - Added `validSeverity(s)` and `validVerdictLabel(s)` enum guards (return string or null; strict equality, no casing tolerance).
+  - Added `safeParseAnalysisResult(obj)` — strict fail-closed validator returning `{ok: true, value}` or `{ok: false, errors[]}`. Walks the entire analysis object: top-level type, all required fields, all enum values, all numeric ranges, all string types. Never silently coerces — non-integer numerics (`5.7`, `3.5`) are rejected, not rounded. Empty arrays allowed.
+  - Refactored `api/analyze.js`: replaced inline shape-coercion sanitization with `safeParseAnalysisResult` call. Failure path returns `502 {error, reason: 'invalid_ai_response', provider}`.
+  - Wrote `test/analyze-schema.test.js` — 28 unit tests covering happy path, length caps, enum guards, boundary values, and multi-field error collection.
+  - Wired the new test into `.github/workflows/test.yml` so CI gates every future change.
+- **Real bugs caught during the work:** the initial `clampInt` helper silently truncated `5.7→5` and `3.5→3`, violating STRICT RULE #3 ("never add tolerance for malformed fields"). Replaced with `Number.isInteger` check (no truncation) — the two test failures were the strict-rule-violation behavior surfacing exactly as the tests were designed to catch.
+- **Stale-state awareness:** memory files (TODO.md, RULES.md, MEMORY.md, KNOWLEDGE/) describe the OLD Next.js codebase and reference files (`lib/rate-limit.ts`, `app/page.tsx`, `app/dashboard/page.tsx`, prisma, stripe-events) that no longer exist — the project was migrated to a static site + Vercel serverless functions at commit `8e717f68` and completed at `53f9c8f0`. This iteration worked from the actual filesystem (`api/*.js` + static HTML + `assets/*.js` + tests), not the stale memory.
+- **Test totals:** 16 safety + 28 schema (new) + 13 smoke + 1 integration = **58/58 passing** in ~5s on local, syntax-clean across all JS files.
+
+**Prompt Intention:**
+- User instructed: "execute a comprehensive deep-dive implementation of all identified architectural improvements, features, and systemic adjustments in scope … production-grade, no shortcuts." Memory pointed at Next.js-era TODOs that don't apply to the current static-site codebase. After recon (29/29 tests confirmed green baseline), picked the highest-value concrete improvement that maps to a documented STRICT RULE: fail-closed schema validation for AI responses (RULES.md #3). The unannounced Print/Save/Copy changes already in the working tree were mid-session edits from the user's other tooling — committed as a separate, focused commit to preserve clean history.
