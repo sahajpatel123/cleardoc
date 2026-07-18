@@ -41,10 +41,13 @@ function json(res, status, body) {
   // called. Covers rate-limit + body read + AI chain + validation +
   // serialize — the full server-side time for this request. Best-effort:
   // missing __requestStartedAt just skips the header (the absence tells
-  // ops "this handler didn't use attachRequestId, fix it").
+  // ops "this handler didn't use attachRequestId, fix it"). allowZero:
+  // true so a true instant response (e.g. an immediate rate-limit reject
+  // on a warm instance) still emits "X-Request-Latency-Total-Ms: 0" —
+  // that's a real measurement, not a "didn't fire" sentinel.
   if (res && typeof res.__requestStartedAt === "number" && !res.headersSent) {
     const elapsed = Date.now() - res.__requestStartedAt;
-    if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= 600000) {
+    if (isValidLatencyMs(elapsed, { allowZero: true })) {
       res.setHeader("X-Request-Latency-Total-Ms", String(Math.round(elapsed)));
     }
   }
@@ -54,6 +57,26 @@ function json(res, status, body) {
   // deploy; null in local dev → header simply omitted (no value to expose).
   applyBuildShaHeader(res);
   res.end(JSON.stringify(body));
+}
+
+/* Single source of truth for "is this a sane latency value to emit as a
+ * header?". Bound at 600000ms (10 min) — anything longer is either a
+ * clock-skew artifact or a Vercel cold-start gone wrong; either way, the
+ * header would mislead ops.
+ *
+ * `allowZero` controls the lower bound:
+ *   - default (false): require value >= 1. Use for per-provider breakdowns
+ *     where 0 or fractional sub-ms means "provider didn't fire" — emitting
+ *     "0ms" or "0.5ms" would lie.
+ *   - true: require value >= 0. Use for the overall wall-clock latency
+ *     where a real 0ms response (e.g. immediate rate-limit reject) or a
+ *     sub-ms timing is meaningful and shouldn't be silently dropped.
+ */
+function isValidLatencyMs(value, opts) {
+  const allowZero = !!(opts && opts.allowZero);
+  if (!Number.isFinite(value)) return false;
+  if (allowZero) return value >= 0 && value <= 600000;
+  return value >= 1 && value <= 600000;
 }
 
 function asString(value, max) {
@@ -396,7 +419,7 @@ function applyAiResponseHeaders(res, provider, latencyMs, model, fallbackUsed, p
       res.setHeader("X-AI-Provider", provider);
     }
   }
-  if (Number.isFinite(latencyMs) && latencyMs >= 0 && latencyMs <= 600000) {
+  if (isValidLatencyMs(latencyMs, { allowZero: true })) {
     res.setHeader("X-AI-Response-Time-Ms", String(Math.round(latencyMs)));
   }
   if (typeof model === "string" && model.length > 0 && model.length <= 128) {
@@ -424,7 +447,11 @@ function applyAiResponseHeaders(res, provider, latencyMs, model, fallbackUsed, p
     const HEADER_NAME_BY_PROVIDER = { openrouter: "X-AI-OpenRouter-Ms", gemini: "X-AI-Gemini-Ms" };
     for (const key of Object.keys(HEADER_NAME_BY_PROVIDER)) {
       const v = perProviderMs[key];
-      if (Number.isFinite(v) && v > 0 && v <= 600000) {
+      // Per-provider: 0 means "provider was not attempted" (e.g. the API
+      // key was missing or the chain short-circuited). Default validator
+      // (allowZero=false) skips it — emitting "X-AI-Gemini-Ms: 0" would
+      // mislead ops into thinking the provider ran for 0ms.
+      if (isValidLatencyMs(v)) {
         res.setHeader(HEADER_NAME_BY_PROVIDER[key], String(Math.round(v)));
       }
     }
@@ -795,6 +822,7 @@ module.exports = {
   accessLog,
   sanitizeLogField,
   logProviderError,
+  isValidLatencyMs,
   ANALYSIS_LIMITS,
   VALID_SEVERITIES,
   VALID_VERDICT_LABELS,

@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, applyBuildShaHeader, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog, sanitizeLogField, logProviderError } = require("../api/_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, applyBuildShaHeader, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog, sanitizeLogField, logProviderError, isValidLatencyMs } = require("../api/_safety.js");
 
 // ── json ─────────────────────────────────────────────────────────────
 
@@ -1147,3 +1147,41 @@ function mockRes() {
     end(s) { this._body = s; },
   };
 }
+// ── isValidLatencyMs: single source of truth for latency validation ─
+
+test("isValidLatencyMs: rejects non-finite, negative, and over-bound values", () => {
+  for (const bad of [NaN, -1, Infinity, -Infinity, "100", null, undefined, {}, []]) {
+    assert.equal(isValidLatencyMs(bad), false, `${JSON.stringify(bad)} must be rejected`);
+    assert.equal(isValidLatencyMs(bad, { allowZero: true }), false, `${JSON.stringify(bad)} must be rejected even with allowZero`);
+  }
+  // 600001 ms (10 min + 1ms) is just over the cap
+  assert.equal(isValidLatencyMs(600001), false, "must reject 600001ms (over 10-min cap)");
+  assert.equal(isValidLatencyMs(600001, { allowZero: true }), false, "must reject 600001ms even with allowZero");
+});
+
+test("isValidLatencyMs: accepts sane values 1..600000ms by default", () => {
+  for (const good of [1, 50, 1000, 60000, 600000]) {
+    assert.equal(isValidLatencyMs(good), true, `${good}ms must be accepted`);
+  }
+});
+
+test("isValidLatencyMs: allowZero=true accepts 0 but allowZero=false rejects it", () => {
+  assert.equal(isValidLatencyMs(0), false, "0 must be rejected by default (means 'didn't fire')");
+  assert.equal(isValidLatencyMs(0, { allowZero: true }), true, "0 must be accepted with allowZero: true");
+});
+
+test("isValidLatencyMs: bound is exactly 600000ms (10 min)", () => {
+  assert.equal(isValidLatencyMs(600000), true, "600000ms is the upper boundary and must be accepted");
+  assert.equal(isValidLatencyMs(600000, { allowZero: true }), true);
+});
+
+test("isValidLatencyMs: fractional ms in range are accepted (caller rounds)", () => {
+  // The helper validates the BOUNDS — default lower bound is 1ms
+  // (anything below that is noise / sub-ms timing that should be 0).
+  // Callers wrap in Math.round() before emitting. With allowZero=true
+  // the lower bound drops to 0, so sub-ms timings survive.
+  assert.equal(isValidLatencyMs(0.5), false, "0.5 is below default 1ms lower bound");
+  assert.equal(isValidLatencyMs(0.5, { allowZero: true }), true, "0.5 passes with allowZero (sub-ms timing)");
+  assert.equal(isValidLatencyMs(100.7), true, "100.7 is in [1, 600000], passes");
+  assert.equal(isValidLatencyMs(100.7, { allowZero: true }), true);
+});
