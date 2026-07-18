@@ -1604,3 +1604,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored standing directives. Picked an RFC-compliance gap as the highest-signal target — pragmatic defect, not speculative; observability clients (Datadog, Pingdom, etc.) misclassify bare HEAD responses as degraded.
 
+**2026-07-19 01:47 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #37 of the autonomous loop** (cron `c3921bc4` firing). Live: 01:47 IST.
+- **Shipped `X-Build-Sha` response header** (`65e30e74`). Every JSON response across all 3 endpoints (`/api/health`, `/api/analyze`, `/api/chat`) now carries the deployed commit SHA. A `curl -i /api/anything` now identifies the build without parsing JSON or correlating against server logs.
+- **Implementation**: `applyBuildShaHeader(res)` helper in `_safety.js`. Reads `process.env.VERCEL_GIT_COMMIT_SHA`. Strict git-SHA shape validation (`^[a-f0-9]{7,40}$`) defends against misconfigured CI environments and header injection. Local dev emits nothing (no `VERCEL_*` env) — absence is itself a signal.
+- **Auto-emit via `json()`**: every JSON response passes through `json()`, which now calls `applyBuildShaHeader` automatically. Zero handler changes needed. The `/api/health` HEAD path manually calls it (matching the prior session's manual Content-Type/Cache-Control/latency wiring).
+- **230/230 tests pass** (168 unit + 61 smoke + 1 integration). 8 new unit tests covering valid/unset/malformed/length-bounded/null-safe/headersSent/integration-via-json paths.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the last obvious observability gap — git SHA on every response was the same class of "you'd want this on the response but had to dig into the body" pattern as the prior headers.
+
