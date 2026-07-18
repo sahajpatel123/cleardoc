@@ -2127,3 +2127,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #18 confirmed green baseline. Next iteration scheduled to fire in 10 minutes.
+**2026-07-19 04:45 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #21 of /loop 10minutes** — autonomous DevSecOps guardian.
+- **Recon:** parallel session shipped `76a59b99 docs(memory): log iteration #54 — Last-Modified + If-Modified-Since`, `d7ecdda6 feat(api): /api/health supports both If-Modified-Since + Last-Modified`, `54a80352 feat(api): X-Endpoint marker header on every /api route`, `6aab4491 feat(api): X-Endpoint response header — group metrics per endpoint`. The parallel session's X-Endpoint observability family now in place.
+- **Shipped (bundled into parallel commit `6aab4491`):**
+  - Fixed test stub for empty-body csp-report test — was yielding string chunks, but `Buffer.concat` rejects strings. Stub now yields `Buffer.from(chunk, "utf8")` to match production stream semantics. Without this fix, the existing `extractViolations handles empty / missing / wrong shapes` test was returning 500 instead of 204.
+  - Added behavioral test `415s on disallowed Content-Type before parsing the body` covering: no Content-Type, form-encoded, text/plain (all 415), plus application/csp-report and application/json (not 415). Catches future regressions of the Content-Type allowlist.
+- **Root cause analysis:** `Buffer.concat` requires Buffer/Uint8Array chunks. Real HTTP streams yield Buffers. Test stub was yielding strings, which masked the 204 path behind a 500.
+- **Verification:** 285/285 tests pass (214 unit + 70 smoke + 1 integration). Tests shipped via parallel commit `6aab4491`.
+
