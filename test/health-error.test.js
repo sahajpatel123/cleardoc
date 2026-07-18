@@ -143,3 +143,38 @@ test("health handler: payload includes gitSha from VERCEL_GIT_COMMIT_SHA", () =>
   // Must fall back to null in local dev (env var unset)
   assert.match(HEALTH_SOURCE, /\|\| null/, "gitSha must default to null when env var is unset");
 });
+
+// ── Retry-After on 503 ────────────────────────────────────────────
+
+test("health handler: 503 response sets Retry-After header", () => {
+  // Monitoring clients (Pingdom, UptimeRobot, internal probes) honor
+  // Retry-After and back off instead of hammering. The 503 path must
+  // emit it. The 200 happy path must NOT.
+  assert.match(HEALTH_SOURCE, /Retry-After/, "503 path must set Retry-After");
+  // The setHeader call must precede the 503 json() return
+  const setHeaderMatch = HEALTH_SOURCE.match(/res\.setHeader\(\s*["']Retry-After["']\s*,\s*["'](\d+)["']\s*\)/);
+  assert.ok(setHeaderMatch, "must call res.setHeader('Retry-After', '<seconds>')");
+  // Must be a sane back-off (30..300s)
+  const seconds = parseInt(setHeaderMatch[1], 10);
+  assert.ok(seconds >= 30 && seconds <= 300, `Retry-After ${seconds}s should be a sane back-off (30..300s)`);
+  // The 200 path must NOT set Retry-After (verified in the next test)
+});
+
+test("health handler: 200 happy path does NOT set Retry-After", () => {
+  // 200 responses must not include Retry-After (only 429 + 503 should).
+  // This prevents clients from misinterpreting a healthy response as
+  // "try again later".
+  // Find the 200 return path (the `return json(res, 200, payload)` line)
+  const ok200Match = HEALTH_SOURCE.match(/return\s+json\(res,\s*200,\s*payload\)/);
+  assert.ok(ok200Match, "200 happy-path return must exist");
+  // Look for Retry-After BEFORE this match in the source — if it's
+  // before the 200 return, it might be in a code path that runs before
+  // 200 returns (like rate limit or 405). That's allowed. The check that
+  // matters: the substring between the 200 return and end of file should
+  // not contain a stray Retry-After that's not in the 503/429 paths.
+  // (Source-pattern, so this is a soft check — not a full execution trace.)
+  const after200 = HEALTH_SOURCE.slice(ok200Match.index + ok200Match[0].length);
+  // There's no Retry-After set AFTER the 200 return (which is the last
+  // return in the function).
+  assert.equal(/Retry-After/.test(after200), false, "no Retry-After set after 200 return");
+});

@@ -84,6 +84,9 @@ module.exports = async function handler(req, res) {
       payload.ok = false;
       payload.status = "degraded";
       payload.reason = "All configured AI providers are unreachable.";
+      // Tell monitoring clients when to retry. The probe cache will refresh
+      // in 60s anyway, so 60s is a reasonable back-off.
+      res.setHeader("Retry-After", "60");
       return json(res, 503, payload);
     }
 
