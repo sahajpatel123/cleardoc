@@ -81,6 +81,19 @@
         </div>
       </div>
       <div id="resultPanel" hidden role="region" aria-live="polite" aria-atomic="false" aria-label="Analysis results">
+        <div class="print-header" aria-hidden="true">
+          <strong>ClearDoc Analysis</strong>
+          <span class="print-dot">·</span>
+          <span id="printDate"></span>
+          <span class="print-dot">·</span>
+          <span>cleardoc.app</span>
+          <span class="print-tag">NOT LEGAL ADVICE</span>
+        </div>
+        <div class="result-actions no-print">
+          <button class="ghost-btn" id="printBtn" type="button" title="Print or save this analysis as a PDF">🖨 Print</button>
+          <button class="ghost-btn" id="saveBtn" type="button" title="Download a plain-text copy of this analysis">⬇ Save .txt</button>
+          <button class="ghost-btn" id="copyBtn" type="button" title="Copy a plain-text summary to your clipboard">📋 Copy</button>
+        </div>
         <div class="result-block" id="verdictBlock">
           <span class="rh">📋 Verdict</span>
           <div class="verdict-display" id="verdictDisplay" aria-label="Document verdict"></div>

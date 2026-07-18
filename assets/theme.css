@@ -509,3 +509,88 @@
 .nextsteps-list li::before{content:counter(steps);font-family:'Archivo Black';font-size:var(--t-meta);min-width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--ink);color:var(--paper);flex:0 0 auto}
 
 @media(max-width:900px){.work{grid-template-columns:1fr}.work .col.in{border-right:none;border-bottom:var(--bd) solid var(--ink)}}
+
+/* ---- ANALYZER RESULT ACTIONS (Print / Save / Copy) ---- */
+.result-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:var(--s4);padding:var(--s2) var(--s3);border:var(--bd-hair) solid var(--ink);background:var(--paper2)}
+.result-actions .ghost-btn{padding:9px 14px;font-size:var(--t-meta-sm);font-family:'JetBrains Mono',monospace;text-transform:none;letter-spacing:.02em;display:inline-flex;align-items:center;gap:6px}
+.result-actions .ghost-btn:hover{background:var(--ink);color:var(--paper)}
+.result-actions #printBtn{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.result-actions #printBtn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* ---- PRINT HEADER (only visible in @media print) ---- */
+.print-header{display:none;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding-bottom:12pt;margin-bottom:18pt;border-bottom:3px double #000;align-items:center;gap:8pt;flex-wrap:wrap}
+.print-header strong{font-family:'Archivo Black',sans-serif;font-size:13px;letter-spacing:.04em}
+.print-header .print-dot{color:#000;opacity:.5}
+.print-header .print-tag{margin-left:auto;border:1.5px solid #000;padding:2px 8px;font-weight:700}
+
+/* ---- @media print — clean, B&W-friendly analyzer output ---- */
+@media print{
+  @page{margin:.5in;size:auto}
+
+  /* 1. Strip chrome */
+  #loader,.reveal-panel,.grain,.skip,.ticker,nav,footer,.no-print{display:none !important}
+
+  /* 2. Reset background + remove all motion/shadows */
+  html,body{background:#fff !important;color:#000 !important;overflow:visible !important}
+  *{box-shadow:none !important;text-shadow:none !important;animation:none !important;transition:none !important;filter:none !important}
+
+  /* 3. Single-column output — input column is irrelevant when printing */
+  .work{display:block !important;border:none !important}
+  .work .col.in,.work .col.out{padding:0 !important;border:none !important;width:100% !important;max-width:100% !important}
+
+  /* 4. Show + style the print header */
+  .print-header{display:flex !important}
+
+  /* 5. Section spacing tuned for paper */
+  .result-block{page-break-inside:avoid;break-inside:avoid;margin-bottom:14pt;padding-bottom:8pt;border-bottom:1px solid #000}
+  .result-block .rh{font-family:'Archivo Black',sans-serif;font-size:11px;letter-spacing:.08em;color:#000 !important;border-bottom:none !important;padding-bottom:2pt;margin-bottom:6pt;display:block}
+  .result-block .rh::first-letter{font-size:14px}
+
+  /* 6. Verdict stays prominent, but readable on B&W */
+  .verdict-label{background:transparent !important;color:#000 !important;border:2px solid #000 !important;font-weight:700}
+  .verdict-summary{color:#000 !important}
+
+  /* 7. Risk rows: bold borders + visible bar, color preserved for digital printers */
+  .rrow{background:#fff !important;border:1px solid #000 !important;page-break-inside:avoid;break-inside:avoid}
+  .rrow .rbar{background:#000 !important}
+  .rrow[data-risk="r"] .rbar{background:#000 !important}
+  .rrow[data-risk="a"] .rbar{background:#666 !important}
+  .rrow[data-risk="g"] .rbar{background:#000 !important}
+  .rrow .ro{color:#000 !important;font-family:inherit !important;font-style:normal !important}
+  .rrow .ro b{color:#000 !important;background:transparent !important}
+  .rrow .rflag{background:#fff !important;color:#000 !important;border:1.5px solid #000 !important}
+
+  /* 8. Risk tally badges: outline only */
+  .rk-tally{background:#fff !important;color:#000 !important;border:1.5px solid #000 !important}
+  .riskNote-lead{color:#000 !important}
+
+  /* 9. Highlighted terms stay visible but uncolored */
+  .rewrite b,.galleyout .out b,.ask-out .ans-line b{background:transparent !important;color:#000 !important;font-weight:700;text-decoration:underline}
+  .rewrite,.galleyout .out{color:#000 !important}
+  .ask-out .cite{background:#fff !important;color:#000 !important;border:1px solid #000}
+
+  /* 10. Deadlines & next steps keep structure */
+  .deadline-row{border:1px solid #000 !important;background:#fff !important;page-break-inside:avoid}
+  .deadline-date{color:#000 !important}
+  .deadline-desc{color:#000 !important}
+  .nextsteps-list li{border-bottom:1px dotted #000 !important;color:#000 !important;page-break-inside:avoid}
+  .nextsteps-list li::before{background:#000 !important;color:#fff !important}
+
+  /* 11. Reading-level meta + jargon */
+  .metaline{color:#000 !important}
+  .metaline b{color:#000 !important}
+
+  /* 12. Draft box: show as plain text block */
+  .draft-box{border:1px solid #000 !important;background:#fff !important;color:#000 !important;font-family:'JetBrains Mono',monospace !important;white-space:pre-wrap !important;height:auto !important;min-height:0 !important}
+  .draft-actions{display:none !important}
+
+  /* 13. Ask box: hide input, show output as plain text */
+  .askbox{display:none !important}
+  .ask-out{color:#000 !important;margin-top:8pt}
+
+  /* 14. Avoid orphan headlines */
+  h1,h2,h3{page-break-after:avoid;break-after:avoid}
+
+  /* 15. Tighter footer URL */
+  a{color:#000 !important;text-decoration:underline}
+}

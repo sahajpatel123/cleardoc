@@ -126,6 +126,11 @@ skip("analyze: loads without console errors and has new AI-backed sections", asy
     ["#nextStepsBlock", "next steps block"],
     ["#resultPanel", "result panel"],
     ["#askInput", "ask input"],
+    ["#printBtn", "print analysis button"],
+    ["#saveBtn", "save analysis button"],
+    ["#copyBtn", "copy analysis button"],
+    [".print-header", "print-only header bar"],
+    [".result-actions", "result action toolbar"],
   ]);
   assert.deepEqual(errors, [], "analyze: console errors");
 });
@@ -257,6 +262,31 @@ skip("STRICT RULE: html/body overflow-x is 'clip', never 'hidden' (kills sticky)
   const body = m[1];
   assert.match(body, /overflow-x\s*:\s*clip/i, `html,body must use overflow-x:clip, got: ${body}`);
   assert.doesNotMatch(body, /overflow-x\s*:\s*hidden/i, `html,body must NEVER use overflow-x:hidden (kills position:sticky). Found: ${body}`);
+});
+
+skip("analyze: result-actions live inside the result panel and start hidden until analysis runs", async () => {
+  if (!HAS_BROWSER) return;
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+
+  // The action bar lives inside #resultPanel, so it must inherit the panel's hidden state
+  const initiallyHidden = await page.$eval(".result-actions", (el) => {
+    return el.closest("#resultPanel")?.hidden ?? true;
+  });
+  assert.equal(initiallyHidden, true, "result-actions must be hidden initially (inside hidden resultPanel)");
+
+  // All three buttons must exist in the DOM with stable IDs
+  for (const id of ["#printBtn", "#saveBtn", "#copyBtn"]) {
+    const el = await page.$(id);
+    assert.ok(el, `${id} should exist in the DOM`);
+  }
+
+  // The print stylesheet must hide the action bar (so it doesn't appear when the user prints)
+  // We can't easily emulate print media, but we can verify the no-print class is set
+  const hasNoPrint = await page.$eval(".result-actions", (el) => el.classList.contains("no-print"));
+  assert.equal(hasNoPrint, true, ".result-actions must carry the no-print class so it's hidden in print preview");
+
+  await page.close();
 });
 
 skip("PWA manifest: all pages link to a valid site.webmanifest", async () => {
