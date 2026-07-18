@@ -113,6 +113,10 @@ test("csp-report handler: extractViolations handles empty / missing / wrong shap
   const handler = require("../api/csp-report.js");
 
   // Helper that builds a stub req/res pair and invokes the handler.
+  // Production behavior: req body chunks are Buffers (not strings).
+  // When body is "" (empty), yield a Buffer of length 0 to match the
+  // production stream semantics — `Buffer.concat([])` works, but
+  // `Buffer.concat([""])` throws because strings are not valid chunks.
   async function runWithBody(body) {
     const res = {
       statusCode: 200, _body: null, headers: {}, headersSent: false,
@@ -131,7 +135,9 @@ test("csp-report handler: extractViolations handles empty / missing / wrong shap
           next: async () => {
             if (yielded) return { done: true };
             yielded = true;
-            return { value: typeof body === "string" ? body : JSON.stringify(body) };
+            const chunk = typeof body === "string" ? body : JSON.stringify(body);
+            // Convert string → Buffer to mimic Vercel's stream chunks
+            return { value: Buffer.from(chunk, "utf8") };
           },
         };
       },
@@ -162,4 +168,61 @@ test("csp-report handler: enforces Content-Type allowlist (415 otherwise)", () =
   assert.match(src, /application\/csp-report/, "must accept application/csp-report");
   assert.match(src, /application\/reports\+json/, "must accept application/reports+json");
   assert.match(src, /415/, "must return 415 for unsupported content types");
+});
+
+// ── behavioral: Content-Type enforcement on stub requests ────────────
+
+test("csp-report handler: 415s on disallowed Content-Type before parsing the body", async () => {
+  // Behavioral: a real stub POST with form-encoded Content-Type must
+  // get 415, not 200/204/400. Without the Content-Type allowlist, the
+  // handler would JSON.parse the body, fail, and return 400 — masking
+  // the misuse signal and burning rate-limit slots on garbage payloads.
+  const handler = require("../api/csp-report.js");
+
+  async function runWith(contentType, body) {
+    const res = {
+      statusCode: 200, _body: null, headers: {}, headersSent: false,
+      setHeader(k, v) { this.headers[k] = v; },
+      end(s) { this._body = s; this.headersSent = true; },
+    };
+    const req = {
+      method: "POST",
+      headers: contentType ? { "content-type": contentType } : {},
+      body: undefined,
+      socket: { remoteAddress: "127.0.0.1" },
+      url: "/api/csp-report",
+      [Symbol.asyncIterator]() {
+        let yielded = false;
+        return {
+          next: async () => {
+            if (yielded) return { done: true };
+            yielded = true;
+            return { value: body };
+          },
+        };
+      },
+    };
+    await handler(req, res);
+    return res;
+  }
+
+  // No Content-Type at all → 415
+  const none = await runWith("", "{}");
+  assert.equal(none.statusCode, 415, "missing Content-Type must yield 415");
+
+  // Form-encoded body → 415
+  const form = await runWith("application/x-www-form-urlencoded", "key=value");
+  assert.equal(form.statusCode, 415, "form-encoded Content-Type must yield 415");
+  assert.match(form._body, /Unsupported Media Type/);
+
+  // Plain text → 415
+  const text = await runWith("text/plain", "hello");
+  assert.equal(text.statusCode, 415, "text/plain Content-Type must yield 415");
+
+  // Valid content types → NOT 415 (204 for empty body, 400 for malformed)
+  const csp = await runWith("application/csp-report", "");
+  assert.notEqual(csp.statusCode, 415, "application/csp-report must not yield 415");
+
+  const json = await runWith("application/json", "{}");
+  assert.notEqual(json.statusCode, 415, "application/json must not yield 415");
 });
