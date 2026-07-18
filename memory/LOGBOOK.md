@@ -1446,3 +1446,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed a real SPOF (chat had no fallback) and a real test-suite blocker. Both shipped together because neither could land alone without breaking CI.
+
+**2026-07-18 23:35 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #30 of the autonomous loop** (next-action cadence). Live: 23:35 IST.
+- **Shipped `X-AI-Provider` + `X-AI-Response-Time-Ms` response headers** across `/api/analyze` and `/api/chat` (work split across two agents):
+  - Parallel session `55c1e342` shipped the production code: added `applyAiResponseHeaders(res, provider, latencyMs)` to `api/_safety.js` and wired it into all three AI-touched exit paths in both handlers (200 success → callGemini/OpenRouter, 502 both-fail → `provider: none`, 502 invalid_ai_response → the actual provider that answered).
+  - My commit `df26f125` shipped 9 new tests: 7 unit tests on the helper (allowlisted providers, rejected strings, ignored latency types, fractional rounding, independent field writes, null-safety, headersSent guard) + 1 source-pattern test on each handler confirming wiring.
+- **All 185 tests pass** (was 176; +7 helper unit + +2 handler wiring). Typecheck clean. JSON-valid.
+- **Backward compatible** — purely additive observability headers, no client/frontend change. A single `curl -i /api/chat` now tells ops which provider answered and how long it took, no log correlation needed.
+
+**Prompt Intention:**
+- Honored the standing directives. Made the new provider-fallback chains observable in real time, with full test coverage. Hand-off between parallel sessions worked clean (zero duplication).
