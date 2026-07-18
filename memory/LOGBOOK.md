@@ -1436,3 +1436,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Sweep-merged five iterations into a single entry to reflect the long runtime gap.
+
+**2026-07-18 22:53 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #29 of the autonomous loop** (next-action cadence). Live: 22:53 IST.
+- **Shipped `/api/chat` OpenRouter fallback** (`b5cb75c5`). Chat had Gemini as a single point of failure — now mirrors the `/api/analyze` provider chain: Gemini primary → OpenRouter fallback. Each provider has its own 25s `REQUEST_TIMEOUT_MS` so the chain fits inside the 60s Vercel ceiling. Response now carries `provider` for ops visibility. New 503 ('No AI provider is configured.') surfaces config gaps before any provider call. RULES.md #3 strict fail-closed validation applies to either provider. `test/chat-error.test.js`: replaced the legacy inner-Gemini strings with structural assertions (Gemini-before-OpenRouter ordering, 503 when neither configured, provider in response). 6 new structural tests added; existing safety-net + history tests preserved.
+- **Fixed pre-existing `test/smoke.test.js` syntax error** (`d78daee9`). The "ask: thread" test had its `skip()` opener deleted but body remained at module scope, redeclaring `const fs` and throwing at module load — that broke `npm run check` and would have broken CI. Restored the wrapper; body and assertions were already correct. Unblocked the test suite.
+- **All 176 tests pass** (114 unit + 61 smoke + 1 integration). Typecheck clean. JSON-valid. SRI/CSS/CSP smoke tests all green.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed a real SPOF (chat had no fallback) and a real test-suite blocker. Both shipped together because neither could land alone without breaking CI.
