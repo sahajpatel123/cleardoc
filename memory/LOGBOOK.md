@@ -2025,3 +2025,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Race note:** parallel session shipped `3af1c5b2 perf(ui): cap tagsInput at 300 chars on analyze.html` with the same analyze.html change a moment before. They did NOT add a regression test. My commit added the missing test. Net: analyze.html cap lands once (from parallel), regression test lands once (from me).
 - **Verification:** 263/263 tests pass (200 unit + 70 smoke + 1 integration). Pushed to origin/main.
 
+**2026-07-19 04:26 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #52 of the autonomous loop** (cron `c3921bc4` firing). Live: 04:26 IST.
+- **Shipped memory-pressure advisory on `/api/health` `process.memory`** (`39e8f495`). New fields surface V8 heap usage against the Vercel function memory cap so ops gets an early warning before OOM kills the function.
+- **New fields**: `limitMb: N` (configured `MEMORY_LIMIT_MB` env, defaults to 256 for Vercel Hobby), `usedPercent: 12.3` (1-decimal precision), `nearLimit: bool` (true when usedPercent >= 80). Pro deployments set `MEMORY_LIMIT_MB=1024` to get the right cap.
+- **Implementation**: read MEMORY_LIMIT_MB env var, validate as finite positive integer (falls back to Hobby default on garbage). 1-decimal precision is more than enough for ops dashboards and keeps JSON tight.
+- **273/273 tests pass** (202 unit + 70 smoke + 1 integration). 2 new source-pattern tests.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the last meaningful in-process observability gap on /api/health — ops can now tell from a single `curl /api/health` whether the function is close to OOM, before the OOM kills it. Critical because pre-OOM is invisible in Vercel's default tooling.
+
