@@ -27,6 +27,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **`/api/health` provider probes parallelized** — gemini + OpenRouter HEAD probes now fire via `Promise.all`, cutting cold-cache latency from ~6s to ~3s. Warm probes (cache hit) are unaffected. Sequential was wasteful on the slow first call.
 - **`Retry-After: 60` on degraded `/api/analyze` and `/api/chat` 502 responses** — mirrors `/api/health`'s 503 behavior. When the AI provider chain is exhausted or the schema fails, clients now see a consistent back-off signal instead of hot-loop retrying. Skipped on 200 (healthy) and the 503 neither-configured path (config bug, not outage).
 - **`X-AI-Model` response header** on `/api/analyze` and `/api/chat` — joins the existing `X-AI-Provider` + `X-AI-Response-Time-Ms` family. Tells ops the exact model identifier that answered (`google/gemma-4-31b-it:free`, `gemini-2.5-flash`, etc.) without parsing the response body. ASCII-charset-allowlisted with a 128-char cap for header-injection defense.
+- **`X-AI-Fallback` response header** — fourth in the family. Tells ops whether the AI's answer came from the primary provider outright or the silent fallback activation. `/api/analyze` (OpenRouter primary) emits `true` when Gemini answered; `/api/chat` (Gemini primary) emits `true` when OpenRouter answered. Lets dashboards alert when fallback activation rate climbs.
 
 ### Observability
 - `X-Request-Id` on every API response (echoes upstream IDs when present, otherwise fresh UUID v4).

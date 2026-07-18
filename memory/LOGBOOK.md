@@ -1543,3 +1543,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the third observability gap. Per protocol, returning to ANALYZE for the next cron fire.
+
+**2026-07-19 00:40 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #35 of the autonomous loop** (cron `c3921bc4` firing). Live: 00:40 IST.
+- **Shipped `X-AI-Fallback` response header** (`5bac6e13`). Fourth in the AI-observability family. Tells ops whether the AI's answer came from the primary provider or the silent fallback activation — without needing to correlate server logs (which are GC'd on Vercel Hobby).
+- **Pairwise primary/fallback logic**: /api/analyze (OpenRouter primary) reports `fallback=true` when Gemini answered; /api/chat (Gemini primary) reports `fallback=true` when OpenRouter answered. Both-fail 502 still reports `fallback=true` since the fallback DID fire — it just also failed. Lets ops dashboards alert on degraded state regardless of outcome.
+- **Implementation**: extended `applyAiResponseHeaders(res, provider, latencyMs, model, fallbackUsed)` with optional 5th boolean arg. Backward compatible — existing 3-arg and 4-arg call sites work unchanged. 6 source-pattern tests updated to accept the new optional 4th/5th args.
+- **211/211 tests pass** (149 unit + 61 smoke + 1 integration). Four-headers family now end-to-end complete.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the fourth observability gap. Per protocol, returning to ANALYZE for the next cron fire.
