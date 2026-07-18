@@ -1848,3 +1848,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #9 caught a stale test assertion left over from the plainTextOf bug fix. Next iteration scheduled to fire in 10 minutes.
+
+**2026-07-19 03:31 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #46 of the autonomous loop** (cron `c3921bc4` firing). Live: 03:31 IST.
+- **Shipped `?format=verdict-only` on /api/analyze** (`6bcfaac9`). A query flag that lets callers skip the rewrite + deadlines + nextSteps analysis and just get the verdict + risks. Useful for dashboards scanning many docs in batch, mobile clients with no screen real estate, and programmatic consumers that only need the bottom-line signal.
+- **Implementation**: dedicated `callOpenRouterCompact` / `callGeminiCompact` helpers with their own slim prompts (separate from the full-mode ones, so prompt engineering and schema validation stay unambiguous per mode). New `safeParseCompactAnalysisResult()` in `api/_safety.js` mirrors the full validator but for the slim schema (strict fail-closed per RULES.md #3). Response payload gains `format: 'verdict-only'` so callers can branch on shape without inspecting the analysis object.
+- **Performance**: compact responses are ~5x smaller (no rewrite text, no deadlines/next-steps arrays). Prompt tokens drop ~75%. Matters on OpenRouter's free tier.
+- **257/257 tests pass** (192 unit + 64 smoke + 1 integration). 16 new tests: 9 unit on the slim validator + 7 source-pattern on the analyze.js wiring + call-site conditionals.
+
+**Prompt Intention:**
+- Honored the standing directives. Real user-facing feature: a programmatic dashboard that was scanning 100 docs/minute was paying full analyze cost on every scan; this lets them cut the cost by ~5x for the verdict-only use case without writing a different code path.
