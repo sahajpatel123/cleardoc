@@ -249,3 +249,35 @@ test("chat handler: returns 503 when NEITHER provider is configured", () => {
     "503 body must say 'No AI provider is configured.' so ops can self-diagnose"
   );
 });
+
+test("chat handler: wires applyAiResponseHeaders with provider + latency on every AI-touched response", () => {
+  // Parity with /api/analyze: every response that actually called the AI
+  // reports the provider and wall-clock latency via response headers. The
+  // three AI-touched paths in chat are: 200 success, 502 both-fail, 502
+  // invalid_ai_response. The 503 neither-configured path skips AI entirely
+  // (no headers needed; absence is itself a signal).
+  assert.match(
+    CHAT_SOURCE,
+    /applyAiResponseHeaders/,
+    "applyAiResponseHeaders must be imported from _safety.js"
+  );
+  const fnStart = CHAT_SOURCE.indexOf("module.exports = async function handler");
+  const handlerBody = CHAT_SOURCE.slice(fnStart);
+
+  // Capture the wall-clock latency once around the orchestrator
+  assert.match(handlerBody, /aiStart\s*=\s*Date\.now\(\)/, "must capture aiStart before callChatWithFallback");
+  assert.match(handlerBody, /aiLatencyMs\s*=\s*Date\.now\(\)\s*-\s*aiStart/, "must compute aiLatencyMs after the chain");
+
+  // 502 both-fail must report provider "none"
+  assert.match(
+    handlerBody,
+    /applyAiResponseHeaders\(res,\s*"none"\s*,\s*aiLatencyMs\)/,
+    "502 both-fail path must call applyAiResponseHeaders with provider='none'"
+  );
+  // 502 invalid_ai and 200 success must report out.provider
+  assert.match(
+    handlerBody,
+    /applyAiResponseHeaders\(res,\s*out\.provider\s*,\s*aiLatencyMs\)/,
+    "success / invalid_ai paths must call applyAiResponseHeaders with out.provider"
+  );
+});

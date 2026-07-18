@@ -122,3 +122,49 @@ test("analyze handler: 500 body is a literal sanitized string (no leak)", () => 
     "500 response body must not interpolate err.message"
   );
 });
+
+test("analyze handler: wires applyAiResponseHeaders with provider + latency on every AI-touched response", () => {
+  // The /api/analyze handler reports per-request provider + latency via
+  // X-AI-Provider / X-AI-Response-Time-Ms headers. Must be called BEFORE
+  // json() on every path that actually invoked the AI (success, both-fail,
+  // invalid_ai_response). For 400/413/429 paths the helper is skipped (no AI).
+  assert.match(
+    ANALYZE_SOURCE,
+    /applyAiResponseHeaders/,
+    "applyAiResponseHeaders must be imported from _safety.js"
+  );
+  const fnStart = ANALYZE_SOURCE.indexOf("module.exports = async function handler");
+  const handlerBody = ANALYZE_SOURCE.slice(fnStart);
+
+  // Capture the wall-clock latency once around the chain
+  assert.match(handlerBody, /aiStart\s*=\s*Date\.now\(\)/, "must capture aiStart before the AI chain");
+  assert.match(handlerBody, /aiLatencyMs\s*=\s*Date\.now\(\)\s*-\s*aiStart/, "must compute aiLatencyMs after the chain");
+
+  // The three AI-touched json() responses (success, both-fail, invalid_ai)
+  // must each be preceded by an applyAiResponseHeaders call.
+  for (const providerStr of ["\"none\"", "provider", "provider"]) {
+    assert.ok(
+      handlerBody.includes(providerStr),
+      `handler body must reference provider ${providerStr}`
+    );
+  }
+
+  // The 502 "both-fail" path must report provider "none"
+  assert.match(
+    handlerBody,
+    /applyAiResponseHeaders\(res,\s*"none"\s*,\s*aiLatencyMs\)/,
+    "502 both-fail path must call applyAiResponseHeaders with provider='none'"
+  );
+  // The 502 invalid_ai path must report the actual provider that answered
+  assert.match(
+    handlerBody,
+    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs\)/,
+    "502 invalid_ai path must call applyAiResponseHeaders with the actual provider"
+  );
+  // The 200 success path must also set the headers
+  assert.match(
+    handlerBody,
+    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs\)/,
+    "200 success path must call applyAiResponseHeaders with the provider"
+  );
+});

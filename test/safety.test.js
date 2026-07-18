@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog } = require("../api/_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog } = require("../api/_safety.js");
 
 // ── json ─────────────────────────────────────────────────────────────
 
@@ -551,6 +551,74 @@ test("applyRateLimitHeaders: skips fields that aren't finite numbers", () => {
   assert.equal(res.headers["X-RateLimit-Limit"], undefined);
   assert.equal(res.headers["X-RateLimit-Remaining"], undefined);
   assert.equal(res.headers["X-RateLimit-Reset"], undefined);
+});
+
+// ── applyAiResponseHeaders ─────────────────────────────────────────
+
+test("applyAiResponseHeaders: writes X-AI-Provider on each allowlisted provider", () => {
+  for (const provider of ["openrouter", "gemini", "none"]) {
+    const res = mockRes();
+    applyAiResponseHeaders(res, provider, 1234);
+    assert.equal(res.headers["X-AI-Provider"], provider, `expected ${provider} → header`);
+    assert.equal(res.headers["X-AI-Response-Time-Ms"], "1234", "expected integer ms");
+  }
+});
+
+test("applyAiResponseHeaders: rejects provider strings not in the allowlist", () => {
+  // Defense-in-depth: only emit the header for the three known values so a
+  // compromised handler can't inject arbitrary provider labels that ops
+  // dashboards would render as if they were legitimate.
+  for (const bad of ["anthropic", "openai", "<script>alert(1)</script>", "GEMINI", "", "OPENROUTER"]) {
+    const res = mockRes();
+    applyAiResponseHeaders(res, bad, 500);
+    assert.equal(
+      res.headers["X-AI-Provider"],
+      undefined,
+      `unexpected provider string "${bad}" should be ignored`
+    );
+  }
+});
+
+test("applyAiResponseHeaders: ignores non-finite or out-of-range latencyMs", () => {
+  for (const bad of [NaN, -1, Infinity, -Infinity, "100", null, undefined, 1e7 /* > 600000 cap */]) {
+    const res = mockRes();
+    applyAiResponseHeaders(res, "openrouter", bad);
+    assert.equal(res.headers["X-AI-Response-Time-Ms"], undefined, `bad latency ${bad} must be skipped`);
+  }
+});
+
+test("applyAiResponseHeaders: rounds fractional latencyMs to nearest integer", () => {
+  const res = mockRes();
+  applyAiResponseHeaders(res, "gemini", 1234.7);
+  assert.equal(res.headers["X-AI-Response-Time-Ms"], "1235");
+});
+
+test("applyAiResponseHeaders: writes headers independently (latency-only, provider-only)", () => {
+  // A handler might call this with only one of the two args in some paths
+  // (e.g. partial failure). The other field should just not be set.
+  const resA = mockRes();
+  applyAiResponseHeaders(resA, "gemini", NaN);
+  assert.equal(resA.headers["X-AI-Provider"], "gemini");
+  assert.equal(resA.headers["X-AI-Response-Time-Ms"], undefined);
+
+  const resB = mockRes();
+  applyAiResponseHeaders(resB, "INVALID", 2500);
+  assert.equal(resB.headers["X-AI-Provider"], undefined);
+  assert.equal(resB.headers["X-AI-Response-Time-Ms"], "2500");
+});
+
+test("applyAiResponseHeaders: null-safe (no throw on bad res)", () => {
+  for (const bad of [null, undefined, {}, 42, "not a res"]) {
+    // Should not throw on missing setHeader or headersSent flag.
+    applyAiResponseHeaders(bad, "gemini", 1000);
+  }
+});
+
+test("applyAiResponseHeaders: no-ops once headers have been sent", () => {
+  const res = mockRes();
+  res.headersSent = true;
+  applyAiResponseHeaders(res, "openrouter", 9999);
+  assert.deepEqual(res.headers, {}, "must not call setHeader when response is already streaming");
 });
 
 test("rateLimit: limits are isolated per IP", () => {
