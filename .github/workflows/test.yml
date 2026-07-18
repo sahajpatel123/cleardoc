@@ -36,28 +36,28 @@ jobs:
       - name: Parse-check all JS
         run: npm run syntax
 
-      - name: Unit tests (api/_safety.js core: json/asString/getIp/rateLimit/readCappedBody)
+      - name: "Unit tests (api/_safety.js core helpers)"
         run: npm run test:unit -- --test-name-pattern="^(json|asString|getIp|rateLimit|applyRateLimitHeaders|readCappedBody)"
 
-      - name: Unit tests (request-id, errLog, accessLog helpers)
+      - name: "Unit tests (request-id, errLog, accessLog helpers)"
         run: npm run test:unit -- --test-name-pattern="(generateRequestId|sanitizeIncomingRequestId|attachRequestId|errLog|accessLog)"
 
-      - name: Unit tests (analyze schema validator)
+      - name: "Unit tests (analyze schema validator)"
         run: npm run test:unit -- --test-name-pattern="safeParseAnalysisResult"
 
-      - name: Unit tests (chat schema validator)
+      - name: "Unit tests (chat schema validator)"
         run: npm run test:unit -- --test-name-pattern="safeParseChatResult"
 
-      - name: Unit tests (AI provider reachability probe)
+      - name: "Unit tests (AI provider reachability probe)"
         run: npm run test:unit -- --test-name-pattern="(probeProvider|probeProviderCached|clearProbeCache)"
 
-      - name: Unit tests (analyze handler error safety net)
+      - name: "Unit tests (analyze handler error safety net)"
         run: npm run test:unit -- --test-name-pattern="analyze handler"
 
-      - name: Unit tests (chat handler error safety net)
+      - name: "Unit tests (chat handler error safety net)"
         run: npm run test:unit -- --test-name-pattern="chat handler"
 
-      - name: Unit tests (health handler error safety net)
+      - name: "Unit tests (health handler error safety net)"
         run: npm run test:unit -- --test-name-pattern="health handler"
 
       - name: Browser smoke tests (Playwright)
