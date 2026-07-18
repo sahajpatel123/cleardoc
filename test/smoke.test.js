@@ -2278,3 +2278,26 @@ skip("faq: keyword filter narrows .qa items in real time", async () => {
   await page.close();
   await ctx.close();
 });
+
+// ── print stylesheet (iter #41) ──────────────────────────────────────
+
+test("every HTML page references assets/print.css with media='print'", () => {
+  // Source-pattern lock so the print stylesheet cannot drift off any
+  // page without it being caught by CI. Lets users save any page as PDF
+  // via the browser's "Print → Save as PDF" without the navigation chrome
+  // obstructing the content.
+  for (const page of ["index.html", "analyze.html", "pricing.html", "404.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, page), "utf8");
+    assert.match(
+      html,
+      /<link\s+rel=["']stylesheet["']\s+href=["']assets\/print\.css["']\s+media=["']print["']\s*>/,
+      `${page} must reference assets/print.css with media="print" so it only loads on print`
+    );
+  }
+  // The print stylesheet itself must exist on disk and start with @media print
+  const printCssPath = path.join(ROOT, "assets", "print.css");
+  assert.ok(fs.existsSync(printCssPath), "assets/print.css must exist on disk");
+  const printCss = fs.readFileSync(printCssPath, "utf8");
+  assert.match(printCss, /@media\s+print/, "print.css must contain an @media print rule");
+  assert.match(printCss, /display\s*:\s*none/, "print.css must hide navigation chrome on print");
+});
