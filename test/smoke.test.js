@@ -644,3 +644,86 @@ skip("pricing toggle: clicking Annually switches prices and reveals save cue", a
 
   await page.close();
 });
+
+skip("sw: service worker file exists, parses, and registers without error", async () => {
+  if (!HAS_BROWSER) return;
+  // 1. sw.js exists and parses
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const swPath = path.join(ROOT, "sw.js");
+  assert.ok(fs.existsSync(swPath), "sw.js must exist at the repo root");
+  const swSrc = fs.readFileSync(swPath, "utf8");
+  assert.match(swSrc, /addEventListener\(['"]install['"]/, "sw.js must handle install");
+  assert.match(swSrc, /addEventListener\(['"]activate['"]/, "sw.js must handle activate");
+  assert.match(swSrc, /addEventListener\(['"]fetch['"]/, "sw.js must handle fetch");
+
+  // 2. node --check parses the file (already validated elsewhere, but be explicit)
+  const { execFileSync } = require("node:child_process");
+  try {
+    execFileSync("node", ["--check", "sw.js"], { cwd: ROOT });
+  } catch (err) {
+    assert.fail(`sw.js must parse with node --check: ${err.message}`);
+  }
+
+  // 3. SW registers in the browser without erroring
+  const page = await context.newPage();
+  const regErrors = [];
+  page.on("pageerror", (e) => regErrors.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => {
+    // The SW logs a console.warn if registration fails — capture that too
+    if (m.type() === "error" || (m.type() === "warning" && /\[sw\]/.test(m.text()))) {
+      regErrors.push(`console.${m.type()}: ${m.text()}`);
+    }
+  });
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
+  // Give the SW a moment to install
+  await page.waitForTimeout(500);
+
+  // 4. SW controller should now be set (since we register from /)
+  const controlled = await page.evaluate(async () => {
+    if (!('serviceWorker' in navigator)) return 'no-sw-api';
+    // Wait briefly for the registration promise to resolve
+    for (let i = 0; i < 20; i++) {
+      if (navigator.serviceWorker.controller || (await navigator.serviceWorker.getRegistration())) break;
+      await new Promise(r => setTimeout(r, 50));
+    }
+    const reg = await navigator.serviceWorker.getRegistration();
+    return reg ? (reg.active ? 'active' : reg.installing ? 'installing' : reg.waiting ? 'waiting' : 'unknown') : 'no-registration';
+  });
+  assert.notEqual(controlled, 'no-registration', "service worker must register on localhost");
+  assert.notEqual(controlled, 'no-sw-api', "browser must support service workers");
+
+  // 5. Should not have logged any [sw] errors
+  const swErrors = regErrors.filter(e => /\[sw\]/.test(e));
+  assert.equal(swErrors.length, 0, `sw registration should be silent; got: ${swErrors.join(', ')}`);
+
+  await page.close();
+});
+
+skip("sw: cache strategy uses network-first for HTML and cache-first for assets", async () => {
+  if (!HAS_BROWSER) return;
+  // Source-pattern checks lock in the caching intent — if a future refactor
+  // quietly swaps strategies (e.g. cache-first for HTML), users would see
+  // stale content after deploys.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const swSrc = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
+
+  // HTML navigations must be network-first (with cache fallback)
+  const htmlBlock = swSrc.match(/isHTMLNavigation[\s\S]+?return;/);
+  assert.ok(htmlBlock, "HTML fetch handler must exist");
+  assert.match(htmlBlock[0], /fetch\(request\)/, "HTML strategy must hit the network first");
+  assert.match(htmlBlock[0], /cache\.match\(/, "HTML strategy must fall back to the cache");
+
+  // /api/* must never be intercepted (the cache should never hold analysis results)
+  const apiGuard = swSrc.match(/isAPIRequest[\s\S]+?return;/);
+  assert.ok(apiGuard, "API guard must exist");
+  assert.match(apiGuard[0], /\/api\//, "API guard must check for /api/ prefix");
+  assert.match(apiGuard[0], /\breturn\b/, "API guard must short-circuit (return)");
+
+  // CDN strategy must be stale-while-revalidate
+  const cdnBlock = swSrc.match(/isCDNRequest[\s\S]+?return;/);
+  assert.ok(cdnBlock, "CDN handler must exist");
+  assert.match(cdnBlock[0], /cache\.match/, "CDN strategy must read from cache first");
+  assert.match(cdnBlock[0], /cache\.put/, "CDN strategy must refresh the cache in the background");
+});

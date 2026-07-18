@@ -7,6 +7,60 @@
   const $$=(s,el)=> [...(el||document).querySelectorAll(s)];
   if(hasGSAP) gsap.registerPlugin(ScrollTrigger);
 
+  /* ---- service worker registration (offline) ---- */
+  // Only register on real origins — file:// and other insecure schemes
+  // will throw, and we don't want that to break the page.
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').then((reg) => {
+        // Surface update notifications — when a new SW is waiting, refresh-on-confirm.
+        if (reg.waiting) promptSWUpdate(reg.waiting);
+        reg.addEventListener('updatefound', () => {
+          const sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener('statechange', () => {
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+              promptSWUpdate(sw);
+            }
+          });
+        });
+      }).catch((err) => {
+        // Silent: a broken SW registration must never block the app.
+        console.warn('[sw] registration failed:', err && err.message || err);
+      });
+    });
+
+    function promptSWUpdate(worker){
+      // Soft-prompt via a transient banner — never hard-reload the user
+      // without consent (they may be mid-analysis or typing in the textarea).
+      let banner = document.getElementById('swUpdateBanner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'swUpdateBanner';
+        banner.setAttribute('role', 'status');
+        banner.setAttribute('aria-live', 'polite');
+        banner.style.cssText = 'position:fixed;left:16px;right:16px;bottom:16px;z-index:9999;background:#14120E;color:#EDE7D8;border:3px solid #FF3B00;box-shadow:6px 6px 0 #14120E;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;max-width:560px;margin:0 auto;';
+        banner.innerHTML = '<span><b style="color:#FF6A3D">Update ready.</b> A newer version is available.</span>';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = 'Reload';
+        btn.style.cssText = 'background:#FF3B00;color:#fff;border:none;font-family:inherit;font-size:inherit;padding:8px 14px;cursor:pointer;letter-spacing:inherit;text-transform:inherit;';
+        btn.addEventListener('click', () => {
+          worker && worker.postMessage && worker.postMessage('SKIP_WAITING');
+          window.location.reload();
+        });
+        const dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.textContent = 'Later';
+        dismiss.style.cssText = 'background:transparent;color:#EDE7D8;border:1px solid #EDE7D8;font-family:inherit;font-size:inherit;padding:7px 12px;cursor:pointer;letter-spacing:inherit;text-transform:inherit;';
+        dismiss.addEventListener('click', () => banner.remove());
+        banner.appendChild(btn);
+        banner.appendChild(dismiss);
+        document.body.appendChild(banner);
+      }
+    }
+  }
+
   /* ---- motion contract ---- */
   const EASE={enter:'power3.out',exit:'power2.in',sweep:'power2.inOut',stamp:'back.out(1.8)'};
   const DUR={micro:.18,base:.32,macro:.6};
