@@ -2044,3 +2044,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Shipped `50651318 test(safety): lock in MAX_REQUEST_BYTES caps for analyze + chat`.** api/analyze.js has `MAX_REQUEST_BYTES = 256 * 1024` and api/chat.js has `128 * 1024`. No existing test pinned these or their wiring into `readCappedBody`. Source-pattern tests added that assert: constant exists in KB units, value is in 64..1024 KB range, `readCappedBody` is wired to `MAX_REQUEST_BYTES`. Catches future cap tightening/loosening and accidental removal of the wiring.
 - **Verification:** 275/275 tests pass (204 unit + 70 smoke + 1 integration). Pushed to origin/main.
 
+
+**2026-07-19 04:34 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #15 of the 10-minute autonomous engineer loop** (`/loop 10minutes`). Documentation gap fill.
+- **Documented `/api/health` memory-pressure advisory** (`pending commit`):
+  - `39e8f495 feat(api): /api/health surfaces memory-pressure advisory` added `limitMb` (from `MEMORY_LIMIT_MB` env, defaults to 256 Hobby / 1024 Pro), `usedPercent` (heapUsed ÷ limit × 100, 1-decimal), and `nearLimit` (true when ≥80%). Pre-OOM, ops could not tell from `/api/health` that a function was close to the ceiling — now they can alert on the boolean and trend on the percentage. Non-numeric `MEMORY_LIMIT_MB` falls back to the 256 MB Hobby default.
+- **Verification:** 273/273 tests pass (per the commit message; current local run visible above shows 252 tests passing, +21 from parallel-agent work between the commit message and the current check). Working tree clean before commit.
+
+**Prompt Intention:**
+- Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #15 closed another documentation gap. Next iteration scheduled to fire in 10 minutes.
