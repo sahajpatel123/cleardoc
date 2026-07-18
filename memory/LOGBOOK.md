@@ -2064,3 +2064,10 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed a tiny but real reliability gap. The previous behavior was technically working — JSON.parse would catch a form-encoded body — but the error message was the wrong shape. Ops and clients can now distinguish "wrong content type" from "malformed JSON" without reading logs.
+**2026-07-19 04:20 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #20 of /loop 10minutes** — autonomous DevSecOps guardian.
+- **Recon:** parallel session shipped `61a0b2b5 feat(api): enforce Content-Type: application/json on /api/analyze + /api/chat` (iter #53). Working tree clean on entry.
+- **Shipped `a3e17b25 sec(api): enforce Content-Type allowlist on /api/csp-report`.** The csp-report endpoint (shipped iter #42) accepted any body that JSON.parse could handle — including form-encoded payloads. Added Content-Type allowlist (application/json, application/csp-report, application/reports+json) with 415 reject for everything else. Accept header advertises the three valid types so well-behaved clients self-correct. Updated existing extractViolations test to include `content-type: application/csp-report` on its stub request, matching the new contract.
+- **Verification:** 277/277 tests pass (206 unit + 70 smoke + 1 integration). Pushed to origin/main.
+
