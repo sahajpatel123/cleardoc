@@ -146,6 +146,15 @@ const _PROBE_TTL_MS = 60_000;
 const _PROBE_TIMEOUT_MS = 3000;
 const _PROBE_CACHE_MAX = 100; // hard cap; oldest entry evicted on overflow
 
+// Per-process counters surfacing how many AI provider HEAD probes this
+// function instance has issued since startup. Read by /api/health so
+// ops can correlate traffic spikes with probe-rate spikes (and spot
+// cache-miss storms when an upstream provider is rate-limiting).
+// _probeCount hits both the cache and the network; _probeCountHits
+// counts only fresh-network probes (cache misses).
+let _probeCount = 0;
+let _probeCountHits = 0;
+
 function _probeCacheTouch(key, value) {
   // LRU touch: delete + re-set to move the key to the end of iteration order.
   // Keeps the cache bounded at _PROBE_CACHE_MAX by evicting the oldest
@@ -189,11 +198,23 @@ async function probeProviderCached(key, url) {
   if (cached && now - cached.checkedAt < _PROBE_TTL_MS) {
     // Touch on hit so the entry stays "fresh" in LRU terms.
     _probeCacheTouch(key, cached);
+    _probeCount += 1;        // hit — didn't hit the network
     return Object.assign({}, cached, { cached: true });
   }
   const fresh = await probeProvider(url);
   _probeCacheTouch(key, fresh);
+  _probeCount += 1;
+  _probeCountHits += 1;     // miss — actually called probeProvider(url)
   return Object.assign({}, fresh, { cached: false });
+}
+
+/* Read-only accessor for /api/health so the surface includes probe rates.
+ * - total   = every probeProviderCached() call (hits + misses)
+ * - network = only the misses (actual outbound HEAD requests)
+ * Ops can compute cache hit rate as (total - network) / total.
+ */
+function getProbeCounts() {
+  return { total: _probeCount, network: _probeCountHits };
 }
 
 function clearProbeCache() {
@@ -905,6 +926,7 @@ module.exports = {
   probeProvider,
   probeProviderCached,
   clearProbeCache,
+  getProbeCounts,
   errLog,
   accessLog,
   sanitizeLogField,

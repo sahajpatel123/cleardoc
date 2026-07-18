@@ -513,3 +513,13 @@ test("health handler: VERSION comes from package.json (single source of truth)",
     "VERSION must not be a hardcoded literal (drift risk)"
   );
 });
+
+// ── probe counts (iter #49) ────────────────────────────────────────
+
+test("health handler: summary exposes totalProbes + networkProbes", () => {
+  // Iter #49 — surfaces the in-process probe counters so ops can see
+  // how many cache-miss HEAD requests this function has issued.
+  assert.match(HEALTH_SOURCE, /getProbeCounts/, "must call getProbeCounts()");
+  assert.match(HEALTH_SOURCE, /totalProbes\s*:\s*probeCounts\.total/, "summary must include totalProbes");
+  assert.match(HEALTH_SOURCE, /networkProbes\s*:\s*probeCounts\.network/, "summary must include networkProbes");
+});

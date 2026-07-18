@@ -11,7 +11,7 @@
  * for the most-polled endpoint in any deployment.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, errLog, accessLog, getIp, probeProviderCached } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts } = require("./_safety.js");
 
 const START_TS = Date.now();
 // Read the version from package.json — single source of truth. Without
@@ -76,6 +76,8 @@ function sendOkCached(res, payload) {
  *     fastestProviderMs:   m,    // min latency across reachable providers (null if none)
  *     slowestProviderMs:   m,    // max latency across reachable providers (null if none)
  *     cacheHits:           n,    // count of probes served from the probeCache
+ *     totalProbes:         n,    // total probeProviderCached() calls since process start
+ *     networkProbes:       n,    // of those, how many actually hit the network (misses)
  *   }
  */
 function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }) {
@@ -99,12 +101,19 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     if (probe && probe.cached) cacheHits += 1;
   }
 
+  // Probe-rate counters from the shared helper. The cache-hit ratio
+  // (cacheHits / totalProbes) tells ops whether the edge cache is doing
+  // its job. networkProbes rising while totalProbes stays flat means
+  // cache misses are growing — useful early warning.
+  const probeCounts = getProbeCounts();
   return {
     providersConfigured: configured,
     providersReachable: reachable,
     fastestProviderMs: reachableLatencies.length ? Math.min(...reachableLatencies) : null,
     slowestProviderMs: reachableLatencies.length ? Math.max(...reachableLatencies) : null,
     cacheHits,
+    totalProbes: probeCounts.total,
+    networkProbes: probeCounts.network,
   };
 }
 
