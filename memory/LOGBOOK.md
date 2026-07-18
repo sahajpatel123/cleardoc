@@ -984,6 +984,21 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Continued the security hardening. After this iteration the full chain is: TLS (HSTS) + strict CSP + `connect-src` allowlist of AI providers + SRI on every CDN script + safety-net 500 responses on all 3 handlers + strict fail-closed schema validation on AI output + X-RateLimit-* headers. The OCR feature (parallel session) addresses a real UX gap (image attachments couldn't be analyzed). Next logical gaps: cross-origin CSRF check on POST, removing `'unsafe-inline'` from `style-src` via nonces (currently allowed because GSAP uses inline `style=""` attrs).
 
+**2026-07-18 12:16 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #10 of the autonomous loop** (10-min cadence). Live: 12:09:32 → 12:16:46 IST.
+- **Added X-Request-Id propagation** across all 3 API handlers for distributed-tracing observability. Every response (including error paths) now carries an `X-Request-Id` header so user-reported errors can be correlated with server logs.
+- **`api/_safety.js`**: 3 new exports — `generateRequestId()` (uses `crypto.randomUUID()` with a timestamp fallback for ancient runtimes), `sanitizeIncomingRequestId(raw)` (header-safe ASCII whitelist, 128-char cap, rejects `\r\n` injection vectors), `attachRequestId(res, req)` (honors upstream `X-Request-Id` header when valid, otherwise mints a fresh one; sets it on `res.__requestId` so `json()` echoes it as a response header).
+- **`json()` helper**: now sets `X-Request-Id` response header if `attachRequestId()` was called first. Single point of integration — every existing `json(res, ...)` call automatically gets the header for free.
+- **`api/analyze.js`, `api/chat.js`, `api/health.js`**: each calls `attachRequestId(res, req)` at the top of the handler, before any other logic. Works in the outer try/catch too (catch fires after attach, so even uncaught-throw 500s echo the request id).
+- **`test/safety.test.js`**: 8 new tests — `json` echoes `X-Request-Id`, `generateRequestId` produces unique ASCII-safe IDs, `sanitizeIncomingRequestId` accepts header-safe ASCII + caps at 128, rejects control characters / non-ASCII / wrong types, `attachRequestId` honors upstream IDs / mints fresh / rejects malicious / handles missing req / null-safe.
+- **Bundled parallel-session changes**: `index.html` now uses dynamic `#byofLevelFrom` / `#byofLevelTo` IDs (was hardcoded), and `assets/app.js` got a shared `gradeLevel()` helper extracted for reuse. Committed together so nothing was lost.
+- **Test totals locally**: 30 smoke + 84 unit (was 75) + 1 integration = **115/115 passing**.
+- **CI result**: `417978e7 feat(api): X-Request-Id propagation + BYOF dynamic reading-level IDs` — **GREEN** on first run.
+
+**Prompt Intention:**
+- Closed the "request correlation" gap. With `X-Request-Id` now on every response (including errors), a user pasting an error message into support gives us the ID, and we can grep server logs for that exact request — no more "I got an error, sometime around noon". The pattern is fully defensive: upstream IDs are sanitized against header-injection, fallbacks exist for missing crypto, the same `json()` path serves both success and error responses.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
