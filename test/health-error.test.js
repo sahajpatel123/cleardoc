@@ -123,3 +123,23 @@ test("health handler: 503 condition requires all configured providers unreachabl
   // The `allUnreachable` variable must gate the 503 response
   assert.match(HEALTH_SOURCE, /allUnreachable/, "must compute allUnreachable before deciding 503");
 });
+
+// ── Git SHA deployment marker ──────────────────────────────────────
+
+test("health handler: payload includes gitSha from VERCEL_GIT_COMMIT_SHA", () => {
+  // Vercel sets VERCEL_GIT_COMMIT_SHA on every production deploy. The
+  // health payload must surface it so ops can correlate a health-check
+  // response with a specific commit SHA via `git rev-parse HEAD`.
+  assert.match(
+    HEALTH_SOURCE,
+    /VERCEL_GIT_COMMIT_SHA/,
+    "payload must read the Vercel-injected git SHA env var"
+  );
+  assert.match(
+    HEALTH_SOURCE,
+    /gitSha\s*:/,
+    "payload must include a gitSha field"
+  );
+  // Must fall back to null in local dev (env var unset)
+  assert.match(HEALTH_SOURCE, /\|\| null/, "gitSha must default to null when env var is unset");
+});

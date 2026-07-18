@@ -46,6 +46,12 @@ module.exports = async function handler(req, res) {
       ok: true,
       status: "ok",
       version: VERSION,
+      // Short git SHA of the deployed commit — Vercel sets
+      // VERCEL_GIT_COMMIT_SHA automatically on every production deploy.
+      // Ops can correlate a health-check response with a specific deploy
+      // by matching the SHA against `git rev-parse HEAD` on the commit
+      // they think is live. Null in local dev (env var unset).
+      gitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
       uptimeSec,
       providers: {
         gemini: hasGemini
