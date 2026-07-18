@@ -878,7 +878,7 @@
           jargonCount=$('#jargonCount'),askInput=$('#askInput'),askBtn=$('#askBtn'),askOut=$('#askOut'),msg=$('#analyzeMsg'),
           attachTray=$('#attachTray'),draftOut=$('#draftOut'),draftNote=$('#draftNote'),copyDraftBtn=$('#copyDraftBtn'),
           downloadDraftBtn=$('#downloadDraftBtn'),
-          analyzeLoading=$('#analyzeLoading'),verdictBlock=$('#verdictBlock'),verdictDisplay=$('#verdictDisplay'),
+          analyzeLoading=$('#analyzeLoading'),verdictBlock=$('#verdictBlock'),verdictDisplay=$('#verdictDisplay'),verdictCopyBtn=$('#verdictCopyBtn'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
           printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),printDate=$('#printDate'),
@@ -1926,6 +1926,29 @@
     });
     $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ input.value=q.dataset.fill; clearAttachments(); clearDraft(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} updateTextStats(); }));
     if(copyDraftBtn) copyDraftBtn.addEventListener('click',async()=>{ if(!draftOut||!draftOut.value)return; try{ await navigator.clipboard.writeText(draftOut.value); copyDraftBtn.textContent='Copied'; setTimeout(()=>copyDraftBtn.textContent='Copy draft',1400); }catch(_){ draftOut.focus(); draftOut.select(); } });
+    if(verdictCopyBtn) verdictCopyBtn.addEventListener('click',async()=>{
+      if(!verdictDisplay) return;
+      const label=(verdictDisplay.querySelector('.verdict-label')||{}).textContent || '';
+      const summary=(verdictDisplay.querySelector('.verdict-summary')||{}).textContent || '';
+      const text=(label + (summary ? ': ' + summary.trim() : '')).trim();
+      if(!text) return;
+      let ok=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok=true;
+        } else {
+          const ta=document.createElement('textarea');
+          ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok=document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      }catch(_){}
+      const orig='Copy';
+      verdictCopyBtn.textContent=ok ? 'Copied ✓' : 'Copy failed';
+      clearTimeout(verdictCopyBtn._flashTimer);
+      verdictCopyBtn._flashTimer=setTimeout(()=>{ verdictCopyBtn.textContent=orig; },1400);
+    });
     if(downloadDraftBtn) downloadDraftBtn.addEventListener('click',()=>{ if(!draftOut||!draftOut.value)return; const url=URL.createObjectURL(new Blob([draftOut.value],{type:'text/plain'})); const a=document.createElement('a'); a.href=url; a.download='cleardoc-response-draft.txt'; a.click(); URL.revokeObjectURL(url); });
     if(printBtn) printBtn.addEventListener('click',printAnalysis);
     if(saveBtn) saveBtn.addEventListener('click',saveAnalysis);

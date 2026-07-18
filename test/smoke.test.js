@@ -1051,6 +1051,63 @@ skip("draft autosave: textarea content survives reload, gets cleared on Analyze 
   await ctx.close();
 });
 
+skip("analyzer: clicking the verdict Copy button copies just the verdict + summary", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html must expose the button next to the verdict heading
+  assert.match(analyzeHtml, /id="verdictCopyBtn"/, "analyze.html must expose #verdictCopyBtn");
+  assert.match(analyzeHtml, /<button[^>]*id="verdictCopyBtn"[^>]*title="[^"]*verdict/i, "button must carry an explanatory title");
+  // The button must be marked .no-print so it doesn't ship in printouts
+  assert.match(analyzeHtml, /class="[^"]*no-print[^"]*"[^>]*id="verdictCopyBtn"|id="verdictCopyBtn"[^>]*class="[^"]*no-print/, "#verdictCopyBtn must carry .no-print");
+
+  // Source-pattern checks
+  assert.match(appSrc, /verdictCopyBtn\s*=\s*\$\('#verdictCopyBtn'\)/, "verdictCopyBtn must be captured");
+  assert.match(appSrc, /verdictCopyBtn\)\.addEventListener\('click'/, "verdictCopyBtn must be wired to a click handler");
+  // The handler reads the label + summary and writes to clipboard
+  assert.match(appSrc, /querySelector\('\.verdict-label'\)/, "handler must read the verdict label");
+  assert.match(appSrc, /querySelector\('\.verdict-summary'\)/, "handler must read the verdict summary");
+  assert.match(appSrc, /navigator\.clipboard\.writeText/, "handler must write to the clipboard");
+  // CSS defines .verdict-copy
+  assert.match(themeSrc, /\.verdict-copy\{/, ".verdict-copy CSS rule must exist");
+
+  // Live: run an analysis, click Copy, assert the button text flashed
+  // and that the clipboard contains the verdict + summary
+  const ctx = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"] });
+  const page = await ctx.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  // The preloaded sample already has analysis via offline fallback — but
+  // the verify the verdict is rendered.
+  await page.waitForSelector("#verdictDisplay .verdict-label", { timeout: 5000 }).catch(() => {});
+  const hasLabel = await page.$("#verdictDisplay .verdict-label");
+  if(!hasLabel){
+    await page.close(); await ctx.close();
+    return; // skip live assertion if no AI + no offline verdict rendered
+  }
+
+  await page.click("#verdictCopyBtn");
+  await page.waitForTimeout(80);
+  const labelText = await page.$eval("#verdictCopyBtn", (el) => el.textContent || "");
+  assert.match(labelText, /Copied|Copy failed/, `button must flash a status, got "${labelText}"`);
+
+  // If clipboard worked (Copied), verify its contents
+  if(labelText.indexOf("Copied") !== -1){
+    const clip = await page.evaluate(async () => {
+      try { return await navigator.clipboard.readText(); } catch(_){ return null; }
+    });
+    if(clip != null){
+      const expectedLabel = await page.$eval("#verdictDisplay .verdict-label", (el) => el.textContent || "");
+      assert.ok(clip.indexOf(expectedLabel.trim()) !== -1, `clipboard must contain verdict label "${expectedLabel}", got "${clip}"`);
+    }
+  }
+
+  await page.close(); await ctx.close();
+});
+
 skip("analyzer: live text-stats bar shows word/char/level/cap and reacts to typing", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

@@ -531,6 +531,9 @@
 
 /* ---- verdict display ---- */
 .verdict-display{display:flex;align-items:flex-start;gap:var(--s3);padding:var(--s3) 0}
+.verdict-copy{background:none;border:none;font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);cursor:pointer;border-bottom:1px dotted transparent;padding:0 0 0 8px;margin-left:8px;vertical-align:baseline;transition:color .15s,border-color .15s}
+.verdict-copy:hover{color:var(--accent);border-bottom-color:var(--accent)}
+.verdict-copy:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .verdict-label{font-family:'Archivo Black';font-size:var(--t-body);text-transform:uppercase;letter-spacing:.02em;padding:6px 14px;white-space:nowrap;flex:0 0 auto}
 .verdict-label.fair{background:var(--green-tint);color:var(--green);border:2px solid var(--green)}
 .verdict-label.review{background:var(--amber-tint);color:var(--amber);border:2px solid var(--amber)}
