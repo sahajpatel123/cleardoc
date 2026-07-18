@@ -34,7 +34,9 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 ### Observability
 - `X-Request-Id` on every API response (echoes upstream IDs when present, otherwise fresh UUID v4).
 - `errLog(res, prefix, err)` for tagged error logs, `accessLog(req, res, status)` for per-request completion logs.
+- `logProviderError(reqId, prefix, msg)` for tagged inner-AI-call error logs (HTTP non-2xx, network/timeout, empty content) — every Gemini / OpenRouter call in `/api/analyze` and `/api/chat` threads errors through this helper so ops can grep by request id and see exactly which provider failed and why. Critical now that the fallback chain silently retries across providers.
 - `gitSha` field in `/api/health` payload (from `VERCEL_GIT_COMMIT_SHA`) so ops can correlate responses with deploys.
+- **`HEAD /api/health` response header compliance** (RFC 7231 §4.3.2) — HEAD responses now carry the same well-formed header set as the equivalent GET (`Content-Type: application/json`, `Cache-Control: no-store`, `X-Request-Latency-Total-Ms`, `X-Build-Sha`). Previously the HEAD fast-path bypassed `json()` and skipped those headers, leaving monitoring clients with a near-empty response.
 
 ### Features
 - **Share analyses via URL** — client-side gzip + base64url encoding, no server upload needed. Includes dismissable banner.
