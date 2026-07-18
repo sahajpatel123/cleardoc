@@ -26,6 +26,20 @@ const MIME = {
 };
 
 function serveStatic() {
+  // Read the global CSP from vercel.json so the test server emits the same
+  // security headers Vercel injects in production. Without this, CSP-runtime
+  // tests would only exercise the in-memory static server (which never sends
+  // the policy) and give a false sense of safety.
+  let cspHeader = "default-src 'self'";
+  try {
+    const vercel = JSON.parse(fs.readFileSync(path.join(ROOT, "vercel.json"), "utf8"));
+    const globalBlock = vercel.headers.find((h) => h.source === "/(.*)");
+    if (globalBlock) {
+      const csp = globalBlock.headers.find((h) => h.key === "Content-Security-Policy");
+      if (csp) cspHeader = csp.value;
+    }
+  } catch (_) { /* fall back to minimal policy */ }
+
   const server = http.createServer((req, res) => {
     let p = req.url.split("?")[0];
     if (p === "/") p = "/index.html";
@@ -36,7 +50,9 @@ function serveStatic() {
       return;
     }
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, { "Content-Type": MIME[ext] || "application/octet-stream" });
+    res.setHeader("Content-Type", MIME[ext] || "application/octet-stream");
+    res.setHeader("Content-Security-Policy", cspHeader);
+    res.writeHead(200);
     fs.createReadStream(filePath).pipe(res);
   });
   server.listen(PORT);
@@ -776,6 +792,40 @@ skip("sw: cache strategy uses network-first for HTML and cache-first for assets"
   assert.match(cdnBlock[0], /cache\.match/, "CDN strategy must read from cache first");
   assert.match(cdnBlock[0], /cache\.put/, "CDN strategy must refresh the cache in the background");
 });
+
+skip("OCR: image attachments lazy-load Tesseract.js with timeout + cancel", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Loader + timeout + cancel + readImage must all exist
+  assert.match(appSrc, /function loadTesseract\(/, "loadTesseract helper must exist");
+  assert.match(appSrc, /function readImage\(/, "readImage handler must exist");
+  assert.match(appSrc, /function cancelActiveOcr\(/, "cancelActiveOcr helper must exist");
+  assert.match(appSrc, /OCR_TIMEOUT_MS\s*=\s*\d+/, "OCR timeout constant must exist");
+  assert.match(appSrc, /tesseract\.js@/, "Tesseract.js must come from a versioned CDN URL (not @latest)");
+
+  // handleFile must route images through readImage
+  const handleFileBlock = appSrc.match(/function handleFile\([\s\S]+?\n    \}/);
+  assert.ok(handleFileBlock, "handleFile must exist");
+  assert.match(handleFileBlock[0], /IMG_EXT\.test\(n\)\)\s*readImage/, "image attachments must trigger readImage");
+
+  // clearAttachments must cancel any in-flight OCR
+  const clearBlock = appSrc.match(/function clearAttachments\(\)\{[\s\S]+?\}/);
+  assert.ok(clearBlock, "clearAttachments must exist");
+  assert.match(clearBlock[0], /cancelActiveOcr\(\)/, "clearAttachments must cancel in-flight OCR");
+
+  // Fallback strings — must exist for both timeout and failure
+  assert.match(appSrc, /OCR timed out — paste the text instead/, "timeout fallback message must exist");
+  assert.match(appSrc, /OCR failed — paste the text instead/, "failure fallback message must exist");
+  assert.match(appSrc, /OCR engine unavailable — paste the text instead/, "loader-failure fallback message must exist");
+
+  // The chip's remove button (.fx) must call clearAttachments — which then
+  // cancels the OCR. Verify the wiring hasn't regressed.
+  const fxWiring = appSrc.match(/chip\.querySelector\(['"]\.fx['"]\)\.addEventListener\(['"]click['"],\s*clearAttachments\)/);
+  assert.ok(fxWiring, "chip remove (.fx) must call clearAttachments");
+});
 // ── Content-Security-Policy (vercel.json header) ────────────────────
 
 test("vercel.json: emits a strict Content-Security-Policy on every page", async () => {
@@ -860,4 +910,67 @@ test("CDN scripts have Subresource Integrity (SRI) hashes", () => {
     assert.match(attrs, /integrity="sha384-[A-Za-z0-9+\/=]+"/, `${src} must include integrity="sha384-..."`);
     assert.match(attrs, /crossorigin="anonymous"/, `${src} must include crossorigin="anonymous" (required for SRI to work)`);
   }
+});
+
+// ── CSP response-header validation ─────────────────────────────────
+//
+// The vercel.json test verifies the policy is *declared* in config. This
+// test verifies the browser actually *receives* the header on each page
+// and that the policy does not regress into `unsafe-inline` for scripts.
+
+test("every page response carries the strict Content-Security-Policy header", async () => {
+  if (!HAS_BROWSER) return;
+  for (const path of ["/", "/analyze.html", "/pricing.html", "/404.html"]) {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    const resp = await page.goto(`http://127.0.0.1:${PORT}${path}`, { waitUntil: "domcontentloaded" });
+    assert.ok(resp, `${path} must respond`);
+    const csp = resp.headers()["content-security-policy"];
+    assert.ok(csp, `${path} must carry a Content-Security-Policy header`);
+    // Must NOT allow inline scripts
+    assert.ok(
+      !/script-src[^;]*'unsafe-inline'/.test(csp),
+      `${path} script-src must NOT include 'unsafe-inline', got: ${csp}`
+    );
+    // Must include all required directives
+    for (const directive of [
+      "default-src 'self'",
+      "connect-src 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+    ]) {
+      assert.ok(csp.includes(directive), `${path} CSP must include "${directive}", got: ${csp}`);
+    }
+    await page.close();
+    await ctx.close();
+  }
+});
+
+test("CSP: inline <script> via page.evaluate() is blocked by the browser", async () => {
+  // Defense-in-depth: even if a future regression re-introduced inline JS
+  // (via innerHTML or similar), the browser MUST refuse to execute it under
+  // our strict CSP. This test injects a script via the same DOM APIs that
+  // would be used in an XSS payload and asserts it never runs.
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "domcontentloaded" });
+
+  const injected = await page.evaluate(() => {
+    try {
+      const s = document.createElement("script");
+      s.textContent = "window.__csp_bypass_marker = 'executed';";
+      document.body.appendChild(s);
+      return typeof window.__csp_bypass_marker === "string";
+    } catch (e) {
+      return "blocked:" + (e && e.message);
+    }
+  });
+  assert.equal(
+    injected,
+    false,
+    "CSP must prevent inline <script> from executing (window.__csp_bypass_marker should never be set)"
+  );
+  await page.close();
+  await ctx.close();
 });

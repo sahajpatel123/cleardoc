@@ -1484,10 +1484,12 @@
     const TEXT_EXT=/\.(txt|text|md|markdown|csv|tsv|log|json|xml|html?|rtf)$/i;
     const IMG_EXT=/\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif|tiff?)$/i;
     const PDF_EXT=/\.pdf$/i;
+    const OCR_TIMEOUT_MS = 30000;        // abort if Tesseract hasn't returned after 30s
+    const TESSERACT_SRC = 'https://unpkg.com/tesseract.js@5/dist/tesseract.min.js';
     function fmtSize(b){ if(b<1024)return b+' B'; if(b<1048576)return Math.round(b/1024)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
     function extOf(n){ const m=/\.([a-z0-9]+)$/i.exec(n); return m?m[1].toUpperCase():'FILE'; }
     function kindOf(n){ if(IMG_EXT.test(n))return'img'; if(PDF_EXT.test(n))return'pdf'; if(/\.(docx?|odt|pages)$/i.test(n))return'doc'; return'txt'; }
-    function clearAttachments(){ if(!attachTray)return; chipUrls.forEach(u=>{try{URL.revokeObjectURL(u);}catch(_){}}); chipUrls=[]; attachedText=''; attachedFile=null; attachTray.innerHTML=''; attachTray.hidden=true; if(fileInput)fileInput.value=''; }
+    function clearAttachments(){ if(!attachTray)return; cancelActiveOcr(); chipUrls.forEach(u=>{try{URL.revokeObjectURL(u);}catch(_){}}); chipUrls=[]; attachedText=''; attachedFile=null; attachTray.innerHTML=''; attachTray.hidden=true; if(fileInput)fileInput.value=''; }
     function setSub(chip,cls,txt){ const sub=chip.querySelector('.fsub'); sub.className='fsub '+cls; sub.innerHTML='<span class="dot"></span>'+esc(txt); }
     function makeChip(file){
       const kind=kindOf(file.name);
@@ -1519,9 +1521,86 @@
         prepareForAttachment();
       }catch(err){ console.error(err); setSub(chip,'warn','Could not read this PDF — paste the text instead'); }
     }
+
+    /* ---- Lazy OCR (Tesseract.js) — only loaded when an image is attached ----
+     * The 1MB+ Tesseract runtime + English language pack is loaded on-demand
+     * from a CDN. Users who never attach an image pay nothing. If the load
+     * fails, the network is offline, or OCR takes longer than OCR_TIMEOUT_MS,
+     * we fall back to the existing "paste the text" warning so the analyzer
+     * is never blocked by a missing dependency.
+     */
+    let _tesseractPromise=null;
+    let _activeOcrWorker=null;
+    function loadTesseract(){
+      if(window.Tesseract) return Promise.resolve(window.Tesseract);
+      if(_tesseractPromise) return _tesseractPromise;
+      _tesseractPromise=new Promise((resolve,reject)=>{
+        const s=document.createElement('script');
+        s.src=TESSERACT_SRC;
+        s.async=true;
+        s.onload=()=> window.Tesseract ? resolve(window.Tesseract) : reject(new Error('Tesseract missing on window after load'));
+        s.onerror=()=> { _tesseractPromise=null; reject(new Error('Failed to load Tesseract.js')); };
+        document.head.appendChild(s);
+      });
+      return _tesseractPromise;
+    }
+    async function readImage(file,chip){
+      setSub(chip,'work','Loading OCR engine…');
+      let Tesseract;
+      try{ Tesseract = await loadTesseract(); }
+      catch(err){
+        console.warn('[ocr] load failed:', err && err.message || err);
+        setSub(chip,'warn','OCR engine unavailable — paste the text instead');
+        return;
+      }
+      setSub(chip,'work','Reading image…');
+      let worker=null;
+      let timedOut=false;
+      const timer=setTimeout(()=>{
+        timedOut=true;
+        if(worker && worker.terminate){ try{ worker.terminate(); }catch(_){} }
+        setSub(chip,'warn','OCR timed out — paste the text instead');
+        _activeOcrWorker=null;
+      }, OCR_TIMEOUT_MS);
+      try{
+        worker=await Tesseract.createWorker('eng');
+        _activeOcrWorker=worker;
+        const { data } = await worker.recognize(file, {}, {
+          logger: m => {
+            if(!timedOut && m && m.status==='recognizing text' && typeof m.progress==='number'){
+              setSub(chip,'work','Reading image · '+Math.round(m.progress*100)+'%');
+            }
+          }
+        });
+        if(timedOut) return; // timeout already fired and set the chip
+        clearTimeout(timer);
+        const text=String(data && data.text || '').trim();
+        if(!text){
+          setSub(chip,'warn','No text found in image — paste it instead');
+          return;
+        }
+        attachedText=text.slice(0,30000);
+        setSub(chip,'ok','Read '+text.length+' chars · press Analyze');
+        prepareForAttachment();
+      }catch(err){
+        if(timedOut) return; // the timeout handler already set the chip
+        console.error('[ocr]', err);
+        setSub(chip,'warn','OCR failed — paste the text instead');
+      }finally{
+        clearTimeout(timer);
+        if(worker){ try{ await worker.terminate(); }catch(_){} }
+        _activeOcrWorker=null;
+      }
+    }
+    function cancelActiveOcr(){
+      if(_activeOcrWorker){
+        try{ _activeOcrWorker.terminate(); }catch(_){}
+        _activeOcrWorker=null;
+      }
+    }
     function handleFile(file){ if(!file||!attachTray)return; attachedFile=file; attachedText=''; const chip=makeChip(file); const n=file.name;
       if(PDF_EXT.test(n)) readPdf(file,chip);
-      else if(IMG_EXT.test(n)){ setSub(chip,'warn','Image attached · add text/context, then Analyze'); prepareForAttachment(); }
+      else if(IMG_EXT.test(n)) readImage(file,chip);
       else if(TEXT_EXT.test(n)||(file.type&&file.type.indexOf('text')===0)) readText(file,chip);
       else if(/\.(docx?|odt|pages)$/i.test(n)) setSub(chip,'warn','Office doc attached · paste the text to analyze');
       else readText(file,chip);
