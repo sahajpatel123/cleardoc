@@ -427,14 +427,43 @@
     const nav=$('nav'),btn=$('.menu-toggle'),links=$('.navlinks');
     if(!nav||!btn||!links)return;
     const mq=matchMedia('(max-width: 900px)');
+    function focusables(){
+      // Only consider real interactive descendants of the open drawer
+      return $$('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])', links)
+        .filter(el => el.offsetParent !== null);
+    }
     function setOpen(open){
       nav.classList.toggle('open',open);
       btn.setAttribute('aria-expanded',open?'true':'false');
       btn.setAttribute('aria-label',open?'Close navigation':'Open navigation');
+      if(open){
+        // Move focus into the drawer so keyboard / screen-reader users
+        // land on the first interactive item.
+        const first = focusables()[0];
+        if(first) first.focus({preventScroll:true});
+      } else {
+        // Return focus to the toggle so the user doesn't lose their place.
+        btn.focus({preventScroll:true});
+      }
     }
     btn.addEventListener('click',()=>setOpen(!nav.classList.contains('open')));
     links.addEventListener('click',e=>{ if(e.target.closest('a'))setOpen(false); });
-    document.addEventListener('keydown',e=>{ if(e.key==='Escape')setOpen(false); });
+    document.addEventListener('keydown',e=>{
+      if(!nav.classList.contains('open')) return;
+      if(e.key === 'Escape'){ setOpen(false); return; }
+      // Focus trap: cycle Tab / Shift+Tab within the drawer.
+      if(e.key === 'Tab'){
+        const f = focusables();
+        if(f.length === 0) return;
+        const first = f[0], last = f[f.length-1];
+        const active = document.activeElement;
+        if(e.shiftKey && active === first){
+          e.preventDefault(); last.focus();
+        } else if(!e.shiftKey && active === last){
+          e.preventDefault(); first.focus();
+        }
+      }
+    });
     document.addEventListener('click',e=>{ if(mq.matches && nav.classList.contains('open') && !nav.contains(e.target))setOpen(false); });
     const onModeChange=e=>{ if(!e.matches)setOpen(false); };
     if(mq.addEventListener)mq.addEventListener('change',onModeChange);

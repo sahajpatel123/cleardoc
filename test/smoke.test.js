@@ -1159,6 +1159,74 @@ skip("keyboard: 'g a' navigates to analyze, 'g h' to home; '/' focuses the docum
 
   await page.close();
 });
+
+skip("a11y: mobile drawer traps focus + returns focus to toggle on close", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  // Source-pattern: focusables() helper + Tab/Shift+Tab handlers + setOpen
+  // toggles focus between the drawer and the toggle button.
+  assert.match(appSrc, /function focusables\(\)/, "focusables() helper must exist");
+  assert.match(appSrc, /e\.key === 'Tab'/, "Tab handler must be wired");
+  assert.match(appSrc, /first\.focus\(\);[\s\S]+?last\.focus\(\)/, "focus trap must wrap from last → first on Tab");
+  assert.match(appSrc, /btn\.focus\(\{preventScroll:true\}\)/, "closing the drawer must return focus to the toggle button");
+
+  // Live: at 375px, opening the drawer focuses the first link; Tab from the
+  // last link wraps back to the first; Escape closes and focus returns to the toggle.
+  const mobile = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const page = await mobile.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
+
+  // Open the drawer
+  await page.click(".menu-toggle");
+  await page.waitForTimeout(60);
+  // The first interactive descendant of the open drawer should be focused.
+  const firstFocus = await page.evaluate(() => {
+    const ae = document.activeElement;
+    return ae ? { tag: ae.tagName.toLowerCase(), text: (ae.textContent || "").trim().slice(0, 30) } : null;
+  });
+  assert.ok(firstFocus && firstFocus.tag === "a", `opening drawer must focus first link, got ${JSON.stringify(firstFocus)}`);
+
+  // Press Tab repeatedly — focus must stay within the .navlinks drawer.
+  for (let i = 0; i < 20; i++) {
+    await page.keyboard.press("Tab");
+    const inDrawer = await page.evaluate(() => {
+      const ae = document.activeElement;
+      return !!ae && document.querySelector(".navlinks").contains(ae);
+    });
+    if(!inDrawer){
+      assert.fail(`Tab escaped the drawer at iteration ${i} — focus should be trapped`);
+    }
+  }
+  // Shift+Tab also stays in
+  for (let i = 0; i < 10; i++) {
+    await page.keyboard.down("Shift");
+    await page.keyboard.press("Tab");
+    await page.keyboard.up("Shift");
+    const inDrawer2 = await page.evaluate(() => {
+      const ae = document.activeElement;
+      return !!ae && document.querySelector(".navlinks").contains(ae);
+    });
+    if(!inDrawer2){
+      assert.fail(`Shift+Tab escaped the drawer at iteration ${i}`);
+    }
+  }
+
+  // Escape closes and returns focus to the toggle
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(60);
+  const focusAfterClose = await page.evaluate(() => {
+    const ae = document.activeElement;
+    return ae ? { tag: ae.tagName.toLowerCase(), cls: ae.className || "" } : null;
+  });
+  assert.ok(focusAfterClose && focusAfterClose.tag === "button" && /menu-toggle/.test(focusAfterClose.cls),
+    `Escape must return focus to .menu-toggle, got ${JSON.stringify(focusAfterClose)}`);
+  const drawerHidden = await page.$eval("nav", (el) => !el.classList.contains("open"));
+  assert.equal(drawerHidden, true, "Escape must close the drawer");
+
+  await page.close(); await mobile.close();
+});
 // ── Content-Security-Policy (vercel.json header) ────────────────────
 
 test("vercel.json: emits a strict Content-Security-Policy on every page", async () => {
