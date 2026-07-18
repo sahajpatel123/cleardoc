@@ -842,3 +842,22 @@ test("HTML pages ship zero inline <script> blocks (CSP enforcer)", () => {
     );
   }
 });
+
+test("CDN scripts have Subresource Integrity (SRI) hashes", () => {
+  // Defense-in-depth: the strict CSP whitelists cdnjs.cloudflare.com and
+  // unpkg.com, but if either CDN is compromised we still want the browser
+  // to reject the bytes. SRI pins each script to its known SHA-384.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  // Match every external script tag (any absolute URL).
+  const scriptTagRe = /<script\s+src="(https:\/\/[^"]+)"([^>]*)>/g;
+  const tags = [];
+  let m;
+  while ((m = scriptTagRe.exec(html)) !== null) tags.push({ src: m[1], attrs: m[2] });
+  assert.ok(tags.length >= 4, `analyze.html must reference at least 4 CDN scripts (got ${tags.length})`);
+  for (const { src, attrs } of tags) {
+    assert.match(attrs, /integrity="sha384-[A-Za-z0-9+\/=]+"/, `${src} must include integrity="sha384-..."`);
+    assert.match(attrs, /crossorigin="anonymous"/, `${src} must include crossorigin="anonymous" (required for SRI to work)`);
+  }
+});
