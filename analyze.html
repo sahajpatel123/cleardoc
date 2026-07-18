@@ -99,6 +99,17 @@
     </div>
   </aside>
 
+  <aside class="restore-banner share-banner" id="shareBanner" hidden aria-live="polite">
+    <div class="rb-info">
+      <span class="rb-kicker">// shared analysis</span>
+      <span class="rb-text">Someone shared an analysis of <b id="shareDocName">a document</b> with you. The text is encoded in the URL — nothing was uploaded.</span>
+    </div>
+    <div class="rb-actions">
+      <button class="ghost-btn" id="viewShareBtn" type="button">View analysis</button>
+      <button class="ghost-btn rb-dismiss" id="dismissShareBtn" type="button" aria-label="Dismiss the shared analysis">Dismiss</button>
+    </div>
+  </aside>
+
   <section class="work" aria-label="Document analyzer">
     <div class="col in">
       <label class="lbl" for="docInput">Your document or clause</label>
@@ -142,6 +153,7 @@
           <button class="ghost-btn" id="printBtn" type="button" title="Print or save this analysis as a PDF">🖨 Print</button>
           <button class="ghost-btn" id="saveBtn" type="button" title="Download a plain-text copy of this analysis">⬇ Save .txt</button>
           <button class="ghost-btn" id="copyBtn" type="button" title="Copy a plain-text summary to your clipboard">📋 Copy</button>
+          <button class="ghost-btn" id="shareBtn" type="button" title="Copy a link to this analysis — nothing leaves your device, the text is encoded in the URL">🔗 Share link</button>
         </div>
         <div class="result-block" id="verdictBlock">
           <span class="rh">📋 Verdict</span>

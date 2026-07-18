@@ -76,7 +76,10 @@ function stubFetchWithValidAnalysis() {
 }
 function installFetchStub() {
   _origFetch = globalThis.fetch;
-  globalThis.fetch = async () => stubFetchWithValidAnalysis();
+  globalThis.fetch = async (url, opts) => {
+    if(process.env.DEBUG_FETCH) console.log('[STUB] fetch called with:', url);
+    return stubFetchWithValidAnalysis();
+  };
 }
 function uninstallFetchStub() {
   if (_origFetch) {

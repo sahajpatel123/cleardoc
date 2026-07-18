@@ -505,8 +505,11 @@
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
           printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),printDate=$('#printDate'),
+          shareBtn=$('#shareBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
-          restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn');
+          restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
+          shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
+          viewShareBtn=$('#viewShareBtn'),dismissShareBtn=$('#dismissShareBtn');
     const sampleText=input.value.trim();
 
     // trap/risk patterns — severity g(note) a(watch) r(trap)
@@ -586,6 +589,174 @@
       if(trimmed.length<=60) return '"'+trimmed+'"';
       return '"'+trimmed.slice(0,57)+'…"';
     }
+
+    /* ── URL-fragment share ────────────────────────────────
+     *
+     * Share an analysis via URL hash so the data never leaves the
+     * sender's device. The fragment is gzipped + base64url-encoded;
+     * we ship only the data the recipient needs to render the same
+     * result (no AI keys, no server roundtrip).
+     *
+     * Browser URL length limits are the binding constraint: Chrome
+     * silently drops fragments past ~16KB and refuses past ~32KB.
+     * We cap aggressively so links work everywhere.
+     */
+    const SHARE_RAW_MAX = 3000;
+    const SHARE_REWRITE_MAX = 3000;
+    const SHARE_PAYLOAD_MAX_BYTES = 6000; // base64url bytes; ~4.5KB after gzip
+    function b64urlEncode(bytes){
+      let bin='';
+      for(let i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]);
+      return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    }
+    function b64urlDecode(str){
+      str=String(str||'').replace(/-/g,'+').replace(/_/g,'/');
+      while(str.length%4) str+='=';
+      const bin=atob(str);
+      const out=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
+      return out;
+    }
+    async function gzipString(str){
+      if(!('CompressionStream' in window)) return null;
+      try{
+        const stream=new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));
+        const buf=await new Response(stream).arrayBuffer();
+        return new Uint8Array(buf);
+      }catch(_){ return null; }
+    }
+    async function gunzipString(bytes){
+      if(!('DecompressionStream' in window)) return null;
+      try{
+        const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+        return await new Response(stream).text();
+      }catch(_){ return null; }
+    }
+    async function encodeSharePayload(payload){
+      const json=JSON.stringify(payload);
+      const gz=await gzipString(json);
+      // Prefer gzip; fall back to uncompressed (larger but still works in any browser)
+      if(gz) return { v:2, data: b64urlEncode(gz) };
+      return { v:1, data: btoa(unescape(encodeURIComponent(json))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'') };
+    }
+    async function decodeSharePayload(token){
+      const safe=b64urlDecode(String(token||''));
+      // Try v2 (gzipped) first
+      const gz=await gunzipString(safe);
+      if(gz){
+        try{ return JSON.parse(gz); }catch(_){ /* fall through */ }
+      }
+      // Fall back: assume raw base64url of utf-8 JSON
+      try{
+        const text=decodeURIComponent(escape(btoa(String.fromCharCode(...safe))));
+        return JSON.parse(text);
+      }catch(_){ return null; }
+    }
+    function buildShareSnapshot(){
+      if(!lastRaw) return null;
+      // Trim long fields so the encoded URL stays under SHARE_PAYLOAD_MAX_BYTES.
+      // We send what's needed to re-render the same analysis on the recipient side.
+      const verdict = (verdictBlock && !verdictBlock.hidden && verdictDisplay) ? {
+        label: (verdictDisplay.querySelector('.verdict-label')||{}).textContent || '',
+        summary: (verdictDisplay.querySelector('.verdict-summary')||{}).textContent || ''
+      } : null;
+      const readingLevel = (levelFrom && levelTo) ? {
+        before: parseInt((levelFrom.textContent||'').replace(/\D/g,''),10) || null,
+        after: parseInt((levelTo.textContent||'').replace(/\D/g,''),10) || null
+      } : null;
+      return {
+        v: 1,
+        ts: Date.now(),
+        raw: String(lastRaw).slice(0, SHARE_RAW_MAX),
+        rawTruncated: lastRaw.length > SHARE_RAW_MAX,
+        fileName: attachedFile && attachedFile.name ? attachedFile.name : null,
+        rewriteHtml: (plainOut ? plainOut.innerHTML : '').slice(0, SHARE_REWRITE_MAX),
+        rewriteTruncated: plainOut ? (plainOut.innerHTML.length > SHARE_REWRITE_MAX) : false,
+        verdict,
+        readingLevel,
+        jargonFound: jargonCount ? parseInt((jargonCount.textContent||'0').replace(/\D/g,''),10)||0 : 0,
+        risks: (lastFlags || []).slice(0, 8).map(r=>({sev:r.rule.sev,label:r.rule.label,clause:String(r.s||'').slice(0,200),why:String(r.rule.why||'').slice(0,200)})),
+        deadlines: deadlinesList ? [...deadlinesList.querySelectorAll('.deadline-row')].slice(0,6).map(row=>({
+          date: (row.querySelector('.deadline-date')||{}).textContent || '',
+          description: (row.querySelector('.deadline-desc')||{}).textContent || ''
+        })) : [],
+        nextSteps: nextStepsList ? [...nextStepsList.querySelectorAll('li')].slice(0,6).map(li=>li.textContent||'') : []
+      };
+    }
+    async function buildShareUrl(){
+      const snap=buildShareSnapshot();
+      if(!snap) return null;
+      const encoded=await encodeSharePayload(snap);
+      const base=location.origin+location.pathname;
+      const url=base+'#share='+encoded.data;
+      if(url.length>SHARE_PAYLOAD_MAX_BYTES){
+        return { ok:false, url, reason:'too_long', bytes:url.length };
+      }
+      return { ok:true, url, bytes:url.length, truncated: snap.rawTruncated || snap.rewriteTruncated };
+    }
+    async function shareAnalysis(){
+      if(!lastRaw){
+        if(msg){msg.textContent='Analyze a document first, then share the link.'; msg.className='analyze-msg';}
+        return;
+      }
+      const result=await buildShareUrl();
+      if(!result){
+        flashButton(shareBtn, 'Share failed', 1800);
+        return;
+      }
+      if(!result.ok && result.reason==='too_long'){
+        if(msg){
+          msg.textContent='This analysis is too long to share as a link ('+result.bytes+' bytes). Use Save .txt or Copy instead.';
+          msg.className='analyze-msg err';
+        }
+        flashButton(shareBtn, 'Too long', 1800);
+        return;
+      }
+      let copied=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(result.url);
+          copied=true;
+        } else {
+          const ta=document.createElement('textarea');
+          ta.value=result.url;
+          ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta);
+          ta.select();
+          copied=document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+      }catch(e){ console.warn('[share] clipboard failed', e); }
+      flashButton(shareBtn, copied ? 'Link copied ✓' : 'Copy failed', copied ? 1500 : 1800);
+      if(msg){
+        const truncNote = result.truncated ? ' (truncated to fit the URL)' : '';
+        msg.textContent = copied
+          ? ('Share link copied — the document text is encoded in the URL'+truncNote+'. Recipients see the analysis without any server roundtrip.')
+          : ('Could not copy the link automatically. Use Save .txt instead.');
+        msg.className = copied ? 'analyze-msg' : 'analyze-msg err';
+      }
+    }
+    async function tryLoadSharedAnalysis(){
+      if(!location.hash || location.hash.indexOf('#share=') !== 0) return;
+      const token=location.hash.slice('#share='.length);
+      if(!token) return;
+      let snap=null;
+      try{ snap=await decodeSharePayload(token); }catch(_){ snap=null; }
+      if(!snap || typeof snap!=='object' || snap.v!==1){
+        if(msg){msg.textContent='This share link is malformed or from an older version of ClearDoc.'; msg.className='analyze-msg err';}
+        return;
+      }
+      // Stash the decoded payload; user clicks "View" to actually paint it.
+      pendingSharedSnapshot=snap;
+      if(shareBanner){
+        if(shareDocName) shareDocName.textContent=shortDocName(snap.raw||'', snap.fileName||null);
+        shareBanner.hidden=false;
+        if(!noMotion && window.gsap){
+          gsap.from(shareBanner,{y:-6,opacity:0,duration:DUR.base,ease:EASE.enter});
+        }
+      }
+    }
+    let pendingSharedSnapshot=null;
     let lastSentences=[],lastFlags=[],lastRaw='',attachedText='',attachedFile=null,chipUrls=[];
     function activeDocumentText(){
       const typed=input.value.trim();
@@ -1235,8 +1406,25 @@
     if(printBtn) printBtn.addEventListener('click',printAnalysis);
     if(saveBtn) saveBtn.addEventListener('click',saveAnalysis);
     if(copyBtn) copyBtn.addEventListener('click',copyAnalysis);
+    if(shareBtn) shareBtn.addEventListener('click',shareAnalysis);
     // Keyboard shortcuts when results are visible: Cmd/Ctrl+P already triggers window.print(),
     // and our print stylesheet routes that through the clean print layout. No extra wiring needed.
+
+    // Shared-analysis banner (#share= in the URL): paint + clean up the hash on view
+    if(viewShareBtn) viewShareBtn.addEventListener('click',()=>{
+      if(pendingSharedSnapshot){
+        paintStoredSnapshot(pendingSharedSnapshot);
+        // Drop the share fragment so a refresh doesn't re-trigger the banner
+        try{ history.replaceState(null, '', location.pathname+location.search); }catch(_){}
+      }
+      if(shareBanner) shareBanner.hidden=true;
+    });
+    if(dismissShareBtn) dismissShareBtn.addEventListener('click',()=>{
+      try{ history.replaceState(null, '', location.pathname+location.search); }catch(_){}
+      pendingSharedSnapshot=null;
+      if(shareBanner) shareBanner.hidden=true;
+      if(msg){msg.textContent='Shared analysis dismissed.'; msg.className='analyze-msg';}
+    });
 
     /* ---- FILE ATTACHMENT — accepts text, PDF, images & common office formats ---- */
     const TEXT_EXT=/\.(txt|text|md|markdown|csv|tsv|log|json|xml|html?|rtf)$/i;
@@ -1290,6 +1478,8 @@
 
     // Offer to restore the last analysis (24h TTL) — never blocks the empty state
     try { maybeOfferRestore(); } catch(e){ console.warn('[restore]', e); }
+    // Decode any #share= fragment so we can offer to view it
+    try { tryLoadSharedAnalysis(); } catch(e){ console.warn('[share-load]', e); }
   }
 
 })();

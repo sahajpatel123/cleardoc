@@ -523,6 +523,12 @@
 .restore-banner #restoreBtn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
 .restore-banner .rb-dismiss{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;padding:10px 14px;color:var(--ink-soft)}
 .restore-banner .rb-dismiss:hover{background:var(--ink);color:var(--paper)}
+
+/* share variant: green accent (incoming = safe) instead of accent (restore) */
+.share-banner{background:var(--green-tint);border-color:var(--green)}
+.share-banner .rb-kicker{color:var(--green);border-color:var(--green);background:#fff}
+.share-banner #viewShareBtn{background:var(--green);color:#fff;border-color:var(--green)}
+.share-banner #viewShareBtn:hover{background:var(--ink);border-color:var(--ink);color:#fff}
 @media(max-width:600px){.restore-banner{margin:0 var(--s3) var(--s3)}.restore-banner .rb-actions{width:100%}.restore-banner #restoreBtn,.restore-banner .rb-dismiss{flex:1}}
 
 /* ---- ANALYZER RESULT ACTIONS (Print / Save / Copy) ---- */

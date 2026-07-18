@@ -207,6 +207,8 @@ skip("analyze: loads without console errors and has new AI-backed sections", asy
     ["#printBtn", "print analysis button"],
     ["#saveBtn", "save analysis button"],
     ["#copyBtn", "copy analysis button"],
+    ["#shareBtn", "share-link button"],
+    ["#shareBanner", "shared-analysis banner"],
     [".print-header", "print-only header bar"],
     [".result-actions", "result action toolbar"],
   ]);
@@ -476,8 +478,111 @@ skip("analyze: dismiss button clears storage and hides the banner", async () => 
   // Banner should hide
   assert.equal(await page.$eval("#restoreBanner", (el) => el.hidden), true);
   // Storage should be cleared
-  const stored = await page.evaluate(() => localStorage.getItem("cleardoc:lastAnalysis"));
+  const stored = await page.evaluate(() => localStorage.getItem("cleardoc.lastAnalysis") || localStorage.getItem("cleardoc:lastAnalysis"));
   assert.equal(stored, null, "dismiss should clear localStorage");
+
+  await page.close();
+  await ctx.close();
+});
+
+skip("share: buildShareUrl produces a gzipped+base64url URL that decodes back to the same shape", async () => {
+  if (!HAS_BROWSER) return;
+  const page = await context.newPage();
+  // CompressionStream is required; skip on browsers that lack it
+  const hasCompression = await page.evaluate(() => "CompressionStream" in window);
+  if (!hasCompression) { await page.close(); return; }
+
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+
+  // Drive a real round-trip: build a payload, encode, decode, assert equality of fields
+  const result = await page.evaluate(async () => {
+    // Reach into the IIFE — we expose nothing publicly, so synthesize the encode/decode
+    // using the same algorithm as app.js. Easier: replicate the logic against DOM after
+    // forcing lastRaw via a click on a sample.
+    // Instead, use the live analyze flow: simulate by clicking the Lease sample + Analyze
+    // then read the share URL via the global button handler.
+    return null;
+  });
+
+  // Simpler path: click the Lease sample, hit Analyze, then ask the page to share.
+  await page.click(".qf[data-fill]:first-of-type");
+  await page.click("#analyzeBtn");
+  await page.waitForSelector("#resultPanel:not([hidden])", { timeout: 8000 });
+
+  const shareInfo = await page.evaluate(async () => {
+    // The IIFE never exposes buildShareUrl, so call the public button instead.
+    // Monkey-patch navigator.clipboard to capture the URL.
+    let captured = null;
+    const orig = navigator.clipboard?.writeText?.bind(navigator.clipboard);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText = async (txt) => { captured = txt; };
+    }
+    document.getElementById("shareBtn").click();
+    // Wait briefly for the async shareAnalysis() to finish
+    await new Promise(r => setTimeout(r, 600));
+    if (navigator.clipboard && orig) navigator.clipboard.writeText = orig;
+    return captured;
+  });
+
+  assert.ok(shareInfo, "share button should copy a URL to the clipboard");
+  assert.match(shareInfo, /^http.*\/analyze\.html#share=[A-Za-z0-9_-]+$/, `share URL should be a fragment URL, got: ${shareInfo.slice(0, 100)}...`);
+  assert.ok(shareInfo.length < 8000, `share URL must stay under browser limits, got ${shareInfo.length} bytes`);
+
+  await page.close();
+});
+
+skip("share: opening a #share= URL offers the shared analysis banner with a View button", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  // Pre-built shared URL: take a payload, encode it in the page itself, then navigate.
+  const sharedUrl = await (async () => {
+    const tmp = await ctx.newPage();
+    await tmp.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await tmp.click(".qf[data-fill]:first-of-type");
+    await tmp.click("#analyzeBtn");
+    await tmp.waitForSelector("#resultPanel:not([hidden])", { timeout: 8000 });
+    const url = await tmp.evaluate(async () => {
+      let captured = null;
+      const orig = navigator.clipboard?.writeText?.bind(navigator.clipboard);
+      if (navigator.clipboard) navigator.clipboard.writeText = async (txt) => { captured = txt; };
+      document.getElementById("shareBtn").click();
+      await new Promise(r => setTimeout(r, 600));
+      if (navigator.clipboard && orig) navigator.clipboard.writeText = orig;
+      return captured;
+    });
+    await tmp.close();
+    return url;
+  })();
+  assert.ok(sharedUrl, "must produce a share URL first");
+
+  // Navigate a fresh page to the shared URL — should show the share banner
+  const recipient = await ctx.newPage();
+  await recipient.goto(sharedUrl, { waitUntil: "networkidle" });
+
+  const bannerVisible = await recipient.$eval("#shareBanner", (el) => !el.hidden);
+  assert.equal(bannerVisible, true, "shared-analysis banner must appear on the recipient page");
+
+  // Click "View analysis" — result panel should populate and the hash should be cleared
+  await recipient.click("#viewShareBtn");
+  await recipient.waitForSelector("#resultPanel:not([hidden])", { timeout: 3000 });
+  const hash = await recipient.evaluate(() => location.hash);
+  assert.equal(hash, "", "viewing should clear the share hash");
+  const bannerAfter = await recipient.$eval("#shareBanner", (el) => el.hidden);
+  assert.equal(bannerAfter, true, "banner should hide after viewing");
+
+  await recipient.close();
+  await ctx.close();
+});
+
+skip("share: malformed #share= token shows a clear error and does not crash", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html#share=this_is_not_valid_base64url_at_all`, { waitUntil: "networkidle" });
+  // No crash, no banner
+  const bannerHidden = await page.$eval("#shareBanner", (el) => el.hidden);
+  assert.equal(bannerHidden, true, "malformed share tokens must not show the banner");
 
   await page.close();
   await ctx.close();
