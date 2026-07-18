@@ -1568,3 +1568,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored standing directives. Two-pass recon → audit → ship. Picked SRI as the highest-impact gap; verified share decoder clean; deferred to parallel session's X-AI-Model work.
 
+**2026-07-19 01:38 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #36 of the autonomous loop** (cron `c3921bc4` firing). Live: 01:38 IST.
+- **Shipped `X-AI-OpenRouter-Ms` + `X-AI-Gemini-Ms` per-provider latency headers** (`640a9dff`). Closes the per-provider observability gap — when the fallback chain activates, total `X-AI-Response-Time-Ms` told you "this was slow" but not which provider was the bottleneck. Now ops can pin down "Gemini's slow today" vs "OpenRouter's network is the problem" from header inspection alone.
+- **Helper extension**: `applyAiResponseHeaders(res, provider, latencyMs, model, fallbackUsed, perProviderMs)` — 6-arg form. Strict allowlist on `perProviderMs` keys (`openrouter` / `gemini` only) so a leaked object can't drive arbitrary header names. Header names looked up via static map because naive TitleCase would render `openrouter` → `Openrouter` (missing capital R).
+- **Per-handler wiring**: /api/analyze tracks `openrouterMs` and `geminiMs` around each provider call. /api/chat's `callChatWithFallback()` threads per-provider latency into `out.perProviderMs`. Both-fail 502 still passes per-provider latency (inline object literal when orchestrator returned null).
+- **217/217 tests pass** (155 unit + 61 smoke + 1 integration). Five-headers family complete: `X-AI-Provider`, `X-AI-Response-Time-Ms`, `X-AI-Model`, `X-AI-Fallback`, `X-AI-<Provider>-Ms`. Plus `X-Request-Latency-Total-Ms` and `Retry-After: 60`.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the per-provider observability gap that I introduced with the iter #29-#35 fallback chain but hadn't backfilled. Parallel session's `logProviderError` integration on the inner-call side complements this nicely.
+
