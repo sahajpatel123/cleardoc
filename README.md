@@ -24,8 +24,18 @@ ClearDoc turns intimidating legal, medical, and financial documents into plain E
 The frontend is plain HTML/CSS/JS — open `index.html` directly, or:
 
 ```bash
+# Node version is pinned via .nvmrc (Node 22, matches CI).
+nvm use   # or `fnm use` / Volta / asdf — whatever auto-respects .nvmrc
+
+# Install Playwright (only runtime dep for the smoke tests).
+npm install --no-save playwright
+npx playwright install --with-deps chromium
+
 # Any static server works. Vercel CLI is convenient:
 npx vercel dev
+
+# Run the full local CI equivalent:
+npm run check
 ```
 
 API endpoints need Node 18+ and run on Vercel's serverless runtime. For local development, `vercel dev` runs both the static site and the functions.
