@@ -889,3 +889,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - User reiterated: "track live time … 100% ownership … do not waste time asking me anything". Honored by appending only a concise entry and re-arming the wakeup at +15min. Did NOT double-write a long audit entry — the parallel session already captured the substantive fix; my audit is the cross-check.
+
+**2026-07-18 10:21 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #4 of the autonomous loop** (10-min cadence). Live: 10:17:15 → 10:21:10 IST.
+- **Extended the strict validator pattern to /api/chat** — closes the parity gap with /api/analyze (which got `safeParseAnalysisResult` in iteration #1). Before this change, `chat.js` passed Gemini's raw text through with no shape or length validation — Gemini's `maxOutputTokens: 700` config was the only cap, and a misconfigured upstream provider could ship megabyte payloads.
+- **New exports in `api/_safety.js`**: `CHAT_LIMITS` (frozen) — `answerMax: 8000`, `modelMax: 100`, `citationMax: 200`; `safeParseChatResult(obj)` — strict fail-closed validator mirroring the analysis-side pattern. Validates `answer`, `model`, `citation` all as non-empty strings within their caps; collects multiple errors at once.
+- **`api/chat.js`**: success path now calls `safeParseChatResult({ answer, citation, model })` and returns the cleaned value. On validation failure: `502 {error, reason: 'invalid_ai_response'}` with a `console.error` log line.
+- **New `test/chat-schema.test.js`**: 13 unit tests covering happy path, top-level shape rejection, type errors per field, empty-string rejection, length-cap enforcement, and multi-field error collection. Wired into `.github/workflows/test.yml`.
+- **Test totals locally**: 16 smoke + 57 unit (16 safety + 28 analyze-schema + 13 chat-schema) + 1 integration = **74/74 passing**. All JS files syntax-clean.
+- **CI result**: `af2a9ae9 feat(api): strict fail-closed schema validation for /api/chat responses` — **GREEN** on first run.
+
+**Prompt Intention:**
+- Continued the strict-fail-closed discipline established in iteration #1. With both `/api/analyze` and `/api/chat` now validated under the same pattern, the API surface is uniformly defensive against malformed AI responses. Next logical gaps to address in upcoming iterations: rate-limit response headers (`X-RateLimit-Limit` / `-Remaining` / `-Reset`), structured 500 responses (uncaught exception handler), CSP header (requires inline-script refactor).
