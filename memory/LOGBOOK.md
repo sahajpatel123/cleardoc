@@ -1027,3 +1027,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the user's standing directives. Audited the parallel session's CSP work for compliance, then picked the next-best shippable security hardening (SRI) as a direct complement to the strict CSP.
+
+**2026-07-18 12:02 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #8 of the autonomous loop** (15-min cadence). Live: 12:00 → 12:02 IST.
+- **Found a follow-on SRI gap**: the parallel session's inline OCR feature (`0d7d4b27 feat(analyzer): inline OCR for image attachments via lazy Tesseract.js`) lazy-loads Tesseract.js from unpkg via `document.createElement('script')`. The previous SRI test in `test/smoke.test.js` only walked static `<script src=…>` tags — the dynamic loader had no `integrity`/`crossorigin` attributes.
+- **Added SRI to the Tesseract loader** (`8afe69e1 sec(analyzer)`): pinned SHA-384 (`sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F`) computed from the live bytes; set `s.integrity = TESSERACT_SRI` and `s.crossOrigin = 'anonymous'` on the dynamic element. `TESSERACT_SRC` confirmed pinned to `tesseract.js@5` (no caret/tilde).
+- **Test coverage** (`test/smoke.test.js`): new source-pattern test "lazy Tesseract.js loader pins integrity + crossOrigin (SRI for dynamic script)" asserts all four invariants — pinned version, non-empty SRI constant, `s.integrity` assignment, `s.crossOrigin = 'anonymous'`. 33/33 smoke tests pass.
+- **Now SRI covers every CDN script**: 4 static (gsap, ScrollTrigger, lenis, pdf.js) + 1 dynamic (Tesseract). All unpkg / cdnjs bytes pinned by SHA-384.
+
+**Prompt Intention:**
+- Honored the user's standing directives. Audit-driven: the previous iteration's SRI work passed its own test, but a follow-on scan revealed a dynamic-loader gap. Caught it the same hour rather than letting it sit.
