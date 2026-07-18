@@ -1,0 +1,139 @@
+/* assets/print.css — `@media print`-only styles. Loaded with `media="print"`
+ * on every HTML page so users can save an analysis (or any page) as PDF
+ * via the browser's "Print → Save as PDF" without the navigation chrome
+ * or animation-heavy UI obstructing the content.
+ *
+ * Design rules:
+ *   1. Black on white (no transparency, no ink leaks in B&W printing).
+ *   2. Hide everything that is not the content the user came to print:
+ *      nav, footer, CTAs, mobile drawer, sticky buttons.
+ *   3. Page-break-inside: avoid on risk cards + verdict blocks so a
+ *      single risk doesn't get split across two pages.
+ *   4. Show the canonical URL + a printed-on timestamp in the page
+ *      footer so the printed artifact is self-identifying.
+ *   5. Larger fonts than screen so printed body is readable on paper.
+ */
+
+@media print {
+  /* Reset background, color, shadows — screens often use transparent
+   * blacks / soft glows that don't reproduce well on paper. */
+  *,
+  *::before,
+  *::after {
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Hide chrome. nav (top), footer (bottom), mobile drawer, sticky
+   * bottom CTA, back-to-top button, the keyboard modal — none of
+   * these are part of the content the user is saving. */
+  nav,
+  footer,
+  #nav,
+  #footer,
+  #ctaSticky,
+  #mobileDrawer,
+  #backToTop,
+  #helpModal,
+  [data-print="hide"],
+  .no-print {
+    display: none !important;
+  }
+
+  /* Show elements the screen normally hides. The "printed footer" is
+   * only visible when the user actually prints — it's a self-identifying
+   * artifact marker so a printout can be traced back to its URL + time. */
+  [data-print="show"],
+  .print-only {
+    display: block !important;
+  }
+
+  /* Page setup: A4 / Letter, ~12mm margins. Browser decides based on
+   * locale; we just set sane defaults. */
+  @page {
+    margin: 12mm;
+  }
+
+  body {
+    font-size: 11pt !important;
+    line-height: 1.45 !important;
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  /* The hero / ticker / FAQ sections are decorative on print — collapse
+   * them to a single short heading so the content (analysis) dominates. */
+  .ticker,
+  .hero-cta,
+  .hero-faq,
+  .faq {
+    display: none !important;
+  }
+
+  /* Cards (risk rows, deadline rows) — don't let a single card split
+   * across a page boundary. */
+  .risk-card,
+  .deadline-row,
+  .next-step,
+  .verdict-block,
+  .ask-bubble {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    border: 1px solid #ddd !important;
+    padding: 6pt !important;
+    margin: 4pt 0 !important;
+  }
+
+  /* Headings stay on the same page as their first paragraph. */
+  h1, h2, h3, h4, h5, h6 {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+    color: #000 !important;
+  }
+
+  /* Tables: print tables without forcing page-wide width. */
+  table {
+    border-collapse: collapse !important;
+  }
+  th, td {
+    border: 1px solid #000 !important;
+    padding: 4pt 6pt !important;
+  }
+
+  /* Links: show the target URL after the anchor text in print, so
+   * printed references still resolve. Avoid showing for in-page anchors. */
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 9pt;
+    color: #444;
+    word-break: break-all;
+  }
+  a[href^="#"]::after,
+  a[href^="/"]::after {
+    content: "";
+  }
+
+  /* Don't waste paper on huge empty areas. */
+  section {
+    margin: 0 !important;
+    padding: 8pt 0 !important;
+  }
+
+  /* Ensure images and SVG print at intended color (no auto-invert). */
+  img,
+  svg {
+    filter: none !important;
+    max-width: 100% !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Plain-text URLs: keep them readable on paper. */
+  code,
+  pre,
+  .mono {
+    font-family: "JetBrains Mono", "Courier New", monospace !important;
+    font-size: 9.5pt !important;
+  }
+}
