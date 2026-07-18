@@ -1041,6 +1041,18 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Companion to `errLog`. With both helpers wired in via try/finally in every handler, server logs now have exactly two lines per request: one on failure (`errLog` via console.error) and one on completion (`accessLog` via console.log). Greppable by request id. No silent requests anymore.
 
+**2026-07-18 13:40 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #14 of the autonomous loop** (10-min cadence). Live: 13:36:25 → 13:40:54 IST.
+- **Closed the probe cache unbounded-growth gap**. The `_probeCache` Map used by `probeProviderCached` had no upper bound. In production the keys are fixed (`"gemini"`, `"openrouter"`) so this is moot today, but a future caller passing dynamic keys could grow the Map indefinitely. Added an LRU cap.
+- **`api/_safety.js`**: new `_PROBE_CACHE_MAX = 100` constant + private `_probeCacheTouch(key, value)` helper. Replaces the bare `_probeCache.set(...)` calls with the touch helper which: (a) deletes-then-sets to move the key to the end of Map iteration order (LRU semantics, since Map iterates in insertion order), (b) trims oldest entries until `size <= _PROBE_CACHE_MAX`. Touch fires on BOTH cache hit (refreshes the entry's "recently used" status) and cache miss (new insert).
+- **`test/safety.test.js`**: 2 new tests — (1) over-cap eviction: insert 100 keys, insert 101st, verify the 1st key was evicted (next call to it is a cache miss), verify the 2nd key was NOT evicted (only one eviction per overflow); (2) LRU touch semantics: insert 100 keys, touch key 1 (cache hit), insert 101st key, verify key 1 was NOT evicted (it just got refreshed) and key 2 WAS evicted (it's now the oldest after key 1 was touched to the end).
+- **Test totals locally**: 30 smoke + 114 unit (was 110) + 1 integration = **145/145 passing**.
+- **CI result**: `3c440d60 feat(health): bound probe cache at 100 entries with LRU eviction` — **GREEN** on first run.
+
+**Prompt Intention:**
+- Defensive bound on in-memory growth. The current probe keys are fixed strings, but defensive code should assume callers might pass arbitrary keys. The LRU semantics also mean that frequently-probed providers stay in cache while rarely-probed ones naturally drop out — which is the right behavior for a monitoring endpoint.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
