@@ -7,7 +7,7 @@
  * Lightweight: no upstream calls, no auth. Rate-limited per IP to avoid abuse.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, getIp } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, getIp, probeProviderCached } = require("./_safety.js");
 
 const START_TS = Date.now();
 const VERSION = "1.0.0";
@@ -31,17 +31,55 @@ module.exports = async function handler(req, res) {
     const hasGemini = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY);
     const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
 
+    // Lightweight reachability probe (HEAD with 3s timeout, cached for 60s).
+    // Only runs when the provider is configured — no point pinging hosts we
+    // don't have credentials for. We probe the host root, not a model endpoint,
+    // so this proves network reachability without consuming any AI quota.
+    const geminiProbe = hasGemini
+      ? await probeProviderCached("gemini", "https://generativelanguage.googleapis.com/")
+      : null;
+    const openRouterProbe = hasOpenRouter
+      ? await probeProviderCached("openrouter", "https://openrouter.ai/")
+      : null;
+
     const payload = {
       ok: true,
       status: "ok",
       version: VERSION,
       uptimeSec,
       providers: {
-        gemini: hasGemini ? "configured" : "missing",
-        openrouter: hasOpenRouter ? "configured" : "missing",
+        gemini: hasGemini
+          ? {
+              configured: true,
+              reachable: geminiProbe.ok,
+              latencyMs: geminiProbe.latencyMs,
+              ...(geminiProbe.ok ? {} : { error: geminiProbe.error }),
+              cached: geminiProbe.cached,
+            }
+          : { configured: false, reachable: false, error: "GEMINI_API_KEY not set" },
+        openrouter: hasOpenRouter
+          ? {
+              configured: true,
+              reachable: openRouterProbe.ok,
+              latencyMs: openRouterProbe.latencyMs,
+              ...(openRouterProbe.ok ? {} : { error: openRouterProbe.error }),
+              cached: openRouterProbe.cached,
+            }
+          : { configured: false, reachable: false, error: "OPENROUTER_API_KEY not set" },
       },
       timestamp: new Date().toISOString(),
     };
+
+    // 503 only when EVERY provider is unreachable or unconfigured.
+    const allUnreachable =
+      (payload.providers.gemini.configured ? !payload.providers.gemini.reachable : true) &&
+      (payload.providers.openrouter.configured ? !payload.providers.openrouter.reachable : true);
+    if (allUnreachable) {
+      payload.ok = false;
+      payload.status = "degraded";
+      payload.reason = "All configured AI providers are unreachable.";
+      return json(res, 503, payload);
+    }
 
     // 503 if no AI providers are configured — the analyze endpoint would be a no-op
     if (!hasGemini && !hasOpenRouter) {

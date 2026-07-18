@@ -98,3 +98,28 @@ test("health handler: 500 body is a literal sanitized string (no leak)", () => {
     "500 response body must not interpolate err.message"
   );
 });
+
+// ── AI provider reachability probe (source-pattern) ───────────────
+
+test("health handler: wires up probeProviderCached for both providers", () => {
+  // Both Gemini and OpenRouter must be probed through the cached helper so
+  // health polls don't translate into 60 outbound requests/min.
+  assert.match(HEALTH_SOURCE, /probeProviderCached\(\s*"gemini"/, "Gemini probe must use cached helper");
+  assert.match(HEALTH_SOURCE, /probeProviderCached\(\s*"openrouter"/, "OpenRouter probe must use cached helper");
+});
+
+test("health handler: payload reports configured + reachable + latencyMs per provider", () => {
+  // The providers payload object must include the new reachability fields.
+  assert.match(HEALTH_SOURCE, /configured:\s*(true|false)/, "providers payload must report configured");
+  assert.match(HEALTH_SOURCE, /reachable:\s*\w+\.ok/, "providers payload must report reachable (from probe.ok)");
+  assert.match(HEALTH_SOURCE, /latencyMs:/, "providers payload must report probe latencyMs");
+});
+
+test("health handler: 503 condition requires all configured providers unreachable", () => {
+  // The 503 path must trigger when EVERY configured provider is unreachable.
+  // (A single-reachable deployment should stay 200 — at least one working
+  // AI provider means the analyzer can still respond.)
+  assert.match(HEALTH_SOURCE, /All configured AI providers are unreachable/, "503 reason must reference the all-unreachable condition");
+  // The `allUnreachable` variable must gate the 503 response
+  assert.match(HEALTH_SOURCE, /allUnreachable/, "must compute allUnreachable before deciding 503");
+});

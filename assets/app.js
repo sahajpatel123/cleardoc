@@ -820,11 +820,33 @@
         return new Uint8Array(buf);
       }catch(_){ return null; }
     }
+    // Cap the decompressed payload to defend against gzip bombs — a tiny
+    // share URL could otherwise expand to gigabytes of memory on decode.
+    // The share schema itself is bounded (a single analysis is well under
+    // 50KB of JSON), so 1MB is plenty of headroom and far below any OOM
+    // threshold on modern browsers.
+    const GUNZIP_MAX_BYTES = 1024 * 1024; // 1 MiB
     async function gunzipString(bytes){
       if(!('DecompressionStream' in window)) return null;
       try{
-        const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-        return await new Response(stream).text();
+        const src = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+        const reader = src.getReader();
+        const decoder = new TextDecoder();
+        let out = '';
+        let total = 0;
+        for(;;){
+          const { done, value } = await reader.read();
+          if (done) break;
+          total += value.byteLength;
+          if (total > GUNZIP_MAX_BYTES) {
+            // Drain + cancel to release the chunk buffers before throwing.
+            try { await reader.cancel(); } catch(_){}
+            throw new Error('Decompressed share payload exceeds ' + GUNZIP_MAX_BYTES + ' bytes (gzip bomb?)');
+          }
+          out += decoder.decode(value, { stream: true });
+        }
+        out += decoder.decode();
+        return out;
       }catch(_){ return null; }
     }
     async function encodeSharePayload(payload){

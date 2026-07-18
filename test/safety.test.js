@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId } = require("../api/_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache } = require("../api/_safety.js");
 
 // ── json ─────────────────────────────────────────────────────────────
 
@@ -95,6 +95,116 @@ test("attachRequestId: handles missing req object without throwing", () => {
   const id = attachRequestId(res, null);
   assert.ok(id && id.length > 0, "must produce an ID even with no req");
   assert.equal(res.__requestId, id);
+});
+
+// ── AI provider reachability probe ─────────────────────────────────
+
+test("probeProvider: returns ok+status for a 2xx/3xx/4xx response", async () => {
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ status: 200, ok: true });
+  try {
+    const r = await probeProvider("https://example.test/");
+    assert.equal(r.ok, true, "non-5xx is considered reachable");
+    assert.equal(r.status, 200);
+    assert.ok(Number.isInteger(r.latencyMs) && r.latencyMs >= 0);
+    assert.ok(typeof r.checkedAt === "number" && r.checkedAt > 0);
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
+test("probeProvider: marks 5xx responses as unreachable", async () => {
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ status: 503, ok: false });
+  try {
+    const r = await probeProvider("https://broken.test/");
+    assert.equal(r.ok, false);
+    assert.equal(r.status, 503);
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
+test("probeProvider: returns error string on fetch failure", async () => {
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error("ECONNREFUSED"); };
+  try {
+    const r = await probeProvider("https://offline.test/");
+    assert.equal(r.ok, false);
+    assert.match(r.error, /ECONNREFUSED/);
+    assert.ok(r.latencyMs >= 0);
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
+test("probeProvider: returns 'timeout' on AbortError", async () => {
+  const origFetch = globalThis.fetch;
+  // Simulate an abort by throwing an error with name === "AbortError"
+  globalThis.fetch = async () => {
+    const e = new Error("aborted");
+    e.name = "AbortError";
+    throw e;
+  };
+  try {
+    const r = await probeProvider("https://slow.test/");
+    assert.equal(r.ok, false);
+    assert.equal(r.error, "timeout");
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
+test("probeProviderCached: first call hits network, second call is cached", async () => {
+  const origFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return { status: 200, ok: true }; };
+  try {
+    clearProbeCache();
+    const r1 = await probeProviderCached("test-key-1", "https://example.test/");
+    const r2 = await probeProviderCached("test-key-1", "https://example.test/");
+    assert.equal(calls, 1, "second call must be served from cache");
+    assert.equal(r1.cached, false, "first call reports cached=false");
+    assert.equal(r2.cached, true, "second call reports cached=true");
+    assert.equal(r1.ok, true);
+    assert.equal(r2.ok, true);
+  } finally {
+    globalThis.fetch = origFetch;
+    clearProbeCache();
+  }
+});
+
+test("probeProviderCached: different keys don't share cache entries", async () => {
+  const origFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return { status: 200, ok: true }; };
+  try {
+    clearProbeCache();
+    await probeProviderCached("key-a", "https://a.test/");
+    await probeProviderCached("key-b", "https://b.test/");
+    assert.equal(calls, 2, "different keys must trigger separate fetches");
+  } finally {
+    globalThis.fetch = origFetch;
+    clearProbeCache();
+  }
+});
+
+test("clearProbeCache: forces a refetch on next call", async () => {
+  const origFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return { status: 200, ok: true }; };
+  try {
+    clearProbeCache();
+    await probeProviderCached("test-key-clear", "https://example.test/");
+    await probeProviderCached("test-key-clear", "https://example.test/");
+    assert.equal(calls, 1);
+    clearProbeCache();
+    await probeProviderCached("test-key-clear", "https://example.test/");
+    assert.equal(calls, 2, "clearProbeCache must force a refetch");
+  } finally {
+    globalThis.fetch = origFetch;
+    clearProbeCache();
+  }
 });
 
 // ── asString ─────────────────────────────────────────────────────────
