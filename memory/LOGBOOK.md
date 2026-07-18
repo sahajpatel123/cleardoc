@@ -1714,3 +1714,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored standing directives. Refactor with concrete maintainability payoff — drift risk is real (the bound changed from `>= 0` to `> 0` once already, in iter #4; the next tightening would silently break parity).
 
+**2026-07-19 02:46 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #41 of the autonomous loop** (cron `c3921bc4` firing). Live: 02:46 IST.
+- **Shipped `assets/print.css` print stylesheet** (`3fe91458`). Every HTML page now references it via `<link rel="stylesheet" href="assets/print.css" media="print">` so it loads ONLY in print context — zero cost on screen. Lets users save any page as a clean PDF via "Print → Save as PDF" without the navigation chrome (nav, footer, mobile drawer, sticky CTAs) or animation-heavy UI obstructing the content.
+- **Design rules** in the stylesheet: black-on-white reset, hide nav/footer/drawer/sticky elements, `page-break-inside: avoid` on risk cards / verdict blocks / ask bubbles (so a single risk doesn't split across two pages), show canonical URL via `a[href^="http"]::after`, monospace text kept readable, image color preserved (no auto-invert).
+- **241/241 tests pass** (178 unit + 62 smoke + 1 integration). Smoke grew from 61 to 62 with the print.css wiring check. The new test verifies every HTML page references print.css with `media="print"`, and that the file exists on disk and contains an `@media print` rule with `display: none` to hide nav chrome.
+- **Plus an unrelated tightening**: `isValidLatencyMs()` lower bound raised from `> 0` to `>= 1` in default mode. Sub-ms fractional timings like 0.5ms were slipping through as headers lying about real measurement. `allowZero: true` still relaxes to `>= 0`.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the last meaningful user-facing gap — every other iteration has been API-side; this one put polish on the page itself. Real users value "Save as PDF" for analysis because they email/share the output, and the current screen stylesheet (gradient backgrounds, sticky CTAs everywhere) prints poorly.
+
