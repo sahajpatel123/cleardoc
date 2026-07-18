@@ -1370,3 +1370,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Audit-driven: a careful read of the parallel session's new feature surfaced a silent drop in the backend, fixed with a defensive cap design.
+
+**2026-07-18 16:27 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #21 of the autonomous loop** (15-min cadence). Live: 16:27 → 16:27 IST.
+- **Audit-only iteration**. One parallel-session commit since last sweep:
+  - `feat(pricing): per-card annual hint — total + savings vs monthly` (`41f68f8b`) — small UX: each pricing tier card now shows the annual total (e.g. "Save $48/yr") next to the monthly rate when the user picks Annual billing. Power-user signal that nudges toward the better deal.
+- **CI verification**: my iteration #20 fix (`e9dc5feb feat(api): wire multi-turn history through /api/chat`) is green on first run (run 29641201748, 50s, success). Multi-turn Ask thread now reaches Gemini with conversational context.
+- **No code changes this iteration.** Codebase at stable hardened plateau.
+
+**Prompt Intention:**
+- Honored the standing directives. Audit-only sweep.
