@@ -26,6 +26,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **`X-Request-Latency-Total-Ms` end-to-end timing header** on every API response — complements the AI-only header by reporting the full server-side time (rate-limit gate + body read + AI call + validation + serialize). Critical for distinguishing "the AI is slow" from "our code is slow" when triaging latency reports.
 - **`/api/health` provider probes parallelized** — gemini + OpenRouter HEAD probes now fire via `Promise.all`, cutting cold-cache latency from ~6s to ~3s. Warm probes (cache hit) are unaffected. Sequential was wasteful on the slow first call.
 - **`Retry-After: 60` on degraded `/api/analyze` and `/api/chat` 502 responses** — mirrors `/api/health`'s 503 behavior. When the AI provider chain is exhausted or the schema fails, clients now see a consistent back-off signal instead of hot-loop retrying. Skipped on 200 (healthy) and the 503 neither-configured path (config bug, not outage).
+- **`X-AI-Model` response header** on `/api/analyze` and `/api/chat` — joins the existing `X-AI-Provider` + `X-AI-Response-Time-Ms` family. Tells ops the exact model identifier that answered (`google/gemma-4-31b-it:free`, `gemini-2.5-flash`, etc.) without parsing the response body. ASCII-charset-allowlisted with a 128-char cap for header-injection defense.
 
 ### Observability
 - `X-Request-Id` on every API response (echoes upstream IDs when present, otherwise fresh UUID v4).

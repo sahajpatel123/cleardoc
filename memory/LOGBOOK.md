@@ -1532,3 +1532,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #2 acted as the verification + cleanup gate for parallel-agent work that landed during iteration #1, preventing a CI break and shipping the X-AI-Model observability header end-to-end.
+
+**2026-07-19 00:32 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #34 of the autonomous loop** (cron `c3921bc4` firing). Live: 00:32 IST.
+- **Shipped `X-AI-Model` response header** (`10bdb339`). The third observability header in the family — joins iter #30's `X-AI-Provider` and iter #31's `X-AI-Response-Time-Ms`. Now `curl -i` tells ops the provider, latency, AND model in one shot, no JSON body parsing required.
+- **Implementation**: extended `applyAiResponseHeaders(res, provider, latencyMs, model)` with an optional 4th `model` arg. Length cap (1..128) + ASCII charset allowlist (`[A-Za-z0-9._:/+-]`) defends against header-injection from mis-cached model strings. Existing 3-arg call sites unchanged — fully backward compatible. /api/analyze now pre-resolves `GEMINI_CHAT_MODEL || GEMINI_MODEL_DEFAULT` so the gemini-fallback path knows what to emit. /api/chat reuses `out.model` from the existing orchestrator.
+- **5 new unit tests** in `test/safety.test.js` for the model-header logic: present when arg given, omitted when arg absent, charset rejection (CR/LF/quotes/semicolons), length-bound enforcement, real-world model-ID allowlist (google/, anthropic/, openai/, meta-llama/, colon variants).
+- **205/205 tests pass** (143 unit + 61 smoke + 1 integration). All three AI-headers family now end-to-end consistent.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the third observability gap. Per protocol, returning to ANALYZE for the next cron fire.
