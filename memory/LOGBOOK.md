@@ -1128,6 +1128,18 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Closed the monitoring-client back-off gap. Now when Pingdom, UptimeRobot, or an internal probe sees a 503, it will back off for 60s before retrying — the exact interval after which the probe cache refreshes. This eliminates 60 wasted probes per minute during a real outage.
 
+**2026-07-18 15:34 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #20 of the autonomous loop** (10-min cadence). Live: 15:30:34 → 15:34:05 IST.
+- **Added RFC 9116 `security.txt` at `/.well-known/security.txt`** — the standardized machine-readable disclosure endpoint. Security scanners (e.g. `nmap --script http-security-headers`) and academic researchers consult this file automatically before filing reports.
+- **`public/.well-known/security.txt`** (new file, 30 lines): `Contact:` (mailto + GitHub private advisories), `Expires:` (1 year out, 2027-07-18 — RFC § 4.2 requires a future date, scanners treat expired files as stale), `Preferred-Languages: en`, `Canonical: https://cleardoc.app/.well-known/security.txt` (RFC § 4.3 — guards against stale crawls), `Policy: https://cleardoc.app/SECURITY.md` (human-readable companion), `Acknowledgments: ...` placeholder for the future Hall of Fame.
+- **`test/smoke.test.js`**: 1 new test — file exists on disk, `Contact:` and `Expires:` fields present (RFC-required), `Expires` parses as a valid ISO 8601 timestamp AND is in the future, `Canonical` points to the live URL, `Preferred-Languages: en`, `Policy:` links to SECURITY.md.
+- **Test totals locally**: 33 smoke (was 32) + 117 unit + 1 integration = **151/151 passing**.
+- **CI result**: `cf693d9c feat(security): add RFC 9116 security.txt at /.well-known/security.txt` — **GREEN** on first run.
+
+**Prompt Intention:**
+- Closed the standards-compliance gap for security disclosure. Until now, a researcher could find `SECURITY.md` by visiting `/SECURITY.md` but automated scanners (the most common first contact for a public site) wouldn't find it. RFC 9116 is the IETF standard that tooling supports by default — putting a compliant `security.txt` at the well-known path means scanners find the disclosure policy immediately, route to the right contact, and never have to guess whether the site accepts reports.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
