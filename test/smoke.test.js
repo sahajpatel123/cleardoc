@@ -139,6 +139,91 @@ skip("ticker: every public page rotates ≥6 distinct signals so the marquee fee
   }
 });
 
+skip("ask: multi-turn thread accumulates Q&A pairs and offers a clear button", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // HTML must expose the new thread container + clear button (askOut kept for back-compat)
+  assert.match(analyzeHtml, /id="askThread"/, "analyze.html must expose #askThread");
+  assert.match(analyzeHtml, /id="askClearBtn"/, "analyze.html must expose #askClearBtn");
+
+  // Source-pattern: renderAskThread + askHistory + turn-shaped rendering
+  assert.match(appSrc, /let askHistory\s*=/, "askHistory array must exist");
+  assert.match(appSrc, /function renderAskThread\(/, "renderAskThread must exist");
+  assert.match(appSrc, /askHistory\.push\(turn\)/, "ask must append to history");
+  // The thread container must render both Q and A bubbles
+  assert.match(appSrc, /class="ask-q"/, "renderAskThread must emit an .ask-q bubble");
+  assert.match(appSrc, /class="ask-a"/, "renderAskThread must emit an .ask-a bubble");
+  // Send the prior history (excluding the current pending turn) to the backend
+  assert.match(appSrc, /history:\s*askHistory/, "history must be sent to /api/chat so the AI has prior Q&A context");
+
+  // CSS must define both bubble shapes + the clear button
+  assert.match(themeSrc, /\.ask-q\{/, ".ask-q CSS rule must exist");
+  assert.match(themeSrc, /\.ask-a\{/, ".ask-a CSS rule must exist");
+  assert.match(themeSrc, /\.ask-clear\{/, ".ask-clear CSS rule must exist");
+
+  // Live: ask two questions on the analyze page (with a stubbed /api/chat that
+  // returns deterministic answers). After each ask, a new .ask-q + .ask-a pair
+  // should appear in #askThread. The Clear button should reset the thread.
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+
+  // Monkey-patch fetch so /api/chat returns instantly with a known answer.
+  await page.addInitScript(() => {
+    const origFetch = window.fetch ? window.fetch.bind(window) : null;
+    window.fetch = function patched(url, opts){
+      const u = typeof url === 'string' ? url : (url && url.url) || '';
+      if(u.endsWith('/api/chat')){
+        return Promise.resolve(new Response(JSON.stringify({
+          answer: 'stubbed answer for ' + JSON.parse(opts.body || '{}').question,
+          citation: '§ stub',
+        }), { status:200, headers:{'Content-Type':'application/json'} }));
+      }
+      return origFetch ? origFetch(url, opts) : Promise.reject(new Error('no network'));
+    };
+  });
+
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  // Ask must be enabled after the preloaded sample renders
+  await page.waitForFunction(() => !document.getElementById('askBtn').disabled, { timeout: 5000 });
+
+  await page.fill("#askInput", "Can I cancel early?");
+  await page.click("#askBtn");
+  // Wait for the stubbed answer to land
+  await page.waitForFunction(() => document.querySelectorAll('#askThread .ask-a').length >= 1, { timeout: 5000 });
+  const qCount1 = await page.$$eval("#askThread .ask-q", (els) => els.length);
+  const aCount1 = await page.$$eval("#askThread .ask-a", (els) => els.length);
+  assert.equal(qCount1, 1, `after 1 ask, expect 1 .ask-q, got ${qCount1}`);
+  assert.equal(aCount1, 1, `after 1 ask, expect 1 .ask-a, got ${aCount1}`);
+
+  await page.fill("#askInput", "What am I liable for?");
+  await page.click("#askBtn");
+  await page.waitForFunction(() => document.querySelectorAll('#askThread .ask-a').length >= 2, { timeout: 5000 });
+  const qCount2 = await page.$$eval("#askThread .ask-q", (els) => els.length);
+  const aCount2 = await page.$$eval("#askThread .ask-a", (els) => els.length);
+  assert.equal(qCount2, 2, `after 2 asks, expect 2 .ask-q, got ${qCount2}`);
+  assert.equal(aCount2, 2, `after 2 asks, expect 2 .ask-a, got ${aCount2}`);
+
+  // Clear button must be visible
+  const clearVisible = await page.$eval("#askClearBtn", (el) => !el.hidden);
+  assert.equal(clearVisible, true, "Clear button must appear once the thread has turns");
+
+  // Click clear → thread resets
+  await page.click("#askClearBtn");
+  await page.waitForTimeout(80);
+  const qCountAfter = await page.$$eval("#askThread .ask-q", (els) => els.length);
+  const aCountAfter = await page.$$eval("#askThread .ask-a", (els) => els.length);
+  assert.equal(qCountAfter, 0, `after Clear, expect 0 .ask-q, got ${qCountAfter}`);
+  assert.equal(aCountAfter, 0, `after Clear, expect 0 .ask-a, got ${aCountAfter}`);
+
+  await page.close();
+  await ctx.close();
+});
+
 skip("home: has OG / Twitter / canonical / favicon meta", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();

@@ -1614,12 +1614,47 @@
       }
       return {text:best?"The closest supported answer is based on this sentence: "+best.s:"I could not find that directly in the document. It may be implied, missing, or worded differently.", cite:best};
     }
+    /* ---- Multi-turn Ask thread ----
+     * Each Q&A pair is appended to askHistory and re-rendered into
+     * #askThread. The current 'pending' question is held as a stub so
+     * the thinking dots appear immediately, then upgraded to the real
+     * answer (with citation) when the network response lands.
+     */
+    let askHistory=[];
+    const askThread=$('#askThread'),askClearBtn=$('#askClearBtn');
+    function renderAskThread(){
+      if(!askThread) return;
+      if(!askHistory.length){
+        askThread.innerHTML='';
+        if(askClearBtn) askClearBtn.hidden=true;
+        return;
+      }
+      askThread.innerHTML = askHistory.map(turn => {
+        const pending = turn.pending;
+        const aBody = pending
+          ? '<span class="think"><i></i><i></i><i></i></span> Asking…'
+          : '<div class="ans-line">'+esc(turn.answer)+'</div>' + (turn.cite ? '<div class="cite" style="opacity:1">'+esc(turn.cite)+'</div>' : '');
+        return '<div class="ask-q">'+esc(turn.q)+'</div>' +
+               '<div class="ask-a">'+aBody+'</div>';
+      }).join('');
+      if(askClearBtn) askClearBtn.hidden=false;
+      // Scroll the latest answer into view
+      askThread.scrollTop = askThread.scrollHeight;
+    }
     async function ask(){
       const q=(askInput&&askInput.value||'').trim(); if(!q) return;
-      if(!lastSentences.length){ askOut.innerHTML='Analyze a document first, then ask about it.'; return; }
-      const local=localAnswer(q);
-      askOut.innerHTML='<span class="think" style="display:inline-flex"><i></i><i></i><i></i></span> Asking Gemini…';
+      if(!lastSentences.length){
+        if(askThread) askThread.innerHTML='<div class="ask-a">Analyze a document first, then ask about it.</div>';
+        return;
+      }
+      // Reserve a pending slot so the thinking dots render immediately
+      const turn = { q, pending:true, answer:'', cite:'' };
+      askHistory.push(turn);
+      renderAskThread();
+      if(askInput) askInput.value='';
       if(askBtn) askBtn.disabled=true;
+
+      const local=localAnswer(q);
       let answered=false;
       try{
         const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -1627,21 +1662,31 @@
           document:lastRaw.slice(0,30000),
           rewrite:plainOut?plainOut.textContent.slice(0,6000):'',
           risks:lastFlags.map(f=>({sentence:f.s,reason:f.rule.why,label:f.rule.label})).slice(0,12),
-          fileName:attachedFile&&attachedFile.name
+          fileName:attachedFile&&attachedFile.name,
+          history: askHistory.slice(0,-1).map(h=>({q:h.q,a:h.answer||''}))
         })});
         const data=await res.json().catch(()=>({}));
         if(res.ok && data.answer){
-          const cite=data.citation?'<div class="cite" style="opacity:1">'+esc(data.citation)+'</div>':'';
-          askOut.innerHTML='<div class="ans-line">'+esc(data.answer)+'</div>'+cite;
+          turn.answer=data.answer;
+          turn.cite=data.citation||'';
+          turn.pending=false;
           answered=true;
+          renderAskThread();
         }
       }catch(_){}
       if(!answered){
-        const cite=local.cite?'<div class="cite" style="opacity:1">local fallback · sentence '+(local.cite.i+1)+' of '+lastSentences.length+'</div>':'<div class="cite" style="opacity:1">local fallback</div>';
-        askOut.innerHTML='<div class="ans-line">'+esc(local.text)+'</div>'+cite;
+        turn.answer=local.text;
+        turn.cite=local.cite?'local fallback · sentence '+(local.cite.i+1)+' of '+lastSentences.length:'local fallback';
+        turn.pending=false;
+        renderAskThread();
       }
       if(askBtn) askBtn.disabled=false;
     }
+    if(askClearBtn) askClearBtn.addEventListener('click',()=>{
+      askHistory=[];
+      renderAskThread();
+      if(askOut) askOut.innerHTML='';
+    });
     function buildDraft(raw, flags){
       const firstRisk=flags[0];
       const issue=firstRisk?firstRisk.rule.why:'Please confirm the document terms in plain language.';
