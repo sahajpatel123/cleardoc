@@ -966,6 +966,74 @@ skip("analyzer: live text-stats bar shows word/char/level/cap and reacts to typi
 
   await page.close();
 });
+
+skip("analyzer (mobile): Analyze CTA becomes a sticky bottom bar at ≤900px so it's always within thumb reach", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // The sticky-bar rule must exist inside a max-width:900px media query
+  // and pin the .work .run-row to the viewport bottom.
+  assert.match(
+    themeSrc,
+    /@media\s*\(max-width:\s*900px\)[\s\S]*?\.work \.run-row\s*\{[^}]*position:\s*fixed/s,
+    "mobile media query must pin .work .run-row to position:fixed"
+  );
+  assert.match(
+    themeSrc,
+    /@media\s*\(max-width:\s*900px\)[\s\S]*?\.work \.run-row\s*\{[^}]*bottom:\s*0/s,
+    "sticky bar must bottom:0"
+  );
+  // Must be above the page chrome (z-index > ticker/nav)
+  assert.match(
+    themeSrc,
+    /@media\s*\(max-width:\s*900px\)[\s\S]*?\.work \.run-row\s*\{[^}]*z-index:\s*200/s,
+    "sticky bar must have z-index above page chrome"
+  );
+  // Must reserve space at the bottom of the input column so the textarea
+  // isn't hidden behind the sticky bar
+  assert.match(
+    themeSrc,
+    /@media\s*\(max-width:\s*900px\)[\s\S]*?\.work \.col\.in\s*\{[^}]*padding-bottom/s,
+    ".col.in must reserve padding-bottom on mobile so content clears the sticky bar"
+  );
+
+  // Live: at 375px the run-row must be position:fixed to the viewport
+  const mobile = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const page = await mobile.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  const sticky = await page.$eval(".work .run-row", (el) => {
+    const cs = getComputedStyle(el);
+    return {
+      position: cs.position,
+      bottom: cs.bottom,
+      zIndex: cs.zIndex,
+    };
+  });
+  assert.equal(sticky.position, "fixed", "at 375px the run-row must be position:fixed");
+  assert.equal(sticky.bottom, "0px", "sticky bar must be pinned to viewport bottom (0px)");
+  assert.ok(Number(sticky.zIndex) >= 100, `z-index must be high enough to sit above page chrome, got ${sticky.zIndex}`);
+
+  // Scroll the textarea down (simulate a long document) — Analyze must still be visible
+  await page.evaluate(() => window.scrollTo(0, 600));
+  await page.waitForTimeout(150);
+  const analyzeBtn = await page.$("#analyzeBtn");
+  const inView = await analyzeBtn.isVisible();
+  const box = await analyzeBtn.boundingBox();
+  assert.ok(inView, "Analyze button must be visible after scrolling");
+  assert.ok(box && box.y > 0 && box.y < 812, `Analyze button must remain in viewport after scroll, y=${box && box.y}`);
+
+  // At desktop width (≥1700px), the run-row MUST NOT be fixed — it stays in-flow
+  const desktop = await browser.newContext({ viewport: { width: 1700, height: 900 } });
+  const dpage = await desktop.newPage();
+  await dpage.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  const desktopSticky = await dpage.$eval(".work .run-row", (el) => getComputedStyle(el).position);
+  assert.notEqual(desktopSticky, "fixed", `desktop must keep the run-row in-flow, got position=${desktopSticky}`);
+
+  await page.close(); await mobile.close();
+  await dpage.close(); await desktop.close();
+});
 // ── Content-Security-Policy (vercel.json header) ────────────────────
 
 test("vercel.json: emits a strict Content-Security-Policy on every page", async () => {

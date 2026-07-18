@@ -527,6 +527,43 @@
 
 @media(max-width:900px){.work{grid-template-columns:1fr}.work .col.in{border-right:none;border-bottom:var(--bd) solid var(--ink)}}
 
+/* ---- MOBILE: sticky Analyze CTA + bottom safe area ---- */
+@media (max-width: 900px){
+  /* The run-row becomes a fixed bottom bar so the Analyze button is always
+     within thumb reach, even after the user scrolls through a long contract. */
+  .work .run-row{
+    position:fixed;
+    left:0; right:0; bottom:0;
+    z-index:200;
+    padding:10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    margin:0;
+    background:var(--paper);
+    border-top:var(--bd) solid var(--ink);
+    box-shadow:0 -6px 0 var(--ink);
+    justify-content:flex-end;
+    gap:var(--s1);
+  }
+  .work .run-row .analyze-btn{
+    flex:1 1 auto;
+    padding:18px 22px;
+    font-size:var(--t-card);
+    box-shadow:var(--shadow-sm);
+  }
+  .work .run-row .ghost-btn{
+    padding:14px 18px;
+  }
+  /* Reserve space at the bottom of the input column so the textarea isn't
+     hidden behind the sticky bar. The text-stats bar sits just above the
+     run-row in source order, so we pad the .col.in to clear both. */
+  .work .col.in{
+    padding-bottom:calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+  /* Result column needs bottom padding too so the verdict card lifts clear. */
+  .work .col.out{
+    padding-bottom:calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* ---- RESTORE BANNER (auto-saved analysis) ---- */
 .restore-banner{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);flex-wrap:wrap;margin:0 var(--pad-x) var(--s3);padding:var(--s2) var(--s3);border:var(--bd) solid var(--ink);background:var(--paper2);box-shadow:var(--shadow-sm);animation:rbIn .4s cubic-bezier(.34,1.56,.64,1) both}
 .restore-banner[hidden]{display:none}
