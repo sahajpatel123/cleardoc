@@ -76,10 +76,7 @@ function stubFetchWithValidAnalysis() {
 }
 function installFetchStub() {
   _origFetch = globalThis.fetch;
-  globalThis.fetch = async (url, opts) => {
-    if(process.env.DEBUG_FETCH) console.log('[STUB] fetch called with:', url);
-    return stubFetchWithValidAnalysis();
-  };
+  globalThis.fetch = async () => stubFetchWithValidAnalysis();
 }
 function uninstallFetchStub() {
   if (_origFetch) {
@@ -90,6 +87,12 @@ function uninstallFetchStub() {
 
 test.beforeEach(() => {
   installFetchStub();
+  // Make sure the AI providers actually attempt the (stubbed) fetch instead of
+  // short-circuiting at the `if (!apiKey) return null` gate. Without these, both
+  // providers return null and the handler responds 502 from the inner "no result"
+  // branch — never reaching the validator mock or the outer catch.
+  process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "test-stub-key-openrouter";
+  process.env.GEMINI_API_KEY = process.env.GEMINI_API_KEY || "test-stub-key-gemini";
 });
 
 test.afterEach(() => {
