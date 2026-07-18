@@ -229,12 +229,26 @@ module.exports = async function handler(req, res) {
         vercelEnv: process.env.VERCEL_ENV || null,
         memory: (() => {
           const m = process.memoryUsage();
+          // Memory-pressure advisory: Vercel Hobby caps functions at 256 MB;
+          // Pro at 1024 MB. Surface current vs. configured limit so ops gets
+          // an early warning before OOM kills the function. Configurable via
+          // MEMORY_LIMIT_MB env var; defaults to 256 (Hobby plan).
+          const limitMb = (() => {
+            const raw = process.env.MEMORY_LIMIT_MB;
+            const n = raw == null ? 256 : Number(raw);
+            return Number.isFinite(n) && n > 0 ? n : 256;
+          })();
+          const heapUsedMb = Math.round(m.heapUsed / 1048576);
+          const usedPercent = Math.round((heapUsedMb / limitMb) * 1000) / 10;  // 1 decimal place
           return {
             rssMb: Math.round(m.rss / 1048576),
             heapTotalMb: Math.round(m.heapTotal / 1048576),
-            heapUsedMb: Math.round(m.heapUsed / 1048576),
+            heapUsedMb: heapUsedMb,
             externalMb: Math.round(m.external / 1048576),
             arrayBuffersMb: Math.round(m.arrayBuffers / 1048576),
+            limitMb,
+            usedPercent,
+            nearLimit: usedPercent >= 80,
           };
         })(),
       },

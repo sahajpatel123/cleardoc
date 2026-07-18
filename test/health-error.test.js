@@ -581,3 +581,25 @@ test("health handler: computeHealthEtag is deterministic for identical inputs", 
   // Must include the leading quote so headers are RFC 7232 valid weak-ETags.
   assert.match(a, /^"[0-9a-f]{8}"$/, "etag must be quoted weak ETag with 8-char hex body");
 });
+
+// ── memory pressure advisory (iter #52) ────────────────────────────
+
+test("health handler: process.memory surfaces limitMb + usedPercent + nearLimit advisory", () => {
+  // Vercel Hobby caps functions at 256 MB; Pro at 1024. The process.memory
+  // block now surfaces current vs. configured limit + a nearLimit boolean
+  // triggered at ≥80% — early warning before the function OOMs.
+  assert.match(HEALTH_SOURCE, /MEMORY_LIMIT_MB/, "must read MEMORY_LIMIT_MB env var");
+  assert.match(HEALTH_SOURCE, /limitMb/, "memory block must include limitMb");
+  assert.match(HEALTH_SOURCE, /usedPercent/, "memory block must include usedPercent");
+  assert.match(HEALTH_SOURCE, /nearLimit\s*:\s*usedPercent\s*>=\s*80/, "nearLimit must trigger at 80% threshold");
+});
+
+test("health handler: memory block's usedPercent uses heapUsed / limitMb * 1000 / 10 (1 decimal precision)", () => {
+  // 1-decimal-place precision is more than enough for ops dashboards and
+  // keeps the JSON payload tight. Locked in the source.
+  assert.match(
+    HEALTH_SOURCE,
+    /\*\s*1000\s*\)\s*\/\s*10/,
+    "usedPercent computation must divide by 10 after multiplying by 1000 to produce 1-decimal precision"
+  );
+});
