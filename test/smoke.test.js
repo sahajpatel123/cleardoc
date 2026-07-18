@@ -911,6 +911,7 @@ skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fr
   assert.ok(forgetBlock, "forgetMyData function must exist");
   assert.match(forgetBlock[0], /localStorage\.removeItem/, "must clear localStorage");
   assert.match(forgetBlock[0], /cleardoc:lastAnalysis/, "must clear the snapshot key specifically");
+  assert.match(forgetBlock[0], /cleardoc:draftInput/, "must clear the draft key specifically");
   assert.match(forgetBlock[0], /location\.hash/, "must strip the share fragment from the URL");
   assert.match(forgetBlock[0], /getRegistrations/, "must unregister the service worker");
   assert.match(forgetBlock[0], /caches\.delete/, "must clear SW caches");
@@ -928,22 +929,83 @@ skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fr
       v: 1, ts: Date.now(), raw: "x", rewriteHtml: "<p>x</p>",
       risks: [], deadlines: [], nextSteps: [], provider: "ai",
     }));
+    localStorage.setItem("cleardoc:draftInput", JSON.stringify({
+      v: 1, ts: Date.now(), text: "in-progress clause draft",
+    }));
   });
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
   // Sanity: seed survived the page load
   assert.ok(await page.evaluate(() => localStorage.getItem("cleardoc:lastAnalysis")), "seed must survive page load");
+  assert.ok(await page.evaluate(() => localStorage.getItem("cleardoc:draftInput")), "draft seed must survive page load");
 
   await page.click("#forgetBtn");
   // Give the async reset a moment to flush
   await page.waitForTimeout(150);
   const after = await page.evaluate(() => localStorage.getItem("cleardoc:lastAnalysis"));
   assert.equal(after, null, "forget button must clear cleardoc:lastAnalysis");
+  const draftAfter = await page.evaluate(() => localStorage.getItem("cleardoc:draftInput"));
+  assert.equal(draftAfter, null, "forget button must clear cleardoc:draftInput");
   // Toast should be visible
   const toastVisible = await page.$eval("#forgetToast", (el) => el.classList.contains("show"));
   assert.equal(toastVisible, true, "toast must appear after forget");
   const toastText = await page.$eval("#forgetToast .ft-text", (el) => el.textContent || "");
   assert.match(toastText, /localStorage/i, "toast must mention localStorage");
   assert.match(toastText, /SW caches/i, "toast must mention SW caches");
+  assert.match(toastText, /draft/i, "toast must mention drafts");
+
+  await page.close();
+  await ctx.close();
+});
+
+skip("draft autosave: textarea content survives reload, gets cleared on Analyze / Clear / Forget", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Source-pattern checks: draft helpers exist + are wired to the input event
+  assert.match(appSrc, /const DRAFT_KEY\s*=\s*'cleardoc:draftInput'/, "DRAFT_KEY constant must exist");
+  assert.match(appSrc, /function saveDraftNow\(/, "saveDraftNow helper must exist");
+  assert.match(appSrc, /function loadDraft\(/, "loadDraft helper must exist");
+  assert.match(appSrc, /function clearDraft\(/, "clearDraft helper must exist");
+  assert.match(appSrc, /scheduleDraftSave/, "input must schedule a debounced draft save");
+  // Successful render must clear the draft (snapshot supersedes it)
+  assert.match(appSrc, /clearDraft\(\);[\s\S]{0,80}A successful render/, "successful render must clear the draft");
+  // Clear button must also clear the draft
+  const clearBtn = appSrc.match(/if\(clearBtn\) clearBtn\.addEventListener[\s\S]+?clearStoredSnapshot\(\);/);
+  assert.ok(clearBtn, "clear button handler must exist");
+  assert.match(clearBtn[0], /clearDraft\(\)/, "clear button must call clearDraft");
+
+  // Live: seed a draft, reload the page, expect the textarea to be restored
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  // Visit /analyze.html first to seed an in-progress draft (we can't seed via
+  // addInitScript because draft restoration happens at page load).
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  await page.fill("#docInput", "Lessee shall forfeit the security deposit on termination.");
+  await page.dispatchEvent("#docInput", "input");
+  // Wait for the debounced save (500ms)
+  await page.waitForTimeout(700);
+  const draftSaved = await page.evaluate(() => localStorage.getItem("cleardoc:draftInput"));
+  assert.ok(draftSaved, "draft must be saved to localStorage after typing");
+  const parsed = JSON.parse(draftSaved);
+  assert.ok(parsed.text && parsed.text.indexOf("forfeit") !== -1, `saved draft must contain typed text, got: ${parsed.text}`);
+
+  // Reload — the textarea should be restored
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForTimeout(150);
+  const restoredValue = await page.$eval("#docInput", (el) => el.value);
+  assert.ok(restoredValue.indexOf("forfeit") !== -1, `draft must be restored on reload, got: "${restoredValue.slice(0, 80)}"`);
+
+  // Status message announces the restore
+  const msg = await page.$eval("#analyzeMsg", (el) => el.textContent || "");
+  assert.match(msg, /restored/i, `restore banner must say "restored", got: "${msg}"`);
+
+  // Clicking Clear wipes the draft
+  await page.click("#clearBtn");
+  await page.waitForTimeout(50);
+  const draftAfterClear = await page.evaluate(() => localStorage.getItem("cleardoc:draftInput"));
+  assert.equal(draftAfterClear, null, "Clear button must wipe the draft from localStorage");
 
   await page.close();
   await ctx.close();

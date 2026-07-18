@@ -230,7 +230,7 @@
 
     // 1. Wipe our own localStorage keys (don't touch unrelated keys — be polite).
     try {
-      const ownKeys = ['cleardoc:lastAnalysis'];
+      const ownKeys = ['cleardoc:lastAnalysis', 'cleardoc:draftInput'];
       for(const k of ownKeys){ localStorage.removeItem(k); }
     } catch(_) {}
 
@@ -282,7 +282,7 @@
     } catch(_) {}
 
     // 4. Confirm with a green toast — exactly matches the privacy promise copy.
-    showForgetToast('Cleared <b>localStorage</b> · <b>SW caches</b> · <b>URL fragment</b>');
+    showForgetToast('Cleared <b>localStorage</b> · <b>drafts</b> · <b>SW caches</b> · <b>URL fragment</b>');
 
     // 5. Re-enable the button so the user can repeat the action.
     if(btn) btn.disabled = false;
@@ -908,6 +908,45 @@
     const SNAPSHOT_VERSION=1;
     const SNAPSHOT_TTL_MS=24*60*60*1000;   // 24h, matches the privacy promise
     const SNAPSHOT_MAX_BYTES=256*1024;     // 256KB hard cap; well under the 5MB localStorage quota
+
+    /* ── Draft autosave ─────────────────────────────────────────────
+     * Auto-saves the in-progress textarea content as the user types
+     * (debounced). On next visit, the draft is restored so an accidental
+     * tab-close or refresh doesn't lose what they were writing. Drafts
+     * are NOT sensitive results — they sit alongside the result snapshot
+     * but with a longer TTL (7 days) since users may legitimately come
+     * back to a draft days later.
+     */
+    const DRAFT_KEY='cleardoc:draftInput';
+    const DRAFT_VERSION=1;
+    const DRAFT_TTL_MS=7*24*60*60*1000;     // 7 days
+    const DRAFT_DEBOUNCE_MS=500;
+    const DRAFT_MAX_BYTES=64*1024;          // 64KB hard cap (well under 5MB quota)
+    function saveDraftNow(text){
+      try{
+        const payload={v:DRAFT_VERSION,ts:Date.now(),text:String(text||'')};
+        const json=JSON.stringify(payload);
+        if(json.length>DRAFT_MAX_BYTES) return false;
+        localStorage.setItem(DRAFT_KEY,json);
+        return true;
+      }catch(_){ return false; }
+    }
+    function loadDraft(){
+      try{
+        const raw=localStorage.getItem(DRAFT_KEY);
+        if(!raw) return null;
+        const data=JSON.parse(raw);
+        if(!data || data.v!==DRAFT_VERSION) return null;
+        if(typeof data.ts!=='number' || (Date.now()-data.ts)>DRAFT_TTL_MS){
+          clearDraft(); return null;
+        }
+        if(typeof data.text!=='string' || !data.text.trim()) return null;
+        return data;
+      }catch(_){ return null; }
+    }
+    function clearDraft(){
+      try{ localStorage.removeItem(DRAFT_KEY); }catch(_){}
+    }
     function saveSnapshot(snap){
       try{
         if(!snap || typeof snap!=='object') return false;
@@ -1354,6 +1393,8 @@
       });
       // A successful render means the user is engaged with this analysis — hide the offer
       if(restoreBanner) restoreBanner.hidden=true;
+      // Snapshot supersedes the draft — clear it so we don't resurrect stale text
+      clearDraft();
     }
 
     // Build a local-only analysis snapshot (plain rewrite + regex flags) for fallback
@@ -1781,7 +1822,7 @@
     }
 
     if(btn) btn.addEventListener('click',analyze);
-    if(clearBtn) clearBtn.addEventListener('click',()=>{ input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); updateTextStats(); input.focus(); });
+    if(clearBtn) clearBtn.addEventListener('click',()=>{ input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); clearDraft(); updateTextStats(); input.focus(); });
 
     /* ---- Live text stats (word/char count + estimated reading level) ---- */
     function updateTextStats(){
@@ -1810,6 +1851,52 @@
       input.addEventListener('input', updateTextStats);
       input.addEventListener('change', updateTextStats);
       updateTextStats(); // initial paint for the preloaded sample
+
+      /* Draft autosave — debounced write to localStorage so a tab-close
+       * or refresh doesn't lose the user's in-progress text. Cleared on
+       * successful analysis (snapshot replaces the draft), on Clear, and
+       * on the Forget-my-data reset. The 500ms debounce keeps typing snappy.
+       */
+      let _draftTimer = null;
+      function scheduleDraftSave(){
+        clearTimeout(_draftTimer);
+        _draftTimer = setTimeout(() => {
+          // Don't autosave the preloaded sample — it's the same as the
+          // initial value and would just churn localStorage.
+          const current = input.value || '';
+          if(current.trim() === sampleText.trim()) { clearDraft(); return; }
+          // Don't autosave empty input (avoid resurrecting blanks).
+          if(!current.trim()) { clearDraft(); return; }
+          saveDraftNow(current);
+        }, DRAFT_DEBOUNCE_MS);
+      }
+      input.addEventListener('input', scheduleDraftSave);
+      // Also flush on blur / beforeunload so a tab-close captures the latest text.
+      input.addEventListener('blur', () => { clearTimeout(_draftTimer); scheduleDraftSave(); });
+      window.addEventListener('beforeunload', () => { clearTimeout(_draftTimer); scheduleDraftSave(); });
+    }
+
+    // Restore the draft on page load if there is one AND we don't already
+    // have an analysis result to show (the snapshot flow already covers that).
+    if(input){
+      const snap = loadStoredSnapshot();
+      const hasResult = snap && snap.raw && (panel && !panel.hidden);
+      if(!hasResult){
+        const draft = loadDraft();
+        if(draft){
+          // Only restore if the current textarea still holds the preloaded sample
+          // (otherwise the user has intentionally typed something already and
+          // we shouldn't clobber it).
+          if(input.value.trim() === sampleText.trim()){
+            input.value = draft.text.slice(0, MAX_DOCUMENT_CHARS);
+            if(msg){
+              msg.textContent = 'Restored your in-progress draft from ' + formatRelativeWhen(draft.ts) + '. Press Analyze when ready.';
+              msg.className = 'analyze-msg';
+            }
+            updateTextStats();
+          }
+        }
+      }
     }
     // Restore / dismiss the auto-saved analysis banner
     if(restoreBtn) restoreBtn.addEventListener('click',()=>{
@@ -1822,7 +1909,7 @@
       if(restoreBanner) restoreBanner.hidden=true;
       if(msg){msg.textContent='Saved analysis dismissed. It will not be offered again until you run a new analysis.'; msg.className='analyze-msg';}
     });
-    $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ input.value=q.dataset.fill; clearAttachments(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} updateTextStats(); }));
+    $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ input.value=q.dataset.fill; clearAttachments(); clearDraft(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} updateTextStats(); }));
     if(copyDraftBtn) copyDraftBtn.addEventListener('click',async()=>{ if(!draftOut||!draftOut.value)return; try{ await navigator.clipboard.writeText(draftOut.value); copyDraftBtn.textContent='Copied'; setTimeout(()=>copyDraftBtn.textContent='Copy draft',1400); }catch(_){ draftOut.focus(); draftOut.select(); } });
     if(downloadDraftBtn) downloadDraftBtn.addEventListener('click',()=>{ if(!draftOut||!draftOut.value)return; const url=URL.createObjectURL(new Blob([draftOut.value],{type:'text/plain'})); const a=document.createElement('a'); a.href=url; a.download='cleardoc-response-draft.txt'; a.click(); URL.revokeObjectURL(url); });
     if(printBtn) printBtn.addEventListener('click',printAnalysis);
