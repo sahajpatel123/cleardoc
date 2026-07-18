@@ -1781,3 +1781,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the second-to-last gap in /api/health observability. Now ops can spot cold-start problems, platform drift, and V8 heap leaks from a single `curl /api/health` — without poking at the Vercel dashboard for runtime info.
+
+**2026-07-19 03:05 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #44 of the autonomous loop** (cron `c3921bc4` firing). Live: 03:05 IST.
+- **Shipped `region` + `vercelEnv` fields in /api/health `process` block** (`91c5bb4a`). Two new fields in the existing `process` object: `region` (reads `VERCEL_REGION`, e.g. `"iad1"`) and `vercelEnv` (reads `VERCEL_ENV`, e.g. `"production"`). Both fall back to null in local dev where the env vars are unset.
+- **Real ops value**: ops dashboards can now route alerts by region ("only iad1 unhealthy" vs global incident) and distinguish production from preview deployments from the same endpoint. Critical for multi-region deployments and for not paging on-call at 3am when a preview deploy is degraded.
+- **244/244 tests pass** (181 unit + 62 smoke + 1 integration). 1 new source-pattern test locks in the wiring.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the LAST meaningful `/api/health` observability gap — node version / memory / platform are useful for runtime diagnostics; region + vercelEnv close out the deployment-context story. Together they describe "which build is running, on what runtime, in what region, with what memory profile" — a complete operational snapshot.
