@@ -35,12 +35,21 @@ module.exports = async function handler(req, res) {
     // Only runs when the provider is configured — no point pinging hosts we
     // don't have credentials for. We probe the host root, not a model endpoint,
     // so this proves network reachability without consuming any AI quota.
-    const geminiProbe = hasGemini
-      ? await probeProviderCached("gemini", "https://generativelanguage.googleapis.com/")
-      : null;
-    const openRouterProbe = hasOpenRouter
-      ? await probeProviderCached("openrouter", "https://openrouter.ai/")
-      : null;
+    //
+    // Both probes fire in PARALLEL via Promise.all — on a cold cache
+    // this cuts worst-case latency from ~6s (sequential) to ~3s (parallel).
+    // Cache hits already short-circuit inside probeProviderCached, so warm
+    // checks are unaffected. probeProvider() catches every error internally
+    // and always resolves with a result object, so Promise.all is safe
+    // here — neither probe can reject to break the parallel join.
+    const [geminiProbe, openRouterProbe] = await Promise.all([
+      hasGemini
+        ? probeProviderCached("gemini", "https://generativelanguage.googleapis.com/")
+        : Promise.resolve(null),
+      hasOpenRouter
+        ? probeProviderCached("openrouter", "https://openrouter.ai/")
+        : Promise.resolve(null),
+    ]);
 
     const payload = {
       ok: true,
