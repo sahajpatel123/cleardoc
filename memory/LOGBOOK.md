@@ -1870,3 +1870,12 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #10 closed another documentation gap. Next iteration scheduled to fire in 10 minutes.
+
+**2026-07-19 03:34 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #47 of the autonomous loop** (cron `c3921bc4` firing). Live: 03:34 IST.
+- **Shipped `/api/health` VERSION sourced from package.json** (`fbe9ac5c`). The VERSION constant in `api/health.js` was a hardcoded `"1.0.0"` string literal. Bumping `package.json` without remembering to update the constant means the deployed `version` field in `/api/health` lies to ops dashboards about which build is responding. Single source of truth: now reads via `require("../package.json").version` on module load.
+- **258/258 tests pass** (193 unit + 64 smoke + 1 integration). 1 new source-pattern test asserts the requirement and forbids hardcoded version literals.
+
+**Prompt Intention:**
+- Honored the standing directives. Tiny code-debt PR but eliminates a real failure mode — version drift between /api/health's payload field and the actual deployed package.json.
