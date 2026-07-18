@@ -32,7 +32,7 @@ const MAX_HISTORY_FIELD_CHARS = 500;        // per-field cap inside each turn
 const RATE_LIMIT_PER_MINUTE = 30;           // per-IP cap (chat is cheaper)
 const REQUEST_TIMEOUT_MS = 25000;           // per-provider budget — keeps total < 60s Vercel ceiling
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, attachRequestId, errLog, accessLog, readCappedBody, safeParseChatResult } = require("./_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, attachRequestId, errLog, accessLog, readCappedBody, safeParseChatResult, logProviderError } = require("./_safety.js");
 
 /* ── prompt ──────────────────────────────────────────────── */
 
@@ -95,7 +95,7 @@ function extractGeminiText(data) {
   return parts.map((part) => (typeof part.text === "string" ? part.text : "")).join("").trim();
 }
 
-async function callGeminiChat(prompt) {
+async function callGeminiChat(prompt, reqId) {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
   if (!apiKey) return null;
 
@@ -128,20 +128,20 @@ async function callGeminiChat(prompt) {
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      console.error("[chat] Gemini error:", res.status, data?.error?.message || "");
+      logProviderError(reqId, "chat-gemini", `HTTP ${res.status}: ${data?.error?.message || "(no error message)"}`);
       return null;
     }
 
     const text = extractGeminiText(data);
     if (!text) {
-      console.error("[chat] Gemini returned empty content");
+      logProviderError(reqId, "chat-gemini", "returned empty content");
       return null;
     }
 
     return { answer: text, model };
   } catch (err) {
     const timedOut = err && err.name === "AbortError";
-    console.error("[chat] Gemini failed:", timedOut ? "timeout" : (err && err.message) || String(err));
+    logProviderError(reqId, "chat-gemini", timedOut ? "timeout" : ((err && err.message) || String(err)));
     return null;
   } finally {
     clearTimeout(timer);
@@ -150,7 +150,7 @@ async function callGeminiChat(prompt) {
 
 /* ── OpenRouter path (fallback) ───────────────────────────── */
 
-async function callOpenRouterChat(prompt) {
+async function callOpenRouterChat(prompt, reqId) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
 
@@ -183,19 +183,19 @@ async function callOpenRouterChat(prompt) {
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      console.error("[chat] OpenRouter error:", res.status, data?.error?.message || "");
+      logProviderError(reqId, "chat-openrouter", `HTTP ${res.status}: ${data?.error?.message || "(no error message)"}`);
       return null;
     }
 
     const text = data?.choices?.[0]?.message?.content?.trim();
     if (!text) {
-      console.error("[chat] OpenRouter returned empty content");
+      logProviderError(reqId, "chat-openrouter", "returned empty content");
       return null;
     }
 
     return { answer: text, model };
   } catch (err) {
-    console.error("[chat] OpenRouter failed:", (err && (err.name || err.message)) || String(err));
+    logProviderError(reqId, "chat-openrouter", (err && (err.name || err.message)) || String(err));
     return null;
   } finally {
     clearTimeout(timer);
@@ -204,18 +204,47 @@ async function callOpenRouterChat(prompt) {
 
 /* ── Fallback orchestrator ────────────────────────────────── */
 
-async function callChatWithFallback(prompt) {
+async function callChatWithFallback(prompt, reqId) {
   // Try the primary provider first, then fall through to the next on any
   // non-result (null = provider missing, errored, timed out, or returned
   // empty content). Either provider can be absent: the chain degrades
   // gracefully to whichever is configured.
-  const gemini = await callGeminiChat(prompt);
-  if (gemini) return Object.assign({ provider: "gemini" }, gemini);
+  //
+  // Per-provider latency is tracked so the X-AI-Gemini-Ms / X-AI-OpenRouter-Ms
+  // headers can break down which provider was the bottleneck when a fallback
+  // activation happens. Provider call return value is checked; null means
+  // "didn't fire or didn't produce a result" — those still count toward the
+  // chain's wall-clock latency.
+  const geminiStart = Date.now();
+  const gemini = await callGeminiChat(prompt, reqId);
+  const geminiMs = Date.now() - geminiStart;
+  if (gemini) {
+    return {
+      provider: "gemini",
+      answer: gemini.answer,
+      model: gemini.model,
+      perProviderMs: { gemini: geminiMs, openrouter: 0 },
+    };
+  }
 
-  const openrouter = await callOpenRouterChat(prompt);
-  if (openrouter) return Object.assign({ provider: "openrouter" }, openrouter);
+  const openrouterStart = Date.now();
+  const openrouter = await callOpenRouterChat(prompt, reqId);
+  const openrouterMs = Date.now() - openrouterStart;
+  if (openrouter) {
+    return {
+      provider: "openrouter",
+      answer: openrouter.answer,
+      model: openrouter.model,
+      perProviderMs: { gemini: 0, openrouter: openrouterMs },
+    };
+  }
 
-  return null;
+  return {
+    provider: "none",
+    answer: null,
+    model: null,
+    perProviderMs: { gemini: geminiMs, openrouter: openrouterMs },
+  };
 }
 
 /* ── handler ──────────────────────────────────────────────── */
@@ -276,15 +305,18 @@ module.exports = async function handler(req, res) {
 
     const aiStart = Date.now();
     const out = await callChatWithFallback(
-      buildPrompt({ question, document, rewrite, risks: body?.risks, fileName, history: body?.history })
+      buildPrompt({ question, document, rewrite, risks: body?.risks, fileName, history: body?.history }),
+      res.__requestId
     );
     const aiLatencyMs = Date.now() - aiStart;
 
-    if (!out) {
+    if (!out || !out.answer) {
       // Both providers were unreachable, errored, timed out, or returned
       // empty content. Fallback was attempted (OpenRouter fired after
-      // Gemini failed) but neither ultimately answered.
-      applyAiResponseHeaders(res, "none", aiLatencyMs, undefined, true);
+      // Gemini failed) but neither ultimately answered. The orchestrator
+      // returns a "none"-shaped envelope with the per-provider latencies
+      // captured so the X-AI-<Provider>-Ms breakdown still fires.
+      applyAiResponseHeaders(res, "none", aiLatencyMs, undefined, true, (out && out.perProviderMs) || { gemini: 0, openrouter: 0 });
       res.setHeader("Retry-After", "60");
       return json(res, 502, { error: "Chat failed. Both providers were unreachable." });
     }
@@ -302,7 +334,7 @@ module.exports = async function handler(req, res) {
       model: out.model,
     });
     if (!parsed.ok) {
-      applyAiResponseHeaders(res, out.provider, aiLatencyMs, out.model, fallbackUsed);
+      applyAiResponseHeaders(res, out.provider, aiLatencyMs, out.model, fallbackUsed, out.perProviderMs);
       errLog(res, "chat", new Error(`invalid AI response from ${out.provider}: ${JSON.stringify(parsed.errors)}`));
       // Schema-invalid responses are transient (next sample usually ok).
       res.setHeader("Retry-After", "60");
@@ -312,7 +344,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    applyAiResponseHeaders(res, out.provider, aiLatencyMs, out.model, fallbackUsed);
+    applyAiResponseHeaders(res, out.provider, aiLatencyMs, out.model, fallbackUsed, out.perProviderMs);
     return json(res, 200, Object.assign({}, parsed.value, { provider: out.provider }));
   } catch (err) {
     // Last-resort safety net: never let an uncaught throw leak Vercel's

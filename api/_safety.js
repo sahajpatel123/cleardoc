@@ -174,6 +174,26 @@ function errLog(res, prefix, err) {
   console.error(`[req=${id}] [${prefix}] ${sanitizeLogField(msg, 1000)}`);
 }
 
+/* ── logProviderError: req-id-tagged logger for inner AI calls ────────
+ *
+ * The provider-calling helpers (callGemini, callOpenRouter, etc.) don't
+ * have direct access to the Vercel response object — they live below the
+ * outer handler. To keep every log line correlatable by request id, the
+ * outer handler captures `res.__requestId` once and threads it down.
+ *
+ * Usage:
+ *   const reqId = res.__requestId || "no-req-id";
+ *   const logErr = (prefix, msg) => logProviderError(reqId, prefix, msg);
+ *   ... pass logErr into the inner call ...
+ *
+ * Sanitizes the message the same way errLog does — control chars stripped,
+ * length capped. Falls back to "no-req-id" if reqId is missing.
+ */
+function logProviderError(reqId, prefix, msg) {
+  const id = (typeof reqId === "string" && reqId) ? reqId : "no-req-id";
+  console.error(`[req=${id}] [${prefix}] ${sanitizeLogField(msg, 1000)}`);
+}
+
 /* ── accessLog: structured per-request completion log ─────────────────
  *
  * Companion to errLog. Emits one structured line per handled request:
@@ -334,6 +354,8 @@ function applyRateLimitHeaders(res, rl) {
  *                            distinguish a clean primary hit from a
  *                            silent fallback activation without reading
  *                            logs.
+ *   X-AI-OpenRouter-Ms    — (optional) ms the openrouter call took, when fired
+ *   X-AI-Gemini-Ms        — (optional) ms the gemini call took, when fired
  *
  * Call this BEFORE `json()` on every response that actually involved an AI
  * call (200 success, 502 invalid_ai_response, 502 both-providers-failed). For
@@ -344,10 +366,11 @@ function applyRateLimitHeaders(res, rl) {
  * All fields are best-effort: any non-conforming input is silently ignored
  * so the helper is safe to call unconditionally. No throw on bad input.
  *
- * Backward compatible: existing 3-arg and 4-arg call sites work without
- * modification. Pass a boolean as the 5th argument to also emit X-AI-Fallback.
+ * Backward compatible: existing 3/4/5-arg call sites work without
+ * modification. Pass `perProviderMs = { openrouter?: n, gemini?: m }` as the
+ * 6th argument to also emit per-provider breakdown headers.
  */
-function applyAiResponseHeaders(res, provider, latencyMs, model, fallbackUsed) {
+function applyAiResponseHeaders(res, provider, latencyMs, model, fallbackUsed, perProviderMs) {
   if (!res || typeof res.setHeader !== "function" || res.headersSent) return;
   if (typeof provider === "string" && provider.length > 0 && provider.length < 64) {
     // Allowlist of provider strings — keeps the header value honest even
@@ -368,6 +391,26 @@ function applyAiResponseHeaders(res, provider, latencyMs, model, fallbackUsed) {
   }
   if (typeof fallbackUsed === "boolean") {
     res.setHeader("X-AI-Fallback", fallbackUsed ? "true" : "false");
+  }
+  if (perProviderMs && typeof perProviderMs === "object" && !Array.isArray(perProviderMs)) {
+    // Emit one X-AI-<Name>-Ms header per provider that fired. Keys are
+    // restricted to the known lowercase provider ids so a leaked Map or
+    // user-influenced object can't drive arbitrary header names. The
+    // header NAMES are looked up explicitly (not derived from the key)
+    // because "openrouter" must render as "OpenRouter" — naive TitleCase
+    // would yield "Openrouter" and miss the capital R.
+    //
+    // Strict `> 0` (not `>= 0`): a 0 entry means "provider was not attempted"
+    // (e.g. the API key was missing or the chain short-circuited). Emitting
+    // "X-AI-Gemini-Ms: 0" would mislead ops into thinking the provider ran
+    // for 0ms. Only emit when the call actually fired.
+    const HEADER_NAME_BY_PROVIDER = { openrouter: "X-AI-OpenRouter-Ms", gemini: "X-AI-Gemini-Ms" };
+    for (const key of Object.keys(HEADER_NAME_BY_PROVIDER)) {
+      const v = perProviderMs[key];
+      if (Number.isFinite(v) && v > 0 && v <= 600000) {
+        res.setHeader(HEADER_NAME_BY_PROVIDER[key], String(Math.round(v)));
+      }
+    }
   }
 }
 
@@ -733,6 +776,7 @@ module.exports = {
   errLog,
   accessLog,
   sanitizeLogField,
+  logProviderError,
   ANALYSIS_LIMITS,
   VALID_SEVERITIES,
   VALID_VERDICT_LABELS,

@@ -796,6 +796,71 @@ test("applyAiResponseHeaders: X-AI-Fallback coexists with all other AI headers",
   assert.equal(res.headers["X-AI-Fallback"], "true");
 });
 
+// ── applyAiResponseHeaders: per-provider latency (optional 6th arg) ──────
+
+test("applyAiResponseHeaders: writes X-AI-OpenRouter-Ms / X-AI-Gemini-Ms from perProviderMs", () => {
+  const res = mockRes();
+  applyAiResponseHeaders(res, "gemini", 5500, undefined, true, { openrouter: 5000, gemini: 500 });
+  assert.equal(res.headers["X-AI-OpenRouter-Ms"], "5000");
+  assert.equal(res.headers["X-AI-Gemini-Ms"], "500");
+});
+
+test("applyAiResponseHeaders: only emits headers for non-zero per-provider entries", () => {
+  // Primary-only (openrouter succeeded; gemini never fired). The unused
+  // provider's header must NOT appear so ops doesn't read "0ms" and think
+  // we tried.
+  const res = mockRes();
+  applyAiResponseHeaders(res, "openrouter", 200, undefined, false, { openrouter: 200, gemini: 0 });
+  assert.equal(res.headers["X-AI-OpenRouter-Ms"], "200");
+  assert.equal(res.headers["X-AI-Gemini-Ms"], undefined, "gemini=0 must NOT emit a header");
+});
+
+test("applyAiResponseHeaders: ignores unknown keys in perProviderMs (allowlist)", () => {
+  // Defense-in-depth: even though perProviderMs comes from orchestrator
+  // internals, future code paths might pass through a leaked object.
+  const res = mockRes();
+  applyAiResponseHeaders(res, "openrouter", 100, undefined, false, {
+    openrouter: 100,
+    gemini: 50,
+    anthropic: 9999,
+    "X-Evil\r\nInjected": 42,
+  });
+  assert.equal(res.headers["X-AI-OpenRouter-Ms"], "100");
+  assert.equal(res.headers["X-AI-Gemini-Ms"], "50");
+  assert.equal(res.headers["X-AI-Anthropic-Ms"], undefined, "unknown provider key must be ignored");
+  // No header injection via hostile keys
+  assert.equal(res.headers["X-Evil\r\nInjected"], undefined);
+});
+
+test("applyAiResponseHeaders: rejects non-finite or out-of-range per-provider ms", () => {
+  for (const bad of [NaN, -1, Infinity, "100", null]) {
+    const res = mockRes();
+    applyAiResponseHeaders(res, "openrouter", 100, undefined, false, { openrouter: bad });
+    assert.equal(res.headers["X-AI-OpenRouter-Ms"], undefined, `bad ms "${bad}" must be skipped`);
+  }
+});
+
+test("applyAiResponseHeaders: omits per-provider headers when 6th arg is omitted (backward compat)", () => {
+  // Existing 3/4/5-arg call sites must keep working without the new headers.
+  const res = mockRes();
+  applyAiResponseHeaders(res, "openrouter", 200);
+  assert.equal(res.headers["X-AI-OpenRouter-Ms"], undefined);
+  assert.equal(res.headers["X-AI-Gemini-Ms"], undefined);
+});
+
+test("applyAiResponseHeaders: full AI observability surface — all 7 headers written together", () => {
+  // Locks in the complete family: provider + total latency + model +
+  // fallback + per-provider breakdown.
+  const res = mockRes();
+  applyAiResponseHeaders(res, "gemini", 5500, "gemini-2.5-flash", true, { openrouter: 5000, gemini: 500 });
+  assert.equal(res.headers["X-AI-Provider"], "gemini");
+  assert.equal(res.headers["X-AI-Response-Time-Ms"], "5500");
+  assert.equal(res.headers["X-AI-Model"], "gemini-2.5-flash");
+  assert.equal(res.headers["X-AI-Fallback"], "true");
+  assert.equal(res.headers["X-AI-OpenRouter-Ms"], "5000");
+  assert.equal(res.headers["X-AI-Gemini-Ms"], "500");
+});
+
 // ── json() auto-latency header + attachRequestId start-time capture ────
 
 test("attachRequestId: captures __requestStartedAt for the latency header", () => {

@@ -150,23 +150,23 @@ test("analyze handler: wires applyAiResponseHeaders with provider + latency on e
   }
 
   // The 502 "both-fail" path must report provider "none". The optional
-  // 4th (model) and 5th (fallbackUsed) args may or may not be present —
-  // both forms are accepted.
+  // 4th (model), 5th (fallbackUsed), and 6th (perProviderMs) args may or
+  // may not be present — both forms are accepted.
   assert.match(
     handlerBody,
-    /applyAiResponseHeaders\(res,\s*"none"\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?\)/,
+    /applyAiResponseHeaders\(res,\s*"none"\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?(?:,\s*perProviderMs)?\)/,
     "502 both-fail path must call applyAiResponseHeaders with provider='none'"
   );
   // The 502 invalid_ai path must report the actual provider that answered.
   assert.match(
     handlerBody,
-    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?\)/,
+    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?(?:,\s*perProviderMs)?\)/,
     "502 invalid_ai path must call applyAiResponseHeaders with the actual provider"
   );
   // The 200 success path must also set the headers
   assert.match(
     handlerBody,
-    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?\)/,
+    /applyAiResponseHeaders\(res,\s*provider\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?(?:,\s*perProviderMs)?\)/,
     "200 success path must call applyAiResponseHeaders with the provider"
   );
 });
@@ -213,7 +213,8 @@ test("analyze handler: passes fallbackUsed to applyAiResponseHeaders (OpenRouter
     "must compute fallbackUsed = provider === 'gemini' (OpenRouter is primary)"
   );
   // All three AI-touched applyAiResponseHeaders calls must pass fallbackUsed
-  // as the 5th argument (both-fail, invalid_ai, success).
-  const callsWithFallback = [...handlerBody.matchAll(/applyAiResponseHeaders\(res,\s*[^,]+,\s*[^,]+(?:,\s*[^,]+)?,\s*(true|false|undefined|fallbackUsed)\s*\)/g)];
-  assert.ok(callsWithFallback.length >= 3, "must pass fallbackUsed on all 3 AI-touched applyAiResponseHeaders call sites");
+  // as the 5th argument (both-fail, invalid_ai, success) AND perProviderMs
+  // as the 6th argument (so the per-provider latency breakdown headers fire).
+  const callsWithFallback = [...handlerBody.matchAll(/applyAiResponseHeaders\(res,\s*[^,]+,\s*[^,]+(?:,\s*[^,]+)?,\s*(true|false|undefined|fallbackUsed)\s*,\s*perProviderMs\s*\)/g)];
+  assert.ok(callsWithFallback.length >= 3, "must pass fallbackUsed + perProviderMs on all 3 AI-touched applyAiResponseHeaders call sites");
 });

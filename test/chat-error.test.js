@@ -268,16 +268,16 @@ test("chat handler: wires applyAiResponseHeaders with provider + latency on ever
   assert.match(handlerBody, /aiStart\s*=\s*Date\.now\(\)/, "must capture aiStart before callChatWithFallback");
   assert.match(handlerBody, /aiLatencyMs\s*=\s*Date\.now\(\)\s*-\s*aiStart/, "must compute aiLatencyMs after the chain");
 
-  // 502 both-fail must report provider "none"
+  // 502 both-fail must report provider "none". Optional 4th/5th/6th args allowed.
   assert.match(
     handlerBody,
-    /applyAiResponseHeaders\(res,\s*"none"\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?\)/,
+    /applyAiResponseHeaders\(res,\s*"none"\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?(?:,\s*[^,)]+)?\)/,
     "502 both-fail path must call applyAiResponseHeaders with provider='none'"
   );
   // 502 invalid_ai and 200 success must report out.provider
   assert.match(
     handlerBody,
-    /applyAiResponseHeaders\(res,\s*out\.provider\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?\)/,
+    /applyAiResponseHeaders\(res,\s*out\.provider\s*,\s*aiLatencyMs(?:,\s*[^,)]+)?(?:,\s*(?:true|false|fallbackUsed))?(?:,\s*[^,)]+)?\)/,
     "success / invalid_ai paths must call applyAiResponseHeaders with out.provider"
   );
 });
@@ -328,7 +328,10 @@ test("chat handler: passes fallbackUsed to applyAiResponseHeaders (Gemini primar
     /fallbackUsed\s*=\s*out\.provider\s*===\s*"openrouter"/,
     "must compute fallbackUsed = out.provider === 'openrouter' (Gemini is primary)"
   );
-  // All three AI-touched applyAiResponseHeaders calls must pass fallbackUsed.
-  const callsWithFallback = [...handlerBody.matchAll(/applyAiResponseHeaders\(res,\s*[^,]+,\s*[^,]+(?:,\s*[^,]+)?,\s*(true|false|undefined|fallbackUsed)\s*\)/g)];
-  assert.ok(callsWithFallback.length >= 3, "must pass fallbackUsed on all 3 AI-touched applyAiResponseHeaders call sites");
+  // All three AI-touched applyAiResponseHeaders calls must pass fallbackUsed
+  // as the 5th arg and SOMETHING expression-providing per-provider latency
+  // as the 6th (e.g. out.perProviderMs, or a ternary that builds an object
+  // literal when the orchestrator returned null).
+  const callsWithFallback = [...handlerBody.matchAll(/applyAiResponseHeaders\(res,\s*[^,]+,\s*[^,]+(?:,\s*[^,]+)?,\s*(true|false|undefined|fallbackUsed)\s*,\s*[^)]*\)/g)];
+  assert.ok(callsWithFallback.length >= 3, "must pass fallbackUsed + per-provider latency on all 3 AI-touched applyAiResponseHeaders call sites");
 });

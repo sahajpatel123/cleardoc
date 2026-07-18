@@ -18,6 +18,7 @@ const {
   accessLog,
   readCappedBody,
   safeParseAnalysisResult,
+  logProviderError,
 } = require("./_safety.js");
 
 /* ── prompt ──────────────────────────────────────────────── */
@@ -75,7 +76,7 @@ ${document}`;
 
 /* ── OpenRouter path ─────────────────────────────────────── */
 
-async function callOpenRouter(document) {
+async function callOpenRouter(document, reqId) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
 
@@ -112,7 +113,7 @@ async function callOpenRouter(document) {
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      console.error("[analyze] OpenRouter error:", res.status, data?.error?.message || "");
+      logProviderError(reqId, "analyze-openrouter", `HTTP ${res.status}: ${data?.error?.message || "(no error message)"}`);
       return null;
     }
 
@@ -121,7 +122,7 @@ async function callOpenRouter(document) {
 
     return parseJsonFromText(text);
   } catch (err) {
-    console.error("[analyze] OpenRouter failed:", err?.name || err?.message || err);
+    logProviderError(reqId, "analyze-openrouter", (err && (err.name || err.message)) || String(err));
     return null;
   } finally {
     clearTimeout(timer);
@@ -130,7 +131,7 @@ async function callOpenRouter(document) {
 
 /* ── Gemini path ─────────────────────────────────────────── */
 
-async function callGemini(document) {
+async function callGemini(document, reqId) {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
   if (!apiKey) return null;
 
@@ -172,7 +173,7 @@ async function callGemini(document) {
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      console.error("[analyze] Gemini error:", res.status, data?.error?.message || "");
+      logProviderError(reqId, "analyze-gemini", `HTTP ${res.status}: ${data?.error?.message || "(no error message)"}`);
       return null;
     }
 
@@ -185,7 +186,7 @@ async function callGemini(document) {
 
     return parseJsonFromText(text);
   } catch (err) {
-    console.error("[analyze] Gemini failed:", err?.name || err?.message || err);
+    logProviderError(reqId, "analyze-gemini", (err && (err.name || err.message)) || String(err));
     return null;
   } finally {
     clearTimeout(timer);
@@ -258,24 +259,33 @@ module.exports = async function handler(req, res) {
     // Try OpenRouter first, then fall back to Gemini. We capture the wall-
     // clock AI latency so the X-AI-Response-Time-Ms header reports the
     // total time spent across the chain (OpenRouter + Gemini if both fire).
+    // Per-provider latency is captured separately so X-AI-OpenRouter-Ms /
+    // X-AI-Gemini-Ms can break down which provider was the bottleneck when
+    // a fallback activation happens.
     const aiStart = Date.now();
-    let result = await callOpenRouter(document);
+    let openrouterMs = 0;
+    let geminiMs = 0;
+    let result = await callOpenRouter(document, res.__requestId);
     let provider = "openrouter";
     let model = GEMMA_MODEL;
-
-    if (!result) {
-      result = await callGemini(document);
+    if (result) {
+      openrouterMs = Date.now() - aiStart;
+    } else {
+      const geminiStart = Date.now();
+      result = await callGemini(document, res.__requestId);
+      geminiMs = Date.now() - geminiStart;
       provider = "gemini";
       model = (process.env.GEMINI_CHAT_MODEL || GEMINI_MODEL_DEFAULT).trim();
     }
     const aiLatencyMs = Date.now() - aiStart;
+    const perProviderMs = { openrouter: openrouterMs, gemini: geminiMs };
 
     if (!result) {
       // Both providers in the chain are unreachable / errored / rate-limited.
       // Fallback was attempted (gemini did fire after openrouter failed) but
       // neither provider ultimately answered. Emit Retry-After + the standard
       // header family so monitoring can correlate.
-      applyAiResponseHeaders(res, "none", aiLatencyMs, undefined, true);
+      applyAiResponseHeaders(res, "none", aiLatencyMs, undefined, true, perProviderMs);
       res.setHeader("Retry-After", "60");
       return json(res, 502, {
         error: "AI analysis failed. Please try again.",
@@ -290,7 +300,7 @@ module.exports = async function handler(req, res) {
     const fallbackUsed = provider === "gemini";
     const parsed = safeParseAnalysisResult(result);
     if (!parsed.ok) {
-      applyAiResponseHeaders(res, provider, aiLatencyMs, model, fallbackUsed);
+      applyAiResponseHeaders(res, provider, aiLatencyMs, model, fallbackUsed, perProviderMs);
       errLog(res, "analyze", new Error(`invalid AI response from ${provider}: ${JSON.stringify(parsed.errors)}`));
       // Malformed-shape responses are typically transient (retry lands on a
       // different sample). 60s is a sensible back-off window.
@@ -302,7 +312,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    applyAiResponseHeaders(res, provider, aiLatencyMs, model, fallbackUsed);
+    applyAiResponseHeaders(res, provider, aiLatencyMs, model, fallbackUsed, perProviderMs);
     return json(res, 200, {
       analysis: parsed.value,
       provider,
