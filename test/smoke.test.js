@@ -1432,10 +1432,13 @@ skip("BYOF: reading level is computed live from the input (not hardcoded 12th→
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
   const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 
-  // gradeLevel + isGradable + plainTextOf must all exist at the IIFE level
+  // gradeLevel + isGradable + stripHtmlToText must all exist at the IIFE
+  // level. (plainTextOf was renamed to stripHtmlToText in 02c3afcc — the
+  // prior name was never defined and silently threw ReferenceError on the
+  // home page.)
   assert.match(appSrc, /function gradeLevel\(text\)/, "gradeLevel must be a top-level IIFE function");
   assert.match(appSrc, /function isGradable\(text\)/, "isGradable helper must exist for BYOF gating");
-  assert.match(appSrc, /function plainTextOf\(html\)/, "plainTextOf helper must exist for stripping output HTML");
+  assert.match(appSrc, /function stripHtmlToText\(html\)/, "stripHtmlToText helper must exist for stripping output HTML");
 
   // BYOF meta HTML must now have dynamic from/to IDs
   assert.match(indexHtml, /id="byofLevelFrom"/, "index.html must have #byofLevelFrom for the dynamic 'before' level");
