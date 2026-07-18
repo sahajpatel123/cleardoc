@@ -1180,3 +1180,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Audit-driven: a careful read of `applyRateLimitHeaders` revealed the disabled-limiter edge case was emitting misleading headers. Patched with a one-line guard and a regression test.
+
+**2026-07-18 14:12 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #14 of the autonomous loop** (15-min cadence). Live: 14:09 → 14:12 IST.
+- **Audited the parallel session's CI restructure** (iterations #15 in their sequence — they introduced `package.json` with `test`/`syntax`/`validate:json`/`check` scripts, refactored `.github/workflows/test.yml` to use those scripts, and split unit tests into 7 categorized steps with `--test-name-pattern` filters). Two of those initial pushes failed (29637517863 and 29637553056, both at 0s) due to YAML parsing errors from unquoted step names containing colons; the parallel session fixed that in `ci: quote YAML step names containing colons` and the workflow now runs green across all 17 steps.
+- **Verified end-to-end locally**: `npm run validate:json` ✓, `npm run syntax` ✓, `npm run test:unit` (all 6 unit suites) ✓, `npm run test:unit -- --test-name-pattern=…` (each category filter) ✓. YAML parses cleanly via PyYAML.
+- **Shipped two small onboarding improvements**:
+  - `.nvmrc` pinned to `22`, matching `engines.node` (>=22), `node-version: '22'` in the workflow, and Vercel's serverless runtime. Contributors using `nvm`/`fnm`/Volta/`asdf` get the right Node version automatically when they enter the repo.
+  - `README.md` updated to document the full local dev workflow: `nvm use`, `npm install --no-save playwright`, `npx playwright install --with-deps chromium`, `npx vercel dev`, `npm run check` (the full local CI equivalent).
+
+**Prompt Intention:**
+- Honored the standing directives. Audited the parallel session's CI restructure to make sure the refactor was sound, then picked a small concrete improvement that's a real gap (no Node version pinning for contributors).
