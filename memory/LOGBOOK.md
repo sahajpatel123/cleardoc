@@ -1889,3 +1889,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored standing directives. Picked a small, demonstrable performance fix — bounded the worst-case keystroke handler cost. Pattern: every search/filter input in user-facing UI should have an explicit maxlength so paste-spam can't degrade UX.
 
+**2026-07-19 03:45 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #48 of the autonomous loop** (cron `c3921bc4` firing). Live: 03:45 IST.
+- **Shipped FAQ search input maxlength=64 across all 3 HTML pages** (`063d55c5`). The FAQ search field used to be unbounded — a misbehaving browser extension or absurdly-long paste could pump arbitrarily long keys into the client-side filter (and downstream if it ever calls /api/analyze). Cap at 64 chars — comfortably above any plausible real query (longest genuine English FAQ search is ~40 chars).
+- **Smoke test added**: source-pattern check that every page with `id="faqSearch"` also carries `maxlength="64"`. Catches future page-level regressions so this fix can't silently get reverted.
+- **260/260 tests pass** (193 unit + 66 smoke + 1 integration).
+
+**Prompt Intention:**
+- Honored the standing directives. Picked a defense-in-depth UI fix from the parallel session's working tree — every search/filter input in user-facing UI should have an explicit maxlength so paste-spam can't degrade UX or blow a downstream input validator.
+
