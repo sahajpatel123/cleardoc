@@ -193,6 +193,55 @@ skip("JSON-LD: analyze page has WebPage + FAQPage with questions cited verbatim 
   }
 });
 
+skip("JSON-LD: pricing page has Product with 3 Offer tiers + FAQPage", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "pricing.html"), "utf8");
+  const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  assert.ok(blocks.length >= 1, "pricing.html must include a JSON-LD block");
+  const parsed = blocks.map(JSON.parse);
+  const flat = parsed.flatMap(p => (p && p["@graph"]) ? p["@graph"] : [p]);
+  const types = flat.map(n => n["@type"]).filter(Boolean);
+  assert.ok(types.includes("Product"), "pricing page must include a Product node");
+  assert.ok(types.includes("FAQPage"), "pricing page must include a FAQPage node");
+
+  const product = flat.find(n => n["@type"] === "Product");
+  assert.ok(Array.isArray(product.offers) && product.offers.length === 3,
+    `pricing Product must declare exactly 3 offers, got ${(product.offers||[]).length}`);
+  const prices = product.offers.map(o => o.price);
+  assert.deepEqual(prices.sort(), ["0", "19", "49"], "Offer prices must be $0/$19/$49");
+  for (const offer of product.offers) {
+    assert.ok(offer.priceCurrency === "USD", `offer ${offer.name} must use USD`);
+    assert.ok(offer.url && offer.url.startsWith("https://cleardoc.app/"), `offer ${offer.name} must have a canonical URL`);
+  }
+
+  const faq = flat.find(n => n["@type"] === "FAQPage");
+  assert.ok(Array.isArray(faq.mainEntity) && faq.mainEntity.length >= 3,
+    "pricing FAQPage must list at least 3 questions");
+});
+
+skip("sitemap.xml: lists every public HTML page with a lastmod timestamp", async () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const xml = fs.readFileSync(path.join(ROOT, "sitemap.xml"), "utf8");
+  // Must be a well-formed URL set
+  assert.match(xml, /<urlset[^>]+sitemaps\.org/, "sitemap must declare the sitemaps.org namespace");
+  for (const page of ["https://cleardoc.app/", "https://cleardoc.app/analyze.html", "https://cleardoc.app/pricing.html"]) {
+    assert.ok(xml.includes("<loc>" + page + "</loc>"), `sitemap must include ${page}`);
+  }
+  // Every <loc> must have a sibling <lastmod> for SEO freshness signals
+  const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1]);
+  for (const loc of locs) {
+    const after = xml.slice(xml.indexOf("<loc>" + loc + "</loc>"));
+    assert.match(after.slice(0, 400), /<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/,
+      `${loc} must have a <lastmod> timestamp for SEO freshness`);
+  }
+  // robots.txt must point at the sitemap
+  const robots = fs.readFileSync(path.join(ROOT, "robots.txt"), "utf8");
+  assert.match(robots, /Sitemap:\s*https:\/\/cleardoc\.app\/sitemap\.xml/, "robots.txt must reference the sitemap");
+});
+
 skip("analyze: loads without console errors and has new AI-backed sections", async () => {
   const errors = await loadAndCheck("/analyze.html", [
     ["#docInput", "document input"],
