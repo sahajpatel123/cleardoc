@@ -1066,6 +1066,19 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Closure for the operational-experience side of the codebase. New contributors can clone + `npm install` + `npm test` and have the same confidence as CI. Production incident handling: the YAML-parse failure was a useful reminder that CI syntax errors look like "no jobs ran" in the API surface, not like a regular failure with step output. Future YAML edits should pass through PyYAML / `actionlint` before commit.
 
+**2026-07-18 14:23 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #16 of the autonomous loop** (10-min cadence). Live: 14:19:26 → 14:23:33 IST.
+- **Two coordinated commits shipped:**
+  1. `f726639b feat(a11y): mobile drawer focus trap` (parallel session) — `assets/app.js` adds `focusables()` helper, opens focus to the first drawer link, Tab/Shift+Tab wrap inside the drawer, Escape returns focus to the toggle button. `test/smoke.test.js` adds a live Playwright test that opens the drawer, focuses the first link, Tab-spams 20 times to verify the trap, then verifies Shift+Tab also stays in.
+  2. `8dddf24f feat(health): surface deployed git SHA` (my contribution) — `api/health.js` payload now includes `gitSha: process.env.VERCEL_GIT_COMMIT_SHA || null`. Vercel auto-injects `VERCEL_GIT_COMMIT_SHA` on every production deploy; ops can now correlate a health-check response with a specific commit via `git rev-parse HEAD`. Local dev returns `null`.
+- **`test/health-error.test.js`**: 1 new source-pattern test — payload must read `VERCEL_GIT_COMMIT_SHA`, must include `gitSha` field, must fall back to `null` when unset.
+- **Test totals locally**: 32 smoke (was 30, +2: focus-trap + earlier ones) + 115 unit (was 114) + 1 integration = **148/148 passing**.
+- **CI result**: both commits **GREEN** on first run.
+
+**Prompt Intention:**
+- Closed the deployment-correlation gap. Before this change, "is the fix I just deployed actually live?" required opening Vercel, finding the deployment, comparing the SHA. Now the health endpoint tells ops what commit is serving every response, no out-of-band lookup.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
