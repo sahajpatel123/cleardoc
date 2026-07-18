@@ -96,7 +96,17 @@
     [/\bliable\b/gi,'responsible'],[/\bfacility fees?\b/gi,'extra hospital charges'],[/\bevergreen\b/gi,'auto-renewing']
   ];
   function clarify(raw){
-    let text=(raw||"").trim(); let found=0;
+    let text=(raw||"").trim();
+    // Soft cap the input length to keep the JARGON regex array (30 patterns,
+    // each running .test + .replace) under a second on a typical laptop.
+    // Without this, a user pasting a multi-MB string freezes the tab while
+    // every pattern sweeps the entire buffer. Cap matches MAX_DOCUMENT_CHARS
+    // on the analyze path so the BYOF demo can't outlive its server-side twin.
+    const CLARIFY_MAX_CHARS = 40000;
+    if(text.length > CLARIFY_MAX_CHARS){
+      text = text.slice(0, CLARIFY_MAX_CHARS);
+    }
+    let found=0;
     // wrap replacements in printable sentinels, THEN HTML-escape user text, so input can never inject markup
     JARGON.forEach(([re,plain])=>{ const r=new RegExp(re.source,re.flags); if(r.test(text)){found++; text=text.replace(new RegExp(re.source,re.flags),"[[B]]"+plain+"[[/B]]");} });
     // Use the shared `esc()` so quote escaping (&quot; / &#39;) applies here

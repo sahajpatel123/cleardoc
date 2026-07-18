@@ -2310,3 +2310,25 @@ test("every HTML page references assets/print.css with media='print'", () => {
   assert.match(printCss, /@media\s+print/, "print.css must contain an @media print rule");
   assert.match(printCss, /display\s*:\s*none/, "print.css must hide navigation chrome on print");
 });
+
+test("clarify() caps input length so a multi-MB paste doesn't freeze the tab", () => {
+  // The BYOF demo + hero clarifier both call clarify() with the user's
+  // raw input. clarify() runs the JARGON regex array (~30 patterns,
+  // each doing .test + .replace). A 100MB paste would freeze the
+  // browser tab while every pattern sweeps the buffer. Lock in the
+  // cap so future refactors can't drop it.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  // The cap constant must exist with a sensible bound
+  assert.match(appSrc, /CLARIFY_MAX_CHARS\s*=\s*\d+/, "CLARIFY_MAX_CHARS must be defined");
+  // The cap must be enforced inside clarify()
+  const clarifyFn = appSrc.match(/function clarify\(raw\)\{[\s\S]+?\n  \}/);
+  assert.ok(clarifyFn, "clarify() must exist");
+  assert.match(clarifyFn[0], /CLARIFY_MAX_CHARS/, "clarify() must consult CLARIFY_MAX_CHARS");
+  assert.match(clarifyFn[0], /slice\(0,\s*CLARIFY_MAX_CHARS\)/, "clarify() must slice input to the cap");
+  // Bound must be reasonable (≤ 64K) — anything larger defeats the purpose
+  const capMatch = appSrc.match(/CLARIFY_MAX_CHARS\s*=\s*(\d+)/);
+  const cap = parseInt(capMatch[1], 10);
+  assert.ok(cap > 0 && cap <= 65536, `CLARIFY_MAX_CHARS=${cap} must be 1..65536`);
+});
