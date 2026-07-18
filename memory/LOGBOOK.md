@@ -2147,3 +2147,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored the standing directives. Locked in the iter #55 X-Endpoint pattern across all 4 endpoints in one tiny test. Catches the failure mode "new endpoint added but X-Endpoint call forgotten" before it ships.
 
+**2026-07-19 05:25 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #57 of the autonomous loop** (cron `c3921bc4` firing). Live: 05:25 IST.
+- **Shipped `docs/API.md` — single-page API reference** (`7ac80b7a`). New ops + API consumers can read ONE place instead of hunting through 1000+ lines across 4 handler files. Covers the standard observability header family, per-endpoint rate limits / body caps / request + response shapes, conditional-request semantics (RFC 7232 dual: ETag/If-None-Match + Last-Modified/If-Modified-Since), edge-cache behavior, Content-Type enforcement, CSP report handler shape, schema validators (fail-closed per RULES.md #3), and versioning policy.
+- **Plus a smoke test that pins every endpoint + every standard header** must appear in `docs/API.md` — drift detector. If a future PR adds a new endpoint or new header without updating the docs, the test trips.
+- **287/287 tests pass** (215 unit + 71 smoke + 1 integration).
+
+**Prompt Intention:**
+- Honored the standing directives. Tiny documentation file with a single tiny test that locks it down. Real value: when the public API surface grows or shifts, the test trips and reviewers see "did you update docs/API.md?" immediately.
+
