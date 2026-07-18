@@ -72,6 +72,62 @@ function attachRequestId(res, req) {
   return id;
 }
 
+/* ── AI provider reachability probe (used by /api/health) ────────────
+ *
+ * Probes the host of an AI provider with a short-timeout HEAD request.
+ * We intentionally don't hit the model's generate endpoint (would burn
+ * quota) or pass auth headers (proves network reachability, not auth).
+ * Result is cached for 60s so polling doesn't translate to 60 outbound
+ * requests/min when monitoring scrapes the endpoint.
+ *
+ * Returns:
+ *   { ok: true,  status, latencyMs, checkedAt }
+ *   { ok: false, error, latencyMs,  checkedAt }
+ */
+
+const _probeCache = new Map();
+const _PROBE_TTL_MS = 60_000;
+const _PROBE_TIMEOUT_MS = 3000;
+
+async function probeProvider(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), _PROBE_TIMEOUT_MS);
+  const start = Date.now();
+  try {
+    const res = await fetch(url, { method: "HEAD", signal: controller.signal });
+    return {
+      ok: res.status < 500,
+      status: res.status,
+      latencyMs: Date.now() - start,
+      checkedAt: Date.now(),
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err && err.name === "AbortError" ? "timeout" : (err && err.message) || "unknown",
+      latencyMs: Date.now() - start,
+      checkedAt: Date.now(),
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function probeProviderCached(key, url) {
+  const now = Date.now();
+  const cached = _probeCache.get(key);
+  if (cached && now - cached.checkedAt < _PROBE_TTL_MS) {
+    return Object.assign({}, cached, { cached: true });
+  }
+  const fresh = await probeProvider(url);
+  _probeCache.set(key, fresh);
+  return Object.assign({}, fresh, { cached: false });
+}
+
+function clearProbeCache() {
+  _probeCache.clear();
+}
+
 function getIp(req) {
   if (!req || !req.headers) return "unknown";
   const xff = req.headers["x-forwarded-for"];
@@ -529,6 +585,9 @@ module.exports = {
   generateRequestId,
   sanitizeIncomingRequestId,
   attachRequestId,
+  probeProvider,
+  probeProviderCached,
+  clearProbeCache,
   ANALYSIS_LIMITS,
   VALID_SEVERITIES,
   VALID_VERDICT_LABELS,
