@@ -12,6 +12,7 @@ const {
   getIp,
   rateLimit,
   applyRateLimitHeaders,
+  attachRequestId,
   readCappedBody,
   safeParseAnalysisResult,
 } = require("./_safety.js");
@@ -214,6 +215,7 @@ function parseJsonFromText(text) {
 /* ── handler ─────────────────────────────────────────────── */
 
 module.exports = async function handler(req, res) {
+  attachRequestId(res, req);
   try {
     if (req.method !== "POST") {
       return json(res, 405, { error: "Method not allowed." });

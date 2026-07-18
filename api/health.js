@@ -7,13 +7,14 @@
  * Lightweight: no upstream calls, no auth. Rate-limited per IP to avoid abuse.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, getIp } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, getIp } = require("./_safety.js");
 
 const START_TS = Date.now();
 const VERSION = "1.0.0";
 const RATE_LIMIT_PER_MINUTE = 60; // health checks can be polled frequently
 
 module.exports = async function handler(req, res) {
+  attachRequestId(res, req);
   try {
     if (req.method !== "GET" && req.method !== "HEAD") {
       return json(res, 405, { error: "Method not allowed." });

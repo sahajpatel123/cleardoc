@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, readCappedBody } = require("../api/_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId } = require("../api/_safety.js");
 
 // ── json ─────────────────────────────────────────────────────────────
 
@@ -19,6 +19,82 @@ test("json: sets status, content-type, cache-control, and serializes body", () =
   assert.equal(res.headers["Content-Type"], "application/json");
   assert.equal(res.headers["Cache-Control"], "no-store");
   assert.deepEqual(JSON.parse(res._body), { ok: true, n: 42 });
+});
+
+test("json: sets X-Request-Id when one was attached via attachRequestId()", () => {
+  const res = mockRes();
+  attachRequestId(res, { headers: {} });
+  json(res, 200, { ok: true });
+  assert.ok(res.headers["X-Request-Id"], "X-Request-Id must be set");
+  assert.match(res.headers["X-Request-Id"], /^[A-Za-z0-9._-]+$/, "X-Request-Id must be ASCII");
+});
+
+// ── request-id helpers ───────────────────────────────────────────
+
+test("generateRequestId: returns a non-empty ASCII identifier each call", () => {
+  const id1 = generateRequestId();
+  const id2 = generateRequestId();
+  assert.ok(typeof id1 === "string" && id1.length > 0, "must produce a string");
+  assert.ok(typeof id2 === "string" && id2.length > 0, "must produce a string");
+  assert.notEqual(id1, id2, "two consecutive IDs should differ");
+  assert.match(id1, /^[A-Za-z0-9._-]+$/, "ID must match the header-safe charset");
+});
+
+test("sanitizeIncomingRequestId: accepts header-safe ASCII IDs", () => {
+  assert.equal(sanitizeIncomingRequestId("req-abc-123"), "req-abc-123");
+  assert.equal(sanitizeIncomingRequestId("a_b.c-d"), "a_b.c-d");
+});
+
+test("sanitizeIncomingRequestId: rejects empty / non-ASCII / wrong-type", () => {
+  assert.equal(sanitizeIncomingRequestId(""), null);
+  assert.equal(sanitizeIncomingRequestId(null), null);
+  assert.equal(sanitizeIncomingRequestId(undefined), null);
+  assert.equal(sanitizeIncomingRequestId(42), null);
+  assert.equal(sanitizeIncomingRequestId({}), null);
+  assert.equal(sanitizeIncomingRequestId("has spaces"), null);
+  assert.equal(sanitizeIncomingRequestId("has\nnewline"), null);
+  assert.equal(sanitizeIncomingRequestId("evil\r\nX-Injected: yes"), null);
+  assert.equal(sanitizeIncomingRequestId("emoji😈"), null);
+});
+
+test("sanitizeIncomingRequestId: caps accepted IDs at 128 chars", () => {
+  // 128 ASCII chars is accepted as-is
+  const exactly128 = "a".repeat(128);
+  assert.equal(sanitizeIncomingRequestId(exactly128), exactly128);
+  // 129+ ASCII chars get capped to 128 (defensive truncation, not rejection)
+  const capped = sanitizeIncomingRequestId("a".repeat(129));
+  assert.equal(capped, exactly128);
+  assert.equal(capped.length, 128);
+});
+
+test("attachRequestId: honors a valid upstream X-Request-Id", () => {
+  const res = mockRes();
+  const id = attachRequestId(res, { headers: { "x-request-id": "client-12345" } });
+  assert.equal(id, "client-12345");
+  assert.equal(res.__requestId, "client-12345");
+});
+
+test("attachRequestId: mints a fresh ID when no upstream header is sent", () => {
+  const res = mockRes();
+  const id = attachRequestId(res, { headers: {} });
+  assert.ok(id && id.length > 0, "must produce an ID");
+  assert.notEqual(id, "client-12345", "should not echo a phantom header");
+  assert.equal(res.__requestId, id);
+});
+
+test("attachRequestId: rejects malicious upstream IDs and mints a fresh one", () => {
+  const res = mockRes();
+  const id = attachRequestId(res, { headers: { "x-request-id": "evil\r\nX-Injected: yes" } });
+  assert.ok(id && id !== "evil\r\nX-Injected: yes");
+  // The new id must not contain control characters
+  assert.ok(!/[\r\n]/.test(id));
+});
+
+test("attachRequestId: handles missing req object without throwing", () => {
+  const res = mockRes();
+  const id = attachRequestId(res, null);
+  assert.ok(id && id.length > 0, "must produce an ID even with no req");
+  assert.equal(res.__requestId, id);
 });
 
 // ── asString ─────────────────────────────────────────────────────────

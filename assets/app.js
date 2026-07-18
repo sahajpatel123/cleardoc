@@ -103,6 +103,27 @@
     const html=text.split("[[B]]").join("<b>").split("[[/B]]").join("</b>");
     return {html, found, changed:found>0, empty:!text};
   }
+  // Approximate Flesch-Kincaid reading grade (US grade level 4..18). Always
+  // returns a number so the analyzer page can plug it directly into the
+  // result panel without null-checking. The BYOF demo uses isGradable()
+  // (below) to decide whether the score is meaningful to display.
+  function gradeLevel(text){
+    const t = String(text||'').trim();
+    const words = (t.match(/\b[\w'-]+\b/g) || []);
+    if (words.length < 5) return 4;
+    const sents = t.split(/[.!?]+/).filter(s => s.trim());
+    const wps = words.length / Math.max(1, sents.length || 1);
+    const longish = words.filter(w => w.length >= 8).length / words.length;
+    return Math.max(4, Math.min(18, Math.round(4 + wps*0.45 + longish*22)));
+  }
+  // True only when the input has enough words + sentences to make a
+  // reading-grade score meaningful. Used by the BYOF demo to gate the
+  // "READING LEVEL x → y" display.
+  function isGradable(text){
+    const t = String(text||'').trim();
+    if (t.length < 30) return false;
+    return (t.match(/\b[\w'-]+\b/g) || []).length >= 8;
+  }
 
   /* ================= PRELOADER ================= */
   const loader=$('#loader'),bar=$('#loader .lbar i'),lpct=$('#lpct'),panel=$('.reveal-panel');
@@ -380,12 +401,32 @@
   /* ---- BYOF ---- */
   function byof(){
     const inEl=$('#byofIn'),out=$('#byofOut'),scan=$('#byofScan'),jc=$('#byofJargon'),go=$('#byofGo');
+    const levelFrom=$('#byofLevelFrom'),levelTo=$('#byofLevelTo');
     let ran=false;
+    function setLevels(fromVal, toVal){
+      if(levelFrom) levelFrom.textContent = (fromVal==null ? '—' : fromVal+'th');
+      if(levelTo) levelTo.textContent = (toVal==null ? '—' : toVal+'th');
+    }
     function show(){ const raw=inEl.value;
-      if(!raw.trim()){ out.textContent='Paste or pick a sample, then press “Set in plain English”.'; jc.textContent='0'; return; }
+      if(!raw.trim()){
+        out.textContent='Paste or pick a sample, then press “Set in plain English”.';
+        jc.textContent='0';
+        setLevels(null, null);
+        return;
+      }
       const res=clarify(raw); jc.textContent=res.found;
-      if(!res.changed){ out.innerHTML='Already plain English — nothing to clear here. Try a sample →'; return; }
+      // Compute reading level for the original text (or hide if too short)
+      const before = isGradable(raw) ? gradeLevel(raw) : null;
+      if(!res.changed){
+        out.innerHTML='Already plain English — nothing to clear here. Try a sample →';
+        setLevels(before, before);
+        return;
+      }
       const html='You: '+res.html.charAt(0).toUpperCase()+res.html.slice(1);
+      // Compute reading level for the rewritten plain-English output
+      const plainOut = plainTextOf(res.html);
+      const after = isGradable(plainOut) ? gradeLevel(plainOut) : null;
+      setLevels(before, after);
       if(noMotion){ out.innerHTML=html; return; }
       gsap.set(scan,{opacity:1,top:-50}); gsap.to(scan,{top:'110%',duration:.9,ease:EASE.sweep,onComplete:()=>gsap.to(scan,{opacity:0,duration:.2})});
       const words=html.split(' ');out.innerHTML='';let i=0;
@@ -393,6 +434,13 @@
     }
     go.addEventListener('click',show);
     $$('.byof .qf').forEach(q=>q.addEventListener('click',()=>{inEl.value=q.dataset.fill;show();}));
+    // Live recompute on edit so the "READING LEVEL x → y" stays accurate
+    // even before the user clicks the button.
+    if(inEl) inEl.addEventListener('input', () => {
+      const raw = inEl.value;
+      if (!isGradable(raw)) { setLevels(null, null); return; }
+      setLevels(gradeLevel(raw), null);
+    });
     if(hasGSAP) ScrollTrigger.create({trigger:'.byof',start:'top 60%',once:true,onEnter:()=>{if(!ran){ran=true;show();}}});
     else show();
   }
@@ -579,9 +627,6 @@
       {re:/confidential|non-?disclosure|proprietary/i, sev:'g', label:'Note', why:'Restricts what you can share.'}
     ];
     function splitSentences(t){ return t.replace(/\s+/g,' ').trim().split(/(?<=[.!?;])\s+/).filter(s=>s.trim().length>1); }
-    function gradeLevel(text){ const words=(text.match(/\b[\w'-]+\b/g)||[]); const sents=text.split(/[.!?]+/).filter(s=>s.trim());
-      const wps=words.length/Math.max(1,sents.length); const longish=words.filter(w=>w.length>=8).length/Math.max(1,words.length);
-      return Math.max(4,Math.min(18,Math.round(4 + wps*0.45 + longish*22))); }
     function trunc(s,n){ s=s.trim(); return s.length>n? s.slice(0,n)+'…' : s; }
     function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 

@@ -20,11 +20,56 @@ function json(res, status, body) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Cache-Control", "no-store");
+  // Echo the request id if one was attached via attachRequestId(). Helps
+  // users correlate browser errors with server logs (and vice versa).
+  if (res && res.__requestId && !res.headersSent) {
+    res.setHeader("X-Request-Id", res.__requestId);
+  }
   res.end(JSON.stringify(body));
 }
 
 function asString(value, max) {
   return typeof value === "string" ? value.slice(0, max).trim() : "";
+}
+
+/* Request-id helpers — propagate a per-request UUID for log correlation.
+ *
+ * Usage:
+ *   const requestId = generateRequestId();
+ *   attachRequestId(res, requestId);
+ *   // ... any subsequent json(res, ...) call will set X-Request-Id.
+ *
+ * If the client sent an X-Request-Id header (e.g. from an upstream load
+ * balancer or test harness), we honor it; otherwise we mint a fresh UUID v4.
+ * Header is capped at 128 chars and stripped of anything but ASCII to
+ * avoid header-injection / log-injection through crafted upstream IDs.
+ */
+const VALID_REQ_ID = /^[A-Za-z0-9._-]+$/;
+
+function generateRequestId() {
+  // Node 14.17+ has globalThis.crypto.randomUUID; Vercel's Node 22 runtime
+  // is well past that. Fall back to a timestamp-based ID if the runtime
+  // somehow lacks the Web Crypto API.
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch (_) { /* fall through */ }
+  return `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function sanitizeIncomingRequestId(raw) {
+  if (typeof raw !== "string" || raw.length === 0) return null;
+  const trimmed = raw.slice(0, 128);
+  return VALID_REQ_ID.test(trimmed) ? trimmed : null;
+}
+
+function attachRequestId(res, req) {
+  // Prefer an upstream-supplied ID (from headers), fall back to a fresh one.
+  const incoming = req && req.headers && req.headers["x-request-id"];
+  const id = sanitizeIncomingRequestId(incoming) || generateRequestId();
+  if (res) res.__requestId = id;
+  return id;
 }
 
 function getIp(req) {
@@ -481,6 +526,9 @@ module.exports = {
   rateLimit,
   applyRateLimitHeaders,
   readCappedBody,
+  generateRequestId,
+  sanitizeIncomingRequestId,
+  attachRequestId,
   ANALYSIS_LIMITS,
   VALID_SEVERITIES,
   VALID_VERDICT_LABELS,

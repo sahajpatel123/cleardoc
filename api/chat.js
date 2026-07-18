@@ -7,7 +7,7 @@ const MIN_QUESTION_CHARS = 3;
 const MIN_DOCUMENT_CHARS = 10;
 const RATE_LIMIT_PER_MINUTE = 30;           // per-IP cap (chat is cheaper)
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, readCappedBody, safeParseChatResult } = require("./_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, attachRequestId, readCappedBody, safeParseChatResult } = require("./_safety.js");
 
 function extractText(data) {
   const candidate = data?.candidates?.[0];
@@ -54,6 +54,7 @@ function buildPrompt({ question, document, rewrite, risks, fileName }) {
 }
 
 module.exports = async function handler(req, res) {
+  attachRequestId(res, req);
   try {
     if (req.method !== "POST") {
       return json(res, 405, { error: "Method not allowed." });
