@@ -520,6 +520,23 @@ test("applyRateLimitHeaders: writes Retry-After on rejected in addition to the t
   assert.equal(res.headers["Retry-After"], "42");
 });
 
+test("applyRateLimitHeaders: omits all headers when limiter is disabled (limit <= 0)", () => {
+  // When maxPerMinute <= 0, rateLimit() returns { limit: 0, remaining: 0, reset: 0 }.
+  // Emitting those as headers would mislead clients (X-RateLimit-Reset: 0
+  // = 1970-01-01). The helper must omit every header so the absence tells
+  // the client "no limiter is active here" without lying about numbers.
+  const res = mockRes();
+  applyRateLimitHeaders(res, { ok: true, limit: 0, remaining: 0, reset: 0 });
+  assert.equal(res.headers["X-RateLimit-Limit"], undefined,
+    "X-RateLimit-Limit must NOT be set when limit is 0 (disabled)");
+  assert.equal(res.headers["X-RateLimit-Remaining"], undefined,
+    "X-RateLimit-Remaining must NOT be set when limit is 0 (disabled)");
+  assert.equal(res.headers["X-RateLimit-Reset"], undefined,
+    "X-RateLimit-Reset must NOT be set when reset is 0 (disabled)");
+  assert.equal(res.headers["Retry-After"], undefined,
+    "Retry-After must NOT be set when the limiter is disabled");
+});
+
 test("applyRateLimitHeaders: is null-safe (no throw on null/undefined/empty)", () => {
   for (const bad of [null, undefined, {}, "", 0]) {
     const res = mockRes();

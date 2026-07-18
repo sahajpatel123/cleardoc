@@ -272,6 +272,12 @@ function rateLimit(ip, maxPerMinute) {
  */
 function applyRateLimitHeaders(res, rl) {
   if (!rl || typeof rl !== "object") return;
+  // When the rate limiter is disabled (maxPerMinute <= 0), rateLimit() returns
+  // { ok: true, limit: 0, remaining: 0, reset: 0 }. Emitting those as response
+  // headers would mislead clients (X-RateLimit-Reset: 0 = 1970-01-01). Omit
+  // every rate-limit header instead — the absence tells the client "no
+  // limiter is active here" without lying about numbers.
+  if (rl.limit <= 0) return;
   if (Number.isFinite(rl.limit)) res.setHeader("X-RateLimit-Limit", String(rl.limit));
   if (Number.isFinite(rl.remaining)) res.setHeader("X-RateLimit-Remaining", String(rl.remaining));
   if (Number.isFinite(rl.reset)) res.setHeader("X-RateLimit-Reset", String(rl.reset));
