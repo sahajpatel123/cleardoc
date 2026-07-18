@@ -1931,3 +1931,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored standing directives. Pattern completion: every user-facing text input on the analyzer flow now has a maxlength that matches its server-side cap. Inputs capped at iter #1 (tags), iter #11 (BYOF), iter #13 (FAQ search), iter #15 (analyze + clarify textareas).
 
+**2026-07-19 03:56 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #49 of the autonomous loop** (cron `c3921bc4` firing). Live: 03:56 IST.
+- **Shipped `totalProbes` + `networkProbes` counters in /api/health summary** (`4c2ddd72`). The probe cache (60s TTL, 100-key LRU) has been hiding a useful operational signal — how many AI provider HEAD probes this function instance has issued since process start, and how many of those actually hit the network. Now visible in the summary rollup alongside the existing `cacheHits` field.
+- **Ops win**: cache hit rate = (total - network) / total. Rising `networkProbes` while `totalProbes` stays flat means cache misses are growing — early warning before upstream rate-limits kick in. Useful for tracking the cache's effectiveness after a deploy.
+- **Implementation**: module-level `_probeCount` + `_probeCountHits` counters in `_safety.js`; `getProbeCounts()` read-only accessor; `buildSummary()` calls it and surfaces both fields.
+- **263/263 tests pass** (195 unit + 67 smoke + 1 integration). 1 new source-pattern test on the wiring.
+
+**Prompt Intention:**
+- Honored the standing directives. Surfaced a previously-invisible operational signal. The 60s probe cache has been running since the cache was added in iter #38 — but the metric for whether the cache is actually doing its job wasn't visible anywhere. Now ops dashboards can graph it.
+
