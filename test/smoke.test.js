@@ -891,6 +891,58 @@ skip("pricing toggle: clicking Annually switches prices and reveals save cue", a
   await page.close();
 });
 
+skip("BYOF: glossary lists each jargon term that was replaced + its plain-English meaning", async () => {
+  if (!HAS_BROWSER) return;
+  const path = require("node:path");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // HTML must expose the glossary container + list
+  assert.match(indexHtml, /id="byofGlossary"/, "index.html must expose #byofGlossary");
+  assert.match(indexHtml, /id="byofGlossaryList"/, "index.html must expose #byofGlossaryList");
+
+  // Source-pattern: renderGlossary emits a list-item with the term + plain-English meaning
+  assert.match(appSrc, /function renderGlossary\(/, "renderGlossary must exist");
+  assert.match(appSrc, /matches\.map\(m =&gt;/, "renderGlossary must map matches into <li> rows");
+  assert.match(appSrc, /esc\(m\.term\)/, "renderGlossary must escape the jargon term");
+  assert.match(appSrc, /esc\(m\.plain\)/, "renderGlossary must escape the plain meaning");
+
+  // CSS rule
+  assert.match(themeSrc, /\.byof-glossary\{/, ".byof-glossary CSS rule must exist");
+
+  // Live: load the home page (BYOF auto-runs), then verify the glossary
+  // lists at least one entry with both a <code> term and a plain-English meaning.
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
+  // Wait for the BYOF auto-run to paint the glossary
+  await page.waitForFunction(() => {
+    const g = document.getElementById("byofGlossary");
+    return g && !g.hidden;
+  }, { timeout: 5000 }).catch(() => {});
+
+  const visible = await page.$eval("#byofGlossary", (el) => !el.hidden);
+  assert.equal(visible, true, "BYOF glossary must be visible after auto-run on the preloaded sample");
+
+  const items = await page.$$eval("#byofGlossaryList li", (els) => els.map(li => ({
+    term: (li.querySelector('code') || {}).textContent || '',
+    plain: (li.querySelector('.plain') || {}).textContent || '',
+  })));
+  assert.ok(items.length >= 1, `glossary must list at least one term, got ${items.length}`);
+  // Every row must have a non-empty term + non-empty plain-English meaning
+  for (const it of items) {
+    assert.ok(it.term.length > 0, `glossary row must have a non-empty term, got ${JSON.stringify(it)}`);
+    assert.ok(it.plain.length > 0, `glossary row must have a non-empty plain meaning, got ${JSON.stringify(it)}`);
+  }
+  // The preloaded sample mentions 'aforementioned policyholder' + 'liable' +
+  // 'deductibles' + 'notwithstanding' + 'pursuant' + 'tendered' — at least
+  // some of those should appear in the glossary.
+  const allText = items.map(i => i.term + ' ' + i.plain).join(' ').toLowerCase();
+  assert.ok(allText.length > 20, `glossary should have substantive content, got "${allText}"`);
+
+  await page.close();
+});
+
 skip("pricing: each non-free card shows an annual hint (total + savings) that updates with the toggle", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

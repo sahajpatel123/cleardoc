@@ -662,19 +662,49 @@
   function byof(){
     const inEl=$('#byofIn'),out=$('#byofOut'),scan=$('#byofScan'),jc=$('#byofJargon'),go=$('#byofGo');
     const levelFrom=$('#byofLevelFrom'),levelTo=$('#byofLevelTo');
+    const glossary=$('#byofGlossary'),glossaryList=$('#byofGlossaryList');
     let ran=false;
     function setLevels(fromVal, toVal){
       if(levelFrom) levelFrom.textContent = (fromVal==null ? '—' : fromVal+'th');
       if(levelTo) levelTo.textContent = (toVal==null ? '—' : toVal+'th');
+    }
+    function renderGlossary(matches){
+      // matches: [{re, plain}] — the jargon terms the clarify engine replaced.
+      if(!glossary || !glossaryList) return;
+      if(!matches || !matches.length){
+        glossary.hidden = true;
+        glossaryList.innerHTML = '';
+        return;
+      }
+      glossaryList.innerHTML = matches.map(m =>
+        '<li><code>'+esc(m.term)+'</code><span class="arrow">→</span><span class="plain">'+esc(m.plain)+'</span></li>'
+      ).join('');
+      glossary.hidden = false;
+      // Default collapsed — keeps the visual focus on the rewrite
+      glossary.open = false;
     }
     function show(){ const raw=inEl.value;
       if(!raw.trim()){
         out.textContent='Paste or pick a sample, then press “Set in plain English”.';
         jc.textContent='0';
         setLevels(null, null);
+        renderGlossary([]);
         return;
       }
+      // Run clarify, but also capture which terms were actually replaced so
+      // the glossary can list them. We do this by re-scanning with each
+      // JARGON pattern against the original text.
+      const matches = [];
+      JARGON.forEach(([re, plain]) => {
+        const r = new RegExp(re.source, re.flags);
+        if(r.test(raw)){
+          // Find the first matched string in the original
+          const m = raw.match(r);
+          if(m && m[0]) matches.push({ term: m[0], plain: plain });
+        }
+      });
       const res=clarify(raw); jc.textContent=res.found;
+      renderGlossary(matches);
       // Compute reading level for the original text (or hide if too short)
       const before = isGradable(raw) ? gradeLevel(raw) : null;
       if(!res.changed){

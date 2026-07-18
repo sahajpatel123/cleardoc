@@ -221,6 +221,17 @@
   .byofscan{position:absolute;left:0;right:0;height:40px;background:linear-gradient(180deg,transparent,var(--accent-glow),transparent);top:-50px;opacity:0}
   .byof .meta{display:flex;justify-content:space-between;gap:var(--s2);flex-wrap:wrap;margin-top:var(--s1);font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft)}
   .byof .meta b{color:var(--green)}
+  .byof-glossary{margin-top:var(--s2);border:var(--bd-hair) solid var(--ink);background:#fff;padding:8px 12px;font-size:var(--t-card)}
+  .byof-glossary[hidden]{display:none}
+  .byof-glossary summary{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);cursor:pointer;padding:4px 0;list-style:none}
+  .byof-glossary summary::-webkit-details-marker{display:none}
+  .byof-glossary summary::before{content:"▸ ";color:var(--ink);font-weight:700;display:inline-block;transition:transform .15s;margin-right:4px}
+  .byof-glossary[open] summary::before{content:"▾ "}
+  .byof-glossary ul{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:1fr;gap:6px}
+  .byof-glossary li{display:flex;gap:10px;align-items:baseline;font-family:'JetBrains Mono';font-size:var(--t-meta-sm);flex-wrap:wrap}
+  .byof-glossary li code{background:var(--paper2);border:1px solid var(--ink);padding:2px 6px;color:var(--ink);white-space:nowrap}
+  .byof-glossary li .arrow{color:var(--ink-soft)}
+  .byof-glossary li .plain{color:var(--green);font-weight:700}
 
   /* ---------- TWO PRESSES (true same-clause wipe) ---------- */
   .twopress{border-bottom:var(--bd) solid var(--ink);padding:0 var(--pad-x) var(--s6)}
