@@ -50,6 +50,17 @@
     <p>Paste a clause, a contract, or a bill — or attach a file. ClearDoc's AI rewrites it in plain English, flags the traps, gives you a verdict, and tells you exactly what to do next.</p>
   </div>
 
+  <aside class="restore-banner" id="restoreBanner" hidden aria-live="polite">
+    <div class="rb-info">
+      <span class="rb-kicker">// last analysis</span>
+      <span class="rb-text">You analyzed <b id="restoreDocName">a document</b> <b id="restoreWhen"></b>.</span>
+    </div>
+    <div class="rb-actions">
+      <button class="ghost-btn" id="restoreBtn" type="button">Restore</button>
+      <button class="ghost-btn rb-dismiss" id="dismissRestoreBtn" type="button" aria-label="Dismiss and clear the saved analysis">Dismiss</button>
+    </div>
+  </aside>
+
   <section class="work" aria-label="Document analyzer">
     <div class="col in">
       <label class="lbl" for="docInput">Your document or clause</label>

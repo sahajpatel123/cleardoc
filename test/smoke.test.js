@@ -289,6 +289,122 @@ skip("analyze: result-actions live inside the result panel and start hidden unti
   await page.close();
 });
 
+skip("analyze: restore banner appears when a non-expired snapshot is in localStorage", async () => {
+  if (!HAS_BROWSER) return;
+  // Fresh context — guarantees a clean localStorage for the storage write
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+
+  // Seed localStorage with a valid, in-TTL snapshot BEFORE the page's JS runs.
+  await page.addInitScript(() => {
+    const snap = {
+      v: 1,
+      ts: Date.now() - 5 * 60 * 1000, // 5 minutes ago
+      raw: "Lessee shall indemnify lessor in perpetuity.",
+      fileName: null,
+      rewriteHtml: "<p>You (the renter) must <b>cover the landlord's losses</b> forever.</p>",
+      verdict: { label: "Needs Review", summary: "Has a perpetual indemnity clause." },
+      readingLevel: { before: 14, after: 8 },
+      jargonFound: 3,
+      risks: [{ sev: "r", label: "Trap", clause: "indemnify lessor in perpetuity", why: "Never expires." }],
+      deadlines: [{ date: "60 days", description: "Notice period for termination." }],
+      nextSteps: ["Calendar the 60-day notice window.", "Get the indemnity term in writing."],
+      draft: "Subject: Request for clarification\n\nHello,\n\n...",
+      provider: "ai",
+    };
+    localStorage.setItem("cleardoc:lastAnalysis", JSON.stringify(snap));
+  });
+
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+
+  // The restore banner should be visible
+  const bannerHidden = await page.$eval("#restoreBanner", (el) => el.hidden);
+  assert.equal(bannerHidden, false, "restore banner should appear when a fresh snapshot is in localStorage");
+
+  // It should display the relative time and document preview
+  const when = await page.$eval("#restoreWhen", (el) => el.textContent || "");
+  assert.match(when, /minute|just now/i, `restoreWhen should show a relative time, got: "${when}"`);
+
+  const docName = await page.$eval("#restoreDocName", (el) => el.textContent || "");
+  assert.match(docName, /indemnify|lessee|document/i, `restoreDocName should preview the document, got: "${docName}"`);
+
+  // The restore and dismiss buttons must be present and clickable
+  assert.ok(await page.$("#restoreBtn"), "#restoreBtn must exist");
+  assert.ok(await page.$("#dismissRestoreBtn"), "#dismissRestoreBtn must exist");
+
+  // Clicking restore paints the snapshot into the result panel
+  await page.click("#restoreBtn");
+  await page.waitForSelector("#resultPanel:not([hidden])", { timeout: 3000 });
+  const bannerHiddenAfterRestore = await page.$eval("#restoreBanner", (el) => el.hidden);
+  assert.equal(bannerHiddenAfterRestore, true, "banner should hide after restore");
+  const plainText = await page.$eval("#plainOut", (el) => el.textContent || "");
+  assert.match(plainText, /cover the landlord/i, "plainOut should show the restored rewrite");
+
+  await page.close();
+  await ctx.close();
+});
+
+skip("analyze: stale (expired) snapshots are silently discarded, banner stays hidden", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+
+  // Seed with a snapshot that's 25h old — beyond the 24h TTL
+  await page.addInitScript(() => {
+    const snap = {
+      v: 1,
+      ts: Date.now() - 25 * 60 * 60 * 1000,
+      raw: "old text",
+      rewriteHtml: "<p>old</p>",
+      risks: [],
+      deadlines: [],
+      nextSteps: [],
+      provider: "ai",
+    };
+    localStorage.setItem("cleardoc:lastAnalysis", JSON.stringify(snap));
+  });
+
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+
+  // Banner must stay hidden — expired snapshot is purged on load
+  const bannerHidden = await page.$eval("#restoreBanner", (el) => el.hidden);
+  assert.equal(bannerHidden, true, "expired snapshot must not trigger the restore banner");
+
+  // And the storage must have been cleared
+  const stored = await page.evaluate(() => localStorage.getItem("cleardoc:lastAnalysis"));
+  assert.equal(stored, null, "expired snapshot should be cleared from localStorage");
+
+  await page.close();
+  await ctx.close();
+});
+
+skip("analyze: dismiss button clears storage and hides the banner", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+
+  await page.addInitScript(() => {
+    localStorage.setItem("cleardoc:lastAnalysis", JSON.stringify({
+      v: 1, ts: Date.now(), raw: "x", rewriteHtml: "<p>x</p>",
+      risks: [], deadlines: [], nextSteps: [], provider: "ai",
+    }));
+  });
+
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  // Sanity: banner visible
+  assert.equal(await page.$eval("#restoreBanner", (el) => el.hidden), false);
+
+  await page.click("#dismissRestoreBtn");
+  // Banner should hide
+  assert.equal(await page.$eval("#restoreBanner", (el) => el.hidden), true);
+  // Storage should be cleared
+  const stored = await page.evaluate(() => localStorage.getItem("cleardoc:lastAnalysis"));
+  assert.equal(stored, null, "dismiss should clear localStorage");
+
+  await page.close();
+  await ctx.close();
+});
+
 skip("PWA manifest: all pages link to a valid site.webmanifest", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

@@ -510,6 +510,21 @@
 
 @media(max-width:900px){.work{grid-template-columns:1fr}.work .col.in{border-right:none;border-bottom:var(--bd) solid var(--ink)}}
 
+/* ---- RESTORE BANNER (auto-saved analysis) ---- */
+.restore-banner{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);flex-wrap:wrap;margin:0 var(--pad-x) var(--s3);padding:var(--s2) var(--s3);border:var(--bd) solid var(--ink);background:var(--paper2);box-shadow:var(--shadow-sm);animation:rbIn .4s cubic-bezier(.34,1.56,.64,1) both}
+.restore-banner[hidden]{display:none}
+@keyframes rbIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.restore-banner .rb-info{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;min-width:0}
+.restore-banner .rb-kicker{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);letter-spacing:.16em;text-transform:uppercase;color:var(--accent-text);background:#fff;border:1px solid var(--accent);padding:2px 7px}
+.restore-banner .rb-text{font-size:var(--t-body);line-height:1.4;color:var(--ink)}
+.restore-banner .rb-text b{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--ink)}
+.restore-banner .rb-actions{display:flex;gap:8px;flex-shrink:0}
+.restore-banner #restoreBtn{background:var(--ink);color:var(--paper);border-color:var(--ink);font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:var(--t-meta-sm);padding:10px 18px}
+.restore-banner #restoreBtn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.restore-banner .rb-dismiss{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;padding:10px 14px;color:var(--ink-soft)}
+.restore-banner .rb-dismiss:hover{background:var(--ink);color:var(--paper)}
+@media(max-width:600px){.restore-banner{margin:0 var(--s3) var(--s3)}.restore-banner .rb-actions{width:100%}.restore-banner #restoreBtn,.restore-banner .rb-dismiss{flex:1}}
+
 /* ---- ANALYZER RESULT ACTIONS (Print / Save / Copy) ---- */
 .result-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:var(--s4);padding:var(--s2) var(--s3);border:var(--bd-hair) solid var(--ink);background:var(--paper2)}
 .result-actions .ghost-btn{padding:9px 14px;font-size:var(--t-meta-sm);font-family:'JetBrains Mono',monospace;text-transform:none;letter-spacing:.02em;display:inline-flex;align-items:center;gap:6px}

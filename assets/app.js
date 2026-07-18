@@ -504,7 +504,9 @@
           analyzeLoading=$('#analyzeLoading'),verdictBlock=$('#verdictBlock'),verdictDisplay=$('#verdictDisplay'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
-          printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),printDate=$('#printDate');
+          printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),printDate=$('#printDate'),
+          restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
+          restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn');
     const sampleText=input.value.trim();
 
     // trap/risk patterns — severity g(note) a(watch) r(trap)
@@ -525,6 +527,65 @@
       return Math.max(4,Math.min(18,Math.round(4 + wps*0.45 + longish*22))); }
     function trunc(s,n){ s=s.trim(); return s.length>n? s.slice(0,n)+'…' : s; }
     function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+    // Mirrors the server-side cap in api/analyze.js — restores must not push
+    // a multi-megabyte document back into the textarea.
+    const MAX_DOCUMENT_CHARS = 40000;
+
+    /* ── Local persistence (auto-save / restore) ────────────────
+     *
+     * Privacy promise on the home page: "Auto-purged within 24h".
+     * We mirror that here: any analysis is stored for at most 24h,
+     * then silently discarded. Storage is best-effort — localStorage
+     * can be disabled (private mode, quota exceeded); all failures
+     * return silently and the analyzer keeps working without it.
+     */
+    const SNAPSHOT_KEY='cleardoc:lastAnalysis';
+    const SNAPSHOT_VERSION=1;
+    const SNAPSHOT_TTL_MS=24*60*60*1000;   // 24h, matches the privacy promise
+    const SNAPSHOT_MAX_BYTES=256*1024;     // 256KB hard cap; well under the 5MB localStorage quota
+    function saveSnapshot(snap){
+      try{
+        if(!snap || typeof snap!=='object') return false;
+        const payload={v:SNAPSHOT_VERSION,ts:Date.now(),...snap};
+        const json=JSON.stringify(payload);
+        if(json.length>SNAPSHOT_MAX_BYTES) return false;
+        localStorage.setItem(SNAPSHOT_KEY,json);
+        return true;
+      }catch(_){ return false; }
+    }
+    function loadStoredSnapshot(){
+      try{
+        const raw=localStorage.getItem(SNAPSHOT_KEY);
+        if(!raw) return null;
+        const data=JSON.parse(raw);
+        if(!data || data.v!==SNAPSHOT_VERSION) return null;
+        if(typeof data.ts!=='number' || (Date.now()-data.ts)>SNAPSHOT_TTL_MS){ clearStoredSnapshot(); return null; }
+        return data;
+      }catch(_){ return null; }
+    }
+    function clearStoredSnapshot(){
+      try{ localStorage.removeItem(SNAPSHOT_KEY); }catch(_){}
+    }
+    function formatRelativeWhen(ts){
+      const diff=Date.now()-ts;
+      if(diff<60*1000) return 'just now';
+      const mins=Math.floor(diff/(60*1000));
+      if(mins<60) return mins+' minute'+(mins===1?'':'s')+' ago';
+      const hrs=Math.floor(mins/60);
+      if(hrs<24) return hrs+' hour'+(hrs===1?'':'s')+' ago';
+      const days=Math.floor(hrs/24);
+      return days+' day'+(days===1?'':'s')+' ago';
+    }
+    function shortDocName(raw, fileName){
+      if(fileName){
+        return '"'+fileName.replace(/\.[^.]+$/,'').slice(0,40)+'"';
+      }
+      const trimmed=(raw||'').trim().replace(/\s+/g,' ');
+      if(!trimmed) return 'a document';
+      if(trimmed.length<=60) return '"'+trimmed+'"';
+      return '"'+trimmed.slice(0,57)+'…"';
+    }
     let lastSentences=[],lastFlags=[],lastRaw='',attachedText='',attachedFile=null,chipUrls=[];
     function activeDocumentText(){
       const typed=input.value.trim();
@@ -702,6 +763,33 @@
       if(emptyEl) emptyEl.hidden=true; panel.hidden=false; if(askOut) askOut.innerHTML='';
       if(!noMotion && window.gsap) gsap.fromTo(panel,{opacity:0,y:14},{opacity:1,y:0,duration:DUR.base,ease:EASE.enter});
       if(askInput) askInput.disabled=false; if(askBtn) askBtn.disabled=false;
+
+      // Persist for restore-on-refresh. Best-effort; failures are silent.
+      // Only the renderable shape is stored — no AI API keys, no PII fields.
+      saveSnapshot({
+        raw,
+        fileName: attachedFile && attachedFile.name ? attachedFile.name : null,
+        rewriteHtml: plainOut ? plainOut.innerHTML : '',
+        verdict: (verdictBlock && !verdictBlock.hidden && verdictDisplay) ? {
+          label: (verdictDisplay.querySelector('.verdict-label')||{}).textContent || '',
+          summary: (verdictDisplay.querySelector('.verdict-summary')||{}).textContent || ''
+        } : null,
+        readingLevel: (levelFrom && levelTo) ? {
+          before: parseInt((levelFrom.textContent||'').replace(/\D/g,''),10) || null,
+          after: parseInt((levelTo.textContent||'').replace(/\D/g,''),10) || null
+        } : null,
+        jargonFound: jargonCount ? parseInt((jargonCount.textContent||'0').replace(/\D/g,''),10)||0 : 0,
+        risks: flags.map(f=>({sev:f.rule.sev,label:f.rule.label,clause:f.s,why:f.rule.why})),
+        deadlines: (deadlinesBlock && !deadlinesBlock.hidden && deadlinesList) ? [...deadlinesList.querySelectorAll('.deadline-row')].map(row=>({
+          date: (row.querySelector('.deadline-date')||{}).textContent || '',
+          description: (row.querySelector('.deadline-desc')||{}).textContent || ''
+        })) : [],
+        nextSteps: (nextStepsBlock && !nextStepsBlock.hidden && nextStepsList) ? [...nextStepsList.querySelectorAll('li')].map(li=>li.textContent||'') : [],
+        draft: draftOut ? draftOut.value : '',
+        provider: (ctx.ai ? 'ai' : 'local')
+      });
+      // A successful render means the user is engaged with this analysis — hide the offer
+      if(restoreBanner) restoreBanner.hidden=true;
     }
 
     // Build a local-only analysis snapshot (plain rewrite + regex flags) for fallback
@@ -711,7 +799,157 @@
       sentences.forEach((s,i)=>{ for(const rule of RISK){ if(rule.re.test(s)){ flags.push({i,s,rule}); break; } } });
       let html='', totalJargon=0;
       sentences.forEach(s=>{ const r=clarify(s); totalJargon+=r.found; html+='<p>'+(r.changed?r.html:esc(s))+'</p>'; });
-      return {plainEnglishRewrite:html||raw, risks:[], verdict:null, deadlines:[], nextSteps:[], readingLevel:null, jargonFound:totalJargon, flags};
+      return {plainEnglishRewrite:html||raw, risks:[], verdict:null, deadlines:[], readingLevel:null, jargonFound:totalJargon, flags};
+    }
+
+    /* Paint a stored snapshot back into the result panel — no AI call, no network.
+     * Used by the restore banner so a refresh / tab-close doesn't lose a long analysis.
+     */
+    function paintStoredSnapshot(snap){
+      if(!snap || typeof snap!=='object') return;
+      lastRaw=String(snap.raw||''); lastSentences=splitSentences(lastRaw);
+
+      // Restored risks come from the snapshot; rebuild the same shape render() produces
+      const risks=Array.isArray(snap.risks)?snap.risks:[];
+      lastFlags=risks.map(r=>({
+        i:-1,
+        s:String(r.clause||''),
+        rule:{
+          sev:['r','a','g'].includes(r.sev)?r.sev:'g',
+          label:String(r.label||'Note'),
+          why:String(r.why||'')
+        }
+      }));
+
+      // Pre-fill the textarea ONLY if it's currently the preloaded sample — never clobber
+      // a user's in-progress edit. This matches what the file-attachment path does.
+      const typedNow=input.value.trim();
+      if(!typedNow || typedNow===sampleText){
+        // Cap to MAX_DOCUMENT_CHARS so the visible textarea doesn't overflow
+        input.value=lastRaw.slice(0, MAX_DOCUMENT_CHARS);
+      }
+
+      // Plain-English rewrite (already sanitized when saved; sanitize again defensively)
+      if(plainOut){
+        plainOut.innerHTML=sanitizeAiRewrite(snap.rewriteHtml||'');
+      }
+      if(jargonCount){
+        const jf=Number(snap.jargonFound);
+        jargonCount.textContent=Number.isFinite(jf)?jf:(lastFlags.length);
+      }
+
+      // Reading level
+      const rl=snap.readingLevel||null;
+      if(rl && Number.isFinite(rl.before) && Number.isFinite(rl.after)){
+        if(levelFrom) levelFrom.textContent=rl.before+'th';
+        if(levelTo) levelTo.textContent=rl.after+'th';
+      } else {
+        const before=gradeLevel(lastRaw);
+        const after=Math.max(5, Math.min(before-2, gradeLevel(plainOut?plainOut.textContent:'')));
+        if(levelFrom) levelFrom.textContent=before+'th';
+        if(levelTo) levelTo.textContent=after+'th';
+      }
+
+      // Risk radar — reuse the same DOM-building block as render()
+      if(riskNote){
+        if(!lastFlags.length){
+          riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.';
+        } else {
+          const cnt={r:0,a:0,g:0}; lastFlags.forEach(f=>cnt[f.rule.sev]++);
+          const tally=[];
+          if(cnt.r) tally.push('<span class="rk-tally rk-tally--r">'+cnt.r+' trap'+(cnt.r>1?'s':'')+'</span>');
+          if(cnt.a) tally.push('<span class="rk-tally rk-tally--a">'+cnt.a+' watch</span>');
+          if(cnt.g) tally.push('<span class="rk-tally rk-tally--g">'+cnt.g+' note'+(cnt.g>1?'s':'')+'</span>');
+          riskNote.innerHTML='<span class="riskNote-lead">'+lastFlags.length+' flagged</span> '+tally.join('');
+        }
+      }
+      if(riskList){
+        riskList.innerHTML='';
+        lastFlags.forEach(f=>{
+          const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev;
+          row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>';
+          riskList.appendChild(row);
+        });
+      }
+
+      // Verdict
+      if(verdictDisplay){
+        const v=snap.verdict;
+        if(v && v.label){
+          const label=String(v.label).trim();
+          const summary=String(v.summary||'').trim();
+          const tone=label.toLowerCase().includes('fair')?'fair'
+                   : label.toLowerCase().includes('suspicious')?'suspicious'
+                   : label.toLowerCase().includes('illegal')?'illegal'
+                   :'review';
+          verdictDisplay.innerHTML='<span class="verdict-label '+tone+'">'+esc(label)+'</span>'
+            +'<div class="verdict-summary">'+esc(summary||'')+'</div>';
+          if(verdictBlock) verdictBlock.hidden=false;
+        } else if(verdictBlock){ verdictBlock.hidden=true; }
+      }
+
+      // Deadlines
+      if(deadlinesList){
+        deadlinesList.innerHTML='';
+        const dls=Array.isArray(snap.deadlines)?snap.deadlines:[];
+        dls.forEach(d=>{
+          const row=document.createElement('div');
+          row.className='deadline-row';
+          row.innerHTML='<span class="deadline-date">'+esc(String(d.date||'').slice(0,80))+'</span>'
+            +'<span class="deadline-desc">'+esc(String(d.description||'').slice(0,300))+'</span>';
+          deadlinesList.appendChild(row);
+        });
+        if(deadlinesBlock) deadlinesBlock.hidden = dls.length===0;
+      }
+
+      // Next steps
+      if(nextStepsList){
+        nextStepsList.innerHTML='';
+        const steps=Array.isArray(snap.nextSteps)?snap.nextSteps:[];
+        steps.forEach(s=>{
+          const li=document.createElement('li');
+          li.textContent=String(s).slice(0,400);
+          nextStepsList.appendChild(li);
+        });
+        if(nextStepsBlock) nextStepsBlock.hidden = steps.length===0;
+      }
+
+      // Draft (regenerate from the restored risks so the buttons match)
+      if(draftOut){
+        draftOut.value=buildDraft(lastRaw, lastFlags);
+        if(draftNote) draftNote.textContent='Restored from your last analysis. Fill in names, dates, and contact details before sending.';
+      }
+
+      // Reveal the panel; hide loading/empty states
+      if(emptyEl) emptyEl.hidden=true;
+      if(analyzeLoading) analyzeLoading.hidden=true;
+      if(panel) panel.hidden=false;
+      if(askOut) askOut.innerHTML='';
+      if(askInput) askInput.disabled=false;
+      if(askBtn) askBtn.disabled=false;
+
+      // Status: surface that this is a restore, not a fresh analysis
+      if(msg){
+        msg.textContent='Restored your last analysis. Press Analyze to re-run with the current text.';
+        msg.className='analyze-msg';
+      }
+
+      if(restoreBanner) restoreBanner.hidden=true;
+      if(!noMotion && window.gsap && panel){
+        gsap.fromTo(panel,{opacity:0,y:14},{opacity:1,y:0,duration:DUR.base,ease:EASE.enter});
+      }
+    }
+
+    function maybeOfferRestore(){
+      if(!restoreBanner) return;
+      const snap=loadStoredSnapshot();
+      if(!snap) return;
+      if(restoreDocName) restoreDocName.textContent=shortDocName(snap.raw, snap.fileName);
+      if(restoreWhen) restoreWhen.textContent=formatRelativeWhen(snap.ts);
+      restoreBanner.hidden=false;
+      if(!noMotion && window.gsap){
+        gsap.from(restoreBanner,{y:-6,opacity:0,duration:DUR.base,ease:EASE.enter});
+      }
     }
 
     // Light sanitizer for AI rewrite HTML — only allow safe tags, neutralize anything else
@@ -979,7 +1217,18 @@
     }
 
     if(btn) btn.addEventListener('click',analyze);
-    if(clearBtn) clearBtn.addEventListener('click',()=>{ input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); input.focus(); });
+    if(clearBtn) clearBtn.addEventListener('click',()=>{ input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); input.focus(); });
+    // Restore / dismiss the auto-saved analysis banner
+    if(restoreBtn) restoreBtn.addEventListener('click',()=>{
+      const snap=loadStoredSnapshot();
+      if(snap){ paintStoredSnapshot(snap); }
+      else if(restoreBanner){ restoreBanner.hidden=true; }
+    });
+    if(dismissRestoreBtn) dismissRestoreBtn.addEventListener('click',()=>{
+      clearStoredSnapshot();
+      if(restoreBanner) restoreBanner.hidden=true;
+      if(msg){msg.textContent='Saved analysis dismissed. It will not be offered again until you run a new analysis.'; msg.className='analyze-msg';}
+    });
     $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ input.value=q.dataset.fill; clearAttachments(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} }));
     if(copyDraftBtn) copyDraftBtn.addEventListener('click',async()=>{ if(!draftOut||!draftOut.value)return; try{ await navigator.clipboard.writeText(draftOut.value); copyDraftBtn.textContent='Copied'; setTimeout(()=>copyDraftBtn.textContent='Copy draft',1400); }catch(_){ draftOut.focus(); draftOut.select(); } });
     if(downloadDraftBtn) downloadDraftBtn.addEventListener('click',()=>{ if(!draftOut||!draftOut.value)return; const url=URL.createObjectURL(new Blob([draftOut.value],{type:'text/plain'})); const a=document.createElement('a'); a.href=url; a.download='cleardoc-response-draft.txt'; a.click(); URL.revokeObjectURL(url); });
@@ -1038,6 +1287,9 @@
     if(fileInput) fileInput.addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(f) handleFile(f); });
     if(askBtn) askBtn.addEventListener('click',ask);
     if(askInput) askInput.addEventListener('keydown',e=>{ if(e.key==='Enter') ask(); });
+
+    // Offer to restore the last analysis (24h TTL) — never blocks the empty state
+    try { maybeOfferRestore(); } catch(e){ console.warn('[restore]', e); }
   }
 
 })();
