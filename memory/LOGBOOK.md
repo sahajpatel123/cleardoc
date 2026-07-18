@@ -1097,6 +1097,25 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - The site has accumulated ~16 iterations of security hardening (CSP, SRI, fail-closed validators, safety nets, X-Request-Id, etc.) but nothing surfaces that posture to a security researcher trying to disclose a vulnerability. SECURITY.md fills that gap — a researcher can now see what we do (and don't) defend against before filing a report, which speeds up triage.
 
+**2026-07-18 15:00 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #18 of the autonomous loop** (10-min cadence). Live: 14:53:13 → 15:00:31 IST.
+- **Added `CONTRIBUTING.md`** (105 lines, new file). Companion to `SECURITY.md` — documents the contributor experience:
+  - **Prerequisites** — Node 22+ (via `.nvmrc`), npm, git, optional Playwright system deps
+  - **Local setup** — `nvm use` + `npm install --no-save playwright` (no lockfile; serverless code is built-ins only)
+  - **Test commands** — full table mapping `npm test` / `test:unit` / `test:smoke` / `test:integration` / `check` / `syntax` / `validate:json` to what they run
+  - **Repository layout** — directory tree with one-line per-folder purpose
+  - **Commit conventions** — conventional-commits format with allowed types (`feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `sec`, `perf`) and scope examples from history
+  - **Architecture notes** — list of the 3 serverless functions, the safety-net + X-Request-Id pattern, the 3 `localStorage` keys (`cleardoc:lastAnalysis` / `cleardoc:draftInput` / `cleardoc:share:*`)
+  - **PR checklist** — pre-merge gates: `npm run check` passes, source-pattern tests added for API changes, LOGBOOK updated, security headers re-validated
+  - **Security reporting** — pointer back to `SECURITY.md`
+  - **Code of conduct** — single-line note about the project's nature
+- **Test impact**: none. CONTRIBUTING.md is documentation; CI doesn't validate markdown.
+- **CI result**: `707e5012 docs(contributing): add CONTRIBUTING.md with dev setup, test commands, commit conventions` — **GREEN** on first run.
+
+**Prompt Intention:**
+- Closed the contributor-experience gap. New contributors now have a single source of truth for: how to install, how to run tests, what commit messages should look like, what checks to run before pushing. The PR checklist codifies the discipline we've developed across 18 iterations (CI, source-pattern tests, LOGBOOK discipline) so the next contributor doesn't have to discover it the hard way.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
