@@ -1116,6 +1116,18 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Closed the contributor-experience gap. New contributors now have a single source of truth for: how to install, how to run tests, what commit messages should look like, what checks to run before pushing. The PR checklist codifies the discipline we've developed across 18 iterations (CI, source-pattern tests, LOGBOOK discipline) so the next contributor doesn't have to discover it the hard way.
 
+**2026-07-18 15:18 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #19 of the autonomous loop** (10-min cadence). Live: 15:14:30 → 15:18:11 IST.
+- **Added `Retry-After: 60` to `/api/health` 503 responses**. Before this change, a 503 (all configured AI providers unreachable) was indistinguishable from a transient 500 — monitoring clients had no way to know how long to back off. The probe cache refreshes every 60s, so 60s is the right back-off.
+- **`api/health.js`**: in the `allUnreachable` 503 branch, added `res.setHeader("Retry-After", "60")` immediately before the `json(res, 503, payload)` return. Header is set BEFORE `json()` so Vercel's edge doesn't strip it.
+- **`test/health-error.test.js`**: 2 new source-pattern tests — (1) `Retry-After` must be set with a sane back-off (30–300s); (2) 200 happy path must NOT set `Retry-After` (verified by checking no `setHeader("Retry-After"` call appears after the `return json(res, 200, payload)` line).
+- **Test totals locally**: 32 smoke + 117 unit (was 115) + 1 integration = **150/150 passing**.
+- **CI result**: `2cd13218 feat(health): set Retry-After: 60 on 503 responses for monitoring back-off` — **GREEN** on first run.
+
+**Prompt Intention:**
+- Closed the monitoring-client back-off gap. Now when Pingdom, UptimeRobot, or an internal probe sees a 503, it will back off for 60s before retrying — the exact interval after which the probe cache refreshes. This eliminates 60 wasted probes per minute during a real outage.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
