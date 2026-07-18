@@ -915,6 +915,57 @@ skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fr
   await page.close();
   await ctx.close();
 });
+
+skip("analyzer: live text-stats bar shows word/char/level/cap and reacts to typing", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // HTML must expose the stat element IDs
+  for (const id of ["#textStats", "#statWords", "#statChars", "#statLevel", "#statCap"]) {
+    assert.match(analyzeHtml, new RegExp(`id="${id.slice(1)}"`), `analyze.html must contain ${id}`);
+  }
+
+  // JS must wire input → updateTextStats
+  assert.match(appSrc, /function updateTextStats\(/, "updateTextStats must exist");
+  assert.match(appSrc, /input\.addEventListener\(['"]input['"],\s*updateTextStats\)/, "input must be wired to updateTextStats on input events");
+
+  // The quick-fill buttons must also refresh the stats after pasting a sample
+  assert.match(appSrc, /qf\[data-fill\][\s\S]+?updateTextStats\(\)/, "quick-fill buttons must call updateTextStats after pasting");
+
+  // Cap display must match the documented MAX_DOCUMENT_CHARS
+  const capMatch = appSrc.match(/MAX_DOCUMENT_CHARS\s*=\s*(\d+)/);
+  assert.ok(capMatch, "MAX_DOCUMENT_CHARS must be a constant in api/analyze.js or app.js");
+
+  // CSS must define the .textstats rule (and the .over variant for over-cap warning)
+  assert.match(themeSrc, /\.textstats\{/, ".textstats CSS rule must exist");
+  assert.match(themeSrc, /\.textstats\.over/, ".textstats.over variant must exist for over-cap state");
+
+  // Live: load analyze page, edit textarea, verify the stats update
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  const initialWords = await page.$eval("#statWords", (el) => el.textContent || "");
+  assert.ok(Number(initialWords.replace(/,/g, "")) >= 30, `preloaded sample should have ≥30 words, got ${initialWords}`);
+
+  // Clear the textarea and type a fresh sentence
+  await page.fill("#docInput", "Lessee shall indemnify lessor in perpetuity.");
+  await page.dispatchEvent("#docInput", "input");
+  const newWords = await page.$eval("#statWords", (el) => el.textContent || "");
+  assert.equal(newWords, "6", `short sentence should report 6 words, got "${newWords}"`);
+  const newLevel = await page.$eval("#statLevel", (el) => el.textContent || "");
+  assert.match(newLevel, /^\d+th$/, `reading level should be a grade like '12th', got "${newLevel}"`);
+
+  // Type very short text — level should hide behind em dash
+  await page.fill("#docInput", "hello");
+  await page.dispatchEvent("#docInput", "input");
+  const shortLevel = await page.$eval("#statLevel", (el) => el.textContent || "");
+  assert.equal(shortLevel, "—", `too-short text should show em-dash for level, got "${shortLevel}"`);
+
+  await page.close();
+});
 // ── Content-Security-Policy (vercel.json header) ────────────────────
 
 test("vercel.json: emits a strict Content-Security-Policy on every page", async () => {

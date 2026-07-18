@@ -707,7 +707,9 @@
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
-          viewShareBtn=$('#viewShareBtn'),dismissShareBtn=$('#dismissShareBtn');
+          viewShareBtn=$('#viewShareBtn'),dismissShareBtn=$('#dismissShareBtn'),
+          textStats=$('#textStats'),statWords=$('#statWords'),statChars=$('#statChars'),
+          statLevel=$('#statLevel'),statCap=$('#statCap');
     const sampleText=input.value.trim();
 
     // trap/risk patterns — severity g(note) a(watch) r(trap)
@@ -1605,7 +1607,36 @@
     }
 
     if(btn) btn.addEventListener('click',analyze);
-    if(clearBtn) clearBtn.addEventListener('click',()=>{ input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); input.focus(); });
+    if(clearBtn) clearBtn.addEventListener('click',()=>{ input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); updateTextStats(); input.focus(); });
+
+    /* ---- Live text stats (word/char count + estimated reading level) ---- */
+    function updateTextStats(){
+      if(!input || !statWords) return;
+      const raw = input.value || '';
+      const chars = raw.length;
+      const words = (raw.match(/\b[\w'-]+\b/g) || []).length;
+      const cap = MAX_DOCUMENT_CHARS;
+      const overCap = chars > cap;
+      const wordFmt = words.toLocaleString();
+      const charFmt = chars.toLocaleString();
+      statWords.textContent = wordFmt;
+      statChars.textContent = charFmt;
+      statLevel.textContent = isGradable(raw) ? (gradeLevel(raw) + 'th') : '—';
+      if(statCap) statCap.textContent = cap.toLocaleString();
+      if(textStats){
+        textStats.classList.toggle('over', overCap);
+        if(overCap && msg){
+          msg.textContent = 'Document exceeds the ' + cap.toLocaleString() + ' character cap. ' +
+                            'Trim it or analyze the first ' + cap.toLocaleString() + ' characters.';
+          msg.className = 'analyze-msg err';
+        }
+      }
+    }
+    if(input){
+      input.addEventListener('input', updateTextStats);
+      input.addEventListener('change', updateTextStats);
+      updateTextStats(); // initial paint for the preloaded sample
+    }
     // Restore / dismiss the auto-saved analysis banner
     if(restoreBtn) restoreBtn.addEventListener('click',()=>{
       const snap=loadStoredSnapshot();
@@ -1617,7 +1648,7 @@
       if(restoreBanner) restoreBanner.hidden=true;
       if(msg){msg.textContent='Saved analysis dismissed. It will not be offered again until you run a new analysis.'; msg.className='analyze-msg';}
     });
-    $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ input.value=q.dataset.fill; clearAttachments(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} }));
+    $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ input.value=q.dataset.fill; clearAttachments(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} updateTextStats(); }));
     if(copyDraftBtn) copyDraftBtn.addEventListener('click',async()=>{ if(!draftOut||!draftOut.value)return; try{ await navigator.clipboard.writeText(draftOut.value); copyDraftBtn.textContent='Copied'; setTimeout(()=>copyDraftBtn.textContent='Copy draft',1400); }catch(_){ draftOut.focus(); draftOut.select(); } });
     if(downloadDraftBtn) downloadDraftBtn.addEventListener('click',()=>{ if(!draftOut||!draftOut.value)return; const url=URL.createObjectURL(new Blob([draftOut.value],{type:'text/plain'})); const a=document.createElement('a'); a.href=url; a.download='cleardoc-response-draft.txt'; a.click(); URL.revokeObjectURL(url); });
     if(printBtn) printBtn.addEventListener('click',printAnalysis);
