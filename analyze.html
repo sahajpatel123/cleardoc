@@ -174,6 +174,11 @@
         <div class="result-block" id="verdictBlock">
           <span class="rh">📋 Verdict <button class="verdict-copy no-print" id="verdictCopyBtn" type="button" title="Copy just the verdict + summary to the clipboard">Copy</button></span>
           <div class="verdict-display" id="verdictDisplay" aria-label="Document verdict"></div>
+          <div class="tags-row no-print">
+            <label class="tags-lbl mono" for="tagsInput">// tags · comma-separated (e.g. lease, acme-corp, 2026-q2)</label>
+            <input type="text" id="tagsInput" class="tags-input" placeholder="add tags…" autocomplete="off" aria-label="Tag this analysis">
+            <div class="tags-list" id="tagsList" aria-live="polite"></div>
+          </div>
         </div>
         <div class="result-block">
           <span class="rh">✦ Plain-English rewrite</span>

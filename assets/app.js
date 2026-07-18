@@ -1004,6 +1004,7 @@
           attachTray=$('#attachTray'),draftOut=$('#draftOut'),draftNote=$('#draftNote'),copyDraftBtn=$('#copyDraftBtn'),
           downloadDraftBtn=$('#downloadDraftBtn'),
           analyzeLoading=$('#analyzeLoading'),verdictBlock=$('#verdictBlock'),verdictDisplay=$('#verdictDisplay'),verdictCopyBtn=$('#verdictCopyBtn'),
+          tagsInput=$('#tagsInput'),tagsList=$('#tagsList'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
           printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),printDate=$('#printDate'),
@@ -1109,6 +1110,39 @@
     }
     function clearStoredSnapshot(){
       try{ localStorage.removeItem(SNAPSHOT_KEY); }catch(_){}
+    }
+    // Comma-separated tag parser — normalises case + length + dedupes.
+    function parseTags(raw){
+      const seen = new Set();
+      return String(raw || '')
+        .split(',')
+        .map(t => t.trim().toLowerCase())
+        .filter(t => t.length > 0 && t.length <= 32)
+        .filter(t => { if(seen.has(t)) return false; seen.add(t); return true; })
+        .slice(0, 8); // cap to 8 tags per analysis
+    }
+    function renderTags(tags){
+      if(!tagsList) return;
+      if(!tags || !tags.length){
+        tagsList.innerHTML = '';
+        return;
+      }
+      tagsList.innerHTML = tags.map((t, i) =>
+        '<span class="tag">'+esc(t)+'<button type="button" data-tag-remove="'+i+'" aria-label="Remove tag '+esc(t)+'">✕</button></span>'
+      ).join('');
+      tagsList.querySelectorAll('[data-tag-remove]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.getAttribute('data-tag-remove'), 10);
+          const current = parseTags(tagsInput.value);
+          current.splice(idx, 1);
+          if(tagsInput) tagsInput.value = current.join(', ');
+          renderTags(current);
+        });
+      });
+    }
+    if(tagsInput){
+      tagsInput.addEventListener('change', () => renderTags(parseTags(tagsInput.value)));
+      tagsInput.addEventListener('blur', () => renderTags(parseTags(tagsInput.value)));
     }
     function formatRelativeWhen(ts){
       const diff=Date.now()-ts;
@@ -1542,7 +1576,8 @@
         })) : [],
         nextSteps: (nextStepsBlock && !nextStepsBlock.hidden && nextStepsList) ? [...nextStepsList.querySelectorAll('li')].map(li=>li.textContent||'') : [],
         draft: draftOut ? draftOut.value : '',
-        provider: (ctx.ai ? 'ai' : 'local')
+        provider: (ctx.ai ? 'ai' : 'local'),
+        tags: parseTags(tagsInput ? tagsInput.value : '')
       });
       // A successful render means the user is engaged with this analysis — hide the offer
       if(restoreBanner) restoreBanner.hidden=true;
@@ -1646,6 +1681,13 @@
         } else if(verdictBlock){ verdictBlock.hidden=true; }
       }
 
+      // Restore tags
+      if(tagsInput){
+        const tags = Array.isArray(snap.tags) ? snap.tags : [];
+        tagsInput.value = tags.join(', ');
+        renderTags(tags);
+      }
+
       // Deadlines
       if(deadlinesList){
         deadlinesList.innerHTML='';
@@ -1702,7 +1744,13 @@
       if(!restoreBanner) return;
       const snap=loadStoredSnapshot();
       if(!snap) return;
-      if(restoreDocName) restoreDocName.textContent=shortDocName(snap.raw, snap.fileName);
+      if(restoreDocName){
+        let label=shortDocName(snap.raw, snap.fileName);
+        if(Array.isArray(snap.tags) && snap.tags.length){
+          label = label + ' · ' + snap.tags.map(t=>'#'+t).join(' ');
+        }
+        restoreDocName.textContent=label;
+      }
       if(restoreWhen) restoreWhen.textContent=formatRelativeWhen(snap.ts);
       restoreBanner.hidden=false;
       if(!noMotion && window.gsap){

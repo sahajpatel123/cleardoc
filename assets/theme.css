@@ -581,6 +581,17 @@
 
 /* ---- verdict display ---- */
 .verdict-display{display:flex;align-items:flex-start;gap:var(--s3);padding:var(--s3) 0}
+/* Tags row — labels this analysis so the snapshot restore banner
+   reminds the user what it was about. Tags persist via the snapshot. */
+.tags-row{margin-top:var(--s2);display:flex;flex-direction:column;gap:6px}
+.tags-lbl{font-size:var(--t-micro);color:var(--ink-soft);letter-spacing:.08em;text-transform:uppercase}
+.tags-input{font-family:'JetBrains Mono',monospace;font-size:var(--t-card);padding:8px 12px;border:2px solid var(--ink);background:#fff;color:var(--ink);outline:none;width:100%}
+.tags-input:focus{box-shadow:inset 0 -3px 0 var(--accent)}
+.tags-list{display:flex;flex-wrap:wrap;gap:6px;min-height:0}
+.tags-list:empty{display:none}
+.tag{display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.04em;background:var(--paper2);border:1px solid var(--ink);color:var(--ink);padding:3px 4px 3px 8px}
+.tag button{background:none;border:none;cursor:pointer;color:var(--ink-soft);font-family:inherit;font-size:14px;line-height:1;padding:2px 4px}
+.tag button:hover{color:var(--danger)}
 .verdict-copy{background:none;border:none;font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);cursor:pointer;border-bottom:1px dotted transparent;padding:0 0 0 8px;margin-left:8px;vertical-align:baseline;transition:color .15s,border-color .15s}
 .verdict-copy:hover{color:var(--accent);border-bottom-color:var(--accent)}
 .verdict-copy:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
