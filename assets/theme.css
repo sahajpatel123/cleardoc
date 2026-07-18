@@ -351,6 +351,18 @@
   .end .cta:hover{background:var(--paper);color:var(--ink)}.end .cta:active{transform:translateY(1px)}
   .kinetic{font-family:'Archivo Black';font-size:clamp(60px,18vw,260px);line-height:.8;letter-spacing:-.05em;text-transform:uppercase;-webkit-text-stroke:2px rgba(237,231,216,.18);color:transparent;white-space:nowrap;margin-top:var(--s6)}
   footer{padding:var(--s2) var(--pad-x);font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.1em;display:flex;justify-content:space-between;gap:var(--s1);flex-wrap:wrap;background:var(--ink);color:var(--on-dark);border-top:var(--bd) solid var(--accent)}
+  .footer-link{background:none;border:none;padding:0;font-family:inherit;font-size:inherit;letter-spacing:inherit;text-transform:inherit;color:var(--on-dark);cursor:pointer;border-bottom:1px dotted var(--on-dark);transition:color .18s,border-color .18s}
+  .footer-link:hover{color:var(--accent);border-bottom-color:var(--accent)}
+  .footer-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  .footer-sep{margin:0 8px;opacity:.55}
+
+  /* ---- Forget-me toast (privacy action confirmation) ---- */
+  .forget-toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,8px);background:var(--ink);color:var(--paper);border:var(--bd) solid var(--accent);box-shadow:var(--shadow);padding:14px 22px;font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:14px;z-index:10000;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;max-width:90vw}
+  .forget-toast.show{opacity:1;transform:translate(-50%,0)}
+  .forget-toast.ok{border-color:var(--green)}
+  .forget-toast .ft-check{display:inline-block;width:14px;height:14px;border:2px solid var(--green);border-radius:50%;position:relative;flex-shrink:0}
+  .forget-toast .ft-check::after{content:"";position:absolute;left:3px;top:0;width:4px;height:8px;border:solid var(--green);border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .forget-toast .ft-text b{color:var(--green)}
 
   /* ---------- RESPONSIVE ---------- */
   @media(min-width:1700px){

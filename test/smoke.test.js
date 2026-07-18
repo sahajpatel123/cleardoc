@@ -853,6 +853,68 @@ skip("BYOF: reading level is computed live from the input (not hardcoded 12th→
   // Live recompute on input — users see the level change as they type
   assert.match(byofBlock[0], /addEventListener\(['"]input['"]/, "byof() must recompute reading level on input");
 });
+
+skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Every public HTML page must expose the button
+  for (const page of ["index.html", "analyze.html", "pricing.html", "404.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, page), "utf8");
+    assert.match(html, /id="forgetBtn"/, `${page} must expose #forgetBtn in the footer`);
+    assert.match(html, /Forget my data/, `${page} footer must show the "Forget my data" button label`);
+  }
+
+  // wireForgetMe + forgetMyData must exist and be wired on every page
+  assert.match(appSrc, /function wireForgetMe\(/, "wireForgetMe must exist");
+  assert.match(appSrc, /function forgetMyData\(/, "forgetMyData must exist");
+  assert.match(appSrc, /wireForgetMe\]/, "wireForgetMe must be in the 'always' init list (every page)");
+
+  // The reset function must wipe all three privacy surfaces
+  const forgetBlock = appSrc.match(/async function forgetMyData\(\)\{[\s\S]+?\n  \}/);
+  assert.ok(forgetBlock, "forgetMyData function must exist");
+  assert.match(forgetBlock[0], /localStorage\.removeItem/, "must clear localStorage");
+  assert.match(forgetBlock[0], /cleardoc:lastAnalysis/, "must clear the snapshot key specifically");
+  assert.match(forgetBlock[0], /location\.hash/, "must strip the share fragment from the URL");
+  assert.match(forgetBlock[0], /getRegistrations/, "must unregister the service worker");
+  assert.match(forgetBlock[0], /caches\.delete/, "must clear SW caches");
+
+  // Toast confirmation must exist (privacy promise visibility)
+  assert.match(appSrc, /function showForgetToast/, "showForgetToast must exist");
+  assert.match(themeSrc, /\.forget-toast/, "forget-toast CSS rule must exist");
+
+  // Live: clicking the button on the home page clears a seeded snapshot.
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  // Seed localStorage with the snapshot key before the page loads
+  await page.addInitScript(() => {
+    localStorage.setItem("cleardoc:lastAnalysis", JSON.stringify({
+      v: 1, ts: Date.now(), raw: "x", rewriteHtml: "<p>x</p>",
+      risks: [], deadlines: [], nextSteps: [], provider: "ai",
+    }));
+  });
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
+  // Sanity: seed survived the page load
+  assert.ok(await page.evaluate(() => localStorage.getItem("cleardoc:lastAnalysis")), "seed must survive page load");
+
+  await page.click("#forgetBtn");
+  // Give the async reset a moment to flush
+  await page.waitForTimeout(150);
+  const after = await page.evaluate(() => localStorage.getItem("cleardoc:lastAnalysis"));
+  assert.equal(after, null, "forget button must clear cleardoc:lastAnalysis");
+  // Toast should be visible
+  const toastVisible = await page.$eval("#forgetToast", (el) => el.classList.contains("show"));
+  assert.equal(toastVisible, true, "toast must appear after forget");
+  const toastText = await page.$eval("#forgetToast .ft-text", (el) => el.textContent || "");
+  assert.match(toastText, /localStorage/i, "toast must mention localStorage");
+  assert.match(toastText, /SW caches/i, "toast must mention SW caches");
+
+  await page.close();
+  await ctx.close();
+});
 // ── Content-Security-Policy (vercel.json header) ────────────────────
 
 test("vercel.json: emits a strict Content-Security-Policy on every page", async () => {

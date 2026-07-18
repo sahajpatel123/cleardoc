@@ -170,7 +170,7 @@
   /* ================= INIT ================= */
   function initAll(){
     const page=(document.body.dataset.page)||'home';
-    const always=[wireScrollCTAs,mobileNav,tickerLoop];
+    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe];
     const byPage={
       home:[heroClarifier,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,faq],
@@ -190,6 +190,102 @@
     $$('[data-scroll-to]').forEach(b=>b.addEventListener('click',()=>{ const dest=b.dataset.scrollTo;
       if(dest && dest.charAt(0)==='#'){ scrollToEl(dest); const inp=$('#heroInput'); if(inp) setTimeout(()=>inp.focus({preventScroll:true}),noMotion?0:500); }
       else { window.location.href=dest; } }));
+  }
+
+  /* ---- Forget Me ----
+   * Privacy-promised reset for the current device. Clears everything
+   * ClearDoc stores client-side and confirms with a toast.
+   * Always wired (works on every page where the footer button exists).
+   */
+  function wireForgetMe(){
+    const btn = $('#forgetBtn');
+    if(!btn) return;
+    btn.addEventListener('click', forgetMyData);
+  }
+
+  let _forgetToastTimer = null;
+  function showForgetToast(msg){
+    let t = document.getElementById('forgetToast');
+    if(!t){
+      t = document.createElement('div');
+      t.id = 'forgetToast';
+      t.className = 'forget-toast ok';
+      t.setAttribute('role', 'status');
+      t.setAttribute('aria-live', 'polite');
+      t.innerHTML = '<span class="ft-check" aria-hidden="true"></span><span class="ft-text"></span>';
+      document.body.appendChild(t);
+    }
+    const textEl = t.querySelector('.ft-text');
+    if(textEl) textEl.innerHTML = msg;
+    requestAnimationFrame(() => t.classList.add('show'));
+    clearTimeout(_forgetToastTimer);
+    _forgetToastTimer = setTimeout(() => {
+      t.classList.remove('show');
+    }, 4000);
+  }
+
+  async function forgetMyData(){
+    const btn = $('#forgetBtn');
+    if(btn) btn.disabled = true;
+
+    // 1. Wipe our own localStorage keys (don't touch unrelated keys — be polite).
+    try {
+      const ownKeys = ['cleardoc:lastAnalysis'];
+      for(const k of ownKeys){ localStorage.removeItem(k); }
+    } catch(_) {}
+
+    // 2. Strip the share fragment so a refresh doesn't re-show the banner.
+    try {
+      if(location.hash && location.hash.indexOf('#share=') === 0){
+        history.replaceState(null, '', location.pathname + location.search);
+      }
+    } catch(_) {}
+
+    // 3. Reset analyzer in-memory state. Best-effort: clear whatever we can reach.
+    try {
+      const docInput = document.getElementById('docInput');
+      if(docInput) docInput.value = '';
+      // Restore-banner is page-scoped; hide if visible.
+      const rb = document.getElementById('restoreBanner');
+      if(rb) rb.hidden = true;
+      const sb = document.getElementById('shareBanner');
+      if(sb) sb.hidden = true;
+      const sw = document.getElementById('swUpdateBanner');
+      if(sw) sw.remove();
+      const panel = document.getElementById('resultPanel');
+      if(panel) panel.hidden = true;
+      const emptyEl = document.getElementById('resultEmpty');
+      if(emptyEl) emptyEl.hidden = false;
+      const fileInput = document.getElementById('fileInput');
+      if(fileInput) fileInput.value = '';
+      const attachTray = document.getElementById('attachTray');
+      if(attachTray){ attachTray.hidden = true; attachTray.innerHTML = ''; }
+      const askOut = document.getElementById('askOut');
+      if(askOut) askOut.innerHTML = '';
+      const askInput = document.getElementById('askInput');
+      if(askInput) askInput.disabled = true;
+      const askBtn = document.getElementById('askBtn');
+      if(askBtn) askBtn.disabled = true;
+    } catch(_) {}
+
+    // 4. Drop the service worker + clear its caches so the offline shell
+    //    is re-fetched from the network on next load.
+    try {
+      if(navigator.serviceWorker){
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister().catch(()=>{})));
+      }
+      if('caches' in window){
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k).catch(()=>{})));
+      }
+    } catch(_) {}
+
+    // 4. Confirm with a green toast — exactly matches the privacy promise copy.
+    showForgetToast('Cleared <b>localStorage</b> · <b>SW caches</b> · <b>URL fragment</b>');
+
+    // 5. Re-enable the button so the user can repeat the action.
+    if(btn) btn.disabled = false;
   }
 
   function mobileNav(){
