@@ -16,9 +16,11 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **AI provider reachability probe** in `/api/health` with cached HEAD requests (60s TTL, LRU eviction at 100 keys).
 - **`Retry-After: 60`** on `/api/health` 503 responses so monitoring clients back off correctly during outages.
 - **RFC 9116 `security.txt`** at `/.well-known/security.txt` — auto-discovered by security scanners.
+- **`/api/csp-report` endpoint + `report-uri` directive in CSP** — browsers now report CSP violations back to ClearDoc. Structured logs surface real-world bypass attempts and policy bugs (e.g., a future code change that triggers an unexpected block). Closes the observability loop on the strict-CSP work shipped earlier this month.
 
 ### Reliability
 - **Strict fail-closed schema validators** (`safeParseAnalysisResult`, `safeParseChatResult`) — partial legal data is more dangerous than no data (RULES.md #3).
+- **OCR image size cap at 10 MB** — the analyze page's `readImage()` path (lazy-loaded Tesseract.js) now rejects attachments above 10 MB before pulling in the ~1 MB Tesseract runtime + English language pack. A 50 MB phone photo was previously burning browser memory on a doomed-to-fail OCR attempt; now it fails fast with a clear error message and a smaller-files hint. Pairs with the existing PDF (30-page) and text (30 KB) caps.
 - **Gzip bomb defenses** on share feature (decompressed-size cap + v1 decoder parity).
 - **Image-attachment OCR** via lazy Tesseract.js loading (30s timeout + cancel).
 - **`/api/chat` provider-fallback chain** — Gemini primary, OpenRouter fallback. If Gemini is unreachable, rate-limited, returns empty, or the key isn't configured, the next request transparently uses OpenRouter. Per-provider 25s `REQUEST_TIMEOUT_MS` keeps the chain inside the 60s Vercel ceiling. Response payload now includes `provider` so ops can see which AI answered. A clear 503 ("No AI provider is configured.") surfaces config gaps before any provider call instead of producing a misleading 502.

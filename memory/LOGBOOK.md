@@ -1758,3 +1758,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored standing directives. Caught a missed sibling of the iter #1 accessLog fix — when a new endpoint lands, copy-paste tends to skip the sanitation guard. Now consistent across accessLog and the CSP-report per-violation line.
 
+
+**2026-07-19 02:52 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #7 of the 10-minute autonomous engineer loop** (`/loop 10minutes`). Documentation gap fill only — no code shipped.
+- **Filled two CHANGELOG gaps** for parallel-agent work (`pending commit`):
+  - **`/api/csp-report` endpoint + `report-uri` directive in CSP** (`351a21ab feat(api): CSP report-uri endpoint + report-uri directive in CSP`) — closes the observability loop on the strict-CSP work shipped earlier. Browsers now report CSP violations back to ClearDoc; ops gets structured logs of real-world bypass attempts and policy bugs.
+  - **OCR image size cap at 10 MB** (`8c5f38d5 sec(ui): reject OCR images > 10MB before loading Tesseract`) — analyze page's `readImage()` path now rejects oversize attachments before pulling in the ~1 MB Tesseract runtime + English language pack. Pairs with the existing PDF (30-page) and text (30 KB) caps.
+- **Duplicate-commit pattern confirmed**: my iter #6 `e569df41 feat(ui): print stylesheet` and the parallel agent's `3fe91458 feat(ui): print stylesheet` both added identical `assets/print.css` ~15 min apart. Diff between the two commits on the file is empty — git content-addresses by hash so the tree state is consistent; both commits stay in history as a coordination artifact.
+- **Verification:** 241/241 tests pass (178 unit + 62 smoke + 1 integration; +6 since iter #6). Local in sync with origin/main. Working tree clean before CHANGELOG commit.
+
+**Prompt Intention:**
+- Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #7 caught up on documentation drift. Next iteration scheduled to fire in 10 minutes.
