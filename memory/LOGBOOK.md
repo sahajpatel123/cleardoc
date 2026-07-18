@@ -1500,3 +1500,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Two iterations compressed into one feature commit because the iter #31 latency-header work prepared the structure for the iter #32 health probe change, and the parallel session already had iter #32's health.js change in flight when I arrived. Cleared the log bulk and shipped.
+
+**2026-07-19 00:16 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #33 of the autonomous loop** (cron `c3921bc4` firing). Live: 00:16 IST.
+- **Landed parallel-session `sanitizeLogField` test coverage** (`e711e79d`). 9 unit tests covering log-injection defenses (CR/LF/TAB/NUL stripping, length cap with ellipsis, type coercion, CRLF-through-accessLog attack). Cleanup commit only — no code change.
+- **Shipped `Retry-After: 60` on `/api/analyze` and `/api/chat` 502 responses** (`72492106`). When the AI provider chain is exhausted or the schema fails, clients had no back-off signal — they could hot-loop retry and re-burn rate limits. Mirrors `/api/health`'s existing 503 behavior so the API surface is consistent: anywhere AI is degraded, clients see the same 60s back-off window.
+- **2 new source-pattern tests** (one per handler) locking in the pattern: both 502 paths emit, neither 200 nor 503 emits (200 is healthy; 503 is config-bug, not outage).
+- **All 200 tests pass** (138 unit + 61 smoke + 1 integration). Pure additive header.
+
+**Prompt Intention:**
+- Honored the standing directives. Cron is alive and firing; ran the full ANALYZE → IMPLEMENT → VERIFY → PUSH cycle inside the cron window.
