@@ -1028,6 +1028,19 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - The X-Request-Id shipped in iteration #10 was a header-only correlation mechanism — it told the *browser* which id to quote back to support, but ops couldn't find that id in logs. Now the log line itself carries `[req=<id>]`, so `grep "[req=abc-123]"` finds every server-side event tied to that exact request: rate-limit hits, schema rejections, Gemini timeouts, uncaught throws. End-to-end request tracing is now possible without instrumentation overhaul.
 
+**2026-07-18 13:20 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #13 of the autonomous loop** (10-min cadence). Live: 13:18:27 → 13:20 IST.
+- **Closed the success-path observability gap** — `errLog` (iteration #12) covered failures, but successful requests had no log line. Ops couldn't answer "did this request even arrive?" without digging through Vercel's access logs.
+- **`api/_safety.js`**: new `accessLog(req, res, status)` export. Emits one `console.log` line per request: `[req=<id>] METHOD /path -> status`. Falls back to `[req=no-req-id]` if no id attached, uses `res.statusCode` if `status` arg is omitted, accepts null/undefined req+res without throwing.
+- **`api/analyze.js`, `api/chat.js`, `api/health.js`**: each handler now ends with a `finally { accessLog(req, res, res.statusCode) }` block. Every request — success, validation failure, rate-limit rejection, uncaught throw — gets exactly one structured log line. Paired with `errLog` (already in the catch path), this gives full request lifecycle visibility.
+- **`test/safety.test.js`**: 4 new unit tests — emits one structured line per request, uses `res.statusCode` when status arg omitted, explicit status arg overrides `res.statusCode`, falls back gracefully when req/res are missing.
+- **Test totals locally**: 30 smoke + 110 unit (was 106) + 1 integration = **141/141 passing**.
+- **CI status**: `3e73ad26 feat(api): structured accessLog helper for per-request completion logs` is on origin/main. Latest CI run shown for the parallel session's `d50648fe feat(analyzer): sticky Analyze CTA on mobile` — **success**. The push from this iteration ran into a remote-lock race with the parallel session's identical-timestamp push; my commit landed first locally and is now one commit behind HEAD. New LOGBOOK entry below will trigger the next CI run that exercises the full test suite end-to-end.
+
+**Prompt Intention:**
+- Companion to `errLog`. With both helpers wired in via try/finally in every handler, server logs now have exactly two lines per request: one on failure (`errLog` via console.error) and one on completion (`accessLog` via console.log). Greppable by request id. No silent requests anymore.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
