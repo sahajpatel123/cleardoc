@@ -5,6 +5,8 @@ const MAX_QUESTION_CHARS = 1000;
 const MAX_REQUEST_BYTES = 128 * 1024;       // 128KB hard cap on raw body
 const MIN_QUESTION_CHARS = 3;
 const MIN_DOCUMENT_CHARS = 10;
+const MAX_HISTORY_TURNS = 10;               // max prior Q&A pairs in chat context
+const MAX_HISTORY_FIELD_CHARS = 500;        // per-field cap inside each turn
 const RATE_LIMIT_PER_MINUTE = 30;           // per-IP cap (chat is cheaper)
 
 const { json, asString, getIp, rateLimit, applyRateLimitHeaders, attachRequestId, errLog, accessLog, readCappedBody, safeParseChatResult } = require("./_safety.js");
@@ -16,7 +18,7 @@ function extractText(data) {
   return parts.map((part) => (typeof part.text === "string" ? part.text : "")).join("").trim();
 }
 
-function buildPrompt({ question, document, rewrite, risks, fileName }) {
+function buildPrompt({ question, document, rewrite, risks, fileName, history }) {
   const riskLines = Array.isArray(risks)
     ? risks
         .slice(0, 12)
@@ -27,6 +29,19 @@ function buildPrompt({ question, document, rewrite, risks, fileName }) {
           return `${i + 1}. ${label}: ${reason}\n   Source: ${sentence}`;
         })
         .join("\n")
+    : "";
+
+  // Prior conversation turns (multi-turn Ask thread). Each turn is
+  // { q: string, a: string }. Validate shape and cap length so a
+  // malicious client can't pad the prompt with megabytes of garbage.
+  const safeHistory = Array.isArray(history)
+    ? history.slice(0, MAX_HISTORY_TURNS).map((t) => ({
+        q: typeof t?.q === "string" ? t.q.slice(0, MAX_HISTORY_FIELD_CHARS) : "",
+        a: typeof t?.a === "string" ? t.a.slice(0, MAX_HISTORY_FIELD_CHARS) : "",
+      })).filter((t) => t.q || t.a)
+    : [];
+  const historyBlock = safeHistory.length
+    ? safeHistory.map((t, i) => `${i + 1}. Q: ${t.q}\n   A: ${t.a}`).join("\n")
     : "";
 
   return [
@@ -45,7 +60,7 @@ function buildPrompt({ question, document, rewrite, risks, fileName }) {
     "",
     "RISK NOTES:",
     riskLines || "No risk notes.",
-    "",
+    historyBlock ? ["PRIOR CONVERSATION:", historyBlock, ""].join("\n") : "",
     "USER QUESTION:",
     question,
   ]
@@ -120,7 +135,7 @@ module.exports = async function handler(req, res) {
           contents: [
             {
               role: "user",
-              parts: [{ text: buildPrompt({ question, document, rewrite, risks: body?.risks, fileName }) }],
+              parts: [{ text: buildPrompt({ question, document, rewrite, risks: body?.risks, fileName, history: body?.history }) }],
             },
           ],
           generationConfig: {

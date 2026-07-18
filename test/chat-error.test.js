@@ -124,3 +124,37 @@ test("chat handler: 500 body is a literal sanitized string (no leak)", () => {
     );
   }
 });
+
+test("chat handler: wires the multi-turn Ask history through to buildPrompt", () => {
+  // The frontend's multi-turn Ask thread sends `history: [{ q, a }]` to
+  // /api/chat so each turn has conversational context. The handler must
+  // forward `history` to buildPrompt so the prompt includes the prior
+  // turns. Without this the multi-turn feature would be silently broken.
+  assert.match(
+    CHAT_SOURCE,
+    /buildPrompt\(\s*\{[^}]*history:\s*body\?\.history/,
+    "buildPrompt call must forward body?.history so prior turns reach the prompt"
+  );
+});
+
+test("chat handler: buildPrompt caps history at MAX_HISTORY_TURNS and trims field lengths", () => {
+  // Defense-in-depth: a malicious client could send thousands of turns
+  // or megabyte-long strings in `history`. buildPrompt must slice and
+  // slice-by-length so the Gemini prompt can't be padded past reason.
+  assert.match(
+    CHAT_SOURCE,
+    /MAX_HISTORY_TURNS/,
+    "MAX_HISTORY_TURNS constant must exist for the history cap"
+  );
+  assert.match(
+    CHAT_SOURCE,
+    /MAX_HISTORY_FIELD_CHARS/,
+    "MAX_HISTORY_FIELD_CHARS constant must exist for per-field cap"
+  );
+  // buildPrompt must slice the history array and slice each field's length.
+  const buildPromptMatch = CHAT_SOURCE.match(/function buildPrompt\([\s\S]+?\n  return \[/);
+  assert.ok(buildPromptMatch, "buildPrompt function must be present");
+  const body = buildPromptMatch[0];
+  assert.match(body, /\.slice\(0,\s*MAX_HISTORY_TURNS\)/, "must slice history to MAX_HISTORY_TURNS");
+  assert.match(body, /\.slice\(0,\s*MAX_HISTORY_FIELD_CHARS\)/, "must slice each history field to MAX_HISTORY_FIELD_CHARS");
+});
