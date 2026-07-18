@@ -939,6 +939,49 @@ skip("BYOF: glossary lists each jargon term that was replaced + its plain-Englis
   await page.close();
 });
 
+skip("nav: back-to-top clears the sticky mobile Analyze CTA at ≤600px", async () => {
+  if (!HAS_BROWSER) return;
+  const path = require("node:path");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  // The mobile media query must reposition the button higher than the
+  // sticky Analyze CTA (which sits at bottom: 0 on ≤900px viewports).
+  assert.match(
+    themeSrc,
+    /@media\s*\(max-width:\s*600px\)[\s\S]*?\.back-to-top\{[^}]*bottom:\s*84px/s,
+    "mobile media query must raise .back-to-top to bottom: 84px so it clears the sticky Analyze CTA"
+  );
+
+  // Live at 375px: bottom edge must clear the sticky Analyze CTA bar
+  const mobile = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const page = await mobile.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  await page.evaluate(() => window.scrollTo(0, 900));
+  await page.waitForTimeout(150);
+  const btt = await page.$eval("#backToTop", (el) => {
+    const r = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    return { bottom: cs.bottom, distFromViewportBottom: window.innerHeight - r.bottom };
+  });
+  assert.match(btt.bottom, /84/, `back-to-top must use bottom: 84px on mobile, got "${btt.bottom}"`);
+  assert.ok(btt.distFromViewportBottom >= 80 && btt.distFromViewportBottom <= 90,
+    `back-to-top must sit ~84px from the bottom on mobile, got ${btt.distFromViewportBottom}px`);
+
+  // At desktop, the original 18px bottom must be used
+  const desktop = await browser.newContext({ viewport: { width: 1700, height: 900 } });
+  const dpage = await desktop.newPage();
+  await dpage.goto(`http://127.0.0.1:${PORT}/index.html`, { waitUntil: "networkidle" });
+  await dpage.evaluate(() => window.scrollTo(0, 900));
+  await dpage.waitForTimeout(150);
+  const dBtt = await dpage.$eval("#backToTop", (el) => {
+    const r = el.getBoundingClientRect();
+    return { bottom: getComputedStyle(el).bottom, dist: window.innerHeight - r.bottom };
+  });
+  assert.match(dBtt.bottom, /18/, `desktop must keep bottom: 18px, got "${dBtt.bottom}"`);
+
+  await page.close(); await mobile.close();
+  await dpage.close(); await desktop.close();
+});
+
 skip("FAQ: keyword filter shows only matching questions + a 'no matches' hint", async () => {
   if (!HAS_BROWSER) return;
   const path = require("node:path");

@@ -395,6 +395,9 @@
   @media (max-width: 600px){
     .back-to-top .btt-label{display:none}
     .back-to-top{padding:12px 14px}
+    /* Clear the sticky mobile Analyze CTA (60-72px tall) so the two
+       bottom-anchored controls don't overlap. */
+    .back-to-top{bottom:84px;right:14px}
   }
 
   /* ---- Keyboard shortcuts modal ---- */
