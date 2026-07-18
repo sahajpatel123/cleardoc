@@ -111,7 +111,11 @@ self.addEventListener('fetch', (event) => {
         const cached = await cache.match(request) || await cache.match('/') || await cache.match('/index.html');
         if (cached) return cached;
         // No cache + offline → return a minimal offline page so the user
-        // sees something useful, not a browser error.
+        // sees something useful, not a browser error. `Cache-Control: no-store`
+        // is critical: without it the browser may cache this 503 response
+        // (Chromium caches 5xx responses for ~10s by default) and keep
+        // serving it after connectivity returns — preventing recovery until
+        // the cache expires.
         return new Response(
           '<!doctype html><meta charset="utf-8"><title>Offline</title>' +
           '<style>body{font-family:system-ui;padding:40px;max-width:560px;margin:auto;color:#14120E;background:#EDE7D8;}' +
@@ -119,7 +123,7 @@ self.addEventListener('fetch', (event) => {
           '<h1>You\'re offline.</h1>' +
           '<p>ClearDoc needs a connection the first time you load it so it can cache the site. Reconnect once, then this page will work offline too.</p>' +
           '<p><a href="/">Try again</a> · <a href="/analyze.html">Open the analyzer (cached once visited)</a></p>',
-          { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+          { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } }
         );
       }
     })());
