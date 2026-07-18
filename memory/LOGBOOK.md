@@ -1920,3 +1920,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored standing directives. Found a coverage gap in the existing test suite — the input-validation bounds for analyze were untested. Adding a regression guard against future drift.
 
+
+**2026-07-19 03:25 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #15 of /loop 10minutes** — autonomous DevSecOps guardian.
+- **Recon:** parallel session shipped `50c67c9e docs(memory): log iteration #48 — FAQ search maxlength` and `374fedc9 docs(changelog): document FAQ search cap + /api/health VERSION sync`. Working tree clean on entry.
+- **Shipped `7a035907 perf(ui): cap docInput + byofIn textareas at 40000 chars`.** docInput (analyze.html) and byofIn (index.html) textareas had no maxlength. The server already caps document + clarify input at 40000 chars via asString + CLARIFY_MAX_CHARS, but without a browser-level maxlength a multi-MB paste sat in the textarea and lagged the page on each keystroke (the value setter triggers re-tokenization, re-render of the text-stats bar) — only truncated when the user clicked Analyze / Set. Add maxlength="40000" to both textareas so the cap is enforced at the browser layer. Smoke test locks in both attributes.
+- **Verification:** 260/260 tests pass (194 unit + 67 smoke + 1 integration). Pushed to origin/main.
+
+**Prompt Intention:**
+- Honored standing directives. Pattern completion: every user-facing text input on the analyzer flow now has a maxlength that matches its server-side cap. Inputs capped at iter #1 (tags), iter #11 (BYOF), iter #13 (FAQ search), iter #15 (analyze + clarify textareas).
+
