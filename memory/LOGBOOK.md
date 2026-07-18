@@ -1079,6 +1079,24 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Closed the deployment-correlation gap. Before this change, "is the fix I just deployed actually live?" required opening Vercel, finding the deployment, comparing the SHA. Now the health endpoint tells ops what commit is serving every response, no out-of-band lookup.
 
+**2026-07-18 14:38 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #17 of the autonomous loop** (10-min cadence). Live: 14:36:30 → 14:38:46 IST.
+- **Added `SECURITY.md`** (94 lines, new file). Documents the public-facing security posture and disclosure policy:
+  - **Supported versions** table — single-deployment model, only `origin/main` is actively maintained.
+  - **Reporting channels** — `security@cleardoc.app` + GitHub private vulnerability reporting (no public issues for sec bugs).
+  - **Response SLAs** — 72h acknowledgement, 5-day triage, 7-day critical fix, 30-day high fix. Coordinated disclosure with 90-day window.
+  - **Security headers table** — every header shipped across iterations #1-16, with the exact value, why it matters, and how it defends against specific attack classes.
+  - **API endpoint security** — per-IP rate limiting, body size caps, structured 500 safety net, X-Request-Id correlation, fail-closed schema validation (RULES.md #3).
+  - **Privacy section** — no accounts, no server-side persistence, browser-localStorage with 24h TTL, "Forget my data" footer button, AI providers' own data policies.
+  - **Third-party dependencies** — Google Fonts + 5 CDN libraries + 2 AI APIs, all SRI-protected, all whitelisted in CSP `connect-src`.
+  - **Bug bounty** — not paid, but credits + t-shirt + future Hall of Fame for verified high/critical reports.
+- **Test impact**: none. SECURITY.md is documentation; CI smoke + unit + integration suites don't validate markdown content.
+- **CI result**: `867f7afc docs(security): add SECURITY.md with disclosure policy and security posture summary` — **GREEN** on first run.
+
+**Prompt Intention:**
+- The site has accumulated ~16 iterations of security hardening (CSP, SRI, fail-closed validators, safety nets, X-Request-Id, etc.) but nothing surfaces that posture to a security researcher trying to disclose a vulnerability. SECURITY.md fills that gap — a researcher can now see what we do (and don't) defend against before filing a report, which speeds up triage.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
