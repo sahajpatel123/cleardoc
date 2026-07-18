@@ -1053,6 +1053,19 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Defensive bound on in-memory growth. The current probe keys are fixed strings, but defensive code should assume callers might pass arbitrary keys. The LRU semantics also mean that frequently-probed providers stay in cache while rarely-probed ones naturally drop out — which is the right behavior for a monitoring endpoint.
 
+**2026-07-18 14:06 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #15 of the autonomous loop** (10-min cadence). Live: 13:54:22 → 14:06:23 IST.
+- **Operational hygiene upgrade** — added `package.json` to formalize the test commands. Previously each test step in `.github/workflows/test.yml` had its own hardcoded `node --test ...` invocation; now everything routes through npm scripts. Future contributors can run `npm test` locally and get the same coverage as CI.
+- **`package.json`** (new file, 32 lines): `scripts.test` runs unit + smoke + integration, `scripts.test:unit` runs the 6 unit test files, `scripts.test:smoke` runs smoke, `scripts.test:integration` runs integration, `scripts.syntax` does `node --check` on every JS source file, `scripts.validate:json` parses `vercel.json` + `site.webmanifest`, `scripts.check` chains all three. `devDependencies.playwright` declares the only npm dep. `engines.node: ">=22"` documents the runtime requirement.
+- **`.github/workflows/test.yml`**: replaced each `node --test test/X.js` step with `npm run test:unit -- --test-name-pattern="..."`. Same coverage, single source of truth in package.json.
+- **Production incident #3 handled**: first push `5335f09e` triggered CI RED. Pulled logs: 0 jobs visible = YAML parse failure. Diagnosed: step names like `"Unit tests (api/_safety.js core: json/asString/...)"` contained colons that YAML treats as `key: value` separators. Fix: wrapped all step names with colons in double quotes. Hotfix `212bac13` → CI green.
+- **Test totals locally**: 30 smoke + 114 unit + 1 integration = **145/145 passing**. Same coverage as before — npm scripts just delegate to the existing `node --test` invocations.
+- **CI result**: `212bac13 ci: quote YAML step names containing colons (parse error fix)` — **GREEN** on first run.
+
+**Prompt Intention:**
+- Closure for the operational-experience side of the codebase. New contributors can clone + `npm install` + `npm test` and have the same confidence as CI. Production incident handling: the YAML-parse failure was a useful reminder that CI syntax errors look like "no jobs ran" in the API surface, not like a regular failure with step output. Future YAML edits should pass through PyYAML / `actionlint` before commit.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
