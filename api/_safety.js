@@ -221,6 +221,45 @@ function clearProbeCache() {
   _probeCache.clear();
 }
 
+/* CSP violation report counters — incremented by api/csp-report.js, read
+ * via /api/health. Lets ops graph "is CSP rejection rate going up?" at
+ * a glance instead of grepping Vercel logs.
+ *
+ * Shape: per-directive count (e.g. { "script-src": 12, "img-src": 3 })
+ * plus a totalRecent counter incremented in lockstep. Keys are bounded —
+ * capped at MAX_CSP_DIRECTIVES via the oldest-first eviction so a single
+ * hostile path can't grow an unbounded object.
+ */
+const _cspDirectiveCounts = new Map();
+const MAX_CSP_DIRECTIVES = 50;
+let _cspTotalReports = 0;
+
+function recordCspReport(directive) {
+  if (typeof directive !== "string" || directive.length === 0 || directive.length > 200) return;
+  // Normalize the directive so `script-src 'self'` and `script-src` end up
+  // in the same bucket (CSP reports often include the directive's full
+  // argument list).
+  const key = directive.trim().split(/\s+/)[0].toLowerCase();
+  if (key.length === 0) return;
+  _cspTotalReports += 1;
+  if (!_cspDirectiveCounts.has(key)) {
+    // Evict the oldest entry if we're at the cap.
+    if (_cspDirectiveCounts.size >= MAX_CSP_DIRECTIVES) {
+      const oldestKey = _cspDirectiveCounts.keys().next().value;
+      if (oldestKey !== undefined) _cspDirectiveCounts.delete(oldestKey);
+    }
+    _cspDirectiveCounts.set(key, 0);
+  }
+  _cspDirectiveCounts.set(key, _cspDirectiveCounts.get(key) + 1);
+}
+
+function getCspReportCounts() {
+  // Snapshot (caller can iterate without worrying about concurrent mutation)
+  const byDirective = Object.create(null);
+  for (const [k, v] of _cspDirectiveCounts) byDirective[k] = v;
+  return { total: _cspTotalReports, byDirective };
+}
+
 /* ── errLog: tagged error logging with the active X-Request-Id ─────────
  *
  * Every console.error call inside the request handlers should route through
@@ -927,6 +966,8 @@ module.exports = {
   probeProviderCached,
   clearProbeCache,
   getProbeCounts,
+  recordCspReport,
+  getCspReportCounts,
   errLog,
   accessLog,
   sanitizeLogField,

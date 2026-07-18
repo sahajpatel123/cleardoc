@@ -16,7 +16,7 @@
  * before logging, and we cap the body length on read.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, errLog, accessLog, getIp, readCappedBody, sanitizeLogField } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, errLog, accessLog, getIp, readCappedBody, sanitizeLogField, recordCspReport } = require("./_safety.js");
 
 const MAX_BODY_BYTES = 16 * 1024;       // CSP reports are tiny (~1KB typical)
 const RATE_LIMIT_PER_MINUTE = 60;        // browsers don't usually spam; rate-limit anyway
@@ -98,7 +98,8 @@ module.exports = async function handler(req, res) {
 
     // Log each violation on its own line so aggregators can split them.
     for (const v of violations) {
-      const directive = sanitizeLogField(String(v["violated-directive"] || v.effectiveDirective || "(unknown)"), 120);
+      const rawDirective = String(v["violated-directive"] || v.effectiveDirective || "(unknown)");
+      const directive = sanitizeLogField(rawDirective, 120);
       const blockedUri = sanitizeUrl(v["blocked-uri"] || v.blockedURL);
       const documentUri = sanitizeUrl(v["document-uri"] || v.documentURL);
       const sample = v.sample ? ` sample=${sanitizeLogField(String(v.sample), 120)}` : "";
@@ -109,6 +110,9 @@ module.exports = async function handler(req, res) {
       // stream. Parity with the accessLog() call in the finally block.
       const safeUrl = sanitizeLogField(req && req.url ? req.url : "?", 512);
       console.log(`[req=${res.__requestId}] [csp-report] ${req.method} ${safeUrl} -> blocked=${blockedUri} directive=${directive} document=${documentUri}${sample}`);
+      // Increment the in-process per-directive counter so /api/health
+      // can surface aggregate stats ("is CSP rejection rate climbing?").
+      recordCspReport(rawDirective);
     }
 
     // Always 204 — browsers don't care about the response body

@@ -11,7 +11,7 @@
  * for the most-polled endpoint in any deployment.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts } = require("./_safety.js");
 
 const START_TS = Date.now();
 // Read the version from package.json — single source of truth. Without
@@ -78,6 +78,8 @@ function sendOkCached(res, payload) {
  *     cacheHits:           n,    // count of probes served from the probeCache
  *     totalProbes:         n,    // total probeProviderCached() calls since process start
  *     networkProbes:       n,    // of those, how many actually hit the network (misses)
+ *     cspReports:          { total: n, byDirective: { "script-src": n, ... } }
+ *                          // CSP violations reported by browsers, aggregated per-process
  *   }
  */
 function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }) {
@@ -101,11 +103,12 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     if (probe && probe.cached) cacheHits += 1;
   }
 
-  // Probe-rate counters from the shared helper. The cache-hit ratio
-  // (cacheHits / totalProbes) tells ops whether the edge cache is doing
-  // its job. networkProbes rising while totalProbes stays flat means
-  // cache misses are growing — useful early warning.
+  // Probe-rate + CSP-rejection counters from the shared helper. The cache
+  // hit ratio (cacheHits / totalProbes) tells ops whether the edge cache
+  // is doing its job. networkProbes rising while totalProbes stays flat
+  // means cache misses are growing — useful early warning.
   const probeCounts = getProbeCounts();
+  const cspCounts = getCspReportCounts();
   return {
     providersConfigured: configured,
     providersReachable: reachable,
@@ -114,6 +117,7 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     cacheHits,
     totalProbes: probeCounts.total,
     networkProbes: probeCounts.network,
+    cspReports: cspCounts,
   };
 }
 

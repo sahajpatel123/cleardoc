@@ -523,3 +523,13 @@ test("health handler: summary exposes totalProbes + networkProbes", () => {
   assert.match(HEALTH_SOURCE, /totalProbes\s*:\s*probeCounts\.total/, "summary must include totalProbes");
   assert.match(HEALTH_SOURCE, /networkProbes\s*:\s*probeCounts\.network/, "summary must include networkProbes");
 });
+
+// ── CSP report aggregation (iter #50) ──────────────────────────────
+
+test("health handler: summary surfaces cspReports (per-directive CSP violation counters)", () => {
+  // /api/csp-report aggregates per-directive counts in _safety.js;
+  // /api/health exposes them so ops can graph CSP rejection rate at a
+  // glance instead of grepping Vercel logs every time.
+  assert.match(HEALTH_SOURCE, /getCspReportCounts/, "must call getCspReportCounts()");
+  assert.match(HEALTH_SOURCE, /cspReports\s*:\s*cspCounts/, "summary must include the cspReports field");
+});
