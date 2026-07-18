@@ -52,6 +52,11 @@ test("health handler: returns 200 JSON for GET happy path (smoke)", async () => 
   const body = JSON.parse(res._body);
   assert.equal(body.status, "ok");
   assert.equal(body.ok, true);
+  // Summary rollup (iter #39) — bottom-line numbers ops dashboards can
+  // consume without walking the nested providers object.
+  assert.ok(body.summary, "200 payload must include a summary rollup");
+  assert.equal(typeof body.summary.providersConfigured, "number");
+  assert.equal(typeof body.summary.providersReachable, "number");
 });
 
 // ── source-pattern checks ──────────────────────────────────────────
@@ -321,4 +326,92 @@ test("health handler: sendOkCached helper exists and emits the standard observab
   assert.match(helperRegion, /applyBuildShaHeader/, "sendOkCached must invoke applyBuildShaHeader (emits X-Build-Sha)");
   assert.match(helperRegion, /Cache-Control/, "sendOkCached must set Cache-Control header");
   assert.match(helperRegion, /Content-Type/, "sendOkCached must set Content-Type header");
+});
+
+// ── summary rollup field (iter #39) ─────────────────────────────────
+
+test("health handler: 200 payload includes buildSummary-driven summary field", () => {
+  // The summary rollup lets ops dashboards consume bottom-line numbers
+  // (providers configured / reachable / latency rollup) without walking
+  // the nested `providers` object. The handler must call buildSummary()
+  // with the same inputs it uses for `providers` so the two never drift.
+  assert.match(
+    HEALTH_SOURCE,
+    /function\s+buildSummary\(/,
+    "buildSummary helper must exist"
+  );
+  // The summary field must be on the success-path payload
+  assert.match(
+    HEALTH_SOURCE,
+    /summary\s*:\s*buildSummary\(/,
+    "200 payload must include a `summary` field built via buildSummary(...)"
+  );
+  // The handler must pass the same probe objects to buildSummary as it
+  // uses to populate `providers` (single source of truth).
+  const callMatch = HEALTH_SOURCE.match(/buildSummary\(\s*\{[\s\S]+?\}\s*\)/);
+  assert.ok(callMatch, "buildSummary(...) call site must be present");
+  const callText = callMatch[0];
+  assert.match(callText, /hasGemini/, "buildSummary must receive hasGemini flag");
+  assert.match(callText, /hasOpenRouter/, "buildSummary must receive hasOpenRouter flag");
+  assert.match(callText, /geminiProbe/, "buildSummary must receive geminiProbe");
+  assert.match(callText, /openRouterProbe/, "buildSummary must receive openRouterProbe");
+});
+
+test("health handler: buildSummary computes correct counts from probe state", () => {
+  // Exercises the helper through public API: import the function (it's
+  // exposed for tests via the module.exports below). Pure functional
+  // helper — no I/O, just deterministic logic.
+  const { buildSummary } = require("../api/health.js");
+
+  // Both providers configured and reachable
+  let r = buildSummary({
+    hasGemini: true,
+    hasOpenRouter: true,
+    geminiProbe: { ok: true, latencyMs: 100, cached: false },
+    openRouterProbe: { ok: true, latencyMs: 300, cached: true },
+  });
+  assert.equal(r.providersConfigured, 2, "both keys set → 2 configured");
+  assert.equal(r.providersReachable, 2, "both probed ok → 2 reachable");
+  assert.equal(r.fastestProviderMs, 100, "min of [100, 300] = 100");
+  assert.equal(r.slowestProviderMs, 300, "max of [100, 300] = 300");
+  assert.equal(r.cacheHits, 1, "one cached probe");
+
+  // Mixed: one configured+reachable, one not configured
+  r = buildSummary({
+    hasGemini: true,
+    hasOpenRouter: false,
+    geminiProbe: { ok: true, latencyMs: 50, cached: false },
+    openRouterProbe: null,
+  });
+  assert.equal(r.providersConfigured, 1);
+  assert.equal(r.providersReachable, 1);
+  assert.equal(r.fastestProviderMs, 50);
+  assert.equal(r.slowestProviderMs, 50);
+  assert.equal(r.cacheHits, 0);
+
+  // Probe error path: configured but unreachable
+  r = buildSummary({
+    hasGemini: true,
+    hasOpenRouter: true,
+    geminiProbe: { ok: true, latencyMs: 200, cached: false },
+    openRouterProbe: { ok: false, latencyMs: 3000, error: "timeout" },
+  });
+  assert.equal(r.providersConfigured, 2);
+  assert.equal(r.providersReachable, 1, "only the reachable probe counts");
+  assert.equal(r.fastestProviderMs, 200, "only reachable probes participate in latency");
+  assert.equal(r.slowestProviderMs, 200);
+  assert.equal(r.cacheHits, 0);
+
+  // Nothing configured — nullable latencies
+  r = buildSummary({
+    hasGemini: false,
+    hasOpenRouter: false,
+    geminiProbe: null,
+    openRouterProbe: null,
+  });
+  assert.equal(r.providersConfigured, 0);
+  assert.equal(r.providersReachable, 0);
+  assert.equal(r.fastestProviderMs, null, "no reachable probes → null");
+  assert.equal(r.slowestProviderMs, null);
+  assert.equal(r.cacheHits, 0);
 });

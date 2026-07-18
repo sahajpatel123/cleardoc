@@ -47,6 +47,50 @@ function sendOkCached(res, payload) {
   res.end(JSON.stringify(payload));
 }
 
+/* Build a bottom-line summary from the per-provider probe state. Lets ops
+ * dashboards read one number per dimension instead of walking nested
+ * objects. Synchronous, derived purely from inputs (single source of
+ * truth: it always matches the `providers` block on the same payload).
+ *
+ * Output shape:
+ *   {
+ *     providersConfigured: n,    // count of providers with API keys
+ *     providersReachable:  n,    // count of configured providers that probed ok
+ *     fastestProviderMs:   m,    // min latency across reachable providers (null if none)
+ *     slowestProviderMs:   m,    // max latency across reachable providers (null if none)
+ *     cacheHits:           n,    // count of probes served from the probeCache
+ *   }
+ */
+function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }) {
+  let configured = 0;
+  let reachable = 0;
+  const reachableLatencies = [];
+  let cacheHits = 0;
+
+  // Each pair (configured probe | not) is folded uniformly. Using a loop
+  // over an array keeps the shape stable as we add more providers later.
+  const pair = [
+    [hasGemini, geminiProbe],
+    [hasOpenRouter, openRouterProbe],
+  ];
+  for (const [configuredFlag, probe] of pair) {
+    if (configuredFlag) configured += 1;
+    if (probe && probe.ok && Number.isFinite(probe.latencyMs) && probe.latencyMs >= 0 && probe.latencyMs <= 600000) {
+      reachable += 1;
+      reachableLatencies.push(probe.latencyMs);
+    }
+    if (probe && probe.cached) cacheHits += 1;
+  }
+
+  return {
+    providersConfigured: configured,
+    providersReachable: reachable,
+    fastestProviderMs: reachableLatencies.length ? Math.min(...reachableLatencies) : null,
+    slowestProviderMs: reachableLatencies.length ? Math.max(...reachableLatencies) : null,
+    cacheHits,
+  };
+}
+
 module.exports = async function handler(req, res) {
   attachRequestId(res, req);
   try {
@@ -96,6 +140,16 @@ module.exports = async function handler(req, res) {
       // they think is live. Null in local dev (env var unset).
       gitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
       uptimeSec,
+      // ── summary rollup ──────────────────────────────────────────────
+      // Bottom-line numbers for ops dashboards that just want the
+      // bottom line. Computed from the providers block (single
+      // source of truth) so the two stay in sync.
+      summary: buildSummary({
+        hasGemini,
+        hasOpenRouter,
+        geminiProbe,
+        openRouterProbe,
+      }),
       providers: {
         gemini: hasGemini
           ? {
@@ -183,3 +237,9 @@ module.exports = async function handler(req, res) {
     accessLog(req, res, res.statusCode);
   }
 };
+
+// TEST-ONLY export: lets health-error.test.js unit-test the buildSummary
+// helper without exposing it in the production API surface. Vercel only
+// invokes `module.exports` as a request handler, so attaching additional
+// properties is harmless (the runtime reads module.exports as a function).
+module.exports.buildSummary = buildSummary;
