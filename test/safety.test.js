@@ -1256,3 +1256,34 @@ test("safeParseCompactAnalysisResult: caps clause + explanation length at ANALYS
   assert.ok(huge.value.risks[0].clause.length <= 300, "clause must be truncated to ANALYSIS_LIMITS.riskClause");
   assert.ok(huge.value.risks[0].explanation.length <= 500, "explanation must be truncated to ANALYSIS_LIMITS.riskExplanation");
 });
+
+// ── MAX_REQUEST_BYTES: byte caps per endpoint ────────────────────
+
+test("analyze handler: MAX_REQUEST_BYTES is a sane body cap (256KB by default)", () => {
+  // The analyze endpoint accepts the user's document (up to 40K chars
+  // + AI wrapper overhead). 256KB is the hard cap so a pathologically
+  // large body can't pin the function. Source-pattern lock the
+  // constant + wiring into readCappedBody.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/analyze.js"), "utf8");
+  const capMatch = src.match(/MAX_REQUEST_BYTES\s*=\s*(\d+)\s*\*\s*1024/);
+  assert.ok(capMatch, "MAX_REQUEST_BYTES must be defined in KB units");
+  const kb = parseInt(capMatch[1], 10);
+  assert.ok(kb >= 64 && kb <= 1024, `MAX_REQUEST_BYTES=${kb}KB must be 64..1024 KB`);
+  assert.match(src, /readCappedBody\(req,\s*MAX_REQUEST_BYTES\)/, "must wire readCappedBody to MAX_REQUEST_BYTES");
+});
+
+test("chat handler: MAX_REQUEST_BYTES is a sane body cap (128KB by default)", () => {
+  // The chat endpoint carries the document (30K) + rewrite (6K) + risks
+  // (~11K) + history (10K) + question (1K) + filename + JSON overhead
+  // — total ~58K. 128KB is the hard cap. Source-pattern lock.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/chat.js"), "utf8");
+  const capMatch = src.match(/MAX_REQUEST_BYTES\s*=\s*(\d+)\s*\*\s*1024/);
+  assert.ok(capMatch, "MAX_REQUEST_BYTES must be defined in KB units");
+  const kb = parseInt(capMatch[1], 10);
+  assert.ok(kb >= 64 && kb <= 1024, `MAX_REQUEST_BYTES=${kb}KB must be 64..1024 KB`);
+  assert.match(src, /readCappedBody\(req,\s*MAX_REQUEST_BYTES\)/, "must wire readCappedBody to MAX_REQUEST_BYTES");
+});
