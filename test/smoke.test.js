@@ -1024,6 +1024,31 @@ test("lazy Tesseract.js loader pins integrity + crossOrigin (SRI for dynamic scr
     "loadTesseract() must set s.crossOrigin = 'anonymous'");
 });
 
+test("share decoder caps decompressed size (gzip bomb defense)", () => {
+  // A share URL is bounded on the encoded side (SHARE_PAYLOAD_MAX_BYTES = 6000),
+  // but the *decompressed* payload is unbounded by default — a 6KB gzip bomb
+  // could expand to gigabytes of memory. gunzipString must stream-read with
+  // a byte cap and bail out before exhausting memory.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.join(ROOT, "assets/app.js"), "utf8");
+  // 1. Cap constant must be defined.
+  assert.match(src, /GUNZIP_MAX_BYTES\s*=\s*\d+\s*\*\s*1024\s*\*\s*1024|GUNZIP_MAX_BYTES\s*=\s*1024\s*\*\s*1024/,
+    "GUNZIP_MAX_BYTES must be defined as a multiple of 1 MiB");
+  // 2. gunzipString must total the byte count across chunks.
+  const gunzipMatch = src.match(/async function gunzipString\([\s\S]+?\}catch/);
+  assert.ok(gunzipMatch, "gunzipString function must be present");
+  const gunzipBody = gunzipMatch[0];
+  assert.match(gunzipBody, /total\s*\+=\s*value\.byteLength/,
+    "gunzipString must accumulate byteLength across reader.read() chunks");
+  assert.match(gunzipBody, /total\s*>\s*GUNZIP_MAX_BYTES/,
+    "gunzipString must compare running total against GUNZIP_MAX_BYTES");
+  // 3. On overflow, the stream must be cancelled before throwing so chunk
+  // buffers are released to the GC promptly.
+  assert.match(gunzipBody, /reader\.cancel\(\)/,
+    "gunzipString must call reader.cancel() on overflow to free chunk buffers");
+});
+
 test("vercel.json: Strict-Transport-Security is preload-eligible", () => {
   // HSTS preload is irreversible — once a domain is in the browser preload
   // list, browsers will refuse HTTP connections even on first visit, until
