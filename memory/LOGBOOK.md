@@ -1637,3 +1637,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored standing directives. Production-correctness fix — Vercel has a hard 60s ceiling, and a single 100s worst-case path was a guaranteed outage for any client whose request hit a slow OpenRouter and triggered the fallback.
 
+**2026-07-19 02:02 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #38 of the autonomous loop** (cron `c3921bc4` firing). Live: 02:02 IST.
+- **Shipped edge-cacheable `Cache-Control: public, max-age=5, s-maxage=5` on `/api/health` 200 + HEAD responses**. The most-polled endpoint in any deployment just got cheap. Monitoring services (Pingdom/UptimeRobot/Datadog/internal probes) hit /api/health every 1–5s; previously every poll = 1 function invocation. Now the 5s edge-cache collapses polling fan-in to ~1 invocation per 5s window per edge node — meaningful Vercel Hobby cost savings.
+- **Implementation**: new local `sendOkCached(res, payload)` helper in `api/health.js`. Mirrors `json()` but overrides Cache-Control to permit short shared caching. Preserves the rest of the observability family (X-Request-Id, X-Request-Latency-Total-Ms, X-Build-Sha).
+- **HEAD path**: Cache-Control upgraded from no-store → public/max-age=5/s-maxage=5. Monitoring clients no longer see different cache semantics between HEAD and GET.
+- **503 path**: intentionally still uses `no-store`. Caching a "degraded" response would mask an active outage — the opposite of what health probes are for. The 200-cacheable / 503-always-fresh asymmetry is the single most important property of this change.
+- **233/233 tests pass** (171 unit + 61 smoke + 1 integration). 4 source-pattern checks lock in: HEAD path uses cacheable Cache-Control, 200 + HEAD share the same cacheable headers with sane (1..60s) max-age, 503 paths use no-store + sendOkCached is called exactly once (200 path only), and the sendOkCached helper emits the standard observability family.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the last obvious cost/perf gap — the parallel session's HEAD-header-compliance work (iter #37-followup) provided the natural hand-off into this. The Cache-Control split between 200 (cacheable) and 503 (fresh) is the critical invariant; it had to be both correct AND verifiable.
+
