@@ -1329,3 +1329,32 @@ test("applyEndpointHeader: null-safe (no throw on bad res / names)", () => {
     applyEndpointHeader(res, bad);
   }
 });
+
+// ── X-Endpoint marker coverage (iter #56) ─────────────────────────
+
+test("applyEndpointHeader: every endpoint file calls it with the right endpoint name", () => {
+  // Source-pattern lock so a future refactor or page addition can't
+  // silently drop the X-Endpoint marker. Each api/*.js file must call
+  // applyEndpointHeader(res, "<expected-name>") at least once.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const cases = [
+    { file: "../api/analyze.js",   name: "analyze" },
+    { file: "../api/chat.js",      name: "chat" },
+    { file: "../api/health.js",     name: "health" },
+    { file: "../api/csp-report.js", name: "csp-report" },
+  ];
+  for (const { file, name } of cases) {
+    const src = fs.readFileSync(path.resolve(__dirname, file), "utf8");
+    // Match applyEndpointHeader(res, "<name>") possibly with whitespace
+    // differences, but the literal name must appear exactly.
+    const re = new RegExp(
+      String.raw`applyEndpointHeader\s*\(\s*res\s*,\s*["']${name.replace(/-/g, "-")}["']\s*\)`
+    );
+    assert.match(
+      src,
+      re,
+      `${file} must call applyEndpointHeader(res, "${name}") at least once`
+    );
+  }
+});
