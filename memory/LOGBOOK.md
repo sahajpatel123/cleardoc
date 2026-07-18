@@ -1791,3 +1791,12 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the LAST meaningful `/api/health` observability gap — node version / memory / platform are useful for runtime diagnostics; region + vercelEnv close out the deployment-context story. Together they describe "which build is running, on what runtime, in what region, with what memory profile" — a complete operational snapshot.
+**2026-07-19 03:05 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #8 of the 10-minute autonomous engineer loop** (`/loop 10minutes`). CHANGELOG drift fill.
+- **Process-info /api/health additions landed via parallel agent** (`91c5bb4a feat(api): /api/health surfaces Vercel region + env in process block`) — adds `region` (`VERCEL_REGION`) + `vercelEnv` (`VERCEL_ENV`) to the existing process-info block. Lets ops route alerts by region and distinguish prod from preview deployments. I attempted to adopt+commit this change myself but the parallel agent beat me by seconds; the work landed before my `git add` could run.
+- **CHANGELOG gap fill** (`pending commit`): added the full process-info block (memory + Node version + platform + arch + pid + uptime + region + vercelEnv) under Observability. Neither the original `4ee88c26 feat(api): /api/health surfaces process info` nor the follow-up `91c5bb4a` region/env addition had CHANGELOG entries.
+- **Verification:** 244/244 tests pass (181 unit + 62 smoke + 1 integration; +3 since iter #7).
+
+**Prompt Intention:**
+- Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #8 closed the doc-drift gap for /api/health process info. Next iteration scheduled to fire in 10 minutes.
