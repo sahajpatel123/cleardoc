@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog, sanitizeLogField } = require("../api/_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog, sanitizeLogField, logProviderError } = require("../api/_safety.js");
 
 // ── json ─────────────────────────────────────────────────────────────
 
@@ -343,6 +343,66 @@ test("errLog: does not throw when res is null/undefined", () => {
   assert.equal(captured.length, 2);
   assert.match(captured[0], /\[req=no-req-id\]/);
   assert.match(captured[1], /\[req=no-req-id\]/);
+});
+
+// ── logProviderError: req-id-tagged logger for inner AI calls ─────
+
+test("logProviderError: emits [req=<id>] [prefix] <msg> via console.error", () => {
+  const captured = [];
+  const origErr = console.error;
+  console.error = (...args) => captured.push(args.join(" "));
+  try {
+    logProviderError("req-abc-123", "chat-gemini", "HTTP 503: upstream overload");
+  } finally {
+    console.error = origErr;
+  }
+  assert.equal(captured.length, 1);
+  assert.match(captured[0], /\[req=req-abc-123\]/);
+  assert.match(captured[0], /\[chat-gemini\]/);
+  assert.match(captured[0], /HTTP 503: upstream overload/);
+});
+
+test("logProviderError: falls back to 'no-req-id' when reqId is missing", () => {
+  const captured = [];
+  const origErr = console.error;
+  console.error = (...args) => captured.push(args.join(" "));
+  try {
+    logProviderError(undefined, "analyze-openrouter", "fail");
+    logProviderError("", "analyze-openrouter", "fail");
+    logProviderError(null, "analyze-openrouter", "fail");
+  } finally {
+    console.error = origErr;
+  }
+  assert.equal(captured.length, 3);
+  for (const line of captured) assert.match(line, /\[req=no-req-id\]/);
+});
+
+test("logProviderError: sanitizes CRLF in the message so log injection is neutralized", () => {
+  const captured = [];
+  const origErr = console.error;
+  console.error = (...args) => captured.push(args.join(" "));
+  try {
+    logProviderError("req-test", "chat-gemini", "error\r\n[FAKE] admin login");
+  } finally {
+    console.error = origErr;
+  }
+  assert.equal(captured.length, 1);
+  // CRLF must be neutralized so the fake row never appears as a separate entry.
+  assert.doesNotMatch(captured[0], /\r/);
+  assert.match(captured[0], /\[FAKE\] admin login/);
+});
+
+test("logProviderError: caps message length so a giant error doesn't bloat the log line", () => {
+  const captured = [];
+  const origErr = console.error;
+  console.error = (...args) => captured.push(args.join(" "));
+  try {
+    logProviderError("req-big", "chat-gemini", "x".repeat(2000));
+  } finally {
+    console.error = origErr;
+  }
+  assert.ok(captured[0].length < 2000);
+  assert.match(captured[0], /…$/);
 });
 
 // ── accessLog: per-request completion log ──────────────────────────
