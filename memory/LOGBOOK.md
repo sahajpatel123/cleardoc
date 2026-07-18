@@ -2054,3 +2054,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #15 closed another documentation gap. Next iteration scheduled to fire in 10 minutes.
+
+**2026-07-19 04:36 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #53 of the autonomous loop** (cron `c3921bc4` firing). Live: 04:36 IST.
+- **Shipped explicit `Content-Type: application/json` enforcement on /api/analyze + /api/chat** (`61a0b2b5`). Defensive content-type check on POST endpoints. Previously a form-encoded or plain-text POST would 400 with a confusing "Invalid JSON" message — the caller didn't know whether their body or their Content-Type header was wrong.
+- **Implementation**: read `req.headers['content-type']`, reject with **415 Unsupported Media Type** if not `application/json` (case-insensitive, tolerates `; charset=utf-8` parameterizations). Skipped when Content-Type header is absent (curl's default) so existing ergonomics are preserved.
+- **277/277 tests pass** (206 unit + 70 smoke + 1 integration). 2 new source-pattern tests.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed a tiny but real reliability gap. The previous behavior was technically working — JSON.parse would catch a form-encoded body — but the error message was the wrong shape. Ops and clients can now distinguish "wrong content type" from "malformed JSON" without reading logs.
