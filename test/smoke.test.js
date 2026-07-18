@@ -2156,3 +2156,66 @@ skip("security.txt: well-known/security.txt is served and well-formed", async ()
   assert.match(txt, /^Preferred-Languages:\s*en/m, "Preferred-Languages should be en");
   assert.match(txt, /^Policy:\s*https:\/\/cleardoc\.app\/SECURITY\.md/m, "Policy should link to SECURITY.md");
 });
+
+// ── FAQ keyword filter ─────────────────────────────────────────────
+
+skip("faq: keyword filter narrows .qa items in real time", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+
+  // Analyze page has 3 FAQ items.
+  await page.waitForSelector(".qa .qt", { timeout: 5000 });
+  const initialCount = await page.$$eval(".qa", (els) => els.length);
+  assert.ok(initialCount >= 2, `analyze page must have >=2 FAQ items, got ${initialCount}`);
+
+  // All items visible initially.
+  const allVisibleBefore = await page.$$eval(".qa", (els) =>
+    els.filter((el) => el.style.display !== "none").length
+  );
+  assert.equal(allVisibleBefore, initialCount, "all FAQ items must start visible");
+
+  // Type a keyword — at least one FAQ on /analyze should match "document"
+  const searchInput = await page.$("#faqSearch");
+  assert.ok(searchInput, "#faqSearch input must exist on analyze page");
+  await searchInput.fill("document");
+  await page.waitForTimeout(60);
+
+  const afterTyping = await page.$$eval(".qa", (els) =>
+    els.filter((el) => el.style.display !== "none").length
+  );
+  assert.ok(afterTyping >= 1, `at least 1 FAQ item must match "document", got ${afterTyping}`);
+  assert.ok(afterTyping < initialCount, `filter must reduce visible count from ${initialCount}, got ${afterTyping}`);
+
+  // Case-insensitive matching.
+  await searchInput.fill("DOCUMENT");
+  await page.waitForTimeout(60);
+  const afterUpper = await page.$$eval(".qa", (els) =>
+    els.filter((el) => el.style.display !== "none").length
+  );
+  assert.equal(afterUpper, afterTyping, "case-insensitive matching must yield identical results");
+
+  // Empty input restores all items.
+  await searchInput.fill("");
+  await page.waitForTimeout(60);
+  const afterClear = await page.$$eval(".qa", (els) =>
+    els.filter((el) => el.style.display !== "none").length
+  );
+  assert.equal(afterClear, initialCount, "clearing the filter must show all items again");
+
+  // Garbage keyword shows none.
+  await searchInput.fill("zzznevermatchthisstringzzz");
+  await page.waitForTimeout(60);
+  const afterNone = await page.$$eval(".qa", (els) =>
+    els.filter((el) => el.style.display !== "none").length
+  );
+  assert.equal(afterNone, 0, `garbage keyword must hide all FAQ items, got ${afterNone} visible`);
+
+  assert.deepEqual(errors, [], "faq filter must not produce console errors");
+
+  await page.close();
+  await ctx.close();
+});
