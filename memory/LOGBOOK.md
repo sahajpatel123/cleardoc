@@ -903,6 +903,19 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Continued the strict-fail-closed discipline established in iteration #1. With both `/api/analyze` and `/api/chat` now validated under the same pattern, the API surface is uniformly defensive against malformed AI responses. Next logical gaps to address in upcoming iterations: rate-limit response headers (`X-RateLimit-Limit` / `-Remaining` / `-Reset`), structured 500 responses (uncaught exception handler), CSP header (requires inline-script refactor).
 
+**2026-07-18 10:37 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #5 of the autonomous loop** (10-min cadence). Live: 10:33:20 → 10:37:51 IST.
+- **Standard rate-limit response headers** on every API response. Previously handlers only set `Retry-After` on rejection (one line per handler). Now `rateLimit()` returns `{ok, limit, remaining, reset, retryAfter?}` and a new `applyRateLimitHeaders(res, rl)` helper emits the trio.
+- **`api/_safety.js`**: extended `rateLimit()` to surface `limit` (echoed `maxPerMinute`), `remaining` (slots left in current window after this request), `reset` (UNIX seconds at which the oldest in-window entry expires — i.e. when at least one slot frees). Added `applyRateLimitHeaders()` with `Number.isFinite` guards on each field and null-safety for unknown inputs.
+- **`api/analyze.js`, `api/chat.js`, `api/health.js`**: each now imports `applyRateLimitHeaders`, calls it right after `rateLimit()`, removed the duplicate `res.setHeader("Retry-After", ...)` line (the helper sets it from `rl.retryAfter`).
+- **`test/safety.test.js`**: added 5 new tests — `rateLimit` returns the new fields on allowed + rejected paths, disabled limit zeroed, `applyRateLimitHeaders` writes the trio on allowed, writes `Retry-After` in addition on rejected, null-safe on garbage input, skips non-finite fields.
+- **Test totals locally**: 19 smoke + 63 unit (16 safety + 6 new rate-limit + 28 analyze-schema + 13 chat-schema) + 1 integration = **83/83 passing**. All JS syntax-clean.
+- **CI result**: `dc5ab154 feat(api): emit X-RateLimit-Limit/Remaining/Reset headers on every response` — **GREEN** on first run.
+
+**Prompt Intention:**
+- Closed the "industry-standard observability headers" gap. Clients now self-throttle based on real per-IP budget (`X-RateLimit-Remaining`) instead of guessing. Rejection path is unchanged for clients (still `Retry-After`) but now also explains itself via the trio. No new failure modes introduced.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
