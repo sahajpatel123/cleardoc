@@ -411,6 +411,86 @@ test("accessLog: falls back gracefully when req/res are missing", () => {
   assert.match(captured[1], /\[req=no-req-id\]/);
 });
 
+// ── sanitizeLogField: control-char + length defense for log lines ──
+
+test("sanitizeLogField: passes through plain ASCII unchanged", () => {
+  assert.equal(sanitizeLogField("/api/health", 512), "/api/health");
+  assert.equal(sanitizeLogField("POST", 16), "POST");
+});
+
+test("sanitizeLogField: strips CR/LF/TAB and other ASCII control chars", () => {
+  // Without sanitization these would inject fake log lines into the stream
+  // and break log shippers that split on newline.
+  assert.equal(sanitizeLogField("a\nb", 512), "a b");
+  assert.equal(sanitizeLogField("a\rb", 512), "a b");
+  assert.equal(sanitizeLogField("a\r\nb", 512), "a  b");
+  assert.equal(sanitizeLogField("a\tb", 512), "a b");
+  assert.equal(sanitizeLogField("a\x00b", 512), "a b");
+  assert.equal(sanitizeLogField("a\x1Bb", 512), "a b");
+  assert.equal(sanitizeLogField("a\x7Fb", 512), "a b");
+});
+
+test("sanitizeLogField: caps length with ellipsis", () => {
+  const long = "x".repeat(600);
+  const out = sanitizeLogField(long, 512);
+  assert.equal(out.length, 512);
+  assert.match(out, /…$/);
+});
+
+test("sanitizeLogField: does not truncate when under the cap", () => {
+  assert.equal(sanitizeLogField("hello", 100), "hello");
+});
+
+test("sanitizeLogField: skips truncation when maxLen is non-positive", () => {
+  assert.equal(sanitizeLogField("hello", 0), "hello");
+  assert.equal(sanitizeLogField("hello", -1), "hello");
+});
+
+test("sanitizeLogField: coerces non-string inputs safely", () => {
+  assert.equal(sanitizeLogField(null, 100), "");
+  assert.equal(sanitizeLogField(undefined, 100), "");
+  assert.equal(sanitizeLogField(42, 100), "42");
+  assert.equal(sanitizeLogField(true, 100), "true");
+});
+
+test("accessLog: does NOT let a CRLF in the URL inject a second log line", () => {
+  const captured = [];
+  const origLog = console.log;
+  console.log = (...args) => captured.push(args.join("\n"));
+  try {
+    const res = mockRes();
+    res.__requestId = "inject-test";
+    // Attacker-controlled URL containing CRLF + a fake log line
+    accessLog({ method: "POST", url: "/api/x\r\n[FAKE] admin login" }, res, 200);
+  } finally {
+    console.log = origLog;
+  }
+  // Exactly ONE line — the CRLF must be neutralized so the fake row never
+  // appears as a separate log entry.
+  assert.equal(captured.length, 1);
+  assert.match(captured[0], /\[req=inject-test\]/);
+  assert.match(captured[0], /\[FAKE\] admin login/);
+  assert.doesNotMatch(captured[0], /\r/);
+});
+
+test("accessLog: caps the URL field so a giant URL can't bloat the log line", () => {
+  const captured = [];
+  const origLog = console.log;
+  console.log = (...args) => captured.push(args.join(" "));
+  try {
+    const res = mockRes();
+    res.__requestId = "big-url";
+    accessLog({ method: "GET", url: "/?" + "a".repeat(2000) }, res, 200);
+  } finally {
+    console.log = origLog;
+  }
+  // The URL portion inside the log line should be bounded — whole log line
+  // is comfortably under 2KB even with a 2KB URL attack.
+  assert.ok(captured[0].length < 2000, `log line too long: ${captured[0].length}`);
+  // Truncation marker sits between the URL and the closing ` -> 200`.
+  assert.match(captured[0], /… -> 200$/);
+});
+
 // ── asString ─────────────────────────────────────────────────────────
 
 test("asString: returns trimmed string for string input, capped at max", () => {
