@@ -23,6 +23,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Image-attachment OCR** via lazy Tesseract.js loading (30s timeout + cancel).
 - **`/api/chat` provider-fallback chain** — Gemini primary, OpenRouter fallback. If Gemini is unreachable, rate-limited, returns empty, or the key isn't configured, the next request transparently uses OpenRouter. Per-provider 25s `REQUEST_TIMEOUT_MS` keeps the chain inside the 60s Vercel ceiling. Response payload now includes `provider` so ops can see which AI answered. A clear 503 ("No AI provider is configured.") surfaces config gaps before any provider call instead of producing a misleading 502.
 - **`X-AI-Provider` + `X-AI-Response-Time-Ms` response headers** on `/api/analyze` and `/api/chat` — a single `curl -i` now reports which provider answered (gemini / openrouter / none) and how long the AI chain took. Lets ops spot fallback activation and provider latency in real time without correlating server logs.
+- **`X-Request-Latency-Total-Ms` end-to-end timing header** on every API response — complements the AI-only header by reporting the full server-side time (rate-limit gate + body read + AI call + validation + serialize). Critical for distinguishing "the AI is slow" from "our code is slow" when triaging latency reports.
 
 ### Observability
 - `X-Request-Id` on every API response (echoes upstream IDs when present, otherwise fresh UUID v4).

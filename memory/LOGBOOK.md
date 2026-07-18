@@ -1458,6 +1458,18 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Made the new provider-fallback chains observable in real time, with full test coverage. Hand-off between parallel sessions worked clean (zero duplication).
+
+**2026-07-18 23:55 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #31 of the autonomous loop**. Live: 23:55 IST.
+- **Shipped `X-Request-Latency-Total-Ms` end-to-end timing header** (`c90d4fa2`). Builds on iter #30's AI-only latency: now ops see the *full* server-side time per request (rate-limit gate + body read + AI chain + validation + serialize), not just the AI portion. Critical for debugging "is it the AI or our code that's slow?".
+- **Implementation**: piggybacked on the universal `attachRequestId()` call — every handler already invokes it first, so it now also pins `res.__requestStartedAt = Date.now()`. The shared `json()` helper reads that stamp and auto-emits the header before streaming. **No handler changes required** — every existing `json()` call gets the new header for free.
+- **Cap at 600000ms (10 min) with rounding** for parity with the iter #30 helper.
+- **All 189 tests pass** (was 185; +4 new — defensive coverage of the latency flow: attachRequestId pins the stamp, json() emits/skip/coexists correctly).
+- **One additive header only**. `X-Request-Latency-Total-Ms` joins the existing `X-AI-Provider`, `X-AI-Response-Time-Ms`, `X-RateLimit-*`, `Retry-After`, `X-Request-Id` family.
+
+**Prompt Intention:**
+- Honored the standing directives. The cron scheduler remained blocked (model unavailable for safety classifier) so this iteration is still single-shot; running as fast as I can while tool access permits.
 **2026-07-18 23:05 IST | Model: minimax/minimax-m3**
 **Changes Made:**
 - **Iteration #1 of the 10-minute autonomous engineer loop** (`/loop 10minutes`). Recon-only iteration — no original code authored; verified and committed parallel-agent work.
