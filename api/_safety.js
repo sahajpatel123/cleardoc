@@ -4,11 +4,14 @@
  * is safe to import from sibling API handlers.
  *
  * Exports:
- *   json(res, status, body)         — canonical JSON response
- *   getIp(req)                      — best-effort client IP (Vercel x-forwarded-for aware)
- *   rateLimit(ip, maxPerMinute)     — per-IP sliding-window limiter, in-memory
- *   readCappedBody(req, maxBytes)   — stream-read with a hard byte cap (rejects before parsing)
- *   asString(value, max)            — defensive string coercion with a length cap
+ *   json(res, status, body)                       — canonical JSON response
+ *   getIp(req)                                    — best-effort client IP (Vercel x-forwarded-for aware)
+ *   rateLimit(ip, maxPerMinute)                   — per-IP sliding-window limiter, in-memory
+ *   readCappedBody(req, maxBytes)                 — stream-read with a hard byte cap (rejects before parsing)
+ *   asString(value, max)                          — defensive string coercion with a length cap
+ *   ANALYSIS_LIMITS                               — single source of truth for AI output caps
+ *   validSeverity(s) / validVerdictLabel(s)       — enum guards returning string or null
+ *   safeParseAnalysisResult(obj)                  — strict fail-closed validator for /api/analyze results
  */
 
 function json(res, status, body) {
@@ -121,4 +124,243 @@ async function readCappedBody(req, maxBytes) {
   return { raw };
 }
 
-module.exports = { json, asString, getIp, rateLimit, readCappedBody };
+/* ── Analysis schema validation (STRICT RULE: fail-closed) ─────────────
+ *
+ * ClearDoc's RULES.md mandates "Strict zod validation (fail-closed)" for AI
+ * responses: partial legal data is more dangerous than no data. We never
+ * silently coerce out-of-enum values or fill in defaults — if the AI returns
+ * a malformed payload (wrong type, unknown enum value, missing required
+ * field, overflow) the handler returns 502 with reason='invalid_ai_response'
+ * rather than shipping a degraded shape to the user.
+ *
+ * ANALYSIS_LIMITS encodes every cap that was previously sprinkled across
+ * api/analyze.js. Single source of truth: change a cap here and the
+ * validator and tests stay in sync.
+ */
+
+const ANALYSIS_LIMITS = Object.freeze({
+  plainEnglishRewrite: 20000,
+  risks: 20,
+  riskClause: 300,
+  riskExplanation: 500,
+  riskImpact: 500,
+  verdictLabel: 50,
+  verdictSummary: 500,
+  deadlines: 10,
+  deadlineDate: 100,
+  deadlineDescription: 200,
+  nextSteps: 8,
+  nextStepItem: 300,
+  readingLevelMin: 1,
+  readingLevelMax: 20,
+  jargonFoundMin: 0,
+  jargonFoundMax: 200,
+});
+
+const VALID_SEVERITIES = Object.freeze(["trap", "watch", "note"]);
+const VALID_VERDICT_LABELS = Object.freeze([
+  "Likely Fair",
+  "Needs Review",
+  "Suspicious",
+  "Likely Illegal",
+]);
+
+function validSeverity(s) {
+  return VALID_SEVERITIES.includes(s) ? s : null;
+}
+
+function validVerdictLabel(s) {
+  return VALID_VERDICT_LABELS.includes(s) ? s : null;
+}
+
+function clampInt(n, min, max) {
+  // Strict: reject non-finite values and non-integer numerics (do NOT
+  // truncate). STRICT RULE: never add tolerance for malformed fields —
+  // `5.7` is a schema error, not a quietly rounded `5`.
+  if (!Number.isFinite(n) || !Number.isInteger(n)) return null;
+  if (n < min || n > max) return null;
+  return n;
+}
+
+/* Parse and validate an AI-produced analysis object.
+ *
+ * Returns:
+ *   { ok: true, value }    — `value` is the cleaned object with caps applied
+ *   { ok: false, errors }  — `errors` is an array of human-readable reasons
+ *
+ * Strict: missing fields, wrong types, or out-of-enum values all fail. We do
+ * NOT silently coerce. Callers must treat !ok as a production error.
+ */
+function safeParseAnalysisResult(obj) {
+  const errors = [];
+  if (obj === null || typeof obj !== "object" || Array.isArray(obj)) {
+    return { ok: false, errors: ["top-level must be an object"] };
+  }
+
+  // ── plainEnglishRewrite ──
+  const per = obj.plainEnglishRewrite;
+  if (typeof per !== "string") {
+    errors.push("plainEnglishRewrite: must be a string");
+  }
+
+  // ── risks ──
+  let risks;
+  if (!Array.isArray(obj.risks)) {
+    errors.push("risks: must be an array");
+    risks = [];
+  } else if (obj.risks.length > ANALYSIS_LIMITS.risks) {
+    errors.push(`risks: at most ${ANALYSIS_LIMITS.risks} entries`);
+    risks = [];
+  } else {
+    const cleaned = [];
+    obj.risks.forEach((r, i) => {
+      if (r === null || typeof r !== "object" || Array.isArray(r)) {
+        errors.push(`risks[${i}]: must be an object`);
+        return;
+      }
+      const sev = validSeverity(r.severity);
+      if (sev === null) {
+        errors.push(`risks[${i}].severity: must be one of ${VALID_SEVERITIES.join("/")}`);
+        return;
+      }
+      if (typeof r.clause !== "string") {
+        errors.push(`risks[${i}].clause: must be a string`);
+        return;
+      }
+      if (typeof r.explanation !== "string") {
+        errors.push(`risks[${i}].explanation: must be a string`);
+        return;
+      }
+      if (typeof r.impact !== "string") {
+        errors.push(`risks[${i}].impact: must be a string`);
+        return;
+      }
+      cleaned.push({
+        severity: sev,
+        clause: r.clause.slice(0, ANALYSIS_LIMITS.riskClause),
+        explanation: r.explanation.slice(0, ANALYSIS_LIMITS.riskExplanation),
+        impact: r.impact.slice(0, ANALYSIS_LIMITS.riskImpact),
+      });
+    });
+    risks = cleaned;
+  }
+
+  // ── verdict ──
+  let verdictLabel = "";
+  let verdictSummary = "";
+  if (obj.verdict === null || typeof obj.verdict !== "object" || Array.isArray(obj.verdict)) {
+    errors.push("verdict: must be an object");
+  } else {
+    const label = validVerdictLabel(obj.verdict.label);
+    if (label === null) {
+      errors.push(`verdict.label: must be one of ${VALID_VERDICT_LABELS.join(" | ")}`);
+    } else {
+      verdictLabel = label;
+    }
+    if (typeof obj.verdict.summary !== "string") {
+      errors.push("verdict.summary: must be a string");
+    } else {
+      verdictSummary = obj.verdict.summary.slice(0, ANALYSIS_LIMITS.verdictSummary);
+    }
+  }
+
+  // ── deadlines ──
+  let deadlines;
+  if (!Array.isArray(obj.deadlines)) {
+    errors.push("deadlines: must be an array");
+    deadlines = [];
+  } else if (obj.deadlines.length > ANALYSIS_LIMITS.deadlines) {
+    errors.push(`deadlines: at most ${ANALYSIS_LIMITS.deadlines} entries`);
+    deadlines = [];
+  } else {
+    const cleaned = [];
+    obj.deadlines.forEach((d, i) => {
+      if (d === null || typeof d !== "object" || Array.isArray(d)) {
+        errors.push(`deadlines[${i}]: must be an object`);
+        return;
+      }
+      if (typeof d.date !== "string") {
+        errors.push(`deadlines[${i}].date: must be a string`);
+        return;
+      }
+      if (typeof d.description !== "string") {
+        errors.push(`deadlines[${i}].description: must be a string`);
+        return;
+      }
+      cleaned.push({
+        date: d.date.slice(0, ANALYSIS_LIMITS.deadlineDate),
+        description: d.description.slice(0, ANALYSIS_LIMITS.deadlineDescription),
+      });
+    });
+    deadlines = cleaned;
+  }
+
+  // ── nextSteps ──
+  let nextSteps;
+  if (!Array.isArray(obj.nextSteps)) {
+    errors.push("nextSteps: must be an array");
+    nextSteps = [];
+  } else if (obj.nextSteps.length > ANALYSIS_LIMITS.nextSteps) {
+    errors.push(`nextSteps: at most ${ANALYSIS_LIMITS.nextSteps} entries`);
+    nextSteps = [];
+  } else {
+    const cleaned = [];
+    obj.nextSteps.forEach((s, i) => {
+      if (typeof s !== "string") {
+        errors.push(`nextSteps[${i}]: must be a string`);
+        return;
+      }
+      cleaned.push(s.slice(0, ANALYSIS_LIMITS.nextStepItem));
+    });
+    nextSteps = cleaned;
+  }
+
+  // ── readingLevel ──
+  let readingBefore = ANALYSIS_LIMITS.readingLevelMin;
+  let readingAfter = ANALYSIS_LIMITS.readingLevelMin;
+  if (obj.readingLevel === null || typeof obj.readingLevel !== "object" || Array.isArray(obj.readingLevel)) {
+    errors.push("readingLevel: must be an object");
+  } else {
+    const b = clampInt(obj.readingLevel.before, ANALYSIS_LIMITS.readingLevelMin, ANALYSIS_LIMITS.readingLevelMax);
+    const a = clampInt(obj.readingLevel.after, ANALYSIS_LIMITS.readingLevelMin, ANALYSIS_LIMITS.readingLevelMax);
+    if (b === null) errors.push(`readingLevel.before: must be int ${ANALYSIS_LIMITS.readingLevelMin}..${ANALYSIS_LIMITS.readingLevelMax}`);
+    else readingBefore = b;
+    if (a === null) errors.push(`readingLevel.after: must be int ${ANALYSIS_LIMITS.readingLevelMin}..${ANALYSIS_LIMITS.readingLevelMax}`);
+    else readingAfter = a;
+  }
+
+  // ── jargonFound ──
+  let jargonFound = 0;
+  const j = clampInt(obj.jargonFound, ANALYSIS_LIMITS.jargonFoundMin, ANALYSIS_LIMITS.jargonFoundMax);
+  if (j === null) errors.push(`jargonFound: must be int ${ANALYSIS_LIMITS.jargonFoundMin}..${ANALYSIS_LIMITS.jargonFoundMax}`);
+  else jargonFound = j;
+
+  if (errors.length > 0) return { ok: false, errors };
+
+  return {
+    ok: true,
+    value: {
+      plainEnglishRewrite: per.slice(0, ANALYSIS_LIMITS.plainEnglishRewrite),
+      risks,
+      verdict: { label: verdictLabel, summary: verdictSummary },
+      deadlines,
+      nextSteps,
+      readingLevel: { before: readingBefore, after: readingAfter },
+      jargonFound,
+    },
+  };
+}
+
+module.exports = {
+  json,
+  asString,
+  getIp,
+  rateLimit,
+  readCappedBody,
+  ANALYSIS_LIMITS,
+  VALID_SEVERITIES,
+  VALID_VERDICT_LABELS,
+  validSeverity,
+  validVerdictLabel,
+  safeParseAnalysisResult,
+};

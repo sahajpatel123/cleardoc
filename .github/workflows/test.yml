@@ -33,12 +33,15 @@ jobs:
 
       - name: Parse-check all JS
         run: |
-          for f in assets/app.js api/_safety.js api/analyze.js api/chat.js api/health.js; do
+          for f in assets/app.js api/_safety.js api/analyze.js api/chat.js api/health.js test/analyze-schema.test.js; do
             node --check "$f" && echo "$f: OK" || (echo "$f: SYNTAX ERROR"; exit 1)
           done
 
       - name: Unit tests (api/_safety.js)
         run: node --test test/safety.test.js
+
+      - name: Unit tests (analyze schema validator)
+        run: node --test test/analyze-schema.test.js
 
       - name: Browser smoke tests (Playwright)
         run: node --test test/smoke.test.js
@@ -52,4 +55,5 @@ jobs:
 
       - name: Summary
         if: always()
-        run: echo "All checks completed. Status: ${{ job.status }}."
+        run: >-
+          echo "All checks completed. Status: ${{ job.status }}."

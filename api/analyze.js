@@ -6,7 +6,14 @@ const MAX_REQUEST_BYTES = 256 * 1024;       // 256KB hard cap on raw body
 const MAX_DOCUMENT_MIN_CHARS = 10;          // reject empty / trivial inputs
 const RATE_LIMIT_PER_MINUTE = 10;           // per-IP cap (analyze is expensive)
 
-const { json, asString, getIp, rateLimit, readCappedBody } = require("./_safety.js");
+const {
+  json,
+  asString,
+  getIp,
+  rateLimit,
+  readCappedBody,
+  safeParseAnalysisResult,
+} = require("./_safety.js");
 
 /* ── prompt ──────────────────────────────────────────────── */
 
@@ -257,39 +264,25 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  // Validate and sanitize the result
-  const sanitized = {
-    plainEnglishRewrite: String(result.plainEnglishRewrite || "").slice(0, 20000),
-    risks: Array.isArray(result.risks)
-      ? result.risks.slice(0, 20).map((r) => ({
-          severity: ["trap", "watch", "note"].includes(r.severity) ? r.severity : "note",
-          clause: String(r.clause || "").slice(0, 300),
-          explanation: String(r.explanation || "").slice(0, 500),
-          impact: String(r.impact || "").slice(0, 500),
-        }))
-      : [],
-    verdict: {
-      label: String(result.verdict?.label || "Needs Review").slice(0, 50),
-      summary: String(result.verdict?.summary || "").slice(0, 500),
-    },
-    deadlines: Array.isArray(result.deadlines)
-      ? result.deadlines.slice(0, 10).map((d) => ({
-          date: String(d.date || "").slice(0, 100),
-          description: String(d.description || "").slice(0, 200),
-        }))
-      : [],
-    nextSteps: Array.isArray(result.nextSteps)
-      ? result.nextSteps.slice(0, 8).map((s) => String(s).slice(0, 300))
-      : [],
-    readingLevel: {
-      before: Math.max(1, Math.min(20, Number(result.readingLevel?.before) || 14)),
-      after: Math.max(1, Math.min(20, Number(result.readingLevel?.after) || 7)),
-    },
-    jargonFound: Math.max(0, Math.min(200, Number(result.jargonFound) || 0)),
-  };
+  // Strict fail-closed schema validation (RULES.md: "Strict zod validation").
+  // Partial legal data is more dangerous than no data — if the AI's payload
+  // has wrong types, missing fields, or out-of-enum values, reject the whole
+  // response rather than shipping a degraded shape to the user.
+  const parsed = safeParseAnalysisResult(result);
+  if (!parsed.ok) {
+    console.error("[analyze] AI returned an invalid response shape:", {
+      provider,
+      errors: parsed.errors,
+    });
+    return json(res, 502, {
+      error: "AI returned an invalid response. Please try again.",
+      reason: "invalid_ai_response",
+      provider,
+    });
+  }
 
   return json(res, 200, {
-    analysis: sanitized,
+    analysis: parsed.value,
     provider,
     model: provider === "openrouter" ? GEMMA_MODEL : GEMINI_MODEL_DEFAULT,
   });
