@@ -286,6 +286,9 @@ module.exports = async function handler(req, res) {
       // is already in the logs via console.error. X-AI-Provider: none lets
       // ops tell this 502 apart from the per-provider failures above.
       applyAiResponseHeaders(res, "none", aiLatencyMs);
+      // Tell clients to back off — same convention as /api/health on 503.
+      // Avoids hot-loop retries that would just re-burn rate limits.
+      res.setHeader("Retry-After", "60");
       return json(res, 502, { error: "Chat failed. Both providers were unreachable." });
     }
 
@@ -301,6 +304,8 @@ module.exports = async function handler(req, res) {
     if (!parsed.ok) {
       applyAiResponseHeaders(res, out.provider, aiLatencyMs);
       errLog(res, "chat", new Error(`invalid AI response from ${out.provider}: ${JSON.stringify(parsed.errors)}`));
+      // Schema-invalid responses are transient (next sample usually ok).
+      res.setHeader("Retry-After", "60");
       return json(res, 502, {
         error: "Chat returned an invalid response. Please try again.",
         reason: "invalid_ai_response",

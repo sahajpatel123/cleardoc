@@ -270,6 +270,10 @@ module.exports = async function handler(req, res) {
 
     if (!result) {
       applyAiResponseHeaders(res, "none", aiLatencyMs);
+      // Both providers in the chain are unreachable / errored / rate-limited.
+      // Emit a Retry-After so monitoring clients and the Ask-thread UI back
+      // off rather than hammering — same convention as /api/health on 503.
+      res.setHeader("Retry-After", "60");
       return json(res, 502, {
         error: "AI analysis failed. Please try again.",
         provider: "none",
@@ -284,6 +288,9 @@ module.exports = async function handler(req, res) {
     if (!parsed.ok) {
       applyAiResponseHeaders(res, provider, aiLatencyMs);
       errLog(res, "analyze", new Error(`invalid AI response from ${provider}: ${JSON.stringify(parsed.errors)}`));
+      // Malformed-shape responses are typically transient (retry lands on a
+      // different sample). 60s is a sensible back-off window.
+      res.setHeader("Retry-After", "60");
       return json(res, 502, {
         error: "AI returned an invalid response. Please try again.",
         reason: "invalid_ai_response",

@@ -281,3 +281,35 @@ test("chat handler: wires applyAiResponseHeaders with provider + latency on ever
     "success / invalid_ai paths must call applyAiResponseHeaders with out.provider"
   );
 });
+
+test("chat handler: emits Retry-After on both 502 paths so clients back off", () => {
+  // Parity with /api/analyze: when the chat AI is unreachable or the
+  // schema fails, the response includes `Retry-After: 60` so monitoring
+  // systems and the Ask-thread UI can back off instead of hot-loop retrying.
+  const fnStart = CHAT_SOURCE.indexOf("module.exports = async function handler");
+  assert.ok(fnStart > -1);
+  const handlerBody = CHAT_SOURCE.slice(fnStart);
+
+  // Both 502 paths must set Retry-After (orchestrator failure + invalid schema)
+  const retryAfterMatches = [...handlerBody.matchAll(/res\.setHeader\("Retry-After",\s*"60"\)/g)];
+  assert.ok(retryAfterMatches.length >= 2, "must set Retry-After on both 502 paths");
+
+  // The 200 success path must NOT set Retry-After
+  const ok200Match = handlerBody.match(/return\s+json\(res,\s*200,\s*Object\.assign/);
+  assert.ok(ok200Match, "200 happy-path return must exist");
+  // None of the Retry-After calls should appear after the 200 return
+  const retryAfterInSuccessRegion = retryAfterMatches.some(
+    (m) => m.index > ok200Match.index
+  );
+  assert.equal(retryAfterInSuccessRegion, false, "Retry-After must not appear in the 200 success region");
+
+  // The 503 neither-configured path must NOT set Retry-After either — the
+  // entire response is `application/json` "No AI provider is configured.",
+  // not an outage the client should back off for. Source-position check.
+  const noProvider503Match = handlerBody.match(/json\(res,\s*503,\s*\{\s*error:\s*"No AI provider is configured\."/);
+  if (noProvider503Match) {
+    // Look for Retry-After within the 503 block — should NOT be present.
+    const searchRegion = handlerBody.slice(noProvider503Match.index, noProvider503Match.index + 400);
+    assert.equal(/Retry-After/.test(searchRegion), false, "503 neither-configured path must NOT set Retry-After (config, not outage)");
+  }
+});

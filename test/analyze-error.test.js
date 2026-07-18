@@ -168,3 +168,31 @@ test("analyze handler: wires applyAiResponseHeaders with provider + latency on e
     "200 success path must call applyAiResponseHeaders with the provider"
   );
 });
+
+test("analyze handler: emits Retry-After on both 502 paths so clients back off", () => {
+  // Mirrors /api/health's 503 behavior: when the AI is unreachable or the
+  // schema fails, the response includes `Retry-After: 60` so monitoring
+  // systems and the Ask-thread UI can back off instead of hot-loop retrying.
+  const fnStart = ANALYZE_SOURCE.indexOf("module.exports = async function handler");
+  assert.ok(fnStart > -1);
+  const handlerBody = ANALYZE_SOURCE.slice(fnStart);
+
+  // 502 both-fail (provider chain exhausted)
+  assert.match(
+    handlerBody,
+    /res\.setHeader\("Retry-After",\s*"60"\)/,
+    "must set Retry-After: 60 on at least one 502 path"
+  );
+  // Each 502 path's Retry-After must come BEFORE the matching json() call.
+  // Find both Retry-After calls and verify the next json( res, 502, ... ) follows.
+  const retryAfterPositions = [...handlerBody.matchAll(/res\.setHeader\("Retry-After",\s*"60"\)/g)];
+  assert.ok(retryAfterPositions.length >= 2, "must set Retry-After on both 502 paths (both-fail + invalid_ai)");
+  // The success 200 path must NOT set Retry-After (only 502/503 paths do)
+  const ok200Match = handlerBody.match(/return\s+json\(res,\s*200,\s*\{/);
+  assert.ok(ok200Match, "200 happy-path return must exist");
+  const between502and200 = handlerBody.slice(0, ok200Match.index);
+  const retryAfterInSuccessRegion = retryAfterPositions.some(
+    (m) => m.index > between502and200.length - 1
+  );
+  assert.equal(retryAfterInSuccessRegion, false, "Retry-After must not appear in the 200 success region");
+});
