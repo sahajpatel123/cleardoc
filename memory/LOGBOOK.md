@@ -1810,3 +1810,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored standing directives. Client-side availability bug — high-impact UX defect (tab freeze) at near-zero blast radius (no leak, no privilege escalation). Catches the regression where the BYOF demo could be weaponized by a long paste.
 
+
+**2026-07-19 02:40 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #12 of /loop 10minutes** — autonomous DevSecOps guardian.
+- **Recon:** parallel session shipped `91c5bb4a feat(api): /api/health surfaces Vercel region + env in process block`. The /api/health 200 payload now also reports `process.vercelEnv` and `process.region` for instant ops triage.
+- **Shipped `02c3afcc fix(ui): BYOF demo called undefined plainTextOf — ReferenceError`.** Real production-impact bug: the byof `show()` function used `plainTextOf(res.html)` to strip HTML before measuring reading level — but `plainTextOf` was never defined anywhere in `assets/app.js`. The closest match is `stripHtmlToText` at the bottom of the file (almost certainly the original intent). When a user clicked a BYOF sample whose jargon got replaced (`res.changed` was true), the demo silently threw ReferenceError on the home page. UI froze with no animation completing. Fix: rename to `stripHtmlToText`. Regression test guards both directions — `plainTextOf` must not appear anywhere, AND the strip call must be present.
+- **Verification:** 246/246 tests pass (181 unit + 64 smoke + 1 integration). Pushed `02c3afcc` to origin/main.
+
+**Prompt Intention:**
+- Honored standing directives. The most user-impactful bug of the campaign — high-visibility demo on the home page silently broken for any user who clicked a sample. Caught by static search; would have been missed by syntax check alone.
+
