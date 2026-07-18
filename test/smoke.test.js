@@ -826,6 +826,33 @@ skip("OCR: image attachments lazy-load Tesseract.js with timeout + cancel", asyn
   const fxWiring = appSrc.match(/chip\.querySelector\(['"]\.fx['"]\)\.addEventListener\(['"]click['"],\s*clearAttachments\)/);
   assert.ok(fxWiring, "chip remove (.fx) must call clearAttachments");
 });
+
+skip("BYOF: reading level is computed live from the input (not hardcoded 12th→7th)", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+
+  // gradeLevel + isGradable + plainTextOf must all exist at the IIFE level
+  assert.match(appSrc, /function gradeLevel\(text\)/, "gradeLevel must be a top-level IIFE function");
+  assert.match(appSrc, /function isGradable\(text\)/, "isGradable helper must exist for BYOF gating");
+  assert.match(appSrc, /function plainTextOf\(html\)/, "plainTextOf helper must exist for stripping output HTML");
+
+  // BYOF meta HTML must now have dynamic from/to IDs
+  assert.match(indexHtml, /id="byofLevelFrom"/, "index.html must have #byofLevelFrom for the dynamic 'before' level");
+  assert.match(indexHtml, /id="byofLevelTo"/,   "index.html must have #byofLevelTo for the dynamic 'after' level");
+
+  // BYOF must call setLevels(...) — verified by source pattern
+  const byofBlock = appSrc.match(/function byof\(\)\{[\s\S]+?\n  \}/);
+  assert.ok(byofBlock, "byof() must exist");
+  assert.match(byofBlock[0], /setLevels\(/, "byof() must call setLevels() to update the dynamic reading-level display");
+  assert.match(byofBlock[0], /isGradable\(raw\)/, "byof() must gate the 'before' level on isGradable");
+  assert.match(byofBlock[0], /gradeLevel\(raw\)/, "byof() must compute the input reading level dynamically");
+
+  // Live recompute on input — users see the level change as they type
+  assert.match(byofBlock[0], /addEventListener\(['"]input['"]/, "byof() must recompute reading level on input");
+});
 // ── Content-Security-Policy (vercel.json header) ────────────────────
 
 test("vercel.json: emits a strict Content-Security-Policy on every page", async () => {
