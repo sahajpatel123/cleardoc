@@ -237,6 +237,39 @@ skip("JSON-LD: pricing page has Product with 3 Offer tiers + FAQPage", async () 
     "pricing FAQPage must list at least 3 questions");
 });
 
+skip("JSON-LD: every public page declares a BreadcrumbList with valid positions", async () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  // analyze + pricing must declare a BreadcrumbList (404 is noindex; the home
+  // page is the breadcrumb root and doesn't need a list of itself).
+  for (const page of ["analyze.html", "pricing.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, page), "utf8");
+    const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => m[1]);
+    const parsed = blocks.map(JSON.parse);
+    const flat = parsed.flatMap(p => (p && p["@graph"]) ? p["@graph"] : [p]);
+    const bc = flat.find(n => n["@type"] === "BreadcrumbList");
+    assert.ok(bc, `${page} must include a BreadcrumbList node in its JSON-LD`);
+    assert.ok(Array.isArray(bc.itemListElement) && bc.itemListElement.length >= 2,
+      `${page} BreadcrumbList must have at least 2 items (root + page)`);
+
+    // Positions must be sequential starting at 1, names + URLs non-empty
+    bc.itemListElement.forEach((item, i) => {
+      assert.equal(item["@type"], "ListItem", `${page} breadcrumb[${i}] must be a ListItem`);
+      assert.equal(item.position, i + 1, `${page} breadcrumb[${i}].position must be ${i + 1}, got ${item.position}`);
+      assert.ok(item.name && typeof item.name === "string" && item.name.length > 0, `${page} breadcrumb[${i}].name required`);
+      assert.ok(item.item && /^https:\/\/cleardoc\.app\//.test(item.item), `${page} breadcrumb[${i}].item must be an absolute cleardoc.app URL`);
+    });
+
+    // Last breadcrumb item must point at the current page itself
+    const last = bc.itemListElement[bc.itemListElement.length - 1];
+    const currentPath = "/" + page;
+    assert.ok(last.item.endsWith(currentPath), `${page} breadcrumb must end at ${currentPath}, got ${last.item}`);
+
+    // First item must be the home page
+    assert.equal(bc.itemListElement[0].item, "https://cleardoc.app/", `${page} breadcrumb must start at home`);
+  }
+});
+
 skip("sitemap.xml: lists every public HTML page with a lastmod timestamp", async () => {
   const fs = require("node:fs");
   const path = require("node:path");
