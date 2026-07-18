@@ -480,3 +480,17 @@ test("health handler: 200 payload's process info is reachable via the rendered e
     assert.equal(typeof body.process.memory[k], "number", `memory.${k} must be a number`);
   }
 });
+
+// ── region + vercelEnv in process info (iter #44) ──────────────────
+
+test("health handler: process info includes VERCEL_REGION + VERCEL_ENV", () => {
+  // Vercel injects these on every production deploy. Ops dashboards
+  // use them to route alerts by region and distinguish prod from
+  // preview deployments — surfaces them in the same payload as the
+  // rest of the process info block.
+  assert.match(HEALTH_SOURCE, /region\s*:\s*process\.env\.VERCEL_REGION/, "must surface VERCEL_REGION as process.region");
+  assert.match(HEALTH_SOURCE, /vercelEnv\s*:\s*process\.env\.VERCEL_ENV/, "must surface VERCEL_ENV as process.vercelEnv");
+  // Fall back to null in local dev (env vars unset)
+  assert.match(HEALTH_SOURCE, /region\s*:\s*[^,]*VERCEL_REGION\s*\|\|\s*null/, "region must default to null when env var is unset");
+  assert.match(HEALTH_SOURCE, /vercelEnv\s*:\s*[^,]*VERCEL_ENV\s*\|\|\s*null/, "vercelEnv must default to null when env var is unset");
+});

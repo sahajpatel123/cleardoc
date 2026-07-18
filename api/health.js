@@ -175,6 +175,12 @@ module.exports = async function handler(req, res) {
         arch: process.arch,
         pid: process.pid,
         processUptimeSec: Math.round(process.uptime()),
+        // Vercel injects these on every production deploy. Lets ops
+        // dashboards route alerts by region ("only iad1 is unhealthy")
+        // and distinguish prod from preview deployments from the same
+        // endpoint. Null in local dev (env vars unset).
+        region: process.env.VERCEL_REGION || null,
+        vercelEnv: process.env.VERCEL_ENV || null,
         memory: (() => {
           const m = process.memoryUsage();
           return {
