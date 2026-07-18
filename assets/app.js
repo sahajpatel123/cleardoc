@@ -1486,6 +1486,10 @@
     const PDF_EXT=/\.pdf$/i;
     const OCR_TIMEOUT_MS = 30000;        // abort if Tesseract hasn't returned after 30s
     const TESSERACT_SRC = 'https://unpkg.com/tesseract.js@5/dist/tesseract.min.js';
+    // SHA-384 of the live tesseract.min.js@5 bytes, for Subresource Integrity.
+    // If unpkg is compromised and serves different bytes, the browser refuses
+    // to execute. crossorigin=anonymous is required for SRI verification.
+    const TESSERACT_SRI = 'sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F';
     function fmtSize(b){ if(b<1024)return b+' B'; if(b<1048576)return Math.round(b/1024)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
     function extOf(n){ const m=/\.([a-z0-9]+)$/i.exec(n); return m?m[1].toUpperCase():'FILE'; }
     function kindOf(n){ if(IMG_EXT.test(n))return'img'; if(PDF_EXT.test(n))return'pdf'; if(/\.(docx?|odt|pages)$/i.test(n))return'doc'; return'txt'; }
@@ -1537,6 +1541,8 @@
       _tesseractPromise=new Promise((resolve,reject)=>{
         const s=document.createElement('script');
         s.src=TESSERACT_SRC;
+        s.integrity = TESSERACT_SRI;
+        s.crossOrigin = 'anonymous';
         s.async=true;
         s.onload=()=> window.Tesseract ? resolve(window.Tesseract) : reject(new Error('Tesseract missing on window after load'));
         s.onerror=()=> { _tesseractPromise=null; reject(new Error('Failed to load Tesseract.js')); };

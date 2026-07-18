@@ -912,6 +912,29 @@ test("CDN scripts have Subresource Integrity (SRI) hashes", () => {
   }
 });
 
+test("lazy Tesseract.js loader pins integrity + crossOrigin (SRI for dynamic script)", () => {
+  // The lazy OCR loader injects a <script> via document.createElement() and
+  // appendChild(). Static <script src= integrity=...> checks miss it. This
+  // source-pattern test guards against dropping the runtime integrity /
+  // crossOrigin attributes on the dynamic node.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.join(ROOT, "assets/app.js"), "utf8");
+  // The Tesseract URL constant must be a pinned version (no caret/tilde).
+  assert.match(src, /TESSERACT_SRC\s*=\s*['"]https:\/\/unpkg\.com\/tesseract\.js@5\/dist\/tesseract\.min\.js['"]/,
+    "TESSERACT_SRC must be pinned to tesseract.js@5 (no caret/tilde)");
+  // The loader must set integrity on the dynamic script element.
+  assert.match(src, /TESSERACT_SRI\s*=\s*['"]sha384-[A-Za-z0-9+\/=]+['"]/,
+    "TESSERACT_SRI must be a non-empty sha384-... hash");
+  assert.match(src, /s\.integrity\s*=\s*TESSERACT_SRI/,
+    "loadTesseract() must set s.integrity = TESSERACT_SRI");
+  // crossOrigin=anonymous is required for the browser to fetch the file
+  // with CORS so it can verify the hash. Without it, the browser silently
+  // skips SRI checking.
+  assert.match(src, /s\.crossOrigin\s*=\s*['"]anonymous['"]/,
+    "loadTesseract() must set s.crossOrigin = 'anonymous'");
+});
+
 // ── CSP response-header validation ─────────────────────────────────
 //
 // The vercel.json test verifies the policy is *declared* in config. This
