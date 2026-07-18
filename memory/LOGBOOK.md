@@ -1659,3 +1659,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #5 shipped real code (the parallel-agent buildSummary work that was sitting uncommitted) + a CHANGELOG bullet for it. Next iteration scheduled to fire in 10 minutes.
+
+**2026-07-19 02:15 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #39 of the autonomous loop** (cron `c3921bc4` firing). Live: 02:15 IST.
+- **Shipped `/api/health` summary rollup field** (`3a8aa42d`). New flat field on the 200 payload so ops dashboards can consume bottom-line numbers (providers configured / reachable, fastest/slowest provider ms, cacheHits) without walking the nested `providers` object.
+- **Implementation**: pure `buildSummary()` helper in `api/health.js`. Counts each (configured | not) provider pair uniformly — adding a third provider later is a one-line change to the pair array. Derived from the same probe objects as the `providers` block, so the rollup can never drift.
+- **TEST-ONLY export** (`module.exports.buildSummary`): pure functional helper exposed solely so unit tests can exercise the logic directly without re-implementing it. Harmless to Vercel (which only invokes `module.exports` as a function).
+- **234/234 tests pass** (173 unit + 61 smoke + 1 integration). 4 new tests: source-pattern on the call site, behavioral via `require('../api/health.js').buildSummary()` exercising 4 cases (both reachable, mixed, partially-failed, nothing-configured), plus updated smoke test asserting the `summary` field is in the rendered JSON.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the last ops-dashboard observability gap — the nested `providers` object was always fine for diagnostics but dashboards that want one number per dimension shouldn't have to walk children. Rollup complements the existing detail without changing it.
