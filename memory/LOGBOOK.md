@@ -1770,3 +1770,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #7 caught up on documentation drift. Next iteration scheduled to fire in 10 minutes.
+
+**2026-07-19 02:58 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #43 of the autonomous loop** (cron `c3921bc4` firing). Live: 02:58 IST.
+- **Shipped process-info block on /api/health 200 payload** (`4ee88c26`). New `process: { nodeVersion, platform, arch, pid, processUptimeSec, memory: { rssMb, heapTotalMb, heapUsedMb, externalMb, arrayBuffersMb } }` block lets ops diagnose V8 heap pressure, runtime version drift, and platform surprises from the health endpoint alone — no RDP/SSH needed.
+- **Memory values in MB** (rounded), not raw bytes — saves JSON bloat and dashboards care about order of magnitude anyway. `processUptimeSec` is separate from the existing `uptimeSec` (container uptime); useful for cold-start vs heap-leak diagnostics.
+- **No sensitive data exposed**: only safe V8 stats. No env vars, no file paths, no configs.
+- **243/243 tests pass** (180 unit + 62 smoke + 1 integration). 2 new tests: 1 source-pattern (process block structure) + 1 behavioral (rendered payload has the expected types).
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the second-to-last gap in /api/health observability. Now ops can spot cold-start problems, platform drift, and V8 heap leaks from a single `curl /api/health` — without poking at the Vercel dashboard for runtime info.
