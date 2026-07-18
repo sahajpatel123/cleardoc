@@ -2433,3 +2433,20 @@ test("heroInput has maxlength to cap single-line clarifier paste-spam", () => {
     "#heroInput must have maxlength=\"500\" so paste-spam can't lag the single-line input"
   );
 });
+
+test("askInput has maxlength matching server-side MAX_QUESTION_CHARS (1000)", () => {
+  // The #askInput on the analyze page Ask-thread sends the question
+  // to /api/chat, which caps at MAX_QUESTION_CHARS = 1000. Without a
+  // browser-level maxlength, a multi-KB paste lags the input on every
+  // keystroke. Pin the browser cap to match the server cap.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const input = html.match(/<input[^>]*id="askInput"[^>]*>/);
+  assert.ok(input, "analyze.html must contain #askInput");
+  assert.match(
+    input[0],
+    /maxlength="1000"/,
+    "#askInput must have maxlength=\"1000\" matching server-side MAX_QUESTION_CHARS"
+  );
+});
