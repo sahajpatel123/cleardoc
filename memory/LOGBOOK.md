@@ -1013,6 +1013,21 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Ops signal upgrade. Before this change, a Slack alert on the health endpoint could only say "GEMINI_API_KEY not set" or "ok" — no way to distinguish a missing env var from a real provider outage. Now the payload distinguishes the three states explicitly: unconfigured, configured-and-reachable (with latency), and configured-but-unreachable (with the underlying error). The 60s cache means monitoring scrapers can poll at any reasonable cadence without amplifying load.
 
+**2026-07-18 13:06 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #12 of the autonomous loop** (10-min cadence). Live: 13:02:16 → 13:06:12 IST.
+- **Closed the log-correlation gap** — X-Request-Id was already on every response (iteration #10) and being attached to error responses, but the corresponding `console.error(...)` calls didn't include the id. Now every error log line emitted by the 3 API handlers is tagged with the active request id.
+- **`api/_safety.js`**: new `errLog(res, prefix, err)` export — looks up `res.__requestId` (set by `attachRequestId()`), prepends `[req=<id>] [<prefix>]` to the message, calls `console.error`. Falls back to `[req=no-req-id]` when `res` is missing or has no attached id. Handles non-Error values via `String()` coercion.
+- **`api/analyze.js`**: outer catch now uses `errLog(res, "analyze", err)`; the inner AI-shape-validation error also routes through `errLog` with the parsed errors serialized into the message.
+- **`api/chat.js`**: same — outer catch uses `errLog(res, "chat", err)`; AI-shape-validation uses `errLog(res, "chat", new Error(...))`.
+- **`api/health.js`**: outer catch uses `errLog(res, "health", err)`.
+- **`test/safety.test.js`**: 4 new unit tests — id-present log line, fallback to `no-req-id`, non-Error values via `String()` coercion, null/undefined `res` doesn't throw. Tests capture `console.error` output via stubbing.
+- **Test totals locally**: 30 smoke + 106 unit (was 100, +6: 4 errLog + 2 from baseline-rounding fixes) + 1 integration = **136/136 passing**.
+- **CI result**: `01eefda3 feat(api): tag every console.error with [req=<id>] for log correlation` — **GREEN** on first run.
+
+**Prompt Intention:**
+- The X-Request-Id shipped in iteration #10 was a header-only correlation mechanism — it told the *browser* which id to quote back to support, but ops couldn't find that id in logs. Now the log line itself carries `[req=<id>]`, so `grep "[req=abc-123]"` finds every server-side event tied to that exact request: rate-limit hits, schema rejections, Gemini timeouts, uncaught throws. End-to-end request tracing is now possible without instrumentation overhaul.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
