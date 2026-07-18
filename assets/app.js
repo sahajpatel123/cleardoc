@@ -1462,13 +1462,26 @@
         }
       }
 
-      // 7) status message — note AI status for transparency
+      // 7) status message — note AI status for transparency with actionable guidance
       if(ctx.aiError && msg){
-        msg.textContent='AI analysis unavailable ('+ctx.aiError+') — showing local scan only.';
-        msg.className='analyze-msg';
+        const err = String(ctx.aiError || '').toLowerCase();
+        const isRate = /429|too many|rate|quota/i.test(err);
+        const isNet  = /network|fetch|offline|abort|timed out|timeout/i.test(err);
+        const reason = isRate ? 'rate-limited'
+                    : isNet  ? 'a network or timeout error'
+                    : 'an upstream issue';
+        msg.innerHTML = '<strong>AI rewrite skipped</strong> — ' + esc(reason) +
+                       '. Showing the <em>local</em> scan (regex risk flags + reading level) below. ' +
+                       '<button type="button" class="msg-retry" id="msgRetryBtn">Retry</button>';
+        msg.className = 'analyze-msg err';
+        const retry = document.getElementById('msgRetryBtn');
+        if(retry) retry.addEventListener('click', analyze);
       } else if(!ai && msg){
-        msg.textContent='Showing local scan — AI analysis did not return a result.';
-        msg.className='analyze-msg';
+        msg.innerHTML = '<strong>AI rewrite skipped</strong> — no response. Showing the local scan below. ' +
+                       '<button type="button" class="msg-retry" id="msgRetryBtn">Retry</button>';
+        msg.className = 'analyze-msg err';
+        const retry = document.getElementById('msgRetryBtn');
+        if(retry) retry.addEventListener('click', analyze);
       }
 
       // 8) draft

@@ -495,6 +495,10 @@
 .work .ghost-btn:hover{background:var(--ink);color:var(--paper)}
 .analyze-msg{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);margin-top:var(--s2);min-height:1.2em;color:var(--ink-soft)}
 .analyze-msg.err{color:var(--danger)}
+.analyze-msg strong{color:var(--danger);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:var(--t-meta-sm)}
+.analyze-msg em{font-style:normal;color:var(--ink);font-weight:700}
+.msg-retry{background:var(--danger);color:#fff;border:none;font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;padding:4px 10px;margin-left:6px;cursor:pointer;border-radius:0}
+.msg-retry:hover{background:var(--ink)}
 .empty-state{border:var(--bd) dashed var(--ink);padding:var(--s6) var(--s4);text-align:center;color:var(--ink-soft)}
 .empty-state .big{font-family:'Archivo Black';font-size:var(--d4);color:var(--ink);text-transform:uppercase;letter-spacing:-.02em;margin-bottom:var(--s2)}
 .empty-state p{font-size:var(--t-card);line-height:1.5;max-width:42ch;margin:0 auto}

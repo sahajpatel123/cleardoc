@@ -929,6 +929,108 @@ skip("BYOF: glossary lists each jargon term that was replaced + its plain-Englis
     plain: (li.querySelector('.plain') || {}).textContent || '',
   })));
   assert.ok(items.length >= 1, `glossary must list at least one term, got ${items.length}`);
+  for (const it of items) {
+    assert.ok(it.term.length > 0, `glossary row must have a non-empty term, got ${JSON.stringify(it)}`);
+    assert.ok(it.plain.length > 0, `glossary row must have a non-empty plain meaning, got ${JSON.stringify(it)}`);
+  }
+  const allText = items.map(i => i.term + ' ' + i.plain).join(' ').toLowerCase();
+  assert.ok(allText.length > 20, `glossary should have substantive content, got "${allText}"`);
+
+  await page.close();
+});
+
+skip("analyzer: AI failure shows a Retry button + categorizes the failure (rate-limit / network / other)", async () => {
+  if (!HAS_BROWSER) return;
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Source-pattern: the new status message uses rich HTML and a Retry button
+  assert.match(appSrc, /AI rewrite skipped/, "status message must say 'AI rewrite skipped'");
+  assert.match(appSrc, /msg-retry/, "retry button must be wired into the status message");
+  assert.match(appSrc, /id="msgRetryBtn"/, "retry button must be queryable for tests");
+  assert.match(appSrc, /retry\.addEventListener\('click', analyze\)/, "retry button must trigger analyze() again");
+
+  // Categorization patterns
+  assert.match(appSrc, /isRate\s*=\s*\/429\|too many\|rate\|quota/, "must recognize 429 / rate-limit responses");
+  assert.match(appSrc, /isNet\s*=\s*\/network\|fetch\|offline\|abort\|timed out\|timeout/, "must recognize network/timeout errors");
+
+  // CSS for the message + retry button
+  assert.match(themeSrc, /\.msg-retry\{/, ".msg-retry CSS rule must exist");
+  assert.match(themeSrc, /\.analyze-msg strong/, ".analyze-msg strong style must exist");
+
+  // Live: stub /api/analyze to fail with 429, then run a fresh analysis
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    const origFetch = window.fetch ? window.fetch.bind(window) : null;
+    window.fetch = function patched(url, opts){
+      const u = typeof url === 'string' ? url : (url && url.url) || '';
+      if(u.endsWith('/api/analyze')){
+        return Promise.resolve(new Response(JSON.stringify({ error: 'Too many requests' }), {
+          status: 429, headers: { 'Content-Type':'application/json' },
+        }));
+      }
+      return origFetch ? origFetch(url, opts) : Promise.reject(new Error('no network'));
+    };
+  });
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+
+  // Clear the preloaded sample so the click on Analyze triggers a fresh fetch
+  await page.fill("#docInput", "Lessee shall forfeit the security deposit on termination.");
+  await page.click("#analyzeBtn");
+  // Wait for the message to update
+  await page.waitForFunction(() => document.getElementById("msgRetryBtn") !== null, { timeout: 5000 });
+
+  const msgText = await page.$eval("#analyzeMsg", (el) => el.textContent || "");
+  assert.match(msgText, /AI rewrite skipped/i, `error message must say "AI rewrite skipped", got "${msgText}"`);
+  assert.match(msgText, /rate.?limit/i, `429 errors must be categorized as rate-limit, got "${msgText}"`);
+  // The retry button must exist and be enabled
+  const retryEnabled = await page.$eval("#msgRetryBtn", (el) => !el.disabled);
+  assert.equal(retryEnabled, true, "retry button must be enabled");
+
+  await page.close();
+  await ctx.close();
+});
+
+skip("analyzer: AI failure shows a Retry button + categorizes the failure (rate-limit / network / other)", async () => {
+  if (!HAS_BROWSER) return;
+  const path = require("node:path");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // HTML must expose the glossary container + list
+  assert.match(indexHtml, /id="byofGlossary"/, "index.html must expose #byofGlossary");
+  assert.match(indexHtml, /id="byofGlossaryList"/, "index.html must expose #byofGlossaryList");
+
+  // Source-pattern: renderGlossary emits a list-item with the term + plain-English meaning
+  assert.match(appSrc, /function renderGlossary\(/, "renderGlossary must exist");
+  assert.match(appSrc, /matches\.map\(m =&gt;/, "renderGlossary must map matches into <li> rows");
+  assert.match(appSrc, /esc\(m\.term\)/, "renderGlossary must escape the jargon term");
+  assert.match(appSrc, /esc\(m\.plain\)/, "renderGlossary must escape the plain meaning");
+
+  // CSS rule
+  assert.match(themeSrc, /\.byof-glossary\{/, ".byof-glossary CSS rule must exist");
+
+  // Live: load the home page (BYOF auto-runs), then verify the glossary
+  // lists at least one entry with both a <code> term and a plain-English meaning.
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
+  // Wait for the BYOF auto-run to paint the glossary
+  await page.waitForFunction(() => {
+    const g = document.getElementById("byofGlossary");
+    return g && !g.hidden;
+  }, { timeout: 5000 }).catch(() => {});
+
+  const visible = await page.$eval("#byofGlossary", (el) => !el.hidden);
+  assert.equal(visible, true, "BYOF glossary must be visible after auto-run on the preloaded sample");
+
+  const items = await page.$$eval("#byofGlossaryList li", (els) => els.map(li => ({
+    term: (li.querySelector('code') || {}).textContent || '',
+    plain: (li.querySelector('.plain') || {}).textContent || '',
+  })));
+  assert.ok(items.length >= 1, `glossary must list at least one term, got ${items.length}`);
   // Every row must have a non-empty term + non-empty plain-English meaning
   for (const it of items) {
     assert.ok(it.term.length > 0, `glossary row must have a non-empty term, got ${JSON.stringify(it)}`);
