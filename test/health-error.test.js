@@ -178,3 +178,24 @@ test("health handler: 200 happy path does NOT set Retry-After", () => {
   // return in the function).
   assert.equal(/Retry-After/.test(after200), false, "no Retry-After set after 200 return");
 });
+
+test("health handler: provider probes fire in parallel via Promise.all", () => {
+  // Cold-cache health checks previously took ~6s (sequential awaits).
+  // Now both probes fire in parallel; worst case ~3s. Lock the parallel
+  // pattern in the source so a future refactor doesn't re-serialize it.
+  const fnStart = HEALTH_SOURCE.indexOf("module.exports = async function handler");
+  assert.ok(fnStart > -1);
+  const handlerBody = HEALTH_SOURCE.slice(fnStart);
+  assert.match(
+    handlerBody,
+    /Promise\.all\(\s*\[[^\]]*probeProviderCached\(\s*"gemini"[^\]]*probeProviderCached\(\s*"openrouter"/s,
+    "handler must Promise.all the gemini + openrouter probeProviderCached calls so they run in parallel"
+  );
+  // The destructured result must reference both probe variables so a
+  // refactor that forgets one would be caught at test time.
+  assert.match(
+    handlerBody,
+    /\[\s*geminiProbe\s*,\s*openRouterProbe\s*\]\s*=\s*await\s+Promise\.all/,
+    "destructured assignment must include both geminiProbe and openRouterProbe"
+  );
+});

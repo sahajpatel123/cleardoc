@@ -171,7 +171,7 @@ function clearProbeCache() {
 function errLog(res, prefix, err) {
   const id = (res && res.__requestId) || "no-req-id";
   const msg = err && err.message ? err.message : String(err);
-  console.error(`[req=${id}] [${prefix}] ${msg}`);
+  console.error(`[req=${id}] [${prefix}] ${sanitizeLogField(msg, 1000)}`);
 }
 
 /* ── accessLog: structured per-request completion log ─────────────────
@@ -186,10 +186,29 @@ function errLog(res, prefix, err) {
  */
 function accessLog(req, res, status) {
   const id = (res && res.__requestId) || "no-req-id";
-  const method = (req && req.method) || "?";
-  const url = (req && req.url) || "?";
+  const method = sanitizeLogField((req && req.method) || "?", 16);
+  const url = sanitizeLogField((req && req.url) || "?", 512);
   const statusCode = status || (res && res.statusCode) || 0;
   console.log(`[req=${id}] ${method} ${url} -> ${statusCode}`);
+}
+
+/* Strip ASCII control characters (incl. CR/LF/tab) and cap length.
+ * Used by errLog + accessLog before writing to console.* — without this,
+ * a crafted request URL or a downstream-library error message containing
+ * \n or \r could inject fake log lines into the stream (and break log
+ * shippers that split on newline). Replaces control chars with a single
+ * space so the remaining log line stays on its own row. Truncation is
+ * append-marked with "…" so ops can spot the cut.
+ */
+function sanitizeLogField(value, maxLen) {
+  let s = typeof value === "string" ? value : String(value == null ? "" : value);
+  // Strip ASCII control chars (0x00-0x1F) and DEL (0x7F). Replace each
+  // with a space so surrounding tokens don't merge.
+  s = s.replace(/[\x00-\x1F\x7F]/g, " ");
+  if (typeof maxLen === "number" && maxLen > 0 && s.length > maxLen) {
+    s = s.slice(0, Math.max(1, maxLen - 1)) + "…";
+  }
+  return s;
 }
 
 function getIp(req) {
@@ -691,6 +710,7 @@ module.exports = {
   clearProbeCache,
   errLog,
   accessLog,
+  sanitizeLogField,
   ANALYSIS_LIMITS,
   VALID_SEVERITIES,
   VALID_VERDICT_LABELS,

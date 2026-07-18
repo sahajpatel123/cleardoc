@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog } = require("../api/_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog, sanitizeLogField } = require("../api/_safety.js");
 
 // ── json ─────────────────────────────────────────────────────────────
 
