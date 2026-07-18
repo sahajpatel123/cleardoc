@@ -1140,6 +1140,22 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Closed the standards-compliance gap for security disclosure. Until now, a researcher could find `SECURITY.md` by visiting `/SECURITY.md` but automated scanners (the most common first contact for a public site) wouldn't find it. RFC 9116 is the IETF standard that tooling supports by default — putting a compliant `security.txt` at the well-known path means scanners find the disclosure policy immediately, route to the right contact, and never have to guess whether the site accepts reports.
 
+**2026-07-18 15:49 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #21 of the autonomous loop** (10-min cadence). Live: 15:46:44 → 15:49:14 IST.
+- **Updated `README.md`** (was 77 lines, now 90 lines) to reflect the current state after 20 prior iterations:
+  - **Stack section** — added "PWA" line (service worker), updated model name from "Google Gemma 4" to `google/gemma-4-31b-it:free` (the actual deployed model id).
+  - **API endpoints table** — added `/api/health` (was missing — README claimed only 2 endpoints when there are 3); added rate-limit + body-cap columns; documented `X-Request-Id`, `X-RateLimit-*`, `Cache-Control: no-store`, and the sanitized 500 contract.
+  - **Project layout** — comprehensive directory tree covering all current files: `404.html`, `assets/` (now lists `sw.js`, `pdfjs-bootstrap.js`, `og-card.svg`), `api/` (now lists `_safety.js` with its full helper set), `test/` (lists all 8 test files with descriptions), `public/.well-known/security.txt`, `SECURITY.md`, `CONTRIBUTING.md`, `package.json`, `.nvmrc`.
+  - **Memory system** — added pointer to `CONTRIBUTING.md` and to the well-known `security.txt`.
+  - **Environment variables table** — added `GEMINI_CHAT_MODEL` row.
+  - **License / footer** — pointer to the new SECURITY.md and CONTRIBUTING.md.
+- **Test impact**: none. README is documentation; CI doesn't validate markdown.
+- **CI result**: `57ce7366 docs(readme): update to reflect current 3-endpoint API, Node 22+, full project layout` — **GREEN** on first run.
+
+**Prompt Intention:**
+- Closed the "README is stale" gap. After 20 iterations of security hardening + new endpoints + new tests + new docs (SECURITY, CONTRIBUTING, security.txt), the README was inaccurate: it claimed 2 endpoints when there are 3, named the wrong model, listed a tiny project tree that omitted most of the new files. A visitor cloning the repo got a misleading picture of what ClearDoc is.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
