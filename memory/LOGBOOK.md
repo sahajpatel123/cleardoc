@@ -1993,3 +1993,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Shipped `46ea57ba perf(ui): cap askInput at 1000 chars matching server cap`.** #askInput on analyze.html had no maxlength. Server caps at MAX_QUESTION_CHARS = 1000. Added browser-level parity. **Sixth user input capped** — pattern now complete: tags (iter #1), BYOF (iter #11), FAQ search (iter #13), docInput + byofIn (iter #15), heroInput (iter #16), askInput (iter #17).
 - **Verification:** 262/262 tests pass (196 unit + 69 smoke + 1 integration). Pushed to origin/main.
 
+**2026-07-19 04:19 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #51 of the autonomous loop** (cron `c3921bc4` firing). Live: 04:19 IST.
+- **Shipped `ETag` + `If-None-Match` → 304 conditional requests on /api/health** (`22e9f6e2`). Closes the conditional-request gap on the most-polled endpoint. New header on 200 + HEAD responses: `ETag: "<8-hex>"` (quoted weak ETag per RFC 7232 — FNV-1a 32-bit hash of `gitSha + hasGemini + hasOpenRouter + region`).
+- **Savings**: monitoring services that re-poll /api/health every second (Pingdom, UptimeRobot, Datadog) can now send `If-None-Match` and get a tiny 304 with no body when the deploy hasn't moved. Saves ~3KB per poll cycle in their bandwidth budget.
+- **Implementation**: `computeHealthEtag({ gitSha, hasGemini, hasOpenRouter, region })` in api/health.js (module-local, exported test-only via `module.exports.computeHealthEtag` for behavioral verification — same pattern as `buildSummary`). Wired into the handler at the rate-limit gate: every 200/HEAD response sets `res.__currentEtag` which `sendOkCached()` and the inline HEAD block emit as `ETag` response header. `If-None-Match` check happens BEFORE the 503/200 split: matches go straight to 304 with shared observability headers but no body.
+- **270/270 tests pass** (200 unit + 69 smoke + 1 integration). 4 new tests: 3 source-pattern + 1 behavioral (determinism contract — identical inputs produce identical ETags, different inputs produce different ETags, format matches `^"[0-9a-f]{8}"$`).
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the last meaningful HTTP-semantics gap on /api/health. Now monitoring clients have proper conditional-request support — RFC-compliant HTTP, not just time-based cache.
+
