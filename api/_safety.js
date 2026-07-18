@@ -722,6 +722,93 @@ function safeParseAnalysisResult(obj) {
   };
 }
 
+/* ── Compact (verdict-only) schema validation ─────────────────────
+ *
+ * When /api/analyze is called with `?format=verdict-only`, the AI is
+ * asked to return only `risks + verdict` (no rewrite, deadlines,
+ * next-steps, reading-level, or jargon). This is the slim validator
+ * for that response shape.
+ *
+ * Same STRICT RULE (RULES.md #3) applies — any malformed field fails
+ * the whole response rather than shipping degraded data.
+ */
+function safeParseCompactAnalysisResult(obj) {
+  const errors = [];
+  if (obj === null || typeof obj !== "object" || Array.isArray(obj)) {
+    return { ok: false, errors: ["top-level must be an object"] };
+  }
+
+  // ── risks ── (subset of the full validator — no impact)
+  let risks;
+  if (!Array.isArray(obj.risks)) {
+    errors.push("risks: must be an array");
+    risks = [];
+  } else if (obj.risks.length > ANALYSIS_LIMITS.risks) {
+    errors.push(`risks: at most ${ANALYSIS_LIMITS.risks} entries`);
+    risks = [];
+  } else {
+    const cleaned = [];
+    obj.risks.forEach((r, i) => {
+      if (r === null || typeof r !== "object" || Array.isArray(r)) {
+        errors.push(`risks[${i}]: must be an object`);
+        return;
+      }
+      const sev = validSeverity(r.severity);
+      if (sev === null) {
+        errors.push(`risks[${i}].severity: must be one of ${VALID_SEVERITIES.join("/")}`);
+        return;
+      }
+      if (typeof r.clause !== "string") {
+        errors.push(`risks[${i}].clause: must be a string`);
+        return;
+      }
+      if (typeof r.explanation !== "string") {
+        errors.push(`risks[${i}].explanation: must be a string`);
+        return;
+      }
+      // Compact mode skips the per-risk `impact` field — AI doesn't
+      // produce it. If it does (sloppy prompt), silently drop.
+      const impact = typeof r.impact === "string" ? r.impact.slice(0, ANALYSIS_LIMITS.riskImpact) : "";
+      cleaned.push({
+        severity: sev,
+        clause: r.clause.slice(0, ANALYSIS_LIMITS.riskClause),
+        explanation: r.explanation.slice(0, ANALYSIS_LIMITS.riskExplanation),
+        impact,
+      });
+    });
+    risks = cleaned;
+  }
+
+  // ── verdict ──
+  let verdictLabel = "";
+  let verdictSummary = "";
+  if (obj.verdict === null || typeof obj.verdict !== "object" || Array.isArray(obj.verdict)) {
+    errors.push("verdict: must be an object");
+  } else {
+    const label = validVerdictLabel(obj.verdict.label);
+    if (label === null) {
+      errors.push(`verdict.label: must be one of ${VALID_VERDICT_LABELS.join(" | ")}`);
+    } else {
+      verdictLabel = label;
+    }
+    if (typeof obj.verdict.summary !== "string") {
+      errors.push("verdict.summary: must be a string");
+    } else {
+      verdictSummary = obj.verdict.summary.slice(0, ANALYSIS_LIMITS.verdictSummary);
+    }
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+
+  return {
+    ok: true,
+    value: {
+      risks,
+      verdict: { label: verdictLabel, summary: verdictSummary },
+    },
+  };
+}
+
 /* ── Chat schema validation (STRICT RULE: fail-closed) ────────────────
  *
  * The /api/chat handler returns { answer, citation, model }. The shape is
@@ -829,6 +916,7 @@ module.exports = {
   validSeverity,
   validVerdictLabel,
   safeParseAnalysisResult,
+  safeParseCompactAnalysisResult,
   CHAT_LIMITS,
   safeParseChatResult,
 };

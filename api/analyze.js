@@ -18,6 +18,7 @@ const {
   accessLog,
   readCappedBody,
   safeParseAnalysisResult,
+  safeParseCompactAnalysisResult,
   logProviderError,
 } = require("./_safety.js");
 
@@ -193,6 +194,143 @@ async function callGemini(document, reqId) {
   }
 }
 
+/* Compact-mode (verdict-only) variants: shorter prompts, much cheaper
+ * per request. Same provider-fallback logic as the full-mode helpers
+ * — just call the right one based on reqId-from-thread. Adds the
+ * `compact: true` flag to the request so the AI returns the slim
+ * schema (verdict + risks; no rewrite/deadlines/nextSteps).
+ *
+ * The contract here is intentionally minimal: the helpers are
+ * deliberately separate from the full-mode ones (rather than
+ * parameterizing the existing ones) so the prompt engineering stays
+ * unambiguous and the schema validation can be tighter per mode.
+ */
+
+function buildCompactPrompt(document) {
+  return `You are ClearDoc's document analysis assistant.
+
+Analyze the following document and return a JSON object with exactly this structure (no markdown, no code fences, just raw JSON):
+
+{
+  "risks": [
+    {
+      "severity": "trap",
+      "clause": "The exact original text that is risky (verbatim from document, max 200 chars)",
+      "explanation": "Why this is risky, in plain English."
+    }
+  ],
+  "verdict": {
+    "label": "one of: Likely Fair | Needs Review | Suspicious | Likely Illegal",
+    "summary": "1-2 sentence overall assessment of this document"
+  }
+}
+
+RULES for the analysis:
+- Find ALL risks — be thorough. Classify as "trap" (harmful/you lose rights), "watch" (concerning, needs attention), or "note" (informational, not harmful)
+- If there are no risks, return an empty risks array
+- Be concise. No plain-English rewrite, no deadlines, no next steps.
+- Never give legal, medical, or financial advice.
+- Even if the document is very short (< 50 words), analyze it fully
+
+DOCUMENT TO ANALYZE:
+${document}`;
+}
+
+async function callOpenRouterCompact(document, reqId) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return null;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://cleardoc.app",
+        "X-Title": "ClearDoc Document Analysis (Compact)",
+      },
+      body: JSON.stringify({
+        model: GEMMA_MODEL,
+        messages: [
+          { role: "system", content: "You are a precise document analysis assistant. Always return valid JSON matching the requested schema. Never include markdown code fences." },
+          { role: "user", content: buildCompactPrompt(document) },
+        ],
+        temperature: 0.3,
+        max_tokens: 1500,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      logProviderError(reqId, "analyze-openrouter-compact", `HTTP ${res.status}: ${data?.error?.message || "(no error message)"}`);
+      return null;
+    }
+
+    const text = data?.choices?.[0]?.message?.content?.trim();
+    if (!text) return null;
+
+    return parseJsonFromText(text);
+  } catch (err) {
+    logProviderError(reqId, "analyze-openrouter-compact", (err && (err.name || err.message)) || String(err));
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function callGeminiCompact(document, reqId) {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  const model = (process.env.GEMINI_CHAT_MODEL || GEMINI_MODEL_DEFAULT).trim();
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: buildCompactPrompt(document) }] }],
+        systemInstruction: {
+          parts: [{ text: "You are a precise document analysis assistant. Always return valid JSON matching the requested schema. Never include markdown code fences." }],
+        },
+        generationConfig: { temperature: 0.3, maxOutputTokens: 1500, responseMimeType: "application/json" },
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      logProviderError(reqId, "analyze-gemini-compact", `HTTP ${res.status}: ${data?.error?.message || "(no error message)"}`);
+      return null;
+    }
+
+    const candidate = data?.candidates?.[0];
+    const parts = candidate?.content?.parts;
+    if (!Array.isArray(parts)) return null;
+
+    const text = parts.map((p) => (typeof p.text === "string" ? p.text : "")).join("").trim();
+    if (!text) return null;
+
+    return parseJsonFromText(text);
+  } catch (err) {
+    logProviderError(reqId, "analyze-gemini-compact", (err && (err.name || err.message)) || String(err));
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /* ── JSON extraction ─────────────────────────────────────── */
 
 function parseJsonFromText(text) {
@@ -256,6 +394,14 @@ module.exports = async function handler(req, res) {
       return json(res, 400, { error: "Document is too short to analyze." });
     }
 
+    // Optional `?format=verdict-only` mode: skip the rewrite, deadlines,
+    // and nextSteps analysis — return just verdict + risks. Saves AI cost
+    // and latency for callers who only need the bottom line (e.g., a
+    // dashboard that scans many docs in batch). Extracted from req.url
+    // (no body parsing needed) so it's safe to thread into the prompt
+    // without touching the JSON-body contract.
+    const compactMode = /[?&]format=verdict-only(?:&|$)/.test(req && req.url ? req.url : "");
+
     // Try OpenRouter first, then fall back to Gemini. We capture the wall-
     // clock AI latency so the X-AI-Response-Time-Ms header reports the
     // total time spent across the chain (OpenRouter + Gemini if both fire).
@@ -265,14 +411,18 @@ module.exports = async function handler(req, res) {
     const aiStart = Date.now();
     let openrouterMs = 0;
     let geminiMs = 0;
-    let result = await callOpenRouter(document, res.__requestId);
+    let result = compactMode
+      ? await callOpenRouterCompact(document, res.__requestId)
+      : await callOpenRouter(document, res.__requestId);
     let provider = "openrouter";
     let model = GEMMA_MODEL;
     if (result) {
       openrouterMs = Date.now() - aiStart;
     } else {
       const geminiStart = Date.now();
-      result = await callGemini(document, res.__requestId);
+      result = compactMode
+        ? await callGeminiCompact(document, res.__requestId)
+        : await callGemini(document, res.__requestId);
       geminiMs = Date.now() - geminiStart;
       provider = "gemini";
       model = (process.env.GEMINI_CHAT_MODEL || GEMINI_MODEL_DEFAULT).trim();
@@ -296,9 +446,13 @@ module.exports = async function handler(req, res) {
     // Strict fail-closed schema validation (RULES.md: "Strict zod validation").
     // Partial legal data is more dangerous than no data — if the AI's payload
     // has wrong types, missing fields, or out-of-enum values, reject the whole
-    // response rather than shipping a degraded shape to the user.
+    // response rather than shipping a degraded shape to the user. Two modes:
+    //   - compact mode → safeParseCompactAnalysisResult (verdict + risks only)
+    //   - full mode    → safeParseAnalysisResult (everything)
     const fallbackUsed = provider === "gemini";
-    const parsed = safeParseAnalysisResult(result);
+    const parsed = compactMode
+      ? safeParseCompactAnalysisResult(result)
+      : safeParseAnalysisResult(result);
     if (!parsed.ok) {
       applyAiResponseHeaders(res, provider, aiLatencyMs, model, fallbackUsed, perProviderMs);
       errLog(res, "analyze", new Error(`invalid AI response from ${provider}: ${JSON.stringify(parsed.errors)}`));
@@ -313,6 +467,14 @@ module.exports = async function handler(req, res) {
     }
 
     applyAiResponseHeaders(res, provider, aiLatencyMs, model, fallbackUsed, perProviderMs);
+    if (compactMode) {
+      return json(res, 200, {
+        analysis: parsed.value,
+        provider,
+        model,
+        format: "verdict-only",
+      });
+    }
     return json(res, 200, {
       analysis: parsed.value,
       provider,

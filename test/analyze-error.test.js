@@ -218,3 +218,65 @@ test("analyze handler: passes fallbackUsed to applyAiResponseHeaders (OpenRouter
   const callsWithFallback = [...handlerBody.matchAll(/applyAiResponseHeaders\(res,\s*[^,]+,\s*[^,]+(?:,\s*[^,]+)?,\s*(true|false|undefined|fallbackUsed)\s*,\s*perProviderMs\s*\)/g)];
   assert.ok(callsWithFallback.length >= 3, "must pass fallbackUsed + perProviderMs on all 3 AI-touched applyAiResponseHeaders call sites");
 });
+// ── format=verdict-only (iter #46) ─────────────────────────────────
+
+test("analyze handler: detects ?format=verdict-only in the request URL", () => {
+  // The compact-mode flag is parsed from req.url (not the JSON body) so it
+  // doesn't change the body contract. Easy URL needle check — locks the
+  // exact query name ops will use.
+  assert.match(
+    ANALYZE_SOURCE,
+    /\[?&]format=verdict-only/,
+    "must detect `?format=verdict-only` in req.url"
+  );
+  assert.match(
+    ANALYZE_SOURCE,
+    /compactMode/,
+    "must stash detection in a `compactMode` local"
+  );
+});
+
+test("analyze handler: compact mode routes to callOpenRouterCompact + callGeminiCompact", () => {
+  // The compact helpers exist as separate callers — not just a flag on
+  // the existing full-mode functions — so the prompt engineering and
+  // schema validation stay unambiguous per mode.
+  assert.match(ANALYZE_SOURCE, /function\s+callOpenRouterCompact\(/, "callOpenRouterCompact helper must exist");
+  assert.match(ANALYZE_SOURCE, /function\s+callGeminiCompact\(/, "callGeminiCompact helper must exist");
+  assert.match(ANALYZE_SOURCE, /function\s+buildCompactPrompt\(/, "buildCompactPrompt helper must exist");
+  // The chain must use the compact callers in compact mode. Use [\s\S]
+  // (the JS equivalent of "match anything including newlines") to span
+  // the formatting gap between `compactMode` and the call site — `\s`
+  // alone works in theory but `\s*` greedy matching can pick up the
+  // wrong section of code when multiple `compactMode` mentions exist
+  // (e.g. the regex literal declaration vs the call-site ternary).
+  assert.match(
+    ANALYZE_SOURCE,
+    /compactMode[\s\S]{0,80}?callOpenRouterCompact/,
+    "GET-phase must call compact variant when compactMode"
+  );
+  assert.match(
+    ANALYZE_SOURCE,
+    /compactMode[\s\S]{0,80}?callGeminiCompact/,
+    "FALLBACK phase must call compact variant when compactMode"
+  );
+});
+
+test("analyze handler: compact mode validates via safeParseCompactAnalysisResult", () => {
+  // The compact helper has its own strict validator with a slimmer schema
+  // (no rewrite / deadlines / nextSteps / reading-level / jargon).
+  assert.match(
+    ANALYZE_SOURCE,
+    /compactMode\s*\?\s*safeParseCompactAnalysisResult/,
+    "200 path must invoke the compact validator when compactMode"
+  );
+});
+
+test("analyze handler: compact mode response includes format: 'verdict-only'", () => {
+  // Marks the response shape so callers can branch on it without
+  // inspecting the (smaller) analysis object.
+  assert.match(
+    ANALYZE_SOURCE,
+    /format\s*:\s*["']verdict-only["']/,
+    "200 compact-mode response must declare `format: 'verdict-only'`"
+  );
+});

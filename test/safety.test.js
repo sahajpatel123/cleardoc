@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 
-const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, applyBuildShaHeader, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog, sanitizeLogField, logProviderError, isValidLatencyMs } = require("../api/_safety.js");
+const { json, asString, getIp, rateLimit, applyRateLimitHeaders, applyAiResponseHeaders, applyBuildShaHeader, readCappedBody, generateRequestId, sanitizeIncomingRequestId, attachRequestId, probeProvider, probeProviderCached, clearProbeCache, errLog, accessLog, sanitizeLogField, logProviderError, isValidLatencyMs, safeParseCompactAnalysisResult } = require("../api/_safety.js");
 
 // ── json ─────────────────────────────────────────────────────────────
 
@@ -1184,4 +1184,75 @@ test("isValidLatencyMs: fractional ms in range are accepted (caller rounds)", ()
   assert.equal(isValidLatencyMs(0.5, { allowZero: true }), true, "0.5 passes with allowZero (sub-ms timing)");
   assert.equal(isValidLatencyMs(100.7), true, "100.7 is in [1, 600000], passes");
   assert.equal(isValidLatencyMs(100.7, { allowZero: true }), true);
+});
+
+// ── safeParseCompactAnalysisResult (iter #46) ─────────────────────
+
+test("safeParseCompactAnalysisResult: accepts a valid slim payload", () => {
+  const r = safeParseCompactAnalysisResult({
+    risks: [
+      { severity: "trap", clause: "In Perpetuity.", explanation: "You must pay forever." },
+    ],
+    verdict: { label: "Suspicious", summary: "Concerning obligations." },
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.value.risks.length, 1);
+  assert.equal(r.value.risks[0].severity, "trap");
+  assert.equal(r.value.verdict.label, "Suspicious");
+  assert.equal(r.value.verdict.summary, "Concerning obligations.");
+});
+
+test("safeParseCompactAnalysisResult: rejects null / array / primitive top-level", () => {
+  for (const bad of [null, undefined, "string", 42, [], [{}]]) {
+    const r = safeParseCompactAnalysisResult(bad);
+    assert.equal(r.ok, false, `${JSON.stringify(bad)} must be rejected`);
+  }
+});
+
+test("safeParseCompactAnalysisResult: rejects missing risks", () => {
+  const r = safeParseCompactAnalysisResult({
+    verdict: { label: "Likely Fair", summary: "Looks fine." },
+  });
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => /risks: must be an array/.test(e)));
+});
+
+test("safeParseCompactAnalysisResult: rejects missing verdict", () => {
+  const r = safeParseCompactAnalysisResult({
+    risks: [],
+  });
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => /verdict.*must be an object/.test(e)));
+});
+
+test("safeParseCompactAnalysisResult: rejects unknown severity", () => {
+  const r = safeParseCompactAnalysisResult({
+    risks: [{ severity: "high", clause: "X", explanation: "Y" }],
+    verdict: { label: "Likely Fair", summary: "S" },
+  });
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => /severity: must be one of/.test(e)));
+});
+
+test("safeParseCompactAnalysisResult: silently drops impact field (compact mode omits it)", () => {
+  // The compact prompt doesn't ask for impact — if the AI included it
+  // anyway, we keep it silently rather than reject the response.
+  const r = safeParseCompactAnalysisResult({
+    risks: [{ severity: "note", clause: "X", explanation: "Y", impact: "spurious" }],
+    verdict: { label: "Likely Fair", summary: "S" },
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.value.risks[0].impact, "spurious", "impact is preserved when AI includes it");
+});
+
+test("safeParseCompactAnalysisResult: caps clause + explanation length at ANALYSIS_LIMITS", () => {
+  // Defense-in-depth: the AI prompt caps are upstream, the validator
+  // caps are downstream. Both must agree.
+  const huge = safeParseCompactAnalysisResult({
+    risks: [{ severity: "watch", clause: "x".repeat(5000), explanation: "y".repeat(2000) }],
+    verdict: { label: "Likely Fair", summary: "S" },
+  });
+  assert.equal(huge.ok, true);
+  assert.ok(huge.value.risks[0].clause.length <= 300, "clause must be truncated to ANALYSIS_LIMITS.riskClause");
+  assert.ok(huge.value.risks[0].explanation.length <= 500, "explanation must be truncated to ANALYSIS_LIMITS.riskExplanation");
 });
