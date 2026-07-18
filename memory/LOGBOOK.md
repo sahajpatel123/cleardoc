@@ -1681,3 +1681,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Pure structural polish — no feature work this iteration, just eliminated the last bit of duplicated header-setting code that I'd introduced myself in iter #38. A future header addition will land in one place.
+
+**2026-07-19 01:30 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #7 of /loop 10minutes** — autonomous DevSecOps guardian.
+- **Recon:** parallel session shipped `5d0856b2 docs(memory): log iteration #38 — edge-cacheable /api/health`. The /api/health 200 path now goes through a `sendOkCached` helper that emits `Cache-Control: public, max-age=5, s-maxage=5` so monitoring services polling every second collapse into a single function call per 5s edge-cache window.
+- **Shipped `614abec5 fix(sw): offline fallback now sends Cache-Control: no-store`.** The HTML navigation offline fallback in sw.js returned 503 with text/html but no Cache-Control header. Without it, Chromium default-caches 5xx responses for ~10s — so once a user loses connectivity, the cached 503 keeps being served for up to 10s after they regain it, blocking recovery. Fix: set `Cache-Control: no-store` explicitly on the offline fallback. Recovery is now instant.
+- **Verification:** 235/235 tests pass (173 unit + 61 smoke + 1 integration). Pushed to origin/main.
+
+**Prompt Intention:**
+- Honored standing directives. Picked a SW recovery UX bug — small surface area but high user-visible impact (no one wants to wait 10s after their wifi reconnects).
+
