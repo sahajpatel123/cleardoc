@@ -1153,3 +1153,17 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. A guardian who only ships when there's a real gap is more valuable than one who ships busywork. Documented the stable state explicitly so future iterations know where we are.
+
+**2026-07-18 13:53 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #13 of the autonomous loop** (15-min cadence). Live: 13:49 → 13:53 IST.
+- **Fixed a misleading rate-limit header behavior** in `applyRateLimitHeaders` (`74798a59 test(daemon): pin CheckBudget DoS-protection budget contract` — my fix bundled by the parallel session). When the rate limiter is disabled (maxPerMinute <= 0), `rateLimit()` returns `{ ok: true, limit: 0, remaining: 0, reset: 0 }`. The helper previously emitted those as response headers, producing:
+  - `X-RateLimit-Limit: 0` (looks like a strict zero-quota limiter)
+  - `X-RateLimit-Remaining: 0` (looks like you've used your budget)
+  - `X-RateLimit-Reset: 0` (UNIX epoch 0 = 1970-01-01, never resets)
+  - A client interpreting these would either skip the endpoint entirely or hot-loop it forever.
+- **Fix**: `applyRateLimitHeaders` now short-circuits when `rl.limit <= 0` and emits nothing. The absence of headers tells the client "no limiter is active" without lying about numbers.
+- **Test coverage** (`test/safety.test.js`): new "applyRateLimitHeaders: omits all headers when limiter is disabled (limit <= 0)" test verifies none of the four headers are set when given `{ limit: 0, remaining: 0, reset: 0 }`. 49/49 safety tests pass.
+
+**Prompt Intention:**
+- Honored the standing directives. Audit-driven: a careful read of `applyRateLimitHeaders` revealed the disabled-limiter edge case was emitting misleading headers. Patched with a one-line guard and a regression test.
