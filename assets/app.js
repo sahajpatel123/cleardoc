@@ -766,7 +766,7 @@
       }
       const html='You: '+res.html.charAt(0).toUpperCase()+res.html.slice(1);
       // Compute reading level for the rewritten plain-English output
-      const plainOut = plainTextOf(res.html);
+      const plainOut = stripHtmlToText(res.html);
       const after = isGradable(plainOut) ? gradeLevel(plainOut) : null;
       setLevels(before, after);
       if(noMotion){ out.innerHTML=html; return; }

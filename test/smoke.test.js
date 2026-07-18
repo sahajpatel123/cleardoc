@@ -2332,3 +2332,21 @@ test("clarify() caps input length so a multi-MB paste doesn't freeze the tab", (
   const cap = parseInt(capMatch[1], 10);
   assert.ok(cap > 0 && cap <= 65536, `CLARIFY_MAX_CHARS=${cap} must be 1..65536`);
 });
+
+test("BYOF: clicking sample button doesn't throw ReferenceError on plainTextOf", () => {
+  // Regression guard: the byof `show()` function used to call
+  // `plainTextOf(res.html)` to strip HTML before measuring reading
+  // level — but `plainTextOf` was never defined (it was meant to be
+  // `stripHtmlToText`, which lives at the bottom of the file).
+  // Clicking a sample that triggers jargon replacement silently
+  // threw ReferenceError on the home page. Lock in the fix.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  // No undefined reference remains
+  const occurrences = (appSrc.match(/\bplainTextOf\b/g) || []).length;
+  assert.equal(occurrences, 0, "plainTextOf must not be referenced anywhere (undefined would throw)");
+  // The actual function is defined
+  assert.match(appSrc, /function\s+stripHtmlToText\(/, "stripHtmlToText helper must exist");
+  assert.match(appSrc, /\bstripHtmlToText\(res\.html\)/, "BYOF must call stripHtmlToText on res.html");
+});
