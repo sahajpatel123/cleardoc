@@ -1100,6 +1100,26 @@ test("share decoder caps decompressed size (gzip bomb defense)", () => {
     "gunzipString must call reader.cancel() on overflow to free chunk buffers");
 });
 
+test("share decoder rejects oversized v1 payloads (input-side cap)", () => {
+  // The v1 fallback path (uncompressed base64url of UTF-8 JSON) was previously
+  // unbounded on the input side — only the gzip path had a cap. Even though
+  // browser URL-fragment limits make this hard to hit in practice, explicit
+  // defense matches the gzip cap and protects against any future code path
+  // that bypasses the URL fragment (deep links, Share-to-API, etc.).
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.join(ROOT, "assets/app.js"), "utf8");
+  assert.match(src, /DECODE_MAX_BYTES\s*=\s*1024\s*\*\s*1024/,
+    "DECODE_MAX_BYTES must be defined as 1 MiB");
+  const decodeMatch = src.match(/async function decodeSharePayload\([\s\S]+?\n\s{4}\}/);
+  assert.ok(decodeMatch, "decodeSharePayload function must be present");
+  const decodeBody = decodeMatch[0];
+  assert.match(decodeBody, /safe\.length\s*>\s*DECODE_MAX_BYTES/,
+    "decodeSharePayload must check safe.length against DECODE_MAX_BYTES");
+  assert.match(decodeBody, /return null/,
+    "decodeSharePayload must return null when the input exceeds DECODE_MAX_BYTES");
+});
+
 test("vercel.json: Strict-Transport-Security is preload-eligible", () => {
   // HSTS preload is irreversible — once a domain is in the browser preload
   // list, browsers will refuse HTTP connections even on first visit, until

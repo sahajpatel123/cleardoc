@@ -858,8 +858,18 @@
       if(gz) return { v:2, data: b64urlEncode(gz) };
       return { v:1, data: btoa(unescape(encodeURIComponent(json))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'') };
     }
+    // Shared cap for both v2 (gzipped) and v1 (uncompressed) decoded bytes.
+    // The browser's own URL-fragment limit (~32KB on Chrome, lower elsewhere)
+    // is the practical ceiling, but enforcing an explicit cap here protects
+    // against both accidental regressions and any future code path that
+    // bypasses the URL fragment (e.g. deep links, future Share-to-API).
+    const DECODE_MAX_BYTES = 1024 * 1024; // 1 MiB
     async function decodeSharePayload(token){
       const safe=b64urlDecode(String(token||''));
+      // Reject pathologically large payloads before we even try to inflate.
+      // gunzipString caps its own output, but a 1MB raw input that fails
+      // to inflate as gzip would still be handed to the v1 path below.
+      if (safe.length > DECODE_MAX_BYTES) return null;
       // Try v2 (gzipped) first
       const gz=await gunzipString(safe);
       if(gz){
