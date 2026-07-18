@@ -364,6 +364,25 @@
   .forget-toast .ft-check::after{content:"";position:absolute;left:3px;top:0;width:4px;height:8px;border:solid var(--green);border-width:0 2px 2px 0;transform:rotate(45deg)}
   .forget-toast .ft-text b{color:var(--green)}
 
+  /* ---- Keyboard shortcuts modal ---- */
+  .kb-modal{position:fixed;inset:0;z-index:11000;display:none;align-items:center;justify-content:center;padding:24px}
+  .kb-modal.show{display:flex;animation:kbFade .18s ease both}
+  @keyframes kbFade{from{opacity:0}to{opacity:1}}
+  .kb-modal-backdrop{position:absolute;inset:0;background:rgba(20,18,14,.55);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+  .kb-modal-card{position:relative;background:var(--paper);border:var(--bd) solid var(--ink);box-shadow:var(--shadow);max-width:540px;width:100%;padding:24px 24px 18px;font-family:'JetBrains Mono',monospace}
+  .kb-modal-close{position:absolute;top:8px;right:10px;background:none;border:none;font-family:inherit;font-size:22px;cursor:pointer;color:var(--ink);padding:4px 10px;line-height:1}
+  .kb-modal-close:hover{color:var(--accent)}
+  .kb-modal-title{font-size:18px;letter-spacing:.08em;color:var(--ink);margin-bottom:14px;border-bottom:3px double var(--ink);padding-bottom:8px}
+  .kb-modal-grid{display:grid;grid-template-columns:1fr;gap:10px 14px;margin:14px 0}
+  .kb-row{display:flex;align-items:center;gap:8px}
+  .kb-row span{flex:1;color:var(--ink);font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.04em}
+  .kb-row kbd{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);font-weight:700;background:#fff;border:2px solid var(--ink);padding:3px 9px;min-width:34px;text-align:center;color:var(--ink);text-transform:none;letter-spacing:0;box-shadow:3px 3px 0 var(--ink)}
+  .kb-modal-foot{font-size:var(--t-micro);color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em;border-top:1px solid var(--ink);padding-top:10px;margin-top:6px}
+
+  /* ---- Footer "?" hint ---- */
+  .kb-hint{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);color:var(--on-dark);opacity:.7;cursor:pointer;border-bottom:1px dotted transparent;padding:0}
+  .kb-hint:hover{opacity:1;border-bottom-color:var(--accent)}
+
   /* ---------- RESPONSIVE ---------- */
   @media(min-width:1700px){
     .stagewrap{grid-template-columns:240px 1fr 240px}

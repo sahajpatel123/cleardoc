@@ -170,7 +170,7 @@
   /* ================= INIT ================= */
   function initAll(){
     const page=(document.body.dataset.page)||'home';
-    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe];
+    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts];
     const byPage={
       home:[heroClarifier,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,faq],
@@ -286,6 +286,141 @@
 
     // 5. Re-enable the button so the user can repeat the action.
     if(btn) btn.disabled = false;
+  }
+
+  /* ---- Keyboard shortcuts + help modal ----
+   * Wired on every page (in the 'always' init list). Disabled when the
+   * user is typing into a form field so it never hijacks ordinary text
+   * entry. The `g` + key sequences wait ~1.2s for the second key.
+   */
+  function wireKeyboardShortcuts(){
+    let lastG = 0;
+    const G_WINDOW_MS = 1200;
+
+    function isTypingTarget(el){
+      if(!el) return false;
+      const tag = (el.tagName || '').toLowerCase();
+      if(tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+      if(el.isContentEditable) return true;
+      return false;
+    }
+    function isModalOpen(){
+      return !!document.querySelector('.kb-modal.show');
+    }
+    function openHelp(){
+      let m = document.getElementById('kbHelpModal');
+      if(!m) m = buildHelpModal();
+      m.classList.add('show');
+      m.setAttribute('aria-hidden','false');
+      const closeBtn = m.querySelector('.kb-modal-close');
+      if(closeBtn) closeBtn.focus();
+    }
+    function closeHelp(){
+      const m = document.getElementById('kbHelpModal');
+      if(!m) return;
+      m.classList.remove('show');
+      m.setAttribute('aria-hidden','true');
+    }
+    function buildHelpModal(){
+      const m = document.createElement('div');
+      m.id = 'kbHelpModal';
+      m.className = 'kb-modal';
+      m.setAttribute('role','dialog');
+      m.setAttribute('aria-modal','true');
+      m.setAttribute('aria-labelledby','kbHelpTitle');
+      m.setAttribute('aria-hidden','true');
+      m.innerHTML = `
+        <div class="kb-modal-backdrop" data-kb-close></div>
+        <div class="kb-modal-card" role="document">
+          <button type="button" class="kb-modal-close" aria-label="Close">✕</button>
+          <h2 id="kbHelpTitle" class="kb-modal-title mono">KEYBOARD SHORTCUTS</h2>
+          <div class="kb-modal-grid">
+            <div class="kb-row"><kbd>g</kbd><kbd>h</kbd><span>Go home</span></div>
+            <div class="kb-row"><kbd>g</kbd><kbd>a</kbd><span>Open the analyzer</span></div>
+            <div class="kb-row"><kbd>g</kbd><kbd>p</kbd><span>See pricing</span></div>
+            <div class="kb-row"><kbd>/</kbd><span>Focus the document input</span></div>
+            <div class="kb-row"><kbd>?</kbd><span>Show this help</span></div>
+            <div class="kb-row"><kbd>Esc</kbd><span>Close any modal / banner</span></div>
+          </div>
+          <p class="kb-modal-foot mono">Shortcuts are disabled while typing in a field.</p>
+        </div>`;
+      document.body.appendChild(m);
+      // Click on backdrop or close button dismisses
+      m.addEventListener('click', e => {
+        if(e.target.matches('[data-kb-close], .kb-modal-close')) closeHelp();
+      });
+      return m;
+    }
+    function navTo(path){
+      try { window.location.href = path; } catch(_){}
+    }
+
+    // Footer hint button — also opens the help modal (so the shortcut is
+    // discoverable even on touch devices where `?` doesn't exist).
+    const hint = document.getElementById('kbHint');
+    if(hint) hint.addEventListener('click', openHelp);
+
+    document.addEventListener('keydown', e => {
+      // Always honor Escape, even while typing — to close any open modal/banner
+      if(e.key === 'Escape'){
+        if(isModalOpen()){ e.preventDefault(); closeHelp(); return; }
+        const rb = document.getElementById('restoreBanner');
+        const sb = document.getElementById('shareBanner');
+        const sw = document.getElementById('swUpdateBanner');
+        if(rb && !rb.hidden){ rb.hidden = true; e.preventDefault(); return; }
+        if(sb && !sb.hidden){ sb.hidden = true; e.preventDefault(); return; }
+        if(sw){ sw.remove(); e.preventDefault(); return; }
+        const toast = document.getElementById('forgetToast');
+        if(toast && toast.classList.contains('show')){
+          toast.classList.remove('show');
+          e.preventDefault();
+          return;
+        }
+        return;
+      }
+
+      // From here on, ignore shortcuts when the user is typing into a form field
+      if(isTypingTarget(e.target)) return;
+      // Also respect modifier keys — never hijack browser/Cmd combos
+      if(e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const k = e.key;
+      const now = Date.now();
+
+      // '?' opens the help modal (Shift+/ on US layouts)
+      if(k === '?'){
+        e.preventDefault();
+        openHelp();
+        return;
+      }
+
+      // '/' focuses (and navigates to) the analyzer textarea
+      if(k === '/' && !e.shiftKey){
+        e.preventDefault();
+        const ta = document.getElementById('docInput');
+        if(ta){
+          if(ta.closest('main') || document.body.dataset.page === 'analyze'){
+            ta.focus({preventScroll:false});
+          } else {
+            navTo('analyze.html');
+          }
+        } else {
+          navTo('analyze.html');
+        }
+        return;
+      }
+
+      // 'g' starts a 2-key navigation sequence
+      if(k === 'g' || k === 'G'){
+        lastG = now;
+        return;
+      }
+      if(now - lastG > G_WINDOW_MS) return;
+      const lc = (k || '').toLowerCase();
+      if(lc === 'h'){ e.preventDefault(); navTo('index.html'); return; }
+      if(lc === 'a'){ e.preventDefault(); navTo('analyze.html'); return; }
+      if(lc === 'p'){ e.preventDefault(); navTo('pricing.html'); return; }
+    }, { passive:false });
   }
 
   function mobileNav(){

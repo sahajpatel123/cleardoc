@@ -1034,6 +1034,98 @@ skip("analyzer (mobile): Analyze CTA becomes a sticky bottom bar at ≤900px so 
   await page.close(); await mobile.close();
   await dpage.close(); await desktop.close();
 });
+
+skip("keyboard: ? opens the help modal and Esc closes it", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Every page exposes the footer hint
+  for (const page of ["index.html", "analyze.html", "pricing.html", "404.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, page), "utf8");
+    assert.match(html, /id="kbHint"/, `${page} footer must expose #kbHint`);
+    assert.match(html, /Press \? for shortcuts/, `${page} footer hint copy must be present`);
+  }
+
+  // wireKeyboardShortcuts must exist and be wired in the always-init list
+  assert.match(appSrc, /function wireKeyboardShortcuts\(/, "wireKeyboardShortcuts must exist");
+  assert.match(appSrc, /wireKeyboardShortcuts\]/, "wireKeyboardShortcuts must be in the 'always' init list (every page)");
+  assert.match(appSrc, /kbHint['"]\)\s*\.\s*addEventListener\(['"]click['"],\s*openHelp\)/, "footer hint must open the modal");
+
+  // Theme must define .kb-modal styling
+  assert.match(themeSrc, /\.kb-modal\{/, ".kb-modal CSS must exist");
+  assert.match(themeSrc, /\.kb-modal\.show/, ".kb-modal.show state must exist");
+  assert.match(themeSrc, /\.kb-modal-card/, ".kb-modal-card CSS must exist");
+  assert.match(themeSrc, /\.kb-row kbd/, ".kb-row kbd styling must exist");
+
+  // Live: load the home page, press ?, modal appears with the documented shortcuts
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
+  // Modal shouldn't exist yet (lazy-created on first use)
+  assert.equal(await page.$("#kbHelpModal"), null, "modal should be lazy-created on first open");
+
+  await page.keyboard.press("?");
+  // Modal must now exist and be shown
+  const modalShown = await page.$eval("#kbHelpModal", (el) => el.classList.contains("show"));
+  assert.equal(modalShown, true, "pressing ? must show the help modal");
+  // Modal must list at least the documented shortcuts
+  const modalText = await page.$eval("#kbHelpModal", (el) => el.textContent || "");
+  assert.match(modalText, /Go home/, "modal must mention 'Go home' (g h)");
+  assert.match(modalText, /Open the analyzer/, "modal must mention 'Open the analyzer' (g a)");
+  assert.match(modalText, /See pricing/, "modal must mention 'See pricing' (g p)");
+  assert.match(modalText, /Show this help/, "modal must mention 'Show this help' (?)");
+
+  // Pressing Escape closes the modal
+  await page.keyboard.press("Escape");
+  const modalClosed = await page.$eval("#kbHelpModal", (el) => !el.classList.contains("show"));
+  assert.equal(modalClosed, true, "Escape must close the help modal");
+
+  // Footer hint click also opens the modal
+  await page.click("#kbHint");
+  const reopenedShown = await page.$eval("#kbHelpModal", (el) => el.classList.contains("show"));
+  assert.equal(reopenedShown, true, "clicking the footer hint must open the modal (touch-device support)");
+
+  await page.close();
+});
+
+skip("keyboard: 'g a' navigates to analyze, 'g h' to home; '/' focuses the document input", async () => {
+  if (!HAS_BROWSER) return;
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
+
+  // g h → home (we're already on home, no nav expected, but ensure no error)
+  await page.keyboard.press("g");
+  await page.waitForTimeout(50);
+  await page.keyboard.press("h");
+  await page.waitForTimeout(200);
+  assert.match(page.url(), /index\.html|\/$/, `g h should leave us on home, got ${page.url()}`);
+
+  // g a → analyze
+  await page.keyboard.press("g");
+  await page.waitForTimeout(50);
+  await page.keyboard.press("a");
+  await page.waitForLoadState("networkidle");
+  assert.match(page.url(), /analyze\.html/, `g a should navigate to analyze.html, got ${page.url()}`);
+
+  // / focuses the doc input
+  await page.focus("body"); // move focus off any input
+  await page.keyboard.press("/");
+  await page.waitForTimeout(80);
+  const focused = await page.evaluate(() => document.activeElement && document.activeElement.id);
+  assert.equal(focused, "docInput", `/ should focus #docInput, got ${focused}`);
+
+  // Shortcuts must be ignored while typing — typing 'g' in the textarea
+  // should NOT trigger navigation; the letter just lands in the field.
+  await page.keyboard.press("g");
+  await page.keyboard.press("h");
+  const valueAfterGh = await page.$eval("#docInput", (el) => el.value.slice(-2));
+  assert.equal(valueAfterGh, "gh", `typing g h inside textarea should append letters, got "${valueAfterGh}"`);
+  assert.match(page.url(), /analyze\.html/, "still on analyze.html after typing 'g h'");
+
+  await page.close();
+});
 // ── Content-Security-Policy (vercel.json header) ────────────────────
 
 test("vercel.json: emits a strict Content-Security-Policy on every page", async () => {
