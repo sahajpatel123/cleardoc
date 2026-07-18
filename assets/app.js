@@ -170,7 +170,7 @@
   /* ================= INIT ================= */
   function initAll(){
     const page=(document.body.dataset.page)||'home';
-    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts];
+    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop];
     const byPage={
       home:[heroClarifier,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,faq],
@@ -197,6 +197,45 @@
    * ClearDoc stores client-side and confirms with a toast.
    * Always wired (works on every page where the footer button exists).
    */
+  /* ---- Back-to-top button ----
+   * Lazy-built floating button that appears after the user scrolls past
+   * ~600px. Click smooth-scrolls to the top using the existing Lenis
+   * instance (with a graceful fallback when Lenis is unavailable).
+   * Visible on every page; nothing page-specific.
+   */
+  function wireBackToTop(){
+    const THRESHOLD = 600;
+    function build(){
+      const b = document.createElement('button');
+      b.id = 'backToTop';
+      b.type = 'button';
+      b.className = 'back-to-top no-print';
+      b.setAttribute('aria-label', 'Back to top');
+      b.innerHTML = '<span class="btt-arrow" aria-hidden="true">↑</span><span class="btt-label">TOP</span>';
+      document.body.appendChild(b);
+      return b;
+    }
+    const btn = document.getElementById('backToTop') || build();
+    let ticking = false;
+    function update(){
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      btn.classList.toggle('show', y > THRESHOLD);
+      ticking = false;
+    }
+    window.addEventListener('scroll', () => {
+      if(!ticking){ requestAnimationFrame(update); ticking = true; }
+    }, { passive: true });
+    btn.addEventListener('click', () => {
+      try{
+        if(lenis) lenis.scrollTo(0, { duration: 0.8 });
+        else window.scrollTo({ top: 0, behavior: 'smooth' });
+      }catch(_){
+        window.scrollTo(0, 0);
+      }
+    });
+    update();
+  }
+
   function wireForgetMe(){
     const btn = $('#forgetBtn');
     if(!btn) return;

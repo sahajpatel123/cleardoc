@@ -382,6 +382,17 @@
   .forget-toast .ft-check::after{content:"";position:absolute;left:3px;top:0;width:4px;height:8px;border:solid var(--green);border-width:0 2px 2px 0;transform:rotate(45deg)}
   .forget-toast .ft-text b{color:var(--green)}
 
+  /* ---- Back-to-top floating button ---- */
+  .back-to-top{position:fixed;right:18px;bottom:18px;z-index:9000;display:flex;align-items:center;gap:8px;background:var(--ink);color:var(--paper);border:var(--bd) solid var(--ink);box-shadow:var(--shadow);padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.08em;cursor:pointer;opacity:0;transform:translateY(8px);transition:opacity .22s,transform .22s,background .15s;pointer-events:none}
+  .back-to-top.show{opacity:1;transform:translateY(0);pointer-events:auto}
+  .back-to-top:hover{background:var(--accent);border-color:var(--accent)}
+  .back-to-top:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  .back-to-top .btt-arrow{font-size:18px;line-height:1;font-weight:700}
+  @media (max-width: 600px){
+    .back-to-top .btt-label{display:none}
+    .back-to-top{padding:12px 14px}
+  }
+
   /* ---- Keyboard shortcuts modal ---- */
   .kb-modal{position:fixed;inset:0;z-index:11000;display:none;align-items:center;justify-content:center;padding:24px}
   .kb-modal.show{display:flex;animation:kbFade .18s ease both}

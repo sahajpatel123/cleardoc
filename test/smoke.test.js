@@ -943,6 +943,104 @@ skip("BYOF: glossary lists each jargon term that was replaced + its plain-Englis
   await page.close();
 });
 
+skip("nav: back-to-top button appears after scroll, smooth-scrolls to top on click", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Source-pattern: wireBackToTop must be in the 'always' init list and must
+  // create the button lazily + toggle a .show class.
+  assert.match(appSrc, /function wireBackToTop\(/, "wireBackToTop must exist");
+  assert.match(appSrc, /wireBackToTop\]/, "wireBackToTop must be in the 'always' init list");
+  assert.match(appSrc, /btn\.classList\.toggle\('show'/, "wireBackToTop must toggle a .show class on scroll");
+  assert.match(appSrc, /lenis\.scrollTo\(0/, "wireBackToTop must use Lenis for smooth scroll");
+  assert.match(appSrc, /window\.scrollTo\(\{ top: 0, behavior: 'smooth' \}\)/, "wireBackToTop must fall back to native smooth scroll when Lenis is unavailable");
+
+  // CSS rule for the button + its .show state
+  assert.match(themeSrc, /\.back-to-top\{/, ".back-to-top CSS rule must exist");
+  assert.match(themeSrc, /\.back-to-top\.show/, ".back-to-top.show state must exist");
+
+  // Live: load the home page, button must NOT be visible at scrollY=0
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
+  const initiallyShown = await page.$eval("#backToTop", (el) => el.classList.contains("show"));
+  assert.equal(initiallyShown, false, "back-to-top must NOT be visible at scrollY=0");
+
+  // Scroll past the 600px threshold — button must become visible
+  await page.evaluate(() => window.scrollTo(0, 900));
+  await page.waitForTimeout(150);
+  const scrolledShown = await page.$eval("#backToTop", (el) => el.classList.contains("show"));
+  assert.equal(scrolledShown, true, "back-to-top must become visible after scrolling past 600px");
+
+  // Click the button — scrollY must return to 0
+  await page.click("#backToTop");
+  // Allow the smooth-scroll to finish (Lenis duration 0.8s + buffer)
+  await page.waitForTimeout(1200);
+  const finalY = await page.evaluate(() => window.scrollY);
+  assert.ok(finalY <= 5, `clicking back-to-top must scroll to ~0, got ${finalY}`);
+
+  // After scrolling back to top, the button must hide again
+  await page.waitForTimeout(150);
+  const hiddenAgain = await page.$eval("#backToTop", (el) => el.classList.contains("show"));
+  assert.equal(hiddenAgain, false, "back-to-top must hide once scrolled back to top");
+
+  await page.close();
+});
+
+skip("nav: back-to-top button appears after scroll, smooth-scrolls to top on click", async () => {
+  if (!HAS_BROWSER) return;
+  const path = require("node:path");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // HTML must expose the glossary container + list
+  assert.match(indexHtml, /id="byofGlossary"/, "index.html must expose #byofGlossary");
+  assert.match(indexHtml, /id="byofGlossaryList"/, "index.html must expose #byofGlossaryList");
+
+  // Source-pattern: renderGlossary emits a list-item with the term + plain-English meaning
+  assert.match(appSrc, /function renderGlossary\(/, "renderGlossary must exist");
+  assert.match(appSrc, /matches\.map\(m =&gt;/, "renderGlossary must map matches into <li> rows");
+  assert.match(appSrc, /esc\(m\.term\)/, "renderGlossary must escape the jargon term");
+  assert.match(appSrc, /esc\(m\.plain\)/, "renderGlossary must escape the plain meaning");
+
+  // CSS rule
+  assert.match(themeSrc, /\.byof-glossary\{/, ".byof-glossary CSS rule must exist");
+
+  // Live: load the home page (BYOF auto-runs), then verify the glossary
+  // lists at least one entry with both a <code> term and a plain-English meaning.
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
+  // Wait for the BYOF auto-run to paint the glossary
+  await page.waitForFunction(() => {
+    const g = document.getElementById("byofGlossary");
+    return g && !g.hidden;
+  }, { timeout: 5000 }).catch(() => {});
+
+  const visible = await page.$eval("#byofGlossary", (el) => !el.hidden);
+  assert.equal(visible, true, "BYOF glossary must be visible after auto-run on the preloaded sample");
+
+  const items = await page.$$eval("#byofGlossaryList li", (els) => els.map(li => ({
+    term: (li.querySelector('code') || {}).textContent || '',
+    plain: (li.querySelector('.plain') || {}).textContent || '',
+  })));
+  assert.ok(items.length >= 1, `glossary must list at least one term, got ${items.length}`);
+  // Every row must have a non-empty term + non-empty plain-English meaning
+  for (const it of items) {
+    assert.ok(it.term.length > 0, `glossary row must have a non-empty term, got ${JSON.stringify(it)}`);
+    assert.ok(it.plain.length > 0, `glossary row must have a non-empty plain meaning, got ${JSON.stringify(it)}`);
+  }
+  // The preloaded sample mentions 'aforementioned policyholder' + 'liable' +
+  // 'deductibles' + 'notwithstanding' + 'pursuant' + 'tendered' — at least
+  // some of those should appear in the glossary.
+  const allText = items.map(i => i.term + ' ' + i.plain).join(' ').toLowerCase();
+  assert.ok(allText.length > 20, `glossary should have substantive content, got "${allText}"`);
+
+  await page.close();
+});
+
 skip("pricing: each non-free card shows an annual hint (total + savings) that updates with the toggle", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
