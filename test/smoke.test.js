@@ -2394,3 +2394,23 @@ test("every FAQ search input is capped at maxlength=64 across pages", async () =
     );
   }
 });
+
+test("docInput + byofIn textareas have maxlength matching the server cap (40000)", () => {
+  // The server caps document + clarify input at 40000 chars via asString
+  // and CLARIFY_MAX_CHARS. Without a browser-level maxlength, a multi-MB
+  // paste sits in the textarea, lags the page on each keystroke, and only
+  // gets truncated when the user clicks Analyze / Set. Pin the browser
+  // cap to match the server cap so the cap is enforced even before submit.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  for (const [page, id] of [["analyze.html", "docInput"], ["index.html", "byofIn"]]) {
+    const html = fs.readFileSync(path.join(ROOT, page), "utf8");
+    const ta = html.match(new RegExp(`<textarea[^>]*id="${id}"[^>]*>`));
+    assert.ok(ta, `${page} must contain a #${id} textarea`);
+    assert.match(
+      ta[0],
+      /maxlength="40000"/,
+      `${page} #${id} must have maxlength="40000" so multi-MB paste can't lag the page`
+    );
+  }
+});
