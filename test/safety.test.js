@@ -621,6 +621,51 @@ test("applyAiResponseHeaders: no-ops once headers have been sent", () => {
   assert.deepEqual(res.headers, {}, "must not call setHeader when response is already streaming");
 });
 
+// ── json() auto-latency header + attachRequestId start-time capture ────
+
+test("attachRequestId: captures __requestStartedAt for the latency header", () => {
+  const before = Date.now();
+  const res = mockRes();
+  const id = attachRequestId(res, { headers: {} });
+  assert.ok(typeof id === "string" && id.length > 0, "returns a string id");
+  assert.ok(typeof res.__requestStartedAt === "number", "must pin __requestStartedAt");
+  assert.ok(res.__requestStartedAt >= before, "started-at is >= the moment we started the test");
+  assert.ok(res.__requestStartedAt <= Date.now(), "started-at is <= now");
+});
+
+test("json: auto-sets X-Request-Latency-Total-Ms when __requestStartedAt is captured", async () => {
+  // Tiny sleep to guarantee elapsed > 0
+  const res = mockRes();
+  attachRequestId(res, { headers: {} });
+  await new Promise((r) => setTimeout(r, 5));
+  json(res, 200, { ok: true });
+  const header = res.headers["X-Request-Latency-Total-Ms"];
+  assert.ok(typeof header === "string", "header must be set");
+  assert.ok(parseInt(header, 10) >= 5, `latency should be ≥5ms (got ${header})`);
+  assert.ok(parseInt(header, 10) < 5000, `latency should be < 5s (got ${header})`);
+});
+
+test("json: skips X-Request-Latency-Total-Ms when attachRequestId wasn't called", () => {
+  // Defensive: a handler that forgets to call attachRequestId() still
+  // works — just without the latency signal.
+  const res = mockRes();
+  json(res, 200, { ok: true });
+  assert.equal(res.headers["X-Request-Latency-Total-Ms"], undefined);
+});
+
+test("json: X-Request-Latency-Total-Ms coexists with X-AI-Provider / X-AI-Response-Time-Ms", () => {
+  // The two header families (total latency + AI-specific) must both be
+  // present when both are valid. Total ≥ AI latency by definition
+  // (it includes rate-limit + body read + serialize on top of AI).
+  const res = mockRes();
+  attachRequestId(res, { headers: {} });
+  applyAiResponseHeaders(res, "gemini", 100);
+  json(res, 200, { ok: true });
+  assert.ok(res.headers["X-AI-Provider"] === "gemini");
+  assert.ok(typeof res.headers["X-AI-Response-Time-Ms"] === "string");
+  assert.ok(typeof res.headers["X-Request-Latency-Total-Ms"] === "string");
+});
+
 test("rateLimit: limits are isolated per IP", () => {
   const a = `test-iso-a-${Date.now()}`;
   const b = `test-iso-b-${Date.now()}`;

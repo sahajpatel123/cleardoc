@@ -25,6 +25,17 @@ function json(res, status, body) {
   if (res && res.__requestId && !res.headersSent) {
     res.setHeader("X-Request-Id", res.__requestId);
   }
+  // Set end-to-end latency header automatically when attachRequestId() was
+  // called. Covers rate-limit + body read + AI chain + validation +
+  // serialize — the full server-side time for this request. Best-effort:
+  // missing __requestStartedAt just skips the header (the absence tells
+  // ops "this handler didn't use attachRequestId, fix it").
+  if (res && typeof res.__requestStartedAt === "number" && !res.headersSent) {
+    const elapsed = Date.now() - res.__requestStartedAt;
+    if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= 600000) {
+      res.setHeader("X-Request-Latency-Total-Ms", String(Math.round(elapsed)));
+    }
+  }
   res.end(JSON.stringify(body));
 }
 
@@ -69,6 +80,11 @@ function attachRequestId(res, req) {
   const incoming = req && req.headers && req.headers["x-request-id"];
   const id = sanitizeIncomingRequestId(incoming) || generateRequestId();
   if (res) res.__requestId = id;
+  // Pin the request start time so json() can emit X-Request-Latency-Total-Ms.
+  // Single source of truth: every handler already calls attachRequestId()
+  // as the very first step, so this captures end-to-end server time
+  // (rate-limit + body read + AI call + validation + serialize).
+  if (res) res.__requestStartedAt = Date.now();
   return id;
 }
 
