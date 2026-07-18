@@ -1899,3 +1899,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored the standing directives. Picked a defense-in-depth UI fix from the parallel session's working tree — every search/filter input in user-facing UI should have an explicit maxlength so paste-spam can't degrade UX or blow a downstream input validator.
 
+
+**2026-07-19 03:45 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #11 of the 10-minute autonomous engineer loop** (`/loop 10minutes`). Documentation gap fill.
+- **Documented two parallel-agent features** (`pending commit`):
+  - **FAQ search input cap at 64 chars** — `063d55c5 sec(ui): cap FAQ search input at maxlength=64 across all 3 pages` added `maxlength="64"` to the FAQ keyword filter input on index/analyze/pricing. Defends against pathological inputs that would otherwise loop over megabyte-long substrings and freeze the tab. Pairs with the `clarify()` and OCR input caps shipped earlier.
+  - **`/api/health` VERSION reads from package.json** — `fbe9ac5c feat(api): /api/health VERSION reads from package.json` replaced the hardcoded `"1.0.0"` string with `require('../../package.json').version`. Single source of truth — bumping package version propagates to the health endpoint on next deploy.
+- **Verification:** 248/248 tests pass (181 unit + 66 smoke + 1 integration). Working tree clean before commit.
+
+**Prompt Intention:**
+- Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #11 closed two more documentation gaps. Next iteration scheduled to fire in 10 minutes.

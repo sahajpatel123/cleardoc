@@ -17,6 +17,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **`Retry-After: 60`** on `/api/health` 503 responses so monitoring clients back off correctly during outages.
 - **RFC 9116 `security.txt`** at `/.well-known/security.txt` — auto-discovered by security scanners.
 - **`/api/csp-report` endpoint + `report-uri` directive in CSP** — browsers now report CSP violations back to ClearDoc. Structured logs surface real-world bypass attempts and policy bugs (e.g., a future code change that triggers an unexpected block). Closes the observability loop on the strict-CSP work shipped earlier this month.
+- **FAQ search input cap** (`maxlength="64"` on the FAQ keyword filter input across `index.html`, `analyze.html`, `pricing.html`) — caps user input at 64 chars before it hits the page-side filter loop. Defends against pathological inputs that would otherwise loop over megabyte-long substrings and freeze the tab. Pairs with the `clarify()` and OCR input caps shipped earlier.
 
 ### Reliability
 - **Strict fail-closed schema validators** (`safeParseAnalysisResult`, `safeParseChatResult`) — partial legal data is more dangerous than no data (RULES.md #3).
@@ -43,6 +44,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **`HEAD /api/health` response header compliance** (RFC 7231 §4.3.2) — HEAD responses now carry the same well-formed header set as the equivalent GET (`Content-Type: application/json`, `Cache-Control: no-store`, `X-Request-Latency-Total-Ms`, `X-Build-Sha`). Previously the HEAD fast-path bypassed `json()` and skipped those headers, leaving monitoring clients with a near-empty response.
 - **`/api/health` summary rollup field** — alongside the nested `providers` block, the 200 payload now carries a flat `summary: { providersConfigured, providersReachable, fastestProviderMs, slowestProviderMs, cacheHits }` for ops dashboards that want bottom-line numbers without walking nested objects. Computed from the same probe objects via a pure `buildSummary()` helper so the rollup can never drift from the `providers` block.
 - **`/api/health` process-info block** — memory usage (`rss`, `heapTotal`, `heapUsed`, `external`), Node version, platform, architecture, PID, process uptime, plus `region` (`VERCEL_REGION`, e.g. `iad1`) and `vercelEnv` (`VERCEL_ENV`, e.g. `production`). Lets ops dashboards route alerts by region ("only iad1 is unhealthy") and distinguish prod from preview deployments hitting the same endpoint. Local dev emits `null` for the Vercel-only fields.
+- **`/api/health` VERSION reads from `package.json`** — the `version` field on the 200 payload now reads `require('../../package.json').version` instead of the hardcoded `"1.0.0"` string. Single source of truth — bumping the package version automatically propagates to the health endpoint on next deploy.
 
 ### Features
 - **Share analyses via URL** — client-side gzip + base64url encoding, no server upload needed. Includes dismissable banner.
