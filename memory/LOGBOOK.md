@@ -1173,6 +1173,23 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Closed the "release notes missing" gap. Until now, a user could discover what changed between deploys only by reading `git log` (verbose) or `LOGBOOK.md` (internal agent history). CHANGELOG is the canonical user-facing artifact — like a release notes file but for a continuously-deployed site.
 
+**2026-07-18 21:39 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
+**Changes Made:**
+- **Iteration #28 of the autonomous loop** (10-min cadence). Live:21:35 → 21:39 IST.
+- **Added smoke test for the FAQ keyword filter** (`7698c5ce feat(faq)` shipped by the parallel session). The behavior — real-time filter on keyup against `.qa .qt` + `.qa .ans-text` text content — was completely untested until now.
+- **`test/smoke.test.js`** appended a Playwright test that:
+  - Loads `/analyze.html`, confirms ≥2 `.qa` items render and all start visible
+  - Types `"document"` in `#faqSearch`, asserts visible count drops below initial (filter is working)
+  - Types `"DOCUMENT"` (uppercase), asserts visible count matches the lowercase run (case-insensitive)
+  - Clears the input, asserts all items return (no residual state)
+  - Types `"zzznevermatchthisstringzzz"`, asserts visible count is 0 (no-match hides all)
+  - Asserts no console errors throughout
+- **Test totals locally**: 59 smoke (was 58, +1 for FAQ filter coverage) + 117 unit + 1 integration = **177/177 passing** locally. (Note: a local integration test once hit a TimeoutError on a transient first-attempt race; rerunning verified green on second attempt. CI confirms green.)
+- **CI result**: `5a6c2a50 test(smoke): cover FAQ keyword filter (narrow, case-insensitive, empty, no-match)` — **GREEN** (confirmed via parallel session's `deff6cc0 chore(memory)` which closes out the chain of `5a6c2a50 → deff6cc0` as green).
+
+**Prompt Intention:**
+- Closed the "FAQ filter has no test" gap. The parallel session shipped a real-time filter feature; without a smoke test it could regress silently. The new test pins down: (a) input actually narrows visible items, (b) case-insensitivity, (c) input-clear restores full list, (d) garbage input hides all. Live Playwright, mirrors how real users interact with the filter.
+
 **2026-07-18 10:22 IST | Model: Claude Code (dynamic-workflow-emulator loop, effort=max)**
 **Changes Made:**
 - **Iteration #4 of the autonomous loop** (15-min cadence). Live: 10:21:14 → 10:22:30 IST.
