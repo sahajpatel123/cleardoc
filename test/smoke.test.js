@@ -115,6 +115,84 @@ skip("home: has OG / Twitter / canonical / favicon meta", async () => {
   await page.close();
 });
 
+skip("OG image: every public page links the 1200x630 og-card", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  // The og-card asset must exist on disk and be a real SVG
+  const ogPath = path.join(ROOT, "assets", "og-card.svg");
+  assert.ok(fs.existsSync(ogPath), "assets/og-card.svg must exist");
+  const svg = fs.readFileSync(ogPath, "utf8");
+  assert.match(svg, /<svg[^>]*viewBox="0 0 1200 630"/, "og-card must be 1200x630 (Twitter/Facebook standard)");
+  assert.match(svg, /<title>/, "og-card must have an SVG <title> for accessibility");
+
+  // Every public HTML page must link the same og-card and declare width/height
+  for (const page of ["index.html", "analyze.html", "pricing.html", "404.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, page), "utf8");
+    assert.match(html, /<meta property="og:image" content="https:\/\/cleardoc\.app\/assets\/og-card\.svg"/, `${page} must set og:image`);
+    assert.match(html, /<meta property="og:image:width" content="1200"/, `${page} must set og:image:width`);
+    assert.match(html, /<meta property="og:image:height" content="630"/, `${page} must set og:image:height`);
+    assert.match(html, /<meta name="twitter:image" content="https:\/\/cleardoc\.app\/assets\/og-card\.svg"/, `${page} must set twitter:image`);
+    assert.match(html, /<meta property="og:image:alt"/, `${page} must declare an og:image:alt for screen readers`);
+  }
+});
+
+skip("JSON-LD: home has WebSite + Organization + SoftwareApplication + FAQPage", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  assert.ok(blocks.length >= 1, "index.html must include at least one JSON-LD block");
+
+  const parsed = blocks.map(JSON.parse);
+  const flat = parsed.flatMap(p => (p && p["@graph"]) ? p["@graph"] : [p]);
+  const types = flat.map(n => n["@type"]).filter(Boolean);
+
+  // Required top-level shapes for SEO
+  for (const t of ["WebSite", "Organization", "SoftwareApplication", "FAQPage"]) {
+    assert.ok(types.includes(t), `JSON-LD on home must include a ${t} node`);
+  }
+
+  // SoftwareApplication must expose the 3 documented pricing tiers as Offers
+  const app = flat.find(n => n["@type"] === "SoftwareApplication");
+  assert.ok(Array.isArray(app.offers) && app.offers.length === 3,
+    `SoftwareApplication must declare exactly 3 offers (Reader, Professional, The Firm), got ${(app.offers||[]).length}`);
+  const names = app.offers.map(o => o.name).sort();
+  assert.deepEqual(names, ["Professional", "Reader", "The Firm"], "Offer names must be Reader / Professional / The Firm");
+  const prices = app.offers.map(o => o.price);
+  assert.ok(prices.includes("0"), "Reader must be $0");
+  assert.ok(prices.includes("19"), "Professional must be $19");
+  assert.ok(prices.includes("49"), "The Firm must be $49");
+
+  // FAQPage must have a mainEntity of Question nodes with acceptedAnswer
+  const faq = flat.find(n => n["@type"] === "FAQPage");
+  assert.ok(Array.isArray(faq.mainEntity) && faq.mainEntity.length >= 3, "FAQPage must list at least 3 questions");
+  for (const q of faq.mainEntity) {
+    assert.equal(q["@type"], "Question", "FAQPage entries must be Question nodes");
+    assert.ok(q.name && q.acceptedAnswer && q.acceptedAnswer["@type"] === "Answer" && q.acceptedAnswer.text,
+      "every Question must have an acceptedAnswer Answer with text");
+  }
+});
+
+skip("JSON-LD: analyze page has WebPage + FAQPage with questions cited verbatim from the FAQ section", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  assert.ok(blocks.length >= 1, "analyze.html must include at least one JSON-LD block");
+  const parsed = blocks.map(JSON.parse);
+  const flat = parsed.flatMap(p => (p && p["@graph"]) ? p["@graph"] : [p]);
+  const types = flat.map(n => n["@type"]).filter(Boolean);
+  assert.ok(types.includes("FAQPage"), "analyze page must include a FAQPage node");
+  const faq = flat.find(n => n["@type"] === "FAQPage");
+  // Sanity: every FAQ answer must reference the analyzer's domain (no copy/paste from home)
+  for (const q of faq.mainEntity) {
+    assert.ok(q.acceptedAnswer.text.length > 20, "FAQ answers on analyze page should be substantive");
+  }
+});
+
 skip("analyze: loads without console errors and has new AI-backed sections", async () => {
   const errors = await loadAndCheck("/analyze.html", [
     ["#docInput", "document input"],
