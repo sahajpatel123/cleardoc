@@ -14,7 +14,11 @@
 const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, errLog, accessLog, getIp, probeProviderCached } = require("./_safety.js");
 
 const START_TS = Date.now();
-const VERSION = "1.0.0";
+// Read the version from package.json — single source of truth. Without
+// this the constant drifts the moment someone bumps package.json without
+// remembering to update api/health.js too (the deployed VERSION field in
+// /api/health should always match the actual deployed code).
+const VERSION = require("../package.json").version;
 const RATE_LIMIT_PER_MINUTE = 60; // health checks can be polled frequently
 const HEALTH_CACHE_MAX_AGE = 5;   // edge-cache TTL on 200 responses
 

@@ -494,3 +494,22 @@ test("health handler: process info includes VERCEL_REGION + VERCEL_ENV", () => {
   assert.match(HEALTH_SOURCE, /region\s*:\s*[^,]*VERCEL_REGION\s*\|\|\s*null/, "region must default to null when env var is unset");
   assert.match(HEALTH_SOURCE, /vercelEnv\s*:\s*[^,]*VERCEL_ENV\s*\|\|\s*null/, "vercelEnv must default to null when env var is unset");
 });
+
+// ── VERSION sourced from package.json (iter #47) ──────────────────
+
+test("health handler: VERSION comes from package.json (single source of truth)", () => {
+  // The /api/health payload's `version` field used to be a hardcoded
+  // string. Bumped package.json without updating the constant and the
+  // payload lies. Now /api/health reads from package.json so the two
+  // can't drift apart.
+  assert.match(
+    HEALTH_SOURCE,
+    /VERSION\s*=\s*require\(["']\.\.\/package\.json["']\)\.version/,
+    "VERSION must be sourced from package.json via require"
+  );
+  assert.doesNotMatch(
+    HEALTH_SOURCE,
+    /VERSION\s*=\s*["']\d+\.\d+\.\d+["']/,
+    "VERSION must not be a hardcoded literal (drift risk)"
+  );
+});
