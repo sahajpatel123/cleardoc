@@ -917,7 +917,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "requestsInLastHour", "providersLastFailure",
     "providersFailureRateInLastHour", "consecutiveSuccesses",
     "providersConsecutiveFailures", "errorsInLastHour", "cacheSize",
-    "providersLastUpdated",
+    "providersLastUpdated", "lastHealthDurationMs", "maxHealthDurationMs",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1388,6 +1388,24 @@ test("health handler: process block surfaces execPath (Node binary path)", () =>
   assert.match(HEALTH_SOURCE, /execPath/, "process block must include execPath field");
   // Must come from process.execPath (the canonical Node API)
   assert.match(HEALTH_SOURCE, /execPath:\s*process\.execPath/, "must source from process.execPath");
+});
+
+// ── lastHealthDurationMs + maxHealthDurationMs (iter #107) ───
+
+test("health handler: summary surfaces lastHealthDurationMs + maxHealthDurationMs", () => {
+  // Tracks /api/health's own request duration. A slow health endpoint
+  // is a real problem since it's the most-polled endpoint. Pairs
+  // lastHealthDurationMs (most recent) with maxHealthDurationMs
+  // (peak ever) to detect "consistently slow" vs "spike" patterns.
+  assert.match(HEALTH_SOURCE, /lastHealthDurationMs/, "summary must include lastHealthDurationMs field");
+  assert.match(HEALTH_SOURCE, /maxHealthDurationMs/, "summary must include maxHealthDurationMs field");
+  // Module-level tracking state
+  assert.match(HEALTH_SOURCE, /_lastHealthDurationMs/, "must have a module-level _lastHealthDurationMs counter");
+  assert.match(HEALTH_SOURCE, /_maxHealthDurationMs/, "must have a module-level _maxHealthDurationMs counter");
+  // Peak-update logic
+  assert.match(HEALTH_SOURCE, /dur\s*>\s*_maxHealthDurationMs/, "max must update when current duration exceeds it");
+  // Guard against unbounded values (matches the 600000ms cap used elsewhere)
+  assert.match(HEALTH_SOURCE, /dur\s*<=\s*600000/, "must cap duration at 600000ms");
 });
 
 test("health handler: process.execPath is a non-empty string in the rendered payload", async () => {

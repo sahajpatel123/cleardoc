@@ -31,6 +31,11 @@ let _requestsInLastHour = [];
 // Peak RSS observed since process start. Updated lazily on each request
 // so ops can spot a memory-leak pattern (peak climbing request-over-request).
 let _peakRssMb = 0;
+// Most recent /api/health request duration (ms) and peak ever. Lets
+// ops spot if the health endpoint itself is degrading — a slow
+// /api/health is a real problem (it's the most-polled endpoint).
+let _lastHealthDurationMs = 0;
+let _maxHealthDurationMs = 0;
 // Per-status code counter (statusCode → count). LRU-evicting at 50 keys
 // to prevent unbounded growth from a misbehaving client (or scan) hitting
 // 1000s of distinct status codes via weird edge cases. Status codes are
@@ -343,6 +348,14 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // give ops a windowed view of recent load — "what's the current
     // load?" independent of process age.
     requestsInLastHour: _requestsInLastHour.length,
+    // Most recent /api/health request duration (ms). Lets ops spot
+    // if the health endpoint itself is getting slow — a slow health
+    // endpoint is a real problem since it's the most-polled endpoint.
+    lastHealthDurationMs: _lastHealthDurationMs,
+    // Peak /api/health request duration ever observed. Pairs with
+    // lastHealthDurationMs to detect "health is consistently slow"
+    // vs "spike pattern".
+    maxHealthDurationMs: _maxHealthDurationMs,
     // Unique IPs that have hit this instance. Pairs with `requests` —
     // "100 requests from 1 IP" vs "100 requests from 100 IPs" tells
     // very different stories (single spammer vs distributed traffic).
@@ -393,6 +406,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
 module.exports = async function handler(req, res) {
   attachRequestId(res, req);
   applyEndpointHeader(res, "health");
+  // Capture request start time for `lastHealthDurationMs` /
+  // `maxHealthDurationMs` tracking. We measure inside the handler
+  // (post attachRequestId) so the duration covers everything from
+  // request-id setup through response serialization.
+  const _handlerStartedAt = Date.now();
   try {
     if (req.method !== "GET" && req.method !== "HEAD") {
       return json(res, 405, { error: "Method not allowed." });
@@ -683,6 +701,17 @@ module.exports = async function handler(req, res) {
       // res.end() threw (broken pipe, etc.) — nothing more we can do.
     }
   } finally {
+    // Capture this request's duration for `lastHealthDurationMs` /
+    // `maxHealthDurationMs` observability. Skipped for 405 (the
+    // method-not-allowed early return doesn't represent a real
+    // /api/health render).
+    if (res.statusCode !== 405) {
+      const dur = Date.now() - _handlerStartedAt;
+      if (Number.isFinite(dur) && dur >= 0 && dur <= 600000) {
+        _lastHealthDurationMs = dur;
+        if (dur > _maxHealthDurationMs) _maxHealthDurationMs = dur;
+      }
+    }
     accessLog(req, res, res.statusCode);
     recordRequestStatus(res.statusCode);
   }

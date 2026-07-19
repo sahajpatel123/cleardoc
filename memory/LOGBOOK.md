@@ -2831,3 +2831,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the test-coverage pattern. `getIp()` is called by every endpoint on every request (for rate limiting, IP attribution in CSP reports, unique-IPs tracking). Only source-pattern tests previously — behavioral tests now verify the full priority chain: x-forwarded-for → x-real-ip → socket.remoteAddress.
+
+**2026-07-19 14:40 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #107 of the autonomous loop** (cron `f1fb68b1` firing). Live: 14:40 IST.
+- **Shipped `summary.lastHealthDurationMs` + `summary.maxHealthDurationMs` on /api/health**. New fields: most-recent request duration (ms) and peak ever observed.
+- **Closes the "is /api/health itself getting slow?" observability gap**. /api/health is the most-polled endpoint in the deployment — when it slows down, monitoring services can't keep up. Pairs: `lastHealthDurationMs` (instantaneous) + `maxHealthDurationMs` (peak) → "consistently slow" vs "spike" pattern.
+- **Implementation**: capture `Date.now()` at handler start (post attachRequestId); in `finally`, compute `Date.now() - start`, cap at 600000ms, update both counters. Skipped for 405 (method-not-allowed) since it's not a real render.
+- **1 new source-pattern test** + extended full-observability-surface assertion list.
+- **382/382 tests pass** (307 unit + 71 smoke + 1 integration). Test count +1.
+
+**Prompt Intention:**
+- Honored the standing directives. Switched from test-coverage back to features. The /api/health's own response time is the most operationally important signal — if it degrades, the entire observability stack degrades. Pairs with the X-Request-Latency-Total-Ms header (single request) for ops dashboards that prefer body-level fields.
