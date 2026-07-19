@@ -153,6 +153,9 @@ module.exports = async function handler(req, res) {
     // Always 204 — browsers don't care about the response body
     res.statusCode = 204;
     applyCspReportHeaders(res);
+    // Tell the browser how many reports we accepted in this batch.
+    // Helps with retry logic + ops observability from the client side.
+    res.setHeader("X-CSP-Reports-Processed-Total", String(violations.length));
     res.end();
   } catch (err) {
     if (res && res.headersSent) return;

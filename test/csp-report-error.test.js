@@ -263,3 +263,21 @@ test("csp-report handler: MAX_BODY_BYTES is pinned at 16KB", () => {
     "readCappedBody must be called with MAX_BODY_BYTES"
   );
 });
+
+// ── X-CSP-Reports-Processed-Total (iter #75) ───────────────────
+
+test("csp-report handler: 204 responses emit X-CSP-Reports-Processed-Total header", () => {
+  // Per-batch report counter. Lets the browser see how many we
+  // accepted; helps with retry logic. 204 No Content body is
+  // unchanged — this is just an extra header.
+  assert.match(
+    CSP_SOURCE,
+    /X-CSP-Reports-Processed-Total/,
+    "must emit X-CSP-Reports-Processed-Total header"
+  );
+  assert.match(
+    CSP_SOURCE,
+    /X-CSP-Reports-Processed-Total["'],\s*String\(violations\.length\)\)/,
+    "header value must be the count of violations in this batch"
+  );
+});
