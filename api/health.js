@@ -261,6 +261,10 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // comparing across the fleet. Tracks the max number of in-flight
     // /api/health requests at any single moment.
     peakConcurrentRequests: _peakConcurrent,
+    // Current in-flight request count (not just peak). Pairs with
+    // peakConcurrentRequests: "what's the worst concurrency this
+    // instance has handled?" + "what's the current load?"
+    currentConcurrentRequests: _currentConcurrent,
     // Probe cache size (per-provider). Lets ops see how many distinct
     // AI providers the cache is tracking. Bounded at _PROBE_CACHE_MAX.
     probeCacheSize: getProbeCacheSize(),
