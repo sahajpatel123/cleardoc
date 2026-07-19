@@ -976,3 +976,18 @@ test("health handler: payload surfaces uptimeBucket (cold-start classification)"
   assert.match(HEALTH_SOURCE, /s\s*<\s*300/, "fresh threshold is 300s (5 min)");
   assert.match(HEALTH_SOURCE, /s\s*<\s*3600/, "warm threshold is 3600s (60 min)");
 });
+
+// ── anyProviderReachable + allProvidersReachable (iter #78) ─────
+
+test("health handler: summary exposes anyProviderReachable + allProvidersReachable aggregates", () => {
+  // Two aggregate booleans derived from the per-provider reachable
+  // state. Lets ops dashboards see "any provider reachable?" and
+  // "all providers reachable?" in one shot, without walking the
+  // per-provider object.
+  assert.match(HEALTH_SOURCE, /anyProviderReachable/, "summary must include anyProviderReachable field");
+  assert.match(HEALTH_SOURCE, /allProvidersReachable/, "summary must include allProvidersReachable field");
+  // any = at least one reachable
+  assert.match(HEALTH_SOURCE, /configured\s*>\s*0\s*&&\s*reachable\s*>\s*0/, "any = configured > 0 && reachable > 0");
+  // all = every reachable
+  assert.match(HEALTH_SOURCE, /configured\s*>\s*0\s*&&\s*reachable\s*===\s*configured/, "all = configured > 0 && reachable === configured");
+});

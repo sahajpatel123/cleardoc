@@ -212,6 +212,14 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     startupDurationMs: _firstRequestTs ? _firstRequestTs - START_TS : null,
     providersConfigured: configured,
     providersReachable: reachable,
+    // Aggregate booleans derived from the per-provider reachable state.
+    // `any` = at least one configured provider is reachable (current
+    // 200 path is achievable). `all` = every configured provider is
+    // reachable (no fallback activation). Both are useful for ops
+    // dashboards that want a single boolean signal without walking
+    // the per-provider object.
+    anyProviderReachable: configured > 0 && reachable > 0,
+    allProvidersReachable: configured > 0 && reachable === configured,
     fastestProviderMs: reachableLatencies.length ? Math.min(...reachableLatencies) : null,
     slowestProviderMs: reachableLatencies.length ? Math.max(...reachableLatencies) : null,
     cacheHits,
