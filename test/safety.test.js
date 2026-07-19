@@ -1580,3 +1580,11 @@ test("api/chat.js cap constants are pinned", () => {
     assert.ok(re.test(src), `api/chat.js must define ${name} = ${expected}`);
   }
 });
+
+test("api/analyze.js model constants are pinned (GEMMA_MODEL + GEMINI_MODEL_DEFAULT)", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/analyze.js"), "utf8");
+  assert.match(src, /const\s+GEMMA_MODEL\s*=\s*["']google\/gemma-4-31b-it:free["']/, "GEMMA_MODEL must stay 'google/gemma-4-31b-it:free'");
+  assert.match(src, /const\s+GEMINI_MODEL_DEFAULT\s*=\s*["']gemini-2\.5-flash["']/, "GEMINI_MODEL_DEFAULT must stay 'gemini-2.5-flash'");
+});
