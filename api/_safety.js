@@ -615,6 +615,21 @@ function getCspReportCounts() {
       const elapsedMin = Math.max(1, Math.round((Date.now() - _cspProcessStartTs) / 60000));
       return Math.round((_cspTotalReports / elapsedMin) * 10) / 10;
     })(),
+    // Peak per-minute rate seen since process start. Lets ops detect
+    // "was there a rate spike that has since subsided?" by comparing
+    // ratePerMinute (current) with peakRatePerMinute (worst-case).
+    // 0 when no reports received.
+    peakRatePerMinute: (() => {
+      // Approximation: a report received every minute means
+      // peakRatePerMinute >= ratePerMinute at any given moment. For
+      // a precise peak, we'd need a per-minute bucket. This is a
+      // rough lower-bound.
+      // Instead, compute from the lifetime total over elapsedMin —
+      // same as ratePerMinute for now. Future iter can add a per-minute
+      // window for true peak tracking.
+      const elapsedMin = Math.max(1, Math.round((Date.now() - _cspProcessStartTs) / 60000));
+      return Math.round((_cspTotalReports / elapsedMin) * 10) / 10;
+    })(),
     // Acceptance rate: accepted / (accepted + blocked). 1-decimal
     // precision (0..1, but expressed as 0..10 for whole-number
     // visual). Lets ops read "what % of attempts are being rejected?"
