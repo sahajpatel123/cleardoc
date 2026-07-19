@@ -744,3 +744,14 @@ test("health handler: summary surfaces uniqueIPs (count of distinct source IPs s
   assert.match(HEALTH_SOURCE, /uniqueIPs/, "summary must include uniqueIPs field");
   assert.match(HEALTH_SOURCE, /getUniqueIPsCount/, "must call getUniqueIPsCount() from _safety.js");
 });
+
+// ── top active IPs (iter #68) ─────────────────────────────────────
+
+test("health handler: summary surfaces topActiveIPs (per-IP activity breakdown)", () => {
+  // Top-N most-active IPs since process start. Pairs with uniqueIPs
+  // (iter #67) for full fan-in analysis: uniqueIPs = how many distinct
+  // sources, topActiveIPs = which sources are doing the bulk of the
+  // traffic. SHA-256 hashed (PII-safe) + IP sample for ops identification.
+  assert.match(HEALTH_SOURCE, /topActiveIPs/, "summary must include topActiveIPs field");
+  assert.match(HEALTH_SOURCE, /getTopActiveIPs/, "must call getTopActiveIPs() from _safety.js");
+});

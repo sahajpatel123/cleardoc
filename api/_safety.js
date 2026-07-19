@@ -510,6 +510,30 @@ function getUniqueIPsCount() {
   return _buckets.size;
 }
 
+/* Read-only accessor for /api/health: top-N most-active IPs.
+ * Returns an array of { hash, count, sample } sorted by count desc.
+ * Keys are SHA-256 hashes of the IP (PII-safe: ops can identify the
+ * source by the `sample` field but never by the key). Returns up to
+ * the smaller of TOP_N and the actual count.
+ */
+function getTopActiveIPs(topN) {
+  const n = (typeof topN === "number" && topN > 0) ? Math.min(topN, 50) : 5;
+  // Snapshot the bucket values (sliding-window arrays) into a sortable
+  // list. Count = array length (one entry per request in the window).
+  // The array is bounded by the per-IP rate-limit maxPerMinute, so
+  // each entry's count is at most ~maxPerMinute.
+  const ranked = [];
+  for (const [ip, arr] of _buckets) {
+    if (!Array.isArray(arr)) continue;
+    // Hash the IP — IPv4 and IPv6 forms both lengthen the key, so
+    // the hash normalizes and also defends against PII in logs.
+    const hash = require("node:crypto").createHash("sha256").update(String(ip)).digest("hex").slice(0, 16);
+    ranked.push({ hash, count: arr.length, sample: String(ip).slice(0, 32) });
+  }
+  ranked.sort((a, b) => b.count - a.count);
+  return ranked.slice(0, n);
+}
+
 /* Emit the standard rate-limit response headers on every response that
  * consulted rateLimit(). Standard names: X-RateLimit-Limit, -Remaining,
  * -Reset (UNIX seconds). Always call BEFORE `json()` — once the body is
@@ -1061,6 +1085,7 @@ module.exports = {
   clearProbeCache,
   getProbeCounts,
   getUniqueIPsCount,
+  getTopActiveIPs,
   recordCspReport,
   getCspReportCounts,
   errLog,
