@@ -2906,3 +2906,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Linter added `currentConcurrentRequests` to summary; this iter added the test coverage. The full concurrency surface is now: `_currentConcurrent` (live in-flight) + `_peakConcurrent` (worst-case) + `currentConcurrentRequests` (summary field) + `peakConcurrentRequests` (summary field).
+
+**2026-07-19 15:40 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #113 of the autonomous loop** (cron `f1fb68b1` firing). Live: 15:40 IST.
+- **Shipped 1 behavioral test for `/api/csp-report` happy path** in `test/csp-report-error.test.js`. Until now only error-path tests existed; the success path was only exercised through the integration + smoke suites.
+- **Test**: POST a valid CSP violation body → verify `204` + `X-CSP-Reports-Processed-Total: 1` + `getCspReportCounts().total >= 1`. Also catches the "Buffer vs string" gotcha in body readers (readCappedBody requires Buffer/Uint8Array chunks).
+- **391/391 tests pass** (316 unit + 71 smoke + 1 integration). Test count +1.
+
+**Prompt Intention:**
+- Honored the standing directives. The csp-report handler is critical (processes browser CSP violation reports) but its happy path had no direct behavioral coverage. Now it does. The test also documents the body-chunk shape requirement (Buffer/Uint8Array, not strings) that the existing source-pattern tests miss.

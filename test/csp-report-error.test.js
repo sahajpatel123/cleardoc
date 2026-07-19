@@ -281,3 +281,64 @@ test("csp-report handler: 204 responses emit X-CSP-Reports-Processed-Total heade
     "header value must be the count of violations in this batch"
   );
 });
+
+// ── /api/csp-report happy-path behavioral test (iter #113) ─────
+
+test("csp-report: handler returns 204 + sets X-CSP-Reports-Processed-Total on valid input", async () => {
+  // Behavioral coverage for the success path. The handler should:
+  //   1. Read the body (a CSP report JSON)
+  //   2. Extract the violated directive + blocked URI + document URI
+  //   3. Call recordCspReport in _safety.js for each violation
+  //   4. Return 204 with X-CSP-Reports-Processed-Total = violation count
+  const fs = require("node:fs");
+  const path = require("node:path");
+  // Clear the require cache so we get a fresh handler + fresh module state.
+  delete require.cache[require.resolve("../api/csp-report.js")];
+  delete require.cache[require.resolve("../api/_safety.js")];
+
+  const handler = require("../api/csp-report.js");
+  const { getCspReportCounts, getProbeAverageLatencyInLastHour } = require("../api/_safety.js");
+
+  // Build a realistic CSP violation body.
+  const violation = {
+    "violated-directive": "script-src 'self'",
+    "blocked-uri": "https://evil.example.com/script.js",
+    "document-uri": "https://app.example.com/page",
+  };
+  const body = JSON.stringify({ "csp-report": violation });
+
+  const req = {
+    method: "POST",
+    headers: {
+      "content-type": "application/csp-report",
+      "content-length": String(Buffer.byteLength(body)),
+    },
+    socket: { remoteAddress: "127.0.0.1" },
+  };
+  const res = {
+    statusCode: 200,
+    _body: null,
+    headers: {},
+    headersSent: false,
+    setHeader(k, v) { this.headers[k] = v; },
+    end(s) { this._body = s; this.headersSent = true; },
+  };
+
+  // The handler needs to read the body. Mock req with a stream-like
+  // readable that pushes our payload as a Buffer (readCappedBody
+  // requires Buffer/Uint8Array chunks, not strings).
+  req[Symbol.asyncIterator] = async function* () {
+    yield Buffer.from(body);
+  };
+
+  await handler(req, res);
+
+  // Verify the response
+  assert.equal(res.statusCode, 204, "valid CSP report → 204 No Content");
+  assert.equal(res.headers["X-CSP-Reports-Processed-Total"], "1",
+    "X-CSP-Reports-Processed-Total must equal 1 (one violation in this batch)");
+
+  // Verify the report was recorded — getCspReportCounts now has a total > 0
+  const counts = getCspReportCounts();
+  assert.ok(counts.total >= 1, "getCspReportCounts.total must reflect the recorded report");
+});
