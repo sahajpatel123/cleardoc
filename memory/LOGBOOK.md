@@ -2317,3 +2317,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Shipped `155c41c1 test(safety): pin api/chat.js cap constants`.** Pin 8 caps in api/chat.js (MAX_DOCUMENT_CHARS=30000, MAX_REWRITE_CHARS=6000, MAX_QUESTION_CHARS=1000, MAX_HISTORY_TURNS=10, MAX_HISTORY_FIELD_CHARS=500, REQUEST_TIMEOUT_MS=25000, RATE_LIMIT_PER_MINUTE=30, MAX_REQUEST_BYTES=128*1024).
 - **Verification:** 299/299 tests pass (223 unit + 71 smoke + 1 integration). Pushed.
 
+
+**2026-07-19 07:08 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #65 of the autonomous loop** (cron `c3921bc4` firing). Live: 07:08 IST.
+- **Shipped `summary.totalErrors` (5xx aggregate) on /api/health** (`f8137eac`). New field: count of all 5xx responses served since process start.
+- **Pairs with `summary.requests`** (total) to give ops an error-rate ratio in a single curl: `totalErrors / requests`. 4xx excluded (client errors, not server problems) — only 5xx is server-side errors we want to alert on.
+- **Lighter-weight than walking the per-status breakdown** for ops dashboards that just need the headline error rate.
+- **Implementation**: module-level `_totalErrors` counter in `api/health.js`; increments inside the existing `recordRequestStatus()` helper when `statusCode >= 500` (standard 5xx boundary, excludes 4xx); surfaced in the same summary block as `requests` + per-status.
+- **302/302 tests pass** (230 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the last meaningful /api/health observability gap. Combined with `requests` (iter #58), `requestsByStatus` (iter #59), and now `totalErrors` (iter #65), ops can answer \"is the server healthy right now?\" with three numbers from a single `curl /api/health` — total volume, per-status breakdown, and 5xx-only error rate. The remaining gap is duration tracking (which would require persistent state across instances — out of scope for stateless Vercel).
