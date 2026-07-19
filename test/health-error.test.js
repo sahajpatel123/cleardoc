@@ -923,7 +923,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
   }
   // cspReports
   assert.ok(body.summary.cspReports, "summary must include cspReports");
-  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom", "ratePerMinute", "acceptanceRate", "lastBlockedAt"]) {
+  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom", "ratePerMinute", "acceptanceRate", "lastBlockedAt", "uniqueBlockedUris"]) {
     assert.ok(k in body.summary.cspReports, `cspReports must include ${k}`);
   }
   // process
@@ -1327,4 +1327,17 @@ test("health handler: cspReports surfaces lastBlockedAt (most recent rate-limit-
   assert.match(safetySrc, /_cspLastBlockedAt/, "_safety.js must track _cspLastBlockedAt");
   assert.match(safetySrc, /_cspLastBlockedAt\s*=\s*Date\.now\(\)/, "_safety.js must capture Date.now() in recordCspBlock");
   assert.match(safetySrc, /lastBlockedAt:/, "getCspReportCounts must surface lastBlockedAt field");
+});
+
+// ── uniqueBlockedUris (iter #99, linter-started) ──────────────
+
+test("health handler: cspReports surfaces uniqueBlockedUris (count of distinct blocked URIs)", () => {
+  // Pairs with mostBlocked (top-10) to give ops the scope of
+  // blocked-URI variety. Lets ops answer "how many distinct
+  // resources are being blocked?" from a single curl.
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /uniqueBlockedUris/, "_safety.js must surface uniqueBlockedUris field");
+  assert.match(safetySrc, /_cspBlockedUriCounts\.size/, "computation must use _cspBlockedUriCounts.size");
 });
