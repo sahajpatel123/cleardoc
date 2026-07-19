@@ -1528,3 +1528,29 @@ test("ANALYSIS_LIMITS constants are pinned (all 17 caps)", () => {
   // Must NOT contain entries from before the iter #16 hardening
   assert.doesNotMatch(src, /ANALYSIS_LIMITS\.\w+\s*=/, "ANALYSIS_LIMITS entries must not be reassigned");
 });
+
+test("VALID_SEVERITIES + VALID_VERDICT_LABELS enums are pinned", () => {
+  // /api/analyze's safeParseAnalysisResult uses these enums to validate
+  // risk.severity and verdict.label. Pin each value + Object.freeze.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/_safety.js"), "utf8");
+  // VALID_SEVERITIES
+  assert.match(
+    src,
+    /VALID_SEVERITIES\s*=\s*Object\.freeze\(\[\s*"trap"\s*,\s*"watch"\s*,\s*"note"\s*\]\)/,
+    "VALID_SEVERITIES must remain [\"trap\",\"watch\",\"note\"] (frozen)"
+  );
+  // VALID_VERDICT_LABELS — exact 4 strings in order
+  for (const label of ["Likely Fair", "Needs Review", "Suspicious", "Likely Illegal"]) {
+    assert.match(src, new RegExp(`"${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`), `VALID_VERDICT_LABELS must include "${label}"`);
+  }
+  // VALID_VERDICT_LABELS must also be Object.freeze()'d
+  assert.match(src, /VALID_VERDICT_LABELS\s*=\s*Object\.freeze\(/, "VALID_VERDICT_LABELS must be Object.freeze()'d");
+  // The 4 labels must be in VALID_VERDICT_LABELS, not elsewhere
+  const verdictBlock = src.match(/VALID_VERDICT_LABELS\s*=\s*Object\.freeze\(\[\s*([\s\S]*?)\s*\]\)/);
+  assert.ok(verdictBlock, "VALID_VERDICT_LABELS block must exist");
+  for (const label of ["Likely Fair", "Needs Review", "Suspicious", "Likely Illegal"]) {
+    assert.match(verdictBlock[1], new RegExp(`"${label}"`), `VALID_VERDICT_LABELS block must contain "${label}"`);
+  }
+});
