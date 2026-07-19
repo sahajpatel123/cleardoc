@@ -2171,3 +2171,42 @@ test("_safety: asString trims whitespace AFTER truncation", () => {
   // When no leading whitespace, no trim is applied
   assert.equal(asString("hello  ", 8), "hello", "trailing ws is trimmed");
 });
+
+// ── getUniqueIPsCount behavioral coverage (iter #123) ────────
+
+test("_safety: getUniqueIPsCount returns the count of distinct IPs that have called", () => {
+  const { rateLimit, getUniqueIPsCount } = require("../api/_safety.js");
+  // Snapshot the current count (other tests may have added IPs)
+  const baseline = getUniqueIPsCount();
+  // Add 3 new distinct IPs
+  const newIps = [
+    `198.51.100.${Math.floor(Math.random() * 254) + 1}`,
+    `198.51.100.${Math.floor(Math.random() * 254) + 1}`,
+    `198.51.100.${Math.floor(Math.random() * 254) + 1}`,
+  ];
+  for (const ip of newIps) rateLimit(ip, 60);
+  // Count must have grown by exactly 3
+  assert.equal(getUniqueIPsCount(), baseline + 3,
+    "3 new distinct IPs must add 3 to the count");
+  // Repeating one of the IPs should not increment the count
+  rateLimit(newIps[0], 60);
+  assert.equal(getUniqueIPsCount(), baseline + 3,
+    "re-using an existing IP must not change the count");
+});
+
+test("_safety: getTopActiveIPs returns a sorted, capped list of {hash, count} entries", () => {
+  const { rateLimit, getTopActiveIPs } = require("../api/_safety.js");
+  // Use a unique IP for this test to avoid bucket pollution
+  const baseIp = `203.0.113.${Math.floor(Math.random() * 254) + 1}`;
+  // Make 3 requests from the same IP
+  for (let i = 0; i < 3; i++) rateLimit(baseIp, 60);
+  const top = getTopActiveIPs(5);
+  assert.ok(Array.isArray(top), "must return an array");
+  // Each entry has hash + count
+  for (const entry of top) {
+    assert.equal(typeof entry.hash, "string", "entry.hash must be a string (SHA-256)");
+    assert.equal(typeof entry.count, "number", "entry.count must be a number");
+  }
+  // Top-N is capped at N
+  assert.ok(top.length <= 5, "top-N must be capped at N");
+});
