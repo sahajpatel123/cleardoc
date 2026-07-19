@@ -1446,3 +1446,25 @@ test("Content-Type charset suffix is accepted on analyze + chat (e.g. applicatio
   assert.equal(re.test("application/json "), true, "trailing space then EOL is valid");
   assert.equal(re.test("application/json+xml"), false, "+suffix must be rejected");
 });
+
+test("endpoint rate-limit caps are pinned: analyze=10/min, chat=30/min, csp-report=60/min", () => {
+  // Each /api/* handler has its own RATE_LIMIT_PER_MINUTE constant
+  // tuned for cost/load. Pin these so a future refactor can't silently
+  // raise the cap (cost) or lower it (UX).
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const cases = [
+    ["analyze.js", 10, /per-IP cap \(analyze is expensive\)/],
+    ["chat.js", 30, /per-IP cap \(chat is cheaper\)/],
+    ["csp-report.js", 60, /browsers don't usually spam/],
+    ["health.js", 60, /health checks can be polled frequently/],
+  ];
+  for (const [file, expected, commentHint] of cases) {
+    const src = fs.readFileSync(path.resolve(__dirname, "../api", file), "utf8");
+    const m = src.match(/RATE_LIMIT_PER_MINUTE\s*=\s*(\d+)/);
+    assert.ok(m, `${file} must declare RATE_LIMIT_PER_MINUTE`);
+    const got = parseInt(m[1], 10);
+    assert.equal(got, expected, `${file} RATE_LIMIT_PER_MINUTE must stay at ${expected} (got ${got})`);
+    assert.match(src, commentHint, `${file} must keep the rationale comment`);
+  }
+});
