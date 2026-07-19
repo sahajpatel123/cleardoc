@@ -273,8 +273,8 @@ function getProbeReachabilityInLastHour() {
   while (_probeOutcomes.length && _probeOutcomes[0].ts < cutoff) {
     _probeOutcomes.shift();
   }
-  const result = { gemini: { okCount: 0, total: 0, successRate: null },
-                   openrouter: { okCount: 0, total: 0, successRate: null } };
+  const result = { gemini: { okCount: 0, total: 0, successRate: null, failureRate: null },
+                   openrouter: { okCount: 0, total: 0, successRate: null, failureRate: null } };
   for (const e of _probeOutcomes) {
     if (result[e.provider]) {
       result[e.provider].total += 1;
@@ -285,6 +285,9 @@ function getProbeReachabilityInLastHour() {
     if (result[p].total > 0) {
       // 1-decimal precision like the iter #52 usedPercent field.
       result[p].successRate = Math.round((result[p].okCount / result[p].total) * 1000) / 10;
+      // Failure rate is the inverse of success rate. Lets ops answer
+      // "what % of probes failed?" without computing it from success.
+      result[p].failureRate = Math.round(((result[p].total - result[p].okCount) / result[p].total) * 1000) / 10;
     }
   }
   return result;

@@ -223,6 +223,13 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Lets ops answer "is the provider flapping?" — a 50%-reachable
     // signal is actionable even when the current state is OK.
     providersReachableInLastHour: getProbeReachabilityInLastHour(),
+    // Per-provider failure rate over the rolling 1-hour window.
+    // Inverse of success rate. Lets ops answer "what % of probes
+    // failed?" without computing it from the success rate.
+    providersFailureRateInLastHour: (() => {
+      const r = getProbeReachabilityInLastHour();
+      return { gemini: r.gemini.failureRate, openrouter: r.openrouter.failureRate };
+    })(),
     // Per-provider average latency across the rolling 1-hour window.
     // Pairs with fastestProviderMs / slowestProviderMs to show the
     // central tendency. Lets ops answer "is the average getting
