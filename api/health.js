@@ -41,6 +41,10 @@ const MAX_STATUS_BUCKETS = 50;
 // `summary.requests` (total) to give ops an error-rate ratio in
 // a single curl: totalErrors / requests.
 let _totalErrors = 0;
+// Rolling 1-hour window of 5xx timestamps. Lets ops answer "are we
+// erroring RIGHT NOW?" independent of process age — pairs with the
+// cumulative `totalErrors` field.
+let _errorsInLastHour = [];
 // Unix-ms timestamp of the most recent 5xx response since process start.
 // Pairs with `totalErrors` (count + recency = actionable signal: "are
 // we erroring RIGHT NOW or just historically?"). 0 until the first 5xx.
@@ -66,6 +70,12 @@ function recordRequestStatus(statusCode) {
     _totalErrors += 1;
     _lastErrorAt = Date.now();
     _consecutiveSuccesses = 0;
+    // Push to the rolling 1-hour window for `errorsInLastHour`.
+    _errorsInLastHour.push(Date.now());
+    const cutoffHour = Date.now() - 3600 * 1000;
+    while (_errorsInLastHour.length > 0 && _errorsInLastHour[0] < cutoffHour) {
+      _errorsInLastHour.shift();
+    }
   } else if (statusCode >= 200 && statusCode < 300) {
     // Only 2xx counts as "consecutive success". 4xx is a client error
     // (rate limit, bad input) — doesn't break the server's healthy
@@ -328,6 +338,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // recently". Lets ops answer "are we erroring right now, or just
     // historically?" from a single curl. Null until the first 5xx.
     lastErrorAt: _lastErrorAt ? new Date(_lastErrorAt).toISOString() : null,
+    topActiveIPs: getTopActiveIPs(5),
+    // Rolling 1-hour 5xx count. Pairs with the cumulative `totalErrors`
+    // to give ops a windowed view of recent failures — "are we
+    // erroring RIGHT NOW?" independent of process age.
+    errorsInLastHour: _errorsInLastHour.length,
     // Consecutive 2xx-response counter. Direct "are we currently in a
     // degraded state?" signal — 0 means the most recent successful
     // response was a 5xx; >0 means we've been healthy for that many
