@@ -2172,3 +2172,10 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #19 confirmed green baseline. Next iteration scheduled to fire in 10 minutes.
+**2026-07-19 05:00 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #22 of /loop 10minutes** — autonomous DevSecOps guardian.
+- **Recon:** parallel session shipped `91aeb9a0 test(safety): X-Endpoint marker coverage test for all 4 API routes` (iter #56). Working tree clean on entry.
+- **Shipped `2df9e56f fix(analyze): make ?format=verdict-only detection case-insensitive`.** The compact-mode regex on api/analyze.js:415 was case-sensitive. A request to `?FORMAT=VERDICT-ONLY` silently bypassed compact mode and hit the full analyze path — wrong AI prompt, slower response, larger bill. Added the `i` flag so any casing activates compact mode. Source-pattern test locks in the flag.
+- **Verification:** 287/287 tests pass (216 unit + 71 smoke + 1 integration). Pushed to origin/main.
+
