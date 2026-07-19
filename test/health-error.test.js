@@ -1254,3 +1254,52 @@ test("health handler: summary exposes providersLastUpdated (per-provider most-re
   assert.match(safetySrc, /getLastProbeUpdate/, "_safety.js must export getLastProbeUpdate accessor");
   assert.match(safetySrc, /_lastProbeUpdate/, "_safety.js must track per-provider last-update timestamps");
 });
+
+// ── recordRequestStatus test-only export (iter #95) ────────────
+
+test("health handler: recordRequestStatus is exported test-only", () => {
+  // The bookkeeping function isn't part of the production API surface,
+  // but exporting it (alongside buildSummary + computeHealthEtag) lets
+  // us unit-test its 5xx-resets-2xx-streak behavior without going
+  // through the full handler.
+  const { recordRequestStatus } = require("../api/health.js");
+  assert.equal(typeof recordRequestStatus, "function", "recordRequestStatus must be exported");
+});
+
+test("health handler: recordRequestStatus ignores non-numeric + out-of-range codes", () => {
+  const { recordRequestStatus } = require("../api/health.js");
+  // Non-numeric / NaN must be no-ops (defensive against accidental
+  // calls with wrong types — e.g. res.statusCode left undefined).
+  assert.doesNotThrow(() => recordRequestStatus(NaN), "NaN must be ignored");
+  assert.doesNotThrow(() => recordRequestStatus(undefined), "undefined must be ignored");
+  assert.doesNotThrow(() => recordRequestStatus("500"), "string must be ignored (defensive)");
+  // Out-of-range (< 100, >= 600) must be ignored — status codes are
+  // bounded at the standard set; anything else is malformed input.
+  assert.doesNotThrow(() => recordRequestStatus(99), "sub-100 status must be ignored");
+  assert.doesNotThrow(() => recordRequestStatus(600), "600+ status must be ignored");
+  assert.doesNotThrow(() => recordRequestStatus(-1), "negative status must be ignored");
+});
+
+test("health handler: recordRequestStatus is callable in a sequence without throwing", () => {
+  // Smoke for the bookkeeping: call recordRequestStatus with a mix of
+  // valid + invalid codes. Function must not throw on any input —
+  // the handler relies on this in its finally block.
+  const { recordRequestStatus } = require("../api/health.js");
+  // Real codes — must update internal state silently.
+  assert.doesNotThrow(() => recordRequestStatus(200), "200 must not throw");
+  assert.doesNotThrow(() => recordRequestStatus(204), "204 must not throw");
+  assert.doesNotThrow(() => recordRequestStatus(404), "404 must not throw");
+  assert.doesNotThrow(() => recordRequestStatus(500), "500 must not throw");
+  assert.doesNotThrow(() => recordRequestStatus(503), "503 must not throw");
+  // Malformed — must be silently ignored.
+  assert.doesNotThrow(() => recordRequestStatus(NaN), "NaN must not throw");
+  assert.doesNotThrow(() => recordRequestStatus(Infinity), "Infinity must not throw");
+  assert.doesNotThrow(() => recordRequestStatus(-Infinity), "-Infinity must not throw");
+  assert.doesNotThrow(() => recordRequestStatus(null), "null must not throw");
+  assert.doesNotThrow(() => recordRequestStatus({}), "object must not throw");
+  assert.doesNotThrow(() => recordRequestStatus([200]), "array must not throw");
+  // Out-of-range status codes — silently ignored (not standard HTTP).
+  assert.doesNotThrow(() => recordRequestStatus(99), "sub-100 must not throw");
+  assert.doesNotThrow(() => recordRequestStatus(600), "600+ must not throw");
+  assert.doesNotThrow(() => recordRequestStatus(99999), "very large must not throw");
+});

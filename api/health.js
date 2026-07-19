@@ -268,6 +268,12 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // temporal picture of the probe cache: "when did the cache last
     // refresh for this provider?"
     providersLastUpdated: getLastProbeUpdate(),
+    // Consecutive 2xx-response counter for this endpoint. 0 means
+    // the most recent response was a 5xx; >0 means the function has
+    // been healthy for that many requests. Useful for "are we
+    // currently in a degraded state?" Pairs with lastErrorAt (when)
+    // for the full error picture.
+    consecutiveSuccesses: _consecutiveSuccesses,
     // Per-provider consecutive probe-failure streak counter. Lets ops
     // answer "is this provider in a degraded streak right now?" —
     // 0 means the most recent probe was a success; >0 means N
@@ -664,3 +670,4 @@ module.exports = async function handler(req, res) {
 // properties is harmless (the runtime reads module.exports as a function).
 module.exports.buildSummary = buildSummary;
 module.exports.computeHealthEtag = computeHealthEtag;
+module.exports.recordRequestStatus = recordRequestStatus;

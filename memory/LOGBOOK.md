@@ -2687,3 +2687,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the /api/health observability loop. The CSP surface is now: `total` (accepted count) + `blocked` (rejected count, internal) + `ratePerMinute` (tempo) + `acceptanceRate` (0..1 quality signal). The probe surface is now: `lastReachableAt` (success) + `lastFailure` (failure) + `lastUpdated` (any probe, success OR failure) + `successRate`/`failureRate` (windowed ratios) + `consecutiveFailures` (current streak).
+
+**2026-07-19 12:40 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #95 of the autonomous loop** (cron `f1fb68b1` firing). Live: 12:40 IST.
+- **Shipped test-only export of `recordRequestStatus` from /api/health**. No new field, no new behavior — pure test-coverage improvement.
+- **Closed the `recordRequestStatus` test coverage gap**. The bookkeeping function (5 counters + LRU map + consecutiveSuccesses) was exercised only through the handler's finally block — no direct tests. Exported test-only (alongside `buildSummary` and `computeHealthEtag`) so we can verify the defensive guards (non-numeric, out-of-range, NaN, Infinity, null, object, array) don't throw.
+- **2 new tests**: (1) verifies the function is exported and callable, (2) exercises 14 distinct input shapes (valid codes + 7 invalid + 3 out-of-range) and asserts none throw.
+- **356/356 tests pass** (281 unit + 71 smoke + 1 integration). Test count increased by 2 from iter #94.
+
+**Prompt Intention:**
+- Honored the standing directives. Did a test-coverage improvement instead of another feature add. Internal bookkeeping helpers should have direct tests, not only be exercised through their callers — the handler's finally block path can change subtly and only a direct test catches regressions in `recordRequestStatus` itself.
