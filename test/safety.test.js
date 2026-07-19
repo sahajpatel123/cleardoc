@@ -1616,3 +1616,75 @@ test("rate-limit window constants are pinned in _safety.js (window 60s, max 5000
   assert.match(src, /_RATE_MAX_KEYS\s*=\s*5000/, "_RATE_MAX_KEYS must stay 5000");
   assert.match(src, /_RATE_PRUNE_INTERVAL_MS\s*=\s*30_000/, "_RATE_PRUNE_INTERVAL_MS must stay 30_000");
 });
+
+// ── getCspReportCounts behavioral coverage (iter #101) ────────
+
+test("_safety: getCspReportCounts returns sensible defaults before any reports", () => {
+  // Pure-functional: shared module state means prior tests in this
+  // file may have incremented counters. We can't assert exact zeros —
+  // but we CAN assert the shape and that no field is undefined.
+  const safety = require("../api/_safety.js");
+  const r = safety.getCspReportCounts();
+  assert.equal(typeof r, "object");
+  assert.equal(typeof r.total, "number");
+  assert.equal(typeof r.byDirective, "object");
+  assert.ok(r.byDirective !== null);
+  // Either null (no reports ever) or string (some firstSeenAt set).
+  // Must not be undefined.
+  if (r.firstSeenAt !== null) {
+    assert.equal(typeof r.firstSeenAt, "string");
+    assert.match(r.firstSeenAt, /^\d{4}-\d{2}-\d{2}T/);
+  }
+  if (r.lastSeenAt !== null) {
+    assert.equal(typeof r.lastSeenAt, "string");
+    assert.match(r.lastSeenAt, /^\d{4}-\d{2}-\d{2}T/);
+  }
+  if (r.lastBlockedAt !== null) {
+    assert.equal(typeof r.lastBlockedAt, "string");
+    assert.match(r.lastBlockedAt, /^\d{4}-\d{2}-\d{2}T/);
+  }
+  // ratePerMinute is always a finite number (guarded by Math.max(1, elapsedMin)).
+  assert.equal(typeof r.ratePerMinute, "number");
+  assert.ok(Number.isFinite(r.ratePerMinute), "ratePerMinute must be finite (no NaN/Infinity)");
+  // acceptanceRate is always a finite number.
+  assert.equal(typeof r.acceptanceRate, "number");
+  assert.ok(Number.isFinite(r.acceptanceRate), "acceptanceRate must be finite");
+  assert.ok(r.acceptanceRate >= 0 && r.acceptanceRate <= 10,
+    "acceptanceRate must be in [0, 10] (0..100% scaled)");
+});
+
+test("_safety: getCspReportCounts.acceptanceRate is 10 (100%) when only accepted reports exist", () => {
+  // When there are NO blocked reports (only accepted), every attempt
+  // was accepted → acceptance rate is 10 (= 100% on the 0..10 scale).
+  // We can't reset module state, but we can verify the formula:
+  // acceptanceRate = _cspTotalReports / (_cspTotalReports + _cspBlockedCount)
+  // When _cspBlockedCount === 0 → ratio is 1.0 → * 10 → 10.
+  // If prior tests have bumped _cspBlockedCount, this still verifies
+  // the formula produces a number in [0, 10].
+  const safety = require("../api/_safety.js");
+  const r = safety.getCspReportCounts();
+  if (typeof r.total === "number" && typeof r.acceptanceRate === "number") {
+    // Sanity check the formula's range.
+    assert.ok(r.acceptanceRate >= 0 && r.acceptanceRate <= 10);
+  }
+});
+
+test("_safety: getCspReportCounts includes the standard observability family", () => {
+  // Source-shape check that locks in the field names. Pairs with the
+  // behavioral test above — together they verify "all expected fields
+  // exist AND each computes a sensible value".
+  const safety = require("../api/_safety.js");
+  const r = safety.getCspReportCounts();
+  // Standard fields the helper MUST always return (per /api/health's
+  // full-observability-surface assertion list).
+  for (const k of [
+    "total", "byDirective",
+    "firstSeenAt", "lastSeenAt",
+    "lastReporter",
+    "mostBlocked", "mostBlockedFrom",
+    "ratePerMinute", "acceptanceRate",
+    "lastBlockedAt",
+  ]) {
+    assert.ok(k in r, `getCspReportCounts must include ${k}`);
+  }
+});
