@@ -201,6 +201,13 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
       if (openRouterProbe && openRouterProbe.checkedAt) ats.push(Date.now() - openRouterProbe.checkedAt);
       return ats.length ? Math.min(...ats) : null;
     })(),
+    // Cache miss rate (0..1, 1-decimal precision). Lighter than
+    // computing the rate client-side. Pairs with totalProbes +
+    // networkProbes to make cache effectiveness derivable from a
+    // single number.
+    cacheMissRate: probeCounts.total > 0
+      ? Math.round((probeCounts.network / probeCounts.total) * 1000) / 10
+      : 0,
     // Per-provider reachability rate over the rolling 1-hour window.
     // Lets ops answer "is the provider flapping?" — a 50%-reachable
     // signal is actionable even when the current state is OK.

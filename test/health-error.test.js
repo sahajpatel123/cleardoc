@@ -1018,3 +1018,13 @@ test("health handler: summary exposes providersReachableByRegionInLastHour (per-
   // The probe outcome entry must include the region
   assert.match(safetySrc, /region:\s*process\.env\.VERCEL_REGION/, "probe outcomes must capture VERCEL_REGION at record time");
 });
+
+// ── cacheMissRate (iter #81) ───────────────────────────────────
+
+test("health handler: summary exposes cacheMissRate (networkProbes / totalProbes)", () => {
+  // Single number cache effectiveness. Pairs with the existing
+  // totalProbes + networkProbes to make cache effectiveness derivable
+  // from a single number. 1-decimal precision, 0 when totalProbes is 0.
+  assert.match(HEALTH_SOURCE, /cacheMissRate/, "summary must include cacheMissRate field");
+  assert.match(HEALTH_SOURCE, /network\s*\/\s*probeCounts\.total/, "computation must be networkProbes / totalProbes");
+});
