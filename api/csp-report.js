@@ -99,7 +99,7 @@ module.exports = async function handler(req, res) {
     const rl = rateLimit(getIp(req), RATE_LIMIT_PER_MINUTE);
     applyRateLimitHeaders(res, rl);
     if (!rl.ok) {
-      recordCspBlock();
+      recordCspBlock(getIp(req));
       return json(res, 429, { error: "Too many reports. Try again shortly." });
     }
 

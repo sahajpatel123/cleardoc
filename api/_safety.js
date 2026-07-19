@@ -486,7 +486,7 @@ let _cspLastReporterSample = null;
 // Most recent rate-limit-rejected reporter IP. Pairs with
 // lastReporter (most recent ACCEPTED reporter) to give ops the
 // full picture: "is anyone currently being throttled?" without
-// grepping logs.
+// grepping logs. Populated by recordCspBlock(reporterIp).
 let _cspLastBlockerHash = null;
 let _cspLastBlockerSample = null;
 const _csp = require("node:crypto");
@@ -535,14 +535,14 @@ let _cspBlockedCount = 0;
 // report. Pairs with firstSeenAt/lastSeenAt (accepted) and
 // lastReporter to give ops the full timeline of the CSP stream.
 let _cspLastBlockedAt = 0;
-let _cspReportCallerIp = null;
-function recordCspBlock() {
+function recordCspBlock(reporterIp) {
   _cspBlockedCount += 1;
   _cspLastBlockedAt = Date.now();
   // Capture the rate-limited reporter IP for the lastBlockByIp
-  // surface. Mirrors the lastReporter pattern.
-  if (typeof _cspReportCallerIp === "string" && _cspReportCallerIp.length > 0 && _cspReportCallerIp.length <= 200) {
-    const sample = _cspReportCallerIp.slice(0, 64);
+  // surface. Mirrors the lastReporter pattern. reporterIp is the
+  // raw client IP string (already sanitized upstream via getIp).
+  if (typeof reporterIp === "string" && reporterIp.length > 0 && reporterIp.length <= 200) {
+    const sample = reporterIp.slice(0, 64);
     const hash = _csp.createHash("sha256").update(sample).digest("hex").slice(0, 16);
     _cspLastBlockerHash = hash;
     _cspLastBlockerSample = sample;

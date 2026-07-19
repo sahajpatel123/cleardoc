@@ -925,7 +925,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
   }
   // cspReports
   assert.ok(body.summary.cspReports, "summary must include cspReports");
-  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom", "ratePerMinute", "acceptanceRate", "lastBlockedAt", "uniqueBlockedUris"]) {
+  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom", "ratePerMinute", "acceptanceRate", "lastBlockedAt", "uniqueBlockedUris", "lastBlockByIp"]) {
     assert.ok(k in body.summary.cspReports, `cspReports must include ${k}`);
   }
   // process
@@ -1451,6 +1451,22 @@ test("health handler: process block surfaces startupDurationPretty (human-readab
   assert.match(HEALTH_SOURCE, /ms\s*>\s*600000/, "must cap at 600000ms (10 min cold-start threshold)");
   // Must return null when no first request yet (parity with startupDurationMs)
   assert.match(HEALTH_SOURCE, /ms\s*===\s*null/, "must return null when no first request yet");
+});
+
+// ── lastBlockByIp (iter #115, linter-started) ──────────────────
+
+test("health handler: cspReports surfaces lastBlockByIp (most recent rate-limited reporter)", () => {
+  // Pairs with lastReporter (most recent ACCEPTED reporter) for
+  // the full picture: "which IP is throttled vs which is active?"
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /lastBlockByIp/, "getCspReportCounts must surface lastBlockByIp field");
+  assert.match(safetySrc, /_cspLastBlockerHash/, "_safety.js must track last-blocker hash");
+  assert.match(safetySrc, /_cspLastBlockerSample/, "_safety.js must track last-blocker sample");
+  // recordCspBlock must accept the reporter IP parameter
+  assert.match(safetySrc, /function\s+recordCspBlock\s*\(\s*reporterIp\s*\)/,
+    "recordCspBlock must accept reporterIp parameter");
 });
 
 // ── currentConcurrentRequests (iter #112, linter-added) ────────

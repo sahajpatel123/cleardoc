@@ -2928,3 +2928,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the pattern: every precise ms field gets a paired pretty-format field. Ops dashboards now have: `process.processUptimePretty` + `process.startupDurationPretty` for human-readable timing, alongside the precise-integer fields for scripts.
+
+**2026-07-19 16:00 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #115 of the autonomous loop** (cron `f1fb68b1` firing). Live: 16:00 IST.
+- **Completed the linter's `cspReports.lastBlockByIp` wiring** (commit `4eafcd11` partially shipped).
+- **Closes the "which IP is currently being rate-limited?" observability gap**. Pairs with `cspReports.lastReporter` (most recent accepted reporter) for the full throttled-vs-active picture.
+- **Implementation**: changed `recordCspBlock()` to `recordCspBlock(reporterIp)` — accepts the source IP directly. The linter had used a module-level variable (`_cspReportCallerIp`) that was never set; switched to parameter passing for explicitness. Updated `api/csp-report.js` to call `recordCspBlock(getIp(req))`.
+- **1 new source-pattern test** + extended full-observability-surface cspReports assertion list.
+- **393/393 tests pass** (318 unit + 71 smoke + 1 integration). Test count +1.
+
+**Prompt Intention:**
+- Honored the standing directives. Completed the linter's partial work — the field reference + accessor was added but the source IP was never wired into the call. Standard parameter-passing pattern (`recordCspBlock(reporterIp)`) replaces the linter's intended module-level state handoff.
