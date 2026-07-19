@@ -1342,6 +1342,43 @@ test("health handler: cspReports surfaces uniqueBlockedUris (count of distinct b
   assert.match(safetySrc, /_cspBlockedUriCounts\.size/, "computation must use _cspBlockedUriCounts.size");
 });
 
+// ── processUptimePretty (iter #102, linter-added) ─────────────
+
+test("health handler: process block surfaces processUptimePretty (human-readable uptime)", () => {
+  // Linter-added: human-readable uptime format. Pairs with
+  // processUptimeSec (precise integer seconds) — pretty format for
+  // humans glancing at curl, integer for ops scripts.
+  assert.match(HEALTH_SOURCE, /processUptimePretty/, "process block must include processUptimePretty field");
+  // Format must include time unit suffixes
+  assert.match(HEALTH_SOURCE, /\$\{[^}]+\}s/, "must format seconds with 's' suffix");
+  assert.match(HEALTH_SOURCE, /\$\{[^}]+\}m/, "must format minutes with 'm' suffix");
+  // Format must include 'd' for days (when uptime > 24h)
+  assert.match(HEALTH_SOURCE, /\$\{[^}]+\}d/, "must format days with 'd' suffix");
+});
+
+test("health handler: processUptimePretty is a non-empty string in the rendered payload", async () => {
+  // Behavioral check: render the handler end-to-end and assert the
+  // field is a non-empty string with at least one time-unit suffix.
+  if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY && !process.env.GOOGLE_GEMINI_API_KEY) {
+    process.env.OPENROUTER_API_KEY = "test-stub-key-uptime";
+  }
+  const handler = require("../api/health.js");
+  const res = {
+    statusCode: 200, _body: null, headers: {}, headersSent: false,
+    setHeader(k, v) { this.headers[k] = v; },
+    end(s) { this._body = s; this.headersSent = true; },
+  };
+  const req = { method: "GET", headers: {}, socket: { remoteAddress: "127.0.0.1" } };
+  await handler(req, res);
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res._body);
+  assert.ok(body.process, "200 payload must include process");
+  assert.equal(typeof body.process.processUptimePretty, "string");
+  assert.ok(body.process.processUptimePretty.length > 0);
+  // Must end with one of the time-unit suffixes (s/m/d/h)
+  assert.match(body.process.processUptimePretty, /[smhd]$/);
+});
+
 // ── buildSummary behavioral tests (iter #100) ──────────────────
 
 test("buildSummary: empty state (no providers, no probes) returns sane defaults", () => {
