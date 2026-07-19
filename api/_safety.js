@@ -548,6 +548,10 @@ function getCspReportCounts() {
     // report".
     firstSeenAt: _cspFirstSeenAt ? new Date(_cspFirstSeenAt).toISOString() : null,
     lastSeenAt: _cspLastSeenAt ? new Date(_cspLastSeenAt).toISOString() : null,
+    // Unix-ms timestamp of the most recent rate-limit-rejected CSP
+    // report. Pairs with lastSeenAt (last accepted) to give ops the
+    // full CSP timeline. Null until the first block.
+    lastBlockedAt: _cspLastBlockedAt ? new Date(_cspLastBlockedAt).toISOString() : null,
     // Most recent rate-limit-rejected timestamp. Distinct from
     // lastSeenAt (which is the last *accepted* report). Null until
     // the first block. Lets ops answer "when was the most recent
@@ -584,6 +588,10 @@ function getCspReportCounts() {
     // report".
     firstSeenAt: _cspFirstSeenAt ? new Date(_cspFirstSeenAt).toISOString() : null,
     lastSeenAt: _cspLastSeenAt ? new Date(_cspLastSeenAt).toISOString() : null,
+    // Unix-ms timestamp of the most recent rate-limit-rejected CSP
+    // report. Pairs with lastSeenAt (last accepted) to give ops the
+    // full CSP timeline. Null until the first block.
+    lastBlockedAt: _cspLastBlockedAt ? new Date(_cspLastBlockedAt).toISOString() : null,
     // Most recent rate-limit-rejected timestamp. Distinct from
     // lastSeenAt (which is the last *accepted* report). Null until
     // the first block. Lets ops answer "when was the most recent
