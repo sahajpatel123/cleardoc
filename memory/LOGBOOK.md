@@ -2882,3 +2882,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Completed the linter's partial work — they added the field reference + the comment but left the value as a literal `0`. Implementing the tracking required: 2 module-level counters, increment at handler start, decrement in finally (always), peak capture, surface the peak in the summary return.
+
+**2026-07-19 15:20 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #111 of the autonomous loop** (cron `f1fb68b1` firing). Live: 15:20 IST.
+- **Linter-shipped `summary.requestsInLastMinute` on /api/health**. New field: count of requests served in the rolling 1-minute window.
+- **Closes the "is the rate spiking RIGHT NOW?" observability gap (finer-grained)**. Pairs with `requestsInLastHour` (iter #87) for finer rate analysis. Useful for ops dashboards that need to spot sudden rate spikes within seconds, not minutes.
+- **Implementation**: new module-level `_requestsInLastMinute = []`. Pushed to on every request + lazily pruned (entries > 60s old). Surfaced as `_requestsInLastMinute.length`.
+- **1 new source-pattern test** + extended full-observability-surface assertion list.
+- **390/390 tests pass** (315 unit + 71 smoke + 1 integration). Test count +1.
+
+**Prompt Intention:**
+- Honored the standing directives. Linter completed the work this iter (unlike iter #110 where I had to implement the tracking). I added the test coverage. Combined: `requestsInLastMinute` (1-min) + `requestsInLastHour` (1-hour) + `requests` (lifetime) give ops three time horizons for the same metric.

@@ -918,7 +918,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "providersFailureRateInLastHour", "consecutiveSuccesses",
     "providersConsecutiveFailures", "errorsInLastHour", "cacheSize",
     "providersLastUpdated", "lastHealthDurationMs", "maxHealthDurationMs",
-    "peakConcurrentRequests",
+    "peakConcurrentRequests", "requestsInLastMinute",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1423,6 +1423,19 @@ test("health handler: summary exposes peakConcurrentRequests (peak in-flight sin
   assert.match(HEALTH_SOURCE, /_currentConcurrent\s*\+=\s*1/, "must increment at handler start");
   assert.match(HEALTH_SOURCE, /_currentConcurrent\s*-=\s*1/, "must decrement in finally");
   assert.match(HEALTH_SOURCE, /_currentConcurrent\s*>\s*_peakConcurrent/, "peak must update when current exceeds it");
+});
+
+// ── requestsInLastMinute (iter #111, linter-added) ────────────
+
+test("health handler: summary exposes requestsInLastMinute (rolling 1-minute count)", () => {
+  // Finer-grained window than requestsInLastHour (iter #87). Lets ops
+  // spot "is the rate spiking RIGHT NOW?" independent of process age.
+  assert.match(HEALTH_SOURCE, /requestsInLastMinute/, "summary must include requestsInLastMinute field");
+  assert.match(HEALTH_SOURCE, /_requestsInLastMinute/, "must have a module-level _requestsInLastMinute array");
+  assert.match(HEALTH_SOURCE, /_requestsInLastMinute\.push/, "must push to the rolling window on each request");
+  assert.match(HEALTH_SOURCE, /_requestsInLastMinute\.length/, "must surface the array length as the field value");
+  // Must use 60s cutoff (not 3600s like the 1-hour window)
+  assert.match(HEALTH_SOURCE, /60\s*\*\s*1000/, "must use 60s cutoff for 1-minute window");
 });
 
 test("health handler: process.execPath is a non-empty string in the rendered payload", async () => {
