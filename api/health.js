@@ -466,6 +466,19 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
       entries.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
       return entries.slice(0, 3).map(([status, count]) => ({ status, count }));
     })(),
+    // Counts bucketed by status class (1xx/2xx/3xx/4xx/5xx).
+    // Pairs with requestsByStatusTop3 (per-code top 3) for
+    // class-level view: "are we 4xx-heavy or 5xx-heavy?" from a
+    // single glance. Always includes all 5 buckets (zeros if no
+    // requests in that class).
+    requestsPerStatusGroup: (() => {
+      const groups = { "1xx": 0, "2xx": 0, "3xx": 0, "4xx": 0, "5xx": 0 };
+      for (const [status, count] of _requestsByStatus) {
+        const cls = Math.floor(status / 100);
+        if (cls >= 1 && cls <= 5) groups[`${cls}xx`] += count;
+      }
+      return groups;
+    })(),
     cspReports: cspCounts,
   };
 }

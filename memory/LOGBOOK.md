@@ -3083,6 +3083,18 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored the standing directives. `providersReachableInLastHour` has been source-pattern tested since iter #76. This iter adds end-to-end behavioral coverage via the handler render. Verifies the shape (4 fields per provider, number-or-null for rates) and that the field is present in the summary.
 
+**2026-07-19 18:20 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #129 of the autonomous loop** (cron `f1fb68b1` firing). Live: 18:20 IST.
+- **Shipped `summary.requestsPerStatusGroup` on /api/health**. New field: bucketed counts by status class. Format: `{ "1xx": 0, "2xx": N, "3xx": 0, "4xx": N, "5xx": N }`.
+- **Closes the "are we 4xx-heavy or 5xx-heavy?" observability gap**. Pairs with `requestsByStatusTop3` (per-code top 3) for class-level view: "what's the shape of our error mix?" from a single glance.
+- **Implementation**: IIFE in buildSummary. Iterate over `_requestsByStatus`, bucket each code via `Math.floor(status / 100)`, sum counts into 1xx/2xx/3xx/4xx/5xx buckets. Always includes all 5 buckets (zeros if no requests in that class).
+- **1 new source-pattern test** + extended full-observability-surface assertion list.
+- **415/415 tests pass** (340 unit + 71 smoke + 1 integration). Test count +1.
+
+**Prompt Intention:**
+- Honored the standing directives. Small feature add. The status-code surface is now: `requestsByStatus` (full Map) + `requestsByStatusTop3` (top 3) + `requestsPerStatusGroup` (class buckets) — three views of the same data, each for a different dashboard use case.
+
 **2026-07-19 17:30 IST | Model: GLM 5.2 (z.ai)**
 **Changes Made:**
 - **Iteration #124 of the autonomous loop** (cron `f1fb68b1` firing). Live: 17:30 IST.

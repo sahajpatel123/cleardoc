@@ -920,7 +920,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "providersLastUpdated", "lastHealthDurationMs", "maxHealthDurationMs",
     "peakConcurrentRequests", "requestsInLastMinute",
     "currentConcurrentRequests", "lastClientErrorAt",
-    "requestsByStatusTop3",
+    "requestsByStatusTop3", "requestsPerStatusGroup",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1574,6 +1574,25 @@ test("health handler: summary exposes requestsByStatusTop3 (top 3 status codes b
   // Must return array of {status, count} objects
   assert.match(HEALTH_SOURCE, /\{\s*status\s*,\s*count\s*\}/,
     "must format each entry as {status, count}");
+});
+
+// ── requestsPerStatusGroup (iter #129) ────────────────────────
+
+test("health handler: summary exposes requestsPerStatusGroup (bucketed by status class)", () => {
+  // Pairs with requestsByStatusTop3 (per-code top 3) for class-
+  // level view: "are we 4xx-heavy or 5xx-heavy?" Always includes
+  // all 5 buckets (1xx/2xx/3xx/4xx/5xx) — zeros if no requests
+  // in that class.
+  assert.match(HEALTH_SOURCE, /requestsPerStatusGroup/, "summary must include requestsPerStatusGroup field");
+  // All 5 buckets present
+  assert.match(HEALTH_SOURCE, /"1xx"/, "must include 1xx bucket");
+  assert.match(HEALTH_SOURCE, /"2xx"/, "must include 2xx bucket");
+  assert.match(HEALTH_SOURCE, /"3xx"/, "must include 3xx bucket");
+  assert.match(HEALTH_SOURCE, /"4xx"/, "must include 4xx bucket");
+  assert.match(HEALTH_SOURCE, /"5xx"/, "must include 5xx bucket");
+  // Bucket via Math.floor(status / 100)
+  assert.match(HEALTH_SOURCE, /Math\.floor\(\s*status\s*\/\s*100\s*\)/,
+    "must bucket via Math.floor(status / 100)");
 });
 
 // ── providersReachableInLastHour (iter #128, behavioral) ──────
