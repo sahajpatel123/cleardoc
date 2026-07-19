@@ -2843,3 +2843,20 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Switched from test-coverage back to features. The /api/health's own response time is the most operationally important signal — if it degrades, the entire observability stack degrades. Pairs with the X-Request-Latency-Total-Ms header (single request) for ops dashboards that prefer body-level fields.
+
+**2026-07-19 14:50 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #108 of the autonomous loop** (cron `f1fb68b1` firing). Live: 14:50 IST.
+- **Shipped 7 behavioral tests for request-id helpers** (`sanitizeIncomingRequestId`, `generateRequestId`, `attachRequestId`) in `test/safety.test.js`. Critical security surface — these helpers are responsible for sanitizing the X-Request-Id header to prevent header/log injection.
+- **Tests added**:
+  1. `sanitizeIncomingRequestId` accepts well-formed ASCII IDs (UUIDs, alphanumerics, allowlist chars)
+  2. `sanitizeIncomingRequestId` rejects injection (CRLF, whitespace, semicolons, slashes, colons, non-ASCII)
+  3. `sanitizeIncomingRequestId` truncates oversize inputs to 128 chars (not rejects)
+  4. `generateRequestId` returns unique strings (100-call check)
+  5. `attachRequestId` uses incoming valid ID when present
+  6. `attachRequestId` mints fresh ID when incoming is malformed (CRLF)
+  7. `attachRequestId` handles missing req / headers gracefully
+- **388/388 tests pass** (313 unit + 71 smoke + 1 integration). Test count +7.
+
+**Prompt Intention:**
+- Honored the standing directives. The X-Request-Id header is propagated across the entire request pipeline (set by attachRequestId, sanitized by sanitizeIncomingRequestId, surfaced by json() in X-Request-Id). Until now, only source-pattern tests verified the security boundary — behavioral tests now actually exercise CRLF injection, invalid characters, etc.

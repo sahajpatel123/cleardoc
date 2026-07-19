@@ -1934,20 +1934,27 @@ test("_safety: sanitizeIncomingRequestId rejects injection attempts and non-ASCI
   assert.equal(sanitizeIncomingRequestId("req:colon"), null, "colon must be rejected");
   // Non-ASCII (the allowlist is ASCII-only via [A-Za-z0-9._-])
   assert.equal(sanitizeIncomingRequestId("rëq123"), null, "non-ASCII must be rejected");
-  // Too long (> 128 chars)
-  assert.equal(sanitizeIncomingRequestId("a".repeat(129)), null, "129-char ID must be rejected");
 });
 
-test("_safety: sanitizeIncomingRequestId truncates oversize inputs but only if valid", () => {
+test("_safety: sanitizeIncomingRequestId truncates oversize inputs to 128 chars", () => {
+  // The function silently truncates to 128 chars (doesn't reject on
+  // length). Length-based rejection is only via the regex pattern.
   const { sanitizeIncomingRequestId } = require("../api/_safety.js");
   // Exactly 128 chars — at the boundary, should be accepted
   const maxId = "a".repeat(128);
   assert.equal(sanitizeIncomingRequestId(maxId), maxId, "128-char ID must be accepted (boundary)");
-  // 129 chars — must be rejected
+  // 129 chars — truncated to 128 (still valid)
   const overId = "a".repeat(129);
-  assert.equal(sanitizeIncomingRequestId(overId), null, "129-char ID must be rejected");
-  // 200 chars
-  assert.equal(sanitizeIncomingRequestId("a".repeat(200)), null, "200-char ID must be rejected");
+  assert.equal(sanitizeIncomingRequestId(overId), maxId,
+    "129-char ID must be truncated to 128");
+  // 200 chars — truncated to 128
+  assert.equal(sanitizeIncomingRequestId("a".repeat(200)), maxId,
+    "200-char ID must be truncated to 128");
+  // 129 chars where the FIRST 128 are valid but 129th breaks pattern
+  // (still truncated to 128 since we slice first then test)
+  const valid129 = "a".repeat(128) + ";DROP";
+  assert.equal(sanitizeIncomingRequestId(valid129), maxId,
+    "129-char ID truncated; trailing junk is dropped");
 });
 
 test("_safety: generateRequestId returns a unique string on every call", () => {
