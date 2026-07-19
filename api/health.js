@@ -495,6 +495,21 @@ module.exports = async function handler(req, res) {
         arch: process.arch,
         pid: process.pid,
         processUptimeSec: Math.round(process.uptime()),
+        // Human-readable uptime for dashboards: "3d 4h 12m" or
+        // "45s" or "12m 30s". Pairs with processUptimeSec (precise
+        // integer seconds) — the pretty format is for humans
+        // glancing at a curl response, the integer is for ops scripts.
+        processUptimePretty: (() => {
+          let s = Math.round(process.uptime());
+          if (s < 60) return `${s}s`;
+          if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+          const days = Math.floor(s / 86400);
+          const hours = Math.floor((s % 86400) / 3600);
+          const mins = Math.floor((s % 3600) / 60);
+          return days > 0
+            ? `${days}d ${hours}h ${mins}m`
+            : `${hours}h ${mins}m`;
+        })(),
         // Vercel injects these on every production deploy. Lets ops
         // dashboards route alerts by region ("only iad1 is unhealthy")
         // and distinguish prod from preview deployments from the same
