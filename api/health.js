@@ -11,7 +11,7 @@
  * for the most-polled endpoint in any deployment.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount, getTopActiveIPs, getProbeReachabilityInLastHour, getProbeReachabilityByRegionInLastHour, getProbeAverageLatencyInLastHour, getLastProbeFailure, getConsecutiveProviderFailures, getProbeCacheSize } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount, getTopActiveIPs, getProbeReachabilityInLastHour, getProbeReachabilityByRegionInLastHour, getProbeAverageLatencyInLastHour, getLastProbeFailure, getLastProbeUpdate, getConsecutiveProviderFailures, getProbeCacheSize } = require("./_safety.js");
 
 const START_TS = Date.now();
 // Captured on the first request — `summary.startupDurationMs` is the
@@ -263,6 +263,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // a "is the most recent state a success or a failure?" signal
     // without walking per-provider blocks.
     providersLastFailure: getLastProbeFailure(),
+    // Per-provider most-recent probe timestamp (any outcome). Pairs
+    // with lastReachableAt and lastFailure to give ops the full
+    // temporal picture of the probe cache: "when did the cache last
+    // refresh for this provider?"
+    providersLastUpdated: getLastProbeUpdate(),
     // Per-provider consecutive probe-failure streak counter. Lets ops
     // answer "is this provider in a degraded streak right now?" —
     // 0 means the most recent probe was a success; >0 means N

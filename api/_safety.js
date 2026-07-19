@@ -240,6 +240,10 @@ async function probeProviderCached(key, url) {
     // nothing — defensive
   } else if (fresh && typeof fresh === "object") {
     _probeOutcomes.push({ ts: Date.now(), ok: !!fresh.ok, provider: key, region: process.env.VERCEL_REGION || null, latencyMs: typeof fresh.latencyMs === "number" ? fresh.latencyMs : null });
+    // Track the most recent probe update per provider — succeeds OR fails.
+    // Distinct from _lastProbeFailure (failure-only); this tells ops
+    // "when was this provider last checked at all".
+    _lastProbeUpdate[key] = Date.now();
     // Also track the most recent failure per provider (for the
     // lastFailure field on /api/health). Pairs with the per-provider
     // lastReachableAt to give ops a "is the most recent state a success
@@ -371,6 +375,18 @@ function getLastProbeFailure() {
   };
 }
 
+// Read-only accessor for the per-provider most-recent probe timestamp
+// (success OR failure). Distinct from getLastProbeFailure (failure-
+// only). Answers "when was this provider last checked at all" — even
+// if the result was a failure, ops knows the network actually reached
+// the provider. Null until the first probe.
+function getLastProbeUpdate() {
+  return {
+    gemini: _lastProbeUpdate.gemini || null,
+    openrouter: _lastProbeUpdate.openrouter || null,
+  };
+}
+
 // Read-only accessor for the per-provider consecutive-failure counter.
 // Lets ops answer "is this provider in a degraded streak right now?"
 // from a single curl. Pairs with `getLastProbeFailure()` (when) for
@@ -423,6 +439,11 @@ let _cspLastSeenAt = 0;
 // "is the most recent state a failure?" signal — useful alongside
 // the lastReachableAt per-provider field (the success counterpart).
 let _lastProbeFailure = { gemini: 0, openrouter: 0 };
+// Unix-ms timestamp of the most recent probe (success OR failure) per
+// provider. Distinct from _lastProbeFailure — that's failure-only.
+// "Last probe update" answers "when was this provider last checked at
+// all" (network was reached), even if the result was a failure.
+let _lastProbeUpdate = { gemini: 0, openrouter: 0 };
 // Consecutive probe-failure counter per provider. Increments on each
 // failed probe, resets to 0 on success. Lets ops see "is this provider
 // in a degraded streak right now?" without walking the per-1h-window
@@ -560,6 +581,17 @@ function getCspReportCounts() {
     ratePerMinute: (() => {
       const elapsedMin = Math.max(1, Math.round((Date.now() - _cspProcessStartTs) / 60000));
       return Math.round((_cspTotalReports / elapsedMin) * 10) / 10;
+    })(),
+    // Acceptance rate: accepted / (accepted + blocked). 1-decimal
+    // precision (0..1, but expressed as 0..10 for whole-number
+    // visual). Lets ops read "what % of attempts are being rejected?"
+    // from a single curl without computing it from total + blocked.
+    // 10 (= 100%) when no attempts at all (avoid noise).
+    acceptanceRate: (() => {
+      const totalAttempts = _cspTotalReports + _cspBlockedCount;
+      return totalAttempts > 0
+        ? Math.round((_cspTotalReports / totalAttempts) * 10) / 10
+        : 10;
     })(),
     // Most recent reporting IP (hashed + sample for ops identification).
     // Lets ops answer "is one specific client flooding us with CSP
@@ -1321,6 +1353,7 @@ module.exports = {
   getProbeReachabilityByRegionInLastHour,
   getProbeAverageLatencyInLastHour,
   getLastProbeFailure,
+  getLastProbeUpdate,
   getConsecutiveProviderFailures,
   getProbeCacheSize,
   getUniqueIPsCount,

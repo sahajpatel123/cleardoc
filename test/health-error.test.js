@@ -917,12 +917,13 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "requestsInLastHour", "providersLastFailure",
     "providersFailureRateInLastHour", "consecutiveSuccesses",
     "providersConsecutiveFailures", "errorsInLastHour", "cacheSize",
+    "providersLastUpdated",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
   // cspReports
   assert.ok(body.summary.cspReports, "summary must include cspReports");
-  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom", "ratePerMinute"]) {
+  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom", "ratePerMinute", "acceptanceRate"]) {
     assert.ok(k in body.summary.cspReports, `cspReports must include ${k}`);
   }
   // process
@@ -1221,4 +1222,35 @@ test("health handler: summary exposes cacheSize (current probe cache entry count
     require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
   );
   assert.match(safetySrc, /getProbeCacheSize/, "_safety.js must export getProbeCacheSize accessor");
+});
+
+// ── cspReportAcceptanceRate (iter #94) ───────────────────────
+
+test("health handler: cspReports surfaces cspReportAcceptanceRate (accepted / total attempts)", () => {
+  // Inverse of the implicit block rate. Lets ops answer "what % of
+  // attempts are being rejected?" from a single curl without computing
+  // it from total + blocked.
+  assert.match(HEALTH_SOURCE, /cspReportAcceptanceRate/, "summary must include cspReportAcceptanceRate field");
+  // The computation lives in _safety.js
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /acceptanceRate/, "_safety.js must compute per-process acceptanceRate");
+  assert.match(safetySrc, /_cspBlockedCount/, "_safety.js must track _cspBlockedCount for the acceptance rate denominator");
+});
+
+// ── providersLastUpdated (iter #94, linter-started) ───────────
+
+test("health handler: summary exposes providersLastUpdated (per-provider most-recent probe timestamp)", () => {
+  // Per-provider most-recent probe timestamp (success OR failure).
+  // Distinct from providersLastFailure (failure-only). Answers
+  // 'when was this provider last checked at all' — even if the
+  // result was a failure, ops knows the network reached the provider.
+  assert.match(HEALTH_SOURCE, /providersLastUpdated/, "summary must include providersLastUpdated field");
+  // The accessor lives in _safety.js
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /getLastProbeUpdate/, "_safety.js must export getLastProbeUpdate accessor");
+  assert.match(safetySrc, /_lastProbeUpdate/, "_safety.js must track per-provider last-update timestamps");
 });

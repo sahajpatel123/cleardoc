@@ -2674,3 +2674,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the /api/health observability loop. The cache surface is now: `cacheHits` (count) + `totalProbes` (denominator) + `networkProbes` (misses) + `cacheMissRate` (ratio) + `cacheSize` (current entries). Together, ops can answer "is the probe cache helping?" with a single curl.
+
+**2026-07-19 12:30 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #94 of the autonomous loop** (cron `f1fb68b1` firing). Live: 12:30 IST.
+- **Shipped `summary.cspReports.acceptanceRate` on /api/health**. New field: 0..10 (representing 0..100%) of accepted CSP reports out of total attempts (accepted + blocked). 10 when no attempts yet (avoid noise).
+- **Closes the "what % of attempts are being rejected?" observability gap**. Pairs with `cspReports.total` + the (uncommitted) `cspBlockedCount` (incremented via `recordCspBlock()` from `csp-report.js` when the gate rejects a report).
+- **Implementation**: new IIFE in `getCspReportCounts` computes `_cspTotalReports / (_cspTotalReports + _cspBlockedCount)` with 1-decimal precision. Guards divide-by-zero at process start.
+- **Shipped `summary.providersLastUpdated` on /api/health** (linter-started, completed). New field: per-provider most-recent probe timestamp (success OR failure). Distinct from `providersLastFailure` (failure-only).
+- **Implementation**: new module-level `_lastProbeUpdate = { gemini: 0, openrouter: 0 }` in `_safety.js`. Set in `probeProviderCached` on every probe outcome. New `getLastProbeUpdate()` accessor. Added `getLastProbeUpdate` to api/health.js destructure.
+- **354/354 tests pass** (280 unit + 71 smoke + 1 integration). 2 new source-pattern tests (`cspReportAcceptanceRate`, `providersLastUpdated`). Extended full-observability-surface assertion list.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the /api/health observability loop. The CSP surface is now: `total` (accepted count) + `blocked` (rejected count, internal) + `ratePerMinute` (tempo) + `acceptanceRate` (0..1 quality signal). The probe surface is now: `lastReachableAt` (success) + `lastFailure` (failure) + `lastUpdated` (any probe, success OR failure) + `successRate`/`failureRate` (windowed ratios) + `consecutiveFailures` (current streak).
