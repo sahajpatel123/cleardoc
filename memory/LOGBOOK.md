@@ -2337,3 +2337,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Shipped `da3bd7a9 test(safety): pin api/analyze.js model constants`.** Pin `GEMMA_MODEL = 'google/gemma-4-31b-it:free'` and `GEMINI_MODEL_DEFAULT = 'gemini-2.5-flash'` so a future refactor can't silently swap to a different model — billing, latency, output quality all change.
 - **Verification:** 302/302 tests pass (224 unit + 71 smoke + 1 integration). Pushed.
 
+
+**2026-07-19 07:19 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #66 of the autonomous loop** (cron `c3921bc4` firing). Live: 07:19 IST.
+- **Shipped `summary.lastProbeAtMs` on /api/health** (`220df4b6`). New field: ms since the most recent AI provider probe.
+- **Pairs with `networkProbes` (iter #49) + `processUptimeSec`** to derive cache effectiveness:
+  - `lastProbeAtMs == processUptimeSec` → cache is missing (every request hit the network)
+  - `lastProbeAtMs < processUptimeSec` → cache is hitting (relative age tells you how long since the last network call)
+- **Computation**: `Math.min(Date.now() - geminiProbe.checkedAt, Date.now() - openRouterProbe.checkedAt)` — the most recent of the two probes. `null` when neither provider is configured.
+- **303/303 tests pass** (232 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the cache-effectiveness observability gap. Combined with `networkProbes` and `process.processUptimeSec`, ops can now answer \"is the cache working as expected?\" from a single `curl /api/health` without parsing server logs. A spike in `lastProbeAtMs` relative to `processUptimeSec` is a clear cache-miss signal.
