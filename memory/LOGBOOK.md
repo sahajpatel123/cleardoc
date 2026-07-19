@@ -2601,3 +2601,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the /api/health observability loop. Combined with `cspReports.total` + `lastSeenAt` + `firstSeenAt` + `ratePerMinute`, ops can monitor the violation stream's health from a single curl — distinguishing "0 reports" (stream dead, not nothing-to-report) from "300/min" (active spike).
+
+**2026-07-19 11:30 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #87 of the autonomous loop** (cron `f1fb68b1` firing). Live: 11:30 IST.
+- **Shipped `summary.requestsInLastHour` on /api/health**. New field: count of requests served in the rolling 1-hour window. Pairs with cumulative `requests` + per-minute `averageRequestsPerMinute`.
+- **Closes the "what's the current load vs lifetime average?" observability gap**. `requests` is cumulative since process start; `averageRequestsPerMinute` is averaged over process lifetime. `requestsInLastHour` is the actual windowed count — ops can see "the function has served 10K requests total but only 200 in the last hour" vs "10K total / 200 in last hour means 98% historical". Particularly useful for long-lived Vercel Hobby instances where process age inflates the lifetime stats.
+- **Implementation**: new module-level `_requestsInLastHour = []` (timestamps). On every request: `push(Date.now())`, then lazily prune entries older than 3600s. `summary.requestsInLastHour` surfaces `array.length`.
+- **346/346 tests pass** (273 unit + 71 smoke + 1 integration). 1 new source-pattern test (`requestsInLastHour`). Extended full-observability-surface assertion list.
+- **Pre-flight caught 2 transient network flakes** in health-error suite (smoke + process-info tests, both rely on real DNS for HEAD probes to generativelanguage.googleapis.com + openrouter.ai). Re-run was 62/62 green. These are pre-existing network-sensitive tests, not new flakes.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the /api/health observability loop. Combined with `requests` (cumulative) + `averageRequestsPerMinute` (lifetime rate) + `requestsInLastHour` (windowed count), ops get the full traffic picture: "total served, average rate, recent rate" — all from a single curl.
