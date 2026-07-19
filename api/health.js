@@ -184,6 +184,17 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Vercel deploys: "which build is this instance, and when did
     // Vercel start it?" Survives cold-start + horizontal scale-out.
     startedAt: new Date(START_TS).toISOString(),
+    // Most recent AI provider probe (milliseconds since process start).
+    // Pair with networkProbes to derive cache effectiveness: if
+    // lastProbeAtMs is small relative to processUptimeSec, the cache
+    // is hitting. If lastProbeAtMs equals processUptimeSec, every
+    // request hit the network (cache completely missing).
+    lastProbeAtMs: (() => {
+      const ats = [];
+      if (geminiProbe && geminiProbe.checkedAt) ats.push(Date.now() - geminiProbe.checkedAt);
+      if (openRouterProbe && openRouterProbe.checkedAt) ats.push(Date.now() - openRouterProbe.checkedAt);
+      return ats.length ? Math.min(...ats) : null;
+    })(),
     providersConfigured: configured,
     providersReachable: reachable,
     fastestProviderMs: reachableLatencies.length ? Math.min(...reachableLatencies) : null,

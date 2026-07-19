@@ -724,3 +724,13 @@ test("health handler: summary exposes totalErrors (5xx aggregate) for error-rate
   assert.match(HEALTH_SOURCE, /_totalErrors\s*\+=\s*1/, "counter must increment per 5xx response");
   assert.match(HEALTH_SOURCE, /totalErrors\s*:\s*_totalErrors/, "summary must include the totalErrors field");
 });
+
+// ── lastProbeAtMs (iter #66) ─────────────────────────────────────
+
+test("health handler: summary surfaces lastProbeAtMs (ms since last AI provider probe)", () => {
+  // Most recent AI provider probe relative to "now". Pair with
+  // networkProbes + processUptimeSec to derive cache effectiveness.
+  assert.match(HEALTH_SOURCE, /lastProbeAtMs/, "summary must include lastProbeAtMs field");
+  assert.match(HEALTH_SOURCE, /geminiProbe && geminiProbe\.checkedAt/, "must read geminiProbe.checkedAt");
+  assert.match(HEALTH_SOURCE, /openRouterProbe && openRouterProbe\.checkedAt/, "must read openRouterProbe.checkedAt");
+});
