@@ -243,3 +243,23 @@ test("csp-report handler: 204 responses emit X-Request-Id + X-Request-Latency-To
   assert.match(CSP_SOURCE, /X-Request-Latency-Total-Ms/, "helper must set X-Request-Latency-Total-Ms");
   assert.match(CSP_SOURCE, /applyBuildShaHeader/, "helper must invoke applyBuildShaHeader (emits X-Build-Sha)");
 });
+
+test("csp-report handler: MAX_BODY_BYTES is pinned at 16KB", () => {
+  // CSP reports are tiny — typically <2KB. 16KB hard cap rejects
+  // pathological bodies before JSON.parse. Pin the constant so a
+  // future refactor can't silently raise the cap (DoS amplification).
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/csp-report.js"), "utf8");
+  assert.match(
+    src,
+    /MAX_BODY_BYTES\s*=\s*16\s*\*\s*1024/,
+    "MAX_BODY_BYTES must stay 16 * 1024"
+  );
+  // Must be wired into readCappedBody
+  assert.match(
+    src,
+    /readCappedBody\(req,\s*MAX_BODY_BYTES\)/,
+    "readCappedBody must be called with MAX_BODY_BYTES"
+  );
+});
