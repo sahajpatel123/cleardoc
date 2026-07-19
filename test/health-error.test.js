@@ -734,3 +734,13 @@ test("health handler: summary surfaces lastProbeAtMs (ms since last AI provider 
   assert.match(HEALTH_SOURCE, /geminiProbe && geminiProbe\.checkedAt/, "must read geminiProbe.checkedAt");
   assert.match(HEALTH_SOURCE, /openRouterProbe && openRouterProbe\.checkedAt/, "must read openRouterProbe.checkedAt");
 });
+
+// ── uniqueIPs counter (iter #67) ───────────────────────────────
+
+test("health handler: summary surfaces uniqueIPs (count of distinct source IPs since process start)", () => {
+  // Pairs with `summary.requests` for fan-in analysis: "100 requests
+  // from 1 IP" vs "100 requests from 100 IPs" tells very different
+  // stories. Derived from the rate-limit map (bounded at 5000 entries).
+  assert.match(HEALTH_SOURCE, /uniqueIPs/, "summary must include uniqueIPs field");
+  assert.match(HEALTH_SOURCE, /getUniqueIPsCount/, "must call getUniqueIPsCount() from _safety.js");
+});

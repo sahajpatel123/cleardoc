@@ -500,6 +500,16 @@ function rateLimit(ip, maxPerMinute) {
   };
 }
 
+/* Read-only accessor for /api/health: how many unique IPs are in
+ * the rate-limit map. Lets ops answer "is this instance handling
+ * 1 client spamming requests, or N clients each requesting once?"
+ * Bounded at _RATE_MAX_KEYS (5000) so a hostile path can't grow
+ * the map unbounded.
+ */
+function getUniqueIPsCount() {
+  return _buckets.size;
+}
+
 /* Emit the standard rate-limit response headers on every response that
  * consulted rateLimit(). Standard names: X-RateLimit-Limit, -Remaining,
  * -Reset (UNIX seconds). Always call BEFORE `json()` — once the body is
@@ -1050,6 +1060,7 @@ module.exports = {
   probeProviderCached,
   clearProbeCache,
   getProbeCounts,
+  getUniqueIPsCount,
   recordCspReport,
   getCspReportCounts,
   errLog,

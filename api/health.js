@@ -11,7 +11,7 @@
  * for the most-polled endpoint in any deployment.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount } = require("./_safety.js");
 
 const START_TS = Date.now();
 // In-process counter of how many requests this function instance has
@@ -206,6 +206,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Pairs with totalProbes (outbound) so ops can compute inbound vs
     // outbound ratio and detect traffic anomalies per-instance.
     requests: _requestsServed,
+    // Unique IPs that have hit this instance. Pairs with `requests` —
+    // "100 requests from 1 IP" vs "100 requests from 100 IPs" tells
+    // very different stories (single spammer vs distributed traffic).
+    // Derived from the rate-limit map (bounded at 5000 entries).
+    uniqueIPs: getUniqueIPsCount(),
     // Aggregate 5xx count for error-rate ratio (totalErrors / requests).
     // 4xx is excluded — those are client errors, not server problems.
     totalErrors: _totalErrors,
