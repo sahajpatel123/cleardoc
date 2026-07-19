@@ -27,6 +27,10 @@ let _peakRssMb = 0;
 // bounded at the standard set so the eviction is mostly defensive.
 const _requestsByStatus = new Map();
 const MAX_STATUS_BUCKETS = 50;
+// Aggregate of all 5xx responses since process start. Pairs with
+// `summary.requests` (total) to give ops an error-rate ratio in
+// a single curl: totalErrors / requests.
+let _totalErrors = 0;
 
 function recordRequestStatus(statusCode) {
   if (!Number.isFinite(statusCode)) return;
@@ -36,6 +40,9 @@ function recordRequestStatus(statusCode) {
     if (oldest !== undefined) _requestsByStatus.delete(oldest);
   }
   _requestsByStatus.set(statusCode, (_requestsByStatus.get(statusCode) || 0) + 1);
+  // 5xx = server error. 4xx is a client error (rate limit, bad input)
+  // and not interesting from an "is the server broken" perspective.
+  if (statusCode >= 500) _totalErrors += 1;
 }
 // Read the version from package.json — single source of truth. Without
 // this the constant drifts the moment someone bumps package.json without
@@ -188,6 +195,9 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Pairs with totalProbes (outbound) so ops can compute inbound vs
     // outbound ratio and detect traffic anomalies per-instance.
     requests: _requestsServed,
+    // Aggregate 5xx count for error-rate ratio (totalErrors / requests).
+    // 4xx is excluded — those are client errors, not server problems.
+    totalErrors: _totalErrors,
     // Per-status-code breakdown — "are we getting a lot of 429s from one
     // IP" or "spike in 503s?" is a one-curl check now. Snapshot the Map
     // so callers don't see concurrent mutation mid-iteration.

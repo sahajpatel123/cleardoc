@@ -711,3 +711,16 @@ test("health handler: cspReports exposes mostBlocked + mostBlockedFrom (per-URI 
   );
   assert.match(cspReportSrc, /recordCspReport\(rawDirective,\s*blockedUri,\s*documentUri\)/, "csp-report must pass both blockedUri and documentUri");
 });
+
+// ── totalErrors counter (iter #65) ────────────────────────────────
+
+test("health handler: summary exposes totalErrors (5xx aggregate) for error-rate ratio", () => {
+  // Aggregate of all 5xx responses since process start. 4xx excluded
+  // (client errors, not server problems). Pairs with `requests` for
+  // error-rate ratio: totalErrors / requests. Lighter-weight than
+  // walking the per-status breakdown.
+  assert.match(HEALTH_SOURCE, /_totalErrors/, "must have a module-level _totalErrors counter");
+  assert.match(HEALTH_SOURCE, /statusCode\s*>=\s*500/, "5xx check must use the standard >= 500 threshold");
+  assert.match(HEALTH_SOURCE, /_totalErrors\s*\+=\s*1/, "counter must increment per 5xx response");
+  assert.match(HEALTH_SOURCE, /totalErrors\s*:\s*_totalErrors/, "summary must include the totalErrors field");
+});
