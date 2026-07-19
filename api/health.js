@@ -494,6 +494,12 @@ module.exports = async function handler(req, res) {
         platform: process.platform,
         arch: process.arch,
         pid: process.pid,
+        // Absolute path to the Node.js executable that's running this
+        // function. Useful for ops debugging "which Node binary is
+        // actually deployed here?" — a Vercel deploy's node version
+        // is reported in the env but execPath tells you exactly which
+        // binary is loaded.
+        execPath: process.execPath,
         processUptimeSec: Math.round(process.uptime()),
         // Human-readable uptime for dashboards: "3d 4h 12m" or
         // "45s" or "12m 30s". Pairs with processUptimeSec (precise
