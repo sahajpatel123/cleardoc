@@ -36,6 +36,12 @@ let _peakRssMb = 0;
 // /api/health is a real problem (it's the most-polled endpoint).
 let _lastHealthDurationMs = 0;
 let _maxHealthDurationMs = 0;
+// Concurrent in-flight request counter + peak since process start.
+// Increments at handler start, decrements in finally. Lets ops see
+// "how many /api/health requests are running simultaneously right now"
+// + "what's the worst-case concurrency this instance has handled".
+let _currentConcurrent = 0;
+let _peakConcurrent = 0;
 // Per-status code counter (statusCode → count). LRU-evicting at 50 keys
 // to prevent unbounded growth from a misbehaving client (or scan) hitting
 // 1000s of distinct status codes via weird edge cases. Status codes are
@@ -250,6 +256,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Lets ops answer "is the provider flapping?" — a 50%-reachable
     // signal is actionable even when the current state is OK.
     providersReachableInLastHour: getProbeReachabilityInLastHour(),
+    // Peak concurrent requests since process start. Lets ops spot
+    // "is this instance handling more load than the others?" when
+    // comparing across the fleet. Tracks the max number of in-flight
+    // /api/health requests at any single moment.
+    peakConcurrentRequests: _peakConcurrent,
     // Probe cache size (per-provider). Lets ops see how many distinct
     // AI providers the cache is tracking. Bounded at _PROBE_CACHE_MAX.
     probeCacheSize: getProbeCacheSize(),
@@ -411,6 +422,11 @@ module.exports = async function handler(req, res) {
   // (post attachRequestId) so the duration covers everything from
   // request-id setup through response serialization.
   const _handlerStartedAt = Date.now();
+  // Increment concurrent-request counter and update peak. Both ops
+  // happen unconditionally so the peak reflects the worst case (even
+  // for a request that immediately fails).
+  _currentConcurrent += 1;
+  if (_currentConcurrent > _peakConcurrent) _peakConcurrent = _currentConcurrent;
   try {
     if (req.method !== "GET" && req.method !== "HEAD") {
       return json(res, 405, { error: "Method not allowed." });
@@ -701,6 +717,9 @@ module.exports = async function handler(req, res) {
       // res.end() threw (broken pipe, etc.) — nothing more we can do.
     }
   } finally {
+    // Always decrement concurrent counter — even on error paths —
+    // so the in-flight count is accurate.
+    _currentConcurrent -= 1;
     // Capture this request's duration for `lastHealthDurationMs` /
     // `maxHealthDurationMs` observability. Skipped for 405 (the
     // method-not-allowed early return doesn't represent a real
