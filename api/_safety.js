@@ -525,6 +525,10 @@ function recordCspReport(directive, blockedUri, documentUri, reporterIp) {
 // "how many reports were rejected at the door" signal — useful
 // for spotting abusive browsers before they can flood the system.
 let _cspBlockedCount = 0;
+// Unix-ms timestamp of the most recent rate-limit-rejected CSP
+// report. Pairs with firstSeenAt/lastSeenAt (accepted) and
+// lastReporter to give ops the full timeline of the CSP stream.
+let _cspLastBlockedAt = 0;
 function recordCspBlock() { _cspBlockedCount += 1; }
 
 function getCspReportCounts() {
