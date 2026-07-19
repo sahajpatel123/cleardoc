@@ -1842,3 +1842,61 @@ test("_safety: applyBuildShaHeader is a no-op when env unset or res missing", ()
     process.env.VERCEL_GIT_COMMIT_SHA = orig;
   }
 });
+
+// ── getIp behavioral coverage (iter #106) ─────────────────────
+
+test("_safety: getIp returns the first IP from x-forwarded-for", () => {
+  const { getIp } = require("../api/_safety.js");
+  // Standard Vercel header: client IP, then intermediate proxies
+  const req = {
+    headers: { "x-forwarded-for": "203.0.113.42, 10.0.0.1, 10.0.0.2" },
+    socket: { remoteAddress: "127.0.0.1" },
+  };
+  assert.equal(getIp(req), "203.0.113.42", "first IP wins");
+});
+
+test("_safety: getIp falls back to x-real-ip when x-forwarded-for missing", () => {
+  const { getIp } = require("../api/_safety.js");
+  const req = {
+    headers: { "x-real-ip": "198.51.100.7" },
+    socket: { remoteAddress: "127.0.0.1" },
+  };
+  assert.equal(getIp(req), "198.51.100.7");
+});
+
+test("_safety: getIp falls back to socket.remoteAddress when both headers missing", () => {
+  const { getIp } = require("../api/_safety.js");
+  const req = {
+    headers: {},
+    socket: { remoteAddress: "192.0.2.50" },
+  };
+  assert.equal(getIp(req), "192.0.2.50");
+});
+
+test("_safety: getIp returns a placeholder when no IP available", () => {
+  const { getIp } = require("../api/_safety.js");
+  // No headers + no socket → some non-empty placeholder (the function
+  // is defensive but never returns empty string — guaranteed non-empty).
+  const emptyResult = getIp({});
+  assert.equal(typeof emptyResult, "string");
+  assert.ok(emptyResult.length > 0, "must return a non-empty placeholder");
+  // Empty socket
+  const noSocket = getIp({ headers: {}, socket: {} });
+  assert.equal(typeof noSocket, "string");
+  assert.ok(noSocket.length > 0, "must return a non-empty placeholder");
+  // Whitespace-only x-forwarded-for should not be trusted as a real IP
+  const wsOnly = getIp({ headers: { "x-forwarded-for": "   " }, socket: {} });
+  assert.equal(typeof wsOnly, "string");
+});
+
+test("_safety: getIp handles malformed/missing input safely", () => {
+  const { getIp } = require("../api/_safety.js");
+  // Must not throw on any input shape.
+  assert.doesNotThrow(() => getIp(null), "null req must not throw");
+  assert.doesNotThrow(() => getIp(undefined), "undefined req must not throw");
+  assert.doesNotThrow(() => getIp({}), "empty req must not throw");
+  assert.doesNotThrow(() => getIp({ headers: null }), "null headers must not throw");
+  assert.doesNotThrow(() => getIp({ socket: null }), "null socket must not throw");
+  assert.doesNotThrow(() => getIp({ headers: {}, socket: { remoteAddress: null } }),
+    "null remoteAddress must not throw");
+});

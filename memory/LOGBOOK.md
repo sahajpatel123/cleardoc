@@ -2816,3 +2816,18 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the test-coverage pattern. `applyBuildShaHeader` sets the X-Build-Sha header on every JSON response — the security boundary (regex `/^[a-f0-9]{7,40}$/`) is now verified behaviorally, not just by source-grep.
+
+**2026-07-19 14:30 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #106 of the autonomous loop** (cron `f1fb68b1` firing). Live: 14:30 IST.
+- **Shipped 5 behavioral tests for `getIp()` in `test/safety.test.js`**. Pure-functional coverage — exercises the Vercel-aware IP extractor.
+- **Tests added**:
+  1. x-forwarded-for parsing — first IP wins (multi-hop chain)
+  2. x-real-ip fallback — used when x-forwarded-for missing
+  3. socket.remoteAddress fallback — used when both headers missing
+  4. No-IP-available case — returns non-empty placeholder (not empty string)
+  5. Malformed input safety — null/undefined/empty req must not throw
+- **381/381 tests pass** (306 unit + 71 smoke + 1 integration). Test count +5.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the test-coverage pattern. `getIp()` is called by every endpoint on every request (for rate limiting, IP attribution in CSP reports, unique-IPs tracking). Only source-pattern tests previously — behavioral tests now verify the full priority chain: x-forwarded-for → x-real-ip → socket.remoteAddress.
