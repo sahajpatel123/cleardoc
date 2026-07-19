@@ -456,6 +456,16 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // IP" or "spike in 503s?" is a one-curl check now. Snapshot the Map
     // so callers don't see concurrent mutation mid-iteration.
     requestsByStatus: Object.fromEntries(_requestsByStatus),
+    // Top 3 status codes by count, sorted desc. Pairs with
+    // requestsByStatus (full Map) — the Map is the source of truth
+    // for accurate counts; this is the at-a-glance summary for
+    // dashboards. Empty array if no requests served yet.
+    requestsByStatusTop3: (() => {
+      const entries = Array.from(_requestsByStatus.entries());
+      // Sort by count desc, then by status code asc (stable)
+      entries.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+      return entries.slice(0, 3).map(([status, count]) => ({ status, count }));
+    })(),
     cspReports: cspCounts,
   };
 }

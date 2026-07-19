@@ -920,6 +920,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "providersLastUpdated", "lastHealthDurationMs", "maxHealthDurationMs",
     "peakConcurrentRequests", "requestsInLastMinute",
     "currentConcurrentRequests", "lastClientErrorAt",
+    "requestsByStatusTop3",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1558,6 +1559,21 @@ test("health handler: summary exposes lastClientErrorAt (most recent 4xx)", () =
   // Must surface as ISO timestamp or null
   assert.match(HEALTH_SOURCE, /_lastClientErrorAt\s*\?\s*new Date\(_lastClientErrorAt\)\.toISOString\(\)\s*:\s*null/,
     "must format as ISO timestamp, null until first 4xx");
+});
+
+// ── requestsByStatusTop3 (iter #127) ───────────────────────────
+
+test("health handler: summary exposes requestsByStatusTop3 (top 3 status codes by count)", () => {
+  // Pairs with requestsByStatus (full Map). Sorted desc by count,
+  // capped at 3. Useful for at-a-glance dashboards.
+  assert.match(HEALTH_SOURCE, /requestsByStatusTop3/, "summary must include requestsByStatusTop3 field");
+  // Must sort by count desc
+  assert.match(HEALTH_SOURCE, /b\[1\]\s*-\s*a\[1\]/, "must sort by count desc");
+  // Must cap at 3 (slice(0, 3))
+  assert.match(HEALTH_SOURCE, /slice\(\s*0\s*,\s*3\s*\)/, "must cap at 3 entries");
+  // Must return array of {status, count} objects
+  assert.match(HEALTH_SOURCE, /\{\s*status\s*,\s*count\s*\}/,
+    "must format each entry as {status, count}");
 });
 
 // ── providersAvgLatencyMsInLastHour (iter #126, behavioral) ───
