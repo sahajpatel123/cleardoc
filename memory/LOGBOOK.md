@@ -2298,3 +2298,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Shipped `5b78f449 test(safety): pin VALID_SEVERITIES + VALID_VERDICT_LABELS enums`.** Pin the two Object.freeze()'d enums that safeParseAnalysisResult uses to validate risk.severity and verdict.label. Lock each value in order + Object.freeze() presence.
 - **Verification:** 298/298 tests pass (222 unit + 71 smoke + 1 integration). Pushed.
 
+
+**2026-07-19 06:58 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #64 of the autonomous loop** (cron `c3921bc4` firing). Live: 06:58 IST.
+- **Shipped `cspReports.mostBlockedFrom` — top document-uri sources** (`77e78e16`). The cspReports block on /api/health now surfaces TWO per-URI breakdowns (each top-10, sorted by count desc): `mostBlocked` (top URIs that were blocked — the resource the browser tried to load) and `mostBlockedFrom` (top URIs that produced violations — the page where the violation happened).
+- **Two questions ops can answer in a single curl**: \"What specific resource is being blocked most often?\" → `mostBlocked`; \"What page is producing the most violations?\" → `mostBlockedFrom`.
+- **Implementation**: `_safety.js` adds `_cspBlockedUriCounts` + `_cspDocumentUriCounts` Maps with a shared `_cspRecordUri()` helper. `_cspTopN()` reduces a Map to a sorted top-N array. `recordCspReport()` now takes (directive, blockedUri, documentUri) and increments both URI counters. `csp-report.js` passes `documentUri` to the call site. `getCspReportCounts()` returns `{ total, byDirective, mostBlocked, mostBlockedFrom }`.
+- **299/299 tests pass** (228 unit + 71 smoke + 1 integration). 1 new source-pattern test with 5 sub-assertions.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the last meaningful CSP-observability gap. The parallel session had refactored the iter #60 mostBlocked feature out of the codebase. This restores + extends it to TWO per-URI dimensions — block-target vs block-source — answering the two questions ops most often ask when CSP reports spike. Without this they had to grep server logs and parse; with it they have a single curl.
