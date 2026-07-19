@@ -552,6 +552,10 @@ function getCspReportCounts() {
     // report. Pairs with lastSeenAt (last accepted) to give ops the
     // full CSP timeline. Null until the first block.
     lastBlockedAt: _cspLastBlockedAt ? new Date(_cspLastBlockedAt).toISOString() : null,
+    // Count of distinct blocked URIs (the resource that was blocked)
+    // in the per-URI cache. Pairs with `mostBlocked` (top-10) to
+    // give ops the scope of blocked-URI variety.
+    uniqueBlockedUris: _cspBlockedUriCounts.size,
     // Most recent rate-limit-rejected timestamp. Distinct from
     // lastSeenAt (which is the last *accepted* report). Null until
     // the first block. Lets ops answer "when was the most recent
@@ -592,6 +596,10 @@ function getCspReportCounts() {
     // report. Pairs with lastSeenAt (last accepted) to give ops the
     // full CSP timeline. Null until the first block.
     lastBlockedAt: _cspLastBlockedAt ? new Date(_cspLastBlockedAt).toISOString() : null,
+    // Count of distinct blocked URIs (the resource that was blocked)
+    // in the per-URI cache. Pairs with `mostBlocked` (top-10) to
+    // give ops the scope of blocked-URI variety.
+    uniqueBlockedUris: _cspBlockedUriCounts.size,
     // Most recent rate-limit-rejected timestamp. Distinct from
     // lastSeenAt (which is the last *accepted* report). Null until
     // the first block. Lets ops answer "when was the most recent
