@@ -840,3 +840,111 @@ test("health handler: summary surfaces averageRequestsPerMinute (rolling per-min
   assert.match(HEALTH_SOURCE, /_requestsServed\s*\/\s*Math\.max\(1,\s*Math\.round/, "rate computation must be requests / max(1, uptimeSec) — guards against divide-by-zero at process start");
   assert.match(HEALTH_SOURCE, /\* 600\)\s*\/\s*10/, "rate rounded to 1-decimal precision (* 600 / 10 = * 60 with 0.1 rounding)");
 });
+
+// ── full observability surface (iter #74) ────────────────────────
+
+test("health handler: full observability surface (X-* headers + summary fields)", async () => {
+  // Comprehensive behavioral check: render the handler end-to-end
+  // and assert EVERY observability signal lands. Catches handler-level
+  // integration regressions that source-pattern tests can't.
+  // 1. Setup — both providers configured so 200 path runs.
+  process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "test-stub-key-iter74";
+  process.env.GEMINI_API_KEY = process.env.GEMINI_API_KEY || "test-stub-key-iter74-gemini";
+  // VERCEL_GIT_COMMIT_SHA so applyBuildShaHeader actually emits the
+  // X-Build-Sha header (the helper skips when the env is unset).
+  process.env.VERCEL_GIT_COMMIT_SHA = process.env.VERCEL_GIT_COMMIT_SHA || "abc1234567";
+
+  // 2. Re-load module to clear module-level state.
+  delete require.cache[require.resolve("../api/health.js")];
+  const handler = require("../api/health.js");
+
+  // 3. Mock fetch so AI provider probes return quickly (HEAD against
+  // unreachable hosts).
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200 });
+  let res;
+  try {
+    res = {
+      statusCode: 200, _body: null, headers: {},
+      headersSent: false,
+      setHeader(k, v) { this.headers[k] = v; },
+      end(s) { this._body = s; this.headersSent = true; },
+    };
+    const req = { method: "GET", headers: {}, socket: { remoteAddress: "127.0.0.1" }, url: "/api/health" };
+    // 4. Run twice — first hit populates state, second hit is the
+    // real "after some traffic" view we want to assert.
+    const res0 = { ...res };
+    await handler(req, res0);
+    res = {
+      statusCode: 200, _body: null, headers: {},
+      headersSent: false,
+      setHeader(k, v) { this.headers[k] = v; },
+      end(s) { this._body = s; this.headersSent = true; },
+    };
+    await handler(req, res);
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+
+  // 5. Header parity check.
+  assert.equal(res.statusCode, 200, "must return 200 on the happy path");
+  const expectedHeaders = [
+    "Content-Type", "Cache-Control", "X-Request-Id",
+    "X-Request-Latency-Total-Ms", "X-Build-Sha", "X-Endpoint",
+    "ETag", "Last-Modified",
+  ];
+  for (const h of expectedHeaders) {
+    assert.ok(res.headers[h], `response must carry ${h}`);
+  }
+  assert.match(res.headers["Cache-Control"], /public,\s*max-age=5/);
+  assert.equal(res.headers["X-Endpoint"], "health");
+
+  // 6. Body shape check — every summary + process field must be present.
+  const body = JSON.parse(res._body);
+  assert.equal(body.ok, true);
+  assert.equal(body.status, "ok");
+  assert.equal(typeof body.version, "string");
+  assert.equal(typeof body.summary.startedAt, "string");
+  assert.equal(typeof body.uptimeSec, "number");
+  // summary
+  assert.ok(body.summary, "body must include summary");
+  for (const k of [
+    "providersConfigured", "providersReachable", "fastestProviderMs",
+    "slowestProviderMs", "cacheHits", "totalProbes", "networkProbes",
+    "requests", "uniqueIPs", "totalErrors", "requestsByStatus",
+    "topActiveIPs", "startedAt", "lastProbeAtMs", "startupDurationMs",
+    "averageRequestsPerMinute",
+  ]) {
+    assert.ok(k in body.summary, `summary must include ${k}`);
+  }
+  // cspReports
+  assert.ok(body.summary.cspReports, "summary must include cspReports");
+  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom"]) {
+    assert.ok(k in body.summary.cspReports, `cspReports must include ${k}`);
+  }
+  // process
+  assert.ok(body.process, "body must include process");
+  for (const k of [
+    "nodeVersion", "platform", "arch", "pid", "processUptimeSec",
+    "region", "vercelEnv", "memory",
+  ]) {
+    assert.ok(k in body.process, `process must include ${k}`);
+  }
+  // process.memory
+  for (const k of [
+    "rssMb", "heapTotalMb", "heapUsedMb", "externalMb",
+    "arrayBuffersMb", "limitMb", "usedPercent", "nearLimit",
+    "peakRssMb",
+  ]) {
+    assert.ok(k in body.process.memory, `process.memory must include ${k}`);
+  }
+  // providers
+  for (const k of ["gemini", "openrouter"]) {
+    assert.ok(body.providers[k], `providers.${k} must exist`);
+    if (body.providers[k].configured) {
+      for (const kk of ["configured", "reachable", "latencyMs", "cached"]) {
+        assert.ok(kk in body.providers[k], `providers.${k} must include ${kk}`);
+      }
+    }
+  }
+}, async () => {});
