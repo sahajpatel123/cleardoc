@@ -226,3 +226,20 @@ test("csp-report handler: 415s on disallowed Content-Type before parsing the bod
   const json = await runWith("application/json", "{}");
   assert.notEqual(json.statusCode, 415, "application/json must not yield 415");
 });
+
+// ── standard observability headers on 204 responses (iter #61) ──────
+
+test("csp-report handler: 204 responses emit X-Request-Id + X-Request-Latency-Total-Ms + X-Build-Sha", () => {
+  // /api/csp-report uses res.end() directly (no json() call) so the
+  // standard observability headers that json() emits don't land on
+  // 204 responses. Other endpoints emit them. Parity requires explicit
+  // application of X-Request-Id, X-Request-Latency-Total-Ms, and
+  // X-Build-Sha so ops can correlate CSP report endpoint latency and
+  // build in their dashboards.
+  assert.match(CSP_SOURCE, /applyCspReportHeaders\s*\(/, "must call applyCspReportHeaders() on 204 responses");
+  assert.match(CSP_SOURCE, /function\s+applyCspReportHeaders\(/, "applyCspReportHeaders helper must exist");
+  // The helper must set all three standard headers
+  assert.match(CSP_SOURCE, /X-Request-Id/, "helper must set X-Request-Id");
+  assert.match(CSP_SOURCE, /X-Request-Latency-Total-Ms/, "helper must set X-Request-Latency-Total-Ms");
+  assert.match(CSP_SOURCE, /applyBuildShaHeader/, "helper must invoke applyBuildShaHeader (emits X-Build-Sha)");
+});

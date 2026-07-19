@@ -16,7 +16,7 @@
  * before logging, and we cap the body length on read.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyEndpointHeader, errLog, accessLog, getIp, readCappedBody, sanitizeLogField, recordCspReport } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyEndpointHeader, applyBuildShaHeader, errLog, accessLog, getIp, readCappedBody, sanitizeLogField, recordCspReport } = require("./_safety.js");
 
 const MAX_BODY_BYTES = 16 * 1024;       // CSP reports are tiny (~1KB typical)
 const RATE_LIMIT_PER_MINUTE = 60;        // browsers don't usually spam; rate-limit anyway
@@ -50,6 +50,24 @@ function extractViolations(body) {
 function sanitizeUrl(u) {
   if (typeof u !== "string" || u.length === 0) return "(none)";
   return sanitizeLogField(u.split(/[?#]/)[0], 240);
+}
+
+/* Apply the standard observability header family to the CSP report
+ * 204 response. CSP reports use res.end() directly (no json() call),
+ * so we have to set the headers ourselves. The headers are: X-Request-Id
+ * (from attachRequestId), X-Request-Latency-Total-Ms, and X-Build-Sha
+ * (deployed commit). Safe no-op when res.headersSent is true.
+ */
+function applyCspReportHeaders(res) {
+  if (!res || typeof res.setHeader !== "function" || res.headersSent) return;
+  if (res.__requestId) res.setHeader("X-Request-Id", res.__requestId);
+  if (typeof res.__requestStartedAt === "number") {
+    const elapsed = Date.now() - res.__requestStartedAt;
+    if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= 600000) {
+      res.setHeader("X-Request-Latency-Total-Ms", String(Math.round(elapsed)));
+    }
+  }
+  applyBuildShaHeader(res);
 }
 
 module.exports = async function handler(req, res) {
@@ -109,6 +127,7 @@ module.exports = async function handler(req, res) {
       // but accept it (return 204) so we don't encourage retries.
       errLog(res, "csp-report", new Error("empty or unrecognized CSP report body"));
       res.statusCode = 204;
+      applyCspReportHeaders(res);
       return res.end();
     }
 
@@ -133,6 +152,7 @@ module.exports = async function handler(req, res) {
 
     // Always 204 — browsers don't care about the response body
     res.statusCode = 204;
+    applyCspReportHeaders(res);
     res.end();
   } catch (err) {
     if (res && res.headersSent) return;
