@@ -925,7 +925,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
   }
   // cspReports
   assert.ok(body.summary.cspReports, "summary must include cspReports");
-  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom", "ratePerMinute", "acceptanceRate", "lastBlockedAt", "uniqueBlockedUris", "lastBlockByIp", "consecutiveBlocks"]) {
+  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom", "ratePerMinute", "acceptanceRate", "lastBlockedAt", "uniqueBlockedUris", "lastBlockByIp", "consecutiveBlocks", "totalRatePerMinute"]) {
     assert.ok(k in body.summary.cspReports, `cspReports must include ${k}`);
   }
   // process
@@ -1484,6 +1484,22 @@ test("health handler: cspReports surfaces consecutiveBlocks (sustained-attack si
   // Must increment on block + reset on accept
   assert.match(safetySrc, /_cspConsecutiveBlocks\s*\+=\s*1/, "must increment in recordCspBlock");
   assert.match(safetySrc, /_cspConsecutiveBlocks\s*=\s*0/, "must reset in recordCspReport");
+});
+
+// ── totalRatePerMinute (iter #117, linter-added) ───────────────
+
+test("health handler: cspReports surfaces totalRatePerMinute (all attempts per minute)", () => {
+  // Pairs with ratePerMinute (accepted only) to give the full attack
+  // picture: totalRatePerMinute - ratePerMinute = block rate per
+  // minute. Lets ops answer "is the attack rate rising?" from a
+  // single curl.
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /totalRatePerMinute/, "getCspReportCounts must surface totalRatePerMinute field");
+  // Must source from total attempts (accepted + blocked), not just accepted
+  assert.match(safetySrc, /_cspTotalReports\s*\+\s*_cspBlockedCount/,
+    "computation must be total attempts (accepted + blocked)");
 });
 
 // ── currentConcurrentRequests (iter #112, linter-added) ────────

@@ -2953,3 +2953,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Completed the linter's partial work — declared variable, no wiring. Implementing required: increment in `recordCspBlock`, reset in `recordCspReport`, surface in the `getCspReportCounts` return.
+
+**2026-07-19 16:20 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #117 of the autonomous loop** (cron `f1fb68b1` firing). Live: 16:20 IST.
+- **Linter-shipped `cspReports.totalRatePerMinute`** (commit `bdab258c`). New field: total attempts per minute (accepted + blocked) since process start.
+- **Pairs with `cspReports.ratePerMinute`** (accepted-only) for the full attack picture: `totalRatePerMinute - ratePerMinute = block rate`. Lets ops answer "is the attack rate rising?" from a single curl.
+- **1 new source-pattern test** + extended full-observability-surface cspReports assertion list.
+- **395/395 tests pass** (320 unit + 71 smoke + 1 integration). Test count +1.
+
+**Prompt Intention:**
+- Honored the standing directives. Linter shipped the full feature this iter (no completion work needed); I added the test coverage. Combined the cspReports rate surface is now: `ratePerMinute` (accepted) + `totalRatePerMinute` (all attempts) + `acceptanceRate` (quality) + `consecutiveBlocks` (current streak).
