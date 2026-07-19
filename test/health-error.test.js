@@ -919,7 +919,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
   }
   // cspReports
   assert.ok(body.summary.cspReports, "summary must include cspReports");
-  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom"]) {
+  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom", "ratePerMinute"]) {
     assert.ok(k in body.summary.cspReports, `cspReports must include ${k}`);
   }
   // process
@@ -1102,4 +1102,19 @@ test("health handler: summary exposes lastErrorAt (ISO timestamp of most recent 
   assert.match(HEALTH_SOURCE, /_lastErrorAt/, "must have a module-level _lastErrorAt counter");
   assert.match(HEALTH_SOURCE, /_lastErrorAt\s*=\s*Date\.now\(\)/, "must capture Date.now() on each 5xx");
   assert.match(HEALTH_SOURCE, /_lastErrorAt\s*\?\s*new Date\(_lastErrorAt\)\.toISOString\(\)\s*:\s*null/, "must format as ISO timestamp, null until first 5xx");
+});
+
+// ── cspReportRate (iter #86) ──────────────────────────────────
+
+test("health handler: summary exposes cspReportRate (per-minute CSP report rate)", () => {
+  // Average per-minute rate over the lifetime of this process. Lets
+  // ops answer "are CSP reports spiking?" from a single curl. 0 when
+  // no reports have been received.
+  assert.match(HEALTH_SOURCE, /cspReportRate/, "summary must include cspReportRate field");
+  // The accessor lives in _safety.js
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /ratePerMinute/, "_safety.js must compute ratePerMinute");
+  assert.match(safetySrc, /_cspProcessStartTs/, "_safety.js must track process start for the rate calculation");
 });

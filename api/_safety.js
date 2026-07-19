@@ -363,6 +363,10 @@ function clearProbeCache() {
 const _cspDirectiveCounts = new Map();
 const MAX_CSP_DIRECTIVES = 50;
 let _cspTotalReports = 0;
+// When this process started receiving CSP reports — firstSeenAt is
+// also tracked separately per directive, but we want the per-process
+// start time here so cspReportRate can be derived from (total / elapsed).
+let _cspProcessStartTs = Date.now();
 // Temporal observability for CSP report stream. firstSeenAt captures
 // when the very first violation was reported (per process lifetime);
 // lastSeenAt updates on every subsequent report. Lets ops answer
@@ -487,6 +491,16 @@ function getCspReportCounts() {
     // report".
     firstSeenAt: _cspFirstSeenAt ? new Date(_cspFirstSeenAt).toISOString() : null,
     lastSeenAt: _cspLastSeenAt ? new Date(_cspLastSeenAt).toISOString() : null,
+    // Average per-minute CSP report rate over the process lifetime.
+    // Pairs with `total` to give ops an instantaneous signal:
+    //   total=12, rate=0.05/min  → steady low-volume background
+    //   total=200, rate=2.5/min → spike, investigate
+    // 0 when no reports received (else unbounded small-rate noise).
+    // Math.max(1, elapsedMin) guards divide-by-zero at process start.
+    ratePerMinute: (() => {
+      const elapsedMin = Math.max(1, Math.round((Date.now() - _cspProcessStartTs) / 60000));
+      return Math.round((_cspTotalReports / elapsedMin) * 10) / 10;
+    })(),
     // Most recent reporting IP (hashed + sample for ops identification).
     // Lets ops answer "is one specific client flooding us with CSP
     // reports?" from a single curl.

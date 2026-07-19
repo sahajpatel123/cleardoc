@@ -225,6 +225,10 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // worse over time?" — the existing fields show extremes; this
     // one shows the mean.
     providersAvgLatencyMsInLastHour: getProbeAverageLatencyInLastHour(),
+    // CSP report rate (per minute, averaged over the lifetime of the
+    // process). Lets ops answer "are CSP reports spiking?" from a
+    // single curl. 0 when no reports have been received yet.
+    cspReportRate: cspCounts.ratePerMinute,
     // Per-provider per-region reachability over the rolling 1-hour
     // window. Lets ops answer "is the flapping localized to one
     // region?" (traffic spike in iad1 might leave fra1 unaffected).
