@@ -1900,3 +1900,100 @@ test("_safety: getIp handles malformed/missing input safely", () => {
   assert.doesNotThrow(() => getIp({ headers: {}, socket: { remoteAddress: null } }),
     "null remoteAddress must not throw");
 });
+
+// ── request-id helpers behavioral coverage (iter #108) ────────
+
+test("_safety: sanitizeIncomingRequestId accepts well-formed ASCII IDs", () => {
+  const { sanitizeIncomingRequestId } = require("../api/_safety.js");
+  // Standard UUIDs (with hyphens)
+  assert.equal(sanitizeIncomingRequestId("550e8400-e29b-41d4-a716-446655440000"),
+    "550e8400-e29b-41d4-a716-446655440000");
+  // Simple alphanumeric
+  assert.equal(sanitizeIncomingRequestId("abc123"), "abc123");
+  // With dots, underscores, hyphens (the allowlist)
+  assert.equal(sanitizeIncomingRequestId("req.123_abc-xyz"), "req.123_abc-xyz");
+});
+
+test("_safety: sanitizeIncomingRequestId rejects injection attempts and non-ASCII", () => {
+  const { sanitizeIncomingRequestId } = require("../api/_safety.js");
+  // Empty / non-string
+  assert.equal(sanitizeIncomingRequestId(""), null, "empty string → null");
+  assert.equal(sanitizeIncomingRequestId(null), null, "null → null");
+  assert.equal(sanitizeIncomingRequestId(undefined), null, "undefined → null");
+  assert.equal(sanitizeIncomingRequestId(123), null, "number → null");
+  // Header injection attempts (CRLF)
+  assert.equal(sanitizeIncomingRequestId("req\r\nInjected: header"), null,
+    "CRLF injection must be rejected");
+  // Whitespace
+  assert.equal(sanitizeIncomingRequestId("req with space"), null,
+    "whitespace must be rejected");
+  // Special characters
+  assert.equal(sanitizeIncomingRequestId("req;DROP"), null, "semicolon must be rejected");
+  assert.equal(sanitizeIncomingRequestId("req;DROP-TABLE"), null);
+  assert.equal(sanitizeIncomingRequestId("req/path"), null, "slash must be rejected");
+  assert.equal(sanitizeIncomingRequestId("req:colon"), null, "colon must be rejected");
+  // Non-ASCII (the allowlist is ASCII-only via [A-Za-z0-9._-])
+  assert.equal(sanitizeIncomingRequestId("rëq123"), null, "non-ASCII must be rejected");
+  // Too long (> 128 chars)
+  assert.equal(sanitizeIncomingRequestId("a".repeat(129)), null, "129-char ID must be rejected");
+});
+
+test("_safety: sanitizeIncomingRequestId truncates oversize inputs but only if valid", () => {
+  const { sanitizeIncomingRequestId } = require("../api/_safety.js");
+  // Exactly 128 chars — at the boundary, should be accepted
+  const maxId = "a".repeat(128);
+  assert.equal(sanitizeIncomingRequestId(maxId), maxId, "128-char ID must be accepted (boundary)");
+  // 129 chars — must be rejected
+  const overId = "a".repeat(129);
+  assert.equal(sanitizeIncomingRequestId(overId), null, "129-char ID must be rejected");
+  // 200 chars
+  assert.equal(sanitizeIncomingRequestId("a".repeat(200)), null, "200-char ID must be rejected");
+});
+
+test("_safety: generateRequestId returns a unique string on every call", () => {
+  const { generateRequestId } = require("../api/_safety.js");
+  const ids = new Set();
+  for (let i = 0; i < 100; i++) {
+    const id = generateRequestId();
+    assert.equal(typeof id, "string");
+    assert.ok(id.length > 0, "ID must be non-empty");
+    ids.add(id);
+  }
+  assert.equal(ids.size, 100, "all 100 generated IDs must be unique");
+});
+
+test("_safety: attachRequestId uses incoming valid ID when present", () => {
+  const { attachRequestId, sanitizeIncomingRequestId } = require("../api/_safety.js");
+  const res = { __requestId: null, __requestStartedAt: null };
+  const req = { headers: { "x-request-id": "my-trace-id-123" } };
+  const returnedId = attachRequestId(res, req);
+  assert.equal(returnedId, "my-trace-id-123");
+  assert.equal(res.__requestId, "my-trace-id-123");
+  assert.ok(typeof res.__requestStartedAt === "number");
+});
+
+test("_safety: attachRequestId generates fresh ID when incoming is malformed", () => {
+  const { attachRequestId } = require("../api/_safety.js");
+  const res = { __requestId: null, __requestStartedAt: null };
+  // Incoming has a CRLF injection — must be rejected, fresh ID minted
+  const req = { headers: { "x-request-id": "bad\r\nInjected" } };
+  const id = attachRequestId(res, req);
+  assert.notEqual(id, "bad\r\nInjected");
+  assert.ok(id.length > 0);
+  assert.equal(res.__requestId, id);
+});
+
+test("_safety: attachRequestId handles missing req / headers gracefully", () => {
+  const { attachRequestId } = require("../api/_safety.js");
+  // Missing req
+  let res = { __requestId: null, __requestStartedAt: null };
+  let id = attachRequestId(res);
+  assert.ok(typeof id === "string");
+  assert.ok(id.length > 0);
+  // Missing req.headers
+  res = { __requestId: null, __requestStartedAt: null };
+  id = attachRequestId(res, {});
+  assert.ok(typeof id === "string");
+  // null req
+  assert.doesNotThrow(() => attachRequestId({}), "null req must not throw");
+});
