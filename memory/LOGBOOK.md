@@ -2450,3 +2450,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Continued the `/loop 10minutes` autonomous engineer protocol. Iteration #20 broke the 2-iteration verification-only streak — fresh parallel-agent work landed between iterations and got documented. Next iteration scheduled to fire in 10 minutes.
+**2026-07-19 08:35 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #73 of the autonomous loop** (cron `c3921bc4` firing). Live: 08:35 IST.
+- **Shipped `summary.averageRequestsPerMinute` on /api/health** (`2ff223e8`). New field: 1-decimal precision average request rate since process start.
+- **Derived from `requests / uptimeSec * 60`**. Pairs with the cumulative `summary.requests` to give ops a per-minute rate alongside the total count. Computed lazily on each /api/health request so it stays current.
+- **Guards against divide-by-zero** at process start (when uptimeSec is still 0): returns 0 rather than Infinity in that case.
+- **315/315 tests pass** (243 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the per-minute-rate observability gap. Combined with the cumulative `requests` (iter #58), ops can now derive both the absolute traffic since start AND the current per-minute rate — useful for distinguishing \"steady low traffic\" (low cumulative, low rate) from \"fresh spike\" (low cumulative, high rate).
