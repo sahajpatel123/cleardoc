@@ -2246,3 +2246,11 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Shipped `4dbaaf86 test(safety): pin Content-Type charset suffix acceptance`.** Iter #23 tightened the Content-Type regex with `(?:\s*;|\s*$)` to reject +suffix variants. Defense-in-depth: pin that `application/json; charset=utf-8` still parses as 200, not 415. Source-pattern lock + runtime regex assertion over 5 representative inputs.
 - **Verification:** 292/292 tests pass (218 unit + 71 smoke + 1 integration). Pushed to origin/main.
 
+
+**2026-07-19 05:45 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #26 of /loop 10minutes** — autonomous DevSecOps guardian.
+- **Recon:** parallel session shipped `747f06dc feat(api): /api/csp-report 204 responses now emit standard observability headers`. Working tree clean on entry.
+- **Shipped `167f080a test(safety): pin per-endpoint RATE_LIMIT_PER_MINUTE caps`.** Each /api/* handler has its own per-IP cap (analyze=10, chat=30, csp-report=60, health=60). No existing source-pattern test pinned these. Test now locks each constant + rationale comment.
+- **Verification:** 293/293 tests pass (219 unit + 71 smoke + 1 integration). Pushed.
+
