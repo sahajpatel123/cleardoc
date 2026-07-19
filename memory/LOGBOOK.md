@@ -2475,3 +2475,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the integration-test gap on the /api/health observability surface. After 74 iterations of adding fields, the field list was never regression-tested end-to-end. A test that re-runs the handler and asserts every field is present catches a future refactor that drops one — protecting the contract ops dashboards depend on.
+
+**2026-07-19 09:00 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #75 of the autonomous loop** (cron `c3921bc4` firing). Live: 09:00 IST.
+- **Shipped `X-CSP-Reports-Processed-Total` response header on /api/csp-report** (`e1027cc9`). New header on 204 responses: per-batch report counter.
+- **Lets the browser see how many we accepted** in this batch; helps with retry logic + ops observability from the client side. Per-batch (not cumulative) — 0 when the body is empty (which is a no-op 204 anyway, but the count is still useful for ops).
+- **316/316 tests pass** (244 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the per-batch observability gap. The /api/csp-report 204 response was previously opaque — the browser got no signal of how many reports we accepted. Now it does, enabling better retry logic on the client side (a browser that ships 5 reports but receives \"X-CSP-Reports-Processed-Total: 3\" can detect partial processing and retry).
