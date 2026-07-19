@@ -1341,3 +1341,85 @@ test("health handler: cspReports surfaces uniqueBlockedUris (count of distinct b
   assert.match(safetySrc, /uniqueBlockedUris/, "_safety.js must surface uniqueBlockedUris field");
   assert.match(safetySrc, /_cspBlockedUriCounts\.size/, "computation must use _cspBlockedUriCounts.size");
 });
+
+// ── buildSummary behavioral tests (iter #100) ──────────────────
+
+test("buildSummary: empty state (no providers, no probes) returns sane defaults", () => {
+  // Iter #100: behavioral coverage for the buildSummary helper.
+  // Pure-functional test — no I/O, no shared state. The helper
+  // accepts an explicit probe-state object so this is deterministic.
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false,
+    hasOpenRouter: false,
+    geminiProbe: null,
+    openRouterProbe: null,
+  });
+  assert.equal(r.providersConfigured, 0, "no providers configured → 0");
+  assert.equal(r.providersReachable, 0, "no providers reachable → 0");
+  assert.equal(r.fastestProviderMs, null, "no reachable probes → null");
+  assert.equal(r.slowestProviderMs, null, "no reachable probes → null");
+  assert.equal(r.cacheHits, 0, "no probes → 0 cache hits");
+  assert.equal(typeof r.startedAt, "string", "startedAt always present");
+  assert.equal(r.lastProbeAtMs, null, "no probes → lastProbeAtMs is null");
+});
+
+test("buildSummary: both providers reachable returns correct counts and latency stats", () => {
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: true,
+    hasOpenRouter: true,
+    geminiProbe: { ok: true, latencyMs: 100, cached: false, checkedAt: Date.now() },
+    openRouterProbe: { ok: true, latencyMs: 250, cached: true, checkedAt: Date.now() },
+  });
+  assert.equal(r.providersConfigured, 2);
+  assert.equal(r.providersReachable, 2);
+  assert.equal(r.fastestProviderMs, 100, "min(100, 250) = 100");
+  assert.equal(r.slowestProviderMs, 250, "max(100, 250) = 250");
+  assert.equal(r.cacheHits, 1, "one cached probe");
+});
+
+test("buildSummary: only openrouter reachable → fastest === slowest === openrouter's latency", () => {
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: true,
+    hasOpenRouter: true,
+    geminiProbe: { ok: false, latencyMs: 3000, cached: false, checkedAt: Date.now() },
+    openRouterProbe: { ok: true, latencyMs: 180, cached: false, checkedAt: Date.now() },
+  });
+  assert.equal(r.providersConfigured, 2);
+  assert.equal(r.providersReachable, 1, "only openrouter ok");
+  // Latency stats consider ONLY reachable providers.
+  assert.equal(r.fastestProviderMs, 180, "min of reachable = 180");
+  assert.equal(r.slowestProviderMs, 180, "max of reachable = 180");
+  assert.equal(r.cacheHits, 0, "no cached probes");
+});
+
+test("buildSummary: anyProviderReachable + allProvidersReachable booleans are correct", () => {
+  // Coverage for the iter #78 aggregate booleans via the helper API.
+  const { buildSummary } = require("../api/health.js");
+  // Both reachable
+  let r = buildSummary({
+    hasGemini: true, hasOpenRouter: true,
+    geminiProbe: { ok: true, latencyMs: 100, cached: false, checkedAt: Date.now() },
+    openRouterProbe: { ok: true, latencyMs: 100, cached: false, checkedAt: Date.now() },
+  });
+  assert.equal(r.anyProviderReachable, true, "both reachable → any true");
+  assert.equal(r.allProvidersReachable, true, "both reachable → all true");
+  // Only one reachable
+  r = buildSummary({
+    hasGemini: true, hasOpenRouter: true,
+    geminiProbe: { ok: false, latencyMs: 0, cached: false, checkedAt: Date.now() },
+    openRouterProbe: { ok: true, latencyMs: 100, cached: false, checkedAt: Date.now() },
+  });
+  assert.equal(r.anyProviderReachable, true, "one reachable → any true");
+  assert.equal(r.allProvidersReachable, false, "one reachable → all false");
+  // None reachable
+  r = buildSummary({
+    hasGemini: true, hasOpenRouter: true,
+    geminiProbe: { ok: false, latencyMs: 0, cached: false, checkedAt: Date.now() },
+    openRouterProbe: { ok: false, latencyMs: 0, cached: false, checkedAt: Date.now() },
+  });
+  assert.equal(r.anyProviderReachable, false);
+  assert.equal(r.allProvidersReachable, false);
+});

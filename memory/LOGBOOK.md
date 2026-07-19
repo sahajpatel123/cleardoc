@@ -2739,3 +2739,17 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Added a test for the linter's `uniqueBlockedUris` field. The CSP surface is now: `total` (accepted count) + `blocked` (rejected count, internal) + `ratePerMinute` (tempo) + `acceptanceRate` (quality) + `uniqueBlockedUris` (variety scope, iter #99) + per-URI/per-document-URI top-10 + firstSeenAt/lastSeenAt/lastBlockedAt/lastReporter (timeline).
+
+**2026-07-19 13:30 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #100 of the autonomous loop** (cron `f1fb68b1` firing). Live: 13:30 IST.
+- **Shipped 4 behavioral tests for `buildSummary()`** in `test/health-error.test.js`. Pure-functional coverage — exercises the helper directly with mocked probe-state objects. No I/O, no shared state.
+- **Tests added**:
+  1. Empty state — no providers, no probes → defaults (0/null)
+  2. Both providers reachable — counts + min/max latency correct
+  3. Mixed state (gemini down, openrouter up) — only reachable participates in latency stats
+  4. anyProviderReachable + allProvidersReachable booleans across 3 scenarios
+- **363/363 tests pass** (288 unit + 71 smoke + 1 integration). Test count +4 from iter #99.
+
+**Prompt Intention:**
+- Honored the standing directives. Reached a milestone (iter #100) — chose test-coverage over feature add. `buildSummary` was the heart of /api/health's summary block but only had source-pattern tests; behavioral tests catch the actual math (counts, min/max, aggregate booleans) without relying on source-grep.
