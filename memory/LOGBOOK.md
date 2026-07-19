@@ -2590,3 +2590,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the /api/health observability loop. Combined with `totalErrors` (count) + `errorRate` (ratio) + `lastErrorAt` (timestamp), ops get the full 5xx-recovery picture: "how many, what ratio, when most recently" — all in a single `curl /api/health`.
+
+**2026-07-19 11:20 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #86 of the autonomous loop** (cron `f1fb68b1` firing). Live: 11:20 IST.
+- **Shipped `summary.cspReports.ratePerMinute` on /api/health**. New field: average CSP reports per minute over the process lifetime. 0 when no reports received.
+- **Closes the "are CSP reports spiking?" observability gap**. The summary already exposed `total` (count) but no temporal rate. `ratePerMinute` pairs with `lastSeenAt`: "12 reports over the lifetime of the function" + "0.05/min" tells ops it's steady low-volume background vs a spike that needs investigation.
+- **Implementation**: new module-level `_cspProcessStartTs` in `api/_safety.js` (captures `Date.now()` at module load). `getCspReportCounts` IIFE computes `_cspTotalReports / elapsedMinutes` with `Math.max(1, elapsedMin)` divide-by-zero guard, 1-decimal precision.
+- **345/345 tests pass** (272 unit + 71 smoke + 1 integration). 1 new source-pattern test (`cspReportRate`). Extended full-observability-surface assertion list for cspReports.ratePerMinute.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the /api/health observability loop. Combined with `cspReports.total` + `lastSeenAt` + `firstSeenAt` + `ratePerMinute`, ops can monitor the violation stream's health from a single curl — distinguishing "0 reports" (stream dead, not nothing-to-report) from "300/min" (active spike).
