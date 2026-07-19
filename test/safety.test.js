@@ -2063,3 +2063,73 @@ test("_safety: rateLimit handles missing/invalid inputs gracefully", () => {
   assert.doesNotThrow(() => rateLimit("1.2.3.4", 0), "0 max must not throw");
   assert.doesNotThrow(() => rateLimit("1.2.3.4", -1), "negative max must not throw");
 });
+
+// ── applyRateLimitHeaders behavioral coverage (iter #121) ─────
+
+test("_safety: applyRateLimitHeaders sets all four rate-limit headers for an allow result", () => {
+  const { applyRateLimitHeaders } = require("../api/_safety.js");
+  const res = {
+    headersSent: false,
+    headers: {},
+    setHeader(k, v) { this.headers[k] = v; },
+  };
+  // Allow result: ok:true, has limit/remaining/reset (no retryAfter)
+  applyRateLimitHeaders(res, { ok: true, limit: 60, remaining: 59, reset: 1234567890 });
+  assert.equal(res.headers["X-RateLimit-Limit"], "60");
+  assert.equal(res.headers["X-RateLimit-Remaining"], "59");
+  assert.equal(res.headers["X-RateLimit-Reset"], "1234567890");
+  assert.equal(res.headers["Retry-After"], undefined,
+    "allow result must not set Retry-After");
+});
+
+test("_safety: applyRateLimitHeaders sets Retry-After for a deny result", () => {
+  const { applyRateLimitHeaders } = require("../api/_safety.js");
+  const res = {
+    headersSent: false,
+    headers: {},
+    setHeader(k, v) { this.headers[k] = v; },
+  };
+  applyRateLimitHeaders(res, {
+    ok: false, limit: 60, remaining: 0, reset: 1234567890, retryAfter: 42,
+  });
+  assert.equal(res.headers["X-RateLimit-Limit"], "60");
+  assert.equal(res.headers["X-RateLimit-Remaining"], "0");
+  assert.equal(res.headers["X-RateLimit-Reset"], "1234567890");
+  assert.equal(res.headers["Retry-After"], "42");
+});
+
+test("_safety: applyRateLimitHeaders omits headers when rate limiter is disabled (limit <= 0)", () => {
+  // rateLimit() returns {ok:true,limit:0,remaining:0,reset:0} when
+  // disabled. Headers would mislead clients (Reset:0 = 1970-01-01).
+  // The function must omit every header instead.
+  const { applyRateLimitHeaders } = require("../api/_safety.js");
+  const res = {
+    headersSent: false,
+    headers: {},
+    setHeader(k, v) { this.headers[k] = v; },
+  };
+  applyRateLimitHeaders(res, { ok: true, limit: 0, remaining: 0, reset: 0 });
+  assert.equal(res.headers["X-RateLimit-Limit"], undefined);
+  assert.equal(res.headers["X-RateLimit-Remaining"], undefined);
+  assert.equal(res.headers["X-RateLimit-Reset"], undefined);
+  assert.equal(res.headers["Retry-After"], undefined);
+});
+
+test("_safety: applyRateLimitHeaders handles missing/invalid rl gracefully", () => {
+  const { applyRateLimitHeaders } = require("../api/_safety.js");
+  // The function guards `rl` (returns early if missing/non-object)
+  // but does NOT guard `res` — if res is null/undefined, the
+  // setHeader call will throw. That's a contract: the handler
+  // always passes a real res. Document the behavior:
+  // Missing/null/undefined rl — must not throw
+  const res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
+  assert.doesNotThrow(() => applyRateLimitHeaders(res, null), "null rl must not throw");
+  assert.doesNotThrow(() => applyRateLimitHeaders(res, undefined),
+    "undefined rl must not throw");
+  assert.doesNotThrow(() => applyRateLimitHeaders(res, {}), "empty rl must not throw");
+  assert.doesNotThrow(() => applyRateLimitHeaders(res, "not an object"),
+    "string rl must not throw");
+  // After each call, no headers set
+  assert.equal(res.headers["X-RateLimit-Limit"], undefined,
+    "no X-RateLimit-* headers when rl is missing/invalid");
+});

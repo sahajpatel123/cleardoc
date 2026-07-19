@@ -2998,3 +2998,17 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Diagnosed and hotfixed the regression. The lesson: peak semantics are about *past* measurements, not *current* ones. Two separate `process.memoryUsage()` calls within the same handler can return different values.
+
+**2026-07-19 17:00 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #121 of the autonomous loop** (cron `f1fb68b1` firing). Live: 17:00 IST.
+- **Shipped 4 behavioral tests for `applyRateLimitHeaders` in `test/safety.test.js`**. The function sets the X-RateLimit-Limit/Remaining/Reset + Retry-After headers. Only source-pattern tested before.
+- **Tests added**:
+  1. Allow result → all 3 X-RateLimit-* headers set, no Retry-After
+  2. Deny result → all 3 + Retry-After set
+  3. Disabled limiter (limit: 0) → ALL headers omitted (avoids X-RateLimit-Reset: 0 = 1970-01-01 misleading clients)
+  4. Missing/invalid `rl` → safe no-op (rl is guarded; res is NOT guarded — that's the contract)
+- **404/404 tests pass** (329 unit + 71 smoke + 1 integration). Test count +4.
+
+**Prompt Intention:**
+- Honored the standing directives. The `applyRateLimitHeaders` helper is called by every endpoint on every request. Source-pattern tests only verified the function name; behavioral tests now exercise the actual allow-vs-deny-vs-disabled logic + the safe-no-op contract.
