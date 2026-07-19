@@ -1576,6 +1576,50 @@ test("health handler: summary exposes requestsByStatusTop3 (top 3 status codes b
     "must format each entry as {status, count}");
 });
 
+// ── providersReachableInLastHour (iter #128, behavioral) ──────
+
+test("health handler: providersReachableInLastHour structure is correct (mocked fetch)", async () => {
+  // Behavioral verification of the per-provider success/failure
+  // rate computation. Render the handler with mocked fetch so
+  // probes succeed quickly. Field is structured as
+  // { gemini: {okCount, total, successRate, failureRate}, ... }.
+  if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY && !process.env.GOOGLE_GEMINI_API_KEY) {
+    process.env.OPENROUTER_API_KEY = "test-stub-key-iter128";
+    process.env.GEMINI_API_KEY = "test-stub-key-iter128-g";
+  }
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200 });
+  try {
+    const handler = require("../api/health.js");
+    const res = {
+      statusCode: 200, _body: null, headers: {}, headersSent: false,
+      setHeader(k, v) { this.headers[k] = v; },
+      end(s) { this._body = s; this.headersSent = true; },
+    };
+    const req = { method: "GET", headers: {}, socket: { remoteAddress: "127.0.0.1" } };
+    await handler(req, res);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res._body);
+    assert.ok("providersReachableInLastHour" in body.summary,
+      "summary must include providersReachableInLastHour field");
+    const reach = body.summary.providersReachableInLastHour;
+    // Each provider has 4 fields
+    for (const provider of ["gemini", "openrouter"]) {
+      assert.equal(typeof reach[provider], "object", `${provider} must be an object`);
+      assert.equal(typeof reach[provider].okCount, "number",
+        `${provider}.okCount must be a number`);
+      assert.equal(typeof reach[provider].total, "number",
+        `${provider}.total must be a number`);
+      assert.ok(reach[provider].successRate === null || typeof reach[provider].successRate === "number",
+        `${provider}.successRate must be number or null`);
+      assert.ok(reach[provider].failureRate === null || typeof reach[provider].failureRate === "number",
+        `${provider}.failureRate must be number or null`);
+    }
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
 // ── providersAvgLatencyMsInLastHour (iter #126, behavioral) ───
 
 test("health handler: providersAvgLatencyMsInLastHour reflects probe latency (mocked fetch)", async () => {
