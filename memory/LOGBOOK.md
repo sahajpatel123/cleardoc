@@ -2568,3 +2568,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the GC-pressure-vs-OOM-risk observability gap. Ops can now distinguish "function is close to OOM" (`usedPercent`) from "V8 heap is near saturation, next allocation will trigger major GC" (`heapUsageRatio`) — two different failure modes with two different remediations.
+
+**2026-07-19 11:00 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #84 of the autonomous loop** (cron `f1fb68b1` firing — every 10m). Live: 11:00 IST.
+- **Shipped `summary.errorRate` on /api/health**. New field: `totalErrors / requests`, 1-decimal precision, 0 when `requests === 0` (process just started).
+- **Closes the "what's my 5xx rate right now?" observability gap**. The summary already exposed the raw numerator (`totalErrors`) and denominator (`requests`) — ops had to compute the ratio client-side. Now they can graph it directly.
+- **Hotfix #83 closure confirmed**: CI run `29674587713` went green for `195e6c68` (the syntax-error fix). Both monitors received the `success | Tests | 195e6c6` event. Workspace stable on `origin/main`.
+- **342/342 tests pass** (269 unit + 71 smoke + 1 integration). 1 new source-pattern test (`errorRate`). Extended the full-observability-surface test to include `errorRate` in the assertion list.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the /api/health observability loop. Paired with the existing `totalErrors` + `requests` fields, ops can graph the rolling 5xx error rate as a single time series — the kind of signal that triggers PagerDuty alerts cleanly.
