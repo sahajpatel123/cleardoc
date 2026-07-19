@@ -37,6 +37,10 @@ const MAX_STATUS_BUCKETS = 50;
 // `summary.requests` (total) to give ops an error-rate ratio in
 // a single curl: totalErrors / requests.
 let _totalErrors = 0;
+// Unix-ms timestamp of the most recent 5xx response since process start.
+// Pairs with `totalErrors` (count + recency = actionable signal: "are
+// we erroring RIGHT NOW or just historically?"). 0 until the first 5xx.
+let _lastErrorAt = 0;
 
 function recordRequestStatus(statusCode) {
   if (!Number.isFinite(statusCode)) return;
@@ -48,7 +52,10 @@ function recordRequestStatus(statusCode) {
   _requestsByStatus.set(statusCode, (_requestsByStatus.get(statusCode) || 0) + 1);
   // 5xx = server error. 4xx is a client error (rate limit, bad input)
   // and not interesting from an "is the server broken" perspective.
-  if (statusCode >= 500) _totalErrors += 1;
+  if (statusCode >= 500) {
+    _totalErrors += 1;
+    _lastErrorAt = Date.now();
+  }
 }
 // Read the version from package.json — single source of truth. Without
 // this the constant drifts the moment someone bumps package.json without
@@ -273,6 +280,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Aggregate 5xx count for error-rate ratio (totalErrors / requests).
     // 4xx is excluded — those are client errors, not server problems.
     totalErrors: _totalErrors,
+    // ISO timestamp of the most recent 5xx response since process start.
+    // Pairs with `totalErrors`: "have we errored at all" + "when most
+    // recently". Lets ops answer "are we erroring right now, or just
+    // historically?" from a single curl. Null until the first 5xx.
+    lastErrorAt: _lastErrorAt ? new Date(_lastErrorAt).toISOString() : null,
     // 5xx error rate (totalErrors / requests, 1-decimal precision, 0
     // when no requests yet). Complements the existing `totalErrors`
     // + `requests` fields so ops can read the ratio directly instead

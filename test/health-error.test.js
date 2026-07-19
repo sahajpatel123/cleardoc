@@ -913,7 +913,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "slowestProviderMs", "cacheHits", "totalProbes", "networkProbes",
     "requests", "uniqueIPs", "totalErrors", "requestsByStatus",
     "topActiveIPs", "startedAt", "lastProbeAtMs", "startupDurationMs",
-    "averageRequestsPerMinute", "errorRate",
+    "averageRequestsPerMinute", "errorRate", "lastErrorAt",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1090,4 +1090,16 @@ test("health handler: process.memory surfaces heapUsageRatio (heapUsed / heapTot
   assert.match(HEALTH_SOURCE, /heapUsageRatio/, "memory block must include heapUsageRatio field");
   assert.match(HEALTH_SOURCE, /m\.heapTotal\s*>\s*0/, "must guard against divide-by-zero");
   assert.match(HEALTH_SOURCE, /m\.heapUsed\s*\/\s*m\.heapTotal/, "computation must be heapUsed / heapTotal");
+});
+
+// ── lastErrorAt (iter #85) ────────────────────────────────────
+
+test("health handler: summary exposes lastErrorAt (ISO timestamp of most recent 5xx)", () => {
+  // Pairs with the existing `totalErrors` (count) to give ops an
+  // actionable signal: "are we erroring RIGHT NOW, or just historically?"
+  // Null until the first 5xx (process never errored).
+  assert.match(HEALTH_SOURCE, /lastErrorAt/, "summary must include lastErrorAt field");
+  assert.match(HEALTH_SOURCE, /_lastErrorAt/, "must have a module-level _lastErrorAt counter");
+  assert.match(HEALTH_SOURCE, /_lastErrorAt\s*=\s*Date\.now\(\)/, "must capture Date.now() on each 5xx");
+  assert.match(HEALTH_SOURCE, /_lastErrorAt\s*\?\s*new Date\(_lastErrorAt\)\.toISOString\(\)\s*:\s*null/, "must format as ISO timestamp, null until first 5xx");
 });
