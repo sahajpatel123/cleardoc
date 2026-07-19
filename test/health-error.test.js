@@ -755,3 +755,17 @@ test("health handler: summary surfaces topActiveIPs (per-IP activity breakdown)"
   assert.match(HEALTH_SOURCE, /topActiveIPs/, "summary must include topActiveIPs field");
   assert.match(HEALTH_SOURCE, /getTopActiveIPs/, "must call getTopActiveIPs() from _safety.js");
 });
+
+// ── startupDurationMs (iter #69) ───────────────────────────────
+
+test("health handler: summary surfaces startupDurationMs (module-load → first-request)", () => {
+  // Captures how long the function took to initialize (Vercel Hobby
+  // cold start, etc). Lazily captured on the first request so the
+  // value is stable for the rest of the process lifetime. Null before
+  // the first request arrives.
+  assert.match(HEALTH_SOURCE, /_firstRequestTs/, "must have a module-level _firstRequestTs");
+  assert.match(HEALTH_SOURCE, /_firstRequestTs\s*=\s*0/, "must initialize _firstRequestTs to 0");
+  assert.match(HEALTH_SOURCE, /if\s*\(_firstRequestTs\s*===\s*0\)\s*_firstRequestTs\s*=\s*Date\.now\(\)/, "must capture the first request's timestamp");
+  assert.match(HEALTH_SOURCE, /startupDurationMs/, "summary must include startupDurationMs field");
+  assert.match(HEALTH_SOURCE, /_firstRequestTs\s*\?\s*_firstRequestTs\s*-\s*START_TS\s*:\s*null/, "must compute diff vs START_TS, null until first request");
+});

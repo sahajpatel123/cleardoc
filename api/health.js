@@ -14,6 +14,12 @@
 const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount, getTopActiveIPs } = require("./_safety.js");
 
 const START_TS = Date.now();
+// Captured on the first request — `summary.startupDurationMs` is the
+// time the function took to initialize (module load → first request).
+// Set to a non-zero value once we've seen traffic; null before that
+// (so ops can distinguish "function never received a request yet"
+// from "function started in 0ms").
+let _firstRequestTs = 0;
 // In-process counter of how many requests this function instance has
 // served since process start. Pairs with `summary.totalProbes` (outbound)
 // to give ops a complete traffic picture for this instance.
@@ -195,6 +201,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
       if (openRouterProbe && openRouterProbe.checkedAt) ats.push(Date.now() - openRouterProbe.checkedAt);
       return ats.length ? Math.min(...ats) : null;
     })(),
+    // How long the function took to initialize (module load → first
+    // request). Null until the first request arrives. Lets ops spot
+    // slow-start regression in real time — Vercel Hobby cold starts
+    // are bounded; if this number creeps up, an upstream is slow.
+    startupDurationMs: _firstRequestTs ? _firstRequestTs - START_TS : null,
     providersConfigured: configured,
     providersReachable: reachable,
     fastestProviderMs: reachableLatencies.length ? Math.min(...reachableLatencies) : null,
@@ -245,6 +256,10 @@ module.exports = async function handler(req, res) {
     // Even 429-rejected requests count (the endpoint saw traffic — useful
     // for spotting attack patterns where the reject rate is climbing).
     _requestsServed += 1;
+    // Lazily capture the timestamp of the first request so we can
+    // report how long the function took to initialize. Once captured,
+    // the value is stable for the lifetime of the process.
+    if (_firstRequestTs === 0) _firstRequestTs = Date.now();
     // Lazy peak-memory update: cheap (one Math.max + Math.round per
     // request), and lets ops spot a memory-leak pattern by graphing
     // `summary.peakMemoryMb` over time. Vercel recycles function
