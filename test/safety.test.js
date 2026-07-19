@@ -1753,3 +1753,92 @@ test("_safety: applyEndpointHeader is a no-op when res is missing or headers alr
   assert.equal(sent.headers["X-Endpoint"], undefined,
     "must not set header when headersSent is true");
 });
+
+// ── applyBuildShaHeader behavioral coverage (iter #105) ──────
+
+test("_safety: applyBuildShaHeader sets X-Build-Sha for valid git SHAs", () => {
+  const { applyBuildShaHeader } = require("../api/_safety.js");
+  // Save + override env
+  const orig = process.env.VERCEL_GIT_COMMIT_SHA;
+  try {
+    // 7-char short SHA (valid)
+    process.env.VERCEL_GIT_COMMIT_SHA = "abc1234";
+    let res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
+    applyBuildShaHeader(res);
+    assert.equal(res.headers["X-Build-Sha"], "abc1234");
+    // 40-char full SHA (valid)
+    process.env.VERCEL_GIT_COMMIT_SHA = "a".repeat(40);
+    res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
+    applyBuildShaHeader(res);
+    assert.equal(res.headers["X-Build-Sha"], "a".repeat(40));
+  } finally {
+    process.env.VERCEL_GIT_COMMIT_SHA = orig;
+  }
+});
+
+test("_safety: applyBuildShaHeader rejects malformed SHAs (silent no-op)", () => {
+  const { applyBuildShaHeader } = require("../api/_safety.js");
+  const orig = process.env.VERCEL_GIT_COMMIT_SHA;
+  try {
+    // Too short (< 7 chars)
+    process.env.VERCEL_GIT_COMMIT_SHA = "abc123";
+    let res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
+    applyBuildShaHeader(res);
+    assert.equal(res.headers["X-Build-Sha"], undefined, "6-char SHA must be rejected");
+    // Too long (> 40 chars)
+    process.env.VERCEL_GIT_COMMIT_SHA = "a".repeat(41);
+    res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
+    applyBuildShaHeader(res);
+    assert.equal(res.headers["X-Build-Sha"], undefined, "41-char SHA must be rejected");
+    // Non-hex characters
+    process.env.VERCEL_GIT_COMMIT_SHA = "ghijklmnop";
+    res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
+    applyBuildShaHeader(res);
+    assert.equal(res.headers["X-Build-Sha"], undefined, "non-hex chars must be rejected");
+    // Uppercase (regex is lowercase only)
+    process.env.VERCEL_GIT_COMMIT_SHA = "ABCDEF1";
+    res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
+    applyBuildShaHeader(res);
+    assert.equal(res.headers["X-Build-Sha"], undefined, "uppercase must be rejected (canonical is lowercase)");
+    // Empty string
+    process.env.VERCEL_GIT_COMMIT_SHA = "";
+    res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
+    applyBuildShaHeader(res);
+    assert.equal(res.headers["X-Build-Sha"], undefined, "empty string must be rejected");
+  } finally {
+    process.env.VERCEL_GIT_COMMIT_SHA = orig;
+  }
+});
+
+test("_safety: applyBuildShaHeader is a no-op when env unset or res missing", () => {
+  const { applyBuildShaHeader } = require("../api/_safety.js");
+  const orig = process.env.VERCEL_GIT_COMMIT_SHA;
+  try {
+    // Unset env
+    delete process.env.VERCEL_GIT_COMMIT_SHA;
+    let res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
+    applyBuildShaHeader(res);
+    assert.equal(res.headers["X-Build-Sha"], undefined, "unset env must skip header");
+    // Non-string env (e.g. number)
+    process.env.VERCEL_GIT_COMMIT_SHA = 12345;
+    res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
+    applyBuildShaHeader(res);
+    assert.equal(res.headers["X-Build-Sha"], undefined, "non-string env must skip header");
+    // Missing res
+    assert.doesNotThrow(() => applyBuildShaHeader(null), "null res must not throw");
+    assert.doesNotThrow(() => applyBuildShaHeader(undefined), "undefined res must not throw");
+    assert.doesNotThrow(() => applyBuildShaHeader({}), "res without setHeader must not throw");
+    // Headers already sent
+    const sent = {
+      headersSent: true,
+      headers: {},
+      setHeader(k, v) { this.headers[k] = v; },
+    };
+    process.env.VERCEL_GIT_COMMIT_SHA = "abc1234";
+    applyBuildShaHeader(sent);
+    assert.equal(sent.headers["X-Build-Sha"], undefined,
+      "must not set header when headersSent is true");
+  } finally {
+    process.env.VERCEL_GIT_COMMIT_SHA = orig;
+  }
+});

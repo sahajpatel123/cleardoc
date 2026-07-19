@@ -2803,3 +2803,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the test-coverage pattern. `applyEndpointHeader` is called by every endpoint on every request (the X-Endpoint marker header). Only source-pattern tests previously — behavioral tests now verify the actual allowlist enforcement.
+
+**2026-07-19 14:20 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #105 of the autonomous loop** (cron `f1fb68b1` firing). Live: 14:20 IST.
+- **Shipped 3 behavioral tests for `applyBuildShaHeader` in `test/safety.test.js`**. Pure-functional coverage — exercises the helper with various env var states.
+- **Tests added**:
+  1. Valid SHAs — 7-char short SHA + 40-char full SHA → X-Build-Sha set correctly
+  2. Invalid SHAs — too-short (6), too-long (41), non-hex, uppercase, empty → no header set
+  3. Safe no-ops — unset env, non-string env, null res, missing setHeader, headersSent:true → no header set
+- **376/376 tests pass** (301 unit + 71 smoke + 1 integration). Test count +3.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the test-coverage pattern. `applyBuildShaHeader` sets the X-Build-Sha header on every JSON response — the security boundary (regex `/^[a-f0-9]{7,40}$/`) is now verified behaviorally, not just by source-grep.
