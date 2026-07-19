@@ -919,7 +919,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "providersConsecutiveFailures", "errorsInLastHour", "cacheSize",
     "providersLastUpdated", "lastHealthDurationMs", "maxHealthDurationMs",
     "peakConcurrentRequests", "requestsInLastMinute",
-    "currentConcurrentRequests",
+    "currentConcurrentRequests", "lastClientErrorAt",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1540,6 +1540,24 @@ test("health handler: process.memory.peakRssMb is non-negative after handler run
   } finally {
     globalThis.fetch = origFetch;
   }
+});
+
+// ── lastClientErrorAt (iter #124) ─────────────────────────────
+
+test("health handler: summary exposes lastClientErrorAt (most recent 4xx)", () => {
+  // Pairs with lastErrorAt (5xx) for the full error timeline.
+  // 4xx is a client error (rate limit, bad input) — not a server
+  // problem, but still operationally interesting for ops.
+  assert.match(HEALTH_SOURCE, /lastClientErrorAt/, "summary must include lastClientErrorAt field");
+  assert.match(HEALTH_SOURCE, /_lastClientErrorAt/, "must have a module-level _lastClientErrorAt counter");
+  // Must capture on 4xx
+  assert.match(HEALTH_SOURCE, /statusCode\s*>=\s*400\s*&&\s*statusCode\s*<\s*500/,
+    "must guard 4xx range");
+  assert.match(HEALTH_SOURCE, /_lastClientErrorAt\s*=\s*Date\.now\(\)/,
+    "must capture Date.now() in 4xx branch");
+  // Must surface as ISO timestamp or null
+  assert.match(HEALTH_SOURCE, /_lastClientErrorAt\s*\?\s*new Date\(_lastClientErrorAt\)\.toISOString\(\)\s*:\s*null/,
+    "must format as ISO timestamp, null until first 4xx");
 });
 
 // ── currentConcurrentRequests (iter #112, linter-added) ────────

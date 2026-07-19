@@ -3038,3 +3038,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. `getUniqueIPsCount` and `getTopActiveIPs` feed the "fan-in analysis" fields on /api/health (iter #67, #68). Source-pattern tests only verified the function names; behavioral tests now exercise the actual count + dedup + sort logic.
+
+**2026-07-19 17:30 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #124 of the autonomous loop** (cron `f1fb68b1` firing). Live: 17:30 IST.
+- **Shipped `summary.lastClientErrorAt` on /api/health**. New field: ISO timestamp of the most recent 4xx (client error) since process start.
+- **Closes the "when was the most recent client error?" observability gap**. Pairs with `lastErrorAt` (5xx) for the full error timeline. 4xx = rate-limit rejects, bad input, auth failures — operationally interesting (e.g., "is a specific client hammering us with bad requests?").
+- **Implementation**: new module-level `_lastClientErrorAt` (Unix-ms, 0-init). Set in `recordRequestStatus` for the 400-499 range. Does NOT increment `_totalErrors` (server is healthy on 4xx — it's the client that's wrong). Surfaced as ISO timestamp or null.
+- **1 new source-pattern test** + extended full-observability-surface assertion list.
+- **411/411 tests pass** (336 unit + 71 smoke + 1 integration). Test count +1.
+
+**Prompt Intention:**
+- Honored the standing directives. Back to a small feature add after several test-coverage iters. The full error timeline surface is now: `lastErrorAt` (5xx server) + `lastClientErrorAt` (4xx client) + `lastBlockByIp` + `lastReporter` + `lastBlockAt` (cspReport) + `firstSeenAt`/`lastSeenAt` (cspReport accepted) + `lastBlockedAt` (cspReport rejected).

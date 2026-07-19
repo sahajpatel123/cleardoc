@@ -70,6 +70,11 @@ let _lastErrorAt = 0;
 // been healthy for that many consecutive requests. 4xx is excluded:
 // client errors don't break the server.
 let _consecutiveSuccesses = 0;
+// Unix-ms timestamp of the most recent 4xx (client error) since
+// process start. Pairs with lastErrorAt (5xx) for the full error
+// timeline. 0 until the first 4xx. Lets ops answer "when was the
+// most recent rate-limit reject / bad request?" from a single curl.
+let _lastClientErrorAt = 0;
 
 function recordRequestStatus(statusCode) {
   if (!Number.isFinite(statusCode)) return;
@@ -91,6 +96,12 @@ function recordRequestStatus(statusCode) {
     while (_errorsInLastHour.length > 0 && _errorsInLastHour[0] < cutoffHour) {
       _errorsInLastHour.shift();
     }
+  } else if (statusCode >= 400 && statusCode < 500) {
+    // 4xx is a client error (rate limit, bad input). Capture the
+    // timestamp for `lastClientErrorAt` — pairs with lastErrorAt
+    // (5xx) so ops can see the full error timeline from a single
+    // curl. Does NOT increment _totalErrors (server is healthy).
+    _lastClientErrorAt = Date.now();
   } else if (statusCode >= 200 && statusCode < 300) {
     // Only 2xx counts as "consecutive success". 4xx is a client error
     // (rate limit, bad input) — doesn't break the server's healthy
@@ -414,6 +425,12 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // recently". Lets ops answer "are we erroring right now, or just
     // historically?" from a single curl. Null until the first 5xx.
     lastErrorAt: _lastErrorAt ? new Date(_lastErrorAt).toISOString() : null,
+    // ISO timestamp of the most recent 4xx (client error) since
+    // process start. Pairs with lastErrorAt (5xx) for the full error
+    // timeline. Lets ops answer "when was the most recent rate-limit
+    // reject or bad request?" from a single curl. Null until the
+    // first 4xx.
+    lastClientErrorAt: _lastClientErrorAt ? new Date(_lastClientErrorAt).toISOString() : null,
     topActiveIPs: getTopActiveIPs(5),
     // Rolling 1-hour 5xx count. Pairs with the cumulative `totalErrors`
     // to give ops a windowed view of recent failures — "are we
