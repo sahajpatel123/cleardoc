@@ -240,6 +240,11 @@ async function probeProviderCached(key, url) {
     // nothing — defensive
   } else if (fresh && typeof fresh === "object") {
     _probeOutcomes.push({ ts: Date.now(), ok: !!fresh.ok, provider: key, region: process.env.VERCEL_REGION || null, latencyMs: typeof fresh.latencyMs === "number" ? fresh.latencyMs : null });
+    // Also track the most recent failure per provider (for the
+    // lastFailure field on /api/health). Pairs with the per-provider
+    // lastReachableAt to give ops a "is the most recent state a success
+    // or a failure?" signal.
+    if (!fresh.ok) _lastProbeFailure[key] = Date.now();
     // Evict oldest if over the cap
     while (_probeOutcomes.length > PROBE_WINDOW_MAX) _probeOutcomes.shift();
   }
@@ -347,6 +352,16 @@ function getProbeAverageLatencyInLastHour() {
   return result;
 }
 
+// Read-only accessor for the per-provider most-recent failure timestamp.
+// Pairs with `lastReachableAt` (success counterpart). 0 means
+// "no failures yet" — process startup is clean.
+function getLastProbeFailure() {
+  return {
+    gemini: _lastProbeFailure.gemini || null,
+    openrouter: _lastProbeFailure.openrouter || null,
+  };
+}
+
 function clearProbeCache() {
   _probeCache.clear();
 }
@@ -375,6 +390,10 @@ let _cspProcessStartTs = Date.now();
 // not "nothing to report".
 let _cspFirstSeenAt = 0;
 let _cspLastSeenAt = 0;
+// Most recent failure timestamp per provider. Captures the LATEST
+// "is the most recent state a failure?" signal — useful alongside
+// the lastReachableAt per-provider field (the success counterpart).
+let _lastProbeFailure = { gemini: 0, openrouter: 0 };
 
 // Per-URI counters. We track two angles separately so ops can answer
 // different questions:
@@ -1260,6 +1279,7 @@ module.exports = {
   getProbeReachabilityInLastHour,
   getProbeReachabilityByRegionInLastHour,
   getProbeAverageLatencyInLastHour,
+  getLastProbeFailure,
   getUniqueIPsCount,
   getTopActiveIPs,
   recordCspReport,

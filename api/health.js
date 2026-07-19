@@ -11,7 +11,7 @@
  * for the most-polled endpoint in any deployment.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount, getTopActiveIPs, getProbeReachabilityInLastHour, getProbeReachabilityByRegionInLastHour, getProbeAverageLatencyInLastHour } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount, getTopActiveIPs, getProbeReachabilityInLastHour, getProbeReachabilityByRegionInLastHour, getProbeAverageLatencyInLastHour, getLastProbeFailure } = require("./_safety.js");
 
 const START_TS = Date.now();
 // Captured on the first request — `summary.startupDurationMs` is the
@@ -229,6 +229,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // worse over time?" — the existing fields show extremes; this
     // one shows the mean.
     providersAvgLatencyMsInLastHour: getProbeAverageLatencyInLastHour(),
+    // Per-provider most-recent failure timestamp. Pairs with the
+    // per-provider `lastReachableAt` (success counterpart) to give ops
+    // a "is the most recent state a success or a failure?" signal
+    // without walking per-provider blocks.
+    providersLastFailure: getLastProbeFailure(),
     // CSP report rate (per minute, averaged over the lifetime of the
     // process). Lets ops answer "are CSP reports spiking?" from a
     // single curl. 0 when no reports have been received yet.
