@@ -367,6 +367,11 @@ module.exports = async function handler(req, res) {
               latencyMs: geminiProbe.latencyMs,
               ...(geminiProbe.ok ? {} : { error: geminiProbe.error }),
               cached: geminiProbe.cached,
+              // ISO timestamp of when the most recent successful probe
+              // happened. Useful for diagnosing "is the provider
+              // reachable but slow?" (long latency) vs "when did it last
+              // go down?" (old lastReachableAt relative to uptime).
+              ...(geminiProbe.ok ? { lastReachableAt: new Date(geminiProbe.checkedAt).toISOString() } : {}),
             }
           : { configured: false, reachable: false, error: "GEMINI_API_KEY not set" },
         openrouter: hasOpenRouter
@@ -376,6 +381,7 @@ module.exports = async function handler(req, res) {
               latencyMs: openRouterProbe.latencyMs,
               ...(openRouterProbe.ok ? {} : { error: openRouterProbe.error }),
               cached: openRouterProbe.cached,
+              ...(openRouterProbe.ok ? { lastReachableAt: new Date(openRouterProbe.checkedAt).toISOString() } : {}),
             }
           : { configured: false, reachable: false, error: "OPENROUTER_API_KEY not set" },
       },

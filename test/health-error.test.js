@@ -769,3 +769,15 @@ test("health handler: summary surfaces startupDurationMs (module-load → first-
   assert.match(HEALTH_SOURCE, /startupDurationMs/, "summary must include startupDurationMs field");
   assert.match(HEALTH_SOURCE, /_firstRequestTs\s*\?\s*_firstRequestTs\s*-\s*START_TS\s*:\s*null/, "must compute diff vs START_TS, null until first request");
 });
+
+// ── per-provider lastReachableAt (iter #70) ─────────────────────
+
+test("health handler: providers block surfaces lastReachableAt ISO timestamp per provider", () => {
+  // Per-provider ISO timestamp of the most recent successful probe.
+  // Useful for diagnosing "is the provider reachable but slow?" (long
+  // latency, recent timestamp) vs "when did it last go down?"
+  // (older lastReachableAt relative to uptime).
+  assert.match(HEALTH_SOURCE, /lastReachableAt/, "providers block must include lastReachableAt field");
+  assert.match(HEALTH_SOURCE, /new Date\(geminiProbe\.checkedAt\)\.toISOString\(\)/, "must read geminiProbe.checkedAt");
+  assert.match(HEALTH_SOURCE, /new Date\(openRouterProbe\.checkedAt\)\.toISOString\(\)/, "must read openRouterProbe.checkedAt");
+});
