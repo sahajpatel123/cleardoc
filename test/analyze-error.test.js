@@ -332,3 +332,23 @@ test("analyze handler: 415s non-JSON Content-Type before parsing the body", () =
     "must respond 415 Unsupported Media Type for wrong Content-Type"
   );
 });
+
+test("analyze handler: ?format=verdict-only is case-insensitive", () => {
+  // The compact-mode detector regex on the request URL must accept
+  // any casing of `format=verdict-only` so clients (curl, dashboards,
+  // typed URLs) don't silently bypass compact mode by typing it
+  // differently. Test that `?FORMAT=VERDICT-ONLY` and `?Format=Verdict-Only`
+  // both activate compact mode.
+  const fnStart = ANALYZE_SOURCE.indexOf("module.exports = async function handler");
+  assert.ok(fnStart > -1);
+  const handlerBody = ANALYZE_SOURCE.slice(fnStart);
+  // The regex literal MUST have the `i` flag for case-insensitivity.
+  // The trailing `(?:&|$)` is a non-capturing group with `&` (literal) and
+  // `$` (regex end-of-string anchor) — not an escaped `$`. Match it as
+  // `(?:&|$)`.
+  assert.match(
+    handlerBody,
+    /\/\[?&]format=verdict-only\?\?:&|\$\)\/i/,
+    "compact-mode regex must use the `i` flag so `?FORMAT=VERDICT-ONLY` (and any other casing) activates compact mode"
+  );
+});

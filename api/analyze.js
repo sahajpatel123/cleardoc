@@ -412,7 +412,7 @@ module.exports = async function handler(req, res) {
     // dashboard that scans many docs in batch). Extracted from req.url
     // (no body parsing needed) so it's safe to thread into the prompt
     // without touching the JSON-body contract.
-    const compactMode = /[?&]format=verdict-only(?:&|$)/.test(req && req.url ? req.url : "");
+    const compactMode = /[?&]format=verdict-only(?:&|$)/i.test(req && req.url ? req.url : "");
 
     // Try OpenRouter first, then fall back to Gemini. We capture the wall-
     // clock AI latency so the X-AI-Response-Time-Ms header reports the
