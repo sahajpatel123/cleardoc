@@ -128,7 +128,7 @@ module.exports = async function handler(req, res) {
       console.log(`[req=${res.__requestId}] [csp-report] ${req.method} ${safeUrl} -> blocked=${blockedUri} directive=${directive} document=${documentUri}${sample}`);
       // Increment the in-process per-directive counter so /api/health
       // can surface aggregate stats ("is CSP rejection rate climbing?").
-      recordCspReport(rawDirective);
+      recordCspReport(rawDirective, blockedUri);
     }
 
     // Always 204 — browsers don't care about the response body
