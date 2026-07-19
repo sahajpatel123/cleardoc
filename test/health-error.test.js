@@ -1379,6 +1379,39 @@ test("health handler: processUptimePretty is a non-empty string in the rendered 
   assert.match(body.process.processUptimePretty, /[smhd]$/);
 });
 
+// ── execPath (iter #103, linter-added) ─────────────────────────
+
+test("health handler: process block surfaces execPath (Node binary path)", () => {
+  // Linter-added: absolute path to the Node.js executable running
+  // this function. Useful for ops debugging "which Node binary is
+  // actually deployed here?".
+  assert.match(HEALTH_SOURCE, /execPath/, "process block must include execPath field");
+  // Must come from process.execPath (the canonical Node API)
+  assert.match(HEALTH_SOURCE, /execPath:\s*process\.execPath/, "must source from process.execPath");
+});
+
+test("health handler: process.execPath is a non-empty string in the rendered payload", async () => {
+  // Behavioral check: render the handler end-to-end.
+  if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY && !process.env.GOOGLE_GEMINI_API_KEY) {
+    process.env.OPENROUTER_API_KEY = "test-stub-key-execpath";
+  }
+  const handler = require("../api/health.js");
+  const res = {
+    statusCode: 200, _body: null, headers: {}, headersSent: false,
+    setHeader(k, v) { this.headers[k] = v; },
+    end(s) { this._body = s; this.headersSent = true; },
+  };
+  const req = { method: "GET", headers: {}, socket: { remoteAddress: "127.0.0.1" } };
+  await handler(req, res);
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res._body);
+  assert.ok(body.process, "200 payload must include process");
+  assert.equal(typeof body.process.execPath, "string");
+  assert.ok(body.process.execPath.length > 0, "execPath must be non-empty");
+  // Should be an absolute path (starts with /)
+  assert.match(body.process.execPath, /^\//, "execPath must be an absolute path");
+});
+
 // ── buildSummary behavioral tests (iter #100) ──────────────────
 
 test("buildSummary: empty state (no providers, no probes) returns sane defaults", () => {

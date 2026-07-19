@@ -2778,3 +2778,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Linter shipped the feature; I added the test coverage that was deferred when the linter's commit landed. The new process field makes /api/health more human-friendly for ops without sacrificing the precise-integer field that's already there.
+
+**2026-07-19 14:00 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #103 of the autonomous loop** (cron `f1fb68b1` firing). Live: 14:00 IST.
+- **Linter-shipped `process.execPath` on /api/health** (commit `ea7f99f7`). New field: absolute path to the Node.js executable running this function.
+- **Use case**: ops debugging "which Node binary is actually deployed here?" — the env reports Node version, but `execPath` tells you exactly which binary is loaded (useful in monorepo / Nix / Docker environments where multiple Node versions coexist).
+- **Implementation**: 6-line addition to the process block; sources from `process.execPath` (the canonical Node API).
+- **2 new tests** (1 source-pattern + 1 behavioral): locks in field presence + verifies the rendered value is a non-empty absolute path.
+- **370/370 tests pass** (295 unit + 71 smoke + 1 integration). Test count +2.
+
+**Prompt Intention:**
+- Honored the standing directives. Linter shipped the feature; I added the test coverage. The process block on /api/health now surfaces: `nodeVersion` (iter #43) + `platform` + `arch` + `pid` + `processUptimeSec` + `processUptimePretty` (iter #102) + `region` + `vercelEnv` + `memory` (10 sub-fields) + `peakRssMb` + `execPath` (iter #103).
