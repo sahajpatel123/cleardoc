@@ -273,6 +273,10 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // process). Lets ops answer "are CSP reports spiking?" from a
     // single curl. 0 when no reports have been received yet.
     cspReportRate: cspCounts.ratePerMinute,
+    // Acceptance rate (0..1, 1-decimal precision). Inverse of block
+    // rate. Lets ops answer "what % of attempts are being rejected?"
+    // without computing it from total + blocked.
+    cspReportAcceptanceRate: cspCounts.acceptanceRate,
     // Per-provider per-region reachability over the rolling 1-hour
     // window. Lets ops answer "is the flapping localized to one
     // region?" (traffic spike in iad1 might leave fra1 unaffected).
