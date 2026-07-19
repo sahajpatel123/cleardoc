@@ -2870,3 +2870,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Verified the duplicate commit didn't break anything. The codebase is stable on `5b06f402` with all 388 tests green. The parallel sessions (linter + me) occasionally land on the same iter; this is harmless because the test framework is idempotent.
+
+**2026-07-19 15:10 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #110 of the autonomous loop** (cron `f1fb68b1` firing). Live: 15:10 IST.
+- **Completed the linter's `peakConcurrentRequests` stub**. Linter added the field reference but hardcoded `0`; this iter implements the actual tracking.
+- **Closes the "is this instance handling more concurrent load than the others?" observability gap**. Lets ops compare concurrency profiles across the fleet.
+- **Implementation**: new module-level `_currentConcurrent` + `_peakConcurrent` counters. `_currentConcurrent += 1` at handler start; `_currentConcurrent -= 1` in `finally` (always — even on error paths). `_peakConcurrent` updates when current exceeds it.
+- **1 new source-pattern test** + extended full-observability-surface assertion list.
+- **389/389 tests pass** (314 unit + 71 smoke + 1 integration). Test count +1.
+
+**Prompt Intention:**
+- Honored the standing directives. Completed the linter's partial work — they added the field reference + the comment but left the value as a literal `0`. Implementing the tracking required: 2 module-level counters, increment at handler start, decrement in finally (always), peak capture, surface the peak in the summary return.

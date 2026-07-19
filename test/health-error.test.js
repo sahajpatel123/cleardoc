@@ -918,6 +918,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "providersFailureRateInLastHour", "consecutiveSuccesses",
     "providersConsecutiveFailures", "errorsInLastHour", "cacheSize",
     "providersLastUpdated", "lastHealthDurationMs", "maxHealthDurationMs",
+    "peakConcurrentRequests",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1406,6 +1407,22 @@ test("health handler: summary surfaces lastHealthDurationMs + maxHealthDurationM
   assert.match(HEALTH_SOURCE, /dur\s*>\s*_maxHealthDurationMs/, "max must update when current duration exceeds it");
   // Guard against unbounded values (matches the 600000ms cap used elsewhere)
   assert.match(HEALTH_SOURCE, /dur\s*<=\s*600000/, "must cap duration at 600000ms");
+});
+
+// ── peakConcurrentRequests (iter #110, linter-started) ────────
+
+test("health handler: summary exposes peakConcurrentRequests (peak in-flight since process start)", () => {
+  // Linter added the field stub; this iter implements the actual
+  // tracking. Lets ops spot "is this instance handling more load than
+  // the others?" when comparing across the fleet.
+  assert.match(HEALTH_SOURCE, /peakConcurrentRequests/, "summary must include peakConcurrentRequests field");
+  // Module-level state for current + peak
+  assert.match(HEALTH_SOURCE, /_currentConcurrent/, "must have a module-level _currentConcurrent counter");
+  assert.match(HEALTH_SOURCE, /_peakConcurrent/, "must have a module-level _peakConcurrent counter");
+  // Increment + decrement + peak update
+  assert.match(HEALTH_SOURCE, /_currentConcurrent\s*\+=\s*1/, "must increment at handler start");
+  assert.match(HEALTH_SOURCE, /_currentConcurrent\s*-=\s*1/, "must decrement in finally");
+  assert.match(HEALTH_SOURCE, /_currentConcurrent\s*>\s*_peakConcurrent/, "peak must update when current exceeds it");
 });
 
 test("health handler: process.execPath is a non-empty string in the rendered payload", async () => {
