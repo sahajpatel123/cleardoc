@@ -2309,3 +2309,11 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the last meaningful CSP-observability gap. The parallel session had refactored the iter #60 mostBlocked feature out of the codebase. This restores + extends it to TWO per-URI dimensions — block-target vs block-source — answering the two questions ops most often ask when CSP reports spike. Without this they had to grep server logs and parse; with it they have a single curl.
+
+**2026-07-19 06:25 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #30 of /loop 10minutes** — autonomous DevSecOps guardian.
+- **Recon:** parallel session shipped `77e78e16 feat(api): cspReports.mostBlockedFrom — top document-uri sources`. Working tree clean.
+- **Shipped `155c41c1 test(safety): pin api/chat.js cap constants`.** Pin 8 caps in api/chat.js (MAX_DOCUMENT_CHARS=30000, MAX_REWRITE_CHARS=6000, MAX_QUESTION_CHARS=1000, MAX_HISTORY_TURNS=10, MAX_HISTORY_FIELD_CHARS=500, REQUEST_TIMEOUT_MS=25000, RATE_LIMIT_PER_MINUTE=30, MAX_REQUEST_BYTES=128*1024).
+- **Verification:** 299/299 tests pass (223 unit + 71 smoke + 1 integration). Pushed.
+
