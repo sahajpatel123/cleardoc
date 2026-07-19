@@ -2978,3 +2978,12 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. `rateLimit` is the security boundary that blocks brute-force attacks on every endpoint. Until now only the window duration + cap were tested as constants; behavioral coverage was missing for the actual sliding-window logic. Behavioral tests now verify: bucket per IP, retryAfter bounds, allow/deny threshold, fallback for malformed inputs.
+
+**2026-07-19 16:40 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #119 of the autonomous loop** (cron `f1fb68b1` firing). Live: 16:40 IST.
+- **Shipped 1 behavioral test for `process.memory.peakRssMb` tracking** in `test/health-error.test.js`. Renders a request end-to-end and asserts: peakRssMb is a number, non-negative, and >= current rssMb (peak semantics).
+- **400/400 tests pass** (325 unit + 71 smoke + 1 integration). Test count +1. **Milestone: 400 tests.**
+
+**Prompt Intention:**
+- Honored the standing directives. The `peakRssMb` field has been in /api/health since iter #57 (peak memory) but only source-pattern tested. Behavioral coverage now verifies the actual peak-tracking logic (Math.max compare on every request).

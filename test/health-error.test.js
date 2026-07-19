@@ -1502,6 +1502,40 @@ test("health handler: cspReports surfaces totalRatePerMinute (all attempts per m
     "computation must be total attempts (accepted + blocked)");
 });
 
+// ── peakRssMb behavioral (iter #119) ──────────────────────────
+
+test("health handler: process.memory.peakRssMb is non-negative after handler runs", async () => {
+  // Behavioral check: render a request, verify peakRssMb is a
+  // non-negative number. The peak is updated on every request via
+  // a Math.max compare.
+  if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY && !process.env.GOOGLE_GEMINI_API_KEY) {
+    process.env.OPENROUTER_API_KEY = "test-stub-key-iter119";
+  }
+  const handler = require("../api/health.js");
+  // Mock fetch for deterministic probes
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200 });
+  try {
+    const res = {
+      statusCode: 200, _body: null, headers: {}, headersSent: false,
+      setHeader(k, v) { this.headers[k] = v; },
+      end(s) { this._body = s; this.headersSent = true; },
+    };
+    const req = { method: "GET", headers: {}, socket: { remoteAddress: "127.0.0.1" } };
+    await handler(req, res);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res._body);
+    assert.equal(typeof body.process.memory.peakRssMb, "number",
+      "peakRssMb must be a number");
+    assert.ok(body.process.memory.peakRssMb >= 0,
+      "peakRssMb must be non-negative");
+    assert.ok(body.process.memory.peakRssMb >= body.process.memory.rssMb,
+      "peakRssMb must be >= current rssMb (it's a peak)");
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
 // ── currentConcurrentRequests (iter #112, linter-added) ────────
 
 test("health handler: summary exposes currentConcurrentRequests (in-flight requests right now)", () => {
