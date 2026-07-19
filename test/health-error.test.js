@@ -914,6 +914,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "requests", "uniqueIPs", "totalErrors", "requestsByStatus",
     "topActiveIPs", "startedAt", "lastProbeAtMs", "startupDurationMs",
     "averageRequestsPerMinute", "errorRate", "lastErrorAt",
+    "requestsInLastHour",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1117,4 +1118,17 @@ test("health handler: summary exposes cspReportRate (per-minute CSP report rate)
   );
   assert.match(safetySrc, /ratePerMinute/, "_safety.js must compute ratePerMinute");
   assert.match(safetySrc, /_cspProcessStartTs/, "_safety.js must track process start for the rate calculation");
+});
+
+// ── requestsInLastHour (iter #87) ───────────────────────────
+
+test("health handler: summary exposes requestsInLastHour (rolling 1-hour count)", () => {
+  // Pairs with the cumulative `requests` and the per-minute
+  // `averageRequestsPerMinute` to give ops a windowed view of
+  // recent load — "what's the current load?" independent of
+  // process age.
+  assert.match(HEALTH_SOURCE, /requestsInLastHour/, "summary must include requestsInLastHour field");
+  assert.match(HEALTH_SOURCE, /_requestsInLastHour/, "must have a module-level _requestsInLastHour array");
+  assert.match(HEALTH_SOURCE, /_requestsInLastHour\.push/, "must push to the rolling window on each request");
+  assert.match(HEALTH_SOURCE, /_requestsInLastHour\.length/, "must surface the array length as the field value");
 });

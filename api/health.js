@@ -24,6 +24,10 @@ let _firstRequestTs = 0;
 // served since process start. Pairs with `summary.totalProbes` (outbound)
 // to give ops a complete traffic picture for this instance.
 let _requestsServed = 0;
+// Rolling 1-hour window of request timestamps. Lets ops answer
+// "what's the current load?" independent of process age — pairs
+// with the cumulative `requests` field.
+let _requestsInLastHour = [];
 // Peak RSS observed since process start. Updated lazily on each request
 // so ops can spot a memory-leak pattern (peak climbing request-over-request).
 let _peakRssMb = 0;
@@ -271,6 +275,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     averageRequestsPerMinute: _requestsServed > 0
       ? Math.round((_requestsServed / Math.max(1, Math.round((Date.now() - START_TS) / 1000))) * 600) / 10
       : 0,
+    // Rolling 1-hour request count. Pairs with the cumulative
+    // `requests` and the per-minute `averageRequestsPerMinute` to
+    // give ops a windowed view of recent load — "what's the current
+    // load?" independent of process age.
+    requestsInLastHour: _requestsInLastHour.length,
     // Unique IPs that have hit this instance. Pairs with `requests` —
     // "100 requests from 1 IP" vs "100 requests from 100 IPs" tells
     // very different stories (single spammer vs distributed traffic).
@@ -324,6 +333,13 @@ module.exports = async function handler(req, res) {
     // Even 429-rejected requests count (the endpoint saw traffic — useful
     // for spotting attack patterns where the reject rate is climbing).
     _requestsServed += 1;
+    // Push to the rolling 1-hour window for `requestsInLastHour`.
+    _requestsInLastHour.push(Date.now());
+    // Lazily prune in-place (cheap, runs only on new requests).
+    const cutoffHour = Date.now() - 3600 * 1000;
+    while (_requestsInLastHour.length > 0 && _requestsInLastHour[0] < cutoffHour) {
+      _requestsInLastHour.shift();
+    }
     // Lazily capture the timestamp of the first request so we can
     // report how long the function took to initialize. Once captured,
     // the value is stable for the lifetime of the process.
