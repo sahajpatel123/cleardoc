@@ -2512,3 +2512,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the aggregate-boolean gap. Combined with the existing `providersReachable` count and per-provider blocks, ops can now derive single-boolean signals without walking nested objects — useful for dashboards that show a green/red indicator per function instance.
+
+**2026-07-19 09:35 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #79 of the autonomous loop** (cron `c3921bc4` firing). Live: 09:35 IST.
+- **Shipped `summary.firstRequestAt` ISO timestamp on /api/health** (`803cae28`). New field: when the FIRST request was received (pinned on the first call, not reset).
+- **Pairs with `summary.startedAt` (module load) and `summary.startupDurationMs` (gap between them)** to give ops the full initialization timeline.
+- **Distinct value**: lets ops correlate \"first request was 30s after module load\" with Vercel cold-start metrics — that gap = init-vs-traffic lag. A large gap suggests Vercel warmed the function before routing traffic to it (good for cold-start optimization); a small gap means traffic was waiting on init (bad for cold-start p99).
+- **321/321 tests pass** (248 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the first-request timestamp observability gap. Combined with `startedAt` (iter #63), `process.processUptimeSec`, `startupDurationMs` (iter #69), `uptimeBucket` (iter #77), and now `firstRequestAt`, ops can derive the full cold-start + warmup timeline of any function instance from a single `curl /api/health`.
