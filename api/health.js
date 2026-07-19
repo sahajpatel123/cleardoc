@@ -28,6 +28,10 @@ let _requestsServed = 0;
 // "what's the current load?" independent of process age — pairs
 // with the cumulative `requests` field.
 let _requestsInLastHour = [];
+// Rolling 1-minute window of request timestamps. Pairs with the
+// 1-hour window for finer-grained rate analysis. Lets ops spot
+// "is the rate spiking RIGHT NOW?" independent of process age.
+let _requestsInLastMinute = [];
 // Peak RSS observed since process start. Updated lazily on each request
 // so ops can spot a memory-leak pattern (peak climbing request-over-request).
 let _peakRssMb = 0;
@@ -363,6 +367,10 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // give ops a windowed view of recent load — "what's the current
     // load?" independent of process age.
     requestsInLastHour: _requestsInLastHour.length,
+    // Rolling 1-minute request count. Pairs with requestsInLastHour
+    // (1-hour) for finer-grained rate analysis. Lets ops spot
+    // "is the rate spiking RIGHT NOW?" — finer than the 1-hour window.
+    requestsInLastMinute: _requestsInLastMinute.length,
     // Most recent /api/health request duration (ms). Lets ops spot
     // if the health endpoint itself is getting slow — a slow health
     // endpoint is a real problem since it's the most-polled endpoint.
@@ -452,6 +460,12 @@ module.exports = async function handler(req, res) {
     const cutoffHour = Date.now() - 3600 * 1000;
     while (_requestsInLastHour.length > 0 && _requestsInLastHour[0] < cutoffHour) {
       _requestsInLastHour.shift();
+    }
+    // Push to the rolling 1-minute window for `requestsInLastMinute`.
+    _requestsInLastMinute.push(Date.now());
+    const cutoffMin = Date.now() - 60 * 1000;
+    while (_requestsInLastMinute.length > 0 && _requestsInLastMinute[0] < cutoffMin) {
+      _requestsInLastMinute.shift();
     }
     // Lazily capture the timestamp of the first request so we can
     // report how long the function took to initialize. Once captured,
