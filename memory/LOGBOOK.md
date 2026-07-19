@@ -2698,3 +2698,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Did a test-coverage improvement instead of another feature add. Internal bookkeeping helpers should have direct tests, not only be exercised through their callers — the handler's finally block path can change subtly and only a direct test catches regressions in `recordRequestStatus` itself.
+
+**2026-07-19 12:50 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #96 of the autonomous loop** (cron `f1fb68b1` firing). Live: 12:50 IST.
+- **Linter-added `summary.probeCacheSize` on /api/health** (commit `0fa42bce`). New field: distinct AI providers the probe cache is tracking. Bounded at `_PROBE_CACHE_MAX` (100). Currently a duplicate of iter #93's `cacheSize` (both reference `getProbeCacheSize()`); the linter name is more descriptive but the values are identical.
+- **1 new source-pattern test** (`probeCacheSize`).
+- **357/357 tests pass** (282 unit + 71 smoke + 1 integration).
+
+**Prompt Intention:**
+- Honored the standing directives. Added a test for the linter's `probeCacheSize` field to lock in its presence. The `cacheSize`/`probeCacheSize` duplication is intentional for now (the linter name is more descriptive); future iter can de-duplicate if `cacheSize` becomes redundant in practice.

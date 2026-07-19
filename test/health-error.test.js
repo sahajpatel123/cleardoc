@@ -1303,3 +1303,14 @@ test("health handler: recordRequestStatus is callable in a sequence without thro
   assert.doesNotThrow(() => recordRequestStatus(600), "600+ must not throw");
   assert.doesNotThrow(() => recordRequestStatus(99999), "very large must not throw");
 });
+
+// ── probeCacheSize (iter #96, linter-started) ─────────────────
+
+test("health handler: summary exposes probeCacheSize (per-provider probe cache count)", () => {
+  // Linter added this as an alias of the iter #93 cacheSize. Both
+  // fields exist in summary for now — they return identical values.
+  // The linter name is more descriptive (clarifies it's the probe
+  // cache, not some other cache).
+  assert.match(HEALTH_SOURCE, /probeCacheSize/, "summary must include probeCacheSize field");
+  assert.match(HEALTH_SOURCE, /getProbeCacheSize\(\)/, "must call getProbeCacheSize()");
+});
