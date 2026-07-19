@@ -217,6 +217,13 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Pairs with totalProbes (outbound) so ops can compute inbound vs
     // outbound ratio and detect traffic anomalies per-instance.
     requests: _requestsServed,
+    // Average request rate since process start. Derived from
+    // `requests / uptimeSec * 60`. Pairs with the cumulative
+    // `requests` to give ops a per-minute rate alongside the
+    // cumulative count. 0 (not null) when uptimeSec is 0.
+    averageRequestsPerMinute: _requestsServed > 0
+      ? Math.round((_requestsServed / Math.max(1, Math.round((Date.now() - START_TS) / 1000))) * 600) / 10
+      : 0,
     // Unique IPs that have hit this instance. Pairs with `requests` —
     // "100 requests from 1 IP" vs "100 requests from 100 IPs" tells
     // very different stories (single spammer vs distributed traffic).

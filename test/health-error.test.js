@@ -828,3 +828,15 @@ test("health handler: cspReports surfaces lastReporter (most recent reporting IP
   );
   assert.match(cspReportSrc, /recordCspReport\(rawDirective,\s*blockedUri,\s*documentUri,\s*getIp\(req\)\)/, "csp-report must pass getIp(req) for attribution");
 });
+
+// ── averageRequestsPerMinute (iter #73) ─────────────────────
+
+test("health handler: summary surfaces averageRequestsPerMinute (rolling per-minute rate)", () => {
+  // Average request rate since process start. Pairs with the
+  // cumulative `requests` to give ops a per-minute rate alongside
+  // the cumulative count.
+  assert.match(HEALTH_SOURCE, /averageRequestsPerMinute/, "summary must include averageRequestsPerMinute field");
+  // Must compute rate as (requests / uptimeSec) * 60, rounded to 1 decimal
+  assert.match(HEALTH_SOURCE, /_requestsServed\s*\/\s*Math\.max\(1,\s*Math\.round/, "rate computation must be requests / max(1, uptimeSec) — guards against divide-by-zero at process start");
+  assert.match(HEALTH_SOURCE, /\* 600\)\s*\/\s*10/, "rate rounded to 1-decimal precision (* 600 / 10 = * 60 with 0.1 rounding)");
+});
