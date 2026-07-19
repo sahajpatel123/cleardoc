@@ -254,6 +254,14 @@ function clearProbeCache() {
 const _cspDirectiveCounts = new Map();
 const MAX_CSP_DIRECTIVES = 50;
 let _cspTotalReports = 0;
+// Temporal observability for CSP report stream. firstSeenAt captures
+// when the very first violation was reported (per process lifetime);
+// lastSeenAt updates on every subsequent report. Lets ops answer
+// "is the CSP report stream fresh or stale?" from a single curl —
+// a 6-hour gap with a "0 reports" trend means the stream is dead,
+// not "nothing to report".
+let _cspFirstSeenAt = 0;
+let _cspLastSeenAt = 0;
 
 // Per-URI counters. We track two angles separately so ops can answer
 // different questions:
@@ -291,6 +299,9 @@ function recordCspReport(directive, blockedUri, documentUri) {
   const key = directive.trim().split(/\s+/)[0].toLowerCase();
   if (key.length === 0) return;
   _cspTotalReports += 1;
+  // First-time and last-time stamps for the CSP report stream.
+  if (_cspFirstSeenAt === 0) _cspFirstSeenAt = Date.now();
+  _cspLastSeenAt = Date.now();
   if (!_cspDirectiveCounts.has(key)) {
     // Evict the oldest entry if we're at the cap.
     if (_cspDirectiveCounts.size >= MAX_CSP_DIRECTIVES) {
@@ -310,7 +321,17 @@ function getCspReportCounts() {
   // Snapshot (caller can iterate without worrying about concurrent mutation)
   const byDirective = Object.create(null);
   for (const [k, v] of _cspDirectiveCounts) byDirective[k] = v;
-  return { total: _cspTotalReports, byDirective };
+  return {
+    total: _cspTotalReports,
+    byDirective,
+    // Temporal observability: ISO timestamps of first and most recent
+    // report. Null until the first report arrives. Lets ops answer
+    // "is the CSP report stream fresh or stale?" — a 6-hour gap with
+    // a "0 reports" trend means the stream is dead, not "nothing to
+    // report".
+    firstSeenAt: _cspFirstSeenAt ? new Date(_cspFirstSeenAt).toISOString() : null,
+    lastSeenAt: _cspLastSeenAt ? new Date(_cspLastSeenAt).toISOString() : null,
+  };
 }
 
 // Snapshot the per-URI counters. Same shape as the directive counter:
@@ -334,6 +355,13 @@ function getCspReportCounts() {
   return {
     total: _cspTotalReports,
     byDirective,
+    // Temporal observability: ISO timestamps of first and most recent
+    // report. Null until the first report arrives. Lets ops answer
+    // "is the CSP report stream fresh or stale?" — a 6-hour gap with
+    // a "0 reports" trend means the stream is dead, not "nothing to
+    // report".
+    firstSeenAt: _cspFirstSeenAt ? new Date(_cspFirstSeenAt).toISOString() : null,
+    lastSeenAt: _cspLastSeenAt ? new Date(_cspLastSeenAt).toISOString() : null,
     // Top-10 most-blocked URIs (the resource that was blocked) AND
     // top-10 most-blockedFrom URIs (the page where the violation
     // happened). PII-safe: keys are SHA-256 hashes; samples are URL

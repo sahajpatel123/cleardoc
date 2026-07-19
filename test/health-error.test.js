@@ -789,3 +789,22 @@ test("api/health.js RATE_LIMIT_PER_MINUTE is pinned at 60", () => {
   assert.match(src, /RATE_LIMIT_PER_MINUTE\s*=\s*60/, "health RATE_LIMIT_PER_MINUTE must stay at 60");
   assert.match(src, /require\(\s*["']\.\.\/package\.json["']\s*\)\.version/, "VERSION must be sourced from package.json");
 });
+
+// ── cspReports temporal observability (iter #71) ────────────────
+
+test("health handler: cspReports surfaces firstSeenAt + lastSeenAt ISO timestamps", () => {
+  // Temporal observability: when was the first and most recent CSP
+  // violation reported. Lets ops answer "is the CSP report stream
+  // fresh or stale?" — a 6-hour gap with a "0 reports" trend means
+  // the stream is dead, not "nothing to report".
+  assert.match(HEALTH_SOURCE, /cspReports/, "summary must include the cspReports field");
+  // The underlying state lives in _safety.js — the cspReport source
+  // must have the per-counter stamps wired.
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /_cspFirstSeenAt/, "must have a module-level _cspFirstSeenAt counter");
+  assert.match(safetySrc, /_cspLastSeenAt/, "must have a module-level _cspLastSeenAt counter");
+  assert.match(safetySrc, /firstSeenAt\s*:\s*_cspFirstSeenAt/, "must surface firstSeenAt ISO timestamp");
+  assert.match(safetySrc, /lastSeenAt\s*:\s*_cspLastSeenAt/, "must surface lastSeenAt ISO timestamp");
+});
