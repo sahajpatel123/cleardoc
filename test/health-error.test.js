@@ -913,7 +913,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "slowestProviderMs", "cacheHits", "totalProbes", "networkProbes",
     "requests", "uniqueIPs", "totalErrors", "requestsByStatus",
     "topActiveIPs", "startedAt", "lastProbeAtMs", "startupDurationMs",
-    "averageRequestsPerMinute",
+    "averageRequestsPerMinute", "errorRate",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1067,4 +1067,16 @@ test("health handler: process.memory surfaces heapUsageRatio (heapUsed / heapTot
   assert.match(HEALTH_SOURCE, /heapUsageRatio/, "memory block must include heapUsageRatio field");
   assert.match(HEALTH_SOURCE, /m\.heapTotal\s*>\s*0/, "must guard against divide-by-zero");
   assert.match(HEALTH_SOURCE, /m\.heapUsed\s*\/\s*m\.heapTotal/, "computation must be heapUsed / heapTotal");
+});
+
+// ── errorRate (iter #84) ────────────────────────────────────
+
+test("health handler: summary exposes errorRate (totalErrors / requests)", () => {
+  // 5xx error rate as a single number (1-decimal precision). Pairs
+  // with the existing `totalErrors` + `requests` fields so ops can
+  // graph the error ratio over time without computing it client-side.
+  // 0 when requests is 0 (guards divide-by-zero at process start).
+  assert.match(HEALTH_SOURCE, /errorRate/, "summary must include errorRate field");
+  assert.match(HEALTH_SOURCE, /_totalErrors\s*\/\s*_requestsServed/, "computation must be _totalErrors / _requestsServed");
+  assert.match(HEALTH_SOURCE, /_requestsServed\s*>\s*0/, "must guard against divide-by-zero when requests is 0");
 });

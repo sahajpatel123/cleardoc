@@ -273,6 +273,15 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Aggregate 5xx count for error-rate ratio (totalErrors / requests).
     // 4xx is excluded — those are client errors, not server problems.
     totalErrors: _totalErrors,
+    // 5xx error rate (totalErrors / requests, 1-decimal precision, 0
+    // when no requests yet). Complements the existing `totalErrors`
+    // + `requests` fields so ops can read the ratio directly instead
+    // of computing it client-side. Guards divide-by-zero at process
+    // start (0/0 must resolve to 0, not NaN) and never produces >100
+    // because totalErrors is bounded by requests.
+    errorRate: _requestsServed > 0
+      ? Math.round((_totalErrors / _requestsServed) * 1000) / 10
+      : 0,
     // Per-status-code breakdown — "are we getting a lot of 429s from one
     // IP" or "spike in 503s?" is a one-curl check now. Snapshot the Map
     // so callers don't see concurrent mutation mid-iteration.
