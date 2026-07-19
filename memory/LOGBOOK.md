@@ -2227,3 +2227,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored the standing directives. Closed the last meaningful CSP-observability gap. The per-directive breakdown (iter #50) was directionally useful, but the "which specific resource is being blocked most often?" question needed per-URI breakdown. Now ops can answer both.
 
+
+**2026-07-19 06:15 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #61 of the autonomous loop** (cron `c3921bc4` firing). Live: 06:15 IST.
+- **Shipped standard observability headers on /api/csp-report 204 responses** (`747f06dc`). The 204 path uses `res.end()` directly (no `json()` call) so it was missing the standard observability header family that `json()` emits on other endpoints: `X-Request-Id`, `X-Request-Latency-Total-Ms`, `X-Build-Sha`.
+- **Parity break fix**: ops dashboards that aggregate the latency header across all endpoints saw a gap on `/api/csp-report` (which is hit on every CSP violation reported by any user browser — i.e. the endpoint is high-traffic, so the gap is real).
+- **Implementation**: local `applyCspReportHeaders(res)` helper in `api/csp-report.js` re-emits the same three headers. Called from both 204 paths (empty-body and successful) so every CSP report endpoint response carries the full observability family.
+- **292/292 tests pass** (220 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed a tiny but real observability parity gap. Per the iter #57 docs/API.md, every endpoint should carry the same observability family — this fix restores that promise on /api/csp-report.
