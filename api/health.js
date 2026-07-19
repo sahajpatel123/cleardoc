@@ -407,6 +407,14 @@ module.exports = async function handler(req, res) {
             limitMb,
             usedPercent,
             nearLimit: usedPercent >= 80,
+            // Heap utilization (heapUsed / heapTotal, 0..1 with 1-decimal
+            // precision). Different from `usedPercent` which is against
+            // the configured function limit. heapUsageRatio tracks GC
+            // pressure — when this climbs, the next allocation is more
+            // likely to trigger a major GC.
+            heapUsageRatio: m.heapTotal > 0
+              ? Math.round((m.heapUsed / m.heapTotal) * 1000) / 10
+              : 0,
             // Peak RSS seen since process start — lets ops spot memory-leak
             // patterns by graphing this over time.
             peakRssMb: _peakRssMb,
