@@ -1387,3 +1387,35 @@ test("Content-Type allowlist regex rejects +suffix variants like application/jso
     );
   }
 });
+
+test("analyze handler: LLM max-token caps are sane and distinct for full vs compact mode", () => {
+  // The analyze handler requests `max_tokens: 4000` (full mode) and
+  // `max_tokens: 1500` (compact mode) from OpenRouter/Gemini. These caps
+  // matter: too low → truncated responses fail safeParseAnalysisResult
+  // (502 invalid_ai_response); too high → bill explodes. Lock in the
+  // current values so a future refactor can't silently drop or inflate.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/analyze.js"), "utf8");
+
+  // Pin the 4000 / 1500 caps by source pattern.
+  assert.match(
+    src,
+    /max_tokens:\s*4000/,
+    "full-mode OpenRouter call must use max_tokens: 4000"
+  );
+  assert.match(
+    src,
+    /max_tokens:\s*1500/,
+    "compact-mode OpenRouter call must use max_tokens: 1500"
+  );
+  // Compact cap must be smaller than full cap (strict ordering).
+  const caps = [...src.matchAll(/max(?:_tokens|OutputTokens):\s*(\d+)/g)].map(m => parseInt(m[1], 10));
+  assert.ok(caps.length >= 3, `must have at least 3 token caps (full OR + compact OR + gemini full + compact), got ${caps.length}`);
+  const compact = caps.filter(c => c <= 2000);
+  const full = caps.filter(c => c >= 3000);
+  assert.ok(compact.length >= 2, `must have ≥2 compact-mode caps (≤2000), got ${compact.length}`);
+  assert.ok(full.length >= 1, `must have ≥1 full-mode cap (≥3000), got ${full.length}`);
+  for (const c of compact) assert.ok(c > 0 && c <= 2000, `compact cap ${c} must be 1..2000`);
+  for (const f of full) assert.ok(f >= 1000 && f <= 8000, `full cap ${f} must be 1000..8000`);
+});
