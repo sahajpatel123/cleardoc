@@ -1492,3 +1492,39 @@ test("CHAT_LIMITS constants are pinned (answerMin=1, answerMax=8000, modelMax=10
   // All four must be inside an Object.freeze() block
   assert.match(src, /Object\.freeze\(\s*\{[\s\S]*?answerMin:\s*1[\s\S]*?\}\s*\)/, "CHAT_LIMITS must be Object.freeze()'d");
 });
+
+test("ANALYSIS_LIMITS constants are pinned (all 17 caps)", () => {
+  // /api/analyze's safeParseAnalysisResult uses these caps to slice
+  // AI output and reject overflow. Pin each one + assert Object.freeze
+  // is in place so the constants can't be mutated at runtime.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/_safety.js"), "utf8");
+  const cases = [
+    ["plainEnglishRewrite", 20000],
+    ["risks", 20],
+    ["riskClause", 300],
+    ["riskExplanation", 500],
+    ["riskImpact", 500],
+    ["verdictLabel", 50],
+    ["verdictSummary", 500],
+    ["deadlines", 10],
+    ["deadlineDate", 100],
+    ["deadlineDescription", 200],
+    ["nextSteps", 8],
+    ["nextStepItem", 300],
+    ["readingLevelMin", 1],
+    ["readingLevelMax", 20],
+    ["jargonFoundMin", 0],
+    ["jargonFoundMax", 200],
+  ];
+  for (const [key, expected] of cases) {
+    const re = new RegExp(`${key}:\\s*${expected}\\b`);
+    const m = src.match(re);
+    assert.ok(m, `ANALYSIS_LIMITS must define ${key}: ${expected}`);
+  }
+  // Object.freeze() must still wrap the literal
+  assert.match(src, /const\s+ANALYSIS_LIMITS\s*=\s*Object\.freeze\(/, "ANALYSIS_LIMITS must be Object.freeze()'d");
+  // Must NOT contain entries from before the iter #16 hardening
+  assert.doesNotMatch(src, /ANALYSIS_LIMITS\.\w+\s*=/, "ANALYSIS_LIMITS entries must not be reassigned");
+});
