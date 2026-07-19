@@ -2499,3 +2499,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the cold-start-classification gap. Combined with `startedAt` (iter #63), `process.processUptimeSec`, `startupDurationMs` (iter #69), and now `uptimeBucket`, ops can derive the full cold-start profile of any function instance from a single `curl /api/health`.
+
+**2026-07-19 09:26 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #78 of the autonomous loop** (cron `c3921bc4` firing). Live: 09:26 IST.
+- **Shipped `summary.anyProviderReachable` + `summary.allProvidersReachable` aggregate booleans on /api/health** (`86d65caa`). Two new boolean aggregates derived from the per-provider reachable state.
+- **Real value**:
+  - `anyProviderReachable` — fast health-check signal (true = 200 path is achievable; false = 503 imminent)
+  - `allProvidersReachable` — fallback-activation signal (false = one provider failed and the fallback has been hit)
+- Without these, ops would have to walk the per-provider object on every poll to derive the same signal.
+- **320/320 tests pass** (247 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the aggregate-boolean gap. Combined with the existing `providersReachable` count and per-provider blocks, ops can now derive single-boolean signals without walking nested objects — useful for dashboards that show a green/red indicator per function instance.
