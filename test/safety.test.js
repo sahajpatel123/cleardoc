@@ -1468,3 +1468,27 @@ test("endpoint rate-limit caps are pinned: analyze=10/min, chat=30/min, csp-repo
     assert.match(src, commentHint, `${file} must keep the rationale comment`);
   }
 });
+
+test("CHAT_LIMITS constants are pinned (answerMin=1, answerMax=8000, modelMax=100, citationMax=200)", () => {
+  // /api/chat's safeParseChatResult rejects any AI response whose
+  // shape doesn't fit these bounds. Pin the constants so a future
+  // refactor can't silently tighten (rejects valid output) or loosen
+  // (accepts malformed output).
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/_safety.js"), "utf8");
+  const cases = [
+    ["answerMin", 1],
+    ["answerMax", 8000],
+    ["modelMax", 100],
+    ["citationMax", 200],
+  ];
+  for (const [key, expected] of cases) {
+    const re = new RegExp(`${key}:\\s*(${expected === 1 ? "\\d+" : "\\d+"})`);
+    const m = src.match(re);
+    assert.ok(m, `CHAT_LIMITS must define ${key}`);
+    assert.equal(parseInt(m[1], 10), expected, `CHAT_LIMITS.${key} must stay at ${expected}`);
+  }
+  // All four must be inside an Object.freeze() block
+  assert.match(src, /Object\.freeze\(\s*\{[\s\S]*?answerMin:\s*1[\s\S]*?\}\s*\)/, "CHAT_LIMITS must be Object.freeze()'d");
+});
