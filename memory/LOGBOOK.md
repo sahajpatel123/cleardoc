@@ -2485,3 +2485,17 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the per-batch observability gap. The /api/csp-report 204 response was previously opaque — the browser got no signal of how many reports we accepted. Now it does, enabling better retry logic on the client side (a browser that ships 5 reports but receives \"X-CSP-Reports-Processed-Total: 3\" can detect partial processing and retry).
+
+**2026-07-19 09:16 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #77 of the autonomous loop** (cron `c3921bc4` firing). Live: 09:16 IST.
+- **Shipped `payload.uptimeBucket` on /api/health** (`7b37cdf5`). New field: cold-start classification — one of `fresh` / `warm` / `cold`.
+- **Classifies process uptime**:
+  - `fresh` (< 5 min) — just initialized
+  - `warm` (5-60 min) — recently initialized, in steady state
+  - `cold` (> 60 min) — long-lived, Vercel likely never recycled
+- **Lets ops dashboards spot** when Vercel has recycled an instance (`fresh` appearing) or if cold-starts are spiking (cluster of `fresh` instances across the fleet). Derived from `processUptimeSec` — same source of truth as the rest of the time fields.
+- **319/319 tests pass** (246 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the cold-start-classification gap. Combined with `startedAt` (iter #63), `process.processUptimeSec`, `startupDurationMs` (iter #69), and now `uptimeBucket`, ops can derive the full cold-start profile of any function instance from a single `curl /api/health`.
