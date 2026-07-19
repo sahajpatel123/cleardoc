@@ -665,3 +665,16 @@ test("health handler: summary surfaces requestsByStatus per-status-code counter"
   assert.match(HEALTH_SOURCE, /requestsByStatus/, "summary must include requestsByStatus field");
   assert.match(HEALTH_SOURCE, /MAX_STATUS_BUCKETS/, "must have a cap to prevent unbounded growth");
 });
+
+// ── peak memory (iter #62) ────────────────────────────────────────
+
+test("health handler: process.memory surfaces peakRssMb seen since process start", () => {
+  // Peak RSS tracker — lazily updated on each request via a single
+  // Math.max + Math.round. Ops can graph `process.memory.peakRssMb`
+  // over time to spot memory-leak patterns (peak climbing request-
+  // over-request). Vercel recycles instances frequently so the
+  // signal is per-process, but real within a single lifetime.
+  assert.match(HEALTH_SOURCE, /_peakRssMb/, "must have a module-level _peakRssMb counter");
+  assert.match(HEALTH_SOURCE, /peakRssMb/, "memory block must include peakRssMb field");
+  assert.match(HEALTH_SOURCE, /rssNowMb\s*>\s*_peakRssMb/, "must compare and update peak on every request");
+});

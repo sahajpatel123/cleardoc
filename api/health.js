@@ -18,6 +18,9 @@ const START_TS = Date.now();
 // served since process start. Pairs with `summary.totalProbes` (outbound)
 // to give ops a complete traffic picture for this instance.
 let _requestsServed = 0;
+// Peak RSS observed since process start. Updated lazily on each request
+// so ops can spot a memory-leak pattern (peak climbing request-over-request).
+let _peakRssMb = 0;
 // Per-status code counter (statusCode → count). LRU-evicting at 50 keys
 // to prevent unbounded growth from a misbehaving client (or scan) hitting
 // 1000s of distinct status codes via weird edge cases. Status codes are
@@ -206,6 +209,13 @@ module.exports = async function handler(req, res) {
     // Even 429-rejected requests count (the endpoint saw traffic — useful
     // for spotting attack patterns where the reject rate is climbing).
     _requestsServed += 1;
+    // Lazy peak-memory update: cheap (one Math.max + Math.round per
+    // request), and lets ops spot a memory-leak pattern by graphing
+    // `summary.peakMemoryMb` over time. Vercel recycles function
+    // instances frequently so this only matters within a single
+    // process lifetime, but the signal is real.
+    const rssNowMb = Math.round(process.memoryUsage().rss / 1048576);
+    if (rssNowMb > _peakRssMb) _peakRssMb = rssNowMb;
 
     const uptimeSec = Math.round((Date.now() - START_TS) / 1000);
     const hasGemini = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY);
@@ -292,6 +302,9 @@ module.exports = async function handler(req, res) {
             limitMb,
             usedPercent,
             nearLimit: usedPercent >= 80,
+            // Peak RSS seen since process start — lets ops spot memory-leak
+            // patterns by graphing this over time.
+            peakRssMb: _peakRssMb,
           };
         })(),
       },
