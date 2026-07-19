@@ -2652,3 +2652,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the /api/health observability loop. Per-provider failure profile now includes: `providersLastFailure` (timestamp of most recent failure, iter #88) + `providersConsecutiveFailures` (current streak depth, iter #91). Combined: ops can answer "which provider is broken, for how long, and how deeply?" from a single curl.
+
+**2026-07-19 12:10 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #92 of the autonomous loop** (cron `f1fb68b1` firing). Live: 12:10 IST.
+- **Shipped `summary.errorsInLastHour` on /api/health**. New field: count of 5xx responses served in the rolling 1-hour window. Inverse-shape to `requestsInLastHour` (iter #87) but tracks 5xx only.
+- **Closes the "are we erroring RIGHT NOW?" observability gap (windowed)**. `totalErrors` (cumulative) + `errorRate` (ratio) + `lastErrorAt` (timestamp) tell the historical story; `consecutiveSuccesses` (current streak) tells the instantaneous story; `errorsInLastHour` (rolling window) tells the recent story.
+- **Implementation**: new module-level `_errorsInLastHour = []` (timestamps). In `recordRequestStatus`: push + lazy prune (entries older than 3600s) on every 5xx. `summary.errorsInLastHour` surfaces `array.length`.
+- **351/351 tests pass** (278 unit + 71 smoke + 1 integration). 1 new source-pattern test (`errorsInLastHour`). Extended full-observability-surface assertion list.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the /api/health observability loop. With `requestsInLastHour` (all traffic, iter #87) + `errorsInLastHour` (5xx only, iter #92), ops can derive the windowed error rate as `errorsInLastHour / requestsInLastHour` — a far more actionable signal than the lifetime `errorRate` on long-lived Vercel Hobby instances.

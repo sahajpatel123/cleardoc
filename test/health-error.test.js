@@ -916,7 +916,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "averageRequestsPerMinute", "errorRate", "lastErrorAt",
     "requestsInLastHour", "providersLastFailure",
     "providersFailureRateInLastHour", "consecutiveSuccesses",
-    "providersConsecutiveFailures",
+    "providersConsecutiveFailures", "errorsInLastHour",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1194,4 +1194,17 @@ test("health handler: summary exposes providersConsecutiveFailures (per-provider
   );
   assert.match(safetySrc, /getConsecutiveProviderFailures/, "_safety.js must export getConsecutiveProviderFailures accessor");
   assert.match(safetySrc, /_consecutiveProviderFailures/, "_safety.js must track per-provider failure streaks");
+});
+
+// ── errorsInLastHour (iter #92) ───────────────────────────
+
+test("health handler: summary exposes errorsInLastHour (rolling 1-hour 5xx count)", () => {
+  // Pairs with totalErrors (cumulative) to give ops a windowed view
+  // of recent failures — 'are we erroring RIGHT NOW?' independent of
+  // process age. Inverse-shape to requestsInLastHour (iter #87) but
+  // tracks 5xx responses only.
+  assert.match(HEALTH_SOURCE, /errorsInLastHour/, "summary must include errorsInLastHour field");
+  assert.match(HEALTH_SOURCE, /_errorsInLastHour/, "must have a module-level _errorsInLastHour array");
+  assert.match(HEALTH_SOURCE, /_errorsInLastHour\.push/, "must push to the rolling window on each 5xx");
+  assert.match(HEALTH_SOURCE, /_errorsInLastHour\.length/, "must surface the array length as the field value");
 });
