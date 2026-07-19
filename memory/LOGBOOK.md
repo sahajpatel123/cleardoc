@@ -2557,3 +2557,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the per-provider latency-central-tendency observability gap. Combined with `fastestProviderMs` / `slowestProviderMs` (extrema) and now `providersAvgLatencyMsInLastHour` (mean), ops can derive the full latency profile of any provider from a single `curl /api/health`.
+
+**2026-07-19 10:40 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #83 of the autonomous loop** (cron `c3921bc4` firing; this session scheduled `f1fb68b1` every 10m). Live: 10:40 IST.
+- **Shipped `process.memory.heapUsageRatio` on /api/health**. New field: `heapUsed / heapTotal` (0..1, 1-decimal precision). Distinct from the existing `usedPercent` (which is against the configured function limit) — `heapUsageRatio` tracks **GC pressure** rather than OOM risk.
+- **Implementation**: pure compute on the existing `process.memoryUsage()` snapshot. Guards divide-by-zero (`heapTotal > 0`). 1-decimal precision via `Math.round(x * 1000) / 10`. 0 when `heapTotal` is 0.
+- **Pre-flight caught a syntax error in the new test**: the trailing `});` was missing on the `heapUsageRatio` source-pattern assertion (ended with bare `}`). Node couldn't parse the file at all. Fixed locally; full suite re-run shows 340/340 green (was 339 before fix + 1 new = 340).
+- **340/340 tests pass** (268 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the GC-pressure-vs-OOM-risk observability gap. Ops can now distinguish "function is close to OOM" (`usedPercent`) from "V8 heap is near saturation, next allocation will trigger major GC" (`heapUsageRatio`) — two different failure modes with two different remediations.

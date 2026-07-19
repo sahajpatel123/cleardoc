@@ -1057,3 +1057,15 @@ test("health handler: process.memory surfaces heapUsageRatio (heapUsed / heapTot
   assert.match(HEALTH_SOURCE, /m\.heapTotal\s*>\s*0/, "must guard against divide-by-zero");
   assert.match(HEALTH_SOURCE, /m\.heapUsed\s*\/\s*m\.heapTotal/, "computation must be heapUsed / heapTotal");
 });
+
+// ── heapUsageRatio (iter #83) ───────────────────────────────────
+
+test("health handler: process.memory surfaces heapUsageRatio (heapUsed / heapTotal)", () => {
+  // Heap utilization (0..1, 1-decimal precision). Different from
+  // usedPercent which is against the configured function limit.
+  // heapUsageRatio tracks GC pressure: when this climbs, the next
+  // allocation is more likely to trigger a major GC.
+  assert.match(HEALTH_SOURCE, /heapUsageRatio/, "memory block must include heapUsageRatio field");
+  assert.match(HEALTH_SOURCE, /m\.heapTotal\s*>\s*0/, "must guard against divide-by-zero");
+  assert.match(HEALTH_SOURCE, /m\.heapUsed\s*\/\s*m\.heapTotal/, "computation must be heapUsed / heapTotal");
+}
