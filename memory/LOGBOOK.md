@@ -2179,3 +2179,11 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Shipped `2df9e56f fix(analyze): make ?format=verdict-only detection case-insensitive`.** The compact-mode regex on api/analyze.js:415 was case-sensitive. A request to `?FORMAT=VERDICT-ONLY` silently bypassed compact mode and hit the full analyze path — wrong AI prompt, slower response, larger bill. Added the `i` flag so any casing activates compact mode. Source-pattern test locks in the flag.
 - **Verification:** 287/287 tests pass (216 unit + 71 smoke + 1 integration). Pushed to origin/main.
 
+
+**2026-07-19 05:10 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #23 of /loop 10minutes** — autonomous DevSecOps guardian.
+- **Recon:** parallel session shipped `7ac80b7a docs(api): single-page API reference at docs/API.md` and `ad274e3c docs(memory): log iteration #57 — docs/API.md single-page reference`. Working tree clean on entry.
+- **Shipped `210db63e sec(api): reject +suffix variants on Content-Type check`.** The Content-Type regex `/^\s*application\/json\b/i` accepted `application/json+xml` because `\b` matches between `n` (word) and `+` (non-word). RFC 6839 `+suffix` variants aren't the same as plain `application/json` — a content-sniffing server might pick the wrong parser. Stricter regex requires `;` (charset separator) or end-of-string after `application/json`. Applied to both analyze + chat handlers. Source-pattern test locks in the strict regex AND asserts the loose `\b` version is gone.
+- **Verification:** 289/289 tests pass (216 unit + 71 smoke + 1 integration). Pushed to origin/main.
+
