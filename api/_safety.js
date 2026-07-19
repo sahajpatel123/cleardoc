@@ -483,6 +483,12 @@ function _cspRecordUri(map, rawUri) {
 // single hashed IP dominates, the answer is yes.
 let _cspLastReporterHash = null;
 let _cspLastReporterSample = null;
+// Most recent rate-limit-rejected reporter IP. Pairs with
+// lastReporter (most recent ACCEPTED reporter) to give ops the
+// full picture: "is anyone currently being throttled?" without
+// grepping logs.
+let _cspLastBlockerHash = null;
+let _cspLastBlockerSample = null;
 const _csp = require("node:crypto");
 
 function recordCspReport(directive, blockedUri, documentUri, reporterIp) {
@@ -529,9 +535,18 @@ let _cspBlockedCount = 0;
 // report. Pairs with firstSeenAt/lastSeenAt (accepted) and
 // lastReporter to give ops the full timeline of the CSP stream.
 let _cspLastBlockedAt = 0;
+let _cspReportCallerIp = null;
 function recordCspBlock() {
   _cspBlockedCount += 1;
   _cspLastBlockedAt = Date.now();
+  // Capture the rate-limited reporter IP for the lastBlockByIp
+  // surface. Mirrors the lastReporter pattern.
+  if (typeof _cspReportCallerIp === "string" && _cspReportCallerIp.length > 0 && _cspReportCallerIp.length <= 200) {
+    const sample = _cspReportCallerIp.slice(0, 64);
+    const hash = _csp.createHash("sha256").update(sample).digest("hex").slice(0, 16);
+    _cspLastBlockerHash = hash;
+    _cspLastBlockerSample = sample;
+  }
 }
 
 function getCspReportCounts() {
@@ -646,6 +661,13 @@ function getCspReportCounts() {
     // reports?" from a single curl.
     lastReporter: _cspLastReporterHash
       ? { hash: _cspLastReporterHash, sample: _cspLastReporterSample }
+      : null,
+    // Most recent rate-limit-rejected reporter IP (hashed + sample).
+    // Pairs with lastReporter (most recent ACCEPTED reporter) to
+    // give ops the full picture: "which IP is currently being
+    // throttled vs which IP is actively reporting?"
+    lastBlockByIp: _cspLastBlockerHash
+      ? { hash: _cspLastBlockerHash, sample: _cspLastBlockerSample }
       : null,
     // Top-10 most-blocked URIs (the resource that was blocked) AND
     // top-10 most-blockedFrom URIs (the page where the violation
