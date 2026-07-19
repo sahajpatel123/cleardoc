@@ -2523,3 +2523,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the first-request timestamp observability gap. Combined with `startedAt` (iter #63), `process.processUptimeSec`, `startupDurationMs` (iter #69), `uptimeBucket` (iter #77), and now `firstRequestAt`, ops can derive the full cold-start + warmup timeline of any function instance from a single `curl /api/health`.
+
+**2026-07-19 09:45 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #80 of the autonomous loop** (cron `c3921bc4` firing). Live: 09:45 IST.
+- **Shipped `providersReachableByRegionInLastHour` on /api/health** (`31a9577b`). New field: per-provider per-region reachability over the rolling 1-hour window.
+- **Format**: `providersReachableByRegionInLastHour: { gemini: { region1: { okCount, total, successRate }, ... }, openrouter: { region1: { okCount, total, successRate }, ... } }`
+- **Lets ops answer \"is the flapping localized to one region?\"** — a traffic spike in iad1 might leave fra1 unaffected.
+- **Implementation**: `_probeOutcomes` entry now captures `VERCEL_REGION` at record time. New `getProbeReachabilityByRegionInLastHour()` groups by provider then by region. Both fields exposed in /api/health summary.
+- **322/322 tests pass** (249 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the per-region reachability observability gap. Combined with the global `providersReachableInLastHour` (iter #76) and the new per-region breakdown, ops can now answer both \"is the provider flapping?\" (global) and \"is the flapping localized to one region?\" (per-region) from a single `curl /api/health`.
