@@ -11,7 +11,7 @@
  * for the most-polled endpoint in any deployment.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount, getTopActiveIPs, getProbeReachabilityInLastHour, getProbeReachabilityByRegionInLastHour, getProbeAverageLatencyInLastHour, getLastProbeFailure, getConsecutiveProviderFailures } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount, getTopActiveIPs, getProbeReachabilityInLastHour, getProbeReachabilityByRegionInLastHour, getProbeAverageLatencyInLastHour, getLastProbeFailure, getConsecutiveProviderFailures, getProbeCacheSize } = require("./_safety.js");
 
 const START_TS = Date.now();
 // Captured on the first request — `summary.startupDurationMs` is the
@@ -296,6 +296,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     slowestProviderMs: reachableLatencies.length ? Math.max(...reachableLatencies) : null,
     cacheHits,
     totalProbes: probeCounts.total,
+    // Current probe cache entry count. Bounded at _PROBE_CACHE_MAX (100).
+    // Pairs with totalProbes + networkProbes to detect cache thrashing:
+    // cacheSize near 100 + cacheMissRate rising = entries being evicted
+    // before being reused (cache not helping).
+    cacheSize: getProbeCacheSize(),
     networkProbes: probeCounts.network,
     // Total requests served by this function instance since process start.
     // Pairs with totalProbes (outbound) so ops can compute inbound vs

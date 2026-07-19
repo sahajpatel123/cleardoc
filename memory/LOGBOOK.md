@@ -2663,3 +2663,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the /api/health observability loop. With `requestsInLastHour` (all traffic, iter #87) + `errorsInLastHour` (5xx only, iter #92), ops can derive the windowed error rate as `errorsInLastHour / requestsInLastHour` — a far more actionable signal than the lifetime `errorRate` on long-lived Vercel Hobby instances.
+
+**2026-07-19 12:20 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #93 of the autonomous loop** (cron `f1fb68b1` firing). Live: 12:20 IST.
+- **Shipped `summary.cacheSize` on /api/health**. New field: current probe cache entry count (bounded at `_PROBE_CACHE_MAX = 100`).
+- **Closes the "is the probe cache thrashing?" observability gap**. Pairs with `cacheMissRate` (iter #81) + `totalProbes` + `networkProbes` (iter #49). When `cacheSize` is consistently near 100 AND `cacheMissRate` is rising, entries are being evicted before they're reused — the cache isn't actually helping.
+- **Implementation**: new `getProbeCacheSize()` accessor in `_safety.js` returns `_probeCache.size`. New `cacheSize` field in summary.
+- **352/352 tests pass** (279 unit + 71 smoke + 1 integration). 1 new source-pattern test (`cacheSize`). Extended full-observability-surface assertion list.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the /api/health observability loop. The cache surface is now: `cacheHits` (count) + `totalProbes` (denominator) + `networkProbes` (misses) + `cacheMissRate` (ratio) + `cacheSize` (current entries). Together, ops can answer "is the probe cache helping?" with a single curl.

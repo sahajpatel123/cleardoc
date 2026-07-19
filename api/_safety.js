@@ -386,6 +386,15 @@ function clearProbeCache() {
   _probeCache.clear();
 }
 
+// Read-only accessor for the current probe cache size. Bounded at
+// _PROBE_CACHE_MAX (100). Lets ops detect cache thrashing — if the
+// cache is consistently near the cap and cacheMissRate is rising,
+// probes are being evicted faster than they're being reused (each
+// cache hit is short-lived).
+function getProbeCacheSize() {
+  return _probeCache.size;
+}
+
 /* CSP violation report counters — incremented by api/csp-report.js, read
  * via /api/health. Lets ops graph "is CSP rejection rate going up?" at
  * a glance instead of grepping Vercel logs.
@@ -1313,6 +1322,7 @@ module.exports = {
   getProbeAverageLatencyInLastHour,
   getLastProbeFailure,
   getConsecutiveProviderFailures,
+  getProbeCacheSize,
   getUniqueIPsCount,
   getTopActiveIPs,
   recordCspReport,

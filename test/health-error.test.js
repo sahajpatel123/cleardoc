@@ -916,7 +916,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "averageRequestsPerMinute", "errorRate", "lastErrorAt",
     "requestsInLastHour", "providersLastFailure",
     "providersFailureRateInLastHour", "consecutiveSuccesses",
-    "providersConsecutiveFailures", "errorsInLastHour",
+    "providersConsecutiveFailures", "errorsInLastHour", "cacheSize",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1207,4 +1207,18 @@ test("health handler: summary exposes errorsInLastHour (rolling 1-hour 5xx count
   assert.match(HEALTH_SOURCE, /_errorsInLastHour/, "must have a module-level _errorsInLastHour array");
   assert.match(HEALTH_SOURCE, /_errorsInLastHour\.push/, "must push to the rolling window on each 5xx");
   assert.match(HEALTH_SOURCE, /_errorsInLastHour\.length/, "must surface the array length as the field value");
+});
+
+// ── cacheSize (iter #93) ────────────────────────────────────────
+
+test("health handler: summary exposes cacheSize (current probe cache entry count)", () => {
+  // Bounded at _PROBE_CACHE_MAX (100). Pairs with cacheMissRate to
+  // detect cache thrashing — if cacheSize is near 100 and cacheMissRate
+  // is rising, entries are being evicted faster than reused.
+  assert.match(HEALTH_SOURCE, /cacheSize/, "summary must include cacheSize field");
+  // The accessor lives in _safety.js
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /getProbeCacheSize/, "_safety.js must export getProbeCacheSize accessor");
 });
