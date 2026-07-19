@@ -2409,3 +2409,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Shipped `b15b7893 test(safety): pin probe-cache constants in _safety.js`.** Pin _PROBE_TTL_MS=60_000, _PROBE_TIMEOUT_MS=3000, _PROBE_CACHE_MAX=100.
 - **Verification:** 310/310 tests pass (232 unit + 71 smoke + 1 integration). Pushed.
 
+
+**2026-07-19 08:08 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #71 of the autonomous loop** (cron `c3921bc4` firing). Live: 08:08 IST.
+- **Shipped cspReports.firstSeenAt + lastSeenAt ISO timestamps on /api/health** (`1c4c38ec`). New fields: when the first and most recent CSP violations were reported.
+- **Both null until the first report arrives** — lets ops answer \"is the CSP report stream fresh or stale?\" from a single `curl /api/health`. A 6-hour gap with a \"0 reports\" trend means the stream is dead, not \"nothing to report.\"
+- **Implementation**: module-level `_cspFirstSeenAt` + `_cspLastSeenAt` counters in `_safety.js`. `_cspFirstSeenAt` captures when the very first violation was reported; `_cspLastSeenAt` updates on every subsequent report. Both ISO-stringified in the response.
+- **312/312 tests pass** (240 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the temporal observability gap on the CSP report stream. Combined with the existing `total` + `byDirective` + `mostBlocked` + `mostBlockedFrom`, the cspReports block is now a complete activity timeline: rate, breakdown, target vs source attribution, and freshness.
