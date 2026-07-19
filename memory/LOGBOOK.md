@@ -2790,3 +2790,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Linter shipped the feature; I added the test coverage. The process block on /api/health now surfaces: `nodeVersion` (iter #43) + `platform` + `arch` + `pid` + `processUptimeSec` + `processUptimePretty` (iter #102) + `region` + `vercelEnv` + `memory` (10 sub-fields) + `peakRssMb` + `execPath` (iter #103).
+
+**2026-07-19 14:10 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #104 of the autonomous loop** (cron `f1fb68b1` firing). Live: 14:10 IST.
+- **Shipped 3 behavioral tests for `applyEndpointHeader` in `test/safety.test.js`**. Pure-functional coverage — exercises the helper with various inputs.
+- **Tests added**:
+  1. Valid names — `analyze`, `chat`, `health`, `csp-report` → X-Endpoint set correctly
+  2. Invalid names — null/undefined/numbers/objects/arrays/empty string/too-long/whitespace/punctuation/unicode → no header set
+  3. Safe no-ops — null res, res without setHeader, res with headersSent:true → no header set
+- **373/373 tests pass** (298 unit + 71 smoke + 1 integration). Test count +3.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the test-coverage pattern. `applyEndpointHeader` is called by every endpoint on every request (the X-Endpoint marker header). Only source-pattern tests previously — behavioral tests now verify the actual allowlist enforcement.

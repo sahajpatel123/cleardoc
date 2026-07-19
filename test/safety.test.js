@@ -1688,3 +1688,68 @@ test("_safety: getCspReportCounts includes the standard observability family", (
     assert.ok(k in r, `getCspReportCounts must include ${k}`);
   }
 });
+
+// ── applyEndpointHeader behavioral coverage (iter #104) ───────
+
+test("_safety: applyEndpointHeader sets X-Endpoint for valid names", () => {
+  const { applyEndpointHeader } = require("../api/_safety.js");
+  // Mock res
+  const res = {
+    headersSent: false,
+    headers: {},
+    setHeader(k, v) { this.headers[k] = v; },
+  };
+  applyEndpointHeader(res, "analyze");
+  assert.equal(res.headers["X-Endpoint"], "analyze");
+  applyEndpointHeader(res, "chat");
+  assert.equal(res.headers["X-Endpoint"], "chat");
+  applyEndpointHeader(res, "health");
+  assert.equal(res.headers["X-Endpoint"], "health");
+  applyEndpointHeader(res, "csp-report");
+  assert.equal(res.headers["X-Endpoint"], "csp-report");
+});
+
+test("_safety: applyEndpointHeader rejects invalid names (silent no-op)", () => {
+  const { applyEndpointHeader } = require("../api/_safety.js");
+  const res = {
+    headersSent: false,
+    headers: {},
+    setHeader(k, v) { this.headers[k] = v; },
+  };
+  // Non-string
+  applyEndpointHeader(res, null);
+  applyEndpointHeader(res, undefined);
+  applyEndpointHeader(res, 42);
+  applyEndpointHeader(res, {});
+  applyEndpointHeader(res, []);
+  // Empty string
+  applyEndpointHeader(res, "");
+  // Too long (> 32 chars)
+  applyEndpointHeader(res, "a".repeat(33));
+  // Bad characters (whitespace, punctuation, unicode)
+  applyEndpointHeader(res, "analyze ");
+  applyEndpointHeader(res, "analyze;");
+  applyEndpointHeader(res, "analyze.foo");
+  applyEndpointHeader(res, "anályze");
+  // None of the above should have set X-Endpoint
+  assert.equal(res.headers["X-Endpoint"], undefined,
+    "no invalid input should set X-Endpoint");
+});
+
+test("_safety: applyEndpointHeader is a no-op when res is missing or headers already sent", () => {
+  const { applyEndpointHeader } = require("../api/_safety.js");
+  // Missing res
+  assert.doesNotThrow(() => applyEndpointHeader(null, "analyze"), "null res must not throw");
+  assert.doesNotThrow(() => applyEndpointHeader(undefined, "analyze"), "undefined res must not throw");
+  // Res without setHeader
+  assert.doesNotThrow(() => applyEndpointHeader({}, "analyze"), "res without setHeader must not throw");
+  // Res with headersSent: true
+  const sent = {
+    headersSent: true,
+    headers: {},
+    setHeader(k, v) { this.headers[k] = v; },
+  };
+  applyEndpointHeader(sent, "analyze");
+  assert.equal(sent.headers["X-Endpoint"], undefined,
+    "must not set header when headersSent is true");
+});
