@@ -239,7 +239,7 @@ async function probeProviderCached(key, url) {
   if (Array.isArray(fresh)) {
     // nothing — defensive
   } else if (fresh && typeof fresh === "object") {
-    _probeOutcomes.push({ ts: Date.now(), ok: !!fresh.ok, provider: key, region: process.env.VERCEL_REGION || null });
+    _probeOutcomes.push({ ts: Date.now(), ok: !!fresh.ok, provider: key, region: process.env.VERCEL_REGION || null, latencyMs: typeof fresh.latencyMs === "number" ? fresh.latencyMs : null });
     // Evict oldest if over the cap
     while (_probeOutcomes.length > PROBE_WINDOW_MAX) _probeOutcomes.shift();
   }
@@ -316,6 +316,32 @@ function getProbeReachabilityByRegionInLastHour() {
       if (entry.total > 0) {
         entry.successRate = Math.round((entry.okCount / entry.total) * 1000) / 10;
       }
+    }
+  }
+  return result;
+}
+
+/* Per-provider average latency across the rolling 1-hour window.
+ * Returns { gemini: avg, openrouter: avg } — avg is rounded to integer
+ * ms. Null when no probes in the window.
+ *
+ * Lets ops answer "is the average getting worse over time?" — the
+ * existing fastestProviderMs / slowestProviderMs fields show the
+ * extremes; this one shows the central tendency.
+ */
+function getProbeAverageLatencyInLastHour() {
+  const cutoff = Date.now() - _PROBE_WINDOW_MS;
+  while (_probeOutcomes.length && _probeOutcomes[0].ts < cutoff) {
+    _probeOutcomes.shift();
+  }
+  const result = { gemini: null, openrouter: null };
+  for (const p of Object.keys(result)) {
+    const lats = _probeOutcomes
+      .filter((e) => e.provider === p && typeof e.latencyMs === "number")
+      .map((e) => e.latencyMs);
+    if (lats.length > 0) {
+      const sum = lats.reduce((a, b) => a + b, 0);
+      result[p] = Math.round(sum / lats.length);
     }
   }
   return result;
@@ -1219,6 +1245,7 @@ module.exports = {
   getProbeCounts,
   getProbeReachabilityInLastHour,
   getProbeReachabilityByRegionInLastHour,
+  getProbeAverageLatencyInLastHour,
   getUniqueIPsCount,
   getTopActiveIPs,
   recordCspReport,

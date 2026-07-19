@@ -1028,3 +1028,20 @@ test("health handler: summary exposes cacheMissRate (networkProbes / totalProbes
   assert.match(HEALTH_SOURCE, /cacheMissRate/, "summary must include cacheMissRate field");
   assert.match(HEALTH_SOURCE, /network\s*\/\s*probeCounts\.total/, "computation must be networkProbes / totalProbes");
 });
+
+// ── providersAvgLatencyMsInLastHour (iter #82) ────────────────
+
+test("health handler: summary exposes providersAvgLatencyMsInLastHour (per-provider rolling 1-hour mean)", () => {
+  // Per-provider average latency across the rolling 1-hour window.
+  // Pairs with fastestProviderMs / slowestProviderMs to show the
+  // central tendency. Lets ops answer "is the average getting worse
+  // over time?"
+  assert.match(HEALTH_SOURCE, /providersAvgLatencyMsInLastHour/, "summary must include providersAvgLatencyMsInLastHour field");
+  // The accessor lives in _safety.js
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /getProbeAverageLatencyInLastHour/, "must have getProbeAverageLatencyInLastHour accessor");
+  // The probe outcome entry must include latencyMs for the mean to compute
+  assert.match(safetySrc, /latencyMs:\s*typeof fresh\.latencyMs/, "probe outcomes must capture latencyMs at record time");
+});

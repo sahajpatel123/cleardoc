@@ -11,7 +11,7 @@
  * for the most-polled endpoint in any deployment.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount, getTopActiveIPs, getProbeReachabilityInLastHour, getProbeReachabilityByRegionInLastHour } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount, getTopActiveIPs, getProbeReachabilityInLastHour, getProbeReachabilityByRegionInLastHour, getProbeAverageLatencyInLastHour } = require("./_safety.js");
 
 const START_TS = Date.now();
 // Captured on the first request — `summary.startupDurationMs` is the
@@ -212,6 +212,12 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Lets ops answer "is the provider flapping?" — a 50%-reachable
     // signal is actionable even when the current state is OK.
     providersReachableInLastHour: getProbeReachabilityInLastHour(),
+    // Per-provider average latency across the rolling 1-hour window.
+    // Pairs with fastestProviderMs / slowestProviderMs to show the
+    // central tendency. Lets ops answer "is the average getting
+    // worse over time?" — the existing fields show extremes; this
+    // one shows the mean.
+    providersAvgLatencyMsInLastHour: getProbeAverageLatencyInLastHour(),
     // Per-provider per-region reachability over the rolling 1-hour
     // window. Lets ops answer "is the flapping localized to one
     // region?" (traffic spike in iad1 might leave fra1 unaffected).
