@@ -324,6 +324,23 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // slow-start regression in real time — Vercel Hobby cold starts
     // are bounded; if this number creeps up, an upstream is slow.
     startupDurationMs: _firstRequestTs ? _firstRequestTs - START_TS : null,
+    // Human-readable startup duration. Analogous to processUptimePretty
+    // but for cold-start latency. Null until the first request
+    // (matches startupDurationMs). Format: same d/h/m/s rules as
+    // processUptimePretty — see the helper.
+    startupDurationPretty: (() => {
+      const ms = _firstRequestTs ? _firstRequestTs - START_TS : null;
+      if (ms === null || !Number.isFinite(ms) || ms < 0 || ms > 600000) return null;
+      const s = Math.round(ms / 1000);
+      if (s < 60) return `${s}s`;
+      if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+      const days = Math.floor(s / 86400);
+      const hours = Math.floor((s % 86400) / 3600);
+      const mins = Math.floor((s % 3600) / 60);
+      return days > 0
+        ? `${days}d ${hours}h ${mins}m`
+        : `${hours}h ${mins}m`;
+    })(),
     providersConfigured: configured,
     providersReachable: reachable,
     // Aggregate booleans derived from the per-provider reachable state.

@@ -2916,3 +2916,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. The csp-report handler is critical (processes browser CSP violation reports) but its happy path had no direct behavioral coverage. Now it does. The test also documents the body-chunk shape requirement (Buffer/Uint8Array, not strings) that the existing source-pattern tests miss.
+
+**2026-07-19 15:50 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #114 of the autonomous loop** (cron `f1fb68b1` firing). Live: 15:50 IST.
+- **Shipped `process.startupDurationPretty` on /api/health**. New field: human-readable startup duration (analogous to `processUptimePretty` from iter #102).
+- **Pairs with `startupDurationMs`** (precise integer ms). Same `d/h/m/s` formatting rules. Null until the first request. Capped at 600000ms (10-min threshold — matches other timing fields).
+- **Implementation**: IIFE in the process block transforms `startupDurationMs` (when non-null) into the pretty format. Reuses the same d/h/m/s logic as processUptimePretty for visual consistency.
+- **1 new source-pattern test**.
+- **392/392 tests pass** (317 unit + 71 smoke + 1 integration). Test count +1.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the pattern: every precise ms field gets a paired pretty-format field. Ops dashboards now have: `process.processUptimePretty` + `process.startupDurationPretty` for human-readable timing, alongside the precise-integer fields for scripts.

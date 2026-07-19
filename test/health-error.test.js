@@ -1439,6 +1439,20 @@ test("health handler: summary exposes requestsInLastMinute (rolling 1-minute cou
   assert.match(HEALTH_SOURCE, /60\s*\*\s*1000/, "must use 60s cutoff for 1-minute window");
 });
 
+// ── startupDurationPretty (iter #114) ──────────────────────────
+
+test("health handler: process block surfaces startupDurationPretty (human-readable cold-start)", () => {
+  // Analogous to processUptimePretty. Complements startupDurationMs
+  // (precise ms) — pretty format for ops glances, integer for scripts.
+  assert.match(HEALTH_SOURCE, /startupDurationPretty/, "process block must include startupDurationPretty field");
+  // Format must include time-unit suffixes
+  assert.match(HEALTH_SOURCE, /\$\{[^}]+\}s/, "must format seconds with 's' suffix");
+  // Guard against unbounded values (matches the 600000ms cap used elsewhere)
+  assert.match(HEALTH_SOURCE, /ms\s*>\s*600000/, "must cap at 600000ms (10 min cold-start threshold)");
+  // Must return null when no first request yet (parity with startupDurationMs)
+  assert.match(HEALTH_SOURCE, /ms\s*===\s*null/, "must return null when no first request yet");
+});
+
 // ── currentConcurrentRequests (iter #112, linter-added) ────────
 
 test("health handler: summary exposes currentConcurrentRequests (in-flight requests right now)", () => {
