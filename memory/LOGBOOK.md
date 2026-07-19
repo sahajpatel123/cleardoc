@@ -2216,3 +2216,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Shipped `fd2fb4c6 test(safety): pin analyze LLM token caps (4000 full / 1500 compact)`.** api/analyze.js requests `max_tokens: 4000` (full) and `max_tokens: 1500` (compact) from OpenRouter + matching `maxOutputTokens: 4000/1500` from Gemini. No existing test pinned these. Source-pattern test now asserts the constants are present and within sane bounds.
 - **Verification:** 291/291 tests pass (217 unit + 71 smoke + 1 integration). Pushed to origin/main.
 
+**2026-07-19 06:06 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #60 of the autonomous loop** (cron `c3921bc4` firing). Live: 06:06 IST.
+- **Shipped `cspReports.mostBlocked` (top-10 blocked URIs) on /api/health** (`3e4ca8c4`). The cspReports block now includes a sorted `mostBlocked` array — top 10 URIs that have been reported as blocked by browsers since process start. Each entry has `{ hash, count, sample }`.
+- **Real ops value**: "Is some specific third-party domain being blocked 80% of the time?" is now a one-curl check. Useful for identifying third-party widget regressions, browser extensions misbehaving for many users, malicious scripts, or CDN issues.
+- **Implementation**: `_safety.js` adds `_cspBlockedUriCounts` Map. SHA-256 hash of the blocked-uri as the key (PII-safe: 16 hex chars, not the raw URL — bounded to a fixed length to prevent unbounded growth). LRU-evicting at `MAX_CSP_BLOCKED_URIS=50`. The `sample` field is a prefix of the raw URL for human ops use (NOT the hash, so ops can identify the resource by eye). `getCspReportCounts()` returns top-10 sorted by count desc.
+- **292/292 tests pass** (220 unit + 71 smoke + 1 integration). 1 new source-pattern test with 4 sub-assertions.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the last meaningful CSP-observability gap. The per-directive breakdown (iter #50) was directionally useful, but the "which specific resource is being blocked most often?" question needed per-URI breakdown. Now ops can answer both.
+
