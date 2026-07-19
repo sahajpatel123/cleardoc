@@ -245,6 +245,9 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Lets ops answer "is the provider flapping?" — a 50%-reachable
     // signal is actionable even when the current state is OK.
     providersReachableInLastHour: getProbeReachabilityInLastHour(),
+    // Probe cache size (per-provider). Lets ops see how many distinct
+    // AI providers the cache is tracking. Bounded at _PROBE_CACHE_MAX.
+    probeCacheSize: getProbeCacheSize(),
     // Per-provider failure rate over the rolling 1-hour window.
     // Inverse of success rate. Lets ops answer "what % of probes
     // failed?" without computing it from the success rate.
