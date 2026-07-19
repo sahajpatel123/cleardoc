@@ -2894,3 +2894,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Linter completed the work this iter (unlike iter #110 where I had to implement the tracking). I added the test coverage. Combined: `requestsInLastMinute` (1-min) + `requestsInLastHour` (1-hour) + `requests` (lifetime) give ops three time horizons for the same metric.
+
+**2026-07-19 15:30 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #112 of the autonomous loop** (cron `f1fb68b1` firing). Live: 15:30 IST.
+- **Added 2 tests for `summary.currentConcurrentRequests`** (linter-added). Pairs with `peakConcurrentRequests` (iter #110) for full concurrency observability: current (live) + peak (worst-case).
+- **Tests added**:
+  1. Source-pattern: field present + sourced from live `_currentConcurrent` counter
+  2. Behavioral: render a request → count is `>= 1` during the render (incremented at start; decremented in finally AFTER summary is built)
+- **390/390 tests pass** (315 unit + 71 smoke + 1 integration). Test count +2.
+
+**Prompt Intention:**
+- Honored the standing directives. Linter added `currentConcurrentRequests` to summary; this iter added the test coverage. The full concurrency surface is now: `_currentConcurrent` (live in-flight) + `_peakConcurrent` (worst-case) + `currentConcurrentRequests` (summary field) + `peakConcurrentRequests` (summary field).

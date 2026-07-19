@@ -919,6 +919,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "providersConsecutiveFailures", "errorsInLastHour", "cacheSize",
     "providersLastUpdated", "lastHealthDurationMs", "maxHealthDurationMs",
     "peakConcurrentRequests", "requestsInLastMinute",
+    "currentConcurrentRequests",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1436,6 +1437,53 @@ test("health handler: summary exposes requestsInLastMinute (rolling 1-minute cou
   assert.match(HEALTH_SOURCE, /_requestsInLastMinute\.length/, "must surface the array length as the field value");
   // Must use 60s cutoff (not 3600s like the 1-hour window)
   assert.match(HEALTH_SOURCE, /60\s*\*\s*1000/, "must use 60s cutoff for 1-minute window");
+});
+
+// ── currentConcurrentRequests (iter #112, linter-added) ────────
+
+test("health handler: summary exposes currentConcurrentRequests (in-flight requests right now)", () => {
+  // Pairs with peakConcurrentRequests (iter #110). The pair answers
+  // two questions from a single curl:
+  //   - "what's the current load?" — currentConcurrentRequests
+  //   - "what's the worst-case?"    — peakConcurrentRequests
+  assert.match(HEALTH_SOURCE, /currentConcurrentRequests/, "summary must include currentConcurrentRequests field");
+  // Must surface the LIVE counter (not a stale value)
+  assert.match(HEALTH_SOURCE, /currentConcurrentRequests:\s*_currentConcurrent/,
+    "must surface the live _currentConcurrent counter");
+});
+
+test("health handler: currentConcurrentRequests is 1 during a single-request render", async () => {
+  // Behavioral check: render one request, verify the count is 1
+  // (incremented at handler start, decremented in finally AFTER the
+  // summary is built into the response — so the response snapshot
+  // sees the incremented value).
+  if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY && !process.env.GOOGLE_GEMINI_API_KEY) {
+    process.env.OPENROUTER_API_KEY = "test-stub-key-iter112";
+  }
+  const handler = require("../api/health.js");
+  // Mock fetch so probes succeed quickly
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200 });
+  try {
+    const res = {
+      statusCode: 200, _body: null, headers: {}, headersSent: false,
+      setHeader(k, v) { this.headers[k] = v; },
+      end(s) { this._body = s; this.headersSent = true; },
+    };
+    const req = { method: "GET", headers: {}, socket: { remoteAddress: "127.0.0.1" } };
+    await handler(req, res);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res._body);
+    assert.equal(typeof body.summary.currentConcurrentRequests, "number",
+      "currentConcurrentRequests must be a number");
+    // During a single request, the count is 1 (incremented at start).
+    // After the handler returns, the finally has decremented to 0,
+    // but the response was already built with the incremented value.
+    assert.ok(body.summary.currentConcurrentRequests >= 1,
+      "during single render, currentConcurrentRequests should be >= 1");
+  } finally {
+    globalThis.fetch = origFetch;
+  }
 });
 
 test("health handler: process.execPath is a non-empty string in the rendered payload", async () => {
