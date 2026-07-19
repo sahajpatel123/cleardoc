@@ -2964,3 +2964,17 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Linter shipped the full feature this iter (no completion work needed); I added the test coverage. Combined the cspReports rate surface is now: `ratePerMinute` (accepted) + `totalRatePerMinute` (all attempts) + `acceptanceRate` (quality) + `consecutiveBlocks` (current streak).
+
+**2026-07-19 16:30 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #118 of the autonomous loop** (cron `f1fb68b1` firing). Live: 16:30 IST.
+- **Shipped 4 behavioral tests for `rateLimit()` in `test/safety.test.js`**. The function is a security-critical per-IP sliding-window limiter, but only pinned constants were tested before. Behavioral tests now exercise the actual allow/deny logic.
+- **Tests added**:
+  1. Allows requests up to the limit (3/3 in 3-cap, 5/5 in 5-cap)
+  2. Denies requests over the limit (4th in 3-cap → ok:false, retryAfter between 1-60s)
+  3. Per-IP isolation — different IPs have separate buckets
+  4. Graceful handling of null IP (uses "unknown" bucket) + invalid maxPerMinute (NaN, 0, negative)
+- **399/399 tests pass** (324 unit + 71 smoke + 1 integration). Test count +4.
+
+**Prompt Intention:**
+- Honored the standing directives. `rateLimit` is the security boundary that blocks brute-force attacks on every endpoint. Until now only the window duration + cap were tested as constants; behavioral coverage was missing for the actual sliding-window logic. Behavioral tests now verify: bucket per IP, retryAfter bounds, allow/deny threshold, fallback for malformed inputs.

@@ -2004,3 +2004,62 @@ test("_safety: attachRequestId handles missing req / headers gracefully", () => 
   // null req
   assert.doesNotThrow(() => attachRequestId({}), "null req must not throw");
 });
+
+// ── rateLimit behavioral coverage (iter #118) ────────────────
+
+test("_safety: rateLimit allows requests up to the maxPerMinute limit", () => {
+  const { rateLimit } = require("../api/_safety.js");
+  // Use a unique IP so this test's state doesn't conflict with others
+  const ip = `192.0.2.${Math.floor(Math.random() * 254) + 1}`;
+  // Allow 5 requests in the window
+  for (let i = 0; i < 5; i++) {
+    const r = rateLimit(ip, 5);
+    assert.equal(r.ok, true, `request #${i + 1} should be allowed (under limit)`);
+    assert.equal(r.limit, 5);
+    assert.equal(r.remaining, 5 - (i + 1), `remaining should decrement`);
+  }
+});
+
+test("_safety: rateLimit denies requests over the maxPerMinute limit", () => {
+  const { rateLimit } = require("../api/_safety.js");
+  const ip = `198.51.100.${Math.floor(Math.random() * 254) + 1}`;
+  // Allow 3 requests, then deny the 4th
+  for (let i = 0; i < 3; i++) {
+    const r = rateLimit(ip, 3);
+    assert.equal(r.ok, true);
+  }
+  const denied = rateLimit(ip, 3);
+  assert.equal(denied.ok, false, "4th request should be denied");
+  assert.ok(denied.retryAfter >= 1, "retryAfter should be at least 1 second");
+  assert.ok(denied.retryAfter <= 60, "retryAfter should be at most 60 seconds (window size)");
+  assert.equal(denied.remaining, 0);
+  assert.equal(denied.limit, 3);
+});
+
+test("_safety: rateLimit isolates different IPs (per-IP buckets)", () => {
+  const { rateLimit } = require("../api/_safety.js");
+  const ipA = `203.0.113.${Math.floor(Math.random() * 254) + 1}`;
+  const ipB = `203.0.113.${Math.floor(Math.random() * 254) + 1}`;
+  // Fill up ipA's bucket
+  for (let i = 0; i < 2; i++) rateLimit(ipA, 2);
+  // ipA is now at limit
+  assert.equal(rateLimit(ipA, 2).ok, false, "ipA should be denied");
+  // ipB has its own bucket — should still be allowed
+  const rB = rateLimit(ipB, 2);
+  assert.equal(rB.ok, true, "ipB should be allowed (separate bucket)");
+  assert.equal(rB.remaining, 1, "ipB should have 1 remaining");
+});
+
+test("_safety: rateLimit handles missing/invalid inputs gracefully", () => {
+  const { rateLimit } = require("../api/_safety.js");
+  // Null IP — uses "unknown" key as fallback
+  const r1 = rateLimit(null, 5);
+  assert.equal(r1.ok, true, "null IP must still be allowed (uses 'unknown' bucket)");
+  // Undefined IP
+  const r2 = rateLimit(undefined, 5);
+  assert.equal(r2.ok, true);
+  // Invalid maxPerMinute (NaN, 0, negative)
+  assert.doesNotThrow(() => rateLimit("1.2.3.4", NaN), "NaN max must not throw");
+  assert.doesNotThrow(() => rateLimit("1.2.3.4", 0), "0 max must not throw");
+  assert.doesNotThrow(() => rateLimit("1.2.3.4", -1), "negative max must not throw");
+});
