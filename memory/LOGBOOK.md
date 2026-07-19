@@ -2579,3 +2579,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the /api/health observability loop. Paired with the existing `totalErrors` + `requests` fields, ops can graph the rolling 5xx error rate as a single time series — the kind of signal that triggers PagerDuty alerts cleanly.
+
+**2026-07-19 11:10 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #85 of the autonomous loop** (cron `f1fb68b1` firing). Live: 11:10 IST.
+- **Shipped `summary.lastErrorAt` on /api/health**. New field: ISO timestamp of the most recent 5xx response since process start. Null until the first 5xx.
+- **Closes the "when did we last error?" observability gap**. The summary already exposed `totalErrors` (count) and `errorRate` (ratio, iter #84) — but no timestamp of the most recent error. `lastErrorAt` lets ops distinguish "we errored once an hour ago at 10:14 IST" from "we've been erroring continuously for the last 5 minutes".
+- **Implementation**: new module-level `_lastErrorAt` (Unix-ms, 0 until first 5xx). Set inside `recordRequestStatus` when `statusCode >= 500`. Surfaced in `buildSummary` as ISO string or null.
+- **344/344 tests pass** (271 unit + 71 smoke + 1 integration). 1 new source-pattern test (`lastErrorAt`). Extended full-observability-surface assertion list.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the /api/health observability loop. Combined with `totalErrors` (count) + `errorRate` (ratio) + `lastErrorAt` (timestamp), ops get the full 5xx-recovery picture: "how many, what ratio, when most recently" — all in a single `curl /api/health`.
