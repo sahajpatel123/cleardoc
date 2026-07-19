@@ -172,6 +172,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
   const probeCounts = getProbeCounts();
   const cspCounts = getCspReportCounts();
   return {
+    // Absolute ISO timestamp of when this process started — pairs with
+    // process.processUptimeSec (relative). Lets ops correlate with
+    // Vercel deploys: "which build is this instance, and when did
+    // Vercel start it?" Survives cold-start + horizontal scale-out.
+    startedAt: new Date(START_TS).toISOString(),
     providersConfigured: configured,
     providersReachable: reachable,
     fastestProviderMs: reachableLatencies.length ? Math.min(...reachableLatencies) : null,

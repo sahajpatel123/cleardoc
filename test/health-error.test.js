@@ -678,3 +678,13 @@ test("health handler: process.memory surfaces peakRssMb seen since process start
   assert.match(HEALTH_SOURCE, /peakRssMb/, "memory block must include peakRssMb field");
   assert.match(HEALTH_SOURCE, /rssNowMb\s*>\s*_peakRssMb/, "must compare and update peak on every request");
 });
+
+// ── startedAt ISO timestamp (iter #63) ────────────────────────────
+
+test("health handler: summary surfaces startedAt ISO timestamp of process start", () => {
+  // Absolute ISO timestamp pairs with the existing process.processUptimeSec
+  // (relative). Lets ops correlate with Vercel deploys: "which build
+  // is this instance, and when did Vercel start it?" Survives
+  // cold-start + horizontal scale-out.
+  assert.match(HEALTH_SOURCE, /startedAt\s*:\s*new Date\(START_TS\)\.toISOString\(\)/, "summary must surface an absolute ISO startedAt");
+});
