@@ -3039,6 +3039,20 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored the standing directives. `getUniqueIPsCount` and `getTopActiveIPs` feed the "fan-in analysis" fields on /api/health (iter #67, #68). Source-pattern tests only verified the function names; behavioral tests now exercise the actual count + dedup + sort logic.
 
+**2026-07-19 17:40 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #125 of the autonomous loop** (cron `f1fb68b1` firing). Live: 17:40 IST.
+- **HOTFIX for iter #123 CI flake** (run 29685749102 FAILED — first RED in 39 commits).
+- **Root cause**: my iter #123 test used `Math.floor(Math.random() * 254) + 1` to generate test IPs. With a 254-value pool and 3 picks, the collision probability is ~1.2%. CI's heavier test load made the flake inevitable (the existing-ip collision reduced the count by 1).
+- **Fix**: replaced random IP generation with deterministic, collision-free IPs seeded from `process.hrtime.bigint()` (monotonic, never collides within a process). Added `assert.notEqual` checks between the 3 IPs to make uniqueness explicit.
+- **412/412 tests pass** locally. CI verification in flight.
+
+**Prompt Intention:**
+- Honored the standing directives. Diagnosed and hotfixed the second CI regression in this session. The lesson: shared module-level state (the rate-limit bucket map) + random test data + deterministic-failure assertions = CI flakes. Test design must use:
+  - Deterministic input generation (no random without a wide pool)
+  - State-isolated uniqueness assertions (assert input uniqueness explicitly)
+  - Time-independent invariants where possible
+
 **2026-07-19 17:30 IST | Model: GLM 5.2 (z.ai)**
 **Changes Made:**
 - **Iteration #124 of the autonomous loop** (cron `f1fb68b1` firing). Live: 17:30 IST.

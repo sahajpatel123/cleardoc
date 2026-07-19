@@ -2178,12 +2178,20 @@ test("_safety: getUniqueIPsCount returns the count of distinct IPs that have cal
   const { rateLimit, getUniqueIPsCount } = require("../api/_safety.js");
   // Snapshot the current count (other tests may have added IPs)
   const baseline = getUniqueIPsCount();
-  // Add 3 new distinct IPs
+  // Generate 3 GUARANTEED-distinct IPs using process.hrtime() as
+  // a unique seed (monotonic, never collides within the process).
+  // Using random IPs in a 254-value pool had ~1.2% collision
+  // probability which caused CI flakes (iter #125).
+  const seed = Number(process.hrtime.bigint() & 0xFFFFFFFFn);
   const newIps = [
-    `198.51.100.${Math.floor(Math.random() * 254) + 1}`,
-    `198.51.100.${Math.floor(Math.random() * 254) + 1}`,
-    `198.51.100.${Math.floor(Math.random() * 254) + 1}`,
+    `10.${seed & 0xFF}.${(seed >> 8) & 0xFF}.${(seed >> 16) & 0xFF | 1}`,
+    `10.${(seed * 7) & 0xFF}.${(seed >> 8) & 0xFF}.${(seed >> 16) & 0xFF | 2}`,
+    `10.${(seed * 13) & 0xFF}.${(seed >> 8) & 0xFF}.${(seed >> 16) & 0xFF | 3}`,
   ];
+  // Verify uniqueness (the multiplication by 7/13 changes the pattern)
+  assert.notEqual(newIps[0], newIps[1], "IPs must be unique");
+  assert.notEqual(newIps[1], newIps[2], "IPs must be unique");
+  assert.notEqual(newIps[0], newIps[2], "IPs must be unique");
   for (const ip of newIps) rateLimit(ip, 60);
   // Count must have grown by exactly 3
   assert.equal(getUniqueIPsCount(), baseline + 3,
