@@ -2428,3 +2428,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Shipped `877af042 test(safety): pin rate-limit window constants`.** Pin _RATE_WINDOW_MS=60_000, _RATE_MAX_KEYS=5000, _RATE_PRUNE_INTERVAL_MS=30_000.
 - **Verification:** 311/311 tests pass (233 unit + 71 smoke + 1 integration). Pushed.
 
+
+**2026-07-19 08:18 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #72 of the autonomous loop** (cron `c3921bc4` firing). Live: 08:18 IST.
+- **Shipped `cspReports.lastReporter` (most recent reporting IP)** (`45353885`). New field on the cspReports block: `{ hash, sample }`. Most recent reporting IP (PII-safe SHA-256 hash + sample for ops identification).
+- **Lets ops answer \"is one specific client flooding us with CSP reports?\"** from a single curl. If the hash stays constant across many reports, the bulk of traffic is from a single client.
+- **Implementation**: new `_cspLastReporterHash` + `_cspLastReporterSample` in `_safety.js`. `recordCspReport()` now takes a 4th arg (reporterIp); `csp-report.js` passes `getIp(req)` so the IP is captured at the same time as the violation. Bounded to a single hash + sample (latest-wins) — no need for top-N aggregates; pair with the existing per-IP /api/health fields for full attribution.
+- **314/314 tests pass** (242 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the per-report attribution gap. Combined with the existing `total` + `byDirective` + `mostBlocked` + `mostBlockedFrom` + `firstSeenAt` + `lastSeenAt`, the cspReports block is now a complete attribution + temporal profile: rate, breakdown, target vs source, freshness, AND last reporter.
