@@ -948,3 +948,19 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     }
   }
 }, async () => {});
+
+// ── providersReachableInLastHour (iter #76) ───────────────────
+
+test("health handler: summary exposes providersReachableInLastHour (rolling 1-hour reachability)", () => {
+  // Lets ops answer "is the provider flapping?" — a 50%-reachable
+  // signal is actionable even when the current state is OK. The
+  // current reachable state alone doesn't reveal temporal patterns.
+  assert.match(HEALTH_SOURCE, /providersReachableInLastHour/, "summary must include providersReachableInLastHour field");
+  // The per-provider rolling-window state lives in _safety.js
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /getProbeReachabilityInLastHour/, "must have getProbeReachabilityInLastHour accessor");
+  assert.match(safetySrc, /_PROBE_WINDOW_MS/, "must define the rolling-window duration constant");
+  assert.match(safetySrc, /_probeOutcomes/, "must maintain a per-outcome array");
+});

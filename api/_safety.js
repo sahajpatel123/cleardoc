@@ -167,6 +167,14 @@ const _PROBE_TTL_MS = 60_000;
 const _PROBE_TIMEOUT_MS = 3000;
 const _PROBE_CACHE_MAX = 100; // hard cap; oldest entry evicted on overflow
 
+// Rolling-window probe-outcome counters (last hour). Bounded at
+// PROBE_WINDOW_MAX (2000) entries to prevent unbounded growth from a
+// misbehaving provider. Each entry is { ts, ok, provider }, evicted
+// oldest-first when the cap is hit.
+const _probeOutcomes = [];
+const PROBE_WINDOW_MAX = 2000;
+const _PROBE_WINDOW_MS = 3600 * 1000; // 1 hour
+
 // Per-process counters surfacing how many AI provider HEAD probes this
 // function instance has issued since startup. Read by /api/health so
 // ops can correlate traffic spikes with probe-rate spikes (and spot
@@ -226,6 +234,15 @@ async function probeProviderCached(key, url) {
   _probeCacheTouch(key, fresh);
   _probeCount += 1;
   _probeCountHits += 1;     // miss — actually called probeProvider(url)
+  // Append a rolling-window entry (last hour). Captured AFTER the
+  // fresh fetch so the ok value reflects the actual network result.
+  if (Array.isArray(fresh)) {
+    // nothing — defensive
+  } else if (fresh && typeof fresh === "object") {
+    _probeOutcomes.push({ ts: Date.now(), ok: !!fresh.ok, provider: key });
+    // Evict oldest if over the cap
+    while (_probeOutcomes.length > PROBE_WINDOW_MAX) _probeOutcomes.shift();
+  }
   return Object.assign({}, fresh, { cached: false });
 }
 
@@ -236,6 +253,36 @@ async function probeProviderCached(key, url) {
  */
 function getProbeCounts() {
   return { total: _probeCount, network: _probeCountHits };
+}
+
+/* Per-provider reachability rate over the rolling 1-hour window.
+ * Returns { gemini: { okCount, total, successRate }, openrouter: ... }.
+ * successRate is a 0..1 float; null if no probes in the window.
+ *
+ * Lets ops answer "is the provider flapping?" — a current reachable
+ * state alone doesn't reveal a 50%-reachable over the last hour.
+ */
+function getProbeReachabilityInLastHour() {
+  const cutoff = Date.now() - _PROBE_WINDOW_MS;
+  // Prune in-place (cheaper than re-allocating).
+  while (_probeOutcomes.length && _probeOutcomes[0].ts < cutoff) {
+    _probeOutcomes.shift();
+  }
+  const result = { gemini: { okCount: 0, total: 0, successRate: null },
+                   openrouter: { okCount: 0, total: 0, successRate: null } };
+  for (const e of _probeOutcomes) {
+    if (result[e.provider]) {
+      result[e.provider].total += 1;
+      if (e.ok) result[e.provider].okCount += 1;
+    }
+  }
+  for (const p of Object.keys(result)) {
+    if (result[p].total > 0) {
+      // 1-decimal precision like the iter #52 usedPercent field.
+      result[p].successRate = Math.round((result[p].okCount / result[p].total) * 1000) / 10;
+    }
+  }
+  return result;
 }
 
 function clearProbeCache() {
@@ -1134,6 +1181,7 @@ module.exports = {
   probeProviderCached,
   clearProbeCache,
   getProbeCounts,
+  getProbeReachabilityInLastHour,
   getUniqueIPsCount,
   getTopActiveIPs,
   recordCspReport,
