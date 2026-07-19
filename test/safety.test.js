@@ -2133,3 +2133,41 @@ test("_safety: applyRateLimitHeaders handles missing/invalid rl gracefully", () 
   assert.equal(res.headers["X-RateLimit-Limit"], undefined,
     "no X-RateLimit-* headers when rl is missing/invalid");
 });
+
+// ── asString behavioral coverage (iter #122) ──────────────────
+
+test("_safety: asString returns the string when given a string (no truncation under cap)", () => {
+  const { asString } = require("../api/_safety.js");
+  assert.equal(asString("hello", 10), "hello", "string under cap is returned as-is");
+  assert.equal(asString("hello", 5), "hello", "string at cap is returned as-is");
+  assert.equal(asString("  trim-me  ", 20), "trim-me", "string is trimmed");
+});
+
+test("_safety: asString truncates strings over the cap", () => {
+  const { asString } = require("../api/_safety.js");
+  assert.equal(asString("hello world", 5), "hello", "truncated to 5 chars");
+  assert.equal(asString("abcdef", 3), "abc", "truncated to 3 chars");
+  assert.equal(asString("abcdef", 0), "", "cap 0 returns empty");
+});
+
+test("_safety: asString returns empty string for non-string inputs", () => {
+  const { asString } = require("../api/_safety.js");
+  assert.equal(asString(null, 10), "", "null → empty string");
+  assert.equal(asString(undefined, 10), "", "undefined → empty string");
+  assert.equal(asString(42, 10), "", "number → empty string");
+  assert.equal(asString(true, 10), "", "boolean → empty string");
+  assert.equal(asString({}, 10), "", "object → empty string");
+  assert.equal(asString([], 10), "", "array → empty string");
+});
+
+test("_safety: asString trims whitespace AFTER truncation", () => {
+  // The implementation does .slice(0, max).trim() — slice first,
+  // then trim. If the first N chars include leading whitespace,
+  // trim removes it (and the result is shorter than max).
+  const { asString } = require("../api/_safety.js");
+  // "  hello" sliced to 5 → "  hel" → trimmed → "hel" (3 chars, not 5)
+  assert.equal(asString("  hello", 5), "hel", "leading ws within slice is trimmed");
+  assert.equal(asString("       ", 5), "", "all whitespace slice → empty");
+  // When no leading whitespace, no trim is applied
+  assert.equal(asString("hello  ", 8), "hello", "trailing ws is trimmed");
+});
