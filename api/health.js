@@ -11,7 +11,7 @@
  * for the most-polled endpoint in any deployment.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount, getTopActiveIPs, getProbeReachabilityInLastHour, getProbeReachabilityByRegionInLastHour, getProbeAverageLatencyInLastHour, getLastProbeFailure } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount, getTopActiveIPs, getProbeReachabilityInLastHour, getProbeReachabilityByRegionInLastHour, getProbeAverageLatencyInLastHour, getLastProbeFailure, getConsecutiveProviderFailures } = require("./_safety.js");
 
 const START_TS = Date.now();
 // Captured on the first request — `summary.startupDurationMs` is the
@@ -253,6 +253,12 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // a "is the most recent state a success or a failure?" signal
     // without walking per-provider blocks.
     providersLastFailure: getLastProbeFailure(),
+    // Per-provider consecutive probe-failure streak counter. Lets ops
+    // answer "is this provider in a degraded streak right now?" —
+    // 0 means the most recent probe was a success; >0 means N
+    // consecutive failures. Pairs with providersLastFailure for the
+    // full failure profile (how long, how deep).
+    providersConsecutiveFailures: getConsecutiveProviderFailures(),
     // CSP report rate (per minute, averaged over the lifetime of the
     // process). Lets ops answer "are CSP reports spiking?" from a
     // single curl. 0 when no reports have been received yet.

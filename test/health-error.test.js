@@ -916,6 +916,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "averageRequestsPerMinute", "errorRate", "lastErrorAt",
     "requestsInLastHour", "providersLastFailure",
     "providersFailureRateInLastHour", "consecutiveSuccesses",
+    "providersConsecutiveFailures",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1177,4 +1178,20 @@ test("health handler: summary exposes consecutiveSuccesses (consecutive 2xx coun
   assert.match(HEALTH_SOURCE, /_consecutiveSuccesses\s*=\s*0/, "counter must reset to 0 on 5xx");
   // Must increment on 2xx (healthy streak)
   assert.match(HEALTH_SOURCE, /_consecutiveSuccesses\s*\+=\s*1/, "counter must increment on 2xx");
+});
+
+// ── providersConsecutiveFailures (iter #91) ──────────────────
+
+test("health handler: summary exposes providersConsecutiveFailures (per-provider failure streak)", () => {
+  // Per-provider consecutive probe-failure counter. Lets ops identify
+  // "which provider is in a degraded streak right now" without walking
+  // the per-1h-window data. Pairs with providersLastFailure (when)
+  // for the full failure profile.
+  assert.match(HEALTH_SOURCE, /providersConsecutiveFailures/, "summary must include providersConsecutiveFailures field");
+  // The accessor lives in _safety.js
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /getConsecutiveProviderFailures/, "_safety.js must export getConsecutiveProviderFailures accessor");
+  assert.match(safetySrc, /_consecutiveProviderFailures/, "_safety.js must track per-provider failure streaks");
 });

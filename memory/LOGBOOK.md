@@ -2641,3 +2641,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the /api/health observability loop. With `totalErrors` (cumulative) + `errorRate` (ratio) + `lastErrorAt` (timestamp) + `consecutiveSuccesses` (current streak), ops get a complete 5xx picture: cumulative, ratio, recency, AND instantaneous health.
+
+**2026-07-19 12:00 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #91 of the autonomous loop** (cron `f1fb68b1` firing). Live: 12:00 IST.
+- **Shipped `summary.providersConsecutiveFailures` on /api/health**. New field: `{ gemini: N, openrouter: N }` — per-provider consecutive probe-failure counter. 0 means the most recent probe was a success; >0 means N consecutive failures.
+- **Closes the "which provider is in a degraded streak right now?" observability gap**. Pairs with `providersLastFailure` (iter #88) for the full failure profile: how long ago + how deep into the streak.
+- **Implementation**: new module-level `_consecutiveProviderFailures = { gemini: 0, openrouter: 0 }` in `_safety.js`. Increments in `probeProviderCached` when `fresh.ok === false`; resets to 0 on success. New `getConsecutiveProviderFailures()` accessor returns `{ gemini: N, openrouter: N }`.
+- **350/350 tests pass** (277 unit + 71 smoke + 1 integration). 1 new source-pattern test (`providersConsecutiveFailures`). Extended full-observability-surface assertion list.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the /api/health observability loop. Per-provider failure profile now includes: `providersLastFailure` (timestamp of most recent failure, iter #88) + `providersConsecutiveFailures` (current streak depth, iter #91). Combined: ops can answer "which provider is broken, for how long, and how deeply?" from a single curl.
