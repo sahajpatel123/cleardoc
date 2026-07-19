@@ -781,3 +781,11 @@ test("health handler: providers block surfaces lastReachableAt ISO timestamp per
   assert.match(HEALTH_SOURCE, /new Date\(geminiProbe\.checkedAt\)\.toISOString\(\)/, "must read geminiProbe.checkedAt");
   assert.match(HEALTH_SOURCE, /new Date\(openRouterProbe\.checkedAt\)\.toISOString\(\)/, "must read openRouterProbe.checkedAt");
 });
+
+test("api/health.js RATE_LIMIT_PER_MINUTE is pinned at 60", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/health.js"), "utf8");
+  assert.match(src, /RATE_LIMIT_PER_MINUTE\s*=\s*60/, "health RATE_LIMIT_PER_MINUTE must stay at 60");
+  assert.match(src, /require\(\s*["']\.\.\/package\.json["']\s*\)\.version/, "VERSION must be sourced from package.json");
+});
