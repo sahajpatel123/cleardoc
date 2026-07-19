@@ -2460,3 +2460,18 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the per-minute-rate observability gap. Combined with the cumulative `requests` (iter #58), ops can now derive both the absolute traffic since start AND the current per-minute rate — useful for distinguishing \"steady low traffic\" (low cumulative, low rate) from \"fresh spike\" (low cumulative, high rate).
+
+**2026-07-19 08:57 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #74 of the autonomous loop** (cron `c3921bc4` firing). Live: 08:57 IST.
+- **Shipped comprehensive behavioral test of the full /api/health observability surface** (`eff06ef3`). New test asserts the handler end-to-end emits the complete surface:
+  - 8 standard response headers (X-Request-Id, X-Endpoint, X-Build-Sha, X-Request-Latency-Total-Ms, ETag, Last-Modified, Cache-Control, Content-Type)
+  - 16 summary fields (startedAt, requests, uniqueIPs, topActiveIPs, totalProbes, networkProbes, requestsByStatus, totalErrors, cacheHits, fastest/slowestProviderMs, providersConfigured/Reachable, lastProbeAtMs, startupDurationMs, averageRequestsPerMinute)
+  - 7 cspReports fields (total, byDirective, firstSeenAt, lastSeenAt, lastReporter, mostBlocked, mostBlockedFrom)
+  - 8 process fields + 9 process.memory sub-fields
+  - providers.gemini + providers.openrouter with 4 sub-fields each when configured
+- **Catches handler-level integration regressions that source-pattern tests miss** — runs the handler twice (first call populates state, second call surfaces the real \"after some traffic\" view). Re-loads the module via `delete require.cache` + `require` to ensure a clean state per test run.
+- **316/316 tests pass** (244 unit + 71 smoke + 1 integration).
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the integration-test gap on the /api/health observability surface. After 74 iterations of adding fields, the field list was never regression-tested end-to-end. A test that re-runs the handler and asserts every field is present catches a future refactor that drops one — protecting the contract ops dashboards depend on.
