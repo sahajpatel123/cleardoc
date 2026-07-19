@@ -923,7 +923,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
   }
   // cspReports
   assert.ok(body.summary.cspReports, "summary must include cspReports");
-  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom", "ratePerMinute", "acceptanceRate"]) {
+  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom", "ratePerMinute", "acceptanceRate", "lastBlockedAt"]) {
     assert.ok(k in body.summary.cspReports, `cspReports must include ${k}`);
   }
   // process
@@ -1313,4 +1313,18 @@ test("health handler: summary exposes probeCacheSize (per-provider probe cache c
   // cache, not some other cache).
   assert.match(HEALTH_SOURCE, /probeCacheSize/, "summary must include probeCacheSize field");
   assert.match(HEALTH_SOURCE, /getProbeCacheSize\(\)/, "must call getProbeCacheSize()");
+});
+
+// ── lastBlockedAt (iter #97, linter-started) ──────────────────
+
+test("health handler: cspReports surfaces lastBlockedAt (most recent rate-limit-rejected timestamp)", () => {
+  // Linter captured _cspLastBlockedAt in _safety.js but didn't surface
+  // it. Surface it in /api/health cspReports as ISO timestamp.
+  // Distinct from lastSeenAt (which is the last *accepted* report).
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /_cspLastBlockedAt/, "_safety.js must track _cspLastBlockedAt");
+  assert.match(safetySrc, /_cspLastBlockedAt\s*=\s*Date\.now\(\)/, "_safety.js must capture Date.now() in recordCspBlock");
+  assert.match(safetySrc, /lastBlockedAt:/, "getCspReportCounts must surface lastBlockedAt field");
 });

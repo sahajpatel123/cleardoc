@@ -529,7 +529,10 @@ let _cspBlockedCount = 0;
 // report. Pairs with firstSeenAt/lastSeenAt (accepted) and
 // lastReporter to give ops the full timeline of the CSP stream.
 let _cspLastBlockedAt = 0;
-function recordCspBlock() { _cspBlockedCount += 1; }
+function recordCspBlock() {
+  _cspBlockedCount += 1;
+  _cspLastBlockedAt = Date.now();
+}
 
 function getCspReportCounts() {
   // Snapshot (caller can iterate without worrying about concurrent mutation)
@@ -545,6 +548,11 @@ function getCspReportCounts() {
     // report".
     firstSeenAt: _cspFirstSeenAt ? new Date(_cspFirstSeenAt).toISOString() : null,
     lastSeenAt: _cspLastSeenAt ? new Date(_cspLastSeenAt).toISOString() : null,
+    // Most recent rate-limit-rejected timestamp. Distinct from
+    // lastSeenAt (which is the last *accepted* report). Null until
+    // the first block. Lets ops answer "when was the most recent
+    // rate-limit rejection?" from a single curl.
+    lastBlockedAt: _cspLastBlockedAt ? new Date(_cspLastBlockedAt).toISOString() : null,
   };
 }
 
@@ -576,6 +584,11 @@ function getCspReportCounts() {
     // report".
     firstSeenAt: _cspFirstSeenAt ? new Date(_cspFirstSeenAt).toISOString() : null,
     lastSeenAt: _cspLastSeenAt ? new Date(_cspLastSeenAt).toISOString() : null,
+    // Most recent rate-limit-rejected timestamp. Distinct from
+    // lastSeenAt (which is the last *accepted* report). Null until
+    // the first block. Lets ops answer "when was the most recent
+    // rate-limit rejection?" from a single curl.
+    lastBlockedAt: _cspLastBlockedAt ? new Date(_cspLastBlockedAt).toISOString() : null,
     // Average per-minute CSP report rate over the process lifetime.
     // Pairs with `total` to give ops an instantaneous signal:
     //   total=12, rate=0.05/min  → steady low-volume background
