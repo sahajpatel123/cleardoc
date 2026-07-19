@@ -991,3 +991,14 @@ test("health handler: summary exposes anyProviderReachable + allProvidersReachab
   // all = every reachable
   assert.match(HEALTH_SOURCE, /configured\s*>\s*0\s*&&\s*reachable\s*===\s*configured/, "all = configured > 0 && reachable === configured");
 });
+
+// ── firstRequestAt (iter #79) ──────────────────────────────────
+
+test("health handler: summary surfaces firstRequestAt ISO timestamp", () => {
+  // Pairs with startedAt (module load) and startupDurationMs (gap)
+  // to give ops the full initialization timeline. Distinct value:
+  // lets ops correlate "first request was 30s after module load"
+  // with Vercel cold-start metrics — that gap = init-vs-traffic lag.
+  assert.match(HEALTH_SOURCE, /firstRequestAt/, "summary must include firstRequestAt field");
+  assert.match(HEALTH_SOURCE, /_firstRequestTs\s*\?\s*new Date\(_firstRequestTs\)\.toISOString\(\)\s*:\s*null/, "must read _firstRequestTs (pinned on first call) and fall back to null before any request");
+});

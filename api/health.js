@@ -229,6 +229,13 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Pairs with totalProbes (outbound) so ops can compute inbound vs
     // outbound ratio and detect traffic anomalies per-instance.
     requests: _requestsServed,
+    // Absolute ISO timestamp of when the FIRST request was received
+    // (pinned on the first call, not reset). Pairs with startedAt
+    // (module load) and startupDurationMs (gap between the two)
+    // to give ops the full initialization timeline. Distinct value:
+    // lets ops correlate "first request was 30s after module load"
+    // with Vercel cold-start metrics — that gap = init-vs-traffic lag.
+    firstRequestAt: _firstRequestTs ? new Date(_firstRequestTs).toISOString() : null,
     // Average request rate since process start. Derived from
     // `requests / uptimeSec * 60`. Pairs with the cumulative
     // `requests` to give ops a per-minute rate alongside the
