@@ -291,7 +291,14 @@ function _cspRecordUri(map, rawUri) {
   entry.count += 1;
 }
 
-function recordCspReport(directive, blockedUri, documentUri) {
+// Track the most recent reporting IP (PII-safe via SHA-256 hash).
+// "is one specific client flooding us with CSP reports?" — if a
+// single hashed IP dominates, the answer is yes.
+let _cspLastReporterHash = null;
+let _cspLastReporterSample = null;
+const _csp = require("node:crypto");
+
+function recordCspReport(directive, blockedUri, documentUri, reporterIp) {
   if (typeof directive !== "string" || directive.length === 0 || directive.length > 200) return;
   // Normalize the directive so `script-src 'self'` and `script-src` end up
   // in the same bucket (CSP reports often include the directive's full
@@ -315,6 +322,15 @@ function recordCspReport(directive, blockedUri, documentUri) {
   // Per-URI counts (PII-safe via SHA-256 hashing, bounded at 50 keys).
   _cspRecordUri(_cspBlockedUriCounts, blockedUri);
   _cspRecordUri(_cspDocumentUriCounts, documentUri);
+
+  // Track the most recent reporting IP for attribution. Hash + sample
+  // so ops can identify the source without us logging the raw IP.
+  if (typeof reporterIp === "string" && reporterIp.length > 0 && reporterIp.length <= 200) {
+    const sample = reporterIp.slice(0, 64);
+    const hash = _csp.createHash("sha256").update(sample).digest("hex").slice(0, 16);
+    _cspLastReporterHash = hash;
+    _cspLastReporterSample = sample;
+  }
 }
 
 function getCspReportCounts() {
@@ -362,6 +378,12 @@ function getCspReportCounts() {
     // report".
     firstSeenAt: _cspFirstSeenAt ? new Date(_cspFirstSeenAt).toISOString() : null,
     lastSeenAt: _cspLastSeenAt ? new Date(_cspLastSeenAt).toISOString() : null,
+    // Most recent reporting IP (hashed + sample for ops identification).
+    // Lets ops answer "is one specific client flooding us with CSP
+    // reports?" from a single curl.
+    lastReporter: _cspLastReporterHash
+      ? { hash: _cspLastReporterHash, sample: _cspLastReporterSample }
+      : null,
     // Top-10 most-blocked URIs (the resource that was blocked) AND
     // top-10 most-blockedFrom URIs (the page where the violation
     // happened). PII-safe: keys are SHA-256 hashes; samples are URL

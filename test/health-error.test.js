@@ -709,7 +709,7 @@ test("health handler: cspReports exposes mostBlocked + mostBlockedFrom (per-URI 
   const cspReportSrc = require("node:fs").readFileSync(
     require("node:path").resolve(__dirname, "../api/csp-report.js"), "utf8"
   );
-  assert.match(cspReportSrc, /recordCspReport\(rawDirective,\s*blockedUri,\s*documentUri\)/, "csp-report must pass both blockedUri and documentUri");
+  assert.match(cspReportSrc, /recordCspReport\(rawDirective,\s*blockedUri,\s*documentUri/, "csp-report must pass both blockedUri and documentUri");
 });
 
 // ── totalErrors counter (iter #65) ────────────────────────────────
@@ -807,4 +807,24 @@ test("health handler: cspReports surfaces firstSeenAt + lastSeenAt ISO timestamp
   assert.match(safetySrc, /_cspLastSeenAt/, "must have a module-level _cspLastSeenAt counter");
   assert.match(safetySrc, /firstSeenAt\s*:\s*_cspFirstSeenAt/, "must surface firstSeenAt ISO timestamp");
   assert.match(safetySrc, /lastSeenAt\s*:\s*_cspLastSeenAt/, "must surface lastSeenAt ISO timestamp");
+});
+
+// ── cspReports lastReporter (iter #72) ────────────────────────
+
+test("health handler: cspReports surfaces lastReporter (most recent reporting IP)", () => {
+  // Most recent reporting IP (PII-safe SHA-256 hash + sample for ops
+  // identification). Lets ops answer "is one specific client flooding
+  // us with CSP reports?" from a single curl.
+  // The hash + sample wiring lives in _safety.js
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /lastReporter/, "cspReports must include lastReporter field");
+  assert.match(safetySrc, /_cspLastReporterHash/, "_safety.js must track last reporter hash");
+  assert.match(safetySrc, /_cspLastReporterSample/, "_safety.js must track last reporter sample");
+  // csp-report handler must pass getIp(req) to recordCspReport
+  const cspReportSrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/csp-report.js"), "utf8"
+  );
+  assert.match(cspReportSrc, /recordCspReport\(rawDirective,\s*blockedUri,\s*documentUri,\s*getIp\(req\)\)/, "csp-report must pass getIp(req) for attribution");
 });
