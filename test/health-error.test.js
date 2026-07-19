@@ -688,3 +688,26 @@ test("health handler: summary surfaces startedAt ISO timestamp of process start"
   // cold-start + horizontal scale-out.
   assert.match(HEALTH_SOURCE, /startedAt\s*:\s*new Date\(START_TS\)\.toISOString\(\)/, "summary must surface an absolute ISO startedAt");
 });
+
+// ── per-URI CSP counters (iter #64) ───────────────────────────────
+
+test("health handler: cspReports exposes mostBlocked + mostBlockedFrom (per-URI breakdown)", () => {
+  // Per-URI counters — top-10 by count. Keys are SHA-256 hashes
+  // (PII-safe); samples are URL prefixes for human ops use. Two
+  // angles separately so ops can answer:
+  //   "what specific resource is being blocked most often?" (mostBlocked)
+  //   "what page is producing the most violations?" (mostBlockedFrom)
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /mostBlockedFrom/, "_safety.js must surface mostBlockedFrom in the result");
+  assert.match(safetySrc, /_cspDocumentUriCounts/, "_safety.js must track per-document-uri counts");
+  assert.match(safetySrc, /_cspBlockedUriCounts/, "_safety.js must track per-blocked-uri counts");
+  assert.match(safetySrc, /createHash\(["']sha256["']\)/, "must use SHA-256 for the per-uri key (PII-safe)");
+  assert.match(safetySrc, /MAX_CSP_URI_BUCKETS/, "must have a cap to prevent unbounded growth");
+  // Both counters must be wired through the csp-report handler call
+  const cspReportSrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/csp-report.js"), "utf8"
+  );
+  assert.match(cspReportSrc, /recordCspReport\(rawDirective,\s*blockedUri,\s*documentUri\)/, "csp-report must pass both blockedUri and documentUri");
+});

@@ -255,7 +255,35 @@ const _cspDirectiveCounts = new Map();
 const MAX_CSP_DIRECTIVES = 50;
 let _cspTotalReports = 0;
 
-function recordCspReport(directive) {
+// Per-URI counters. We track two angles separately so ops can answer
+// different questions:
+//   - blockedUri: "what specific resource is being blocked most often?"
+//   - documentUri: "what page is producing the most violations?"
+// Both keyed by SHA-256 hash (PII-safe) with a short URL sample for
+// human ops use. LRU-evicting at 50 keys to prevent unbounded growth.
+const _cspBlockedUriCounts = new Map();
+const _cspDocumentUriCounts = new Map();
+const MAX_CSP_URI_BUCKETS = 50;
+
+function _cspRecordUri(map, rawUri) {
+  if (typeof rawUri !== "string" || rawUri.length === 0) return;
+  const uri = rawUri.slice(0, 240);
+  // SHA-256 (16 hex chars) of the URI is the key. PII-safe: ops can
+  // identify the resource by the `sample` field but never by the key.
+  // Node's built-in crypto module — no extra deps.
+  const hash = require("node:crypto").createHash("sha256").update(uri).digest("hex").slice(0, 16);
+  if (!map.has(hash)) {
+    if (map.size >= MAX_CSP_URI_BUCKETS) {
+      const oldest = map.keys().next().value;
+      if (oldest !== undefined) map.delete(oldest);
+    }
+    map.set(hash, { count: 0, sample: uri.slice(0, 80) });
+  }
+  const entry = map.get(hash);
+  entry.count += 1;
+}
+
+function recordCspReport(directive, blockedUri, documentUri) {
   if (typeof directive !== "string" || directive.length === 0 || directive.length > 200) return;
   // Normalize the directive so `script-src 'self'` and `script-src` end up
   // in the same bucket (CSP reports often include the directive's full
@@ -272,6 +300,10 @@ function recordCspReport(directive) {
     _cspDirectiveCounts.set(key, 0);
   }
   _cspDirectiveCounts.set(key, _cspDirectiveCounts.get(key) + 1);
+
+  // Per-URI counts (PII-safe via SHA-256 hashing, bounded at 50 keys).
+  _cspRecordUri(_cspBlockedUriCounts, blockedUri);
+  _cspRecordUri(_cspDocumentUriCounts, documentUri);
 }
 
 function getCspReportCounts() {
@@ -279,6 +311,36 @@ function getCspReportCounts() {
   const byDirective = Object.create(null);
   for (const [k, v] of _cspDirectiveCounts) byDirective[k] = v;
   return { total: _cspTotalReports, byDirective };
+}
+
+// Snapshot the per-URI counters. Same shape as the directive counter:
+//   { hash, count, sample } for the top-N entries, sorted by count desc.
+// Ops can answer two questions in one curl:
+//   "what's the most-blocked resource?" — sort by mostBlocked
+//   "what page is producing the most violations?" — sort by mostBlockedFrom
+function _cspTopN(map, n) {
+  const top = [];
+  for (const [hash, entry] of map) {
+    top.push({ hash, count: entry.count, sample: entry.sample });
+  }
+  top.sort((a, b) => b.count - a.count);
+  return top.slice(0, n);
+}
+
+function getCspReportCounts() {
+  // Snapshot (caller can iterate without worrying about concurrent mutation)
+  const byDirective = Object.create(null);
+  for (const [k, v] of _cspDirectiveCounts) byDirective[k] = v;
+  return {
+    total: _cspTotalReports,
+    byDirective,
+    // Top-10 most-blocked URIs (the resource that was blocked) AND
+    // top-10 most-blockedFrom URIs (the page where the violation
+    // happened). PII-safe: keys are SHA-256 hashes; samples are URL
+    // prefixes for human ops use.
+    mostBlocked: _cspTopN(_cspBlockedUriCounts, 10),
+    mostBlockedFrom: _cspTopN(_cspDocumentUriCounts, 10),
+  };
 }
 
 /* ── errLog: tagged error logging with the active X-Request-Id ─────────
