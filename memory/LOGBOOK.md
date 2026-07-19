@@ -2613,3 +2613,19 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the /api/health observability loop. Combined with `requests` (cumulative) + `averageRequestsPerMinute` (lifetime rate) + `requestsInLastHour` (windowed count), ops get the full traffic picture: "total served, average rate, recent rate" — all from a single curl.
+
+**2026-07-19 11:40 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #88 of the autonomous loop** (cron `f1fb68b1` firing). Live: 11:40 IST.
+- **Shipped `summary.providersLastFailure` on /api/health**. New field: `{ gemini: <ms>, openrouter: <ms> }` — per-provider most-recent failure timestamp (null when no failure yet).
+- **Closes the "is the most recent state a success or a failure?" observability gap**. `providersLastFailure` pairs with the existing per-provider `lastReachableAt` (success counterpart). Combined: ops can read "last state per provider" without walking per-provider blocks.
+- **Implementation**: new module-level `_lastProbeFailure = { gemini: 0, openrouter: 0 }` in `_safety.js`. Updated in `probeProviderCached` whenever `fresh.ok === false`. New `getLastProbeFailure()` accessor returns `{ gemini: ms || null, openrouter: ms || null }`.
+
+**Iteration #89 of the autonomous loop** (cron `f1fb68b1` firing). Live: 11:40 IST.
+- **Shipped `summary.providersFailureRateInLastHour` on /api/health**. New field: `{ gemini: 0..100, openrouter: 0..100 }` — per-provider failure rate (% probes failed in the last hour).
+- **Closes the "what % of probes failed in the last hour?" observability gap**. Inverse of the existing `providersReachableInLastHour[].successRate`. Lets ops read failure rate directly without computing `100 - successRate`.
+- **Implementation**: extends `getProbeReachabilityInLastHour` in `_safety.js` to also compute `failureRate` per provider alongside `successRate` (same 1-decimal precision).
+- **348/348 tests pass** (275 unit + 71 smoke + 1 integration). 2 new source-pattern tests (`providersLastFailure`, `providersFailureRateInLastHour`). Extended full-observability-surface assertion list.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the /api/health observability loop. With iters #88 + #89, the per-provider reachability surface is now: `successRate` (iter #76), `failureRate` (iter #89), `lastReachableAt` (iter #70), `lastFailureAt` (iter #88), `avgLatencyMs` (iter #82), `reachableByRegion` (iter #80) — a complete health profile per provider, all from a single curl.

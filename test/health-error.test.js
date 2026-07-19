@@ -914,7 +914,8 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "requests", "uniqueIPs", "totalErrors", "requestsByStatus",
     "topActiveIPs", "startedAt", "lastProbeAtMs", "startupDurationMs",
     "averageRequestsPerMinute", "errorRate", "lastErrorAt",
-    "requestsInLastHour",
+    "requestsInLastHour", "providersLastFailure",
+    "providersFailureRateInLastHour",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1131,4 +1132,34 @@ test("health handler: summary exposes requestsInLastHour (rolling 1-hour count)"
   assert.match(HEALTH_SOURCE, /_requestsInLastHour/, "must have a module-level _requestsInLastHour array");
   assert.match(HEALTH_SOURCE, /_requestsInLastHour\.push/, "must push to the rolling window on each request");
   assert.match(HEALTH_SOURCE, /_requestsInLastHour\.length/, "must surface the array length as the field value");
+});
+
+// ── providersLastFailure (iter #88) ───────────────────────────
+
+test("health handler: summary exposes providersLastFailure (per-provider most-recent failure timestamp)", () => {
+  // Pairs with the existing per-provider lastReachableAt (success
+  // counterpart) to give ops a clear "is the most recent state a
+  // success or a failure?" signal without walking per-provider blocks.
+  assert.match(HEALTH_SOURCE, /providersLastFailure/, "summary must include providersLastFailure field");
+  // The accessor lives in _safety.js
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /getLastProbeFailure/, "_safety.js must export getLastProbeFailure accessor");
+  assert.match(safetySrc, /_lastProbeFailure/, "_safety.js must track per-provider last-failure timestamps");
+});
+
+// ── providersFailureRateInLastHour (iter #89) ──────────────────
+
+test("health handler: summary exposes providersFailureRateInLastHour (per-provider failure rate)", () => {
+  // Inverse of successRate. Lets ops answer "what % of probes
+  // failed in the last hour?" without computing it from the
+  // success rate. Pairs with the existing successRate per provider.
+  assert.match(HEALTH_SOURCE, /providersFailureRateInLastHour/, "summary must include providersFailureRateInLastHour field");
+  assert.match(HEALTH_SOURCE, /getProbeReachabilityInLastHour/, "must call getProbeReachabilityInLastHour from _safety.js");
+  // The accessor in _safety.js must surface failureRate per provider
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /failureRate/, "_safety.js must compute per-provider failureRate");
 });
