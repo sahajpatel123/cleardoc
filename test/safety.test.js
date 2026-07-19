@@ -1588,3 +1588,18 @@ test("api/analyze.js model constants are pinned (GEMMA_MODEL + GEMINI_MODEL_DEFA
   assert.match(src, /const\s+GEMMA_MODEL\s*=\s*["']google\/gemma-4-31b-it:free["']/, "GEMMA_MODEL must stay 'google/gemma-4-31b-it:free'");
   assert.match(src, /const\s+GEMINI_MODEL_DEFAULT\s*=\s*["']gemini-2\.5-flash["']/, "GEMINI_MODEL_DEFAULT must stay 'gemini-2.5-flash'");
 });
+
+test("/api/health probe-cache constants are pinned (TTL 60s, timeout 3s, max 100)", () => {
+  // /api/health's probeProvider/probeProviderCached uses three constants
+  // that govern network reachability probes. Pin them so a future
+  // refactor can't silently change probe behavior:
+  //   _PROBE_TTL_MS = 60_000   — cache lifetime per (provider, URL)
+  //   _PROBE_TIMEOUT_MS = 3000  — per-fetch abort deadline
+  //   _PROBE_CACHE_MAX = 100    — hard cap on cache entries
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/_safety.js"), "utf8");
+  assert.match(src, /_PROBE_TTL_MS\s*=\s*60_000/, "_PROBE_TTL_MS must stay 60_000");
+  assert.match(src, /_PROBE_TIMEOUT_MS\s*=\s*3000/, "_PROBE_TIMEOUT_MS must stay 3000");
+  assert.match(src, /_PROBE_CACHE_MAX\s*=\s*100/, "_PROBE_CACHE_MAX must stay 100");
+});
