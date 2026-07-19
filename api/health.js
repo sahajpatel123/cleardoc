@@ -18,6 +18,22 @@ const START_TS = Date.now();
 // served since process start. Pairs with `summary.totalProbes` (outbound)
 // to give ops a complete traffic picture for this instance.
 let _requestsServed = 0;
+// Per-status code counter (statusCode → count). LRU-evicting at 50 keys
+// to prevent unbounded growth from a misbehaving client (or scan) hitting
+// 1000s of distinct status codes via weird edge cases. Status codes are
+// bounded at the standard set so the eviction is mostly defensive.
+const _requestsByStatus = new Map();
+const MAX_STATUS_BUCKETS = 50;
+
+function recordRequestStatus(statusCode) {
+  if (!Number.isFinite(statusCode)) return;
+  if (typeof statusCode !== "number" || statusCode < 100 || statusCode >= 600) return;
+  if (_requestsByStatus.size >= MAX_STATUS_BUCKETS) {
+    const oldest = _requestsByStatus.keys().next().value;
+    if (oldest !== undefined) _requestsByStatus.delete(oldest);
+  }
+  _requestsByStatus.set(statusCode, (_requestsByStatus.get(statusCode) || 0) + 1);
+}
 // Read the version from package.json — single source of truth. Without
 // this the constant drifts the moment someone bumps package.json without
 // remembering to update api/health.js too (the deployed VERSION field in
@@ -164,6 +180,10 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Pairs with totalProbes (outbound) so ops can compute inbound vs
     // outbound ratio and detect traffic anomalies per-instance.
     requests: _requestsServed,
+    // Per-status-code breakdown — "are we getting a lot of 429s from one
+    // IP" or "spike in 503s?" is a one-curl check now. Snapshot the Map
+    // so callers don't see concurrent mutation mid-iteration.
+    requestsByStatus: Object.fromEntries(_requestsByStatus),
     cspReports: cspCounts,
   };
 }
@@ -395,6 +415,7 @@ module.exports = async function handler(req, res) {
     }
   } finally {
     accessLog(req, res, res.statusCode);
+    recordRequestStatus(res.statusCode);
   }
 };
 

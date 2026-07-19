@@ -653,3 +653,15 @@ test("health handler: summary surfaces requests-served counter", () => {
   assert.match(HEALTH_SOURCE, /_requestsServed\s*\+=\s*1/, "counter must increment per request");
   assert.match(HEALTH_SOURCE, /requests:\s*_requestsServed/, "summary must surface the counter");
 });
+
+// ── per-status request counters (iter #59) ────────────────────────
+
+test("health handler: summary surfaces requestsByStatus per-status-code counter", () => {
+  // In-process counter grouped by status code. LRU-evicting at 50
+  // keys (defensive — status codes are bounded at the standard set
+  // 100..599). Lets ops spot "429-rate climbing" or "503 spike" at
+  // a glance without parsing server logs.
+  assert.match(HEALTH_SOURCE, /recordRequestStatus/, "must call recordRequestStatus() per request");
+  assert.match(HEALTH_SOURCE, /requestsByStatus/, "summary must include requestsByStatus field");
+  assert.match(HEALTH_SOURCE, /MAX_STATUS_BUCKETS/, "must have a cap to prevent unbounded growth");
+});
