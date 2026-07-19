@@ -352,3 +352,24 @@ test("analyze handler: ?format=verdict-only is case-insensitive", () => {
     "compact-mode regex must use the `i` flag so `?FORMAT=VERDICT-ONLY` (and any other casing) activates compact mode"
   );
 });
+
+test("api/analyze.js cap constants are pinned", () => {
+  // Pin the analyze handler's bounds so a future refactor can't
+  // silently change prompt size, body cap, or rate limit.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/analyze.js"), "utf8");
+  const cases = [
+    ["MAX_REQUEST_BYTES", "256 \\* 1024"],
+    ["MAX_DOCUMENT_CHARS", 40000],
+    ["MAX_DOCUMENT_MIN_CHARS", 10],
+    ["RATE_LIMIT_PER_MINUTE", 10],
+    ["REQUEST_TIMEOUT_MS", 25000],
+  ];
+  for (const [name, expected] of cases) {
+    const re = typeof expected === "string"
+      ? new RegExp(`${name}\\s*=\\s*${expected}\\s*;`)
+      : new RegExp(`${name}\\s*=\\s*${expected}\\b`);
+    assert.ok(re.test(src), `api/analyze.js must define ${name} = ${expected}`);
+  }
+});
