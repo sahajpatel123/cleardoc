@@ -2254,3 +2254,21 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Shipped `167f080a test(safety): pin per-endpoint RATE_LIMIT_PER_MINUTE caps`.** Each /api/* handler has its own per-IP cap (analyze=10, chat=30, csp-report=60, health=60). No existing source-pattern test pinned these. Test now locks each constant + rationale comment.
 - **Verification:** 293/293 tests pass (219 unit + 71 smoke + 1 integration). Pushed.
 
+
+**2026-07-19 06:39 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #62 of the autonomous loop** (cron `c3921bc4` firing). Live: 06:39 IST.
+- **Shipped `process.memory.peakRssMb` on /api/health** (`72561cc4`). New field: max RSS seen since process start. Pairs with the existing current `rssMb` field. Ops can now graph both: when `peakRssMb` climbs request-over-request while `current rssMb` stays flat, that means the function is retaining memory between requests (leak pattern). When current `rssMb` climbs with `peakRssMb`, the current request is the memory hog (expected for large document analysis).
+- **Implementation**: module-level `_peakRssMb` counter in `api/health.js`; updated lazily on each request (one `Math.max` + `Math.round` per request — trivially cheap); surfaced in the same memory block as the existing fields.
+- **295/295 tests pass** (223 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the last meaningful memory observability gap. With iter #52 (usedPercent) and iter #62 (peakRssMb), ops can distinguish "current memory hog" from "leak between requests" — two very different diagnostic paths. A single `curl /api/health` is now sufficient for memory-related incident response.
+
+**2026-07-19 05:50 IST | Model: minimax/minimax-m3**
+**Changes Made:**
+- **Iteration #27 of /loop 10minutes** — autonomous DevSecOps guardian.
+- **Recon:** parallel session has WIP on `api/health.js` (peak RSS field) — left unstaged, not my work. Working tree otherwise clean.
+- **Shipped `f6df8122 test(safety): pin CHAT_LIMITS constants for /api/chat validation`.** api/_safety.js freezes CHAT_LIMITS = { answerMin: 1, answerMax: 8000, modelMax: 100, citationMax: 200 }. safeParseChatResult rejects any AI response whose shape doesn't fit. Source-pattern test pins each constant + asserts Object.freeze() is still in place.
+- **Verification:** 294/294 tests pass (220 unit + 71 smoke + 1 integration). Pushed.
+
