@@ -647,6 +647,15 @@ function getCspReportCounts() {
       const elapsedMin = Math.max(1, Math.round((Date.now() - _cspProcessStartTs) / 60000));
       return Math.round((_cspTotalReports / elapsedMin) * 10) / 10;
     })(),
+    // Total attempts per minute (accepted + blocked) since process
+    // start. Pairs with ratePerMinute (accepted only) to give the
+    // full attack picture: totalRatePerMinute - ratePerMinute =
+    // block rate. Lets ops answer "is the attack rate rising?" from
+    // a single curl.
+    totalRatePerMinute: (() => {
+      const elapsedMin = Math.max(1, Math.round((Date.now() - _cspProcessStartTs) / 60000));
+      return Math.round(((_cspTotalReports + _cspBlockedCount) / elapsedMin) * 10) / 10;
+    })(),
     // Peak per-minute rate seen since process start. Lets ops detect
     // "was there a rate spike that has since subsided?" by comparing
     // ratePerMinute (current) with peakRatePerMinute (worst-case).
