@@ -925,7 +925,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
   }
   // cspReports
   assert.ok(body.summary.cspReports, "summary must include cspReports");
-  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom", "ratePerMinute", "acceptanceRate", "lastBlockedAt", "uniqueBlockedUris", "lastBlockByIp"]) {
+  for (const k of ["total", "byDirective", "firstSeenAt", "lastSeenAt", "lastReporter", "mostBlocked", "mostBlockedFrom", "ratePerMinute", "acceptanceRate", "lastBlockedAt", "uniqueBlockedUris", "lastBlockByIp", "consecutiveBlocks"]) {
     assert.ok(k in body.summary.cspReports, `cspReports must include ${k}`);
   }
   // process
@@ -1467,6 +1467,23 @@ test("health handler: cspReports surfaces lastBlockByIp (most recent rate-limite
   // recordCspBlock must accept the reporter IP parameter
   assert.match(safetySrc, /function\s+recordCspBlock\s*\(\s*reporterIp\s*\)/,
     "recordCspBlock must accept reporterIp parameter");
+});
+
+// ── consecutiveBlocks (iter #116, linter-started) ─────────────
+
+test("health handler: cspReports surfaces consecutiveBlocks (sustained-attack signal)", () => {
+  // Pairs with the cumulative blocked count to detect "are we being
+  // actively attacked RIGHT NOW?" — a high value means sustained
+  // attack with no legitimate report in between (resets to 0 on
+  // each accepted report).
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /_cspConsecutiveBlocks/, "_safety.js must track _cspConsecutiveBlocks");
+  assert.match(safetySrc, /consecutiveBlocks:/, "getCspReportCounts must surface consecutiveBlocks field");
+  // Must increment on block + reset on accept
+  assert.match(safetySrc, /_cspConsecutiveBlocks\s*\+=\s*1/, "must increment in recordCspBlock");
+  assert.match(safetySrc, /_cspConsecutiveBlocks\s*=\s*0/, "must reset in recordCspReport");
 });
 
 // ── currentConcurrentRequests (iter #112, linter-added) ────────

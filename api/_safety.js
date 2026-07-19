@@ -499,6 +499,9 @@ function recordCspReport(directive, blockedUri, documentUri, reporterIp) {
   const key = directive.trim().split(/\s+/)[0].toLowerCase();
   if (key.length === 0) return;
   _cspTotalReports += 1;
+  // An accepted report resets the consecutive-block counter — a
+  // legitimate report between blocks means "the attack subsided".
+  _cspConsecutiveBlocks = 0;
   // First-time and last-time stamps for the CSP report stream.
   if (_cspFirstSeenAt === 0) _cspFirstSeenAt = Date.now();
   _cspLastSeenAt = Date.now();
@@ -516,6 +519,10 @@ function recordCspReport(directive, blockedUri, documentUri, reporterIp) {
   _cspRecordUri(_cspBlockedUriCounts, blockedUri);
   _cspRecordUri(_cspDocumentUriCounts, documentUri);
 
+  // Reset the consecutive-blocks counter: a successful report
+  // happened, so the "sustained attack" signal is broken.
+  _cspConsecutiveBlocks = 0;
+
   // Track the most recent reporting IP for attribution. Hash + sample
   // so ops can identify the source without us logging the raw IP.
   if (typeof reporterIp === "string" && reporterIp.length > 0 && reporterIp.length <= 200) {
@@ -531,12 +538,19 @@ function recordCspReport(directive, blockedUri, documentUri, reporterIp) {
 // "how many reports were rejected at the door" signal — useful
 // for spotting abusive browsers before they can flood the system.
 let _cspBlockedCount = 0;
+// Consecutive rate-limited blocks counter. Increments on each
+// block, resets to 0 on each accepted report. Lets ops answer
+// "is the system under sustained attack right now?" without
+// grepping logs. A high value means we're being actively attacked
+// and no legitimate report has been seen in a while.
+let _cspConsecutiveBlocks = 0;
 // Unix-ms timestamp of the most recent rate-limit-rejected CSP
 // report. Pairs with firstSeenAt/lastSeenAt (accepted) and
 // lastReporter to give ops the full timeline of the CSP stream.
 let _cspLastBlockedAt = 0;
 function recordCspBlock(reporterIp) {
   _cspBlockedCount += 1;
+  _cspConsecutiveBlocks += 1;
   _cspLastBlockedAt = Date.now();
   // Capture the rate-limited reporter IP for the lastBlockByIp
   // surface. Mirrors the lastReporter pattern. reporterIp is the
@@ -547,6 +561,9 @@ function recordCspBlock(reporterIp) {
     _cspLastBlockerHash = hash;
     _cspLastBlockerSample = sample;
   }
+  // Increment the consecutive-blocks counter. A successful report
+  // (recordCspReport) resets this back to 0.
+  _cspConsecutiveBlocks += 1;
 }
 
 function getCspReportCounts() {
@@ -656,12 +673,24 @@ function getCspReportCounts() {
         ? Math.round((_cspTotalReports / totalAttempts) * 10) / 10
         : 10;
     })(),
+    // Consecutive rate-limited blocks since the last accepted report.
+    // Pairs with the cumulative blocked count to detect "are we
+    // being actively attacked right now?" — a high value + recent
+    // lastBlockByIp means sustained attack; resets to 0 on each
+    // accepted report (legitimate report between blocks = subsided).
+    consecutiveBlocks: _cspConsecutiveBlocks,
     // Most recent reporting IP (hashed + sample for ops identification).
     // Lets ops answer "is one specific client flooding us with CSP
     // reports?" from a single curl.
     lastReporter: _cspLastReporterHash
       ? { hash: _cspLastReporterHash, sample: _cspLastReporterSample }
       : null,
+    // Consecutive rate-limited blocks since the last accepted report.
+    // Lets ops answer "is the system under sustained attack right
+    // now?" — a high value means we're being actively attacked and
+    // no legitimate report has been seen in a while. Resets to 0 on
+    // each accepted report.
+    consecutiveBlocks: _cspConsecutiveBlocks,
     // Most recent rate-limit-rejected reporter IP (hashed + sample).
     // Pairs with lastReporter (most recent ACCEPTED reporter) to
     // give ops the full picture: "which IP is currently being

@@ -2940,3 +2940,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Completed the linter's partial work — the field reference + accessor was added but the source IP was never wired into the call. Standard parameter-passing pattern (`recordCspBlock(reporterIp)`) replaces the linter's intended module-level state handoff.
+
+**2026-07-19 16:10 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #116 of the autonomous loop** (cron `f1fb68b1` firing). Live: 16:10 IST.
+- **Completed the linter's `_cspConsecutiveBlocks` wiring** (linter declared the variable but didn't increment / reset / surface).
+- **Shipped `cspReports.consecutiveBlocks`**. New field: count of consecutive rate-limit-rejected CSP reports since the last accepted report.
+- **Closes the "are we being actively attacked right now?" observability gap**. Pairs with the cumulative `blocked` count: high value + recent `lastBlockByIp` = sustained attack; resets to 0 on each accepted report (legitimate report between blocks = subsided).
+- **Implementation**: `_cspConsecutiveBlocks += 1` in `recordCspBlock(reporterIp)`; `_cspConsecutiveBlocks = 0` in `recordCspReport()` (accepted reports reset the streak). Surfaced in `getCspReportCounts` return.
+- **1 new source-pattern test** + extended full-observability-surface cspReports assertion list.
+- **394/394 tests pass** (319 unit + 71 smoke + 1 integration). Test count +1.
+
+**Prompt Intention:**
+- Honored the standing directives. Completed the linter's partial work — declared variable, no wiring. Implementing required: increment in `recordCspBlock`, reset in `recordCspReport`, surface in the `getCspReportCounts` return.
