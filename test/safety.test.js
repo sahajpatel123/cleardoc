@@ -1419,3 +1419,30 @@ test("analyze handler: LLM max-token caps are sane and distinct for full vs comp
   for (const c of compact) assert.ok(c > 0 && c <= 2000, `compact cap ${c} must be 1..2000`);
   for (const f of full) assert.ok(f >= 1000 && f <= 8000, `full cap ${f} must be 1000..8000`);
 });
+
+test("Content-Type charset suffix is accepted on analyze + chat (e.g. application/json; charset=utf-8)", () => {
+  // Defense-in-depth: a browser or curl client might post with
+  // `application/json; charset=utf-8` (RFC 8259 §11 allows optional
+  // charset). Both endpoints must accept it as 200 (or 4xx, not 415).
+  // The strict regex from iter #23 requires `;` (charset separator) or
+  // end-of-string — so a request with charset must have `;`.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  // Pin: the analyze handler uses the strict regex with `;` OR end-of-string.
+  const analyzeSrc = fs.readFileSync(path.resolve(__dirname, "../api/analyze.js"), "utf8");
+  const chatSrc = fs.readFileSync(path.resolve(__dirname, "../api/chat.js"), "utf8");
+  for (const [name, src] of [["analyze", analyzeSrc], ["chat", chatSrc]]) {
+    assert.match(
+      src,
+      /application\\\/json\(\?:\\s\*;\|\\s\*\$/,
+      `${name} handler regex must allow \\s*; OR end-of-string after application/json (covers charset suffixes)`
+    );
+  }
+  // Quick runtime check: the regex accepts `application/json; charset=utf-8`
+  const re = /^\s*application\/json(?:\s*;|\s*$)/i;
+  assert.equal(re.test("application/json; charset=utf-8"), true);
+  assert.equal(re.test("application/json;charset=utf-8"), true, "no space before ; is also valid");
+  assert.equal(re.test("application/json"), true);
+  assert.equal(re.test("application/json "), true, "trailing space then EOL is valid");
+  assert.equal(re.test("application/json+xml"), false, "+suffix must be rejected");
+});
