@@ -2629,3 +2629,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Continued the /api/health observability loop. With iters #88 + #89, the per-provider reachability surface is now: `successRate` (iter #76), `failureRate` (iter #89), `lastReachableAt` (iter #70), `lastFailureAt` (iter #88), `avgLatencyMs` (iter #82), `reachableByRegion` (iter #80) — a complete health profile per provider, all from a single curl.
+
+**2026-07-19 11:50 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #90 of the autonomous loop** (cron `f1fb68b1` firing). Live: 11:50 IST.
+- **Shipped `summary.consecutiveSuccesses` on /api/health**. New field: counter of consecutive 2xx responses since the last 5xx. Resets to 0 on any 5xx; increments on every 2xx (4xx excluded — client errors don't break the streak but don't extend it).
+- **Closes the "right now" observability gap**. `lastErrorAt` says *when* the last error was; `consecutiveSuccesses` says *whether we're currently healthy*. 0 = most recent successful response was an error; >0 = we've been healthy for that many consecutive requests.
+- **Use case**: ops alerting. A simple PagerDuty rule "consecutiveSuccesses < 5 for >2 min" catches "we're 5xxing right now" without inspecting every request.
+- **Implementation**: new module-level `_consecutiveSuccesses = 0`. In `recordRequestStatus`: increments on 2xx, resets to 0 on 5xx, leaves unchanged on 4xx.
+- **349/349 tests pass** (276 unit + 71 smoke + 1 integration). 1 new source-pattern test (`consecutiveSuccesses`). Extended full-observability-surface assertion list.
+
+**Prompt Intention:**
+- Honored the standing directives. Continued the /api/health observability loop. With `totalErrors` (cumulative) + `errorRate` (ratio) + `lastErrorAt` (timestamp) + `consecutiveSuccesses` (current streak), ops get a complete 5xx picture: cumulative, ratio, recency, AND instantaneous health.

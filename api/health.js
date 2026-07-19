@@ -45,6 +45,12 @@ let _totalErrors = 0;
 // Pairs with `totalErrors` (count + recency = actionable signal: "are
 // we erroring RIGHT NOW or just historically?"). 0 until the first 5xx.
 let _lastErrorAt = 0;
+// Consecutive 2xx-response counter. Increments on every 2xx, resets to
+// 0 on any 5xx. Direct "are we currently in a degraded state?" signal —
+// 0 means the most recent successful state was an error; >0 means we've
+// been healthy for that many consecutive requests. 4xx is excluded:
+// client errors don't break the server.
+let _consecutiveSuccesses = 0;
 
 function recordRequestStatus(statusCode) {
   if (!Number.isFinite(statusCode)) return;
@@ -59,6 +65,12 @@ function recordRequestStatus(statusCode) {
   if (statusCode >= 500) {
     _totalErrors += 1;
     _lastErrorAt = Date.now();
+    _consecutiveSuccesses = 0;
+  } else if (statusCode >= 200 && statusCode < 300) {
+    // Only 2xx counts as "consecutive success". 4xx is a client error
+    // (rate limit, bad input) — doesn't break the server's healthy
+    // streak, but also doesn't extend it (4xx is not a "win").
+    _consecutiveSuccesses += 1;
   }
 }
 // Read the version from package.json — single source of truth. Without
@@ -310,6 +322,13 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // recently". Lets ops answer "are we erroring right now, or just
     // historically?" from a single curl. Null until the first 5xx.
     lastErrorAt: _lastErrorAt ? new Date(_lastErrorAt).toISOString() : null,
+    // Consecutive 2xx-response counter. Direct "are we currently in a
+    // degraded state?" signal — 0 means the most recent successful
+    // response was a 5xx; >0 means we've been healthy for that many
+    // consecutive requests. 4xx is excluded (client error, not server
+    // broken). Useful for ops alerting: "consecutiveSuccesses < N" =
+    // stale healthy state.
+    consecutiveSuccesses: _consecutiveSuccesses,
     // 5xx error rate (totalErrors / requests, 1-decimal precision, 0
     // when no requests yet). Complements the existing `totalErrors`
     // + `requests` fields so ops can read the ratio directly instead

@@ -915,7 +915,7 @@ test("health handler: full observability surface (X-* headers + summary fields)"
     "topActiveIPs", "startedAt", "lastProbeAtMs", "startupDurationMs",
     "averageRequestsPerMinute", "errorRate", "lastErrorAt",
     "requestsInLastHour", "providersLastFailure",
-    "providersFailureRateInLastHour",
+    "providersFailureRateInLastHour", "consecutiveSuccesses",
   ]) {
     assert.ok(k in body.summary, `summary must include ${k}`);
   }
@@ -1162,4 +1162,19 @@ test("health handler: summary exposes providersFailureRateInLastHour (per-provid
     require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
   );
   assert.match(safetySrc, /failureRate/, "_safety.js must compute per-provider failureRate");
+});
+
+// ── consecutiveSuccesses (iter #90) ─────────────────────────
+
+test("health handler: summary exposes consecutiveSuccesses (consecutive 2xx counter)", () => {
+  // Direct "are we currently in a degraded state?" signal. Resets
+  // to 0 on any 5xx; increments on every 2xx. Pairs with the
+  // existing totalErrors + lastErrorAt to give ops an instantaneous
+  // "right now" health verdict without walking the per-status breakdown.
+  assert.match(HEALTH_SOURCE, /consecutiveSuccesses/, "summary must include consecutiveSuccesses field");
+  assert.match(HEALTH_SOURCE, /_consecutiveSuccesses/, "must have a module-level _consecutiveSuccesses counter");
+  // Must reset on 5xx (degraded state)
+  assert.match(HEALTH_SOURCE, /_consecutiveSuccesses\s*=\s*0/, "counter must reset to 0 on 5xx");
+  // Must increment on 2xx (healthy streak)
+  assert.match(HEALTH_SOURCE, /_consecutiveSuccesses\s*\+=\s*1/, "counter must increment on 2xx");
 });
