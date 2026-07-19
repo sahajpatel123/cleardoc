@@ -244,7 +244,13 @@ async function probeProviderCached(key, url) {
     // lastFailure field on /api/health). Pairs with the per-provider
     // lastReachableAt to give ops a "is the most recent state a success
     // or a failure?" signal.
-    if (!fresh.ok) _lastProbeFailure[key] = Date.now();
+    if (!fresh.ok) {
+      _lastProbeFailure[key] = Date.now();
+      _consecutiveProviderFailures[key] = (_consecutiveProviderFailures[key] || 0) + 1;
+    } else {
+      // Success resets the per-provider failure streak.
+      _consecutiveProviderFailures[key] = 0;
+    }
     // Evict oldest if over the cap
     while (_probeOutcomes.length > PROBE_WINDOW_MAX) _probeOutcomes.shift();
   }
@@ -365,6 +371,17 @@ function getLastProbeFailure() {
   };
 }
 
+// Read-only accessor for the per-provider consecutive-failure counter.
+// Lets ops answer "is this provider in a degraded streak right now?"
+// from a single curl. Pairs with `getLastProbeFailure()` (when) for
+// the full failure profile (how long, how deep).
+function getConsecutiveProviderFailures() {
+  return {
+    gemini: _consecutiveProviderFailures.gemini || 0,
+    openrouter: _consecutiveProviderFailures.openrouter || 0,
+  };
+}
+
 function clearProbeCache() {
   _probeCache.clear();
 }
@@ -397,6 +414,11 @@ let _cspLastSeenAt = 0;
 // "is the most recent state a failure?" signal — useful alongside
 // the lastReachableAt per-provider field (the success counterpart).
 let _lastProbeFailure = { gemini: 0, openrouter: 0 };
+// Consecutive probe-failure counter per provider. Increments on each
+// failed probe, resets to 0 on success. Lets ops see "is this provider
+// in a degraded streak right now?" without walking the per-1h-window
+// data. Pairs with _lastProbeFailure for the full failure profile.
+let _consecutiveProviderFailures = { gemini: 0, openrouter: 0 };
 
 // Per-URI counters. We track two angles separately so ops can answer
 // different questions:
@@ -467,6 +489,13 @@ function recordCspReport(directive, blockedUri, documentUri, reporterIp) {
     _cspLastReporterSample = sample;
   }
 }
+
+// Count reports blocked at the rate-limit gate (or any 4xx path
+// before the body is accepted). Lets /api/health surface the
+// "how many reports were rejected at the door" signal — useful
+// for spotting abusive browsers before they can flood the system.
+let _cspBlockedCount = 0;
+function recordCspBlock() { _cspBlockedCount += 1; }
 
 function getCspReportCounts() {
   // Snapshot (caller can iterate without worrying about concurrent mutation)
@@ -1283,9 +1312,11 @@ module.exports = {
   getProbeReachabilityByRegionInLastHour,
   getProbeAverageLatencyInLastHour,
   getLastProbeFailure,
+  getConsecutiveProviderFailures,
   getUniqueIPsCount,
   getTopActiveIPs,
   recordCspReport,
+  recordCspBlock,
   getCspReportCounts,
   errLog,
   accessLog,
