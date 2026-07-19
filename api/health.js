@@ -14,6 +14,10 @@
 const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts } = require("./_safety.js");
 
 const START_TS = Date.now();
+// In-process counter of how many requests this function instance has
+// served since process start. Pairs with `summary.totalProbes` (outbound)
+// to give ops a complete traffic picture for this instance.
+let _requestsServed = 0;
 // Read the version from package.json — single source of truth. Without
 // this the constant drifts the moment someone bumps package.json without
 // remembering to update api/health.js too (the deployed VERSION field in
@@ -156,6 +160,10 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     cacheHits,
     totalProbes: probeCounts.total,
     networkProbes: probeCounts.network,
+    // Total requests served by this function instance since process start.
+    // Pairs with totalProbes (outbound) so ops can compute inbound vs
+    // outbound ratio and detect traffic anomalies per-instance.
+    requests: _requestsServed,
     cspReports: cspCounts,
   };
 }
@@ -174,6 +182,10 @@ module.exports = async function handler(req, res) {
     if (!rl.ok) {
       return json(res, 429, { error: "Too many requests." });
     }
+    // Count this request toward the in-process `summary.requests` field.
+    // Even 429-rejected requests count (the endpoint saw traffic — useful
+    // for spotting attack patterns where the reject rate is climbing).
+    _requestsServed += 1;
 
     const uptimeSec = Math.round((Date.now() - START_TS) / 1000);
     const hasGemini = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY);

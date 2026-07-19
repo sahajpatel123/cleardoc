@@ -643,3 +643,13 @@ test("health handler: sendOkCached + HEAD inline block both attach Last-Modified
     "HEAD block must set Last-Modified"
   );
 });
+
+// ── requests-served counter (iter #58) ────────────────────────────
+
+test("health handler: summary surfaces requests-served counter", () => {
+  // In-process counter. Increments on every request (including 429s —
+  // useful for spotting attack patterns). Pairs with totalProbes so
+  // ops can compute inbound vs outbound ratio.
+  assert.match(HEALTH_SOURCE, /_requestsServed\s*\+=\s*1/, "counter must increment per request");
+  assert.match(HEALTH_SOURCE, /requests:\s*_requestsServed/, "summary must surface the counter");
+});
