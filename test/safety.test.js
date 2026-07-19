@@ -1603,3 +1603,16 @@ test("/api/health probe-cache constants are pinned (TTL 60s, timeout 3s, max 100
   assert.match(src, /_PROBE_TIMEOUT_MS\s*=\s*3000/, "_PROBE_TIMEOUT_MS must stay 3000");
   assert.match(src, /_PROBE_CACHE_MAX\s*=\s*100/, "_PROBE_CACHE_MAX must stay 100");
 });
+
+test("rate-limit window constants are pinned in _safety.js (window 60s, max 5000 keys, prune 30s)", () => {
+  // The in-memory sliding-window rate limiter uses three constants:
+  //   _RATE_WINDOW_MS = 60_000       — window per IP
+  //   _RATE_MAX_KEYS = 5000          — hard cap on tracked IPs
+  //   _RATE_PRUNE_INTERVAL_MS = 30_000 — periodic prune interval
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/_safety.js"), "utf8");
+  assert.match(src, /_RATE_WINDOW_MS\s*=\s*60_000/, "_RATE_WINDOW_MS must stay 60_000");
+  assert.match(src, /_RATE_MAX_KEYS\s*=\s*5000/, "_RATE_MAX_KEYS must stay 5000");
+  assert.match(src, /_RATE_PRUNE_INTERVAL_MS\s*=\s*30_000/, "_RATE_PRUNE_INTERVAL_MS must stay 30_000");
+});
