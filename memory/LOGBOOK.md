@@ -2350,3 +2350,17 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Closed the cache-effectiveness observability gap. Combined with `networkProbes` and `process.processUptimeSec`, ops can now answer \"is the cache working as expected?\" from a single `curl /api/health` without parsing server logs. A spike in `lastProbeAtMs` relative to `processUptimeSec` is a clear cache-miss signal.
+
+**2026-07-19 07:35 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #68 of the autonomous loop** (cron `c3921bc4` firing). Live: 07:35 IST.
+- **Shipped `summary.topActiveIPs` (per-IP activity breakdown) on /api/health** (`98a46ca3`). New field: top-5 most-active IPs since process start, sorted by count desc.
+- **Pairs with `uniqueIPs` (iter #67) for full fan-in analysis**:
+  - `uniqueIPs` = how many distinct sources
+  - `topActiveIPs` = which sources are doing the bulk of the traffic
+- If the per-IP counts are wildly uneven, the bulk of traffic is from a small number of clients — possible abuse signal. The IP sample lets ops correlate with Vercel access logs to identify the source.
+- **Implementation**: new `getTopActiveIPs(topN)` helper in `_safety.js` (read-only). SHA-256 hash of the IP for the key (PII-safe) + IP sample for ops identification. LRU-evicting at 50 in the helper. `/api/health` summary now includes `topActiveIPs: getTopActiveIPs(5)`.
+- **306/306 tests pass** (234 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the IP-attribution observability gap. Combined with `uniqueIPs` (iter #67), `topActiveIPs` answers \"which sources are hitting hardest?\" — a real ops diagnostic for \"is this abuse?\" vs \"is this just a busy client?\". Without it, ops would have to grep Vercel access logs to attribute traffic to specific IPs.
