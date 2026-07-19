@@ -11,7 +11,7 @@
  * for the most-polled endpoint in any deployment.
  */
 
-const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount, getTopActiveIPs, getProbeReachabilityInLastHour } = require("./_safety.js");
+const { json, rateLimit, applyRateLimitHeaders, attachRequestId, applyBuildShaHeader, applyEndpointHeader, errLog, accessLog, getIp, probeProviderCached, getProbeCounts, getCspReportCounts, getUniqueIPsCount, getTopActiveIPs, getProbeReachabilityInLastHour, getProbeReachabilityByRegionInLastHour } = require("./_safety.js");
 
 const START_TS = Date.now();
 // Captured on the first request — `summary.startupDurationMs` is the
@@ -205,6 +205,10 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Lets ops answer "is the provider flapping?" — a 50%-reachable
     // signal is actionable even when the current state is OK.
     providersReachableInLastHour: getProbeReachabilityInLastHour(),
+    // Per-provider per-region reachability over the rolling 1-hour
+    // window. Lets ops answer "is the flapping localized to one
+    // region?" (traffic spike in iad1 might leave fra1 unaffected).
+    providersReachableByRegionInLastHour: getProbeReachabilityByRegionInLastHour(),
     // How long the function took to initialize (module load → first
     // request). Null until the first request arrives. Lets ops spot
     // slow-start regression in real time — Vercel Hobby cold starts

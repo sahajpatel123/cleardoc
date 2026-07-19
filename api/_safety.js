@@ -239,7 +239,7 @@ async function probeProviderCached(key, url) {
   if (Array.isArray(fresh)) {
     // nothing — defensive
   } else if (fresh && typeof fresh === "object") {
-    _probeOutcomes.push({ ts: Date.now(), ok: !!fresh.ok, provider: key });
+    _probeOutcomes.push({ ts: Date.now(), ok: !!fresh.ok, provider: key, region: process.env.VERCEL_REGION || null });
     // Evict oldest if over the cap
     while (_probeOutcomes.length > PROBE_WINDOW_MAX) _probeOutcomes.shift();
   }
@@ -280,6 +280,42 @@ function getProbeReachabilityInLastHour() {
     if (result[p].total > 0) {
       // 1-decimal precision like the iter #52 usedPercent field.
       result[p].successRate = Math.round((result[p].okCount / result[p].total) * 1000) / 10;
+    }
+  }
+  return result;
+}
+
+/* Per-provider per-region reachability over the rolling 1-hour
+ * window. Returns { gemini: { region1: { okCount, total, successRate }, ... },
+ *                    openrouter: { region1: { ... }, ... } }.
+ *
+ * Lets ops answer "is the flapping localized to one region?"
+ * (traffic spike in iad1 might leave fra1 unaffected).
+ */
+function getProbeReachabilityByRegionInLastHour() {
+  const cutoff = Date.now() - _PROBE_WINDOW_MS;
+  while (_probeOutcomes.length && _probeOutcomes[0].ts < cutoff) {
+    _probeOutcomes.shift();
+  }
+  const result = {
+    gemini: {},
+    openrouter: {},
+  };
+  for (const e of _probeOutcomes) {
+    if (!result[e.provider]) continue;
+    const r = e.region || "unknown";
+    if (!result[e.provider][r]) {
+      result[e.provider][r] = { okCount: 0, total: 0, successRate: null };
+    }
+    result[e.provider][r].total += 1;
+    if (e.ok) result[e.provider][r].okCount += 1;
+  }
+  for (const p of Object.keys(result)) {
+    for (const r of Object.keys(result[p])) {
+      const entry = result[p][r];
+      if (entry.total > 0) {
+        entry.successRate = Math.round((entry.okCount / entry.total) * 1000) / 10;
+      }
     }
   }
   return result;
@@ -1182,6 +1218,7 @@ module.exports = {
   clearProbeCache,
   getProbeCounts,
   getProbeReachabilityInLastHour,
+  getProbeReachabilityByRegionInLastHour,
   getUniqueIPsCount,
   getTopActiveIPs,
   recordCspReport,

@@ -1002,3 +1002,19 @@ test("health handler: summary surfaces firstRequestAt ISO timestamp", () => {
   assert.match(HEALTH_SOURCE, /firstRequestAt/, "summary must include firstRequestAt field");
   assert.match(HEALTH_SOURCE, /_firstRequestTs\s*\?\s*new Date\(_firstRequestTs\)\.toISOString\(\)\s*:\s*null/, "must read _firstRequestTs (pinned on first call) and fall back to null before any request");
 });
+
+// ── providersReachableByRegionInLastHour (iter #80) ───────────
+
+test("health handler: summary exposes providersReachableByRegionInLastHour (per-region reachability)", () => {
+  // Per-provider per-region reachability over the rolling 1-hour
+  // window. Lets ops answer "is the flapping localized to one region?"
+  // (traffic spike in iad1 might leave fra1 unaffected).
+  assert.match(HEALTH_SOURCE, /providersReachableByRegionInLastHour/, "summary must include providersReachableByRegionInLastHour field");
+  // The per-region counter wiring lives in _safety.js
+  const safetySrc = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "../api/_safety.js"), "utf8"
+  );
+  assert.match(safetySrc, /getProbeReachabilityByRegionInLastHour/, "must have getProbeReachabilityByRegionInLastHour accessor");
+  // The probe outcome entry must include the region
+  assert.match(safetySrc, /region:\s*process\.env\.VERCEL_REGION/, "probe outcomes must capture VERCEL_REGION at record time");
+});
