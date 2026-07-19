@@ -2380,3 +2380,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 - **Shipped `e970194e test(analyze): pin api/analyze.js cap constants`.** Pin MAX_REQUEST_BYTES, MAX_DOCUMENT_CHARS, MAX_DOCUMENT_MIN_CHARS, RATE_LIMIT_PER_MINUTE, REQUEST_TIMEOUT_MS in api/analyze.js.
 - **Verification:** 306/306 tests pass (228 unit + 71 smoke + 1 integration). Pushed.
 
+
+**2026-07-19 07:55 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #70 of the autonomous loop** (cron `c3921bc4` firing). Live: 07:55 IST.
+- **Shipped per-provider `lastReachableAt` ISO timestamp in /api/health** (`acc28af9`). Each provider in the `providers` block now carries `lastReachableAt: <ISO>`. ISO timestamp of the most recent successful probe.
+- **Lets ops answer two questions from a single curl**:
+  - \"Is the provider reachable but slow?\" → long latency + recent timestamp
+  - \"When did it last go down?\" → older lastReachableAt relative to uptime
+- Only present when `reachable=true`. When unreachable, the `error` field is already there.
+- **309/309 tests pass** (237 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the per-provider temporal observability gap. Combined with the existing `latencyMs` (real-time) + `cached` (cache state) + `error` (last failure) + new `lastReachableAt` (last success time), ops can now diagnose the full health profile of each provider from a single `curl /api/health`.
