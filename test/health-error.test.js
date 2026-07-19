@@ -964,3 +964,15 @@ test("health handler: summary exposes providersReachableInLastHour (rolling 1-ho
   assert.match(safetySrc, /_PROBE_WINDOW_MS/, "must define the rolling-window duration constant");
   assert.match(safetySrc, /_probeOutcomes/, "must maintain a per-outcome array");
 });
+
+// ── uptimeBucket (iter #77) ─────────────────────────────────────
+
+test("health handler: payload surfaces uptimeBucket (cold-start classification)", () => {
+  // Classify process uptime: fresh (<5min), warm (5-60min), cold (>60min).
+  // Lets ops dashboards spot when Vercel has recycled an instance, or
+  // if cold-starts are spiking.
+  assert.match(HEALTH_SOURCE, /uptimeBucket/, "payload must include uptimeBucket field");
+  // Threshold 300s (5min) and 3600s (1hour) — well-known Vercel cold-start windows
+  assert.match(HEALTH_SOURCE, /s\s*<\s*300/, "fresh threshold is 300s (5 min)");
+  assert.match(HEALTH_SOURCE, /s\s*<\s*3600/, "warm threshold is 3600s (60 min)");
+});

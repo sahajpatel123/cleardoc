@@ -307,6 +307,17 @@ module.exports = async function handler(req, res) {
       ok: true,
       status: "ok",
       version: VERSION,
+      // Classify process uptime: "fresh" (<5 min), "warm" (5-60 min),
+      // "cold" (>60 min). Lets ops dashboards spot when Vercel has
+      // recycled an instance, or if cold-starts are spiking. Derived
+      // from processUptimeSec — same source of truth as the rest of
+      // the time fields.
+      uptimeBucket: (() => {
+        const s = Math.round((Date.now() - START_TS) / 1000);
+        if (s < 300) return "fresh";
+        if (s < 3600) return "warm";
+        return "cold";
+      })(),
       // Short git SHA of the deployed commit — Vercel sets
       // VERCEL_GIT_COMMIT_SHA automatically on every production deploy.
       // Ops can correlate a health-check response with a specific deploy
