@@ -1034,8 +1034,7 @@ test("health handler: summary exposes cacheMissRate (networkProbes / totalProbes
 test("health handler: summary exposes providersAvgLatencyMsInLastHour (per-provider rolling 1-hour mean)", () => {
   // Per-provider average latency across the rolling 1-hour window.
   // Pairs with fastestProviderMs / slowestProviderMs to show the
-  // central tendency. Lets ops answer "is the average getting worse
-  // over time?"
+  // central tendency. Lets ops answer is-the-average-getting-worse-over-time.
   assert.match(HEALTH_SOURCE, /providersAvgLatencyMsInLastHour/, "summary must include providersAvgLatencyMsInLastHour field");
   // The accessor lives in _safety.js
   const safetySrc = require("node:fs").readFileSync(
@@ -1068,4 +1067,4 @@ test("health handler: process.memory surfaces heapUsageRatio (heapUsed / heapTot
   assert.match(HEALTH_SOURCE, /heapUsageRatio/, "memory block must include heapUsageRatio field");
   assert.match(HEALTH_SOURCE, /m\.heapTotal\s*>\s*0/, "must guard against divide-by-zero");
   assert.match(HEALTH_SOURCE, /m\.heapUsed\s*\/\s*m\.heapTotal/, "computation must be heapUsed / heapTotal");
-}
+});
