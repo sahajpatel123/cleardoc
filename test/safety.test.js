@@ -1554,3 +1554,29 @@ test("VALID_SEVERITIES + VALID_VERDICT_LABELS enums are pinned", () => {
     assert.match(verdictBlock[1], new RegExp(`"${label}"`), `VALID_VERDICT_LABELS block must contain "${label}"`);
   }
 });
+
+test("api/chat.js cap constants are pinned", () => {
+  // api/chat.js declares 6 caps that govern body size, prompt size,
+  // request timeout, and history. Pin each one so a future refactor
+  // can't silently change them.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/chat.js"), "utf8");
+  const cases = [
+    ["MAX_DOCUMENT_CHARS", 30000],
+    ["MAX_REWRITE_CHARS", 6000],
+    ["MAX_QUESTION_CHARS", 1000],
+    ["MAX_HISTORY_TURNS", 10],
+    ["MAX_HISTORY_FIELD_CHARS", 500],
+    ["REQUEST_TIMEOUT_MS", 25000],
+    ["RATE_LIMIT_PER_MINUTE", 30],
+    ["MAX_REQUEST_BYTES", "128 \\* 1024"],
+  ];
+  for (const [name, expected] of cases) {
+    // Handle the "N * 1024" form for MAX_REQUEST_BYTES
+    const re = typeof expected === "string"
+      ? new RegExp(`${name}\\s*=\\s*${expected}\\s*;`)
+      : new RegExp(`${name}\\s*=\\s*${expected}\\b`);
+    assert.ok(re.test(src), `api/chat.js must define ${name} = ${expected}`);
+  }
+});
