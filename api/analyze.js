@@ -383,7 +383,7 @@ module.exports = async function handler(req, res) {
     // confusing "Invalid JSON" message. Fail more precisely with a
     // 415 so callers know to set the right header.
     const ct = (req && req.headers && (req.headers["content-type"] || req.headers["Content-Type"])) || "";
-    if (ct.length > 0 && !/^\s*application\/json\b/i.test(ct)) {
+    if (ct.length > 0 && !/^\s*application\/json(?:\s*;|\s*$)/i.test(ct)) {
       return json(res, 415, { error: "Content-Type must be application/json." });
     }
 

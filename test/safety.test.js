@@ -1358,3 +1358,32 @@ test("applyEndpointHeader: every endpoint file calls it with the right endpoint 
     );
   }
 });
+
+test("Content-Type allowlist regex rejects +suffix variants like application/json+xml", () => {
+  // Defense-in-depth: the regex `/^\s*application\/json\b/i` would
+  // accept `application/json+xml` because `\b` matches the boundary
+  // between `n` (word) and `+` (non-word). RFC 6839 `+suffix`
+  // variants aren't the same as `application/json` — a malformed
+  // server might pick the wrong parser. Stricter regex requires
+  // either `;` (charset separator) or end-of-string after
+  // `application/json`. Locks in the fix on both analyze and chat.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeSrc = fs.readFileSync(path.resolve(__dirname, "../api/analyze.js"), "utf8");
+  const chatSrc = fs.readFileSync(path.resolve(__dirname, "../api/chat.js"), "utf8");
+  // Must use the strict regex (semicolon OR end-of-string), not the
+  // loose \b regex.
+  for (const [name, src] of [["analyze", analyzeSrc], ["chat", chatSrc]]) {
+    assert.match(
+      src,
+      /application\\\/json\(\?:\\s\*;\|\\s\*\$/,
+      `${name} handler must use the strict application/json(?:\s*;|\s*$) regex to reject +suffix variants`
+    );
+    // Must NOT still have the loose `\b` version.
+    assert.doesNotMatch(
+      src,
+      /application\\\/json\\b/i,
+      `${name} handler must not use the loose application/json\\b regex (accepts application/json+xml)`
+    );
+  }
+});
