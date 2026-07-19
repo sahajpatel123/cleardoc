@@ -2198,3 +2198,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Honored the standing directives. Closed the last meaningful in-process observability gap. Now ops dashboards can derive the inbound/outbound ratio from a single `curl /api/health` — useful for early-warning on traffic anomalies.
 
+
+**2026-07-19 05:57 IST | Model: GLM 5.2 (z.ai)**
+**Changes Made:**
+- **Iteration #59 of the autonomous loop** (cron `c3921bc4` firing). Live: 05:57 IST.
+- **Shipped `summary.requestsByStatus` per-status-code counter on /api/health** (`d7eac09c`). New field: `{ "200": 14, "304": 128, "429": 2, "503": 0, ... }` — lets ops spot traffic anomalies at a glance. "Are 429s climbing?" "Spike in 503s?" "Is the cache absorbing most of the load?" All from a single `curl /api/health`.
+- **Implementation**: module-level `_requestsByStatus` Map in `api/health.js`; `recordRequestStatus(statusCode)` called from the `finally` block alongside `accessLog` so every status the handler can produce (200/304/400/415/429/500/502/503/504) all count. LRU-evicting at `MAX_STATUS_BUCKETS=50` to prevent unbounded growth. Snapshot via `Object.fromEntries()` so callers don't see concurrent mutation.
+- **291/291 tests pass** (219 unit + 71 smoke + 1 integration). 1 new source-pattern test.
+
+**Prompt Intention:**
+- Honored the standing directives. Closed the last obvious operational visibility gap on /api/health. Combined with the iter #58 `requests` counter, ops now has full per-status visibility: total volume + per-status breakdown + per-provider probe counts + CSP rejection counts. A single `curl /api/health` is genuinely sufficient for ops to detect almost any traffic anomaly without touching logs.
