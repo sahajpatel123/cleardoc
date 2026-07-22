@@ -508,3 +508,8 @@ module.exports = async function handler(req, res) {
     accessLog(req, res, res.statusCode);
   }
 };
+
+// Pure helper exported for unit testing (test/analyze-error.test.js).
+// Extracts JSON from AI response text — handles direct JSON, markdown
+// code fences, and prose-wrapped JSON. Returns parsed object or null.
+module.exports.parseJsonFromText = parseJsonFromText;

@@ -373,3 +373,50 @@ test("api/analyze.js cap constants are pinned", () => {
     assert.ok(re.test(src), `api/analyze.js must define ${name} = ${expected}`);
   }
 });
+
+// ── parseJsonFromText behavioral (iter #139) ────────────────
+
+test("parseJsonFromText: parses clean JSON directly", () => {
+  // First code path: input is already valid JSON. Return as parsed object.
+  const { parseJsonFromText } = require("../api/analyze.js");
+  const result = parseJsonFromText('{"a": 1, "b": "two"}');
+  assert.deepEqual(result, { a: 1, b: "two" },
+    "must parse clean JSON directly");
+});
+
+test("parseJsonFromText: strips markdown code fences before parsing", () => {
+  // Second code path: AI often wraps responses in ```json ... ```.
+  // Strip the fences and parse the inner content.
+  const { parseJsonFromText } = require("../api/analyze.js");
+  const result = parseJsonFromText('```json\n{"verdict": "safe"}\n```');
+  assert.deepEqual(result, { verdict: "safe" },
+    "must strip ```json fences");
+  // Also handle plain ``` (no language hint)
+  const plain = parseJsonFromText('```\n{"x": 42}\n```');
+  assert.deepEqual(plain, { x: 42 }, "must strip plain ``` fences");
+});
+
+test("parseJsonFromText: extracts JSON object from prose-wrapped text", () => {
+  // Third code path: AI sometimes embeds JSON mid-prose. Find first
+  // { and last } and parse that slice.
+  const { parseJsonFromText } = require("../api/analyze.js");
+  const text = 'Here is my analysis:\n\n{"risk": "high", "score": 7}\n\nHope this helps!';
+  const result = parseJsonFromText(text);
+  assert.deepEqual(result, { risk: "high", score: 7 },
+    "must extract the JSON object embedded in prose");
+});
+
+test("parseJsonFromText: returns null for unparseable input", () => {
+  // Defensive: no JSON anywhere in the text → return null (don't throw).
+  // The caller handles null by falling back to error handling.
+  const { parseJsonFromText } = require("../api/analyze.js");
+  assert.equal(parseJsonFromText("just plain text, no JSON here"), null,
+    "no JSON → null (no throw)");
+  assert.equal(parseJsonFromText(""), null, "empty string → null");
+  assert.equal(parseJsonFromText('{"incomplete": '), null, "truncated JSON → null");
+  // Valid JSON array IS returned (function uses JSON.parse directly,
+  // not just object extraction). The prose-wrapped path only triggers
+  // for objects ({...}), but direct-parse path accepts any JSON value.
+  assert.deepEqual(parseJsonFromText("[]"), [],
+    "valid JSON array → returned as-is (not null)");
+});
