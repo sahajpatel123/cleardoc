@@ -85,6 +85,20 @@ let _consecutiveSuccesses = 0;
 // most recent rate-limit reject / bad request?" from a single curl.
 let _lastClientErrorAt = 0;
 
+/* Push the current timestamp onto a rolling 1-hour window array.
+ * Lazy-prunes entries older than 1 hour in-place. Single source of
+ * truth for the 1-hour window pattern — the three window arrays in
+ * this module (errors, rateLimited, accepted) all use this helper so
+ * the cutoff math lives in exactly one place. */
+const HOUR_MS = 3600 * 1000;
+function pushToHourWindow(arr) {
+  arr.push(Date.now());
+  const cutoff = Date.now() - HOUR_MS;
+  while (arr.length > 0 && arr[0] < cutoff) {
+    arr.shift();
+  }
+}
+
 function recordRequestStatus(statusCode) {
   if (!Number.isFinite(statusCode)) return;
   if (typeof statusCode !== "number" || statusCode < 100 || statusCode >= 600) return;
@@ -100,11 +114,7 @@ function recordRequestStatus(statusCode) {
     _lastErrorAt = Date.now();
     _consecutiveSuccesses = 0;
     // Push to the rolling 1-hour window for `errorsInLastHour`.
-    _errorsInLastHour.push(Date.now());
-    const cutoffHour = Date.now() - 3600 * 1000;
-    while (_errorsInLastHour.length > 0 && _errorsInLastHour[0] < cutoffHour) {
-      _errorsInLastHour.shift();
-    }
+    pushToHourWindow(_errorsInLastHour);
   } else if (statusCode >= 400 && statusCode < 500) {
     // 4xx is a client error (rate limit, bad input). Capture the
     // timestamp for `lastClientErrorAt` — pairs with lastErrorAt
@@ -116,11 +126,7 @@ function recordRequestStatus(statusCode) {
     // the full status map. Other 4xx (400, 404, etc.) are excluded:
     // they signal client bugs, not abuse patterns.
     if (statusCode === 429) {
-      _rateLimitedInLastHour.push(Date.now());
-      const cutoffHour = Date.now() - 3600 * 1000;
-      while (_rateLimitedInLastHour.length > 0 && _rateLimitedInLastHour[0] < cutoffHour) {
-        _rateLimitedInLastHour.shift();
-      }
+      pushToHourWindow(_rateLimitedInLastHour);
     }
   } else if (statusCode >= 200 && statusCode < 300) {
     // Only 2xx counts as "consecutive success". 4xx is a client error
@@ -130,11 +136,7 @@ function recordRequestStatus(statusCode) {
     // Push to the rolling 1-hour window for `requestsAcceptedInLastHour`.
     // Pairs with `rateLimitedInLastHour` so ops can compute the
     // windowed acceptance rate without walking the full Map.
-    _acceptedInLastHour.push(Date.now());
-    const cutoffHour = Date.now() - 3600 * 1000;
-    while (_acceptedInLastHour.length > 0 && _acceptedInLastHour[0] < cutoffHour) {
-      _acceptedInLastHour.shift();
-    }
+    pushToHourWindow(_acceptedInLastHour);
   }
 }
 // Read the version from package.json — single source of truth. Without
