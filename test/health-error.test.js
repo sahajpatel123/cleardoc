@@ -2275,6 +2275,45 @@ test("buildSummary: acceptanceRateInLastHourPretty parses back to within 0.2% of
     `pretty (${prettyPct}%) must be within 0.2% of numeric (${numericPct}%)`);
 });
 
+// ── rateLimitedPretty (iter #150) ────────────────────────────
+
+test("health handler: summary exposes rateLimitedPretty (compact counter)", () => {
+  // Source-pattern: compact formatter for the 429 counter. Three branches:
+  //   - < 1000   → plain integer (e.g. "42")
+  //   - < 1M     → "X.XK" with 1-decimal precision (e.g. "12.3K")
+  //   - ≥ 1M     → "X.XM" with 1-decimal precision (e.g. "1.5M")
+  assert.match(HEALTH_SOURCE, /rateLimitedPretty/,
+    "summary must include rateLimitedPretty field");
+  // Small-count branch
+  assert.match(HEALTH_SOURCE, /n\s*<\s*1000\s*\)\s*return\s*String\(n\)/,
+    "< 1000 → return String(n)");
+  // K-suffix branch
+  assert.match(HEALTH_SOURCE, /n\s*<\s*1000000\s*\)\s*return\s*`\$\{[^}]+\}K`/,
+    "< 1M → K-suffix");
+  // M-suffix branch (final return)
+  assert.match(HEALTH_SOURCE, /return\s*`\$\{[^}]+\}M`/,
+    "≥ 1M → M-suffix");
+  // 1-decimal precision
+  assert.match(HEALTH_SOURCE, /Math\.round\([\s\S]+?\)\s*\*\s*10\s*\)\s*\/\s*10/,
+    "must apply 1-decimal precision rounding");
+});
+
+test("buildSummary: rateLimitedPretty is a string for any counter value", () => {
+  // Behavioral: regardless of underlying counter size, the field
+  // must be a string. We assert type only since the exact string
+  // depends on accumulated 429 count in this suite.
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(typeof r.rateLimitedPretty, "string",
+    "rateLimitedPretty must be a string");
+  // Must end in either a digit (small count) or "K" / "M"
+  assert.match(r.rateLimitedPretty, /^\d+(\.\d+)?[KM]?$/,
+    `rateLimitedPretty must match /\\d+(\\.\\d+)?[KM]?$/; got "${r.rateLimitedPretty}"`);
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.

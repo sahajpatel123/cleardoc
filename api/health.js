@@ -544,6 +544,16 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // 2xx-serving requests) so ops can compute the true reject rate
     // by combining this with `requestsByStatus`.
     rateLimited: _requestsByStatus.get(429) || 0,
+    // Human-readable rate-limited count. Pairs with `rateLimited`
+    // (numeric counter) — this string is for at-a-glance reading
+    // on dashboards. Compact format with K/M suffixes for large
+    // values so a high-volume deployment doesn't show "1234567".
+    rateLimitedPretty: (() => {
+      const n = _requestsByStatus.get(429) || 0;
+      if (n < 1000) return String(n);
+      if (n < 1000000) return `${Math.round((n / 1000) * 10) / 10}K`;
+      return `${Math.round((n / 1000000) * 10) / 10}M`;
+    })(),
     // Rolling 1-hour window of 429 (rate-limit reject) count. Pairs
     // with `rateLimited` (cumulative) to give ops a windowed view:
     // "is the rate-limiter firing RIGHT NOW?" independent of process
