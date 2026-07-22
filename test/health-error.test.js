@@ -2166,6 +2166,41 @@ test("pushToHourWindow: appends timestamp and prunes entries older than 1 hour",
   assert.ok(afterMs >= beforeMs, "wall-clock must advance across the push");
 });
 
+// ── acceptanceRatePretty (iter #147) ─────────────────────────
+
+test("health handler: summary exposes acceptanceRatePretty (human-readable %)", () => {
+  // Source-pattern: human-readable formatter for acceptanceRate.
+  // Mirrors errorBudgetPretty / peakRssMbPretty.
+  assert.match(HEALTH_SOURCE, /acceptanceRatePretty/,
+    "summary must include acceptanceRatePretty field");
+  // "100%" branch for zero-traffic degenerate case
+  assert.match(HEALTH_SOURCE, /return\s*"100%"/,
+    "zero-traffic branch must return literal \"100%\"");
+  // 1-decimal precision via toFixed(1)
+  assert.match(HEALTH_SOURCE, /pct\.toFixed\(1\)/,
+    "non-degenerate branch must format with toFixed(1)");
+  // Suffix literal
+  assert.match(HEALTH_SOURCE, /`\$\{[^}]+\}%`/,
+    "must format with \"%\" suffix");
+});
+
+test("buildSummary: acceptanceRatePretty matches the numeric acceptanceRate", () => {
+  // Cross-check the two representations: the pretty string must
+  // reflect the same value as the numeric struct.
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(typeof r.acceptanceRatePretty, "string",
+    "acceptanceRatePretty must be a string");
+  // The numeric rate × 100 must be ≈ the pretty number (1-decimal).
+  const numericPct = r.acceptanceRate * 100;
+  const prettyPct = parseFloat(r.acceptanceRatePretty);
+  assert.ok(Math.abs(numericPct - prettyPct) < 0.2,
+    `pretty (${prettyPct}%) must be within 0.2% of numeric (${numericPct}%)`);
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.

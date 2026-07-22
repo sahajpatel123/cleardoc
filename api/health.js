@@ -557,6 +557,22 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
       if (total === 0) return 1; // no traffic yet → 100% accepted
       return Math.round((accepted / total) * 10000) / 10000;
     })(),
+    // Human-readable acceptance rate. Pairs with `acceptanceRate`
+    // (numeric, for graphing) — this string is for at-a-glance
+    // reading on dashboards / curl. 1-decimal precision. Returns
+    // "100%" when there has been no traffic (matches the numeric
+    // field's "1 by default" convention).
+    acceptanceRatePretty: (() => {
+      const rateLimited = _requestsByStatus.get(429) || 0;
+      let accepted = 0;
+      for (const [status, count] of _requestsByStatus) {
+        if (status >= 200 && status < 300) accepted += count;
+      }
+      const total = accepted + rateLimited;
+      if (total === 0) return "100%";
+      const pct = Math.round((accepted / total) * 1000) / 10;
+      return `${pct.toFixed(1)}%`;
+    })(),
     // Top 3 status codes by count, sorted desc. Pairs with
     // requestsByStatus (full Map) — the Map is the source of truth
     // for accurate counts; this is the at-a-glance summary for
