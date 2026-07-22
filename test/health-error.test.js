@@ -1831,3 +1831,70 @@ test("buildSummary: anyProviderReachable + allProvidersReachable booleans are co
   assert.equal(r.anyProviderReachable, false);
   assert.equal(r.allProvidersReachable, false);
 });
+
+// ── requestsPerStatusGroup (iter #130, behavioral) ────────────
+
+test("buildSummary: requestsPerStatusGroup buckets statuses correctly by class", () => {
+  // Behavioral verification of the per-status-class grouping. The
+  // summary is derived from `_requestsByStatus` (a module-level Map
+  // populated by `recordRequestStatus`). Inject codes and verify the
+  // delta — exact counts depend on prior tests in the same suite.
+  const { buildSummary, recordRequestStatus } = require("../api/health.js");
+  // Snapshot before
+  const before = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  }).requestsPerStatusGroup;
+  const b2 = before["2xx"], b4 = before["4xx"], b5 = before["5xx"];
+  // Inject: 2× 200, 1× 404, 1× 429, 2× 500, 1× 503 → deltas of
+  // +2 to 2xx, +2 to 4xx, +3 to 5xx. 1xx and 3xx untouched.
+  for (let i = 0; i < 2; i++) recordRequestStatus(200);
+  recordRequestStatus(404);
+  recordRequestStatus(429);
+  for (let i = 0; i < 2; i++) recordRequestStatus(500);
+  recordRequestStatus(503);
+  const after = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  }).requestsPerStatusGroup;
+  // All 5 buckets always present
+  for (const key of ["1xx", "2xx", "3xx", "4xx", "5xx"]) {
+    assert.equal(typeof after[key], "number", `bucket ${key} must be a number`);
+  }
+  assert.equal(after["2xx"] - b2, 2, "two 200s → 2xx delta = 2");
+  assert.equal(after["4xx"] - b4, 2, "404 + 429 → 4xx delta = 2");
+  assert.equal(after["5xx"] - b5, 3, "two 500s + 503 → 5xx delta = 3");
+  assert.equal(after["1xx"], before["1xx"], "no 1xx injected → unchanged");
+  assert.equal(after["3xx"], before["3xx"], "no 3xx injected → unchanged");
+});
+
+test("buildSummary: requestsPerStatusGroup rejects out-of-range codes (recordRequestStatus guard)", () => {
+  // recordRequestStatus silently ignores out-of-range status codes
+  // (Number.isFinite / 100–599 bounds). Verify that invalid codes
+  // do not increment bucket totals.
+  const { buildSummary, recordRequestStatus } = require("../api/health.js");
+  const before = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  }).requestsPerStatusGroup;
+  // These should all be ignored (no status 99, 600, 0, -1, NaN,
+  // Infinity, or string reaches the Map)
+  recordRequestStatus(99);
+  recordRequestStatus(600);
+  recordRequestStatus(0);
+  recordRequestStatus(-1);
+  recordRequestStatus(NaN);
+  recordRequestStatus(Infinity);
+  recordRequestStatus("not-a-number");
+  // Add one valid 201 → exactly +1 to 2xx; nothing else changes
+  recordRequestStatus(201);
+  const after = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  }).requestsPerStatusGroup;
+  assert.equal(after["2xx"] - before["2xx"], 1, "only the 201 should land in 2xx");
+  assert.equal(after["1xx"], before["1xx"], "1xx untouched");
+  assert.equal(after["3xx"], before["3xx"], "3xx untouched");
+  assert.equal(after["4xx"], before["4xx"], "4xx untouched");
+  assert.equal(after["5xx"], before["5xx"], "5xx untouched");
+});
