@@ -371,3 +371,8 @@ module.exports = async function handler(req, res) {
     accessLog(req, res, res.statusCode);
   }
 };
+
+// Pure helper exported for unit testing (test/chat-error.test.js).
+// Extracts the joined text content from a Gemini API response.
+// Returns "" on any malformed/missing input — never throws.
+module.exports.extractGeminiText = extractGeminiText;

@@ -344,3 +344,66 @@ test("chat handler: 415s non-JSON Content-Type before parsing the body", () => {
   assert.match(CHAT_SOURCE, /application\/json\b/i, "must enforce application/json");
   assert.match(CHAT_SOURCE, /json\(res,\s*415/, "must respond 415");
 });
+
+// ── extractGeminiText behavioral (iter #140) ────────────────
+
+test("extractGeminiText: joins text parts from a valid Gemini response", () => {
+  // First code path: data has the canonical Gemini response shape
+  // { candidates: [{ content: { parts: [{ text: "..." }, ...] } }] }.
+  // Multiple parts are joined; non-string part.text values are skipped.
+  const { extractGeminiText } = require("../api/chat.js");
+  const data = {
+    candidates: [
+      {
+        content: {
+          parts: [
+            { text: "Hello, " },
+            { text: "world!" },
+            { text: 42 },                // non-string → skipped
+            { noTextField: "ignored" },  // no .text → skipped
+            { text: "" },                // empty string → contributes nothing
+          ],
+        },
+      },
+    ],
+  };
+  assert.equal(extractGeminiText(data), "Hello, world!",
+    "must join text parts and skip non-string / empty entries");
+});
+
+test("extractGeminiText: returns empty string for malformed input (defensive)", () => {
+  // Second code path: anything that doesn't match the expected shape
+  // returns "" without throwing. The caller treats "" as "no usable
+  // response" and falls through to the OpenRouter fallback.
+  const { extractGeminiText } = require("../api/chat.js");
+  assert.equal(extractGeminiText(null), "", "null → \"\"");
+  assert.equal(extractGeminiText(undefined), "", "undefined → \"\"");
+  assert.equal(extractGeminiText({}), "", "empty object → \"\"");
+  assert.equal(extractGeminiText({ candidates: [] }), "", "empty candidates → \"\"");
+  assert.equal(extractGeminiText({ candidates: [{}] }), "", "candidate without content → \"\"");
+  assert.equal(extractGeminiText({ candidates: [{ content: {} }] }), "",
+    "content without parts → \"\"");
+  assert.equal(extractGeminiText({ candidates: [{ content: { parts: "not array" } }] }), "",
+    "parts not an array → \"\"");
+  // parts is an empty array → "" (Array.isArray passes, map yields [])
+  assert.equal(extractGeminiText({ candidates: [{ content: { parts: [] } }] }), "",
+    "empty parts array → \"\"");
+});
+
+test("extractGeminiText: trims surrounding whitespace from joined output", () => {
+  // The helper applies .trim() on the joined result so callers don't
+  // need to re-trim before using the text. Inner whitespace between
+  // parts is preserved (only outer whitespace is trimmed).
+  const { extractGeminiText } = require("../api/chat.js");
+  const data = {
+    candidates: [
+      { content: { parts: [{ text: "  hello  " }, { text: "  world  " }] } },
+    ],
+  };
+  const result = extractGeminiText(data);
+  // parts: ["  hello  ", "  world  "] → joined: "  hello    world  " → trimmed: "hello    world"
+  assert.equal(result, "hello    world",
+    "must trim outer whitespace only (inner between parts preserved)");
+  // Verify no leading/trailing whitespace
+  assert.equal(result, result.trim(), "result must equal its own trim()");
+});
