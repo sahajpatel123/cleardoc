@@ -407,3 +407,126 @@ test("extractGeminiText: trims surrounding whitespace from joined output", () =>
   // Verify no leading/trailing whitespace
   assert.equal(result, result.trim(), "result must equal its own trim()");
 });
+
+// ── buildPrompt behavioral (iter #141) ───────────────────────
+
+test("buildPrompt: basic structure includes question, document, fileName", () => {
+  // First code path: minimal valid input. The prompt must surface
+  // every input field somewhere in the joined string.
+  const { buildPrompt } = require("../api/chat.js");
+  const result = buildPrompt({
+    question: "What is the termination clause?",
+    document: "This agreement terminates on Dec 31.",
+    rewrite: "The deal ends in December.",
+    risks: [],
+    fileName: "contract.pdf",
+    history: [],
+  });
+  assert.equal(typeof result, "string", "must return a string");
+  assert.ok(result.includes("What is the termination clause?"),
+    "must include the user's question");
+  assert.ok(result.includes("This agreement terminates on Dec 31."),
+    "must include the document text");
+  assert.ok(result.includes("The deal ends in December."),
+    "must include the plain-English rewrite");
+  assert.ok(result.includes("contract.pdf"),
+    "must include the file name when provided");
+  // System prompt header is preserved
+  assert.ok(result.includes("ClearDoc"),
+    "must include the ClearDoc system prompt header");
+});
+
+test("buildPrompt: slices risks to a max of 12 entries", () => {
+  // buildPrompt must cap risks at 12 so a malicious client can't pad
+  // the prompt. With 15 risks, only the first 12 are emitted.
+  const { buildPrompt } = require("../api/chat.js");
+  const manyRisks = Array.from({ length: 15 }, (_, i) => ({
+    label: `R${i + 1}`,
+    reason: `reason-${i + 1}`,
+    sentence: `sentence-${i + 1}`,
+  }));
+  const result = buildPrompt({
+    question: "Q", document: "D", rewrite: "R", risks: manyRisks,
+    fileName: null, history: [],
+  });
+  // Risks 1-12 should appear, 13-15 should NOT
+  assert.ok(result.includes("R12"), "must include risk 12");
+  assert.ok(result.includes("sentence-12"), "must include sentence-12");
+  assert.ok(!result.includes("R13"), "must NOT include risk 13");
+  assert.ok(!result.includes("R15"), "must NOT include risk 15");
+  assert.ok(!result.includes("sentence-15"), "must NOT include sentence-15");
+});
+
+test("buildPrompt: slices history to MAX_HISTORY_TURNS (10) and truncates fields to MAX_HISTORY_FIELD_CHARS (500)", () => {
+  // Prompt-injection defense: cap history turns AND per-field length.
+  const { buildPrompt } = require("../api/chat.js");
+  const manyTurns = Array.from({ length: 15 }, (_, i) => ({
+    q: `Q${i + 1}`,
+    a: "A".repeat(1000) + i,  // 1001-char response, should be truncated to 500
+  }));
+  const result = buildPrompt({
+    question: "latest", document: "D", rewrite: "R", risks: [],
+    fileName: null, history: manyTurns,
+  });
+  // Turns 1-10 should appear, 11-15 should NOT
+  assert.ok(result.includes("Q10"), "must include history turn 10");
+  assert.ok(!result.includes("Q11"), "must NOT include history turn 11");
+  assert.ok(!result.includes("Q15"), "must NOT include history turn 15");
+  // Per-field truncation: each "A" block should be ≤ 500 chars.
+  // The test just checks the marker "AAAA" (4+ chars) is present in
+  // the prompt — proving SOME history made it through — and that the
+  // 1001-char raw value doesn't appear as-is (would need 1001 A's).
+  assert.ok(result.includes("AAAA"), "history content reached the prompt");
+  // Verify by looking for a 500+ char run of A's and a 1001+ char run
+  // of A's — only the former should be present.
+  assert.ok(/(?:A){500,}/.test(result), "must include a 500-char A run (truncation cap)");
+  assert.ok(!(/(?:A){1001,}/.test(result)), "must NOT include a 1001-char A run (cap is 500)");
+});
+
+test("buildPrompt: defensive against malformed / missing inputs", () => {
+  // The function must not throw on missing or wrong-typed fields.
+  // The handler relies on these guards before forwarding user data
+  // to the AI provider.
+  const { buildPrompt } = require("../api/chat.js");
+  // No args at all → must not throw, must return a string
+  const empty = buildPrompt({});
+  assert.equal(typeof empty, "string", "empty input → string");
+  // Non-array risks → empty risk block
+  const noRisks = buildPrompt({
+    question: "Q", document: "D", risks: "not an array",
+    fileName: null, history: [],
+  });
+  assert.equal(typeof noRisks, "string");
+  assert.ok(!noRisks.includes("Source:"), "non-array risks → no risk lines emitted");
+  // Non-array history → empty history block
+  const noHistory = buildPrompt({
+    question: "Q", document: "D", risks: [],
+    fileName: null, history: "not an array",
+  });
+  assert.equal(typeof noHistory, "string");
+  // History with non-string fields → those fields become ""
+  const junkHistory = buildPrompt({
+    question: "Q", document: "D", risks: [],
+    fileName: null, history: [{ q: 42, a: null }, { q: "valid q", a: "valid a" }],
+  });
+  assert.equal(typeof junkHistory, "string");
+  assert.ok(junkHistory.includes("valid q"), "valid history turn must pass through");
+  // The invalid entry is filtered (both q and a are empty after coercion)
+  assert.ok(!junkHistory.includes("Q: \n   A: "), "invalid turn (both fields empty) must be filtered");
+});
+
+test("buildPrompt: fileName omitted → \"Attached file name:\" line is also omitted", () => {
+  // When fileName is null/empty/undefined, the prompt must skip the
+  // "Attached file name:" header entirely (not emit an empty one).
+  const { buildPrompt } = require("../api/chat.js");
+  const noFile = buildPrompt({
+    question: "Q", document: "D", risks: [], fileName: null, history: [],
+  });
+  assert.ok(!noFile.includes("Attached file name:"),
+    "null fileName → no \"Attached file name:\" line");
+  const undefFile = buildPrompt({
+    question: "Q", document: "D", risks: [], history: [],
+  });
+  assert.ok(!undefFile.includes("Attached file name:"),
+    "undefined fileName → no \"Attached file name:\" line");
+});

@@ -376,3 +376,8 @@ module.exports = async function handler(req, res) {
 // Extracts the joined text content from a Gemini API response.
 // Returns "" on any malformed/missing input — never throws.
 module.exports.extractGeminiText = extractGeminiText;
+// Pure helper exported for unit testing. Builds the system + user
+// prompt for the chat handler. Slices risks (max 12) and history
+// (max MAX_HISTORY_TURNS turns, MAX_HISTORY_FIELD_CHARS per field)
+// so a malicious client can't pad the prompt with megabytes of garbage.
+module.exports.buildPrompt = buildPrompt;
