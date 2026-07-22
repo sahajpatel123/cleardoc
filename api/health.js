@@ -664,6 +664,25 @@ module.exports = async function handler(req, res) {
             // Peak RSS seen since process start — lets ops spot memory-leak
             // patterns by graphing this over time.
             peakRssMb: _peakRssMb,
+            // Human-readable peak RSS. Pairs with peakRssMb (numeric,
+            // for graphing) — this one is for at-a-glance reading on
+            // a curl response. Null until the first /api/health
+            // request populates the counter, matching the numeric
+            // field's behavior. Format mirrors processUptimePretty /
+            // startupDurationPretty: B / KB / MB / GB with 1-decimal
+            // precision when ≥ 1 unit.
+            peakRssMbPretty: (() => {
+              if (!_peakRssMb || _peakRssMb <= 0) return null;
+              const bytes = _peakRssMb * 1024 * 1024;
+              if (bytes < 1024) return `${Math.round(bytes)}B`;
+              if (bytes < 1024 * 1024) {
+                return `${Math.round((bytes / 1024) * 10) / 10}KB`;
+              }
+              if (bytes < 1024 * 1024 * 1024) {
+                return `${Math.round((bytes / (1024 * 1024)) * 10) / 10}MB`;
+              }
+              return `${Math.round((bytes / (1024 * 1024 * 1024)) * 10) / 10}GB`;
+            })(),
           };
         })(),
       },

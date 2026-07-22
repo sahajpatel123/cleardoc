@@ -1832,6 +1832,45 @@ test("buildSummary: anyProviderReachable + allProvidersReachable booleans are co
   assert.equal(r.allProvidersReachable, false);
 });
 
+// ── peakRssMbPretty (iter #131) ────────────────────────────────
+
+test("health handler: process.memory exposes peakRssMbPretty (human-readable peak RSS)", () => {
+  // Pairs with peakRssMb (numeric, for graphing). The pretty form
+  // surfaces the same number as a B/KB/MB/GB string for at-a-glance
+  // reading on a curl. Null until the first /api/health request
+  // populates the counter (matches peakRssMb's behavior).
+  assert.match(HEALTH_SOURCE, /peakRssMbPretty/,
+    "process.memory must include peakRssMbPretty field");
+  // Null guard when counter is 0 / unset
+  assert.match(HEALTH_SOURCE, /_peakRssMb\s*<=\s*0\s*\)\s*return\s*null/,
+    "peakRssMbPretty must return null when peakRssMb is 0 / unset");
+  // All 4 unit suffixes present in the branching
+  assert.match(HEALTH_SOURCE, /}B`/,
+    "must format bytes with B suffix");
+  assert.match(HEALTH_SOURCE, /}KB`/,
+    "must format kilobytes with KB suffix");
+  assert.match(HEALTH_SOURCE, /}MB`/,
+    "must format megabytes with MB suffix");
+  assert.match(HEALTH_SOURCE, /}GB`/,
+    "must format gigabytes with GB suffix");
+});
+
+test("health handler: peakRssMbPretty format respects unit threshold (1024-boundary branches)", () => {
+  // Verify the format helper picks the correct unit suffix based on
+  // the byte magnitude. Source-level assertions because _peakRssMb
+  // is populated by the handler's main path and is hard to inject.
+  // Thresholds: < 1024 B → "B", < 1MB → "KB", < 1GB → "MB", else "GB".
+  assert.match(HEALTH_SOURCE, /bytes\s*<\s*1024[^`]*`[^`]*B`/,
+    "< 1024 bytes must use B suffix");
+  assert.match(HEALTH_SOURCE, /bytes\s*<\s*1024\s*\*\s*1024[^`]*`[^`]*KB`/,
+    "< 1 MB must use KB suffix");
+  assert.match(HEALTH_SOURCE, /bytes\s*<\s*1024\s*\*\s*1024\s*\*\s*1024[^`]*`[^`]*MB`/,
+    "< 1 GB must use MB suffix");
+  // 1-decimal precision via Math.round(x * 10) / 10 (one of the branches)
+  assert.match(HEALTH_SOURCE, /Math\.round\([\s\S]*?\)\s*\*\s*10\s*\)\s*\/\s*10/,
+    "must apply 1-decimal rounding on fractional units");
+});
+
 // ── requestsPerStatusGroup (iter #130, behavioral) ────────────
 
 test("buildSummary: requestsPerStatusGroup buckets statuses correctly by class", () => {
