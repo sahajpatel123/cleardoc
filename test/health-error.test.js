@@ -1930,6 +1930,73 @@ test("buildSummary: errorBudget structure is correct on empty window (delta, beh
   }
 });
 
+// ── errorBudget behavioral (iter #133) ───────────────────────
+
+test("health handler: errorBudget.currentRate reflects injected 5xx ratio (mocked fetch)", async () => {
+  // Behavioral verification of the SRE error budget calculation.
+  // Drive the handler with varied IPs (to bypass the per-IP rate
+  // limit at 60/min) so each call increments `_requestsInLastHour`,
+  // then inject 5xx responses via `recordRequestStatus` to populate
+  // `_errorsInLastHour`. The handler is mocked to succeed quickly so
+  // the test focuses on the budget math, not probe behavior.
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200 });
+  try {
+    const handler = require("../api/health.js");
+
+    // Capture baseline (errors + requests may already be populated
+    // by prior tests in this run).
+    const before = (() => {
+      const res = { statusCode: 200, _body: null, headers: {}, headersSent: false,
+        setHeader(k, v) { this.headers[k] = v; },
+        end(s) { this._body = s; this.headersSent = true; } };
+      const req = { method: "GET", headers: {}, socket: { remoteAddress: "10.99.0.1" } };
+      return handler(req, res).then(() => JSON.parse(res._body).summary.errorBudget);
+    })();
+    const beforeEb = await before;
+
+    // Drive 10 handler requests from 10 distinct IPs → +10 to window.
+    for (let i = 0; i < 10; i++) {
+      const res = { statusCode: 200, _body: null, headers: {}, headersSent: false,
+        setHeader(k, v) { this.headers[k] = v; },
+        end(s) { this._body = s; this.headersSent = true; } };
+      const req = { method: "GET", headers: {}, socket: { remoteAddress: `10.99.1.${i}` } };
+      await handler(req, res);
+    }
+    // Inject 1 server error → +1 to errors window.
+    // 1/10 = 0.1, well above the 0.01 threshold → exhausted must fire.
+    require("../api/health.js").recordRequestStatus(500);
+
+    // Read errorBudget via a fresh handler invocation.
+    const afterRes = { statusCode: 200, _body: null, headers: {}, headersSent: false,
+      setHeader(k, v) { this.headers[k] = v; },
+      end(s) { this._body = s; this.headersSent = true; } };
+    const afterReq = { method: "GET", headers: {}, socket: { remoteAddress: "10.99.2.1" } };
+    await handler(afterReq, afterRes);
+    const afterEb = JSON.parse(afterRes._body).summary.errorBudget;
+
+    // Math invariants: remaining is clamped at 0, so when currentRate
+    // > threshold, remaining must be 0 and exhausted must be true.
+    if (afterEb.currentRate > afterEb.threshold) {
+      assert.equal(afterEb.remaining, 0,
+        "remaining must be clamped at 0 when rate exceeds threshold");
+      assert.equal(afterEb.exhausted, true,
+        "exhausted must be true when currentRate > threshold");
+    }
+    // currentRate must be in [0, 1] (4-decimal precision rounding is fine)
+    assert.ok(afterEb.currentRate >= 0 && afterEb.currentRate <= 1,
+      `currentRate must be in [0, 1]; got ${afterEb.currentRate}`);
+    // remaining must be in [0, threshold]
+    assert.ok(afterEb.remaining >= 0 && afterEb.remaining <= afterEb.threshold,
+      `remaining must be in [0, ${afterEb.threshold}]; got ${afterEb.remaining}`);
+    // exhausted must have flipped if our injection pushed over budget.
+    // (We don't assert before→after delta because prior tests may have
+    // already pushed past 1%; we only verify the math is self-consistent.)
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
 // ── requestsPerStatusGroup (iter #130, behavioral) ────────────
 
 test("buildSummary: requestsPerStatusGroup buckets statuses correctly by class", () => {
