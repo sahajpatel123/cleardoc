@@ -1930,6 +1930,52 @@ test("buildSummary: errorBudget structure is correct on empty window (delta, beh
   }
 });
 
+// ── errorBudgetPretty (iter #134) ─────────────────────────────
+
+test("health handler: summary exposes errorBudgetPretty (human-readable error budget)", () => {
+  // Pairs with `errorBudget` (numeric struct, for alerting scripts).
+  // The pretty form is for at-a-glance reading on dashboards.
+  // Three branches: "exhausted" / "100% remaining" / "X.XX% remaining".
+  assert.match(HEALTH_SOURCE, /errorBudgetPretty/,
+    "summary must include errorBudgetPretty field");
+  // "exhausted" branch — must come first so an exhausted budget
+  // doesn't accidentally render as "0.00% remaining".
+  assert.match(HEALTH_SOURCE, /exhausted\s*\)\s*return\s*"exhausted"/,
+    "exhausted branch must return literal \"exhausted\"");
+  // "100% remaining" branch — pristine state when pct rounds to 100.
+  assert.match(HEALTH_SOURCE, /return\s*"100%\s+remaining"/,
+    "zero-error branch must return \"100% remaining\"");
+  // "X.XX% remaining" branch — under-budget with 2-decimal precision.
+  assert.match(HEALTH_SOURCE, /toFixed\(2\)\}[^`]*%\s+remaining/,
+    "under-budget branch must format with toFixed(2) and \"% remaining\"");
+});
+
+test("buildSummary: errorBudgetPretty format is sane on empty window (delta, behavioral)", () => {
+  // Verify the pretty form is a string with one of the three expected
+  // shapes. We don't assert exact equality because the windows
+  // persist across tests, but we do verify the format invariant.
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(typeof r.errorBudgetPretty, "string",
+    "errorBudgetPretty must be a string");
+  // Must be one of: "exhausted", "100% remaining", or "X.XX% remaining"
+  // (where X.XX is 0.00..99.99, possibly with leading/trailing spaces trimmed)
+  const ok = r.errorBudgetPretty === "exhausted"
+    || /^100(\.0+)?%\s+remaining$/.test(r.errorBudgetPretty)
+    || /^\d{1,2}\.\d{2}%\s+remaining$/.test(r.errorBudgetPretty);
+  assert.ok(ok, `errorBudgetPretty must match one of the three formats; got "${r.errorBudgetPretty}"`);
+  // Cross-check with the numeric struct: if exhausted is true, pretty
+  // must be "exhausted". If remaining ≥ 1.0 (rounded), pretty must
+  // be "100% remaining".
+  if (r.errorBudget.exhausted) {
+    assert.equal(r.errorBudgetPretty, "exhausted",
+      "exhausted=true → pretty must be \"exhausted\"");
+  }
+});
+
 // ── errorBudget behavioral (iter #133) ───────────────────────
 
 test("health handler: errorBudget.currentRate reflects injected 5xx ratio (mocked fetch)", async () => {

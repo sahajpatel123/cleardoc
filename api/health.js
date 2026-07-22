@@ -502,6 +502,32 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
         exhausted: _requestsInLastHour.length > 0 && rounded > threshold,
       };
     })(),
+    // Human-readable error budget. Pairs with `errorBudget` (numeric
+    // struct, for alerting scripts) — this string form is for at-a-
+    // glance reading on dashboards / curl. Three branches:
+    //   - "exhausted"        — currentRate > threshold (ops must act)
+    //   - "100% remaining"   — zero errors in window (pristine state)
+    //   - "X.XX% remaining"  — under budget (2-decimal precision)
+    // Mirrors peakRssMbPretty / startupDurationPretty / processUptimePretty.
+    errorBudgetPretty: (() => {
+      const eb = (() => {
+        const threshold = 0.01;
+        const currentRate = _requestsInLastHour.length > 0
+          ? _errorsInLastHour.length / _requestsInLastHour.length
+          : 0;
+        const rounded = Math.round(currentRate * 10000) / 10000;
+        return {
+          threshold,
+          currentRate: rounded,
+          remaining: Math.max(0, Math.round((threshold - rounded) * 10000) / 10000),
+          exhausted: _requestsInLastHour.length > 0 && rounded > threshold,
+        };
+      })();
+      if (eb.exhausted) return "exhausted";
+      const pct = Math.round(eb.remaining * 10000) / 100; // 2-decimal %
+      if (pct >= 100) return "100% remaining";
+      return `${pct.toFixed(2)}% remaining`;
+    })(),
   };
 }
 
