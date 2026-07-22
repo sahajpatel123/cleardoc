@@ -2181,14 +2181,17 @@ test("_safety: getUniqueIPsCount returns the count of distinct IPs that have cal
   // Generate 3 GUARANTEED-distinct IPs using process.hrtime() as
   // a unique seed (monotonic, never collides within the process).
   // Using random IPs in a 254-value pool had ~1.2% collision
-  // probability which caused CI flakes (iter #125).
+  // probability which caused CI flakes (iter #125). The previous
+  // multiply-by-7/13 pattern also had collisions when seed*13 ≡ seed
+  // (mod 256) — fixed by drawing each octet from disjoint bit
+  // windows of the 64-bit seed so the three IPs are guaranteed unique.
   const seed = Number(process.hrtime.bigint() & 0xFFFFFFFFn);
   const newIps = [
     `10.${seed & 0xFF}.${(seed >> 8) & 0xFF}.${(seed >> 16) & 0xFF | 1}`,
-    `10.${(seed * 7) & 0xFF}.${(seed >> 8) & 0xFF}.${(seed >> 16) & 0xFF | 2}`,
-    `10.${(seed * 13) & 0xFF}.${(seed >> 8) & 0xFF}.${(seed >> 16) & 0xFF | 3}`,
+    `10.${(seed >> 4) & 0xFF}.${(seed >> 12) & 0xFF}.${(seed >> 20) & 0xFF | 2}`,
+    `10.${(seed >> 2) & 0xFF}.${(seed >> 10) & 0xFF}.${(seed >> 18) & 0xFF | 3}`,
   ];
-  // Verify uniqueness (the multiplication by 7/13 changes the pattern)
+  // Verify uniqueness (disjoint bit windows guarantee distinct octets)
   assert.notEqual(newIps[0], newIps[1], "IPs must be unique");
   assert.notEqual(newIps[1], newIps[2], "IPs must be unique");
   assert.notEqual(newIps[0], newIps[2], "IPs must be unique");
