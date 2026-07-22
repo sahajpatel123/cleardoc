@@ -508,6 +508,19 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // age. Lets ops alert on spike patterns without computing the
     // window from the cumulative counter.
     rateLimitedInLastHour: _rateLimitedInLastHour.length,
+    // Cumulative 2xx-response count since process start. Pairs with
+    // `rateLimited` (429 count) and `requests` (count of served
+    // requests that pass through) so ops can compute acceptance rate
+    // directly: requestsAccepted / (requestsAccepted + rateLimited).
+    // Note: 2xx-only — 4xx (other than 429) and 5xx are excluded so
+    // this counts "successful responses", not "all responses".
+    requestsAccepted: (() => {
+      let total = 0;
+      for (const [status, count] of _requestsByStatus) {
+        if (status >= 200 && status < 300) total += count;
+      }
+      return total;
+    })(),
     // Top 3 status codes by count, sorted desc. Pairs with
     // requestsByStatus (full Map) — the Map is the source of truth
     // for accurate counts; this is the at-a-glance summary for

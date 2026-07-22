@@ -2019,6 +2019,43 @@ test("buildSummary: rateLimited delta tracks injected 429 count (behavioral)", (
   // (we can only check that the window delta is exactly 5, not >5)
 });
 
+// ── requestsAccepted (iter #143) ──────────────────────────────
+
+test("health handler: summary exposes requestsAccepted (cumulative 2xx count)", () => {
+  // Source-pattern: derived from _requestsByStatus by summing 2xx entries.
+  assert.match(HEALTH_SOURCE, /requestsAccepted/, "summary must include requestsAccepted field");
+  assert.match(HEALTH_SOURCE, /status\s*>=\s*200\s*&&\s*status\s*<\s*300/,
+    "must filter to [200, 300) status range (2xx only)");
+  assert.match(HEALTH_SOURCE, /for\s*\(\s*const\s*\[\s*status\s*,\s*count\s*\]\s*of\s*_requestsByStatus\s*\)/,
+    "must iterate _requestsByStatus entries");
+});
+
+test("buildSummary: requestsAccepted delta tracks injected 2xx codes (behavioral)", () => {
+  // Behavioral: inject N 2xx codes via recordRequestStatus, verify
+  // requestsAccepted increased by N. Also inject some non-2xx codes
+  // and verify they do NOT count.
+  const { buildSummary, recordRequestStatus } = require("../api/health.js");
+  const before = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  }).requestsAccepted;
+  // Inject 2× 200, 1× 201, 1× 204 → +4 to requestsAccepted
+  recordRequestStatus(200);
+  recordRequestStatus(200);
+  recordRequestStatus(201);
+  recordRequestStatus(204);
+  // Inject non-2xx codes that must NOT be counted
+  recordRequestStatus(404);
+  recordRequestStatus(500);
+  recordRequestStatus(429);
+  const after = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  }).requestsAccepted;
+  assert.equal(after - before, 4,
+    "requestsAccepted must increase by exactly 4 (the 2xx codes only)");
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.
