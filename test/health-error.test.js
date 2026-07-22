@@ -2332,6 +2332,38 @@ test("health handler: process.memory exposes peakRssMbAt (peak timestamp)", () =
     "must return null when _peakRssMbAt is 0");
 });
 
+// ── maxHealthDurationPretty (iter #152) ───────────────────────
+
+test("health handler: summary exposes maxHealthDurationPretty (human-readable)", () => {
+  // Source-pattern: pairs with maxHealthDurationMs (numeric) for
+  // at-a-glance reading on dashboards / curl.
+  assert.match(HEALTH_SOURCE, /maxHealthDurationPretty/,
+    "summary must include maxHealthDurationPretty field");
+  // "—" sentinel for the zero-requests-yet case
+  assert.match(HEALTH_SOURCE, /return\s*"—"/,
+    "zero-requests branch must return literal \"—\"");
+  // "ms" branch for sub-second durations
+  assert.match(HEALTH_SOURCE, /ms\s*<\s*1000\s*\)\s*return\s*`\$\{[^}]+\}ms`/,
+    "< 1000ms branch → \"Xms\" suffix");
+  // "s" branch for ≥1s durations with 1-decimal precision
+  assert.match(HEALTH_SOURCE, /Math\.round\([\s\S]+?\)\s*\*\s*10\s*\)\s*\/\s*10[\s\S]+?\}s`/,
+    "≥ 1s branch → 1-decimal precision + \"s\" suffix");
+});
+
+test("buildSummary: maxHealthDurationPretty is a string matching the expected format", () => {
+  // Behavioral: regardless of the underlying counter, the field must
+  // be a string in one of the three valid shapes ("—", "Xms", "X.Xs").
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(typeof r.maxHealthDurationPretty, "string",
+    "maxHealthDurationPretty must be a string");
+  assert.match(r.maxHealthDurationPretty, /^(—|\d+ms|\d+\.\d+s)$/,
+    `must match /^(|\\d+ms|\\d+\\.\\d+s)$/; got "${r.maxHealthDurationPretty}"`);
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.

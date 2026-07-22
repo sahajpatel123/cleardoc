@@ -500,6 +500,16 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // lastHealthDurationMs to detect "health is consistently slow"
     // vs "spike pattern".
     maxHealthDurationMs: _maxHealthDurationMs,
+    // Human-readable peak duration. Pairs with `maxHealthDurationMs`
+    // (numeric, for graphing) — this string is for at-a-glance reading
+    // on dashboards / curl. Format: "Xms" when <1000, "X.Xs" when ≥1s.
+    // 0 (no requests yet) → "—" so dashboards don't render a misleading "0ms".
+    maxHealthDurationPretty: (() => {
+      const ms = _maxHealthDurationMs;
+      if (!ms || ms <= 0) return "—";
+      if (ms < 1000) return `${ms}ms`;
+      return `${Math.round((ms / 1000) * 10) / 10}s`;
+    })(),
     // Unique IPs that have hit this instance. Pairs with `requests` —
     // "100 requests from 1 IP" vs "100 requests from 100 IPs" tells
     // very different stories (single spammer vs distributed traffic).
