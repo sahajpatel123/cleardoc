@@ -2236,6 +2236,45 @@ test("buildSummary: acceptanceRate and computeAcceptanceCounts() are consistent"
     "summary.acceptanceRate must equal helper computation (4-decimal rounded)");
 });
 
+// ── acceptanceRateInLastHour (iter #149) ─────────────────────
+
+test("health handler: summary exposes acceptanceRateInLastHour + Pretty (windowed pair)", () => {
+  // Source-pattern: windowed acceptance rate pair mirroring the lifetime
+  // acceptance trio. Uses _acceptedInLastHour + _rateLimitedInLastHour.
+  assert.match(HEALTH_SOURCE, /acceptanceRateInLastHour/,
+    "summary must include acceptanceRateInLastHour field");
+  assert.match(HEALTH_SOURCE, /acceptanceRateInLastHourPretty/,
+    "summary must include acceptanceRateInLastHourPretty field");
+  // Both fields read from the same window arrays
+  assert.match(HEALTH_SOURCE, /_acceptedInLastHour\.length/,
+    "must read from _acceptedInLastHour.length");
+  assert.match(HEALTH_SOURCE, /_rateLimitedInLastHour\.length/,
+    "must read from _rateLimitedInLastHour.length");
+  // "100%" sentinel for zero-window degenerate case
+  assert.match(HEALTH_SOURCE, /return\s*"100%"/,
+    "pretty branch must return literal \"100%\" when window is empty");
+});
+
+test("buildSummary: acceptanceRateInLastHourPretty parses back to within 0.2% of the numeric", () => {
+  // Behavioral: cross-check the numeric + pretty windowed fields.
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(typeof r.acceptanceRateInLastHour, "number",
+    "acceptanceRateInLastHour must be a number");
+  assert.ok(r.acceptanceRateInLastHour >= 0 && r.acceptanceRateInLastHour <= 1,
+    "must be in [0, 1]");
+  assert.equal(typeof r.acceptanceRateInLastHourPretty, "string",
+    "pretty must be a string");
+  // Cross-check numeric vs pretty
+  const numericPct = r.acceptanceRateInLastHour * 100;
+  const prettyPct = parseFloat(r.acceptanceRateInLastHourPretty);
+  assert.ok(Math.abs(numericPct - prettyPct) < 0.2,
+    `pretty (${prettyPct}%) must be within 0.2% of numeric (${numericPct}%)`);
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.

@@ -555,6 +555,26 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // (429 window) so ops can compute the windowed acceptance rate
     // directly: accepted / (accepted + 429) over the last hour.
     requestsAcceptedInLastHour: _acceptedInLastHour.length,
+    // Windowed acceptance rate over the rolling 1-hour window.
+    // Pairs with `acceptanceRate` (cumulative lifetime) so ops can
+    // detect "is the rejection pattern shifting right now?" —
+    // windowed rate can spike while lifetime rate is still healthy.
+    // Same divide-by-zero guard: returns 1 when no traffic in window.
+    acceptanceRateInLastHour: (() => {
+      const total = _acceptedInLastHour.length + _rateLimitedInLastHour.length;
+      if (total === 0) return 1;
+      return Math.round((_acceptedInLastHour.length / total) * 10000) / 10000;
+    })(),
+    // Human-readable windowed acceptance rate. Mirrors
+    // `acceptanceRatePretty` but uses the 1-hour window instead of
+    // lifetime cumulative. Pairs with `acceptanceRateInLastHour`
+    // (numeric) for at-a-glance reading on dashboards / curl.
+    acceptanceRateInLastHourPretty: (() => {
+      const total = _acceptedInLastHour.length + _rateLimitedInLastHour.length;
+      if (total === 0) return "100%";
+      const pct = Math.round((_acceptedInLastHour.length / total) * 1000) / 10;
+      return `${pct.toFixed(1)}%`;
+    })(),
     // Cumulative 2xx-response count since process start. Pairs with
     // `rateLimited` (429 count) and `requests` (count of served
     // requests that pass through) so ops can compute acceptance rate
