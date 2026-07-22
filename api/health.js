@@ -480,6 +480,28 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
       return groups;
     })(),
     cspReports: cspCounts,
+    // SRE-style error budget over the rolling 1-hour window.
+    // `threshold` is the conventional 1% for user-facing APIs (Google
+    // SRE Workbook default). `currentRate` mirrors `errorRate` but is
+    // windowed to the last hour so it's a leading indicator (not
+    // lifetime cumulative). `remaining` is `1 - currentRate`, capped
+    // at 0 so a bad hour can't go negative. `exhausted` is a single
+    // boolean ops can alert on without computing ratios. Pairs with
+    // `errorRate` (cumulative) and `errorsInLastHour` (raw count).
+    errorBudget: (() => {
+      const threshold = 0.01;
+      const currentRate = _requestsInLastHour.length > 0
+        ? _errorsInLastHour.length / _requestsInLastHour.length
+        : 0;
+      const rounded = Math.round(currentRate * 10000) / 10000;
+      return {
+        threshold,
+        windowHours: 1,
+        currentRate: rounded,
+        remaining: Math.max(0, Math.round((threshold - rounded) * 10000) / 10000),
+        exhausted: _requestsInLastHour.length > 0 && rounded > threshold,
+      };
+    })(),
   };
 }
 

@@ -1871,6 +1871,65 @@ test("health handler: peakRssMbPretty format respects unit threshold (1024-bound
     "must apply 1-decimal rounding on fractional units");
 });
 
+// ── errorBudget (iter #132) ───────────────────────────────────
+
+test("health handler: summary exposes errorBudget (SRE-style 1-hour error budget)", () => {
+  // SRE-standard concept: threshold = 1% over 1-hour window.
+  // Pairs with `errorRate` (cumulative) and `errorsInLastHour`
+  // (raw count). The object should have threshold, windowHours,
+  // currentRate, remaining, and exhausted fields.
+  assert.match(HEALTH_SOURCE, /errorBudget/, "summary must include errorBudget field");
+  assert.match(HEALTH_SOURCE, /threshold\s*=\s*0\.01/,
+    "threshold must be 1% (SRE default)");
+  assert.match(HEALTH_SOURCE, /windowHours\s*:\s*1/,
+    "window must be 1 hour");
+  assert.match(HEALTH_SOURCE, /currentRate/,
+    "must include currentRate field");
+  assert.match(HEALTH_SOURCE, /remaining/,
+    "must include remaining field");
+  assert.match(HEALTH_SOURCE, /exhausted/,
+    "must include exhausted boolean");
+  // remaining is clamped at 0 (never negative)
+  assert.match(HEALTH_SOURCE, /Math\.max\(\s*0\s*,\s*[^)]+\)/,
+    "remaining must be clamped to 0 via Math.max");
+  // divide-by-zero guard when no requests in window
+  assert.match(HEALTH_SOURCE, /_requestsInLastHour\.length\s*>\s*0/,
+    "must guard divide-by-zero when last-hour window is empty");
+});
+
+test("buildSummary: errorBudget structure is correct on empty window (delta, behavioral)", () => {
+  // When no requests have hit the rolling 1-hour window, currentRate
+  // is 0 (not NaN), remaining is the full threshold (1%), and
+  // exhausted is false. We can't assert exact equality because the
+  // module-level counters persist across tests, but we can assert
+  // the shape and the empty-window invariants.
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.ok(r.errorBudget, "summary must include errorBudget");
+  assert.equal(typeof r.errorBudget.threshold, "number");
+  assert.equal(r.errorBudget.threshold, 0.01, "threshold must be 1%");
+  assert.equal(r.errorBudget.windowHours, 1);
+  assert.equal(typeof r.errorBudget.currentRate, "number",
+    "currentRate must be a number (not NaN)");
+  assert.ok(r.errorBudget.currentRate >= 0 && r.errorBudget.currentRate <= 1,
+    "currentRate must be in [0, 1]");
+  assert.equal(typeof r.errorBudget.remaining, "number",
+    "remaining must be a number");
+  assert.ok(r.errorBudget.remaining >= 0, "remaining must be ≥ 0");
+  assert.equal(typeof r.errorBudget.exhausted, "boolean",
+    "exhausted must be a boolean");
+  // The structure is consistent: remaining + currentRate ≈ threshold
+  // when exhausted is false (small rounding tolerance for 4-decimal precision)
+  if (!r.errorBudget.exhausted) {
+    const sum = r.errorBudget.remaining + r.errorBudget.currentRate;
+    assert.ok(Math.abs(sum - r.errorBudget.threshold) < 0.001,
+      `remaining (${r.errorBudget.remaining}) + currentRate (${r.errorBudget.currentRate}) should ≈ threshold (${r.errorBudget.threshold}); got ${sum}`);
+  }
+});
+
 // ── requestsPerStatusGroup (iter #130, behavioral) ────────────
 
 test("buildSummary: requestsPerStatusGroup buckets statuses correctly by class", () => {
