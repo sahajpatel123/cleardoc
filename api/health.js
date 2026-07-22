@@ -477,18 +477,10 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // reject or bad request?" from a single curl. Null until the
     // first 4xx.
     lastClientErrorAt: _lastClientErrorAt ? new Date(_lastClientErrorAt).toISOString() : null,
-    topActiveIPs: getTopActiveIPs(5),
     // Rolling 1-hour 5xx count. Pairs with the cumulative `totalErrors`
     // to give ops a windowed view of recent failures — "are we
     // erroring RIGHT NOW?" independent of process age.
     errorsInLastHour: _errorsInLastHour.length,
-    // Consecutive 2xx-response counter. Direct "are we currently in a
-    // degraded state?" signal — 0 means the most recent successful
-    // response was a 5xx; >0 means we've been healthy for that many
-    // consecutive requests. 4xx is excluded (client error, not server
-    // broken). Useful for ops alerting: "consecutiveSuccesses < N" =
-    // stale healthy state.
-    consecutiveSuccesses: _consecutiveSuccesses,
     // 5xx error rate (totalErrors / requests, 1-decimal precision, 0
     // when no requests yet). Complements the existing `totalErrors`
     // + `requests` fields so ops can read the ratio directly instead

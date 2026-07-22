@@ -1901,6 +1901,76 @@ test("health handler: summary exposes errorBudget (SRE-style 1-hour error budget
     "errorBudget must call computeErrorBudget() helper");
 });
 
+// ── summary duplicate-key guard (iter #137) ──────────────────
+
+test("health handler: buildSummary has no duplicate keys (dead-code detector)", () => {
+  // JavaScript object literals silently override earlier keys when
+  // a later key has the same name. This catches the iter #137 bug
+  // where `consecutiveSuccesses` was declared twice (line 360 + 491).
+  // Approach: scan the source for `^\s*<key>\s*:` patterns within
+  // the buildSummary function, count occurrences, fail on any > 1.
+  const src = require("node:fs").readFileSync(
+    require("node:path").join(__dirname, "../api/health.js"),
+    "utf8"
+  );
+  // Find the buildSummary return-object by scanning for the unique
+  // sentinel `function buildSummary(... {` followed by `return {`
+  // (the first such occurrence, since the helper itself contains no
+  // `return {`).
+  const fnStart = src.indexOf("function buildSummary");
+  if (fnStart === -1) throw new Error("buildSummary not found in source");
+  // Skip past the destructuring argument `{ hasGemini, ... }` so we
+  // start counting braces from the FUNCTION body, not the args object.
+  // Find the first `{` (arg start), walk to its matching `}`, then the
+  // body `{` immediately follows.
+  const argOpen = src.indexOf("{", fnStart);
+  if (argOpen === -1) throw new Error("buildSummary arg brace not found");
+  let argDepth = 1;
+  let argClose = -1;
+  for (let i = argOpen + 1; i < src.length; i++) {
+    const c = src[i];
+    if (c === "{") argDepth += 1;
+    else if (c === "}") { argDepth -= 1; if (argDepth === 0) { argClose = i; break; } }
+  }
+  if (argClose === -1) throw new Error("buildSummary arg close brace not found");
+  // Body opens immediately after `) {` — find the body `{`.
+  const fnOpen = src.indexOf("{", argClose);
+  if (fnOpen === -1) throw new Error("buildSummary body brace not found");
+  // Walk to find the matching close brace of the function body.
+  let depth = 1;
+  let fnEnd = -1;
+  for (let i = fnOpen + 1; i < src.length; i++) {
+    const c = src[i];
+    if (c === "{") depth += 1;
+    else if (c === "}") { depth -= 1; if (depth === 0) { fnEnd = i; break; } }
+  }
+  if (fnEnd === -1) throw new Error("buildSummary close brace not found");
+  const body = src.slice(fnOpen, fnEnd);
+  // Now find `return {` inside this body, brace-counting to its close.
+  const returnStart = body.indexOf("return {");
+  if (returnStart === -1) throw new Error("`return {` not found inside buildSummary body");
+  let rDepth = 1;
+  let returnEnd = -1;
+  for (let i = returnStart + "return {".length; i < body.length; i++) {
+    if (body[i] === "{") rDepth += 1;
+    else if (body[i] === "}") { rDepth -= 1; if (rDepth === 0) { returnEnd = i; break; } }
+  }
+  if (returnEnd === -1) throw new Error("matching `}` not found for return { ... }");
+  const summaryObj = body.slice(returnStart + "return {".length, returnEnd);
+  // Extract top-level keys: 4-space indent, identifier, colon.
+  const keyPattern = /^\s{4}([a-zA-Z_$][\w$]*)\s*:/gm;
+  const seen = new Map();
+  const dupes = [];
+  let m;
+  while ((m = keyPattern.exec(summaryObj)) !== null) {
+    const key = m[1];
+    if (seen.has(key)) dupes.push(key);
+    else seen.set(key, 1);
+  }
+  assert.equal(dupes.length, 0,
+    `buildSummary return-object has duplicate keys (later wins, earlier is dead): ${[...new Set(dupes)].join(", ")}`);
+});
+
 // ── rateLimited / rateLimitedInLastHour (iter #136) ──────────
 
 test("health handler: summary exposes rateLimited + rateLimitedInLastHour (429 tracking)", () => {
