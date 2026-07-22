@@ -2314,6 +2314,24 @@ test("buildSummary: rateLimitedPretty is a string for any counter value", () => 
     `rateLimitedPretty must match /\\d+(\\.\\d+)?[KM]?$/; got "${r.rateLimitedPretty}"`);
 });
 
+// ── peakRssMbAt (iter #151) ──────────────────────────────────
+
+test("health handler: process.memory exposes peakRssMbAt (peak timestamp)", () => {
+  // Pairs with peakRssMb so ops can distinguish "peak hit recently
+  // (potential leak)" from "peak hit long ago (stable)".
+  assert.match(HEALTH_SOURCE, /peakRssMbAt/,
+    "process.memory must include peakRssMbAt field");
+  // Module-level counter
+  assert.match(HEALTH_SOURCE, /let _peakRssMbAt\s*=\s*0/,
+    "_peakRssMbAt must be a module-level counter");
+  // Updated ONLY when peak advances (conditional update, not every request)
+  assert.match(HEALTH_SOURCE, /rssNowMb\s*>\s*_peakRssMb\s*\)\s*\{[\s\S]*?_peakRssMbAt\s*=\s*Date\.now\(\)/,
+    "_peakRssMbAt must be updated only when a new peak is observed");
+  // Null guard when no peak yet
+  assert.match(HEALTH_SOURCE, /_peakRssMbAt\s*\?\s*new Date\(_peakRssMbAt\)\.toISOString\(\)\s*:\s*null/,
+    "must return null when _peakRssMbAt is 0");
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.

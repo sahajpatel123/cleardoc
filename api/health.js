@@ -35,6 +35,11 @@ let _requestsInLastMinute = [];
 // Peak RSS observed since process start. Updated lazily on each request
 // so ops can spot a memory-leak pattern (peak climbing request-over-request).
 let _peakRssMb = 0;
+// Unix-ms timestamp of when the current _peakRssMb was set. Updated
+// only when a new peak is observed, not on every request. Lets ops
+// distinguish "peak hit recently (potential leak in progress)" from
+// "peak hit long ago (stable, just busy once)".
+let _peakRssMbAt = 0;
 // Most recent /api/health request duration (ms) and peak ever. Lets
 // ops spot if the health endpoint itself is degrading — a slow
 // /api/health is a real problem (it's the most-polled endpoint).
@@ -725,7 +730,10 @@ module.exports = async function handler(req, res) {
     // instances frequently so this only matters within a single
     // process lifetime, but the signal is real.
     const rssNowMb = Math.round(process.memoryUsage().rss / 1048576);
-    if (rssNowMb > _peakRssMb) _peakRssMb = rssNowMb;
+    if (rssNowMb > _peakRssMb) {
+      _peakRssMb = rssNowMb;
+      _peakRssMbAt = Date.now();
+    }
 
     const uptimeSec = Math.round((Date.now() - START_TS) / 1000);
     const hasGemini = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY);
@@ -855,6 +863,11 @@ module.exports = async function handler(req, res) {
             // Peak RSS seen since process start — lets ops spot memory-leak
             // patterns by graphing this over time.
             peakRssMb: _peakRssMb,
+            // ISO timestamp of when the current peak was set. Pairs
+            // with peakRssMb so ops can distinguish "peak hit recently
+            // (potential leak in progress)" from "peak hit long ago
+            // (stable, just busy once)". Null until the first peak.
+            peakRssMbAt: _peakRssMbAt ? new Date(_peakRssMbAt).toISOString() : null,
             // Human-readable peak RSS. Pairs with peakRssMb (numeric,
             // for graphing) — this one is for at-a-glance reading on
             // a curl response. Null until the first /api/health
