@@ -2096,6 +2096,40 @@ test("buildSummary: requestsAcceptedInLastHour delta tracks injected 2xx codes (
     "requestsAcceptedInLastHour must increase by exactly 3 (2xx codes only)");
 });
 
+// ── acceptanceRate (iter #145) ───────────────────────────────
+
+test("health handler: summary exposes acceptanceRate (lifetime 2xx / (2xx + 429))", () => {
+  // Source-pattern: derived formula accepted / (accepted + rateLimited),
+  // 4-decimal precision, divide-by-zero guard returns 1.
+  assert.match(HEALTH_SOURCE, /acceptanceRate/,
+    "summary must include acceptanceRate field");
+  assert.match(HEALTH_SOURCE, /accepted\s*\/\s*total/,
+    "must compute accepted / (accepted + rateLimited)");
+  assert.match(HEALTH_SOURCE, /total\s*===\s*0\s*\)\s*return\s*1/,
+    "must guard divide-by-zero with return 1 (100% accepted default)");
+  assert.match(HEALTH_SOURCE, /Math\.round\(\s*\(\s*accepted\s*\/\s*total\s*\)\s*\*\s*10000\s*\)\s*\/\s*10000/,
+    "must apply 4-decimal precision rounding");
+});
+
+test("buildSummary: acceptanceRate is a sane [0, 1] number with 4-decimal precision", () => {
+  // Behavioral: the value must be a number in [0, 1] with at most 4
+  // decimal places. We don't assert exact equality because the Map
+  // is shared across tests, but we verify the structure.
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  const ar = r.acceptanceRate;
+  assert.equal(typeof ar, "number", "acceptanceRate must be a number");
+  assert.ok(ar >= 0 && ar <= 1, `acceptanceRate must be in [0, 1]; got ${ar}`);
+  // 4-decimal precision: the value × 10000 must be an integer (or
+  // essentially equal to one within float epsilon).
+  const scaled = ar * 10000;
+  assert.ok(Math.abs(scaled - Math.round(scaled)) < 1e-6,
+    `acceptanceRate × 10000 must be effectively an integer; got ${scaled}`);
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.

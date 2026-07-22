@@ -539,6 +539,22 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
       }
       return total;
     })(),
+    // Acceptance rate (0..1, 4-decimal precision). Derived from the
+    // cumulative counters so it spans the full process lifetime.
+    // `accepted / (accepted + rateLimited)`. Returns 1 when no
+    // 429s have fired yet (degenerate case — "100% accepted by
+    // default"). Lets ops read the rejection ratio directly without
+    // computing it client-side.
+    acceptanceRate: (() => {
+      const rateLimited = _requestsByStatus.get(429) || 0;
+      let accepted = 0;
+      for (const [status, count] of _requestsByStatus) {
+        if (status >= 200 && status < 300) accepted += count;
+      }
+      const total = accepted + rateLimited;
+      if (total === 0) return 1; // no traffic yet → 100% accepted
+      return Math.round((accepted / total) * 10000) / 10000;
+    })(),
     // Top 3 status codes by count, sorted desc. Pairs with
     // requestsByStatus (full Map) — the Map is the source of truth
     // for accurate counts; this is the at-a-glance summary for
