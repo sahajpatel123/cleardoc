@@ -64,6 +64,11 @@ let _errorsInLastHour = [];
 // ops answer "is the rate-limit firing RIGHT NOW?" independent of
 // process age — pairs with the cumulative `rateLimited` field.
 let _rateLimitedInLastHour = [];
+// Rolling 1-hour window of 2xx (accepted) response timestamps. Lets
+// ops compute the windowed acceptance rate: accepted / (accepted +
+// rateLimited) over the last hour. Pairs with `requestsAccepted`
+// (cumulative) and `rateLimitedInLastHour` (429 window).
+let _acceptedInLastHour = [];
 // Unix-ms timestamp of the most recent 5xx response since process start.
 // Pairs with `totalErrors` (count + recency = actionable signal: "are
 // we erroring RIGHT NOW or just historically?"). 0 until the first 5xx.
@@ -122,6 +127,14 @@ function recordRequestStatus(statusCode) {
     // (rate limit, bad input) — doesn't break the server's healthy
     // streak, but also doesn't extend it (4xx is not a "win").
     _consecutiveSuccesses += 1;
+    // Push to the rolling 1-hour window for `requestsAcceptedInLastHour`.
+    // Pairs with `rateLimitedInLastHour` so ops can compute the
+    // windowed acceptance rate without walking the full Map.
+    _acceptedInLastHour.push(Date.now());
+    const cutoffHour = Date.now() - 3600 * 1000;
+    while (_acceptedInLastHour.length > 0 && _acceptedInLastHour[0] < cutoffHour) {
+      _acceptedInLastHour.shift();
+    }
   }
 }
 // Read the version from package.json — single source of truth. Without
@@ -508,6 +521,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // age. Lets ops alert on spike patterns without computing the
     // window from the cumulative counter.
     rateLimitedInLastHour: _rateLimitedInLastHour.length,
+    // Rolling 1-hour window of 2xx (accepted) count. Pairs with
+    // `requestsAccepted` (cumulative) and `rateLimitedInLastHour`
+    // (429 window) so ops can compute the windowed acceptance rate
+    // directly: accepted / (accepted + 429) over the last hour.
+    requestsAcceptedInLastHour: _acceptedInLastHour.length,
     // Cumulative 2xx-response count since process start. Pairs with
     // `rateLimited` (429 count) and `requests` (count of served
     // requests that pass through) so ops can compute acceptance rate

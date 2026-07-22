@@ -2056,6 +2056,46 @@ test("buildSummary: requestsAccepted delta tracks injected 2xx codes (behavioral
     "requestsAccepted must increase by exactly 4 (the 2xx codes only)");
 });
 
+// ── requestsAcceptedInLastHour (iter #144) ───────────────────
+
+test("health handler: summary exposes requestsAcceptedInLastHour (rolling 2xx count)", () => {
+  // Source-pattern: derived from _acceptedInLastHour.length.
+  assert.match(HEALTH_SOURCE, /requestsAcceptedInLastHour/,
+    "summary must include requestsAcceptedInLastHour field");
+  assert.match(HEALTH_SOURCE, /requestsAcceptedInLastHour\s*:\s*_acceptedInLastHour\.length/,
+    "must read from _acceptedInLastHour.length");
+  assert.match(HEALTH_SOURCE, /let _acceptedInLastHour\s*=\s*\[\]/,
+    "_acceptedInLastHour must be a module-level array");
+  // Push happens inside recordRequestStatus when status is 2xx
+  assert.match(HEALTH_SOURCE, /_acceptedInLastHour\.push\(Date\.now\(\)\)/,
+    "must push Date.now() into _acceptedInLastHour");
+});
+
+test("buildSummary: requestsAcceptedInLastHour delta tracks injected 2xx codes (behavioral)", () => {
+  // Behavioral: inject N 2xx codes via recordRequestStatus, verify
+  // requestsAcceptedInLastHour increased by N. Inject some non-2xx
+  // codes and verify they do NOT count.
+  const { buildSummary, recordRequestStatus } = require("../api/health.js");
+  const before = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  }).requestsAcceptedInLastHour;
+  // Inject 3× 200 → +3 to window
+  recordRequestStatus(200);
+  recordRequestStatus(200);
+  recordRequestStatus(201);
+  // Non-2xx must NOT increment the window
+  recordRequestStatus(404);
+  recordRequestStatus(429);
+  recordRequestStatus(500);
+  const after = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  }).requestsAcceptedInLastHour;
+  assert.equal(after - before, 3,
+    "requestsAcceptedInLastHour must increase by exactly 3 (2xx codes only)");
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.
