@@ -1479,6 +1479,7 @@ module.exports = {
   VALID_VERDICT_LABELS,
   validSeverity,
   validVerdictLabel,
+  clampInt,
   safeParseAnalysisResult,
   safeParseCompactAnalysisResult,
   CHAT_LIMITS,

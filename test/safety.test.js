@@ -2221,3 +2221,54 @@ test("_safety: getTopActiveIPs returns a sorted, capped list of {hash, count} en
   // Top-N is capped at N
   assert.ok(top.length <= 5, "top-N must be capped at N");
 });
+
+// ── clampInt strict validator (iter #142) ───────────────────
+
+test("clampInt: accepts integers within the [min, max] range (inclusive)", () => {
+  // Standard happy path: integers within the inclusive bounds pass through.
+  const { clampInt } = require("../api/_safety.js");
+  assert.equal(clampInt(5, 1, 10), 5, "mid-range integer → returns it");
+  assert.equal(clampInt(1, 1, 10), 1, "min boundary is inclusive");
+  assert.equal(clampInt(10, 1, 10), 10, "max boundary is inclusive");
+  assert.equal(clampInt(0, -5, 5), 0, "zero is valid when in range");
+  assert.equal(clampInt(-3, -5, 5), -3, "negative integers are valid when in range");
+});
+
+test("clampInt: rejects out-of-range integers with null", () => {
+  // Out-of-range returns null — does NOT clamp. STRICT RULE: the
+  // caller must receive null and reject the field, not a silently
+  // clamped value.
+  const { clampInt } = require("../api/_safety.js");
+  assert.equal(clampInt(0, 1, 10), null, "below min → null (not clamped to 1)");
+  assert.equal(clampInt(11, 1, 10), null, "above max → null (not clamped to 10)");
+  assert.equal(clampInt(-100, -5, 5), null, "far below min → null");
+  assert.equal(clampInt(1000, 1, 10), null, "far above max → null");
+});
+
+test("clampInt: rejects non-integer numerics (STRICT — no truncation)", () => {
+  // The docstring says: "5.7 is a schema error, not a quietly rounded 5".
+  // Float / decimal values must return null even when they fit the
+  // range after rounding.
+  const { clampInt } = require("../api/_safety.js");
+  assert.equal(clampInt(5.7, 1, 10), null, "5.7 → null (NOT rounded to 6)");
+  assert.equal(clampInt(5.5, 1, 10), null, "5.5 → null (NOT rounded)");
+  assert.equal(clampInt(5.0, 1, 10), 5, "5.0 → 5 (exact integer as float is valid)");
+  assert.equal(clampInt(0.1, 0, 10), null, "0.1 → null (NOT rounded to 0)");
+  assert.equal(clampInt(-1.5, -10, 10), null, "-1.5 → null (NOT rounded)");
+});
+
+test("clampInt: rejects non-finite and wrong-type inputs", () => {
+  // Defensive guards: NaN, Infinity, strings, null, undefined all
+  // return null without throwing. The handler depends on these
+  // guards before forwarding user data.
+  const { clampInt } = require("../api/_safety.js");
+  assert.equal(clampInt(NaN, 1, 10), null, "NaN → null");
+  assert.equal(clampInt(Infinity, 1, 10), null, "Infinity → null");
+  assert.equal(clampInt(-Infinity, 1, 10), null, "-Infinity → null");
+  assert.equal(clampInt("5", 1, 10), null, "string → null (not coerced)");
+  assert.equal(clampInt(null, 1, 10), null, "null → null");
+  assert.equal(clampInt(undefined, 1, 10), null, "undefined → null");
+  assert.equal(clampInt(true, 1, 10), null, "boolean → null");
+  assert.equal(clampInt([5], 1, 10), null, "array → null");
+  assert.equal(clampInt({ value: 5 }, 1, 10), null, "object → null");
+});
