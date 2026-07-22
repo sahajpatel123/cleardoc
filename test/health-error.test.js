@@ -1901,7 +1901,53 @@ test("health handler: summary exposes errorBudget (SRE-style 1-hour error budget
     "errorBudget must call computeErrorBudget() helper");
 });
 
-// ── computeErrorBudget helper (iter #135) ────────────────────
+// ── rateLimited / rateLimitedInLastHour (iter #136) ──────────
+
+test("health handler: summary exposes rateLimited + rateLimitedInLastHour (429 tracking)", () => {
+  // Surfaces the rate-limit reject signal that was previously buried
+  // in requestsByStatus[429]. The cumulative field reads directly
+  // from _requestsByStatus.get(429); the rolling 1-hour field reads
+  // from a dedicated window populated by recordRequestStatus(429).
+  assert.match(HEALTH_SOURCE, /rateLimited\s*:\s*_requestsByStatus\.get\(429\)/,
+    "rateLimited must read from _requestsByStatus.get(429)");
+  assert.match(HEALTH_SOURCE, /rateLimitedInLastHour\s*:\s*_rateLimitedInLastHour\.length/,
+    "rateLimitedInLastHour must read from _rateLimitedInLastHour.length");
+  // Module-level rolling window
+  assert.match(HEALTH_SOURCE, /let _rateLimitedInLastHour\s*=\s*\[\]/,
+    "_rateLimitedInLastHour must be a module-level array");
+  // Push happens inside recordRequestStatus when statusCode === 429
+  assert.match(HEALTH_SOURCE, /statusCode\s*===\s*429\s*\)\s*\{[\s\S]*?_rateLimitedInLastHour\.push/,
+    "must push to _rateLimitedInLastHour when 429");
+});
+
+test("buildSummary: rateLimited delta tracks injected 429 count (behavioral)", () => {
+  // Behavioral verification: inject N 429 codes via recordRequestStatus,
+  // verify rateLimited increased by N and rateLimitedInLastHour
+  // increased by N (we're in the same 1-hour window).
+  const { buildSummary, recordRequestStatus } = require("../api/health.js");
+  const before = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  const bRate = before.rateLimited;
+  const bWindow = before.rateLimitedInLastHour;
+  // Inject 5 429s
+  for (let i = 0; i < 5; i++) recordRequestStatus(429);
+  // Inject 3 non-429 4xx to verify they do NOT increment the window
+  recordRequestStatus(404);
+  recordRequestStatus(400);
+  recordRequestStatus(403);
+  const after = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(after.rateLimited - bRate, 5,
+    "rateLimited must increase by exactly 5 (one per 429)");
+  assert.equal(after.rateLimitedInLastHour - bWindow, 5,
+    "rateLimitedInLastHour must increase by exactly 5 (one per 429)");
+  // Verify 404/400/403 did NOT pollute the 429-only window
+  // (we can only check that the window delta is exactly 5, not >5)
+});
 
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single

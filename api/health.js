@@ -60,6 +60,10 @@ let _totalErrors = 0;
 // erroring RIGHT NOW?" independent of process age — pairs with the
 // cumulative `totalErrors` field.
 let _errorsInLastHour = [];
+// Rolling 1-hour window of 429 (rate-limit reject) timestamps. Lets
+// ops answer "is the rate-limit firing RIGHT NOW?" independent of
+// process age — pairs with the cumulative `rateLimited` field.
+let _rateLimitedInLastHour = [];
 // Unix-ms timestamp of the most recent 5xx response since process start.
 // Pairs with `totalErrors` (count + recency = actionable signal: "are
 // we erroring RIGHT NOW or just historically?"). 0 until the first 5xx.
@@ -102,6 +106,17 @@ function recordRequestStatus(statusCode) {
     // (5xx) so ops can see the full error timeline from a single
     // curl. Does NOT increment _totalErrors (server is healthy).
     _lastClientErrorAt = Date.now();
+    // 429 specifically is a rate-limit reject — push to the rolling
+    // window so ops can alert on rate-limit pressure without walking
+    // the full status map. Other 4xx (400, 404, etc.) are excluded:
+    // they signal client bugs, not abuse patterns.
+    if (statusCode === 429) {
+      _rateLimitedInLastHour.push(Date.now());
+      const cutoffHour = Date.now() - 3600 * 1000;
+      while (_rateLimitedInLastHour.length > 0 && _rateLimitedInLastHour[0] < cutoffHour) {
+        _rateLimitedInLastHour.shift();
+      }
+    }
   } else if (statusCode >= 200 && statusCode < 300) {
     // Only 2xx counts as "consecutive success". 4xx is a client error
     // (rate limit, bad input) — doesn't break the server's healthy
@@ -487,6 +502,20 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // IP" or "spike in 503s?" is a one-curl check now. Snapshot the Map
     // so callers don't see concurrent mutation mid-iteration.
     requestsByStatus: Object.fromEntries(_requestsByStatus),
+    // Cumulative 429 (rate-limit reject) count since process start.
+    // Pairs with `requestsByStatus[429]` — the Map is the source of
+    // truth but reading a single key client-side requires an extra
+    // step. This surfaces it directly. 0 when no 429s have fired yet.
+    // Note: 429s are NOT counted in `requests` (which only counts
+    // 2xx-serving requests) so ops can compute the true reject rate
+    // by combining this with `requestsByStatus`.
+    rateLimited: _requestsByStatus.get(429) || 0,
+    // Rolling 1-hour window of 429 (rate-limit reject) count. Pairs
+    // with `rateLimited` (cumulative) to give ops a windowed view:
+    // "is the rate-limiter firing RIGHT NOW?" independent of process
+    // age. Lets ops alert on spike patterns without computing the
+    // window from the cumulative counter.
+    rateLimitedInLastHour: _rateLimitedInLastHour.length,
     // Top 3 status codes by count, sorted desc. Pairs with
     // requestsByStatus (full Map) — the Map is the source of truth
     // for accurate counts; this is the at-a-glance summary for
