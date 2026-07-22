@@ -116,6 +116,37 @@ function recordRequestStatus(statusCode) {
 const VERSION = require("../package.json").version;
 const RATE_LIMIT_PER_MINUTE = 60; // health checks can be polled frequently
 const HEALTH_CACHE_MAX_AGE = 5;   // edge-cache TTL on 200 responses
+// SRE-style error budget threshold: 1% over the rolling 1-hour window.
+// Matches the Google SRE Workbook default for user-facing APIs. Centralized
+// here so `computeErrorBudget`, `errorBudgetPretty`, and any future derived
+// field all reference the same constant.
+const ERROR_BUDGET_THRESHOLD = 0.01;
+const ERROR_BUDGET_WINDOW_HOURS = 1;
+
+/* Compute the SRE error budget over the rolling 1-hour window. Returns:
+ *   {
+ *     threshold:    0.01,                  // SRE default
+ *     windowHours:  1,                     // 1h rolling window
+ *     currentRate:  n (0..1, 4-decimal),   // 5xx rate in window
+ *     remaining:    n (0..threshold),      // threshold - currentRate, clamped to 0
+ *     exhausted:    bool,                  // currentRate > threshold AND window non-empty
+ *   }
+ * Pure function — depends only on module-level rolling windows. Single
+ * source of truth for both `summary.errorBudget` (numeric struct) and
+ * `summary.errorBudgetPretty` (human-readable string). */
+function computeErrorBudget() {
+  const currentRate = _requestsInLastHour.length > 0
+    ? _errorsInLastHour.length / _requestsInLastHour.length
+    : 0;
+  const rounded = Math.round(currentRate * 10000) / 10000;
+  return {
+    threshold: ERROR_BUDGET_THRESHOLD,
+    windowHours: ERROR_BUDGET_WINDOW_HOURS,
+    currentRate: rounded,
+    remaining: Math.max(0, Math.round((ERROR_BUDGET_THRESHOLD - rounded) * 10000) / 10000),
+    exhausted: _requestsInLastHour.length > 0 && rounded > ERROR_BUDGET_THRESHOLD,
+  };
+}
 
 /* Set the standard /api/health 200 response headers. Shared between the
  * GET path (sendOkCached) and the HEAD path (inline), so future header
@@ -488,20 +519,9 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // at 0 so a bad hour can't go negative. `exhausted` is a single
     // boolean ops can alert on without computing ratios. Pairs with
     // `errorRate` (cumulative) and `errorsInLastHour` (raw count).
-    errorBudget: (() => {
-      const threshold = 0.01;
-      const currentRate = _requestsInLastHour.length > 0
-        ? _errorsInLastHour.length / _requestsInLastHour.length
-        : 0;
-      const rounded = Math.round(currentRate * 10000) / 10000;
-      return {
-        threshold,
-        windowHours: 1,
-        currentRate: rounded,
-        remaining: Math.max(0, Math.round((threshold - rounded) * 10000) / 10000),
-        exhausted: _requestsInLastHour.length > 0 && rounded > threshold,
-      };
-    })(),
+    // Computation lives in `computeErrorBudget()` (single source of
+    // truth, shared with `errorBudgetPretty`).
+    errorBudget: computeErrorBudget(),
     // Human-readable error budget. Pairs with `errorBudget` (numeric
     // struct, for alerting scripts) — this string form is for at-a-
     // glance reading on dashboards / curl. Three branches:
@@ -510,19 +530,7 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     //   - "X.XX% remaining"  — under budget (2-decimal precision)
     // Mirrors peakRssMbPretty / startupDurationPretty / processUptimePretty.
     errorBudgetPretty: (() => {
-      const eb = (() => {
-        const threshold = 0.01;
-        const currentRate = _requestsInLastHour.length > 0
-          ? _errorsInLastHour.length / _requestsInLastHour.length
-          : 0;
-        const rounded = Math.round(currentRate * 10000) / 10000;
-        return {
-          threshold,
-          currentRate: rounded,
-          remaining: Math.max(0, Math.round((threshold - rounded) * 10000) / 10000),
-          exhausted: _requestsInLastHour.length > 0 && rounded > threshold,
-        };
-      })();
+      const eb = computeErrorBudget();
       if (eb.exhausted) return "exhausted";
       const pct = Math.round(eb.remaining * 10000) / 100; // 2-decimal %
       if (pct >= 100) return "100% remaining";
@@ -884,4 +892,5 @@ module.exports = async function handler(req, res) {
 // properties is harmless (the runtime reads module.exports as a function).
 module.exports.buildSummary = buildSummary;
 module.exports.computeHealthEtag = computeHealthEtag;
+module.exports.computeErrorBudget = computeErrorBudget;
 module.exports.recordRequestStatus = recordRequestStatus;

@@ -1879,8 +1879,9 @@ test("health handler: summary exposes errorBudget (SRE-style 1-hour error budget
   // (raw count). The object should have threshold, windowHours,
   // currentRate, remaining, and exhausted fields.
   assert.match(HEALTH_SOURCE, /errorBudget/, "summary must include errorBudget field");
-  assert.match(HEALTH_SOURCE, /threshold\s*=\s*0\.01/,
-    "threshold must be 1% (SRE default)");
+  // Threshold is centralized as ERROR_BUDGET_THRESHOLD constant (iter #135 refactor)
+  assert.match(HEALTH_SOURCE, /ERROR_BUDGET_THRESHOLD\s*=\s*0\.01/,
+    "threshold constant must be 1% (SRE default)");
   assert.match(HEALTH_SOURCE, /windowHours\s*:\s*1/,
     "window must be 1 hour");
   assert.match(HEALTH_SOURCE, /currentRate/,
@@ -1895,38 +1896,50 @@ test("health handler: summary exposes errorBudget (SRE-style 1-hour error budget
   // divide-by-zero guard when no requests in window
   assert.match(HEALTH_SOURCE, /_requestsInLastHour\.length\s*>\s*0/,
     "must guard divide-by-zero when last-hour window is empty");
+  // Single source of truth: helper is referenced by both fields (iter #135)
+  assert.match(HEALTH_SOURCE, /errorBudget:\s*computeErrorBudget\(\)/,
+    "errorBudget must call computeErrorBudget() helper");
 });
 
-test("buildSummary: errorBudget structure is correct on empty window (delta, behavioral)", () => {
-  // When no requests have hit the rolling 1-hour window, currentRate
-  // is 0 (not NaN), remaining is the full threshold (1%), and
-  // exhausted is false. We can't assert exact equality because the
-  // module-level counters persist across tests, but we can assert
-  // the shape and the empty-window invariants.
-  const { buildSummary } = require("../api/health.js");
-  const r = buildSummary({
+// ── computeErrorBudget helper (iter #135) ────────────────────
+
+test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
+  // After the iter #135 refactor, computeErrorBudget is the single
+  // source of truth for both summary.errorBudget and summary.errorBudgetPretty.
+  // Verify the helper is exported and returns the same shape as the
+  // summary field.
+  const { computeErrorBudget } = require("../api/health.js");
+  assert.equal(typeof computeErrorBudget, "function",
+    "computeErrorBudget must be exported as a function");
+  const eb = computeErrorBudget();
+  assert.equal(typeof eb, "object", "helper must return an object");
+  for (const k of ["threshold", "windowHours", "currentRate", "remaining", "exhausted"]) {
+    assert.ok(k in eb, `helper must include ${k} field`);
+  }
+  // threshold must match the SRE default (1%)
+  assert.equal(eb.threshold, 0.01);
+  // windowHours must be 1 (matches the rolling 1-hour window)
+  assert.equal(eb.windowHours, 1);
+  // currentRate must be in [0, 1]
+  assert.ok(eb.currentRate >= 0 && eb.currentRate <= 1);
+  // remaining must be in [0, threshold]
+  assert.ok(eb.remaining >= 0 && eb.remaining <= eb.threshold);
+  // exhausted must be a boolean
+  assert.equal(typeof eb.exhausted, "boolean");
+});
+
+test("buildSummary: errorBudget and computeErrorBudget() return equivalent values", () => {
+  // The summary field must call the helper (not reimplement the math).
+  // If they ever drift, this test will catch it.
+  const { computeErrorBudget, buildSummary } = require("../api/health.js");
+  const helper = computeErrorBudget();
+  const summary = buildSummary({
     hasGemini: false, hasOpenRouter: false,
     geminiProbe: null, openRouterProbe: null,
-  });
-  assert.ok(r.errorBudget, "summary must include errorBudget");
-  assert.equal(typeof r.errorBudget.threshold, "number");
-  assert.equal(r.errorBudget.threshold, 0.01, "threshold must be 1%");
-  assert.equal(r.errorBudget.windowHours, 1);
-  assert.equal(typeof r.errorBudget.currentRate, "number",
-    "currentRate must be a number (not NaN)");
-  assert.ok(r.errorBudget.currentRate >= 0 && r.errorBudget.currentRate <= 1,
-    "currentRate must be in [0, 1]");
-  assert.equal(typeof r.errorBudget.remaining, "number",
-    "remaining must be a number");
-  assert.ok(r.errorBudget.remaining >= 0, "remaining must be ≥ 0");
-  assert.equal(typeof r.errorBudget.exhausted, "boolean",
-    "exhausted must be a boolean");
-  // The structure is consistent: remaining + currentRate ≈ threshold
-  // when exhausted is false (small rounding tolerance for 4-decimal precision)
-  if (!r.errorBudget.exhausted) {
-    const sum = r.errorBudget.remaining + r.errorBudget.currentRate;
-    assert.ok(Math.abs(sum - r.errorBudget.threshold) < 0.001,
-      `remaining (${r.errorBudget.remaining}) + currentRate (${r.errorBudget.currentRate}) should ≈ threshold (${r.errorBudget.threshold}); got ${sum}`);
+  }).errorBudget;
+  for (const k of ["threshold", "windowHours", "currentRate", "remaining", "exhausted"]) {
+    assert.equal(summary[k], helper[k],
+      `summary.errorBudget.${k} must match computeErrorBudget().${k}`);
   }
 });
 
