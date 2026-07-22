@@ -153,6 +153,33 @@ const HEALTH_CACHE_MAX_AGE = 5;   // edge-cache TTL on 200 responses
 const ERROR_BUDGET_THRESHOLD = 0.01;
 const ERROR_BUDGET_WINDOW_HOURS = 1;
 
+/* Compute the cumulative acceptance counts by walking _requestsByStatus
+ * once. Returns:
+ *   {
+ *     accepted:    n,   // 2xx count (sum of all 200..299 entries)
+ *     rateLimited: n,   // 429 count (single entry from the Map)
+ *   }
+ * Single source of truth for `summary.acceptanceRate` and
+ * `summary.acceptanceRatePretty`. Both fields call this helper so the
+ * Map traversal and status-class filter live in one place. */
+/* Compute the cumulative acceptance counts by walking _requestsByStatus
+ * once. Returns:
+ *   {
+ *     accepted:    n,   // 2xx count (sum of all 200..299 entries)
+ *     rateLimited: n,   // 429 count (single entry from the Map)
+ *   }
+ * Single source of truth for `summary.acceptanceRate` and
+ * `summary.acceptanceRatePretty`. Both fields call this helper so the
+ * Map traversal and status-class filter live in one place. */
+function computeAcceptanceCounts() {
+  const rateLimited = _requestsByStatus.get(429) || 0;
+  let accepted = 0;
+  for (const [status, count] of _requestsByStatus) {
+    if (status >= 200 && status < 300) accepted += count;
+  }
+  return { accepted, rateLimited };
+}
+
 /* Compute the SRE error budget over the rolling 1-hour window. Returns:
  *   {
  *     threshold:    0.01,                  // SRE default
@@ -548,11 +575,7 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // default"). Lets ops read the rejection ratio directly without
     // computing it client-side.
     acceptanceRate: (() => {
-      const rateLimited = _requestsByStatus.get(429) || 0;
-      let accepted = 0;
-      for (const [status, count] of _requestsByStatus) {
-        if (status >= 200 && status < 300) accepted += count;
-      }
+      const { accepted, rateLimited } = computeAcceptanceCounts();
       const total = accepted + rateLimited;
       if (total === 0) return 1; // no traffic yet → 100% accepted
       return Math.round((accepted / total) * 10000) / 10000;
@@ -563,11 +586,7 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // "100%" when there has been no traffic (matches the numeric
     // field's "1 by default" convention).
     acceptanceRatePretty: (() => {
-      const rateLimited = _requestsByStatus.get(429) || 0;
-      let accepted = 0;
-      for (const [status, count] of _requestsByStatus) {
-        if (status >= 200 && status < 300) accepted += count;
-      }
+      const { accepted, rateLimited } = computeAcceptanceCounts();
       const total = accepted + rateLimited;
       if (total === 0) return "100%";
       const pct = Math.round((accepted / total) * 1000) / 10;
@@ -979,4 +998,5 @@ module.exports = async function handler(req, res) {
 module.exports.buildSummary = buildSummary;
 module.exports.computeHealthEtag = computeHealthEtag;
 module.exports.computeErrorBudget = computeErrorBudget;
+module.exports.computeAcceptanceCounts = computeAcceptanceCounts;
 module.exports.recordRequestStatus = recordRequestStatus;

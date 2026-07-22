@@ -2201,6 +2201,41 @@ test("buildSummary: acceptanceRatePretty matches the numeric acceptanceRate", ()
     `pretty (${prettyPct}%) must be within 0.2% of numeric (${numericPct}%)`);
 });
 
+// ── computeAcceptanceCounts helper (iter #148) ────────────────
+
+test("computeAcceptanceCounts: helper is exported and returns accepted + rateLimited", () => {
+  // After the iter #148 refactor, computeAcceptanceCounts is the
+  // single source of truth for both acceptanceRate and acceptanceRatePretty.
+  const { computeAcceptanceCounts } = require("../api/health.js");
+  assert.equal(typeof computeAcceptanceCounts, "function",
+    "computeAcceptanceCounts must be exported as a function");
+  const counts = computeAcceptanceCounts();
+  assert.equal(typeof counts, "object");
+  assert.equal(typeof counts.accepted, "number",
+    "counts.accepted must be a number");
+  assert.equal(typeof counts.rateLimited, "number",
+    "counts.rateLimited must be a number");
+  assert.ok(counts.accepted >= 0 && counts.rateLimited >= 0,
+    "counts must be non-negative");
+});
+
+test("buildSummary: acceptanceRate and computeAcceptanceCounts() are consistent", () => {
+  // The summary field must call the helper (not reimplement the math).
+  // If they ever drift, this test will catch it.
+  const { computeAcceptanceCounts, buildSummary } = require("../api/health.js");
+  const counts = computeAcceptanceCounts();
+  const summary = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  // Verify the rate field reflects the helper's accepted / (accepted + rateLimited).
+  const expectedRate = (counts.accepted + counts.rateLimited) === 0
+    ? 1
+    : counts.accepted / (counts.accepted + counts.rateLimited);
+  assert.equal(summary.acceptanceRate, Math.round(expectedRate * 10000) / 10000,
+    "summary.acceptanceRate must equal helper computation (4-decimal rounded)");
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.
