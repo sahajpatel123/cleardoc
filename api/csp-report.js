@@ -170,3 +170,8 @@ module.exports = async function handler(req, res) {
     accessLog(req, res, res.statusCode);
   }
 };
+
+// Helpers exported for unit testing (test/csp-report-error.test.js).
+// Pure functions — safe to expose externally for behavior assertions.
+module.exports.extractViolations = extractViolations;
+module.exports.sanitizeUrl = sanitizeUrl;

@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "npm run test:unit && npm run test:smoke && npm run test:integration",
-    "test:unit": "node --test test/safety.test.js test/analyze-schema.test.js test/chat-schema.test.js test/analyze-error.test.js test/chat-error.test.js test/health-error.test.js",
+    "test:unit": "node --test test/safety.test.js test/analyze-schema.test.js test/chat-schema.test.js test/analyze-error.test.js test/chat-error.test.js test/health-error.test.js test/csp-report-error.test.js",
     "test:smoke": "node --test test/smoke.test.js",
     "test:integration": "node test/integration.test.js",
     "syntax": "node -e \"const f=require('node:fs');['assets/app.js','api/_safety.js','api/analyze.js','api/chat.js','api/health.js','api/csp-report.js','assets/pdfjs-bootstrap.js'].forEach(p=>{require('node:child_process').execSync('node --check '+p,{stdio:'inherit'});})\"",

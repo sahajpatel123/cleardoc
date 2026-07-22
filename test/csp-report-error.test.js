@@ -342,3 +342,92 @@ test("csp-report: handler returns 204 + sets X-CSP-Reports-Processed-Total on va
   const counts = getCspReportCounts();
   assert.ok(counts.total >= 1, "getCspReportCounts.total must reflect the recorded report");
 });
+
+// ── extractViolations + sanitizeUrl behavioral (iter #138) ───
+
+test("extractViolations: handles legacy csp-report envelope (single violation)", () => {
+  // Behavioral verification of the legacy CSP Level 3 format. The
+  // function must return an array containing the single violation
+  // object (not nested under the envelope key).
+  const { extractViolations } = require("../api/csp-report.js");
+  const body = {
+    "csp-report": {
+      "document-uri": "https://example.com/page",
+      "violated-directive": "script-src",
+      "blocked-uri": "https://evil.com/bad.js",
+    },
+  };
+  const result = extractViolations(body);
+  assert.ok(Array.isArray(result), "must return an array");
+  assert.equal(result.length, 1, "legacy envelope must yield exactly one violation");
+  assert.equal(result[0]["violated-directive"], "script-src",
+    "must surface the inner violation's directive");
+});
+
+test("extractViolations: handles modern Reporting API reports array (multi-violation)", () => {
+  // Behavioral verification of the newer Reporting API shape. The
+  // function must filter out entries without a body, map each into
+  // the inner body, and preserve the type field.
+  const { extractViolations } = require("../api/csp-report.js");
+  const body = {
+    reports: [
+      { type: "csp-violation", body: { "violated-directive": "script-src" } },
+      { type: "csp-violation", body: { "violated-directive": "style-src" } },
+      { type: "other-type", body: null }, // must be filtered out
+      { type: "csp-violation" },           // no body → must be filtered
+    ],
+  };
+  const result = extractViolations(body);
+  assert.equal(result.length, 2, "must filter out entries with null/missing body");
+  assert.equal(result[0].type, "csp-violation", "must preserve the report type");
+  assert.equal(result[0]["violated-directive"], "script-src");
+  assert.equal(result[1]["violated-directive"], "style-src");
+});
+
+test("extractViolations: returns empty array for malformed/empty bodies", () => {
+  // Defensive: never throw on bad input. Always return [] so the
+  // handler can iterate safely.
+  const { extractViolations } = require("../api/csp-report.js");
+  assert.deepEqual(extractViolations(null), [], "null body → []");
+  assert.deepEqual(extractViolations(undefined), [], "undefined body → []");
+  assert.deepEqual(extractViolations("not an object"), [], "string body → []");
+  assert.deepEqual(extractViolations({}), [], "empty object → []");
+  assert.deepEqual(extractViolations({ "csp-report": "not an object" }), [],
+    "malformed csp-report value → []");
+  assert.deepEqual(extractViolations({ reports: "not an array" }), [],
+    "malformed reports value → []");
+});
+
+test("sanitizeUrl: strips query string + hash to neutralize PII leakage", () => {
+  // The blocked URL can carry session tokens / API keys in the query
+  // string. sanitizeUrl must strip everything from '?' onwards so
+  // operator-visible logs never see the secrets.
+  const { sanitizeUrl } = require("../api/csp-report.js");
+  // Standard case: query string stripped, path preserved
+  assert.equal(
+    sanitizeUrl("https://example.com/path?token=abc123&secret=xyz"),
+    "https://example.com/path",
+    "must strip query string"
+  );
+  // Hash stripped
+  assert.equal(
+    sanitizeUrl("https://example.com/page#section"),
+    "https://example.com/page",
+    "must strip hash fragment"
+  );
+  // Both query + hash stripped
+  assert.equal(
+    sanitizeUrl("https://example.com/page?token=abc#main"),
+    "https://example.com/page",
+    "must strip both query and hash"
+  );
+  // No query / hash → URL passes through unchanged
+  assert.equal(
+    sanitizeUrl("https://example.com/path"),
+    "https://example.com/path",
+    "URL without query/hash must pass through"
+  );
+  // Empty / invalid input → returns "(none)" sentinel (logged as a placeholder)
+  assert.equal(sanitizeUrl(""), "(none)", "empty string → \"(none)\" sentinel");
+  assert.equal(sanitizeUrl(null), "(none)", "null → \"(none)\" sentinel (no crash)");
+});
