@@ -185,6 +185,19 @@ function computeAcceptanceCounts() {
   return { accepted, rateLimited };
 }
 
+/* Format an acceptance ratio from accepted + rateLimited counts.
+ * Returns both the numeric (4-decimal precision) and pretty
+ * ("X.X%" / "100%") forms so the lifetime and windowed pairs both
+ * compute their formats from the same source. Degenerate case:
+ * total === 0 → rate = 1, ratePretty = "100%". */
+function formatAcceptanceRate(accepted, rateLimited) {
+  const total = accepted + rateLimited;
+  if (total === 0) return { rate: 1, ratePretty: "100%" };
+  const numeric = Math.round((accepted / total) * 10000) / 10000;
+  const pct = Math.round((accepted / total) * 1000) / 10;
+  return { rate: numeric, ratePretty: `${pct.toFixed(1)}%` };
+}
+
 /* Compute the SRE error budget over the rolling 1-hour window. Returns:
  *   {
  *     threshold:    0.01,                  // SRE default
@@ -584,22 +597,20 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Pairs with `acceptanceRate` (cumulative lifetime) so ops can
     // detect "is the rejection pattern shifting right now?" —
     // windowed rate can spike while lifetime rate is still healthy.
-    // Same divide-by-zero guard: returns 1 when no traffic in window.
-    acceptanceRateInLastHour: (() => {
-      const total = _acceptedInLastHour.length + _rateLimitedInLastHour.length;
-      if (total === 0) return 1;
-      return Math.round((_acceptedInLastHour.length / total) * 10000) / 10000;
-    })(),
+    // Both numeric + pretty come from formatAcceptanceRate() so the
+    // windowed / lifetime pairs stay in sync.
+    acceptanceRateInLastHour: formatAcceptanceRate(
+      _acceptedInLastHour.length,
+      _rateLimitedInLastHour.length
+    ).rate,
     // Human-readable windowed acceptance rate. Mirrors
     // `acceptanceRatePretty` but uses the 1-hour window instead of
     // lifetime cumulative. Pairs with `acceptanceRateInLastHour`
     // (numeric) for at-a-glance reading on dashboards / curl.
-    acceptanceRateInLastHourPretty: (() => {
-      const total = _acceptedInLastHour.length + _rateLimitedInLastHour.length;
-      if (total === 0) return "100%";
-      const pct = Math.round((_acceptedInLastHour.length / total) * 1000) / 10;
-      return `${pct.toFixed(1)}%`;
-    })(),
+    acceptanceRateInLastHourPretty: formatAcceptanceRate(
+      _acceptedInLastHour.length,
+      _rateLimitedInLastHour.length
+    ).ratePretty,
     // Cumulative 2xx-response count since process start. Pairs with
     // `rateLimited` (429 count) and `requests` (count of served
     // requests that pass through) so ops can compute acceptance rate
@@ -618,12 +629,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // `accepted / (accepted + rateLimited)`. Returns 1 when no
     // 429s have fired yet (degenerate case — "100% accepted by
     // default"). Lets ops read the rejection ratio directly without
-    // computing it client-side.
+    // computing it client-side. Numeric + pretty come from the same
+    // helper so they can never drift.
     acceptanceRate: (() => {
       const { accepted, rateLimited } = computeAcceptanceCounts();
-      const total = accepted + rateLimited;
-      if (total === 0) return 1; // no traffic yet → 100% accepted
-      return Math.round((accepted / total) * 10000) / 10000;
+      return formatAcceptanceRate(accepted, rateLimited).rate;
     })(),
     // Human-readable acceptance rate. Pairs with `acceptanceRate`
     // (numeric, for graphing) — this string is for at-a-glance
@@ -632,10 +642,7 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // field's "1 by default" convention).
     acceptanceRatePretty: (() => {
       const { accepted, rateLimited } = computeAcceptanceCounts();
-      const total = accepted + rateLimited;
-      if (total === 0) return "100%";
-      const pct = Math.round((accepted / total) * 1000) / 10;
-      return `${pct.toFixed(1)}%`;
+      return formatAcceptanceRate(accepted, rateLimited).ratePretty;
     })(),
     // Top 3 status codes by count, sorted desc. Pairs with
     // requestsByStatus (full Map) — the Map is the source of truth
@@ -1052,4 +1059,5 @@ module.exports.buildSummary = buildSummary;
 module.exports.computeHealthEtag = computeHealthEtag;
 module.exports.computeErrorBudget = computeErrorBudget;
 module.exports.computeAcceptanceCounts = computeAcceptanceCounts;
+module.exports.formatAcceptanceRate = formatAcceptanceRate;
 module.exports.recordRequestStatus = recordRequestStatus;

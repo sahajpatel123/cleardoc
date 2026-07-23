@@ -2105,15 +2105,17 @@ test("buildSummary: requestsAcceptedInLastHour delta tracks injected 2xx codes (
 
 test("health handler: summary exposes acceptanceRate (lifetime 2xx / (2xx + 429))", () => {
   // Source-pattern: derived formula accepted / (accepted + rateLimited),
-  // 4-decimal precision, divide-by-zero guard returns 1.
+  // 4-decimal precision, divide-by-zero guard returns 1. After iter
+  // #153 the math lives in formatAcceptanceRate() helper — verify
+  // it's called from the summary field.
   assert.match(HEALTH_SOURCE, /acceptanceRate/,
     "summary must include acceptanceRate field");
-  assert.match(HEALTH_SOURCE, /accepted\s*\/\s*total/,
-    "must compute accepted / (accepted + rateLimited)");
-  assert.match(HEALTH_SOURCE, /total\s*===\s*0\s*\)\s*return\s*1/,
-    "must guard divide-by-zero with return 1 (100% accepted default)");
-  assert.match(HEALTH_SOURCE, /Math\.round\(\s*\(\s*accepted\s*\/\s*total\s*\)\s*\*\s*10000\s*\)\s*\/\s*10000/,
-    "must apply 4-decimal precision rounding");
+  assert.match(HEALTH_SOURCE, /acceptanceRate:\s*\(\(\)\s*=>[\s\S]{0,200}?formatAcceptanceRate/,
+    "summary.acceptanceRate must call formatAcceptanceRate() helper");
+  assert.match(HEALTH_SOURCE, /function formatAcceptanceRate[\s\S]+?total\s*===\s*0\s*\)\s*return\s*\{[^}]*1/,
+    "formatAcceptanceRate must guard divide-by-zero with rate: 1");
+  assert.match(HEALTH_SOURCE, /formatAcceptanceRate[\s\S]+?Math\.round\([\s\S]+?\)\s*\*\s*10000\s*\)\s*\/\s*10000/,
+    "formatAcceptanceRate must apply 4-decimal precision");
 });
 
 test("buildSummary: acceptanceRate is a sane [0, 1] number with 4-decimal precision", () => {
@@ -2170,18 +2172,15 @@ test("pushToHourWindow: appends timestamp and prunes entries older than 1 hour",
 
 test("health handler: summary exposes acceptanceRatePretty (human-readable %)", () => {
   // Source-pattern: human-readable formatter for acceptanceRate.
-  // Mirrors errorBudgetPretty / peakRssMbPretty.
+  // After iter #153 the format lives in formatAcceptanceRate() helper.
   assert.match(HEALTH_SOURCE, /acceptanceRatePretty/,
     "summary must include acceptanceRatePretty field");
-  // "100%" branch for zero-traffic degenerate case
-  assert.match(HEALTH_SOURCE, /return\s*"100%"/,
-    "zero-traffic branch must return literal \"100%\"");
-  // 1-decimal precision via toFixed(1)
-  assert.match(HEALTH_SOURCE, /pct\.toFixed\(1\)/,
-    "non-degenerate branch must format with toFixed(1)");
-  // Suffix literal
-  assert.match(HEALTH_SOURCE, /`\$\{[^}]+\}%`/,
-    "must format with \"%\" suffix");
+  assert.match(HEALTH_SOURCE, /acceptanceRatePretty:\s*\(\(\)\s*=>[\s\S]{0,200}?formatAcceptanceRate/,
+    "summary.acceptanceRatePretty must call formatAcceptanceRate() helper");
+  assert.match(HEALTH_SOURCE, /function formatAcceptanceRate[\s\S]+?ratePretty:\s*"100%"/,
+    "formatAcceptanceRate must return ratePretty: \"100%\" for empty window");
+  assert.match(HEALTH_SOURCE, /formatAcceptanceRate[\s\S]+?toFixed\(1\)/,
+    "formatAcceptanceRate must use toFixed(1) for pretty format");
 });
 
 test("buildSummary: acceptanceRatePretty matches the numeric acceptanceRate", () => {
@@ -2240,19 +2239,18 @@ test("buildSummary: acceptanceRate and computeAcceptanceCounts() are consistent"
 
 test("health handler: summary exposes acceptanceRateInLastHour + Pretty (windowed pair)", () => {
   // Source-pattern: windowed acceptance rate pair mirroring the lifetime
-  // acceptance trio. Uses _acceptedInLastHour + _rateLimitedInLastHour.
+  // acceptance trio. After iter #153 both fields call formatAcceptanceRate.
   assert.match(HEALTH_SOURCE, /acceptanceRateInLastHour/,
     "summary must include acceptanceRateInLastHour field");
   assert.match(HEALTH_SOURCE, /acceptanceRateInLastHourPretty/,
     "summary must include acceptanceRateInLastHourPretty field");
-  // Both fields read from the same window arrays
-  assert.match(HEALTH_SOURCE, /_acceptedInLastHour\.length/,
-    "must read from _acceptedInLastHour.length");
-  assert.match(HEALTH_SOURCE, /_rateLimitedInLastHour\.length/,
-    "must read from _rateLimitedInLastHour.length");
-  // "100%" sentinel for zero-window degenerate case
-  assert.match(HEALTH_SOURCE, /return\s*"100%"/,
-    "pretty branch must return literal \"100%\" when window is empty");
+  assert.match(HEALTH_SOURCE, /acceptanceRateInLastHour:\s*formatAcceptanceRate/,
+    "windowed pair must call formatAcceptanceRate helper");
+  assert.match(HEALTH_SOURCE, /acceptanceRateInLastHourPretty:\s*formatAcceptanceRate/,
+    "windowed pretty must call formatAcceptanceRate helper");
+  // Both fields pass the same window-array counts
+  assert.match(HEALTH_SOURCE, /formatAcceptanceRate\(\s*_acceptedInLastHour\.length\s*,\s*_rateLimitedInLastHour\.length\s*\)/,
+    "windowed fields must read from _acceptedInLastHour + _rateLimitedInLastHour");
 });
 
 test("buildSummary: acceptanceRateInLastHourPretty parses back to within 0.2% of the numeric", () => {
@@ -2362,6 +2360,57 @@ test("buildSummary: maxHealthDurationPretty is a string matching the expected fo
     "maxHealthDurationPretty must be a string");
   assert.match(r.maxHealthDurationPretty, /^(—|\d+ms|\d+\.\d+s)$/,
     `must match /^(|\\d+ms|\\d+\\.\\d+s)$/; got "${r.maxHealthDurationPretty}"`);
+});
+
+// ── formatAcceptanceRate helper (iter #153) ────────────────────
+
+test("formatAcceptanceRate: helper is exported and returns { rate, ratePretty }", () => {
+  // After the iter #153 refactor, formatAcceptanceRate is the single
+  // source of truth for all 4 acceptance rate fields (lifetime + windowed
+  // × numeric + pretty). Verify the helper exists and returns both shapes.
+  const { formatAcceptanceRate } = require("../api/health.js");
+  assert.equal(typeof formatAcceptanceRate, "function",
+    "formatAcceptanceRate must be exported as a function");
+  // Healthy case: all accepted
+  const all = formatAcceptanceRate(100, 0);
+  assert.equal(all.rate, 1, "all accepted → rate = 1");
+  assert.equal(all.ratePretty, "100.0%", "all accepted → ratePretty = \"100.0%\"");
+  // Empty case: degenerate
+  const empty = formatAcceptanceRate(0, 0);
+  assert.equal(empty.rate, 1, "no traffic → rate = 1 (sentinel)");
+  assert.equal(empty.ratePretty, "100%", "no traffic → ratePretty = \"100%\" sentinel");
+  // Mixed: 75% accepted
+  const mixed = formatAcceptanceRate(75, 25);
+  assert.equal(mixed.rate, 0.75, "75/100 → rate = 0.75");
+  assert.equal(mixed.ratePretty, "75.0%", "75/100 → ratePretty = \"75.0%\"");
+});
+
+test("buildSummary: all 4 acceptance rate fields derive from formatAcceptanceRate", () => {
+  // Cross-check: the lifetime + windowed × numeric + pretty fields all
+  // match the helper's output for their respective data sources.
+  const { formatAcceptanceRate, computeAcceptanceCounts, buildSummary } =
+    require("../api/health.js");
+  // Lifetime source
+  const lifetimeCounts = computeAcceptanceCounts();
+  const lifetimeExpected = formatAcceptanceRate(lifetimeCounts.accepted, lifetimeCounts.rateLimited);
+  // Windowed source (read via the public summary fields)
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  // Lifetime pair must match
+  assert.equal(r.acceptanceRate, lifetimeExpected.rate,
+    "summary.acceptanceRate must equal formatAcceptanceRate(lifetime)");
+  assert.equal(r.acceptanceRatePretty, lifetimeExpected.ratePretty,
+    "summary.acceptanceRatePretty must equal formatAcceptanceRate(lifetime).ratePretty");
+  // Windowed pair must match
+  const windowedExpected = formatAcceptanceRate(
+    r.requestsAcceptedInLastHour, r.rateLimitedInLastHour
+  );
+  assert.equal(r.acceptanceRateInLastHour, windowedExpected.rate,
+    "summary.acceptanceRateInLastHour must equal formatAcceptanceRate(windowed)");
+  assert.equal(r.acceptanceRateInLastHourPretty, windowedExpected.ratePretty,
+    "summary.acceptanceRateInLastHourPretty must equal formatAcceptanceRate(windowed).ratePretty");
 });
 
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
