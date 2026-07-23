@@ -588,6 +588,16 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // age. Lets ops alert on spike patterns without computing the
     // window from the cumulative counter.
     rateLimitedInLastHour: _rateLimitedInLastHour.length,
+    // Human-readable windowed 429 count. Pairs with `rateLimitedInLastHour`
+    // (numeric counter) using the same K/M compact format as
+    // `rateLimitedPretty` (cumulative) so dashboards can render them
+    // consistently.
+    rateLimitedInLastHourPretty: (() => {
+      const n = _rateLimitedInLastHour.length;
+      if (n < 1000) return String(n);
+      if (n < 1000000) return `${Math.round((n / 1000) * 10) / 10}K`;
+      return `${Math.round((n / 1000000) * 10) / 10}M`;
+    })(),
     // Rolling 1-hour window of 2xx (accepted) count. Pairs with
     // `requestsAccepted` (cumulative) and `rateLimitedInLastHour`
     // (429 window) so ops can compute the windowed acceptance rate

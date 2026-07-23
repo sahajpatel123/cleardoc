@@ -2413,6 +2413,39 @@ test("buildSummary: all 4 acceptance rate fields derive from formatAcceptanceRat
     "summary.acceptanceRateInLastHourPretty must equal formatAcceptanceRate(windowed).ratePretty");
 });
 
+// ── rateLimitedInLastHourPretty (iter #154) ───────────────────
+
+test("health handler: summary exposes rateLimitedInLastHourPretty (windowed compact counter)", () => {
+  // Source-pattern: windowed counter formatter. Mirrors rateLimitedPretty
+  // (cumulative) using the same K/M compact format.
+  assert.match(HEALTH_SOURCE, /rateLimitedInLastHourPretty/,
+    "summary must include rateLimitedInLastHourPretty field");
+  // Reads from _rateLimitedInLastHour.length
+  assert.match(HEALTH_SOURCE, /_rateLimitedInLastHour\.length/,
+    "must read from _rateLimitedInLastHour.length");
+  // Small-count branch
+  assert.match(HEALTH_SOURCE, /n\s*<\s*1000\s*\)\s*return\s*String\(n\)/,
+    "< 1000 → return String(n)");
+  // K-suffix and M-suffix branches
+  assert.match(HEALTH_SOURCE, /n\s*<\s*1000000\s*\)\s*return\s*`\$\{[^}]+\}K`/,
+    "< 1M → K-suffix");
+  assert.match(HEALTH_SOURCE, /return\s*`\$\{[^}]+\}M`/,
+    "≥ 1M → M-suffix");
+});
+
+test("buildSummary: rateLimitedInLastHourPretty is a string matching the compact format", () => {
+  // Behavioral: type check + regex match against the three valid shapes.
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(typeof r.rateLimitedInLastHourPretty, "string",
+    "rateLimitedInLastHourPretty must be a string");
+  assert.match(r.rateLimitedInLastHourPretty, /^\d+(\.\d+)?[KM]?$/,
+    `must match /\\d+(\\.\\d+)?[KM]?$/; got "${r.rateLimitedInLastHourPretty}"`);
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.
