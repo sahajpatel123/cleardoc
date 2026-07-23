@@ -210,6 +210,17 @@ function formatCompactCount(n) {
   return `${Math.round((n / 1000000) * 10) / 10}M`;
 }
 
+/* Extract the top-N status codes by count from a status→count Map.
+ * Returns an array of { status, count } sorted by count desc then
+ * status asc (stable). Empty array when the map is empty.
+ * Single source of truth for `summary.requestsByStatusTop3`. */
+function getTopStatusCodes(map, n) {
+  const entries = Array.from(map.entries());
+  // Sort by count desc, then by status code asc (stable)
+  entries.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+  return entries.slice(0, n).map(([status, count]) => ({ status, count }));
+}
+
 /* Compute the SRE error budget over the rolling 1-hour window. Returns:
  *   {
  *     threshold:    0.01,                  // SRE default
@@ -659,12 +670,7 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // requestsByStatus (full Map) — the Map is the source of truth
     // for accurate counts; this is the at-a-glance summary for
     // dashboards. Empty array if no requests served yet.
-    requestsByStatusTop3: (() => {
-      const entries = Array.from(_requestsByStatus.entries());
-      // Sort by count desc, then by status code asc (stable)
-      entries.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
-      return entries.slice(0, 3).map(([status, count]) => ({ status, count }));
-    })(),
+    requestsByStatusTop3: getTopStatusCodes(_requestsByStatus, 3),
     // Counts bucketed by status class (1xx/2xx/3xx/4xx/5xx).
     // Pairs with requestsByStatusTop3 (per-code top 3) for
     // class-level view: "are we 4xx-heavy or 5xx-heavy?" from a
@@ -1072,4 +1078,5 @@ module.exports.computeErrorBudget = computeErrorBudget;
 module.exports.computeAcceptanceCounts = computeAcceptanceCounts;
 module.exports.formatAcceptanceRate = formatAcceptanceRate;
 module.exports.formatCompactCount = formatCompactCount;
+module.exports.getTopStatusCodes = getTopStatusCodes;
 module.exports.recordRequestStatus = recordRequestStatus;

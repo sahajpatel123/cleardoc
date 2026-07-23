@@ -1567,15 +1567,17 @@ test("health handler: summary exposes lastClientErrorAt (most recent 4xx)", () =
 
 test("health handler: summary exposes requestsByStatusTop3 (top 3 status codes by count)", () => {
   // Pairs with requestsByStatus (full Map). Sorted desc by count,
-  // capped at 3. Useful for at-a-glance dashboards.
+  // capped at 3. After iter #156 the sort+slice lives in the
+  // getTopStatusCodes helper — verify it's called.
   assert.match(HEALTH_SOURCE, /requestsByStatusTop3/, "summary must include requestsByStatusTop3 field");
-  // Must sort by count desc
-  assert.match(HEALTH_SOURCE, /b\[1\]\s*-\s*a\[1\]/, "must sort by count desc");
-  // Must cap at 3 (slice(0, 3))
-  assert.match(HEALTH_SOURCE, /slice\(\s*0\s*,\s*3\s*\)/, "must cap at 3 entries");
-  // Must return array of {status, count} objects
-  assert.match(HEALTH_SOURCE, /\{\s*status\s*,\s*count\s*\}/,
-    "must format each entry as {status, count}");
+  assert.match(HEALTH_SOURCE, /requestsByStatusTop3:\s*getTopStatusCodes\(\s*_requestsByStatus\s*,\s*3\s*\)/,
+    "summary must call getTopStatusCodes(_requestsByStatus, 3)");
+  assert.match(HEALTH_SOURCE, /function getTopStatusCodes[\s\S]+?b\[1\]\s*-\s*a\[1\]/,
+    "helper must sort by count desc");
+  assert.match(HEALTH_SOURCE, /function getTopStatusCodes[\s\S]+?slice\(\s*0\s*,\s*n\s*\)/,
+    "helper must slice(0, n) — top-N is parameterized");
+  assert.match(HEALTH_SOURCE, /function getTopStatusCodes[\s\S]+?\{\s*status\s*,\s*count\s*\}/,
+    "helper must format each entry as {status, count}");
 });
 
 // ── requestsPerStatusGroup (iter #129) ────────────────────────
@@ -2479,6 +2481,55 @@ test("buildSummary: rateLimitedPretty + rateLimitedInLastHourPretty derive from 
     "summary.rateLimitedPretty must equal formatCompactCount(rateLimited)");
   assert.equal(r.rateLimitedInLastHourPretty, formatCompactCount(r.rateLimitedInLastHour),
     "summary.rateLimitedInLastHourPretty must equal formatCompactCount(rateLimitedInLastHour)");
+});
+
+// ── getTopStatusCodes helper (iter #156) ──────────────────────
+
+test("getTopStatusCodes: helper is exported and sorts + slices correctly", () => {
+  // After the iter #156 refactor, getTopStatusCodes is the single
+  // source of truth for `summary.requestsByStatusTop3`.
+  const { getTopStatusCodes } = require("../api/health.js");
+  assert.equal(typeof getTopStatusCodes, "function",
+    "getTopStatusCodes must be exported as a function");
+  // Sort by count desc, then status asc (stable)
+  const m = new Map([[200, 5], [404, 10], [500, 10], [503, 1]]);
+  // Top 3 should be: 404 (10), 500 (10), 200 (5)
+  const top3 = getTopStatusCodes(m, 3);
+  assert.equal(top3.length, 3);
+  assert.deepEqual(top3[0], { status: 404, count: 10 });
+  // 404 vs 500: same count → status asc → 404 first
+  assert.deepEqual(top3[1], { status: 500, count: 10 });
+  assert.deepEqual(top3[2], { status: 200, count: 5 });
+  // Top-1: same logic
+  const top1 = getTopStatusCodes(m, 1);
+  assert.equal(top1.length, 1);
+  assert.deepEqual(top1[0], { status: 404, count: 10 });
+  // Empty map → empty array
+  assert.deepEqual(getTopStatusCodes(new Map(), 3), []);
+  // Larger N than entries → returns all (no padding)
+  const top10 = getTopStatusCodes(m, 10);
+  assert.equal(top10.length, 4, "N larger than map size returns all entries");
+});
+
+test("buildSummary: requestsByStatusTop3 derives from getTopStatusCodes", () => {
+  // Drift detector: the summary field must equal the helper output
+  // for _requestsByStatus (capped at 3).
+  const { getTopStatusCodes, buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  // We can't read _requestsByStatus directly from outside, but we
+  // can verify the field shape matches the helper's output.
+  // Length must be ≤ 3 and each entry must have the right shape.
+  assert.ok(r.requestsByStatusTop3.length <= 3,
+    "top-3 length must be ≤ 3");
+  for (const entry of r.requestsByStatusTop3) {
+    assert.equal(typeof entry.status, "number",
+      "each entry.status must be a number");
+    assert.equal(typeof entry.count, "number",
+      "each entry.count must be a number");
+  }
 });
 
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
