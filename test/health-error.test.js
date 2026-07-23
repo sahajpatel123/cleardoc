@@ -2588,6 +2588,44 @@ test("buildSummary: lastHealthDurationPretty matches the duration trio format", 
     `must match /^(|\\d+ms|\\d+\\.\\d+s)$/; got "${r.lastHealthDurationPretty}"`);
 });
 
+// ── formatDurationPretty helper (iter #174) ───────────────────
+
+test("formatDurationPretty: helper is exported and handles all three branches", () => {
+  // After the iter #174 refactor, formatDurationPretty is the single
+  // source of truth for lastHealthDurationPretty + maxHealthDurationPretty.
+  const { formatDurationPretty } = require("../api/health.js");
+  assert.equal(typeof formatDurationPretty, "function",
+    "formatDurationPretty must be exported as a function");
+  // Zero / null / negative → "—" sentinel
+  assert.equal(formatDurationPretty(0), "—", "0 → \"—\"");
+  assert.equal(formatDurationPretty(null), "—", "null → \"—\"");
+  assert.equal(formatDurationPretty(undefined), "—", "undefined → \"—\"");
+  assert.equal(formatDurationPretty(-100), "—", "negative → \"—\"");
+  // Sub-second → "Xms"
+  assert.equal(formatDurationPretty(1), "1ms", "1ms → \"1ms\"");
+  assert.equal(formatDurationPretty(500), "500ms", "500ms → \"500ms\"");
+  assert.equal(formatDurationPretty(999), "999ms", "999ms → \"999ms\"");
+  // ≥ 1s → "X.Xs" with 1-decimal precision (Math.round edge case:
+  // 1000/1000 = exactly 1, no decimal shown — same edge as iter #155)
+  assert.equal(formatDurationPretty(1000), "1s", "1000ms → \"1s\"");
+  assert.equal(formatDurationPretty(1234), "1.2s", "1234ms → \"1.2s\"");
+  assert.equal(formatDurationPretty(12500), "12.5s", "12500ms → \"12.5s\"");
+});
+
+test("buildSummary: lastHealthDurationPretty + maxHealthDurationPretty derive from formatDurationPretty", () => {
+  // Drift detector: both summary fields must equal the helper output
+  // for their respective input counts.
+  const { formatDurationPretty, buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(r.lastHealthDurationPretty, formatDurationPretty(r.lastHealthDurationMs),
+    "summary.lastHealthDurationPretty must equal formatDurationPretty(lastHealthDurationMs)");
+  assert.equal(r.maxHealthDurationPretty, formatDurationPretty(r.maxHealthDurationMs),
+    "summary.maxHealthDurationPretty must equal formatDurationPretty(maxHealthDurationMs)");
+});
+
 // ── getStatusGroupCounts helper (iter #157) ───────────────────
 
 test("getStatusGroupCounts: helper is exported and buckets correctly", () => {

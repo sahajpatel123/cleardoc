@@ -210,6 +210,18 @@ function formatCompactCount(n) {
   return `${Math.round((n / 1000000) * 10) / 10}M`;
 }
 
+/* Format a millisecond duration for dashboards. Three branches:
+ *   - 0 / null / negative → "—" sentinel (no measurement yet)
+ *   - < 1000ms            → "Xms" with integer ms
+ *   - ≥ 1000ms            → "X.Xs" with 1-decimal precision
+ * Single source of truth for lastHealthDurationPretty +
+ * maxHealthDurationPretty so the two can never drift apart. */
+function formatDurationPretty(ms) {
+  if (!ms || ms <= 0) return "—";
+  if (ms < 1000) return `${ms}ms`;
+  return `${Math.round((ms / 1000) * 10) / 10}s`;
+}
+
 /* Extract the top-N status codes by count from a status→count Map.
  * Returns an array of { status, count } sorted by count desc then
  * status asc (stable). Empty array when the map is empty.
@@ -555,28 +567,17 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     lastHealthDurationMs: _lastHealthDurationMs,
     // Human-readable last duration. Pairs with `lastHealthDurationMs`
     // (numeric, for graphing) — this string is for at-a-glance
-    // reading. Same format as maxHealthDurationPretty: "—" for
-    // zero-requests, "Xms" for sub-second, "X.Xs" for ≥1s.
-    lastHealthDurationPretty: (() => {
-      const ms = _lastHealthDurationMs;
-      if (!ms || ms <= 0) return "—";
-      if (ms < 1000) return `${ms}ms`;
-      return `${Math.round((ms / 1000) * 10) / 10}s`;
-    })(),
+    // reading. formatDurationPretty() helper is the single source of
+    // truth shared with maxHealthDurationPretty.
+    lastHealthDurationPretty: formatDurationPretty(_lastHealthDurationMs),
     // Peak /api/health request duration ever observed. Pairs with
     // lastHealthDurationMs to detect "health is consistently slow"
     // vs "spike pattern".
     maxHealthDurationMs: _maxHealthDurationMs,
     // Human-readable peak duration. Pairs with `maxHealthDurationMs`
-    // (numeric, for graphing) — this string is for at-a-glance reading
-    // on dashboards / curl. Format: "Xms" when <1000, "X.Xs" when ≥1s.
-    // 0 (no requests yet) → "—" so dashboards don't render a misleading "0ms".
-    maxHealthDurationPretty: (() => {
-      const ms = _maxHealthDurationMs;
-      if (!ms || ms <= 0) return "—";
-      if (ms < 1000) return `${ms}ms`;
-      return `${Math.round((ms / 1000) * 10) / 10}s`;
-    })(),
+    // (numeric, for graphing). formatDurationPretty() helper is the
+    // single source of truth shared with lastHealthDurationPretty.
+    maxHealthDurationPretty: formatDurationPretty(_maxHealthDurationMs),
     // Unique IPs that have hit this instance. Pairs with `requests` —
     // "100 requests from 1 IP" vs "100 requests from 100 IPs" tells
     // very different stories (single spammer vs distributed traffic).
@@ -1158,6 +1159,7 @@ module.exports.computeErrorBudget = computeErrorBudget;
 module.exports.computeAcceptanceCounts = computeAcceptanceCounts;
 module.exports.formatAcceptanceRate = formatAcceptanceRate;
 module.exports.formatCompactCount = formatCompactCount;
+module.exports.formatDurationPretty = formatDurationPretty;
 module.exports.getTopStatusCodes = getTopStatusCodes;
 module.exports.getStatusGroupCounts = getStatusGroupCounts;
 module.exports.recordRequestStatus = recordRequestStatus;
