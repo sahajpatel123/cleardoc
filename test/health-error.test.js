@@ -2532,6 +2532,69 @@ test("buildSummary: requestsByStatusTop3 derives from getTopStatusCodes", () => 
   }
 });
 
+// ── getStatusGroupCounts helper (iter #157) ───────────────────
+
+test("getStatusGroupCounts: helper is exported and buckets correctly", () => {
+  // After the iter #157 refactor, getStatusGroupCounts is the single
+  // source of truth for `summary.requestsPerStatusGroup`.
+  const { getStatusGroupCounts } = require("../api/health.js");
+  assert.equal(typeof getStatusGroupCounts, "function",
+    "getStatusGroupCounts must be exported as a function");
+  // All 5 buckets present even when empty
+  const empty = getStatusGroupCounts(new Map());
+  for (const k of ["1xx", "2xx", "3xx", "4xx", "5xx"]) {
+    assert.equal(empty[k], 0, `empty map → ${k} must be 0`);
+  }
+  // Mixed statuses bucket correctly
+  const m = new Map([[200, 5], [201, 3], [404, 2], [500, 1]]);
+  const g = getStatusGroupCounts(m);
+  assert.equal(g["1xx"], 0);
+  assert.equal(g["2xx"], 8, "200+201 = 8");
+  assert.equal(g["3xx"], 0);
+  assert.equal(g["4xx"], 2);
+  assert.equal(g["5xx"], 1);
+  // Out-of-range codes ignored (99, 600, 999 — not real HTTP codes)
+  // Note: 100 IS valid 1xx (informational), so 100 buckets as "1xx".
+  const oor = getStatusGroupCounts(new Map([[99, 5], [600, 5], [999, 5]]));
+  assert.equal(oor["1xx"], 0, "status 99 ignored");
+  assert.equal(oor["6xx"], undefined, "no 6xx bucket");
+  // 100 must still bucket as 1xx (valid informational status)
+  const e100 = getStatusGroupCounts(new Map([[100, 7]]));
+  assert.equal(e100["1xx"], 7, "status 100 → 1xx");
+  // 599 must still bucket as 5xx
+  const e599 = getStatusGroupCounts(new Map([[599, 7]]));
+  assert.equal(e599["5xx"], 7);
+});
+
+test("buildSummary: requestsPerStatusGroup derives from getStatusGroupCounts", () => {
+  // Drift detector: the summary field shape must match the helper output.
+  const { getStatusGroupCounts, buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  // All 5 buckets must be present and be numbers
+  for (const k of ["1xx", "2xx", "3xx", "4xx", "5xx"]) {
+    assert.equal(typeof r.requestsPerStatusGroup[k], "number",
+      `${k} must be a number`);
+    assert.ok(r.requestsPerStatusGroup[k] >= 0,
+      `${k} must be ≥ 0`);
+  }
+  // Total of all buckets must equal the sum of all status counts in
+  // the byStatus map. We can read the byStatus map directly.
+  const totalInBuckets =
+    r.requestsPerStatusGroup["1xx"] +
+    r.requestsPerStatusGroup["2xx"] +
+    r.requestsPerStatusGroup["3xx"] +
+    r.requestsPerStatusGroup["4xx"] +
+    r.requestsPerStatusGroup["5xx"];
+  const totalInMap = Object.values(r.requestsByStatus).reduce((a, b) => a + b, 0);
+  // The buckets exclude out-of-range codes (< 100 or ≥ 600), so the
+  // total may be less than the map sum. Assert ≤.
+  assert.ok(totalInBuckets <= totalInMap,
+    `bucket total (${totalInBuckets}) ≤ map total (${totalInMap})`);
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.

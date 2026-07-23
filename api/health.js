@@ -221,6 +221,20 @@ function getTopStatusCodes(map, n) {
   return entries.slice(0, n).map(([status, count]) => ({ status, count }));
 }
 
+/* Bucket a status→count Map into the 5 standard HTTP status classes.
+ * Returns { "1xx": n, "2xx": n, "3xx": n, "4xx": n, "5xx": n }.
+ * Always includes all 5 buckets (zero when the class has no entries).
+ * Status codes outside the 100..599 range are ignored.
+ * Single source of truth for `summary.requestsPerStatusGroup`. */
+function getStatusGroupCounts(map) {
+  const groups = { "1xx": 0, "2xx": 0, "3xx": 0, "4xx": 0, "5xx": 0 };
+  for (const [status, count] of map) {
+    const cls = Math.floor(status / 100);
+    if (cls >= 1 && cls <= 5) groups[`${cls}xx`] += count;
+  }
+  return groups;
+}
+
 /* Compute the SRE error budget over the rolling 1-hour window. Returns:
  *   {
  *     threshold:    0.01,                  // SRE default
@@ -676,14 +690,7 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // class-level view: "are we 4xx-heavy or 5xx-heavy?" from a
     // single glance. Always includes all 5 buckets (zeros if no
     // requests in that class).
-    requestsPerStatusGroup: (() => {
-      const groups = { "1xx": 0, "2xx": 0, "3xx": 0, "4xx": 0, "5xx": 0 };
-      for (const [status, count] of _requestsByStatus) {
-        const cls = Math.floor(status / 100);
-        if (cls >= 1 && cls <= 5) groups[`${cls}xx`] += count;
-      }
-      return groups;
-    })(),
+    requestsPerStatusGroup: getStatusGroupCounts(_requestsByStatus),
     cspReports: cspCounts,
     // SRE-style error budget over the rolling 1-hour window.
     // `threshold` is the conventional 1% for user-facing APIs (Google
@@ -1079,4 +1086,5 @@ module.exports.computeAcceptanceCounts = computeAcceptanceCounts;
 module.exports.formatAcceptanceRate = formatAcceptanceRate;
 module.exports.formatCompactCount = formatCompactCount;
 module.exports.getTopStatusCodes = getTopStatusCodes;
+module.exports.getStatusGroupCounts = getStatusGroupCounts;
 module.exports.recordRequestStatus = recordRequestStatus;
