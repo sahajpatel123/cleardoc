@@ -2520,6 +2520,23 @@ test("getCspElapsedMinutes: returns a positive integer ≥ 1 (zero-divisor guard
   assert.ok(m >= 1, `must be ≥ 1 (divide-by-zero guard); got ${m}`);
 });
 
+// ── getCspElapsedMinutes stability check (iter #204) ─────────
+
+test("getCspElapsedMinutes: returns a non-decreasing value across calls", () => {
+  // The helper computes (Date.now() - _cspProcessStartTs) / 60000
+  // with Math.max(1, ...). Across sequential calls in the same
+  // process, the value should be non-decreasing (wall clock only
+  // goes forward, modulo clock adjustments). This catches a
+  // hypothetical refactor that subtracts or divides in the wrong
+  // order.
+  const { getCspElapsedMinutes } = require("../api/_safety.js");
+  const a = getCspElapsedMinutes();
+  return new Promise((r) => setTimeout(r, 1100)).then(() => {
+    const b = getCspElapsedMinutes();
+    assert.ok(b >= a, `elapsed minutes must be non-decreasing; got ${a} → ${b}`);
+  });
+});
+
 // ── cspReports rate trio post-iter-198 refactor (iter #200) ────
 
 test("getCspReportCounts: ratePerMinute + totalRatePerMinute + peakRatePerMinute shapes", () => {
