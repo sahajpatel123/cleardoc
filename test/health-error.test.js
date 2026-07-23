@@ -1062,9 +1062,11 @@ test("health handler: process.memory surfaces heapUsageRatio (heapUsed / heapTot
   // usedPercent which is against the configured function limit.
   // heapUsageRatio tracks GC pressure: when this climbs, the next
   // allocation is more likely to trigger a major GC.
+  // After iter #186 the inline Math.round(… * 1000) / 10 + zero-guard
+  // live in the formatRatioPercent helper (iter #183).
   assert.match(HEALTH_SOURCE, /heapUsageRatio/, "memory block must include heapUsageRatio field");
-  assert.match(HEALTH_SOURCE, /m\.heapTotal\s*>\s*0/, "must guard against divide-by-zero");
-  assert.match(HEALTH_SOURCE, /m\.heapUsed\s*\/\s*m\.heapTotal/, "computation must be heapUsed / heapTotal");
+  assert.match(HEALTH_SOURCE, /heapUsageRatio:\s*formatRatioPercent\(/,
+    "heapUsageRatio must call formatRatioPercent helper");
 });
 
 // ── heapUsageRatio (iter #83) ───────────────────────────────────
@@ -1074,9 +1076,11 @@ test("health handler: process.memory surfaces heapUsageRatio (heapUsed / heapTot
   // usedPercent which is against the configured function limit.
   // heapUsageRatio tracks GC pressure: when this climbs, the next
   // allocation is more likely to trigger a major GC.
+  // After iter #186 the inline Math.round(… * 1000) / 10 + zero-guard
+  // live in the formatRatioPercent helper (iter #183).
   assert.match(HEALTH_SOURCE, /heapUsageRatio/, "memory block must include heapUsageRatio field");
-  assert.match(HEALTH_SOURCE, /m\.heapTotal\s*>\s*0/, "must guard against divide-by-zero");
-  assert.match(HEALTH_SOURCE, /m\.heapUsed\s*\/\s*m\.heapTotal/, "computation must be heapUsed / heapTotal");
+  assert.match(HEALTH_SOURCE, /heapUsageRatio:\s*formatRatioPercent\(/,
+    "heapUsageRatio must call formatRatioPercent helper");
 });
 
 // ── errorRate (iter #84) ────────────────────────────────────
@@ -1099,9 +1103,11 @@ test("health handler: process.memory surfaces heapUsageRatio (heapUsed / heapTot
   // Heap utilization (0..1, 1-decimal precision). Different from
   // usedPercent which is against the configured function limit.
   // heapUsageRatio tracks GC pressure.
+  // After iter #186 the inline Math.round(… * 1000) / 10 + zero-guard
+  // live in the formatRatioPercent helper (iter #183).
   assert.match(HEALTH_SOURCE, /heapUsageRatio/, "memory block must include heapUsageRatio field");
-  assert.match(HEALTH_SOURCE, /m\.heapTotal\s*>\s*0/, "must guard against divide-by-zero");
-  assert.match(HEALTH_SOURCE, /m\.heapUsed\s*\/\s*m\.heapTotal/, "computation must be heapUsed / heapTotal");
+  assert.match(HEALTH_SOURCE, /heapUsageRatio:\s*formatRatioPercent\(/,
+    "heapUsageRatio must call formatRatioPercent helper");
 });
 
 // ── lastErrorAt (iter #85) ────────────────────────────────────
