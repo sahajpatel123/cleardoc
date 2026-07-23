@@ -21,10 +21,13 @@ function applyBuildShaHeader(res) {
   if (!res || typeof res.setHeader !== "function" || res.headersSent) return;
   const raw = process.env.VERCEL_GIT_COMMIT_SHA;
   if (typeof raw !== "string" || raw.length === 0) return;
-  // Restrict to a realistic git-SHA hex shape (7..40 lowercase hex chars)
-  // so a misconfigured CI environment can't smuggle arbitrary bytes into
-  // the header. 7 accepts short SHAs; 40 accepts full SHA-1.
-  if (!/^[a-f0-9]{7,40}$/.test(raw)) return;
+  // Restrict to a realistic git-SHA hex shape (7..40 hex chars, case-
+  // insensitive) so a misconfigured CI environment can't smuggle
+  // arbitrary bytes into the header. 7 accepts short SHAs; 40 accepts
+  // full SHA-1. Case-insensitive because some tooling emits uppercase
+  // and we don't want a benign casing difference to silently drop
+  // the header.
+  if (!/^[a-fA-F0-9]{7,40}$/.test(raw)) return;
   res.setHeader("X-Build-Sha", raw);
 }
 

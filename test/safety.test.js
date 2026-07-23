@@ -1795,11 +1795,14 @@ test("_safety: applyBuildShaHeader rejects malformed SHAs (silent no-op)", () =>
     res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
     applyBuildShaHeader(res);
     assert.equal(res.headers["X-Build-Sha"], undefined, "non-hex chars must be rejected");
-    // Uppercase (regex is lowercase only)
+    // Uppercase (regex is case-insensitive as of iter #187 — some
+    // tooling emits uppercase; we don't want a benign casing
+    // difference to silently drop the header)
     process.env.VERCEL_GIT_COMMIT_SHA = "ABCDEF1";
     res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
     applyBuildShaHeader(res);
-    assert.equal(res.headers["X-Build-Sha"], undefined, "uppercase must be rejected (canonical is lowercase)");
+    assert.equal(res.headers["X-Build-Sha"], "ABCDEF1",
+      "uppercase must be accepted (case-insensitive regex)");
     // Empty string
     process.env.VERCEL_GIT_COMMIT_SHA = "";
     res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
