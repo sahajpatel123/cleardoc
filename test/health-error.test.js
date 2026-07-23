@@ -2636,6 +2636,44 @@ test("buildSummary: uptimePercentInLastHour is in [0, 1] with 4-decimal precisio
     `uptimePercentInLastHour × 10000 must be effectively an integer; got ${scaled}`);
 });
 
+// ── uptimePercentInLastHourPretty (iter #159) ────────────────
+
+test("health handler: summary exposes uptimePercentInLastHourPretty (human-readable %)", () => {
+  // Source-pattern: human-readable formatter for uptimePercentInLastHour.
+  // Same formula as the numeric field but with toFixed(1) + "%" suffix.
+  assert.match(HEALTH_SOURCE, /uptimePercentInLastHourPretty/,
+    "summary must include uptimePercentInLastHourPretty field");
+  // Reads from the same three window arrays as the numeric field
+  assert.match(HEALTH_SOURCE, /_errorsInLastHour\.length/,
+    "pretty must read _errorsInLastHour.length");
+  assert.match(HEALTH_SOURCE, /_acceptedInLastHour\.length/,
+    "pretty must read _acceptedInLastHour.length");
+  assert.match(HEALTH_SOURCE, /_rateLimitedInLastHour\.length/,
+    "pretty must read _rateLimitedInLastHour.length");
+  // "100%" sentinel for zero-traffic
+  assert.match(HEALTH_SOURCE, /return\s*"100%"/,
+    "zero-traffic branch must return literal \"100%\"");
+  // 1-decimal precision
+  assert.match(HEALTH_SOURCE, /pct\.toFixed\(1\)/,
+    "non-degenerate branch must format with toFixed(1)");
+});
+
+test("buildSummary: uptimePercentInLastHourPretty is a string matching % format", () => {
+  // Behavioral: type check + regex match against the two valid shapes.
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(typeof r.uptimePercentInLastHourPretty, "string",
+    "uptimePercentInLastHourPretty must be a string");
+  // Cross-check numeric vs pretty
+  const numericPct = r.uptimePercentInLastHour * 100;
+  const prettyPct = parseFloat(r.uptimePercentInLastHourPretty);
+  assert.ok(Math.abs(numericPct - prettyPct) < 0.2,
+    `pretty (${prettyPct}%) must be within 0.2% of numeric (${numericPct}%)`);
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.

@@ -602,6 +602,20 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
       if (total === 0) return 1; // no traffic yet → 100% uptime
       return Math.round((1 - errs / total) * 10000) / 10000;
     })(),
+    // Human-readable uptime percentage over the rolling 1-hour
+    // window. Pairs with `uptimePercentInLastHour` (numeric) for
+    // at-a-glance reading on dashboards / curl. 1-decimal precision.
+    // Format family mirrors acceptanceRatePretty: "100%" sentinel
+    // for zero-traffic, "X.X%" otherwise.
+    uptimePercentInLastHourPretty: (() => {
+      const errs = _errorsInLastHour.length;
+      const accepted = _acceptedInLastHour.length;
+      const rateLimited = _rateLimitedInLastHour.length;
+      const total = errs + accepted + rateLimited;
+      if (total === 0) return "100%";
+      const pct = Math.round((1 - errs / total) * 1000) / 10;
+      return `${pct.toFixed(1)}%`;
+    })(),
     // 5xx error rate (totalErrors / requests, 1-decimal precision, 0
     // when no requests yet). Complements the existing `totalErrors`
     // + `requests` fields so ops can read the ratio directly instead
