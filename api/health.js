@@ -167,15 +167,6 @@ const ERROR_BUDGET_WINDOW_HOURS = 1;
  * Single source of truth for `summary.acceptanceRate` and
  * `summary.acceptanceRatePretty`. Both fields call this helper so the
  * Map traversal and status-class filter live in one place. */
-/* Compute the cumulative acceptance counts by walking _requestsByStatus
- * once. Returns:
- *   {
- *     accepted:    n,   // 2xx count (sum of all 200..299 entries)
- *     rateLimited: n,   // 429 count (single entry from the Map)
- *   }
- * Single source of truth for `summary.acceptanceRate` and
- * `summary.acceptanceRatePretty`. Both fields call this helper so the
- * Map traversal and status-class filter live in one place. */
 function computeAcceptanceCounts() {
   const rateLimited = _requestsByStatus.get(429) || 0;
   let accepted = 0;
