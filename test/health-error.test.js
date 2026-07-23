@@ -2525,6 +2525,29 @@ test("getTopStatusCodes: helper is exported and sorts + slices correctly", () =>
   assert.equal(top10.length, 4, "N larger than map size returns all entries");
 });
 
+// ── requestsByStatus shape (iter #205) ────────────────────────
+
+test("buildSummary: requestsByStatus is a plain object keyed by status code", () => {
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(typeof r.requestsByStatus, "object",
+    "requestsByStatus must be a plain object");
+  assert.ok(r.requestsByStatus !== null,
+    "requestsByStatus must not be null");
+  for (const [k, v] of Object.entries(r.requestsByStatus)) {
+    const status = Number(k);
+    assert.ok(Number.isInteger(status) && status >= 100 && status < 600,
+      `each key must be a valid HTTP status code; got ${k}`);
+    assert.equal(typeof v, "number", `each value must be a number`);
+    assert.ok(Number.isInteger(v),
+      `each value must be an integer; got ${v}`);
+    assert.ok(v >= 0, `each value must be ≥ 0; got ${v}`);
+  }
+});
+
 test("buildSummary: requestsByStatusTop3 derives from getTopStatusCodes", () => {
   // Drift detector: the summary field must equal the helper output
   // for _requestsByStatus (capped at 3).
