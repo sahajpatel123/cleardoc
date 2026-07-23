@@ -2431,3 +2431,28 @@ test("sanitizeLogField: coerces non-string values safely", () => {
   // Empty string passes through
   assert.equal(sanitizeLogField("", 100), "", "empty string → empty string");
 });
+
+// ── clearProbeCache + getProbeCacheSize behavioral coverage (iter #162) ──
+
+test("clearProbeCache + getProbeCacheSize: clear empties the cache (size 0)", () => {
+  // Behavioral: probe cache size must drop to 0 after clearProbeCache
+  // is called. We can't easily inject entries (probeProvider requires
+  // network), but we can verify the empty → clear → empty round trip.
+  const { clearProbeCache, getProbeCacheSize } = require("../api/_safety.js");
+  assert.equal(getProbeCacheSize(), 0,
+    "fresh cache size must be 0");
+  clearProbeCache();
+  assert.equal(getProbeCacheSize(), 0,
+    "after clear, cache size must still be 0 (defensive)");
+});
+
+test("getProbeCacheSize: returns a non-negative integer", () => {
+  // Structural check on the accessor. The actual max is _PROBE_CACHE_MAX
+  // (100) but we just verify the type and bounds here.
+  const { getProbeCacheSize } = require("../api/_safety.js");
+  const size = getProbeCacheSize();
+  assert.equal(typeof size, "number", "size must be a number");
+  assert.ok(Number.isInteger(size), "size must be an integer");
+  assert.ok(size >= 0, `size must be ≥ 0; got ${size}`);
+  assert.ok(size <= 100, `size must be ≤ _PROBE_CACHE_MAX (100); got ${size}`);
+});
