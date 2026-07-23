@@ -2786,6 +2786,40 @@ test("computeErrorBudgetLifetime: helper is exported and returns { rate, ratePre
     `pretty (${prettyPct}%) must be within 0.01% of numeric (${numericPct}%)`);
 });
 
+// ── computeErrorBudget struct invariants (iter #188) ────────────
+
+test("computeErrorBudget: returns the full SRE-style struct with correct invariants", () => {
+  // The struct shape is unique among our helpers (the others return
+  // { rate, ratePretty } pairs). Verify the fields + invariants:
+  //   threshold    = ERROR_BUDGET_THRESHOLD (0.01)
+  //   windowHours  = ERROR_BUDGET_WINDOW_HOURS (1)
+  //   currentRate  = errors / requests in 1h window, 4-decimal
+  //   remaining    = max(0, threshold - currentRate), 4-decimal
+  //   exhausted    = true when currentRate > threshold AND window non-empty
+  const { computeErrorBudget } = require("../api/health.js");
+  const eb = computeErrorBudget();
+  // Shape
+  assert.equal(typeof eb, "object", "must return an object");
+  for (const k of ["threshold", "windowHours", "currentRate", "remaining", "exhausted"]) {
+    assert.ok(k in eb, `must include ${k}`);
+  }
+  // Constants
+  assert.equal(eb.threshold, 0.01, "threshold must be 1% (SRE default)");
+  assert.equal(eb.windowHours, 1, "windowHours must be 1");
+  // Numeric invariants
+  assert.ok(eb.currentRate >= 0 && eb.currentRate <= 1, `currentRate must be in [0, 1]; got ${eb.currentRate}`);
+  assert.ok(eb.remaining >= 0 && eb.remaining <= eb.threshold,
+    `remaining must be in [0, threshold]; got ${eb.remaining}`);
+  assert.equal(typeof eb.exhausted, "boolean", "exhausted must be a boolean");
+  // Logical invariant: when exhausted, currentRate must exceed threshold
+  if (eb.exhausted) {
+    assert.ok(eb.currentRate > eb.threshold,
+      `when exhausted, currentRate (${eb.currentRate}) must exceed threshold (${eb.threshold})`);
+  }
+});
+
+// ── computeErrorBudgetLifetime + errorBudgetLifetimePretty derive from computeErrorBudgetLifetime
+
 test("buildSummary: errorBudgetLifetime + errorBudgetLifetimePretty derive from computeErrorBudgetLifetime", () => {
   // Drift detector: both summary fields must equal the helper output.
   const { computeErrorBudgetLifetime, buildSummary } = require("../api/health.js");
