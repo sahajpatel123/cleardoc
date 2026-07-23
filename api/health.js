@@ -333,6 +333,16 @@ function computeUptimePercent(errs, accepted, rateLimited) {
   return { rate, ratePretty: formatPercentPretty(pct, 1) };
 }
 
+/* Format a numerator/denominator ratio as a 1-decimal percent.
+ * Returns `fallback` (default 0) when the denominator is zero — the
+ * degenerate case where there are no events to divide by.
+ * Single source of truth for cacheMissRate + errorRate so the two
+ * can never drift apart in their rounding or fallback semantics. */
+function formatRatioPercent(num, denom, fallback = 0) {
+  if (!Number.isFinite(denom) || denom <= 0) return fallback;
+  return Math.round((num / denom) * 1000) / 10;
+}
+
 /* Set the standard /api/health 200 response headers. Shared between the
  * GET path (sendOkCached) and the HEAD path (inline), so future header
  * additions land in one place. Order matters — every header must be set
@@ -479,10 +489,9 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Cache miss rate (0..1, 1-decimal precision). Lighter than
     // computing the rate client-side. Pairs with totalProbes +
     // networkProbes to make cache effectiveness derivable from a
-    // single number.
-    cacheMissRate: probeCounts.total > 0
-      ? Math.round((probeCounts.network / probeCounts.total) * 1000) / 10
-      : 0,
+    // single number. formatRatioPercent helper is the single source
+    // of truth shared with errorRate.
+    cacheMissRate: formatRatioPercent(probeCounts.network, probeCounts.total),
     // Per-provider reachability rate over the rolling 1-hour window.
     // Lets ops answer "is the provider flapping?" — a 50%-reachable
     // signal is actionable even when the current state is OK.
@@ -686,10 +695,9 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // + `requests` fields so ops can read the ratio directly instead
     // of computing it client-side. Guards divide-by-zero at process
     // start (0/0 must resolve to 0, not NaN) and never produces >100
-    // because totalErrors is bounded by requests.
-    errorRate: _requestsServed > 0
-      ? Math.round((_totalErrors / _requestsServed) * 1000) / 10
-      : 0,
+    // because totalErrors is bounded by requests. formatRatioPercent
+    // helper is the single source of truth shared with cacheMissRate.
+    errorRate: formatRatioPercent(_totalErrors, _requestsServed),
     // SRE-style uptime percentage over the full process lifetime.
     // Defined as: 1 - (5xx / total), where total = 5xx + 2xx + 429
     // (the cumulative counts). 4xx other than 429 is excluded:
@@ -1212,6 +1220,7 @@ module.exports.formatAcceptanceRate = formatAcceptanceRate;
 module.exports.formatCompactCount = formatCompactCount;
 module.exports.formatDurationPretty = formatDurationPretty;
 module.exports.formatPercentPretty = formatPercentPretty;
+module.exports.formatRatioPercent = formatRatioPercent;
 module.exports.formatUptimePretty = formatUptimePretty;
 module.exports.getTopStatusCodes = getTopStatusCodes;
 module.exports.getStatusGroupCounts = getStatusGroupCounts;
