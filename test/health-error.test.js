@@ -2860,6 +2860,27 @@ test("buildSummary: errorRate matches formatRatioPercent helper", () => {
   assert.equal(typeof formatRatioPercent, "function");
 });
 
+// ── errorBudget field precision (iter #203) ───────────────────
+
+test("buildSummary: errorBudget.currentRate + remaining are 4-decimal precision", () => {
+  // The errorBudget struct (added iter #135) has currentRate and
+  // remaining as 4-decimal precision ratios. Locks the precision
+  // so a future refactor can't silently change to 1-decimal or 2.
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  // 4-decimal precision: × 10000 must be effectively an integer
+  for (const k of ["currentRate", "remaining"]) {
+    const v = r.errorBudget[k];
+    assert.equal(typeof v, "number", `errorBudget.${k} must be a number`);
+    const scaled = v * 10000;
+    assert.ok(Math.abs(scaled - Math.round(scaled)) < 1e-6,
+      `errorBudget.${k} × 10000 must be effectively integer; got ${scaled}`);
+  }
+});
+
 // ── errorBudgetLifetime comprehensive scenarios (iter #194) ─────
 
 test("errorBudgetLifetime helper: returns object with rate + ratePretty shape", () => {
