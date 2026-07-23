@@ -184,9 +184,12 @@ function computeAcceptanceCounts() {
 function formatAcceptanceRate(accepted, rateLimited) {
   const total = accepted + rateLimited;
   if (total === 0) return { rate: 1, ratePretty: "100%" };
-  const numeric = Math.round((accepted / total) * 10000) / 10000;
-  const pct = Math.round((accepted / total) * 1000) / 10;
-  return { rate: numeric, ratePretty: `${pct.toFixed(1)}%` };
+  // Compute the rate once at 4-decimal precision, then derive the
+  // pretty % form (1-decimal) by multiplying × 100. formatPercentPretty
+  // is the single source of truth for "%" formatting.
+  const rate = Math.round((accepted / total) * 10000) / 10000;
+  const pct = Math.round(rate * 1000) / 10;
+  return { rate, ratePretty: formatPercentPretty(pct, 1) };
 }
 
 /* Format an integer count in compact form for dashboards. Three

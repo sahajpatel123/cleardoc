@@ -2181,8 +2181,10 @@ test("health handler: summary exposes acceptanceRatePretty (human-readable %)", 
     "summary.acceptanceRatePretty must call formatAcceptanceRate() helper");
   assert.match(HEALTH_SOURCE, /function formatAcceptanceRate[\s\S]+?ratePretty:\s*"100%"/,
     "formatAcceptanceRate must return ratePretty: \"100%\" for empty window");
-  assert.match(HEALTH_SOURCE, /formatAcceptanceRate[\s\S]+?toFixed\(1\)/,
-    "formatAcceptanceRate must use toFixed(1) for pretty format");
+  // After iter #178 the toFixed(1) is delegated to formatPercentPretty
+  // (the single source of truth for % formatting).
+  assert.match(HEALTH_SOURCE, /formatAcceptanceRate[\s\S]+?formatPercentPretty\(/,
+    "formatAcceptanceRate must delegate to formatPercentPretty helper");
 });
 
 test("buildSummary: acceptanceRatePretty matches the numeric acceptanceRate", () => {
@@ -2823,9 +2825,9 @@ test("health handler: summary exposes uptimePercentInLastHourPretty (human-reada
   // "100%" sentinel for zero-traffic
   assert.match(HEALTH_SOURCE, /return\s*"100%"/,
     "zero-traffic branch must return literal \"100%\"");
-  // 1-decimal precision
-  assert.match(HEALTH_SOURCE, /pct\.toFixed\(1\)/,
-    "non-degenerate branch must format with toFixed(1)");
+  // 1-decimal precision via formatPercentPretty (iter #176 consolidator)
+  assert.match(HEALTH_SOURCE, /formatPercentPretty\(\s*pct\s*,\s*1\s*\)/,
+    "non-degenerate branch must call formatPercentPretty(pct, 1)");
 });
 
 test("buildSummary: uptimePercentInLastHourPretty is a string matching % format", () => {
@@ -2884,8 +2886,9 @@ test("health handler: summary exposes uptimePercentLifetimePretty (human-readabl
     "summary must include uptimePercentLifetimePretty field");
   assert.match(HEALTH_SOURCE, /return\s*"100%"/,
     "zero-traffic branch must return literal \"100%\"");
-  assert.match(HEALTH_SOURCE, /pct\.toFixed\(1\)/,
-    "non-degenerate branch must format with toFixed(1)");
+  // 1-decimal precision via formatPercentPretty (iter #176 consolidator)
+  assert.match(HEALTH_SOURCE, /formatPercentPretty\(\s*pct\s*,\s*1\s*\)/,
+    "non-degenerate branch must call formatPercentPretty(pct, 1)");
 });
 
 test("buildSummary: uptimePercentLifetimePretty is a string matching % format", () => {
