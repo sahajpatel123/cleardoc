@@ -519,12 +519,11 @@ function recordCspReport(directive, blockedUri, documentUri, reporterIp) {
   _cspRecordUri(_cspBlockedUriCounts, blockedUri);
   _cspRecordUri(_cspDocumentUriCounts, documentUri);
 
-  // Reset the consecutive-blocks counter: a successful report
-  // happened, so the "sustained attack" signal is broken.
-  _cspConsecutiveBlocks = 0;
-
   // Track the most recent reporting IP for attribution. Hash + sample
   // so ops can identify the source without us logging the raw IP.
+  // Note: _cspConsecutiveBlocks reset happens earlier in this
+  // function (single source of truth). Removed the duplicate reset
+  // that lived here — same pattern as the iter #166 recordCspBlock fix.
   if (typeof reporterIp === "string" && reporterIp.length > 0 && reporterIp.length <= 200) {
     const sample = reporterIp.slice(0, 64);
     const hash = _csp.createHash("sha256").update(sample).digest("hex").slice(0, 16);
