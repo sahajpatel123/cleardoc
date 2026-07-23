@@ -222,6 +222,24 @@ function formatDurationPretty(ms) {
   return `${Math.round((ms / 1000) * 10) / 10}s`;
 }
 
+/* Format an integer-second uptime for dashboards. Four branches:
+ *   - < 60s    → "X s"     (e.g. "42s")
+ *   - < 3600s  → "Xm Ys"   (e.g. "5m 30s")
+ *   - < 86400s → "Xh Ym"   (e.g. "3h 45m")
+ *   - ≥ 86400s → "Xd Yh Zm" (e.g. "2d 5h 10m")
+ * Single source of truth for startupDurationPretty +
+ * processUptimePretty so the two can never drift apart. */
+function formatUptimePretty(s) {
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+  const days = Math.floor(s / 86400);
+  const hours = Math.floor((s % 86400) / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  return days > 0
+    ? `${days}d ${hours}h ${mins}m`
+    : `${hours}h ${mins}m`;
+}
+
 /* Extract the top-N status codes by count from a status→count Map.
  * Returns an array of { status, count } sorted by count desc then
  * status asc (stable). Empty array when the map is empty.
@@ -493,19 +511,11 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // Human-readable startup duration. Analogous to processUptimePretty
     // but for cold-start latency. Null until the first request
     // (matches startupDurationMs). Format: same d/h/m/s rules as
-    // processUptimePretty — see the helper.
+    // processUptimePretty — uses the formatUptimePretty() helper.
     startupDurationPretty: (() => {
       const ms = _firstRequestTs ? _firstRequestTs - START_TS : null;
       if (ms === null || !Number.isFinite(ms) || ms < 0 || ms > 600000) return null;
-      const s = Math.round(ms / 1000);
-      if (s < 60) return `${s}s`;
-      if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
-      const days = Math.floor(s / 86400);
-      const hours = Math.floor((s % 86400) / 3600);
-      const mins = Math.floor((s % 3600) / 60);
-      return days > 0
-        ? `${days}d ${hours}h ${mins}m`
-        : `${hours}h ${mins}m`;
+      return formatUptimePretty(Math.round(ms / 1000));
     })(),
     providersConfigured: configured,
     providersReachable: reachable,
@@ -928,17 +938,7 @@ module.exports = async function handler(req, res) {
         // "45s" or "12m 30s". Pairs with processUptimeSec (precise
         // integer seconds) — the pretty format is for humans
         // glancing at a curl response, the integer is for ops scripts.
-        processUptimePretty: (() => {
-          let s = Math.round(process.uptime());
-          if (s < 60) return `${s}s`;
-          if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
-          const days = Math.floor(s / 86400);
-          const hours = Math.floor((s % 86400) / 3600);
-          const mins = Math.floor((s % 3600) / 60);
-          return days > 0
-            ? `${days}d ${hours}h ${mins}m`
-            : `${hours}h ${mins}m`;
-        })(),
+        processUptimePretty: formatUptimePretty(Math.round(process.uptime())),
         // Vercel injects these on every production deploy. Lets ops
         // dashboards route alerts by region ("only iad1 is unhealthy")
         // and distinguish prod from preview deployments from the same
@@ -1160,6 +1160,7 @@ module.exports.computeAcceptanceCounts = computeAcceptanceCounts;
 module.exports.formatAcceptanceRate = formatAcceptanceRate;
 module.exports.formatCompactCount = formatCompactCount;
 module.exports.formatDurationPretty = formatDurationPretty;
+module.exports.formatUptimePretty = formatUptimePretty;
 module.exports.getTopStatusCodes = getTopStatusCodes;
 module.exports.getStatusGroupCounts = getStatusGroupCounts;
 module.exports.recordRequestStatus = recordRequestStatus;

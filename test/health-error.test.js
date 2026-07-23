@@ -2626,6 +2626,48 @@ test("buildSummary: lastHealthDurationPretty + maxHealthDurationPretty derive fr
     "summary.maxHealthDurationPretty must equal formatDurationPretty(maxHealthDurationMs)");
 });
 
+// ── formatUptimePretty helper (iter #175) ─────────────────────
+
+test("formatUptimePretty: helper is exported and handles all four branches", () => {
+  // After the iter #175 refactor, formatUptimePretty is the single
+  // source of truth for startupDurationPretty + processUptimePretty.
+  const { formatUptimePretty } = require("../api/health.js");
+  assert.equal(typeof formatUptimePretty, "function",
+    "formatUptimePretty must be exported as a function");
+  // Seconds only
+  assert.equal(formatUptimePretty(0), "0s", "0s → \"0s\"");
+  assert.equal(formatUptimePretty(42), "42s", "42s → \"42s\"");
+  assert.equal(formatUptimePretty(59), "59s", "59s → \"59s\"");
+  // Minutes + seconds
+  assert.equal(formatUptimePretty(60), "1m 0s", "60s → \"1m 0s\"");
+  assert.equal(formatUptimePretty(330), "5m 30s", "330s → \"5m 30s\"");
+  // Hours + minutes (no seconds in this branch)
+  assert.equal(formatUptimePretty(3600), "1h 0m", "3600s → \"1h 0m\"");
+  assert.equal(formatUptimePretty(13500), "3h 45m", "13500s → \"3h 45m\"");
+  // Days + hours + minutes
+  assert.equal(formatUptimePretty(86400), "1d 0h 0m", "86400s → \"1d 0h 0m\"");
+  assert.equal(formatUptimePretty(189000), "2d 4h 30m", "189000s → \"2d 4h 30m\"");
+});
+
+test("buildSummary: processUptimePretty derives from formatUptimePretty", () => {
+  // Drift detector: processUptimePretty is built inside the handler's
+  // payload.process block (not the summary object returned by
+  // buildSummary), so we verify the helper exists and the source uses
+  // it via grep — same approach as iter #152 / #173.
+  const src = require("node:fs").readFileSync(
+    require("node:path").join(__dirname, "../api/health.js"),
+    "utf8"
+  );
+  assert.match(src, /processUptimePretty:\s*formatUptimePretty\(/,
+    "processUptimePretty must call formatUptimePretty helper");
+  // Helper itself: verify it returns a non-empty string
+  const { formatUptimePretty } = require("../api/health.js");
+  assert.equal(typeof formatUptimePretty(process.uptime()), "string",
+    "formatUptimePretty(process.uptime()) must return a string");
+  assert.ok(formatUptimePretty(process.uptime()).length > 0,
+    "formatUptimePretty output must be non-empty");
+});
+
 // ── getStatusGroupCounts helper (iter #157) ───────────────────
 
 test("getStatusGroupCounts: helper is exported and buckets correctly", () => {
