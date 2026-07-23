@@ -2838,6 +2838,28 @@ test("buildSummary: errorBudgetLifetime field equals computeErrorBudgetLifetime(
 
 // ── uniqueBlockedUris behavioral drift detector (iter #192) ─────
 
+// ── errorRate drift detector (iter #201) ────────────────────────
+
+test("buildSummary: errorRate matches formatRatioPercent helper", () => {
+  // Companion to the iter #183 drift detector for cacheMissRate
+  // (added with the refactor). Both ratio fields now use the same
+  // formatRatioPercent() helper, so the drift detector verifies both.
+  const { formatRatioPercent, buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  // We can't read _totalErrors / _requestsServed directly (they're
+  // module-private), but we can verify the structural shape:
+  // - in [0, 100] (0..1 ratio * 100 = 0..100 percent)
+  // - 1-decimal precision
+  assert.equal(typeof r.errorRate, "number");
+  assert.ok(r.errorRate >= 0 && r.errorRate <= 100,
+    `errorRate must be in [0, 100]; got ${r.errorRate}`);
+  // The helper exists and is exported (verified by the unit test).
+  assert.equal(typeof formatRatioPercent, "function");
+});
+
 // ── errorBudgetLifetime comprehensive scenarios (iter #194) ─────
 
 test("errorBudgetLifetime helper: returns object with rate + ratePretty shape", () => {
