@@ -1643,6 +1643,24 @@ test("_safety: getCspReportCounts.byDirective is keyed by normalized directive (
     `script-src count must increase by 1; got ${before} → ${after.byDirective["script-src"]}`);
 });
 
+// ── getCspReportCounts ISO 8601 string format (iter #209) ────
+
+test("_safety: getCspReportCounts firstSeenAt + lastSeenAt + lastBlockedAt are ISO 8601", () => {
+  // All three ISO timestamp fields must be either null (no event
+  // yet) or a valid ISO 8601 string. The format starts with YYYY-MM-DD
+  // and includes a T separator + HH:MM:SS. Lock the format so dashboards
+  // parsing these fields don't break.
+  const { getCspReportCounts } = require("../api/_safety.js");
+  const c = getCspReportCounts();
+  for (const k of ["firstSeenAt", "lastSeenAt", "lastBlockedAt"]) {
+    if (c[k] !== null) {
+      assert.equal(typeof c[k], "string", `${k} must be a string when present`);
+      assert.match(c[k], /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+        `${k} must be ISO 8601 format; got "${c[k]}"`);
+    }
+  }
+});
+
 test("_safety: getCspReportCounts returns sensible defaults before any reports", () => {
   // Pure-functional: shared module state means prior tests in this
   // file may have incremented counters. We can't assert exact zeros —
