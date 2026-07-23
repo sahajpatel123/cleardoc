@@ -566,36 +566,6 @@ function recordCspBlock(reporterIp) {
   // per block instead of 1.)
 }
 
-function getCspReportCounts() {
-  // Snapshot (caller can iterate without worrying about concurrent mutation)
-  const byDirective = Object.create(null);
-  for (const [k, v] of _cspDirectiveCounts) byDirective[k] = v;
-  return {
-    total: _cspTotalReports,
-    byDirective,
-    // Temporal observability: ISO timestamps of first and most recent
-    // report. Null until the first report arrives. Lets ops answer
-    // "is the CSP report stream fresh or stale?" — a 6-hour gap with
-    // a "0 reports" trend means the stream is dead, not "nothing to
-    // report".
-    firstSeenAt: _cspFirstSeenAt ? new Date(_cspFirstSeenAt).toISOString() : null,
-    lastSeenAt: _cspLastSeenAt ? new Date(_cspLastSeenAt).toISOString() : null,
-    // Unix-ms timestamp of the most recent rate-limit-rejected CSP
-    // report. Pairs with lastSeenAt (last accepted) to give ops the
-    // full CSP timeline. Null until the first block.
-    lastBlockedAt: _cspLastBlockedAt ? new Date(_cspLastBlockedAt).toISOString() : null,
-    // Count of distinct blocked URIs (the resource that was blocked)
-    // in the per-URI cache. Pairs with `mostBlocked` (top-10) to
-    // give ops the scope of blocked-URI variety.
-    uniqueBlockedUris: _cspBlockedUriCounts.size,
-    // Most recent rate-limit-rejected timestamp. Distinct from
-    // lastSeenAt (which is the last *accepted* report). Null until
-    // the first block. Lets ops answer "when was the most recent
-    // rate-limit rejection?" from a single curl.
-    lastBlockedAt: _cspLastBlockedAt ? new Date(_cspLastBlockedAt).toISOString() : null,
-  };
-}
-
 // Snapshot the per-URI counters. Same shape as the directive counter:
 //   { hash, count, sample } for the top-N entries, sorted by count desc.
 // Ops can answer two questions in one curl:
