@@ -2476,3 +2476,43 @@ test("getProbeCounts: returns { total, network } with non-negative integers", ()
   assert.ok(counts.network <= counts.total,
     `network (${counts.network}) must be ≤ total (${counts.total})`);
 });
+
+// ── recordCspBlock + cspReports fields (iter #166) ─────────────
+
+test("recordCspBlock: increments consecutiveBlocks and updates lastBlockedAt", () => {
+  // Behavioral: the function is called when a CSP report is rate-limit-
+  // rejected. It must increment _cspConsecutiveBlocks and update
+  // _cspLastBlockedAt — both exposed via getCspReportCounts.
+  const { recordCspBlock, getCspReportCounts } = require("../api/_safety.js");
+  const before = getCspReportCounts();
+  const beforeConsecutive = before.consecutiveBlocks;
+  const beforeLastBlockedAt = before.lastBlockedAt;
+  // Small sleep to ensure Date.now() advances
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  return sleep(2).then(() => {
+    recordCspBlock("203.0.113.42");
+    const after = getCspReportCounts();
+    assert.equal(after.consecutiveBlocks, beforeConsecutive + 1,
+      "consecutiveBlocks must increment by 1");
+    assert.ok(after.lastBlockedAt !== beforeLastBlockedAt,
+      "lastBlockedAt must update (timestamp changes)");
+  });
+});
+
+test("getCspReportCounts: surfaces consecutiveBlocks + lastBlockedAt", () => {
+  // Structural check: cspReports object must include the rate-limit
+  // rejection surface (consecutiveBlocks, lastBlockedAt) even before
+  // any reports are received (defaults: 0 / null).
+  const { getCspReportCounts } = require("../api/_safety.js");
+  const counts = getCspReportCounts();
+  assert.equal(typeof counts.consecutiveBlocks, "number",
+    "counts.consecutiveBlocks must be a number");
+  assert.ok(counts.consecutiveBlocks >= 0, "consecutiveBlocks must be ≥ 0");
+  // lastBlockedAt is either null (no blocks yet) or an ISO string
+  if (counts.lastBlockedAt !== null) {
+    assert.equal(typeof counts.lastBlockedAt, "string",
+      "lastBlockedAt must be an ISO string or null");
+    assert.match(counts.lastBlockedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+      "lastBlockedAt must be ISO 8601 format");
+  }
+});

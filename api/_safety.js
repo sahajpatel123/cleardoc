@@ -561,9 +561,10 @@ function recordCspBlock(reporterIp) {
     _cspLastBlockerHash = hash;
     _cspLastBlockerSample = sample;
   }
-  // Increment the consecutive-blocks counter. A successful report
-  // (recordCspReport) resets this back to 0.
-  _cspConsecutiveBlocks += 1;
+  // (Removed duplicate _cspConsecutiveBlocks += 1; the increment at the
+  // top of the function is the single source of truth — found by the
+  // iter #166 behavioral test which detected the counter drifting by 2
+  // per block instead of 1.)
 }
 
 function getCspReportCounts() {
