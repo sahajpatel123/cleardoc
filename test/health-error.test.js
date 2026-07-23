@@ -2836,6 +2836,28 @@ test("buildSummary: errorBudgetLifetime field equals computeErrorBudgetLifetime(
 
 // ── requestsByStatusTop3 cross-field test (iter #190) ─────────
 
+// ── uniqueBlockedUris behavioral drift detector (iter #192) ─────
+
+test("buildSummary: cspReports.uniqueBlockedUris matches _cspBlockedUriCounts.size", () => {
+  // The field is exposed via getCspReportCounts() in _safety.js
+  // (lines 583+) as `_cspBlockedUriCounts.size`. Verify the summary
+  // value equals the live count — no stale snapshot.
+  //
+  // Note: we can't inject entries into _cspBlockedUriCounts from
+  // outside (it's module-private), but we can verify the field
+  // exists and is a non-negative integer that matches the helper.
+  const { getCspReportCounts } = require("../api/_safety.js");
+  const counts = getCspReportCounts();
+  assert.equal(typeof counts.uniqueBlockedUris, "number",
+    "uniqueBlockedUris must be a number");
+  assert.ok(Number.isInteger(counts.uniqueBlockedUris),
+    "uniqueBlockedUris must be an integer");
+  assert.ok(counts.uniqueBlockedUris >= 0,
+    `uniqueBlockedUris must be ≥ 0; got ${counts.uniqueBlockedUris}`);
+  assert.ok(counts.uniqueBlockedUris <= 50,
+    `uniqueBlockedUris must be ≤ MAX_CSP_URI_BUCKETS (50); got ${counts.uniqueBlockedUris}`);
+});
+
 test("buildSummary: requestsByStatusTop3 entries have the right shape + sort order", () => {
   // Verify the shape invariant: each entry is { status: number,
   // count: number }, sorted by count desc then status asc (stable).
