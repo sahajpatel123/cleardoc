@@ -2520,6 +2520,23 @@ test("getCspElapsedMinutes: returns a positive integer ≥ 1 (zero-divisor guard
   assert.ok(m >= 1, `must be ≥ 1 (divide-by-zero guard); got ${m}`);
 });
 
+// ── cspReportRate shape (iter #207) ──────────────────────────
+
+test("getCspReportCounts: ratePerMinute is a non-negative 1-decimal number", () => {
+  // The summary.cspReports.ratePerMinute field (the source field;
+  // cspReportRate is the same number) has a 0..10ish scale and
+  // 1-decimal precision. Lock the shape so future refactors can't
+  // silently break dashboards keying off the value.
+  const { getCspReportCounts } = require("../api/_safety.js");
+  const c = getCspReportCounts();
+  assert.equal(typeof c.ratePerMinute, "number");
+  assert.ok(c.ratePerMinute >= 0, "ratePerMinute must be ≥ 0");
+  // 1-decimal precision
+  const scaled = c.ratePerMinute * 10;
+  assert.ok(Math.abs(scaled - Math.round(scaled)) < 1e-6,
+    "ratePerMinute × 10 must be effectively integer");
+});
+
 // ── getCspElapsedMinutes stability check (iter #204) ─────────
 
 test("getCspElapsedMinutes: returns a non-decreasing value across calls", () => {
