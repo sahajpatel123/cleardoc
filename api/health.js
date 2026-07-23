@@ -293,6 +293,29 @@ function computeErrorBudget() {
   };
 }
 
+/* Compute the lifetime error budget. Returns:
+ *   {
+ *     rate:        n (0..1, 4-decimal),   // 1 - 5xx / total (lifetime)
+ *     ratePretty:   "X.XX%" or "100%"      // human-readable form
+ *   }
+ * Same shape as formatAcceptanceRate() (iter #153 pattern) — single
+ * calculation produces both numeric + pretty forms. The windowed
+ * errorBudget family has its own helper (computeErrorBudget) that
+ * returns a richer struct (threshold / windowHours / exhausted etc).
+ *
+ * Single source of truth for `summary.errorBudgetLifetime` and
+ * `summary.errorBudgetLifetimePretty`. */
+function computeErrorBudgetLifetime() {
+  const rateLimited = _requestsByStatus.get(429) || 0;
+  const errs = _totalErrors;
+  const accepted = _requestsServed;
+  const total = errs + accepted + rateLimited;
+  if (total === 0) return { rate: 1, ratePretty: "100%" };
+  const rate = Math.round((1 - errs / total) * 10000) / 10000;
+  const pct = Math.round((1 - errs / total) * 10000) / 100; // 2-decimal
+  return { rate, ratePretty: formatPercentPretty(pct, 2) };
+}
+
 /* Set the standard /api/health 200 response headers. Shared between the
  * GET path (sendOkCached) and the HEAD path (inline), so future header
  * additions land in one place. Order matters — every header must be set
@@ -809,14 +832,9 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // leading (lifetime) and lagging (windowed) signal at a glance.
     // Same formula as the windowed field: 1 - (5xx / total), where
     // total = 5xx + 2xx + 429 (lifetime counts). 4-decimal precision.
-    errorBudgetLifetime: (() => {
-      const rateLimited = _requestsByStatus.get(429) || 0;
-      const errs = _totalErrors;
-      const accepted = _requestsServed;
-      const total = errs + accepted + rateLimited;
-      if (total === 0) return 1; // no traffic yet → 100% remaining
-      return Math.round((1 - errs / total) * 10000) / 10000;
-    })(),
+    // Both rate + ratePretty come from computeErrorBudgetLifetime()
+    // so the two can never drift apart.
+    errorBudgetLifetime: computeErrorBudgetLifetime().rate,
     // Human-readable lifetime error budget percentage. Pairs with
     // `errorBudgetLifetime` (numeric) for at-a-glance reading.
     // 2-decimal precision via formatPercentPretty() (the single
@@ -825,15 +843,7 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // / 'X.XX% remaining' format because the 1h window can flip
     // between states; the lifetime pretty is simpler since the
     // continuous ratio never crosses an explicit "exhausted" line.
-    errorBudgetLifetimePretty: (() => {
-      const rateLimited = _requestsByStatus.get(429) || 0;
-      const errs = _totalErrors;
-      const accepted = _requestsServed;
-      const total = errs + accepted + rateLimited;
-      if (total === 0) return "100%";
-      const pct = Math.round((1 - errs / total) * 10000) / 100; // 2-decimal
-      return formatPercentPretty(pct, 2);
-    })(),
+    errorBudgetLifetimePretty: computeErrorBudgetLifetime().ratePretty,
   };
 }
 
@@ -1189,6 +1199,7 @@ module.exports = async function handler(req, res) {
 module.exports.buildSummary = buildSummary;
 module.exports.computeHealthEtag = computeHealthEtag;
 module.exports.computeErrorBudget = computeErrorBudget;
+module.exports.computeErrorBudgetLifetime = computeErrorBudgetLifetime;
 module.exports.computeAcceptanceCounts = computeAcceptanceCounts;
 module.exports.formatAcceptanceRate = formatAcceptanceRate;
 module.exports.formatCompactCount = formatCompactCount;

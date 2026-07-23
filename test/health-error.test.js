@@ -2751,6 +2751,45 @@ test("buildSummary: errorBudgetLifetimePretty is a string matching % format", ()
     `pretty (${prettyPct}%) must be within 0.01% of numeric (${numericPct}%)`);
 });
 
+// ── computeErrorBudgetLifetime helper (iter #181) ─────────────
+
+test("computeErrorBudgetLifetime: helper is exported and returns { rate, ratePretty }", () => {
+  // After the iter #181 refactor, computeErrorBudgetLifetime is the
+  // single source of truth for both errorBudgetLifetime and
+  // errorBudgetLifetimePretty.
+  const { computeErrorBudgetLifetime } = require("../api/health.js");
+  assert.equal(typeof computeErrorBudgetLifetime, "function",
+    "computeErrorBudgetLifetime must be exported as a function");
+  // Verify both fields are well-formed (module-level state persists
+  // across tests, so we can't assert exact values).
+  const result = computeErrorBudgetLifetime();
+  assert.equal(typeof result.rate, "number", "rate must be a number");
+  assert.ok(result.rate >= 0 && result.rate <= 1, `rate must be in [0, 1]; got ${result.rate}`);
+  assert.equal(typeof result.ratePretty, "string", "ratePretty must be a string");
+  // ratePretty must match /^\d+(\.\d+)?%$/
+  assert.match(result.ratePretty, /^\d+(\.\d+)?%$/,
+    `ratePretty must match /^\\d+(\\.\\d+)?%$/; got "${result.ratePretty}"`);
+  // Cross-check: rate × 100 ≈ pretty (2-decimal tolerance)
+  const numericPct = result.rate * 100;
+  const prettyPct = parseFloat(result.ratePretty);
+  assert.ok(Math.abs(numericPct - prettyPct) < 0.01,
+    `pretty (${prettyPct}%) must be within 0.01% of numeric (${numericPct}%)`);
+});
+
+test("buildSummary: errorBudgetLifetime + errorBudgetLifetimePretty derive from computeErrorBudgetLifetime", () => {
+  // Drift detector: both summary fields must equal the helper output.
+  const { computeErrorBudgetLifetime, buildSummary } = require("../api/health.js");
+  const expected = computeErrorBudgetLifetime();
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(r.errorBudgetLifetime, expected.rate,
+    "summary.errorBudgetLifetime must equal computeErrorBudgetLifetime().rate");
+  assert.equal(r.errorBudgetLifetimePretty, expected.ratePretty,
+    "summary.errorBudgetLifetimePretty must equal computeErrorBudgetLifetime().ratePretty");
+});
+
 // ── formatPercentPretty helper (iter #176) ─────────────────────
 
 test("formatPercentPretty: helper is exported and formats with configurable decimals", () => {
