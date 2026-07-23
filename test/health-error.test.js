@@ -2838,6 +2838,41 @@ test("buildSummary: errorBudgetLifetime field equals computeErrorBudgetLifetime(
 
 // ── uniqueBlockedUris behavioral drift detector (iter #192) ─────
 
+// ── errorBudgetLifetime comprehensive scenarios (iter #194) ─────
+
+test("errorBudgetLifetime helper: returns object with rate + ratePretty shape", () => {
+  // The helper returns { rate, ratePretty }. Verify the shape via the
+  // exported accessor (it's exposed as computeErrorBudgetLifetime).
+  const { computeErrorBudgetLifetime } = require("../api/health.js");
+  const result = computeErrorBudgetLifetime();
+  assert.equal(typeof result, "object");
+  assert.equal(typeof result.rate, "number");
+  assert.equal(typeof result.ratePretty, "string");
+});
+
+test("formatCompactCount: returns 'X' for small counts (< 1000)", () => {
+  // Behavioral coverage of the rateLimitedPretty / rateLimitedInLastHourPretty
+  // helper. Single helper for both fields since iter #155.
+  const { formatCompactCount } = require("../api/health.js");
+  assert.equal(formatCompactCount(0), "0", "0 → \"0\"");
+  assert.equal(formatCompactCount(42), "42", "42 → \"42\"");
+  assert.equal(formatCompactCount(999), "999", "999 → \"999\"");
+});
+
+test("formatCompactCount: returns 'X.XK' for K-range (1000..999999)", () => {
+  const { formatCompactCount } = require("../api/health.js");
+  assert.equal(formatCompactCount(1000), "1K", "1000 → \"1K\"");
+  assert.equal(formatCompactCount(12345), "12.3K", "12345 → \"12.3K\"");
+  assert.equal(formatCompactCount(999500), "999.5K", "999500 → \"999.5K\"");
+});
+
+test("formatCompactCount: returns 'X.XM' for M-range (>= 1000000)", () => {
+  const { formatCompactCount } = require("../api/health.js");
+  assert.equal(formatCompactCount(1000000), "1M", "1000000 → \"1M\"");
+  assert.equal(formatCompactCount(2500000), "2.5M", "2500000 → \"2.5M\"");
+  assert.equal(formatCompactCount(12345678), "12.3M", "12345678 → \"12.3M\"");
+});
+
 // ── cspReportAcceptanceRate scale invariant (iter #193) ────────
 
 test("buildSummary: cspReportAcceptanceRate is in [0, 10] (0..10 scale convention)", () => {
