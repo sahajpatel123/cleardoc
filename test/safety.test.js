@@ -2581,3 +2581,52 @@ test("recordCspReport: resets consecutiveBlocks (legitimate report = attack subs
   assert.equal(afterReport.consecutiveBlocks, 0,
     "consecutiveBlocks must reset to 0 after a successful report");
 });
+
+// ── probe accessor behavioral coverage (iter #169) ───────────
+
+test("getConsecutiveProviderFailures: returns { gemini, openrouter } with non-negative integers", () => {
+  // Behavioral: the accessor feeds /api/health's summary field.
+  // Verify shape + invariants even in the empty (fresh) state.
+  const { getConsecutiveProviderFailures } = require("../api/_safety.js");
+  const f = getConsecutiveProviderFailures();
+  assert.equal(typeof f, "object", "must return an object");
+  assert.equal(typeof f.gemini, "number", "f.gemini must be a number");
+  assert.equal(typeof f.openrouter, "number", "f.openrouter must be a number");
+  assert.ok(Number.isInteger(f.gemini), "gemini must be an integer");
+  assert.ok(Number.isInteger(f.openrouter), "openrouter must be an integer");
+  assert.ok(f.gemini >= 0, `gemini must be ≥ 0; got ${f.gemini}`);
+  assert.ok(f.openrouter >= 0, `openrouter must be ≥ 0; got ${f.openrouter}`);
+});
+
+test("getLastProbeFailure: returns { gemini, openrouter } with timestamps or null", () => {
+  // Behavioral: the accessor returns per-provider failure timestamps
+  // (Unix-ms) or null if no failure has occurred yet.
+  const { getLastProbeFailure } = require("../api/_safety.js");
+  const f = getLastProbeFailure();
+  assert.equal(typeof f, "object", "must return an object");
+  for (const k of ["gemini", "openrouter"]) {
+    const v = f[k];
+    // Either null (no failure yet) or a number (Unix-ms timestamp)
+    if (v !== null) {
+      assert.equal(typeof v, "number", `${k} must be a number when present`);
+      assert.ok(v > 0, `${k} timestamp must be positive (Unix-ms)`);
+      assert.ok(v <= Date.now(), `${k} timestamp must not be in the future`);
+    }
+  }
+});
+
+test("getLastProbeUpdate: returns { gemini, openrouter } with timestamps or null", () => {
+  // Behavioral: same shape as getLastProbeFailure but for ANY probe
+  // outcome (success or failure). Lets ops answer "when was the cache
+  // last refreshed for this provider?"
+  const { getLastProbeUpdate } = require("../api/_safety.js");
+  const u = getLastProbeUpdate();
+  assert.equal(typeof u, "object", "must return an object");
+  for (const k of ["gemini", "openrouter"]) {
+    const v = u[k];
+    if (v !== null) {
+      assert.equal(typeof v, "number", `${k} must be a number when present`);
+      assert.ok(v > 0, `${k} timestamp must be positive (Unix-ms)`);
+    }
+  }
+});
