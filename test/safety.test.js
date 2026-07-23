@@ -2353,3 +2353,81 @@ test("logProviderError: falls back to 'no-req-id' when reqId is missing", () => 
     console.error = origErr;
   }
 });
+
+// ── accessLog + sanitizeLogField behavioral coverage (iter #161) ───
+
+test("accessLog: emits [req=<id>] <method> <url> -> <status> via console.log", () => {
+  // Behavioral: per-request completion logger. Format matches errLog
+  // and logProviderError for grep compatibility.
+  const { accessLog } = require("../api/_safety.js");
+  const origLog = console.log;
+  let captured = "";
+  console.log = (msg) => { captured = msg; };
+  try {
+    const req = { method: "GET", url: "/api/health" };
+    const res = { __requestId: "req-access-1", statusCode: 200 };
+    accessLog(req, res, 200);
+    assert.match(captured, /\[req=req-access-1\]/, "must include request id");
+    assert.match(captured, /GET/, "must include HTTP method");
+    assert.match(captured, /\/api\/health/, "must include URL");
+    assert.match(captured, /-> 200/, "must include status code");
+  } finally {
+    console.log = origLog;
+  }
+});
+
+test("accessLog: explicit status arg overrides res.statusCode", () => {
+  const { accessLog } = require("../api/_safety.js");
+  const origLog = console.log;
+  let captured = "";
+  console.log = (msg) => { captured = msg; };
+  try {
+    const req = { method: "POST", url: "/api/csp-report" };
+    // res.statusCode says 200 but explicit status arg is 204
+    const res = { __requestId: "req-access-2", statusCode: 200 };
+    accessLog(req, res, 204);
+    assert.match(captured, /-> 204/,
+      "explicit status arg (204) must override res.statusCode (200)");
+  } finally {
+    console.log = origLog;
+  }
+});
+
+test("accessLog: falls back gracefully when req/res are missing", () => {
+  // Defensive: every API handler calls accessLog in its `finally`
+  // block, so it must never throw on partial input.
+  const { accessLog } = require("../api/_safety.js");
+  const origLog = console.log;
+  let captured = "";
+  console.log = (msg) => { captured = msg; };
+  try {
+    accessLog(null, null, 500);
+    assert.match(captured, /\[req=no-req-id\]/,
+      "null res → 'no-req-id' fallback");
+    // Method and URL get "?" sentinels
+    assert.match(captured, /\? \? -> 500/,
+      "null req → '?' sentinels for method and url");
+  } finally {
+    console.log = origLog;
+  }
+});
+
+test("sanitizeLogField: coerces non-string values safely", () => {
+  // Source-pattern already verified ASCII control stripping. Behavioral
+  // covers the non-string input paths (null, undefined, number, object).
+  const { sanitizeLogField } = require("../api/_safety.js");
+  // null and undefined coerce to "" (not "null"/"undefined")
+  assert.equal(sanitizeLogField(null, 100), "",
+    "null → empty string (not 'null')");
+  assert.equal(sanitizeLogField(undefined, 100), "",
+    "undefined → empty string (not 'undefined')");
+  // Numbers convert to their string form
+  assert.equal(sanitizeLogField(42, 100), "42", "number → '42'");
+  // Boolean converts to its string form
+  assert.equal(sanitizeLogField(true, 100), "true", "boolean → 'true'");
+  // Object → "[object Object]" (acceptable; not pretty but safe)
+  assert.equal(sanitizeLogField({ a: 1 }, 100), "[object Object]",
+    "object → '[object Object]'");
+  // Empty string passes through
+  assert.equal(sanitizeLogField("", 100), "", "empty string → empty string");
+});
