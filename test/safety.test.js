@@ -1643,6 +1643,30 @@ test("_safety: getCspReportCounts.byDirective is keyed by normalized directive (
     `script-src count must increase by 1; got ${before} → ${after.byDirective["script-src"]}`);
 });
 
+// ── getCspReportCounts lastBlockByIp + lastReporter shapes (iter #210) ──
+
+test("_safety: getCspReportCounts.lastBlockByIp + lastReporter have { hash, sample } shape", () => {
+  // Same pattern as iter #197 (mostBlocked): each field is either
+  // null (no event yet) or an object with { hash, sample } shape.
+  // The hash is 16 lowercase hex chars (SHA-256 truncated); the
+  // sample is the truncated IP string. These fields are how ops
+  // dashboards identify repeat offenders without exposing raw IPs.
+  const { getCspReportCounts } = require("../api/_safety.js");
+  const c = getCspReportCounts();
+  for (const k of ["lastBlockByIp", "lastReporter"]) {
+    if (c[k] !== null) {
+      assert.equal(typeof c[k], "object",
+        `${k} must be an object when present`);
+      assert.equal(typeof c[k].hash, "string",
+        `${k}.hash must be a string`);
+      assert.equal(typeof c[k].sample, "string",
+        `${k}.sample must be a string`);
+      assert.match(c[k].hash, /^[a-f0-9]{16}$/,
+        `${k}.hash must be 16 lowercase hex chars; got "${c[k].hash}"`);
+    }
+  }
+});
+
 // ── getCspReportCounts ISO 8601 string format (iter #209) ────
 
 test("_safety: getCspReportCounts firstSeenAt + lastSeenAt + lastBlockedAt are ISO 8601", () => {
