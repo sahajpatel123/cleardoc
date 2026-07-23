@@ -2446,6 +2446,41 @@ test("buildSummary: rateLimitedInLastHourPretty is a string matching the compact
     `must match /\\d+(\\.\\d+)?[KM]?$/; got "${r.rateLimitedInLastHourPretty}"`);
 });
 
+// ── formatCompactCount helper (iter #155) ─────────────────────
+
+test("formatCompactCount: helper is exported and handles all three branches", () => {
+  // After the iter #155 refactor, formatCompactCount is the single
+  // source of truth for rateLimitedPretty + rateLimitedInLastHourPretty.
+  const { formatCompactCount } = require("../api/health.js");
+  assert.equal(typeof formatCompactCount, "function",
+    "formatCompactCount must be exported as a function");
+  // Small-count branch: plain integer
+  assert.equal(formatCompactCount(0), "0", "0 → \"0\"");
+  assert.equal(formatCompactCount(42), "42", "42 → \"42\"");
+  assert.equal(formatCompactCount(999), "999", "999 → \"999\"");
+  // K-suffix branch
+  assert.equal(formatCompactCount(1000), "1K", "1000 → \"1K\"");
+  assert.equal(formatCompactCount(1234), "1.2K", "1234 → \"1.2K\"");
+  assert.equal(formatCompactCount(12345), "12.3K", "12345 → \"12.3K\"");
+  // M-suffix branch
+  assert.equal(formatCompactCount(1000000), "1M", "1000000 → \"1M\"");
+  assert.equal(formatCompactCount(2500000), "2.5M", "2500000 → \"2.5M\"");
+});
+
+test("buildSummary: rateLimitedPretty + rateLimitedInLastHourPretty derive from formatCompactCount", () => {
+  // Drift detector: both summary fields must equal the helper output
+  // for their respective input counts.
+  const { formatCompactCount, buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(r.rateLimitedPretty, formatCompactCount(r.rateLimited),
+    "summary.rateLimitedPretty must equal formatCompactCount(rateLimited)");
+  assert.equal(r.rateLimitedInLastHourPretty, formatCompactCount(r.rateLimitedInLastHour),
+    "summary.rateLimitedInLastHourPretty must equal formatCompactCount(rateLimitedInLastHour)");
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.

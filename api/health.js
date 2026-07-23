@@ -198,6 +198,18 @@ function formatAcceptanceRate(accepted, rateLimited) {
   return { rate: numeric, ratePretty: `${pct.toFixed(1)}%` };
 }
 
+/* Format an integer count in compact form for dashboards. Three
+ * branches:
+ *   - < 1000   → plain integer string ("42")
+ *   - < 1M     → "X.XK" with 1-decimal precision ("12.3K")
+ *   - ≥ 1M     → "X.XM" with 1-decimal precision ("1.5M")
+ * Single source of truth for the lifetime + windowed counter formatters. */
+function formatCompactCount(n) {
+  if (n < 1000) return String(n);
+  if (n < 1000000) return `${Math.round((n / 1000) * 10) / 10}K`;
+  return `${Math.round((n / 1000000) * 10) / 10}M`;
+}
+
 /* Compute the SRE error budget over the rolling 1-hour window. Returns:
  *   {
  *     threshold:    0.01,                  // SRE default
@@ -574,14 +586,8 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     rateLimited: _requestsByStatus.get(429) || 0,
     // Human-readable rate-limited count. Pairs with `rateLimited`
     // (numeric counter) — this string is for at-a-glance reading
-    // on dashboards. Compact format with K/M suffixes for large
-    // values so a high-volume deployment doesn't show "1234567".
-    rateLimitedPretty: (() => {
-      const n = _requestsByStatus.get(429) || 0;
-      if (n < 1000) return String(n);
-      if (n < 1000000) return `${Math.round((n / 1000) * 10) / 10}K`;
-      return `${Math.round((n / 1000000) * 10) / 10}M`;
-    })(),
+    // on dashboards. Compact format via formatCompactCount() helper.
+    rateLimitedPretty: formatCompactCount(_requestsByStatus.get(429) || 0),
     // Rolling 1-hour window of 429 (rate-limit reject) count. Pairs
     // with `rateLimited` (cumulative) to give ops a windowed view:
     // "is the rate-limiter firing RIGHT NOW?" independent of process
@@ -589,15 +595,10 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // window from the cumulative counter.
     rateLimitedInLastHour: _rateLimitedInLastHour.length,
     // Human-readable windowed 429 count. Pairs with `rateLimitedInLastHour`
-    // (numeric counter) using the same K/M compact format as
-    // `rateLimitedPretty` (cumulative) so dashboards can render them
+    // (numeric counter) using formatCompactCount() — same K/M format
+    // as `rateLimitedPretty` (cumulative) so dashboards render them
     // consistently.
-    rateLimitedInLastHourPretty: (() => {
-      const n = _rateLimitedInLastHour.length;
-      if (n < 1000) return String(n);
-      if (n < 1000000) return `${Math.round((n / 1000) * 10) / 10}K`;
-      return `${Math.round((n / 1000000) * 10) / 10}M`;
-    })(),
+    rateLimitedInLastHourPretty: formatCompactCount(_rateLimitedInLastHour.length),
     // Rolling 1-hour window of 2xx (accepted) count. Pairs with
     // `requestsAccepted` (cumulative) and `rateLimitedInLastHour`
     // (429 window) so ops can compute the windowed acceptance rate
@@ -1070,4 +1071,5 @@ module.exports.computeHealthEtag = computeHealthEtag;
 module.exports.computeErrorBudget = computeErrorBudget;
 module.exports.computeAcceptanceCounts = computeAcceptanceCounts;
 module.exports.formatAcceptanceRate = formatAcceptanceRate;
+module.exports.formatCompactCount = formatCompactCount;
 module.exports.recordRequestStatus = recordRequestStatus;
