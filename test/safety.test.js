@@ -2456,3 +2456,23 @@ test("getProbeCacheSize: returns a non-negative integer", () => {
   assert.ok(size >= 0, `size must be ≥ 0; got ${size}`);
   assert.ok(size <= 100, `size must be ≤ _PROBE_CACHE_MAX (100); got ${size}`);
 });
+
+// ── getProbeCounts behavioral coverage (iter #163) ─────────────
+
+test("getProbeCounts: returns { total, network } with non-negative integers", () => {
+  // Behavioral: the accessor feeds /api/health's summary.totalProbes
+  // and summary.networkProbes fields. Verify the shape and invariants:
+  // - total ≥ network (every network probe contributes to total)
+  // - both are integers ≥ 0
+  const { getProbeCounts } = require("../api/_safety.js");
+  const counts = getProbeCounts();
+  assert.equal(typeof counts, "object", "counts must be an object");
+  assert.equal(typeof counts.total, "number", "counts.total must be a number");
+  assert.equal(typeof counts.network, "number", "counts.network must be a number");
+  assert.ok(Number.isInteger(counts.total), "total must be an integer");
+  assert.ok(Number.isInteger(counts.network), "network must be an integer");
+  assert.ok(counts.total >= 0, `total must be ≥ 0; got ${counts.total}`);
+  assert.ok(counts.network >= 0, `network must be ≥ 0; got ${counts.network}`);
+  assert.ok(counts.network <= counts.total,
+    `network (${counts.network}) must be ≤ total (${counts.total})`);
+});
