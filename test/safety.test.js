@@ -2837,3 +2837,19 @@ test("getProbeReachabilityByRegionInLastHour: returns { gemini: {}, openrouter: 
   assert.equal(Object.keys(reach.openrouter).length, 0,
     "empty state → reach.openrouter must have no region keys");
 });
+
+// ── asString edge cases (iter #211) ───────────────────────
+
+test("_safety: asString handles max = 0 and max = -5 (degenerate caps)", () => {
+  // String.prototype.slice(0, 0) returns "" (empty string).
+  // String.prototype.slice(0, -5) returns "" too (negative is
+  // "from the end", so 0..-5 = nothing). Both degenerate cases
+  // produce an empty result after .trim(). Verify the behavior
+  // so a future refactor doesn't accidentally return the full
+  // string for negative max.
+  const { asString } = require("../api/_safety.js");
+  assert.equal(asString("hello", 0), "", "max=0 -> empty");
+  assert.equal(asString("hello", -5), "", "max=-5 -> empty");
+  // max=undefined -> uses default behavior
+  assert.equal(typeof asString("hello"), "string");
+});
