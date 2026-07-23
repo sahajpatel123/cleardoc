@@ -2536,6 +2536,11 @@ test("getCspReportCounts: mostBlocked + mostBlockedFrom are { hash, count, sampl
       assert.match(entry.hash, /^[a-f0-9]{16}$/,
         `${key} entry.hash must be 16 lowercase hex chars; got "${entry.hash}"`);
     }
+    // Sort order: count desc. Same convention as getTopStatusCodes (iter #156).
+    for (let i = 1; i < c[key].length; i++) {
+      assert.ok(c[key][i - 1].count >= c[key][i].count,
+        `${key} must be sorted by count desc; got ${c[key][i - 1].count} before ${c[key][i].count}`);
+    }
   }
 });
 
