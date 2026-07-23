@@ -553,6 +553,16 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // if the health endpoint itself is getting slow — a slow health
     // endpoint is a real problem since it's the most-polled endpoint.
     lastHealthDurationMs: _lastHealthDurationMs,
+    // Human-readable last duration. Pairs with `lastHealthDurationMs`
+    // (numeric, for graphing) — this string is for at-a-glance
+    // reading. Same format as maxHealthDurationPretty: "—" for
+    // zero-requests, "Xms" for sub-second, "X.Xs" for ≥1s.
+    lastHealthDurationPretty: (() => {
+      const ms = _lastHealthDurationMs;
+      if (!ms || ms <= 0) return "—";
+      if (ms < 1000) return `${ms}ms`;
+      return `${Math.round((ms / 1000) * 10) / 10}s`;
+    })(),
     // Peak /api/health request duration ever observed. Pairs with
     // lastHealthDurationMs to detect "health is consistently slow"
     // vs "spike pattern".

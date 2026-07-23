@@ -2558,6 +2558,36 @@ test("buildSummary: providersHealthRollup matches providersReachable/providersCo
     `must match /^\\d+\\/\\d+$/; got "${r.providersHealthRollup}"`);
 });
 
+// ── lastHealthDurationPretty (iter #173) ──────────────────────
+
+test("health handler: summary exposes lastHealthDurationPretty (human-readable ms/s)", () => {
+  assert.match(HEALTH_SOURCE, /lastHealthDurationPretty/,
+    "summary must include lastHealthDurationPretty field");
+  // Reads from _lastHealthDurationMs
+  assert.match(HEALTH_SOURCE, /_lastHealthDurationMs/,
+    "must read _lastHealthDurationMs");
+  // "—" sentinel for zero-requests
+  assert.match(HEALTH_SOURCE, /return\s*"—"/,
+    "zero-requests branch must return \"—\" sentinel");
+  // "ms" suffix for sub-second
+  assert.match(HEALTH_SOURCE, /ms\s*<\s*1000\s*\)\s*return\s*`\$\{[^}]+\}ms`/,
+    "sub-second branch → \"Xms\" suffix");
+});
+
+test("buildSummary: lastHealthDurationPretty matches the duration trio format", () => {
+  // Structural check: type is string, regex matches the same three
+  // shapes as maxHealthDurationPretty (—" / "Xms" / "X.Xs").
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(typeof r.lastHealthDurationPretty, "string",
+    "lastHealthDurationPretty must be a string");
+  assert.match(r.lastHealthDurationPretty, /^(—|\d+ms|\d+\.\d+s)$/,
+    `must match /^(|\\d+ms|\\d+\\.\\d+s)$/; got "${r.lastHealthDurationPretty}"`);
+});
+
 // ── getStatusGroupCounts helper (iter #157) ───────────────────
 
 test("getStatusGroupCounts: helper is exported and buckets correctly", () => {
