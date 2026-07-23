@@ -798,13 +798,9 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // directly: requestsAccepted / (requestsAccepted + rateLimited).
     // Note: 2xx-only — 4xx (other than 429) and 5xx are excluded so
     // this counts "successful responses", not "all responses".
-    requestsAccepted: (() => {
-      let total = 0;
-      for (const [status, count] of _requestsByStatus) {
-        if (status >= 200 && status < 300) total += count;
-      }
-      return total;
-    })(),
+    // computeAcceptanceCounts() (iter #148 helper) is the single
+    // source of truth — same Map traversal shared with acceptanceRate.
+    requestsAccepted: computeAcceptanceCounts().accepted,
     // Acceptance rate (0..1, 4-decimal precision). Derived from the
     // cumulative counters so it spans the full process lifetime.
     // `accepted / (accepted + rateLimited)`. Returns 1 when no
