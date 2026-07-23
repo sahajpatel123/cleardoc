@@ -2515,6 +2515,27 @@ test("getCspElapsedMinutes: returns a positive integer ≥ 1 (zero-divisor guard
   assert.ok(m >= 1, `must be ≥ 1 (divide-by-zero guard); got ${m}`);
 });
 
+// ── cspReports rate trio post-iter-198 refactor (iter #200) ────
+
+test("getCspReportCounts: ratePerMinute + totalRatePerMinute + peakRatePerMinute shapes", () => {
+  // The iter #198 refactor extracted getCspElapsedMinutes() (single
+  // source of truth). This test locks in the shape of the three
+  // rate fields so a future regression is caught.
+  const { getCspReportCounts } = require("../api/_safety.js");
+  const c = getCspReportCounts();
+  for (const k of ["ratePerMinute", "totalRatePerMinute", "peakRatePerMinute"]) {
+    assert.equal(typeof c[k], "number", `${k} must be a number`);
+    assert.ok(c[k] >= 0, `${k} must be ≥ 0; got ${c[k]}`);
+    // 1-decimal precision: × 10 must be effectively an integer
+    const scaled = c[k] * 10;
+    assert.ok(Math.abs(scaled - Math.round(scaled)) < 1e-6,
+      `${k} × 10 must be effectively integer; got ${scaled}`);
+  }
+  // totalRatePerMinute ≥ ratePerMinute (the former includes blocked)
+  assert.ok(c.totalRatePerMinute >= c.ratePerMinute,
+    `totalRatePerMinute (${c.totalRatePerMinute}) must be ≥ ratePerMinute (${c.ratePerMinute})`);
+});
+
 test("getCspReportCounts: mostBlocked + mostBlockedFrom are { hash, count, sample } arrays", () => {
   // The _cspTopN helper produces arrays of { hash, count, sample }
   // entries. Lock in the shape so future refactors can't silently
