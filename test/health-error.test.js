@@ -2532,6 +2532,32 @@ test("buildSummary: requestsByStatusTop3 derives from getTopStatusCodes", () => 
   }
 });
 
+// ── providersHealthRollup (iter #171) ─────────────────────────
+
+test("health handler: summary exposes providersHealthRollup ('reachable/configured')", () => {
+  assert.match(HEALTH_SOURCE, /providersHealthRollup/,
+    "summary must include providersHealthRollup field");
+  // Template literal format "<reachable>/<configured>"
+  assert.match(HEALTH_SOURCE, /`\$\{reachable\}\/\$\{configured\}`/,
+    "must format as <reachable>/<configured> template literal");
+});
+
+test("buildSummary: providersHealthRollup matches providersReachable/providersConfigured", () => {
+  // Cross-check the string field against the numeric counters.
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(typeof r.providersHealthRollup, "string",
+    "providersHealthRollup must be a string");
+  assert.equal(r.providersHealthRollup,
+    `${r.providersReachable}/${r.providersConfigured}`,
+    "providersHealthRollup must equal <reachable>/<configured>");
+  assert.match(r.providersHealthRollup, /^\d+\/\d+$/,
+    `must match /^\\d+\\/\\d+$/; got "${r.providersHealthRollup}"`);
+});
+
 // ── getStatusGroupCounts helper (iter #157) ───────────────────
 
 test("getStatusGroupCounts: helper is exported and buckets correctly", () => {

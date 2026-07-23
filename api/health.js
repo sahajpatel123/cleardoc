@@ -497,6 +497,13 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     })(),
     providersConfigured: configured,
     providersReachable: reachable,
+    // At-a-glance provider health rollup. Pairs with
+    // providersReachable + providersConfigured — a single string
+    // dashboards can render without computing the ratio client-side.
+    // Format: "<reachable>/<configured>" — e.g. "2/2" (all healthy),
+    // "1/2" (one degraded), "0/2" (all down), "0/0" (no providers
+    // configured at all).
+    providersHealthRollup: `${reachable}/${configured}`,
     // Aggregate booleans derived from the per-provider reachable state.
     // `any` = at least one configured provider is reachable (current
     // 200 path is achievable). `all` = every configured provider is
