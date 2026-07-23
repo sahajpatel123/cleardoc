@@ -2834,6 +2834,43 @@ test("buildSummary: errorBudgetLifetime field equals computeErrorBudgetLifetime(
     "summary.errorBudgetLifetime must equal computeErrorBudgetLifetime().rate");
 });
 
+// ── requestsByStatusTop3 cross-field test (iter #190) ─────────
+
+test("buildSummary: requestsByStatusTop3 entries have the right shape + sort order", () => {
+  // Verify the shape invariant: each entry is { status: number,
+  // count: number }, sorted by count desc then status asc (stable).
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  const arr = r.requestsByStatusTop3;
+  assert.ok(Array.isArray(arr), "requestsByStatusTop3 must be an array");
+  assert.ok(arr.length <= 3, `must be capped at 3 entries; got ${arr.length}`);
+  for (const entry of arr) {
+    assert.equal(typeof entry.status, "number",
+      `each entry.status must be a number; got ${typeof entry.status}`);
+    assert.equal(typeof entry.count, "number",
+      `each entry.count must be a number; got ${typeof entry.count}`);
+    assert.ok(Number.isInteger(entry.status),
+      `each entry.status must be an integer`);
+    assert.ok(entry.status >= 100 && entry.status < 600,
+      `each entry.status must be a valid HTTP status; got ${entry.status}`);
+  }
+  // Sort order: count desc, then status asc (stable tiebreak)
+  for (let i = 1; i < arr.length; i++) {
+    const prev = arr[i - 1];
+    const cur = arr[i];
+    if (prev.count === cur.count) {
+      assert.ok(prev.status < cur.status,
+        `tiebreak: status asc; got ${prev.status} before ${cur.status} (same count ${prev.count})`);
+    } else {
+      assert.ok(prev.count > cur.count,
+        `sort: count desc; got ${prev.count} before ${cur.count}`);
+    }
+  }
+});
+
 // ── computeErrorBudgetLifetime + errorBudgetLifetimePretty derive from computeErrorBudgetLifetime
 
 test("buildSummary: errorBudgetLifetime + errorBudgetLifetimePretty derive from computeErrorBudgetLifetime", () => {
