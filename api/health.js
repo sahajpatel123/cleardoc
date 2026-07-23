@@ -316,6 +316,23 @@ function computeErrorBudgetLifetime() {
   return { rate, ratePretty: formatPercentPretty(pct, 2) };
 }
 
+/* Compute an uptime percentage from three counts (errors, accepted,
+ * rateLimited). Returns:
+ *   {
+ *     rate:       n (0..1, 4-decimal),   // 1 - errs / total
+ *     ratePretty:  "X.X%" or "100%"      // human-readable form (1-decimal)
+ *   }
+ * Used by both uptimePercentInLastHour + uptimePercentLifetime pairs
+ * (the difference is just which arrays the counts are read from).
+ * Single source of truth so the four uptime fields stay in sync. */
+function computeUptimePercent(errs, accepted, rateLimited) {
+  const total = errs + accepted + rateLimited;
+  if (total === 0) return { rate: 1, ratePretty: "100%" };
+  const rate = Math.round((1 - errs / total) * 10000) / 10000;
+  const pct = Math.round((1 - errs / total) * 1000) / 10;
+  return { rate, ratePretty: formatPercentPretty(pct, 1) };
+}
+
 /* Set the standard /api/health 200 response headers. Shared between the
  * GET path (sendOkCached) and the HEAD path (inline), so future header
  * additions land in one place. Order matters — every header must be set
@@ -648,28 +665,22 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // those are client errors, not server unavailability. 4-decimal
     // precision. Pairs with `errorRate` (lifetime) for leading vs
     // lagging indicator pair.
-    uptimePercentInLastHour: (() => {
-      const errs = _errorsInLastHour.length;
-      const accepted = _acceptedInLastHour.length;
-      const rateLimited = _rateLimitedInLastHour.length;
-      const total = errs + accepted + rateLimited;
-      if (total === 0) return 1; // no traffic yet → 100% uptime
-      return Math.round((1 - errs / total) * 10000) / 10000;
-    })(),
+    uptimePercentInLastHour: computeUptimePercent(
+      _errorsInLastHour.length,
+      _acceptedInLastHour.length,
+      _rateLimitedInLastHour.length
+    ).rate,
     // Human-readable uptime percentage over the rolling 1-hour
     // window. Pairs with `uptimePercentInLastHour` (numeric) for
     // at-a-glance reading on dashboards / curl. 1-decimal precision.
     // Format family mirrors acceptanceRatePretty: "100%" sentinel
-    // for zero-traffic, "X.X%" otherwise.
-    uptimePercentInLastHourPretty: (() => {
-      const errs = _errorsInLastHour.length;
-      const accepted = _acceptedInLastHour.length;
-      const rateLimited = _rateLimitedInLastHour.length;
-      const total = errs + accepted + rateLimited;
-      if (total === 0) return "100%";
-      const pct = Math.round((1 - errs / total) * 1000) / 10;
-      return formatPercentPretty(pct, 1);
-    })(),
+    // for zero-traffic, "X.X%" otherwise. computeUptimePercent()
+    // helper is the single source of truth shared with the lifetime pair.
+    uptimePercentInLastHourPretty: computeUptimePercent(
+      _errorsInLastHour.length,
+      _acceptedInLastHour.length,
+      _rateLimitedInLastHour.length
+    ).ratePretty,
     // 5xx error rate (totalErrors / requests, 1-decimal precision, 0
     // when no requests yet). Complements the existing `totalErrors`
     // + `requests` fields so ops can read the ratio directly instead
@@ -686,27 +697,22 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // precision. Pairs with `errorRate` (5xx rate, lifetime) and
     // `uptimePercentInLastHour` (windowed uptime) so dashboards can
     // render the leading + lagging + lifetime trio together.
-    uptimePercentLifetime: (() => {
-      const rateLimited = _requestsByStatus.get(429) || 0;
-      const errs = _totalErrors;
-      const accepted = _requestsServed;
-      const total = errs + accepted + rateLimited;
-      if (total === 0) return 1; // no traffic yet → 100% uptime
-      return Math.round((1 - errs / total) * 10000) / 10000;
-    })(),
+    uptimePercentLifetime: computeUptimePercent(
+      _totalErrors,
+      _requestsServed,
+      _requestsByStatus.get(429) || 0
+    ).rate,
     // Human-readable lifetime uptime percentage. Pairs with
     // `uptimePercentLifetime` (numeric) for at-a-glance reading
     // on dashboards / curl. 1-decimal precision via toFixed(1).
     // Same format family as uptimePercentInLastHourPretty.
-    uptimePercentLifetimePretty: (() => {
-      const rateLimited = _requestsByStatus.get(429) || 0;
-      const errs = _totalErrors;
-      const accepted = _requestsServed;
-      const total = errs + accepted + rateLimited;
-      if (total === 0) return "100%";
-      const pct = Math.round((1 - errs / total) * 1000) / 10;
-      return formatPercentPretty(pct, 1);
-    })(),
+    // computeUptimePercent() helper is the single source of truth
+    // shared with the windowed pair.
+    uptimePercentLifetimePretty: computeUptimePercent(
+      _totalErrors,
+      _requestsServed,
+      _requestsByStatus.get(429) || 0
+    ).ratePretty,
     // Per-status-code breakdown — "are we getting a lot of 429s from one
     // IP" or "spike in 503s?" is a one-curl check now. Snapshot the Map
     // so callers don't see concurrent mutation mid-iteration.
@@ -1201,6 +1207,7 @@ module.exports.computeHealthEtag = computeHealthEtag;
 module.exports.computeErrorBudget = computeErrorBudget;
 module.exports.computeErrorBudgetLifetime = computeErrorBudgetLifetime;
 module.exports.computeAcceptanceCounts = computeAcceptanceCounts;
+module.exports.computeUptimePercent = computeUptimePercent;
 module.exports.formatAcceptanceRate = formatAcceptanceRate;
 module.exports.formatCompactCount = formatCompactCount;
 module.exports.formatDurationPretty = formatDurationPretty;
