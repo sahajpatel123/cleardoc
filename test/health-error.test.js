@@ -2595,6 +2595,47 @@ test("buildSummary: requestsPerStatusGroup derives from getStatusGroupCounts", (
     `bucket total (${totalInBuckets}) ≤ map total (${totalInMap})`);
 });
 
+// ── uptimePercentInLastHour (iter #158) ──────────────────────
+
+test("health handler: summary exposes uptimePercentInLastHour (1 - 5xx/total)", () => {
+  // Source-pattern: SRE-style uptime %. Reads from the three
+  // windowed counters (errs + accepted + rateLimited).
+  assert.match(HEALTH_SOURCE, /uptimePercentInLastHour/,
+    "summary must include uptimePercentInLastHour field");
+  // Reads from all three window arrays
+  assert.match(HEALTH_SOURCE, /_errorsInLastHour\.length/,
+    "must read _errorsInLastHour.length");
+  assert.match(HEALTH_SOURCE, /_acceptedInLastHour\.length/,
+    "must read _acceptedInLastHour.length");
+  assert.match(HEALTH_SOURCE, /_rateLimitedInLastHour\.length/,
+    "must read _rateLimitedInLastHour.length");
+  // Compute: 1 - errs/total, 4-decimal precision
+  assert.match(HEALTH_SOURCE, /1\s*-\s*errs\s*\/\s*total/,
+    "must compute 1 - errs/total");
+  assert.match(HEALTH_SOURCE, /Math\.round\([\s\S]+?\*\s*10000\s*\)\s*\/\s*10000/,
+    "must apply 4-decimal precision rounding");
+  // Zero-traffic sentinel
+  assert.match(HEALTH_SOURCE, /total\s*===\s*0\s*\)\s*return\s*1/,
+    "zero-traffic → return 1 (100% uptime by default)");
+});
+
+test("buildSummary: uptimePercentInLastHour is in [0, 1] with 4-decimal precision", () => {
+  // Behavioral: structural sanity check (cannot assert exact value
+  // because module-level windows persist across tests).
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  const u = r.uptimePercentInLastHour;
+  assert.equal(typeof u, "number", "uptimePercentInLastHour must be a number");
+  assert.ok(u >= 0 && u <= 1, `must be in [0, 1]; got ${u}`);
+  // 4-decimal precision
+  const scaled = u * 10000;
+  assert.ok(Math.abs(scaled - Math.round(scaled)) < 1e-6,
+    `uptimePercentInLastHour × 10000 must be effectively an integer; got ${scaled}`);
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.

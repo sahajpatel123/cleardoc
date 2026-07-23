@@ -588,6 +588,20 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     // to give ops a windowed view of recent failures — "are we
     // erroring RIGHT NOW?" independent of process age.
     errorsInLastHour: _errorsInLastHour.length,
+    // SRE-style uptime percentage over the rolling 1-hour window.
+    // Defined as: 1 - (5xx / total), where total = 5xx + 2xx + 429
+    // (the three windowed counts). 4xx other than 429 is excluded:
+    // those are client errors, not server unavailability. 4-decimal
+    // precision. Pairs with `errorRate` (lifetime) for leading vs
+    // lagging indicator pair.
+    uptimePercentInLastHour: (() => {
+      const errs = _errorsInLastHour.length;
+      const accepted = _acceptedInLastHour.length;
+      const rateLimited = _rateLimitedInLastHour.length;
+      const total = errs + accepted + rateLimited;
+      if (total === 0) return 1; // no traffic yet → 100% uptime
+      return Math.round((1 - errs / total) * 10000) / 10000;
+    })(),
     // 5xx error rate (totalErrors / requests, 1-decimal precision, 0
     // when no requests yet). Complements the existing `totalErrors`
     // + `requests` fields so ops can read the ratio directly instead
