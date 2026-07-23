@@ -2630,3 +2630,39 @@ test("getLastProbeUpdate: returns { gemini, openrouter } with timestamps or null
     }
   }
 });
+
+// ── probe aggregate accessor behavioral coverage (iter #170) ───
+
+test("getProbeAverageLatencyInLastHour: returns { gemini, openrouter } (null when no probes)", () => {
+  // Behavioral: the accessor feeds /api/health's
+  // summary.providersAvgLatencyMsInLastHour field. In the empty
+  // state (no probes in the last hour), both values must be null.
+  const { getProbeAverageLatencyInLastHour } = require("../api/_safety.js");
+  const avg = getProbeAverageLatencyInLastHour();
+  assert.equal(typeof avg, "object", "must return an object");
+  // Either null (no probes) or a number (mean latency in ms)
+  for (const k of ["gemini", "openrouter"]) {
+    if (avg[k] !== null) {
+      assert.equal(typeof avg[k], "number",
+        `${k} must be a number when present`);
+      assert.ok(avg[k] >= 0, `${k} latency must be ≥ 0; got ${avg[k]}`);
+    }
+  }
+});
+
+test("getProbeReachabilityByRegionInLastHour: returns { gemini: {}, openrouter: {} } when empty", () => {
+  // Behavioral: the accessor feeds /api/health's
+  // summary.providersReachableByRegionInLastHour field. In the
+  // empty state (no probes), both providers map to empty objects.
+  const { getProbeReachabilityByRegionInLastHour } = require("../api/_safety.js");
+  const reach = getProbeReachabilityByRegionInLastHour();
+  assert.equal(typeof reach, "object", "must return an object");
+  assert.equal(typeof reach.gemini, "object", "reach.gemini must be an object");
+  assert.equal(typeof reach.openrouter, "object", "reach.openrouter must be an object");
+  // Empty state → no region keys. (When probes arrive, regions like
+  // 'iad1' / 'fra1' would appear as keys.)
+  assert.equal(Object.keys(reach.gemini).length, 0,
+    "empty state → reach.gemini must have no region keys");
+  assert.equal(Object.keys(reach.openrouter).length, 0,
+    "empty state → reach.openrouter must have no region keys");
+});
