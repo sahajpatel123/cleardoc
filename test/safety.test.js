@@ -1619,6 +1619,30 @@ test("rate-limit window constants are pinned in _safety.js (window 60s, max 5000
 
 // ── getCspReportCounts behavioral coverage (iter #101) ────────
 
+// ── getCspReportCounts behavioral coverage (iter #101) ────────
+
+test("_safety: getCspReportCounts.byDirective is keyed by normalized directive (iter #208)", () => {
+  // After recordCspReport("Script-Src 'Self'", ...), byDirective should
+  // have a key "script-src" (lowercased + first token only — the
+  // normalization iter #167 locks in). This is a behavioral check
+  // that the byDirective Map aggregation works alongside the
+  // normalization in recordCspReport.
+  const { recordCspReport, getCspReportCounts } = require("../api/_safety.js");
+  // Snapshot existing byDirective so we only assert the delta
+  const before = getCspReportCounts().byDirective["script-src"] || 0;
+  // Use a directive with mixed case + arguments to test both
+  // normalization paths (lowercase + first token).
+  recordCspReport("Script-Src 'Self'", "https://x.example/y", "https://cleardoc.app/", "1.2.3.4");
+  const after = getCspReportCounts();
+  // Normalized key must be "script-src" (lowercased, first token).
+  assert.ok(after.byDirective["script-src"] !== undefined,
+    "byDirective must have a normalized 'script-src' key");
+  assert.equal(typeof after.byDirective["script-src"], "number",
+    "byDirective count must be a number");
+  assert.ok(after.byDirective["script-src"] >= before + 1,
+    `script-src count must increase by 1; got ${before} → ${after.byDirective["script-src"]}`);
+});
+
 test("_safety: getCspReportCounts returns sensible defaults before any reports", () => {
   // Pure-functional: shared module state means prior tests in this
   // file may have incremented counters. We can't assert exact zeros —
