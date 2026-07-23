@@ -2668,6 +2668,40 @@ test("buildSummary: processUptimePretty derives from formatUptimePretty", () => 
     "formatUptimePretty output must be non-empty");
 });
 
+// ── formatPercentPretty helper (iter #176) ─────────────────────
+
+test("formatPercentPretty: helper is exported and formats with configurable decimals", () => {
+  // After the iter #176 refactor, formatPercentPretty is the single
+  // source of truth for the % family fields.
+  const { formatPercentPretty } = require("../api/health.js");
+  assert.equal(typeof formatPercentPretty, "function",
+    "formatPercentPretty must be exported as a function");
+  // 1-decimal precision (default for uptime trio)
+  assert.equal(formatPercentPretty(99.5, 1), "99.5%");
+  assert.equal(formatPercentPretty(100, 1), "100.0%");
+  assert.equal(formatPercentPretty(0, 1), "0.0%");
+  // 2-decimal precision (errorBudgetPretty uses 2)
+  assert.equal(formatPercentPretty(99.55, 2), "99.55%");
+  assert.equal(formatPercentPretty(100, 2), "100.00%");
+});
+
+test("buildSummary: uptimePercent*Pretty fields derive from formatPercentPretty", () => {
+  // Drift detector: parse the pretty string back to a number and
+  // compare with the numeric field — must match within 0.1%
+  // (1-decimal precision rounding).
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  const numericPctInLastHour = parseFloat(r.uptimePercentInLastHourPretty);
+  const numericPctLifetime = parseFloat(r.uptimePercentLifetimePretty);
+  assert.ok(Math.abs(r.uptimePercentInLastHour * 100 - numericPctInLastHour) < 0.2,
+    `uptimePercentInLastHourPretty (${numericPctInLastHour}%) must be within 0.2% of numeric (${r.uptimePercentInLastHour * 100}%)`);
+  assert.ok(Math.abs(r.uptimePercentLifetime * 100 - numericPctLifetime) < 0.2,
+    `uptimePercentLifetimePretty (${numericPctLifetime}%) must be within 0.2% of numeric (${r.uptimePercentLifetime * 100}%)`);
+});
+
 // ── getStatusGroupCounts helper (iter #157) ───────────────────
 
 test("getStatusGroupCounts: helper is exported and buckets correctly", () => {

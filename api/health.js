@@ -240,6 +240,15 @@ function formatUptimePretty(s) {
     : `${hours}h ${mins}m`;
 }
 
+/* Format a percentage for dashboards. Caller passes the numeric
+ * percentage (0..100), helper returns the string form with the
+ * requested decimal precision + "%" suffix. Single source of truth
+ * for the % family fields (acceptanceRatePretty + the various
+ * uptimePercent*Pretty fields). */
+function formatPercentPretty(pct, decimals) {
+  return `${pct.toFixed(decimals)}%`;
+}
+
 /* Extract the top-N status codes by count from a status→count Map.
  * Returns an array of { status, count } sorted by count desc then
  * status asc (stable). Empty array when the map is empty.
@@ -642,7 +651,7 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
       const total = errs + accepted + rateLimited;
       if (total === 0) return "100%";
       const pct = Math.round((1 - errs / total) * 1000) / 10;
-      return `${pct.toFixed(1)}%`;
+      return formatPercentPretty(pct, 1);
     })(),
     // 5xx error rate (totalErrors / requests, 1-decimal precision, 0
     // when no requests yet). Complements the existing `totalErrors`
@@ -679,7 +688,7 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
       const total = errs + accepted + rateLimited;
       if (total === 0) return "100%";
       const pct = Math.round((1 - errs / total) * 1000) / 10;
-      return `${pct.toFixed(1)}%`;
+      return formatPercentPretty(pct, 1);
     })(),
     // Per-status-code breakdown — "are we getting a lot of 429s from one
     // IP" or "spike in 503s?" is a one-curl check now. Snapshot the Map
@@ -1160,6 +1169,7 @@ module.exports.computeAcceptanceCounts = computeAcceptanceCounts;
 module.exports.formatAcceptanceRate = formatAcceptanceRate;
 module.exports.formatCompactCount = formatCompactCount;
 module.exports.formatDurationPretty = formatDurationPretty;
+module.exports.formatPercentPretty = formatPercentPretty;
 module.exports.formatUptimePretty = formatUptimePretty;
 module.exports.getTopStatusCodes = getTopStatusCodes;
 module.exports.getStatusGroupCounts = getStatusGroupCounts;
