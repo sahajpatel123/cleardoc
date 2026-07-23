@@ -468,8 +468,9 @@ function _cspRecordUri(map, rawUri) {
   const uri = rawUri.slice(0, 240);
   // SHA-256 (16 hex chars) of the URI is the key. PII-safe: ops can
   // identify the resource by the `sample` field but never by the key.
-  // Node's built-in crypto module — no extra deps.
-  const hash = require("node:crypto").createHash("sha256").update(uri).digest("hex").slice(0, 16);
+  // Uses the module-level _csp reference (line 495) — Node caches
+  // requires either way, but a single import is cleaner.
+  const hash = _csp.createHash("sha256").update(uri).digest("hex").slice(0, 16);
   if (!map.has(hash)) {
     if (map.size >= MAX_CSP_URI_BUCKETS) {
       const oldest = map.keys().next().value;
@@ -873,7 +874,9 @@ function getTopActiveIPs(topN) {
     if (!Array.isArray(arr)) continue;
     // Hash the IP — IPv4 and IPv6 forms both lengthen the key, so
     // the hash normalizes and also defends against PII in logs.
-    const hash = require("node:crypto").createHash("sha256").update(String(ip)).digest("hex").slice(0, 16);
+    // Uses module-level _csp (line 495) — single import for the whole
+    // file, not per-call requires.
+    const hash = _csp.createHash("sha256").update(String(ip)).digest("hex").slice(0, 16);
     ranked.push({ hash, count: arr.length, sample: String(ip).slice(0, 32) });
   }
   ranked.sort((a, b) => b.count - a.count);
