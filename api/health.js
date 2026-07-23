@@ -804,6 +804,19 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
       if (pct >= 100) return "100% remaining";
       return `${pct.toFixed(2)}% remaining`;
     })(),
+    // SRE-style error budget over the FULL process lifetime.
+    // Pairs with `errorBudget` (1h windowed) so ops can see both the
+    // leading (lifetime) and lagging (windowed) signal at a glance.
+    // Same formula as the windowed field: 1 - (5xx / total), where
+    // total = 5xx + 2xx + 429 (lifetime counts). 4-decimal precision.
+    errorBudgetLifetime: (() => {
+      const rateLimited = _requestsByStatus.get(429) || 0;
+      const errs = _totalErrors;
+      const accepted = _requestsServed;
+      const total = errs + accepted + rateLimited;
+      if (total === 0) return 1; // no traffic yet → 100% remaining
+      return Math.round((1 - errs / total) * 10000) / 10000;
+    })(),
   };
 }
 

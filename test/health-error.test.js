@@ -2687,7 +2687,42 @@ test("formatPercentPretty: helper is exported and formats with configurable deci
   assert.equal(formatPercentPretty(100, 2), "100.00%");
 });
 
-test("buildSummary: uptimePercent*Pretty fields derive from formatPercentPretty", () => {
+// ── errorBudgetLifetime (iter #179) ─────────────────────────
+
+test("health handler: summary exposes errorBudgetLifetime (1 - 5xx/total over lifetime)", () => {
+  // Source-pattern: SRE-style lifetime error budget. Reads from
+  // cumulative counters (_totalErrors + _requestsServed + rateLimited).
+  assert.match(HEALTH_SOURCE, /errorBudgetLifetime/,
+    "summary must include errorBudgetLifetime field");
+  assert.match(HEALTH_SOURCE, /_totalErrors/,
+    "must read _totalErrors");
+  assert.match(HEALTH_SOURCE, /_requestsServed/,
+    "must read _requestsServed");
+  assert.match(HEALTH_SOURCE, /_requestsByStatus\.get\(429\)/,
+    "must read rateLimited from _requestsByStatus");
+  assert.match(HEALTH_SOURCE, /1\s*-\s*errs\s*\/\s*total/,
+    "must compute 1 - errs/total");
+  assert.match(HEALTH_SOURCE, /total\s*===\s*0\s*\)\s*return\s*1/,
+    "zero-traffic → return 1 sentinel");
+});
+
+test("buildSummary: errorBudgetLifetime is in [0, 1] with 4-decimal precision", () => {
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  const eb = r.errorBudgetLifetime;
+  assert.equal(typeof eb, "number", "errorBudgetLifetime must be a number");
+  assert.ok(eb >= 0 && eb <= 1, `must be in [0, 1]; got ${eb}`);
+  const scaled = eb * 10000;
+  assert.ok(Math.abs(scaled - Math.round(scaled)) < 1e-6,
+    `errorBudgetLifetime × 10000 must be effectively an integer; got ${scaled}`);
+});
+
+// ── formatPercentPretty helper (iter #176) ─────────────────────
+
+test("formatPercentPretty: helper is exported and formats with configurable decimals", () => {
   // Drift detector: parse the pretty string back to a number and
   // compare with the numeric field — must match within 0.1%
   // (1-decimal precision rounding).
