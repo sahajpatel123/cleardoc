@@ -625,6 +625,21 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     errorRate: _requestsServed > 0
       ? Math.round((_totalErrors / _requestsServed) * 1000) / 10
       : 0,
+    // SRE-style uptime percentage over the full process lifetime.
+    // Defined as: 1 - (5xx / total), where total = 5xx + 2xx + 429
+    // (the cumulative counts). 4xx other than 429 is excluded:
+    // those are client errors, not server unavailability. 4-decimal
+    // precision. Pairs with `errorRate` (5xx rate, lifetime) and
+    // `uptimePercentInLastHour` (windowed uptime) so dashboards can
+    // render the leading + lagging + lifetime trio together.
+    uptimePercentLifetime: (() => {
+      const rateLimited = _requestsByStatus.get(429) || 0;
+      const errs = _totalErrors;
+      const accepted = _requestsServed;
+      const total = errs + accepted + rateLimited;
+      if (total === 0) return 1; // no traffic yet → 100% uptime
+      return Math.round((1 - errs / total) * 10000) / 10000;
+    })(),
     // Per-status-code breakdown — "are we getting a lot of 429s from one
     // IP" or "spike in 503s?" is a one-curl check now. Snapshot the Map
     // so callers don't see concurrent mutation mid-iteration.

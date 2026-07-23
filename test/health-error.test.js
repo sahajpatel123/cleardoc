@@ -2674,6 +2674,39 @@ test("buildSummary: uptimePercentInLastHourPretty is a string matching % format"
     `pretty (${prettyPct}%) must be within 0.2% of numeric (${numericPct}%)`);
 });
 
+// ── uptimePercentLifetime (iter #164) ───────────────────────
+
+test("health handler: summary exposes uptimePercentLifetime (1 - 5xx/total over lifetime)", () => {
+  // Source-pattern: SRE-style lifetime uptime. Reads from cumulative
+  // counters (_totalErrors + _requestsServed + rateLimited).
+  assert.match(HEALTH_SOURCE, /uptimePercentLifetime/,
+    "summary must include uptimePercentLifetime field");
+  assert.match(HEALTH_SOURCE, /_totalErrors/,
+    "must read _totalErrors (5xx lifetime count)");
+  assert.match(HEALTH_SOURCE, /_requestsServed/,
+    "must read _requestsServed (2xx lifetime count)");
+  assert.match(HEALTH_SOURCE, /_requestsByStatus\.get\(429\)/,
+    "must read rateLimited from _requestsByStatus");
+  assert.match(HEALTH_SOURCE, /1\s*-\s*errs\s*\/\s*total/,
+    "must compute 1 - errs/total");
+  assert.match(HEALTH_SOURCE, /total\s*===\s*0\s*\)\s*return\s*1/,
+    "zero-traffic → return 1 sentinel");
+});
+
+test("buildSummary: uptimePercentLifetime is in [0, 1] with 4-decimal precision", () => {
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  const u = r.uptimePercentLifetime;
+  assert.equal(typeof u, "number", "uptimePercentLifetime must be a number");
+  assert.ok(u >= 0 && u <= 1, `must be in [0, 1]; got ${u}`);
+  const scaled = u * 10000;
+  assert.ok(Math.abs(scaled - Math.round(scaled)) < 1e-6,
+    `uptimePercentLifetime × 10000 must be effectively an integer; got ${scaled}`);
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.
