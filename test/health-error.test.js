@@ -2720,6 +2720,37 @@ test("buildSummary: errorBudgetLifetime is in [0, 1] with 4-decimal precision", 
     `errorBudgetLifetime × 10000 must be effectively an integer; got ${scaled}`);
 });
 
+// ── errorBudgetLifetimePretty (iter #180) ─────────────────────
+
+test("health handler: summary exposes errorBudgetLifetimePretty (human-readable lifetime %)", () => {
+  assert.match(HEALTH_SOURCE, /errorBudgetLifetimePretty/,
+    "summary must include errorBudgetLifetimePretty field");
+  // "100%" sentinel for zero-traffic
+  assert.match(HEALTH_SOURCE, /return\s*"100%"/,
+    "zero-traffic branch must return literal \"100%\"");
+  // Uses formatPercentPretty (iter #176 consolidator)
+  assert.match(HEALTH_SOURCE, /formatPercentPretty\(\s*pct\s*,\s*2\s*\)/,
+    "non-degenerate branch must call formatPercentPretty(pct, 2)");
+});
+
+test("buildSummary: errorBudgetLifetimePretty is a string matching % format", () => {
+  // Behavioral: type is string, regex matches the format
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(typeof r.errorBudgetLifetimePretty, "string",
+    "errorBudgetLifetimePretty must be a string");
+  assert.match(r.errorBudgetLifetimePretty, /^\d+(\.\d+)?%$/,
+    `must match /^\\d+(\\.\\d+)?%$/; got "${r.errorBudgetLifetimePretty}"`);
+  // Cross-check numeric vs pretty (2-decimal precision)
+  const numericPct = r.errorBudgetLifetime * 100;
+  const prettyPct = parseFloat(r.errorBudgetLifetimePretty);
+  assert.ok(Math.abs(numericPct - prettyPct) < 0.01,
+    `pretty (${prettyPct}%) must be within 0.01% of numeric (${numericPct}%)`);
+});
+
 // ── formatPercentPretty helper (iter #176) ─────────────────────
 
 test("formatPercentPretty: helper is exported and formats with configurable decimals", () => {

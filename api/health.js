@@ -817,6 +817,23 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
       if (total === 0) return 1; // no traffic yet → 100% remaining
       return Math.round((1 - errs / total) * 10000) / 10000;
     })(),
+    // Human-readable lifetime error budget percentage. Pairs with
+    // `errorBudgetLifetime` (numeric) for at-a-glance reading.
+    // 2-decimal precision via formatPercentPretty() (the single
+    // source of truth for % formatting). The windowed pretty
+    // (`errorBudgetPretty`) has an 'exhausted' / '100% remaining'
+    // / 'X.XX% remaining' format because the 1h window can flip
+    // between states; the lifetime pretty is simpler since the
+    // continuous ratio never crosses an explicit "exhausted" line.
+    errorBudgetLifetimePretty: (() => {
+      const rateLimited = _requestsByStatus.get(429) || 0;
+      const errs = _totalErrors;
+      const accepted = _requestsServed;
+      const total = errs + accepted + rateLimited;
+      if (total === 0) return "100%";
+      const pct = Math.round((1 - errs / total) * 10000) / 100; // 2-decimal
+      return formatPercentPretty(pct, 2);
+    })(),
   };
 }
 
