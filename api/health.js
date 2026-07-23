@@ -343,6 +343,27 @@ function formatRatioPercent(num, denom, fallback = 0) {
   return Math.round((num / denom) * 1000) / 10;
 }
 
+/* Format a byte count for dashboards. Four branches:
+ *   - null / 0 / negative → null sentinel (no measurement yet)
+ *   - < 1024 bytes       → "XB" with integer bytes
+ *   - < 1 MB             → "X.X KB" with 1-decimal precision
+ *   - < 1 GB             → "X.X MB" with 1-decimal precision
+ *   - ≥ 1 GB             → "X.X GB" with 1-decimal precision
+ * 1024-based divisions (binary). Single source of truth for
+ * peakRssMbPretty so the future "currentRssMbPretty" / "minRssMbPretty"
+ * fields can reuse it without duplicating the byte-format logic. */
+function formatBytesPretty(bytes) {
+  if (!bytes || bytes <= 0) return null;
+  if (bytes < 1024) return `${Math.round(bytes)}B`;
+  if (bytes < 1024 * 1024) {
+    return `${Math.round((bytes / 1024) * 10) / 10}KB`;
+  }
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${Math.round((bytes / (1024 * 1024)) * 10) / 10}MB`;
+  }
+  return `${Math.round((bytes / (1024 * 1024 * 1024)) * 10) / 10}GB`;
+}
+
 /* Set the standard /api/health 200 response headers. Shared between the
  * GET path (sendOkCached) and the HEAD path (inline), so future header
  * additions land in one place. Order matters — every header must be set
@@ -1051,18 +1072,7 @@ module.exports = async function handler(req, res) {
             // field's behavior. Format mirrors processUptimePretty /
             // startupDurationPretty: B / KB / MB / GB with 1-decimal
             // precision when ≥ 1 unit.
-            peakRssMbPretty: (() => {
-              if (!_peakRssMb || _peakRssMb <= 0) return null;
-              const bytes = _peakRssMb * 1024 * 1024;
-              if (bytes < 1024) return `${Math.round(bytes)}B`;
-              if (bytes < 1024 * 1024) {
-                return `${Math.round((bytes / 1024) * 10) / 10}KB`;
-              }
-              if (bytes < 1024 * 1024 * 1024) {
-                return `${Math.round((bytes / (1024 * 1024)) * 10) / 10}MB`;
-              }
-              return `${Math.round((bytes / (1024 * 1024 * 1024)) * 10) / 10}GB`;
-            })(),
+            peakRssMbPretty: formatBytesPretty(_peakRssMb * 1024 * 1024),
           };
         })(),
       },
@@ -1225,6 +1235,7 @@ module.exports.formatCompactCount = formatCompactCount;
 module.exports.formatDurationPretty = formatDurationPretty;
 module.exports.formatPercentPretty = formatPercentPretty;
 module.exports.formatRatioPercent = formatRatioPercent;
+module.exports.formatBytesPretty = formatBytesPretty;
 module.exports.formatUptimePretty = formatUptimePretty;
 module.exports.getTopStatusCodes = getTopStatusCodes;
 module.exports.getStatusGroupCounts = getStatusGroupCounts;

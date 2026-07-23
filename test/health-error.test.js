@@ -1848,20 +1848,21 @@ test("health handler: process.memory exposes peakRssMbPretty (human-readable pea
   // surfaces the same number as a B/KB/MB/GB string for at-a-glance
   // reading on a curl. Null until the first /api/health request
   // populates the counter (matches peakRssMb's behavior).
+  // After iter #185 the 4-branch B/KB/MB/GB logic lives in
+  // formatBytesPretty() helper.
   assert.match(HEALTH_SOURCE, /peakRssMbPretty/,
     "process.memory must include peakRssMbPretty field");
-  // Null guard when counter is 0 / unset
-  assert.match(HEALTH_SOURCE, /_peakRssMb\s*<=\s*0\s*\)\s*return\s*null/,
-    "peakRssMbPretty must return null when peakRssMb is 0 / unset");
-  // All 4 unit suffixes present in the branching
-  assert.match(HEALTH_SOURCE, /}B`/,
-    "must format bytes with B suffix");
-  assert.match(HEALTH_SOURCE, /}KB`/,
-    "must format kilobytes with KB suffix");
-  assert.match(HEALTH_SOURCE, /}MB`/,
-    "must format megabytes with MB suffix");
-  assert.match(HEALTH_SOURCE, /}GB`/,
-    "must format gigabytes with GB suffix");
+  assert.match(HEALTH_SOURCE, /peakRssMbPretty:\s*formatBytesPretty\(/,
+    "peakRssMbPretty must call formatBytesPretty helper");
+  // All 4 unit suffixes present in the helper
+  assert.match(HEALTH_SOURCE, /function formatBytesPretty[\s\S]+?\}B`/,
+    "helper must format bytes with B suffix");
+  assert.match(HEALTH_SOURCE, /function formatBytesPretty[\s\S]+?\}KB`/,
+    "helper must format kilobytes with KB suffix");
+  assert.match(HEALTH_SOURCE, /function formatBytesPretty[\s\S]+?\}MB`/,
+    "helper must format megabytes with MB suffix");
+  assert.match(HEALTH_SOURCE, /function formatBytesPretty[\s\S]+?\}GB`/,
+    "helper must format gigabytes with GB suffix");
 });
 
 test("health handler: peakRssMbPretty format respects unit threshold (1024-boundary branches)", () => {
@@ -2817,6 +2818,49 @@ test("computeUptimePercent: helper is exported and returns { rate, ratePretty }"
   const mixed = computeUptimePercent(2, 8, 5); // total 15, 13 non-error
   assert.equal(mixed.rate, Math.round((1 - 2 / 15) * 10000) / 10000);
   assert.equal(mixed.ratePretty, "86.7%");
+});
+
+// ── formatRatioPercent helper (iter #183) ───────────────────
+
+// ── formatBytesPretty helper (iter #185) ─────────────────────
+
+test("formatBytesPretty: helper is exported and handles all four branches + null sentinel", () => {
+  // After the iter #185 refactor, formatBytesPretty is the single
+  // source of truth for peakRssMbPretty.
+  const { formatBytesPretty } = require("../api/health.js");
+  assert.equal(typeof formatBytesPretty, "function",
+    "formatBytesPretty must be exported as a function");
+  // Null / 0 / negative → null sentinel
+  assert.equal(formatBytesPretty(0), null, "0 → null");
+  assert.equal(formatBytesPretty(null), null, "null → null");
+  assert.equal(formatBytesPretty(undefined), null, "undefined → null");
+  assert.equal(formatBytesPretty(-100), null, "negative → null");
+  // Bytes (< 1024)
+  assert.equal(formatBytesPretty(1), "1B", "1 byte → \"1B\"");
+  assert.equal(formatBytesPretty(500), "500B", "500 bytes → \"500B\"");
+  assert.equal(formatBytesPretty(1023), "1023B", "1023 bytes → \"1023B\"");
+  // Kilobytes (< 1 MB) — Math.round edge: 1024/1024 = exactly 1 → "1KB"
+  assert.equal(formatBytesPretty(1024), "1KB", "1024 → \"1KB\" (Math.round edge)");
+  assert.equal(formatBytesPretty(1536), "1.5KB", "1536 → \"1.5KB\"");
+  // Megabytes (< 1 GB) — Math.round edge: 1MB = exactly 1 → "1MB"
+  assert.equal(formatBytesPretty(1024 * 1024), "1MB", "1MB → \"1MB\" (Math.round edge)");
+  assert.equal(formatBytesPretty(2.5 * 1024 * 1024), "2.5MB", "2.5MB → \"2.5MB\"");
+  // Gigabytes — Math.round edge: 1GB = exactly 1 → "1GB"
+  assert.equal(formatBytesPretty(1024 * 1024 * 1024), "1GB", "1GB → \"1GB\" (Math.round edge)");
+  assert.equal(formatBytesPretty(2.5 * 1024 * 1024 * 1024), "2.5GB", "2.5GB → \"2.5GB\"");
+});
+
+test("buildSummary: peakRssMbPretty derives from formatBytesPretty", () => {
+  // Drift detector: peakRssMbPretty lives in the handler's
+  // payload.process.memory block (not buildSummary's return), so
+  // we verify via source grep that the field calls the helper.
+  const src = require("node:fs").readFileSync(
+    require("node:path").join(__dirname, "../api/health.js"),
+    "utf8"
+  );
+  assert.match(src, /peakRssMbPretty:\s*formatBytesPretty\(/,
+    "peakRssMbPretty must call formatBytesPretty helper");
+  // Helper exists and is exported (verified by the unit test above)
 });
 
 // ── formatRatioPercent helper (iter #183) ───────────────────
