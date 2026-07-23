@@ -2502,6 +2502,32 @@ test("recordCspBlock: increments consecutiveBlocks and updates lastBlockedAt", (
   });
 });
 
+// ── mostBlocked + mostBlockedFrom shape (iter #197) ──────────────
+
+test("getCspReportCounts: mostBlocked + mostBlockedFrom are { hash, count, sample } arrays", () => {
+  // The _cspTopN helper produces arrays of { hash, count, sample }
+  // entries. Lock in the shape so future refactors can't silently
+  // rename a key (ops dashboards key off "hash" / "count" / "sample").
+  const { getCspReportCounts } = require("../api/_safety.js");
+  const c = getCspReportCounts();
+  for (const key of ["mostBlocked", "mostBlockedFrom"]) {
+    assert.ok(Array.isArray(c[key]), `${key} must be an array; got ${typeof c[key]}`);
+    assert.ok(c[key].length <= 10, `${key} must be capped at 10 entries`);
+    for (const entry of c[key]) {
+      assert.equal(typeof entry, "object", `${key} entries must be objects`);
+      assert.equal(typeof entry.hash, "string",
+        `${key} entries must have string hash`);
+      assert.equal(typeof entry.count, "number",
+        `${key} entries must have numeric count`);
+      assert.equal(typeof entry.sample, "string",
+        `${key} entries must have string sample (truncated to 32 chars)`);
+      // hash is 16 hex chars from SHA-256
+      assert.match(entry.hash, /^[a-f0-9]{16}$/,
+        `${key} entry.hash must be 16 lowercase hex chars; got "${entry.hash}"`);
+    }
+  }
+});
+
 test("getCspReportCounts: surfaces consecutiveBlocks + lastBlockedAt", () => {
   // Structural check: cspReports object must include the rate-limit
   // rejection surface (consecutiveBlocks, lastBlockedAt) even before
