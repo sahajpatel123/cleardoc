@@ -2838,6 +2838,31 @@ test("buildSummary: errorBudgetLifetime field equals computeErrorBudgetLifetime(
 
 // ── uniqueBlockedUris behavioral drift detector (iter #192) ─────
 
+// ── cspReportAcceptanceRate scale invariant (iter #193) ────────
+
+test("buildSummary: cspReportAcceptanceRate is in [0, 10] (0..10 scale convention)", () => {
+  // The cspReports.acceptanceRate field (from getCspReportCounts() in
+  // _safety.js) uses an unusual 0..10 scale, NOT 0..1. The comment in
+  // _safety.js says "1-decimal precision (0..1, but expressed as 0..10
+  // for whole-number visual)" — so 100% acceptance = 10, not 1.
+  // Verify the field is in the expected [0, 10] range so a future
+  // refactor can't silently break this scaling convention.
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  const ar = r.cspReportAcceptanceRate;
+  assert.equal(typeof ar, "number",
+    "cspReportAcceptanceRate must be a number");
+  assert.ok(ar >= 0 && ar <= 10,
+    `cspReportAcceptanceRate must be in [0, 10] (0..10 scale); got ${ar}`);
+  // 1-decimal precision: × 10 must be effectively an integer
+  const scaled = ar * 10;
+  assert.ok(Math.abs(scaled - Math.round(scaled)) < 1e-6,
+    `cspReportAcceptanceRate × 10 must be effectively integer; got ${scaled}`);
+});
+
 test("buildSummary: cspReports.uniqueBlockedUris matches _cspBlockedUriCounts.size", () => {
   // The field is exposed via getCspReportCounts() in _safety.js
   // (lines 583+) as `_cspBlockedUriCounts.size`. Verify the summary
