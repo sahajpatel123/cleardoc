@@ -2272,3 +2272,84 @@ test("clampInt: rejects non-finite and wrong-type inputs", () => {
   assert.equal(clampInt([5], 1, 10), null, "array → null");
   assert.equal(clampInt({ value: 5 }, 1, 10), null, "object → null");
 });
+
+// ── errLog + logProviderError behavioral coverage (iter #160) ─────
+
+test("errLog: tags log line with [req=...] and sanitizes message", () => {
+  // Behavioral verification: errLog must include the request id from
+  // res.__requestId and route the message through sanitizeLogField
+  // (defends against log injection via CR/LF + length cap).
+  const { errLog } = require("../api/_safety.js");
+  // Capture stderr to assert the format
+  const origErr = console.error;
+  let captured = "";
+  console.error = (msg) => { captured = msg; };
+  try {
+    errLog({ __requestId: "req-abc-123" }, "test-prefix", new Error("boom"));
+    assert.match(captured, /\[req=req-abc-123\]/, "must include request id");
+    assert.match(captured, /\[test-prefix\]/, "must include prefix");
+    assert.match(captured, /boom/, "must include error message");
+  } finally {
+    console.error = origErr;
+  }
+});
+
+test("errLog: falls back to 'no-req-id' when res or __requestId is missing", () => {
+  const { errLog } = require("../api/_safety.js");
+  const origErr = console.error;
+  let captured = "";
+  console.error = (msg) => { captured = msg; };
+  try {
+    // No res at all
+    errLog(null, "test-prefix", new Error("missing-res"));
+    assert.match(captured, /\[req=no-req-id\]/,
+      "must fall back to 'no-req-id' when res is null");
+    // res present but no __requestId
+    captured = "";
+    errLog({}, "test-prefix", new Error("missing-id"));
+    assert.match(captured, /\[req=no-req-id\]/,
+      "must fall back to 'no-req-id' when __requestId missing");
+    // Error without .message — uses String(err)
+    captured = "";
+    errLog({ __requestId: "req-x" }, "test-prefix", "string-error");
+    assert.match(captured, /string-error/, "must include non-Error values");
+  } finally {
+    console.error = origErr;
+  }
+});
+
+test("logProviderError: emits [req=<id>] [prefix] <msg> via console.error", () => {
+  // The provider-calling helpers (callGemini, callOpenRouter, etc.)
+  // don't have direct access to the response object — they receive
+  // the request id as a parameter and log via this helper. Verify
+  // the format matches errLog (so logs are grep-compatible).
+  const { logProviderError } = require("../api/_safety.js");
+  const origErr = console.error;
+  let captured = "";
+  console.error = (msg) => { captured = msg; };
+  try {
+    logProviderError("req-xyz-789", "openrouter", "rate limited");
+    assert.match(captured, /\[req=req-xyz-789\]/);
+    assert.match(captured, /\[openrouter\]/);
+    assert.match(captured, /rate limited/);
+  } finally {
+    console.error = origErr;
+  }
+});
+
+test("logProviderError: falls back to 'no-req-id' when reqId is missing", () => {
+  const { logProviderError } = require("../api/_safety.js");
+  const origErr = console.error;
+  let captured = "";
+  console.error = (msg) => { captured = msg; };
+  try {
+    logProviderError(null, "openrouter", "no-id");
+    assert.match(captured, /\[req=no-req-id\]/,
+      "null reqId → 'no-req-id' fallback");
+    logProviderError(undefined, "openrouter", "undef-id");
+    assert.match(captured, /\[req=no-req-id\]/,
+      "undefined reqId → 'no-req-id' fallback");
+  } finally {
+    console.error = origErr;
+  }
+});
