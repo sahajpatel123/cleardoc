@@ -2223,6 +2223,11 @@ test("_safety: getTopActiveIPs returns a sorted, capped list of {hash, count} en
   }
   // Top-N is capped at N
   assert.ok(top.length <= 5, "top-N must be capped at N");
+  // Sort order: count desc. Same convention as iter #156 / #190 / #199.
+  for (let i = 1; i < top.length; i++) {
+    assert.ok(top[i - 1].count >= top[i].count,
+      `must be sorted by count desc; got ${top[i - 1].count} before ${top[i].count}`);
+  }
 });
 
 // ── clampInt strict validator (iter #142) ───────────────────
