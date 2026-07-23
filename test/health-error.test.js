@@ -2851,6 +2851,65 @@ test("errorBudgetLifetime helper: returns object with rate + ratePretty shape", 
 });
 
 test("formatCompactCount: returns 'X' for small counts (< 1000)", () => {
+  const { formatCompactCount } = require("../api/health.js");
+  assert.equal(formatCompactCount(0), "0", "0 → \"0\"");
+  assert.equal(formatCompactCount(42), "42", "42 → \"42\"");
+  assert.equal(formatCompactCount(999), "999", "999 → \"999\"");
+});
+
+// ── buildSummary field inventory (iter #196) ─────────────────────
+
+test("buildSummary: every documented summary field is present", () => {
+  // Locks the API surface. The summary is the public contract of
+  // /api/health — any future removal of a field must update this test
+  // first (the test name + comment + field set are intentional friction).
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  // Every field in the summary return must be present. Group by
+  // category for readability (ops expects these clusters).
+  const expectedFields = [
+    // Probe + cache + counters
+    "lastProbeAtMs", "providersFailureRateInLastHour", "providersAvgLatencyMsInLastHour",
+    "providersLastFailure", "providersLastUpdated", "consecutiveSuccesses",
+    "providersConsecutiveFailures",
+    "cspReportRate", "cspReportAcceptanceRate",
+    "providersConfigured", "providersReachable", "providersHealthRollup",
+    // Request counters
+    "requests", "firstRequestAt", "averageRequestsPerMinute",
+    "requestsInLastHour", "requestsInLastMinute",
+    // Errors
+    "totalErrors", "lastErrorAt", "errorsInLastHour", "errorRate", "consecutiveSuccesses",
+    // Acceptance
+    "requestsAccepted", "acceptanceRate", "acceptanceRatePretty",
+    "rateLimited", "rateLimitedPretty", "rateLimitedInLastHour", "rateLimitedInLastHourPretty",
+    // Status breakdown
+    "requestsByStatus", "requestsByStatusTop3", "requestsPerStatusGroup",
+    // CSP reports (passthrough)
+    "cspReports",
+    // Error budget
+    "errorBudget", "errorBudgetPretty", "errorBudgetLifetime", "errorBudgetLifetimePretty",
+    // Uptime
+    "uptimePercentInLastHour", "uptimePercentInLastHourPretty",
+    "uptimePercentLifetime", "uptimePercentLifetimePretty",
+    // Cache + probes
+    "cacheMissRate", "totalProbes", "networkProbes", "cacheHits", "cacheSize",
+    "errorRate", "fastestProviderMs", "slowestProviderMs",
+    "providersReachableInLastHour", "providersReachableByRegionInLastHour",
+  ];
+  for (const field of expectedFields) {
+    assert.ok(field in r, `buildSummary must include ${field}`);
+  }
+  // Each value must NOT be undefined (explicit null is OK for unmeasured fields)
+  for (const field of expectedFields) {
+    assert.ok(r[field] !== undefined,
+      `buildSummary.${field} must not be undefined; got ${typeof r[field]}`);
+  }
+});
+
+test("formatCompactCount: returns 'X' for small counts (< 1000)", () => {
   // Behavioral coverage of the rateLimitedPretty / rateLimitedInLastHourPretty
   // helper. Single helper for both fields since iter #155.
   const { formatCompactCount } = require("../api/health.js");
