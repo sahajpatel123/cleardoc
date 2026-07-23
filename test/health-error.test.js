@@ -2811,6 +2811,23 @@ test("computeErrorBudgetLifetime: helper is exported and returns { rate, ratePre
 
 // ── computeErrorBudget struct invariants (iter #188) ────────────
 
+// ── errorBudget constants (iter #206) ─────────────────────────
+
+test("computeErrorBudget: windowHours = 1 + threshold = 0.01 (SRE 1% standard)", () => {
+  // The errorBudget struct has two hardcoded constants that
+  // correspond to the SRE Workbook defaults:
+  //   threshold    = 0.01  (1% — SRE default for user-facing APIs)
+  //   windowHours  = 1     (1h rolling window)
+  // These are declared as module-level constants in api/health.js
+  // (ERROR_BUDGET_THRESHOLD + ERROR_BUDGET_WINDOW_HOORS, iter #135)
+  // and exposed via the struct. Lock the values so a future refactor
+  // doesn't silently change them (alerts would need re-tuning).
+  const { computeErrorBudget } = require("../api/health.js");
+  const eb = computeErrorBudget();
+  assert.equal(eb.threshold, 0.01, "threshold must be 1% (SRE default)");
+  assert.equal(eb.windowHours, 1, "windowHours must be 1");
+});
+
 test("computeErrorBudget: returns the full SRE-style struct with correct invariants", () => {
   // The struct shape is unique among our helpers (the others return
   // { rate, ratePretty } pairs). Verify the fields + invariants:
