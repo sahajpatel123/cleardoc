@@ -2818,6 +2818,22 @@ test("computeErrorBudget: returns the full SRE-style struct with correct invaria
   }
 });
 
+// ── errorBudgetLifetime drift detector (iter #189) ──────────────
+
+test("buildSummary: errorBudgetLifetime field equals computeErrorBudgetLifetime().rate", () => {
+  // Drift detector: the summary.errorBudgetLifetime field must
+  // match the helper's rate output exactly. (The pretty version
+  // is verified in iter #180 + iter #181 tests.)
+  const { computeErrorBudgetLifetime, buildSummary } = require("../api/health.js");
+  const helper = computeErrorBudgetLifetime();
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(r.errorBudgetLifetime, helper.rate,
+    "summary.errorBudgetLifetime must equal computeErrorBudgetLifetime().rate");
+});
+
 // ── computeErrorBudgetLifetime + errorBudgetLifetimePretty derive from computeErrorBudgetLifetime
 
 test("buildSummary: errorBudgetLifetime + errorBudgetLifetimePretty derive from computeErrorBudgetLifetime", () => {
