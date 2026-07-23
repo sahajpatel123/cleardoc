@@ -2516,3 +2516,68 @@ test("getCspReportCounts: surfaces consecutiveBlocks + lastBlockedAt", () => {
       "lastBlockedAt must be ISO 8601 format");
   }
 });
+
+// ── recordCspReport behavioral coverage (iter #167) ────────────
+
+test("recordCspReport: increments total and buckets by directive (normalized)", () => {
+  // Behavioral: each call must increment _cspTotalReports by 1 and
+  // add the directive to the bucket Map (normalized — `script-src` and
+  // `script-src 'self'` end up in the same bucket).
+  const { recordCspReport, getCspReportCounts } = require("../api/_safety.js");
+  const before = getCspReportCounts();
+  const beforeTotal = before.total;
+  const beforeDirectiveCount = before.byDirective["script-src"] || 0;
+  recordCspReport("script-src", "https://evil.example/bad.js", "https://cleardoc.app/", "1.2.3.4");
+  const after = getCspReportCounts();
+  assert.equal(after.total, beforeTotal + 1, "total must increment by 1");
+  assert.equal(after.byDirective["script-src"], beforeDirectiveCount + 1,
+    "script-src bucket must increment by 1");
+});
+
+test("recordCspReport: normalizes directive (splits on whitespace + lowercase)", () => {
+  // Defensive: CSP reports often include the directive's full
+  // argument list (`script-src 'self'` vs `script-src`). They must
+  // bucket together.
+  const { recordCspReport, getCspReportCounts } = require("../api/_safety.js");
+  const before = getCspReportCounts();
+  const beforeCount = before.byDirective["img-src"] || 0;
+  // Three variants that should all bucket as "img-src"
+  recordCspReport("img-src", "https://a.example/x", "https://cleardoc.app/", "1.2.3.4");
+  recordCspReport("IMG-SRC", "https://b.example/x", "https://cleardoc.app/", "1.2.3.4");
+  recordCspReport("img-src 'self'", "https://c.example/x", "https://cleardoc.app/", "1.2.3.4");
+  const after = getCspReportCounts();
+  assert.equal(after.byDirective["img-src"], beforeCount + 3,
+    "all three variants must land in img-src bucket");
+});
+
+test("recordCspReport: rejects malformed directive (non-string, empty, >200 chars)", () => {
+  // Defensive: must not throw on bad input, must not increment counters.
+  const { recordCspReport, getCspReportCounts } = require("../api/_safety.js");
+  const before = getCspReportCounts();
+  recordCspReport(null, "https://x.example/y", "https://cleardoc.app/", "1.2.3.4");
+  recordCspReport(undefined, "https://x.example/y", "https://cleardoc.app/", "1.2.3.4");
+  recordCspReport("", "https://x.example/y", "https://cleardoc.app/", "1.2.3.4");
+  recordCspReport("a".repeat(201), "https://x.example/y", "https://cleardoc.app/", "1.2.3.4");
+  recordCspReport(42, "https://x.example/y", "https://cleardoc.app/", "1.2.3.4");
+  // Whitespace-only directive → key.length === 0 → rejected
+  recordCspReport("   ", "https://x.example/y", "https://cleardoc.app/", "1.2.3.4");
+  const after = getCspReportCounts();
+  assert.equal(after.total, before.total,
+    "total must not change when all calls had malformed directive");
+});
+
+test("recordCspReport: resets consecutiveBlocks (legitimate report = attack subsided)", () => {
+  // Behavioral: a successful report must reset _cspConsecutiveBlocks
+  // to 0 — this is the "attack subsided" signal. First trigger some
+  // blocks, then record a report, then verify reset.
+  const { recordCspBlock, recordCspReport, getCspReportCounts } = require("../api/_safety.js");
+  recordCspBlock("203.0.113.99");
+  recordCspBlock("203.0.113.99");
+  const afterBlocks = getCspReportCounts();
+  assert.ok(afterBlocks.consecutiveBlocks > 0,
+    "consecutiveBlocks must be > 0 after rate-limit blocks");
+  recordCspReport("style-src", "https://x.example/y", "https://cleardoc.app/", "1.2.3.4");
+  const afterReport = getCspReportCounts();
+  assert.equal(afterReport.consecutiveBlocks, 0,
+    "consecutiveBlocks must reset to 0 after a successful report");
+});
