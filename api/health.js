@@ -834,12 +834,16 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
     //   - "100% remaining"   — zero errors in window (pristine state)
     //   - "X.XX% remaining"  — under budget (2-decimal precision)
     // Mirrors peakRssMbPretty / startupDurationPretty / processUptimePretty.
+    // The % portion is formatted via formatPercentPretty() (iter #176
+    // consolidator — single source of truth across all % fields); we
+    // append " remaining" to distinguish this from the bare ratio
+    // fields like acceptanceRatePretty.
     errorBudgetPretty: (() => {
       const eb = computeErrorBudget();
       if (eb.exhausted) return "exhausted";
       const pct = Math.round(eb.remaining * 10000) / 100; // 2-decimal %
       if (pct >= 100) return "100% remaining";
-      return `${pct.toFixed(2)}% remaining`;
+      return `${formatPercentPretty(pct, 2)} remaining`;
     })(),
     // SRE-style error budget over the FULL process lifetime.
     // Pairs with `errorBudget` (1h windowed) so ops can see both the

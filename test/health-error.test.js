@@ -3160,8 +3160,9 @@ test("health handler: summary exposes errorBudgetPretty (human-readable error bu
   assert.match(HEALTH_SOURCE, /return\s*"100%\s+remaining"/,
     "zero-error branch must return \"100% remaining\"");
   // "X.XX% remaining" branch — under-budget with 2-decimal precision.
-  assert.match(HEALTH_SOURCE, /toFixed\(2\)\}[^`]*%\s+remaining/,
-    "under-budget branch must format with toFixed(2) and \"% remaining\"");
+  // After iter #184 the % portion is delegated to formatPercentPretty.
+  assert.match(HEALTH_SOURCE, /formatPercentPretty\([^)]+,\s*2\s*\)\}\s*remaining/,
+    "under-budget branch must call formatPercentPretty(pct, 2) and append \" remaining\"");
 });
 
 test("buildSummary: errorBudgetPretty format is sane on empty window (delta, behavioral)", () => {
