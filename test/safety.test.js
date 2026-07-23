@@ -2504,6 +2504,17 @@ test("recordCspBlock: increments consecutiveBlocks and updates lastBlockedAt", (
 
 // ── mostBlocked + mostBlockedFrom shape (iter #197) ──────────────
 
+test("getCspElapsedMinutes: returns a positive integer ≥ 1 (zero-divisor guard)", () => {
+  // The helper guards divide-by-zero at process start by clamping to
+  // a minimum of 1. After the process has run for a while, it returns
+  // the actual elapsed minutes.
+  const { getCspElapsedMinutes } = require("../api/_safety.js");
+  const m = getCspElapsedMinutes();
+  assert.equal(typeof m, "number", "must be a number");
+  assert.ok(Number.isInteger(m), "must be an integer");
+  assert.ok(m >= 1, `must be ≥ 1 (divide-by-zero guard); got ${m}`);
+});
+
 test("getCspReportCounts: mostBlocked + mostBlockedFrom are { hash, count, sample } arrays", () => {
   // The _cspTopN helper produces arrays of { hash, count, sample }
   // entries. Lock in the shape so future refactors can't silently

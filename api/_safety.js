@@ -495,6 +495,14 @@ let _cspLastBlockerHash = null;
 let _cspLastBlockerSample = null;
 const _csp = require("node:crypto");
 
+/* Compute the elapsed minutes since the CSP process started.
+ * Math.max(1, ...) guards divide-by-zero at process start. Three
+ * CSP-rate fields (ratePerMinute, totalRatePerMinute, peakRatePerMinute)
+ * all divide by elapsed minutes — single source of truth here. */
+function getCspElapsedMinutes() {
+  return Math.max(1, Math.round((Date.now() - _cspProcessStartTs) / 60000));
+}
+
 function recordCspReport(directive, blockedUri, documentUri, reporterIp) {
   if (typeof directive !== "string" || directive.length === 0 || directive.length > 200) return;
   // Normalize the directive so `script-src 'self'` and `script-src` end up
@@ -618,8 +626,7 @@ function getCspReportCounts() {
     // 0 when no reports received (else unbounded small-rate noise).
     // Math.max(1, elapsedMin) guards divide-by-zero at process start.
     ratePerMinute: (() => {
-      const elapsedMin = Math.max(1, Math.round((Date.now() - _cspProcessStartTs) / 60000));
-      return Math.round((_cspTotalReports / elapsedMin) * 10) / 10;
+      return Math.round((_cspTotalReports / getCspElapsedMinutes()) * 10) / 10;
     })(),
     // Total attempts per minute (accepted + blocked) since process
     // start. Pairs with ratePerMinute (accepted only) to give the
@@ -627,8 +634,7 @@ function getCspReportCounts() {
     // block rate. Lets ops answer "is the attack rate rising?" from
     // a single curl.
     totalRatePerMinute: (() => {
-      const elapsedMin = Math.max(1, Math.round((Date.now() - _cspProcessStartTs) / 60000));
-      return Math.round(((_cspTotalReports + _cspBlockedCount) / elapsedMin) * 10) / 10;
+      return Math.round(((_cspTotalReports + _cspBlockedCount) / getCspElapsedMinutes()) * 10) / 10;
     })(),
     // Peak per-minute rate seen since process start. Lets ops detect
     // "was there a rate spike that has since subsided?" by comparing
@@ -642,8 +648,7 @@ function getCspReportCounts() {
       // Instead, compute from the lifetime total over elapsedMin —
       // same as ratePerMinute for now. Future iter can add a per-minute
       // window for true peak tracking.
-      const elapsedMin = Math.max(1, Math.round((Date.now() - _cspProcessStartTs) / 60000));
-      return Math.round((_cspTotalReports / elapsedMin) * 10) / 10;
+      return Math.round((_cspTotalReports / getCspElapsedMinutes()) * 10) / 10;
     })(),
     // Acceptance rate: accepted / (accepted + blocked). 1-decimal
     // precision (0..1, but expressed as 0..10 for whole-number
@@ -1460,4 +1465,5 @@ module.exports = {
   safeParseCompactAnalysisResult,
   CHAT_LIMITS,
   safeParseChatResult,
+  getCspElapsedMinutes,
 };
