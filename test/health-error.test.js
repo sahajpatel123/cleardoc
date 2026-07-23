@@ -2707,6 +2707,31 @@ test("buildSummary: uptimePercentLifetime is in [0, 1] with 4-decimal precision"
     `uptimePercentLifetime × 10000 must be effectively an integer; got ${scaled}`);
 });
 
+// ── uptimePercentLifetimePretty (iter #165) ──────────────────
+
+test("health handler: summary exposes uptimePercentLifetimePretty (human-readable %)", () => {
+  assert.match(HEALTH_SOURCE, /uptimePercentLifetimePretty/,
+    "summary must include uptimePercentLifetimePretty field");
+  assert.match(HEALTH_SOURCE, /return\s*"100%"/,
+    "zero-traffic branch must return literal \"100%\"");
+  assert.match(HEALTH_SOURCE, /pct\.toFixed\(1\)/,
+    "non-degenerate branch must format with toFixed(1)");
+});
+
+test("buildSummary: uptimePercentLifetimePretty is a string matching % format", () => {
+  const { buildSummary } = require("../api/health.js");
+  const r = buildSummary({
+    hasGemini: false, hasOpenRouter: false,
+    geminiProbe: null, openRouterProbe: null,
+  });
+  assert.equal(typeof r.uptimePercentLifetimePretty, "string",
+    "uptimePercentLifetimePretty must be a string");
+  const numericPct = r.uptimePercentLifetime * 100;
+  const prettyPct = parseFloat(r.uptimePercentLifetimePretty);
+  assert.ok(Math.abs(numericPct - prettyPct) < 0.2,
+    `pretty (${prettyPct}%) must be within 0.2% of numeric (${numericPct}%)`);
+});
+
 test("computeErrorBudget: helper is exported and shape matches summary.errorBudget (single source of truth)", () => {
   // After the iter #135 refactor, computeErrorBudget is the single
   // source of truth for both summary.errorBudget and summary.errorBudgetPretty.

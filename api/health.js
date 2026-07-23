@@ -640,6 +640,19 @@ function buildSummary({ hasGemini, hasOpenRouter, geminiProbe, openRouterProbe }
       if (total === 0) return 1; // no traffic yet → 100% uptime
       return Math.round((1 - errs / total) * 10000) / 10000;
     })(),
+    // Human-readable lifetime uptime percentage. Pairs with
+    // `uptimePercentLifetime` (numeric) for at-a-glance reading
+    // on dashboards / curl. 1-decimal precision via toFixed(1).
+    // Same format family as uptimePercentInLastHourPretty.
+    uptimePercentLifetimePretty: (() => {
+      const rateLimited = _requestsByStatus.get(429) || 0;
+      const errs = _totalErrors;
+      const accepted = _requestsServed;
+      const total = errs + accepted + rateLimited;
+      if (total === 0) return "100%";
+      const pct = Math.round((1 - errs / total) * 1000) / 10;
+      return `${pct.toFixed(1)}%`;
+    })(),
     // Per-status-code breakdown — "are we getting a lot of 429s from one
     // IP" or "spike in 503s?" is a one-curl check now. Snapshot the Map
     // so callers don't see concurrent mutation mid-iteration.
