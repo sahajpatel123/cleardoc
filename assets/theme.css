@@ -558,6 +558,17 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-detail-row.trap .rd-hit{background:var(--danger-tint)}
 .risk-detail-row.watch .rd-hit{background:var(--amber-tint)}
 .risk-detail-empty{padding:10px;color:var(--ink-soft);font-style:italic}
+/* Negotiation suggestion (iter #41) — sub-row under each risk that
+ * shows a counter-clause the user could propose. Pairs naturally with
+ * the risk row so users see "why this is bad" + "what to ask for instead"
+ * in one read. Color-keyed to the risk severity so trap suggestions
+ * pop the loudest. */
+.risk-detail .risk-counter{display:flex;gap:8px;align-items:baseline;padding:6px 10px 8px 10px;margin:0 0 4px 0;background:var(--paper2);border-left:3px solid var(--ink-soft);font-family:'Archivo',sans-serif;font-size:var(--t-meta);line-height:1.45;color:var(--ink-soft);text-transform:none;letter-spacing:0}
+.risk-detail .risk-counter.trap{border-left-color:var(--danger);background:var(--danger-tint)}
+.risk-detail .risk-counter.watch{border-left-color:var(--amber);background:var(--amber-tint)}
+.risk-detail .risk-counter .rc-kicker{font-family:'JetBrains Mono';font-size:var(--t-micro);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink);white-space:nowrap;flex-shrink:0}
+.risk-detail .risk-counter.trap .rc-kicker{color:var(--danger)}
+.risk-detail .risk-counter.watch .rc-kicker{color:var(--amber)}
 /* Read-aloud button — small 🔊 in the risk toolbar */
 .risk-detail-toolbar .rd-speak{font:inherit;font-size:.92em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:4px 10px;cursor:pointer;transition:background .15s,color .15s;margin-right:6px}
 .risk-detail-toolbar .rd-speak:hover{background:var(--ink);color:var(--paper)}

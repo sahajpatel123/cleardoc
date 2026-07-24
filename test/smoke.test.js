@@ -3401,6 +3401,47 @@ test("analyzer: voice preview button speaks a sample phrase in the selected voic
     ".voice-preview must use uppercase styling (matches ghost-btn aesthetic)");
 });
 
+test("analyzer: each risk row shows a 'suggest' counter-clause the user could propose", () => {
+  // New feature — for each detected risk, surface a concrete
+  // counter-clause suggestion. Pairs the "why this is bad" with
+  // "what to ask for instead" so the analyzer becomes a negotiation
+  // assistant, not just a risk spotter.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js", ), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Every RISK entry must have a counter field
+  for (const label of ["perpetuity", "indemnif", "waiv", "refundable", "renew", "sole discretion", "late fee", "governing law", "confidential"]) {
+    assert.ok(appSrc.includes(label),
+      `RISK array must include a counter for ${label}`);
+  }
+  // matchRisks must carry the counter through to the rendered rows
+  assert.match(appSrc, /counter: r\.counter \|\| null/,
+    "matchRisks must carry the counter field through");
+  // renderRiskDetail must render a .risk-counter sub-row per risk
+  assert.match(appSrc, /risk-counter\s+' \+ sevClass/,
+    "renderRiskDetail must render a .risk-counter row");
+  assert.match(appSrc, /rc-kicker/,
+    "risk counter must have the '→ suggest:' kicker");
+  assert.match(appSrc, /rc-text/,
+    "risk counter must render the suggestion text");
+  // Counter must include "→ suggest:" prefix for visual scan
+  assert.match(appSrc, /suggest:/,
+    "risk counter must include the 'suggest:' prefix");
+
+  // CSS: counter row must be visually distinct from risk rows
+  assert.match(cssSrc, /\.risk-counter\{[^}]*border-left/,
+    ".risk-counter must have a left border (visual divider from the risk row)");
+  // Trap counter uses --danger for loudest suggestion
+  assert.match(cssSrc, /\.risk-counter\.trap\{[^}]*var\(--danger\)/,
+    ".risk-counter.trap must use --danger (trap suggestion = loudest)");
+  // Watch counter uses --amber
+  assert.match(cssSrc, /\.risk-counter\.watch\{[^}]*var\(--amber\)/,
+    ".risk-counter.watch must use --amber (watch suggestion = medium)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

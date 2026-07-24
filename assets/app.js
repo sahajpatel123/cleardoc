@@ -1496,15 +1496,24 @@
 
     // trap/risk patterns — severity g(note) a(watch) r(trap)
     const RISK=[
-      {re:/in perpetuity|perpetual|survive (the )?termination/i, sev:'r', label:'Trap', why:'Never expires — there is no time limit.'},
-      {re:/indemnif|hold\s+\w*\s*harmless/i, sev:'r', label:'Trap', why:"You may have to cover the other side's losses, including legal fees."},
-      {re:/waiv\w*.{0,30}(jury|class action)|class action waiver|trial by jury/i, sev:'r', label:'Trap', why:'You give up the right to sue in court or join a class action.'},
-      {re:/non[-\s]?refundable|forfeit|liquidated damages/i, sev:'r', label:'Trap', why:"Money you won't get back."},
-      {re:/auto(matically)?\s*renew|evergreen|successive\s+\w+\s+terms|renew\w* for/i, sev:'a', label:'Watch', why:'Renews automatically unless you cancel in time.'},
-      {re:/sole discretion|at any time|without (prior )?notice|reserves the right/i, sev:'a', label:'Watch', why:'The other party can change or act unilaterally.'},
-      {re:/late fee|penalty|default interest|assessment/i, sev:'a', label:'Watch', why:'Extra charges may apply.'},
-      {re:/governing law|jurisdiction|venue|arbitration/i, sev:'g', label:'Note', why:'Sets which laws/forum apply if there is a dispute.'},
-      {re:/confidential|non-?disclosure|proprietary/i, sev:'g', label:'Note', why:'Restricts what you can share.'}
+      {re:/in perpetuity|perpetual|survive (the )?termination/i, sev:'r', label:'Trap', why:'Never expires — there is no time limit.',
+        counter:'Limit this clause to a fixed term (e.g. 2 years) or to claims discovered within 12 months of termination.'},
+      {re:/indemnif|hold\s+\w*\s*harmless/i, sev:'r', label:'Trap', why:"You may have to cover the other side's losses, including legal fees.",
+        counter:'Narrow to "mutual indemnification" (both sides cover their own losses) and cap at the value of the contract.'},
+      {re:/waiv\w*.{0,30}(jury|class action)|class action waiver|trial by jury/i, sev:'r', label:'Trap', why:'You give up the right to sue in court or join a class action.',
+        counter:'Strike the class-action waiver entirely, or replace with "individual arbitration only" so a bad actor can still be held accountable.'},
+      {re:/non[-\s]?refundable|forfeit|liquidated damages/i, sev:'r', label:'Trap', why:"Money you won't get back.",
+        counter:'Replace with "refundable less reasonable administrative costs (capped at 10%)" — keeps the fee but gives you most of it back.'},
+      {re:/auto(matically)?\s*renew|evergreen|successive\s+\w+\s+terms|renew\w* for/i, sev:'a', label:'Watch', why:'Renews automatically unless you cancel in time.',
+        counter:'Add "with 60-day prior written notice and ability to cancel via email" so you control the renewal, not the clock.'},
+      {re:/sole discretion|at any time|without (prior )?notice|reserves the right/i, sev:'a', label:'Watch', why:'The other party can change or act unilaterally.',
+        counter:'Insert "with 30-day prior written notice and your right to terminate without penalty" so changes can\'t ambush you.'},
+      {re:/late fee|penalty|default interest|assessment/i, sev:'a', label:'Watch', why:'Extra charges may apply.',
+        counter:'Cap late fees at the lesser of $25 or 5% of the overdue amount (the federal credit-card standard). Reject default-interest >10% APR.'},
+      {re:/governing law|jurisdiction|venue|arbitration/i, sev:'g', label:'Note', why:'Sets which laws/forum apply if there is a dispute.',
+        counter:'Negotiate "your home state" jurisdiction — companies prefer their home venue; you should too. Reject mandatory arbitration entirely if possible.'},
+      {re:/confidential|non-?disclosure|proprietary/i, sev:'g', label:'Note', why:'Restricts what you can share.',
+        counter:'Add a "whistleblower carve-out" so you can disclose to regulators/law enforcement even if the NDA is broad. Standard in most jurisdictions.'}
     ];
     // Count how many distinct RISK patterns the input matches, broken
     // down by severity. Same pattern source as the analyze path, so
@@ -1552,7 +1561,7 @@
         if (!r || !r.re) continue;
         const m = r.re.exec(t);
         if (!m) continue;
-        out.push({ sev: r.sev, label: r.label, why: r.why, matched: m[0] });
+        out.push({ sev: r.sev, label: r.label, why: r.why, matched: m[0], counter: r.counter || null });
       }
       return out;
     }
@@ -1604,6 +1613,17 @@
             '<span class="rd-why">' + esc(h.why || '') + '</span>',
           '</div>'
         );
+        // Negotiation suggestion (iter #41) — for each risk, suggest
+        // a counter-clause the user could propose. Shown as a sub-row
+        // with a "→ suggest:" prefix so users see WHAT to ask for.
+        if(h.counter){
+          parts.push(
+            '<div class="risk-counter ' + sevClass + '">',
+              '<span class="rc-kicker">→ suggest:</span>',
+              '<span class="rc-text">' + esc(h.counter) + '</span>',
+            '</div>'
+          );
+        }
       }
       riskDetail.innerHTML = parts.join('');
     }
