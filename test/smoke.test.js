@@ -4285,6 +4285,19 @@ test("analyzer: risks-avoided badge breaks the total down by severity", () => {
     "badge text must include watch count");
   assert.match(appSrc, /risksAvoidedBadge\.textContent[\s\S]+?note/,
     "badge text must include note count");
+
+  // Iter #62: title tooltip with $ savings estimate
+  assert.match(appSrc, /risksAvoidedBadge\.title/,
+    "badge must have a title tooltip");
+  // Must include the per-severity $ rates (200/50/20)
+  assert.match(appSrc, /SAVINGS_PER/,
+    "must define the per-severity savings rates");
+  // Must include the cumulative savings total
+  assert.match(appSrc, /Approx\./,
+    "tooltip must say 'Approx.' to disclose the estimate");
+  // Must include the disclaimer that actual cost varies
+  assert.match(appSrc, /Estimates only|actual cost varies/,
+    "tooltip must include a disclaimer (estimates are not exact)");
 });
 
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {

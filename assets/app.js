@@ -2799,6 +2799,22 @@
             if(parts.length > 0) text += ' (' + parts.join(' + ') + ')';
           }
           risksAvoidedBadge.textContent = text;
+          // Tooltip (iter #62) — show the estimated $ value of what
+          // these risks would have cost. Per-severity rates (rough
+          // industry averages: trap = $200, watch = $50, note = $20)
+          // are conservative — actual cost varies wildly by contract.
+          const SAVINGS_PER = { r: 200, a: 50, g: 20 };
+          const trapVal  = (data.trap  || 0) * SAVINGS_PER.r;
+          const watchVal = (data.watch || 0) * SAVINGS_PER.a;
+          const noteVal  = (data.note  || 0) * SAVINGS_PER.g;
+          const totalVal = trapVal + watchVal + noteVal;
+          const fmt = (n) => '$' + n.toLocaleString('en-US');
+          risksAvoidedBadge.title =
+            'Approx. ' + fmt(totalVal) + ' in avoided costs (' +
+            fmt(trapVal) + ' from ' + (data.trap  || 0) + ' trap + ' +
+            fmt(watchVal)+ ' from ' + (data.watch || 0) + ' watch + ' +
+            fmt(noteVal) + ' from ' + (data.note  || 0) + ' note). ' +
+            'Estimates only — actual cost varies by contract.';
           risksAvoidedBadge.hidden = false;
         } else {
           risksAvoidedBadge.hidden = true;
