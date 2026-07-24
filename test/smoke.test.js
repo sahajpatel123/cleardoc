@@ -2113,18 +2113,19 @@ test("analyzer: deadlines preview has an Add-to-Calendar button that exports the
   // Click handler must wire up ICS download + Blob URL pattern
   assert.match(appSrc, /deadlinesCalBtn\.addEventListener\(\s*['"]click['"]/,
     "#deadlinesCalBtn must have a click handler");
-  assert.match(appSrc, /deadlinesCalBtn\.addEventListener[\s\S]+?buildIcsForDate/,
-    "click handler must call buildIcsForDate with the soonest deadline");
+  // (iter #13 upgraded this from buildIcsForDate to buildIcs — multi-event)
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener[\s\S]+?buildIcs\(/,
+    "click handler must call buildIcs (multi-event) to export deadlines");
   assert.match(appSrc, /deadlinesCalBtn\.addEventListener[\s\S]+?new Blob\(\s*\[\s*ics\s*\]/,
     "click handler must wrap the ICS in a Blob");
   assert.match(appSrc, /deadlinesCalBtn\.addEventListener[\s\S]+?URL\.createObjectURL/,
     "click handler must use URL.createObjectURL for the download");
-  assert.match(appSrc, /deadlinesCalBtn\.addEventListener[\s\S]+?cleardoc-deadline-/,
-    "filename must start with 'cleardoc-deadline-' for sortability in Downloads folder");
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener[\s\S]+?cleardoc-deadlines-/,
+    "filename must start with 'cleardoc-deadlines-' (plural for multi-event)");
 
   // Flash feedback on success
-  assert.match(appSrc, /deadlinesCalBtn\.addEventListener[\s\S]+?added ✓/,
-    "button must flash 'added ✓' for 1.4s on successful export");
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener[\s\S]+?added/,
+    "button must flash 'added' for 1.4s on successful export");
 
   // CSS: button is part of the deadlines preview
   assert.match(cssSrc, /\.deadlines-preview \.dp-cal\{[^}]*cursor:\s*pointer/,
@@ -2132,6 +2133,65 @@ test("analyzer: deadlines preview has an Add-to-Calendar button that exports the
   // Hover state mirrors the existing CTA pattern
   assert.match(cssSrc, /\.deadlines-preview \.dp-cal:hover/,
     ".dp-cal must have a hover state for affordance");
+});
+
+test("analyzer: calendar button exports ALL detected deadlines as a multi-event ICS file", () => {
+  // Polishes iter #12 — now exports every detected deadline (up to 8)
+  // as one multi-event ICS file, not just the soonest. Button label
+  // scales with count: '+ calendar' (1) / '+ 3 calendar' (3+).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // buildIcs (multi-event) must exist alongside buildIcsForDate
+  assert.match(appSrc, /function buildIcs\(items\)/,
+    "buildIcs() (multi-event) must exist at the IIFE level");
+
+  // Multi-event structure: one VCALENDAR wrapper, multiple VEVENT blocks
+  assert.match(appSrc, /function buildIcs\(items\)\{[\s\S]+?valid\.forEach/,
+    "buildIcs must iterate items to emit multiple VEVENT blocks");
+
+  // Must guard on empty / invalid input
+  assert.match(appSrc, /function buildIcs\(items\)\{[\s\S]+?Array\.isArray\(items\)/,
+    "buildIcs must guard on non-array input");
+  assert.match(appSrc, /function buildIcs\(items\)\{[\s\S]+?items\.filter/,
+    "buildIcs must filter out items without valid dates");
+
+  // Must cap at 50 events (defensive — runaway ICS protection)
+  assert.match(appSrc, /function buildIcs\(items\)\{[\s\S]+?\.slice\(0,\s*50\)/,
+    "buildIcs must cap events at 50 to avoid runaway ICS files");
+
+  // Click handler must call buildIcs (multi-event), not buildIcsForDate
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener\([\s\S]+?buildIcs\(/,
+    "click handler must call buildIcs() (multi-event) to export all deadlines");
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener\([\s\S]+?deadlinesCalBtn\._deadlines/,
+    "click handler must read the stashed deadlines list from _deadlines");
+
+  // Filename must use 'cleardoc-deadlines-' (plural) for multi-event files
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener\([\s\S]+?'cleardoc-deadlines-'/,
+    "multi-event filename must start with 'cleardoc-deadlines-' (plural)");
+
+  // Button label scales with count
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener\([\s\S]+?'added ' \+ list\.length \+ ' ✓'/,
+    "flash feedback must show 'added N ✓' for multi-event exports");
+
+  // Button label updates dynamically with count
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0], /deadlinesCalBtn\._deadlines\s*=\s*dls/,
+    "updateTextStats must stash the deadlines list on the button");
+  assert.match(updateBlock[0],
+    /deadlinesCalBtn\._origText\s*=\s*label/,
+    "updateTextStats must cache the current button label for flash feedback");
+  // '+ N calendar' for multi-event, '+ calendar' for single
+  assert.match(updateBlock[0],
+    /\(dls\.length === 1\) \? '\+ calendar' : \('\+ ' \+ dls\.length \+ ' calendar'\)/,
+    "button label must scale: 1 → '+ calendar'; N → '+ N calendar'");
+
+  // Title scales too (screen-reader hint + hover)
+  assert.match(updateBlock[0], /deadlinesCalBtn\.title\s*=[\s\S]+?dls\.length/,
+    "button title must reflect the deadline count for hover + a11y");
 });
 
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {

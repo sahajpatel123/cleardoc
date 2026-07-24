@@ -331,6 +331,49 @@
       'END:VCALENDAR',
     ].join('\r\n') + '\r\n';
   }
+
+  // Build a multi-event ICS file from an array of {date, label} pairs.
+  // Returns '' if no valid dates. Each event gets its own VEVENT block
+  // sharing one VCALENDAR wrapper — calendar apps import all events at
+  // once. Caps at 50 events to avoid runaway ICS files (defensive).
+  //   buildIcs([{date: new Date('2026-01-15'), label: 'in 30 days'},
+  //             {date: new Date('2026-03-01'), label: 'in 75 days'}])
+  //     → "BEGIN:VCALENDAR\r\n…\r\nBEGIN:VEVENT\r\n…\r\nEND:VEVENT\r\n
+  //        BEGIN:VEVENT\r\n…\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+  function buildIcs(items){
+    if(!Array.isArray(items) || items.length === 0) return '';
+    const valid = items.filter(it => it && it.date && !isNaN(it.date.getTime())).slice(0, 50);
+    if(valid.length === 0) return '';
+    const stamp = _icsDateStamp(new Date());
+    const pad = (n) => String(n).padStart(2, '0');
+    const safeText = (s) => String(s || 'Document deadline')
+      .replace(/\\/g, '\\\\').replace(/;/g, '\\;')
+      .replace(/,/g, '\\,').replace(/\n/g, '\\n').slice(0, 80);
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//ClearDoc//Deadlines//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+    ];
+    valid.forEach((it, i) => {
+      const dstart = it.date.getUTCFullYear() + pad(it.date.getUTCMonth() + 1) + pad(it.date.getUTCDate());
+      // Per-event UID — same date can appear multiple times if the
+      // user has multiple doc sources, so we suffix with the index.
+      const uid = 'cleardoc-' + stamp + '-' + dstart + '-' + i + '@cleardoc.app';
+      lines.push(
+        'BEGIN:VEVENT',
+        'UID:' + uid,
+        'DTSTAMP:' + stamp,
+        'DTSTART;VALUE=DATE:' + dstart,
+        'SUMMARY:' + safeText('Document deadline: ' + it.label),
+        'DESCRIPTION:Extracted from your document via ClearDoc (cleardoc.app)',
+        'END:VEVENT'
+      );
+    });
+    lines.push('END:VCALENDAR');
+    return lines.join('\r\n') + '\r\n';
+  }
   function detectDocType(text){
     const t = String(text||'').trim();
     if (!t || t.length < 20) return null;
@@ -2597,7 +2640,10 @@
         const dls = extractDeadlines(raw);
         if(dls.length === 0){
           deadlinesPreview.hidden = true;
-          if(deadlinesCalBtn) deadlinesCalBtn._soonest = null;
+          if(deadlinesCalBtn){
+            deadlinesCalBtn._deadlines = null;
+            deadlinesCalBtn.disabled = true;
+          }
         } else {
           deadlinesPreview.hidden = false;
           if(deadlinesCount) deadlinesCount.textContent = dls.length;
@@ -2618,12 +2664,19 @@
             }
           }
           if(deadlinesSoonest) deadlinesSoonest.textContent = soonestLabel;
-          // Stash the soonest deadline on the button so its click
-          // handler can build the ICS without re-extracting dates.
+          // Stash the deadlines list on the button so the click
+          // handler can build a multi-event ICS without re-extracting.
+          // Button label scales with the count so users know what
+          // they're exporting: 1 → '+ calendar'; 3 → '+ 3 calendar'.
           if(deadlinesCalBtn){
-            deadlinesCalBtn._soonest = soon;
+            deadlinesCalBtn._deadlines = dls;
             deadlinesCalBtn.disabled = false;
-            deadlinesCalBtn.title = 'Add ' + soon.label + ' to your calendar';
+            deadlinesCalBtn.title = (dls.length === 1)
+              ? 'Add this deadline to your calendar'
+              : 'Add all ' + dls.length + ' deadlines to your calendar';
+            const label = (dls.length === 1) ? '+ calendar' : ('+ ' + dls.length + ' calendar');
+            deadlinesCalBtn._origText = label;
+            deadlinesCalBtn.textContent = label;
           }
           // Urgency band: past = danger, < 7 days = danger, < 30 days =
           // amber, else default. Past dates read loudest because an
@@ -2725,36 +2778,41 @@
        * handlers — uses event bubbling to catch clicks on the rendered
        * button. Pattern matches the verdictCopyBtn click handler
        * elsewhere in the file (clipboard API + execCommand fallback). */
-      /* Calendar-export button — single-click ICS download for the
-       * soonest deadline. Uses the same Blob+download pattern as
-       * downloadDraftBtn (analyze-result download). Stashes the
-       * soonest deadline on the button via _soonest so re-renders
-       * during typing don't break the binding. */
+      /* Calendar-export button — single-click ICS download. Exports
+       * ALL detected deadlines (up to 8) as one multi-event .ics,
+       * not just the soonest. Uses the same Blob+download pattern
+       * as downloadDraftBtn. Stashes the deadlines list on the
+       * button via _deadlines so re-renders during typing don't
+       * break the binding. */
       if(deadlinesCalBtn){
         deadlinesCalBtn.addEventListener('click', () => {
-          const soon = deadlinesCalBtn._soonest;
-          if(!soon || typeof soon.date === 'undefined' || isNaN(soon.date.getTime())) return;
-          const ics = (typeof buildIcsForDate === 'function')
-            ? buildIcsForDate(soon.date, 'Document deadline: ' + soon.label)
+          const list = deadlinesCalBtn._deadlines;
+          if(!Array.isArray(list) || list.length === 0) return;
+          const ics = (typeof buildIcs === 'function')
+            ? buildIcs(list.map(d => ({ date: d.date, label: d.label })))
             : '';
           if(!ics) return;
           const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          // Filename: cleardoc-deadline-YYYY-MM-DD.ics — sortable, easy to
-          // find in a Downloads folder, matches the extracted date.
+          // Filename: cleardoc-deadlines-YYYY-MM-DD.ics — uses the
+          // soonest date so the file is easy to identify. Plural
+          // ('deadlines' not 'deadline') because we always export
+          // multi-event files now.
           const pad = (n) => String(n).padStart(2, '0');
-          const fname = 'cleardoc-deadline-' +
-            soon.date.getFullYear() + '-' +
-            pad(soon.date.getMonth() + 1) + '-' +
-            pad(soon.date.getDate()) + '.ics';
+          const soonest = list[0];
+          const fname = 'cleardoc-deadlines-' +
+            soonest.date.getFullYear() + '-' +
+            pad(soonest.date.getMonth() + 1) + '-' +
+            pad(soonest.date.getDate()) + '.ics';
           a.download = fname;
           a.click();
           URL.revokeObjectURL(url);
-          // Flash feedback on the button
-          const orig = '+ calendar';
-          deadlinesCalBtn.textContent = 'added ✓';
+          // Flash feedback — 'added N ✓' if multiple, just 'added ✓' for 1
+          const isMulti = list.length > 1;
+          const orig = deadlinesCalBtn._origText || (isMulti ? ('+ ' + list.length + ' calendar') : '+ calendar');
+          deadlinesCalBtn.textContent = isMulti ? ('added ' + list.length + ' ✓') : 'added ✓';
           clearTimeout(deadlinesCalBtn._flashTimer);
           deadlinesCalBtn._flashTimer = setTimeout(() => {
             deadlinesCalBtn.textContent = orig;
