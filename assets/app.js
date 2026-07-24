@@ -2951,17 +2951,6 @@
               recognition.interimResults = true;
               recognition.lang = navigator.language || 'en-US';
               baseValue = input.value || '';
-              recognition.onresult = (e) => {
-                let interim = '', final = '';
-                for(let i = e.resultIndex; i < e.results.length; i++){
-                  const t = e.results[i][0].transcript;
-                  if(e.results[i].isFinal) final += t;
-                  else interim += t;
-                }
-                const sep = baseValue && !baseValue.endsWith(' ') && final ? ' ' : '';
-                input.value = baseValue + sep + final + interim;
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-              };
               recognition.onerror = (e) => {
                 // 'no-speech', 'aborted', 'not-allowed' — surface a
                 // brief flash but don't crash the page
@@ -2975,6 +2964,41 @@
                 isRecording = false;
                 micBtn.textContent = '🎤 dictate';
                 micBtn.classList.remove('qf-mic-active');
+                micBtn.classList.remove('qf-mic-paused');
+                clearTimeout(silenceTimer);
+              };
+              // Auto-pause: stop recognition after 2.5s of no result
+              // (speech-end event + a fallback timer). Standard dictation
+              // UX (Google Docs voice typing, Apple Dictation) — users
+              // pause naturally without hunting for a stop button.
+              const SILENCE_MS = 2500;
+              let silenceTimer = null;
+              const bumpSilence = () => {
+                clearTimeout(silenceTimer);
+                silenceTimer = setTimeout(() => {
+                  if(isRecording){
+                    try { recognition.stop(); } catch(_) {}
+                    micBtn.classList.add('qf-mic-paused');
+                    micBtn.textContent = '■ paused';
+                    setTimeout(() => {
+                      micBtn.textContent = '🎤 dictate';
+                      micBtn.classList.remove('qf-mic-paused');
+                    }, 1400);
+                  }
+                }, SILENCE_MS);
+              };
+              recognition.onspeechend = () => bumpSilence();
+              recognition.onresult = (e) => {
+                bumpSilence();
+                let interim = '', final = '';
+                for(let i = e.resultIndex; i < e.results.length; i++){
+                  const t = e.results[i][0].transcript;
+                  if(e.results[i].isFinal) final += t;
+                  else interim += t;
+                }
+                const sep = baseValue && !baseValue.endsWith(' ') && final ? ' ' : '';
+                input.value = baseValue + sep + final + interim;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
               };
               recognition.start();
               isRecording = true;

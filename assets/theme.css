@@ -646,6 +646,7 @@ button.risk-preview:hover{filter:brightness(.96)}
 .work .qf.qf-open{background:var(--ink);color:var(--paper)}
 /* Mic button — active state pulses red so users see recording is live */
 .work .qf.qf-mic.qf-mic-active{background:var(--danger);color:#fff;border-color:var(--danger);animation:micPulse 1.4s ease-in-out infinite}
+.work .qf.qf-mic.qf-mic-paused{background:var(--paper2);color:var(--ink-soft);border-color:var(--ink-soft)}
 @keyframes micPulse{0%,100%{box-shadow:0 0 0 0 var(--accent-glow)}50%{box-shadow:0 0 0 6px transparent}}
 /* Compare panel — second textarea + side-by-side stats table */
 .compare-panel{margin-top:var(--s2);padding:var(--s2);border:var(--bd-hair) solid var(--ink);background:var(--paper2)}

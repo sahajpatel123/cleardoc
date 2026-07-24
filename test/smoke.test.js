@@ -2688,6 +2688,41 @@ test("analyzer: voice input button dictates into the textarea via Web Speech API
     ".qf-mic-active must have a pulse animation so live recording reads as live");
 });
 
+test("analyzer: voice input auto-pauses after 2.5s of silence", () => {
+  // Polishes iter #23 — standard dictation UX (Google Docs voice
+  // typing, Apple Dictation). Users pause naturally without hunting
+  // for a stop button. Triggers via onspeechend (Chrome-native) +
+  // a fallback timer (cross-browser).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Must use onspeechend as the native trigger
+  assert.match(appSrc, /recognition\.onspeechend\s*=/,
+    "must hook onspeechend (browser-native signal that user stopped speaking)");
+  // Must have a fallback timer with a reasonable threshold (1-5s)
+  assert.match(appSrc, /SILENCE_MS\s*=\s*\d{3,5}/,
+    "must define a SILENCE_MS threshold in the 1-5s range");
+  // Must call recognition.stop() when silence is detected
+  assert.match(appSrc, /silenceTimer\s*=\s*setTimeout[\s\S]+?recognition\.stop/,
+    "silenceTimer callback must call recognition.stop()");
+  // Must apply a paused class so users see the auto-pause state
+  assert.match(appSrc, /qf-mic-paused/,
+    "must add qf-mic-paused class on auto-pause");
+  // Must clear the timer in onend so it doesn't fire after manual stop
+  assert.match(appSrc, /recognition\.onend[\s\S]+?clearTimeout\(silenceTimer\)/,
+    "onend handler must clear silenceTimer so it doesn't fire after manual stop");
+  // onresult must bump the silence timer (reset on every transcript)
+  assert.match(appSrc, /onresult[\s\S]+?bumpSilence\(\)/,
+    "onresult must call bumpSilence() to reset the auto-pause timer");
+
+  // CSS: paused state is muted (not red — recording stopped)
+  assert.match(cssSrc, /\.qf-mic\.qf-mic-paused\{[^}]*color:\s*var\(--ink-soft\)/,
+    ".qf-mic-paused must use --ink-soft (recording stopped, muted state)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
