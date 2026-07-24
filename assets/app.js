@@ -3221,7 +3221,41 @@
           }
           // Render to canvas
           const W = 560, rowH = 36, headerH = 60, verdictH = 56, footerH = 32;
-          const H = headerH + verdictH + (rows.length * rowH) + footerH;
+          // Parse the diff section (when present) so the PNG is a
+          // complete shareable artifact — verdict + stats + unique
+          // clauses all in one image.
+          const diffRows = [];
+          if(compareDiff && !compareDiff.hidden){
+            const items = compareDiff.querySelectorAll('.cmp-diff-row');
+            items.forEach(d => {
+              const label = (d.querySelector('b') || {}).textContent || '';
+              const sentences = Array.from(d.querySelectorAll('li')).map(li => (li.textContent || '').trim()).filter(Boolean);
+              if(sentences.length){
+                diffRows.push({ label: label.trim(), sentences });
+              }
+            });
+          }
+          // Measure the diff block height (each sentence capped at 2
+          // lines × 16px line-height ≈ 32px; + label header ~22px)
+          const diffLineH = 16;
+          const diffLabelH = 22;
+          const diffSideW = (W - 16 - 16 - 8) / 2;
+          const measureDiff = (d) => {
+            ctx.save();
+            ctx.font = '12px monospace';
+            // Crude word-wrap estimate: clip to chars that fit the
+            // column width, then count lines.
+            const pxPerChar = 7; // monospace estimate
+            const charsPerLine = Math.max(20, Math.floor(diffSideW / pxPerChar));
+            const lines = d.sentences.reduce((n, s) => {
+              const clipped = s.slice(0, 120);
+              return n + Math.max(1, Math.ceil(clipped.length / charsPerLine));
+            }, 0);
+            ctx.restore();
+            return diffLabelH + (lines * diffLineH) + 8;
+          };
+          const diffH = diffRows.reduce((n, d) => n + measureDiff(d), 0) + (diffRows.length ? 28 : 0);
+          const H = headerH + verdictH + (rows.length * rowH) + diffH + footerH;
           const canvas = document.createElement('canvas');
           canvas.width = W; canvas.height = H;
           const ctx = canvas.getContext('2d');
@@ -3271,6 +3305,41 @@
               ctx.fillText((r[1] || '').slice(0, 24), 16 + labelW, y + 22);
               ctx.fillText((r[2] || '').slice(0, 24), 16 + labelW + colW, y + 22);
             }
+          }
+          // Diff block — unique-clauses section
+          if(diffRows.length){
+            const diffY = tableY + (rows.length * rowH);
+            // Sub-header bar
+            ctx.fillStyle = '#14120E';
+            ctx.fillRect(0, diffY, W, 28);
+            ctx.fillStyle = '#FF3B00';
+            ctx.font = 'bold 11px monospace';
+            ctx.fillText("// WHAT'S DIFFERENT", 16, diffY + 18);
+            ctx.fillStyle = '#EDE7D8';
+            ctx.font = '10px monospace';
+            ctx.fillText(diffRows[0].sentences.length + ' + ' + (diffRows[1] ? diffRows[1].sentences.length : 0) + ' unique clauses', W - 200, diffY + 18);
+            // Render each side
+            let penY = diffY + 28 + 8;
+            const pxPerChar = 7;
+            const charsPerLine = Math.max(20, Math.floor(diffSideW / pxPerChar));
+            diffRows.forEach((d, idx) => {
+              const x = idx === 0 ? 16 : (16 + diffSideW + 8);
+              ctx.fillStyle = '#5A554A';
+              ctx.font = 'bold 10px monospace';
+              ctx.fillText((d.label || '').toUpperCase(), x, penY + 12);
+              penY += diffLabelH;
+              ctx.fillStyle = '#14120E';
+              ctx.font = '12px monospace';
+              d.sentences.slice(0, 4).forEach(s => {
+                const clipped = s.slice(0, 120);
+                // Word-wrap to charsPerLine
+                for(let i = 0; i < clipped.length; i += charsPerLine){
+                  ctx.fillText(clipped.slice(i, i + charsPerLine), x, penY);
+                  penY += diffLineH;
+                }
+              });
+              penY += 4;
+            });
           }
           // Footer
           ctx.fillStyle = '#5A554A';

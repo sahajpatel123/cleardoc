@@ -3151,6 +3151,36 @@ test("analyzer: compare panel exports the verdict + stats as a shareable PNG ima
     ".cmp-png must have a hover state");
 });
 
+test("analyzer: PNG export includes the diff section (unique clauses from each side)", () => {
+  // Polishes iter #33 — the PNG previously only had verdict + stats.
+  // Now it also includes the // WHAT'S DIFFERENT section with the
+  // unique clauses from each side, so the image is a complete
+  // shareable artifact (verdict + scores + unique content).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Must read the diff DOM (compareDiff) when rendering
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?compareDiff[\s\S]+?querySelectorAll\(['"]\.cmp-diff-row['"]\)/,
+    "PNG export must read the rendered .cmp-diff-row elements");
+  // Must render the WHAT'S DIFFERENT sub-header
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?WHAT.?S DIFFERENT/,
+    "PNG must include the '// WHAT'S DIFFERENT' sub-header");
+  // Must render each side's label (e.g. "only in Original (N)")
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?label[\s\S]+?toUpperCase/,
+    "PNG must render the diff-side label (e.g. ONLY IN ORIGINAL)");
+  // Must render the unique clause sentences
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?sentences\.slice\(0,\s*4\)/,
+    "PNG must render the first 4 unique clauses per side (cap to fit canvas)");
+  // Must use word-wrap (clipped + charsPerLine loop) so long clauses fit
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?charsPerLine/,
+    "PNG must word-wrap long clauses via charsPerLine");
+  // Dynamic height calculation: includes diffH in total height
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?diffH/,
+    "PNG height must include the diff section (diffH variable)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
