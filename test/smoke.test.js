@@ -4745,6 +4745,29 @@ test("analyzer: counter-suggestions have a 'Why this works' tip (💡 button)", 
     ".rc-tip must be cursor:pointer (signals clickability)");
 });
 
+test("analyzer: every risk pattern has a 'why this works' tip", () => {
+  // Polishes iter #74 — extend the tip field to all risk patterns
+  // so every counter-suggestion has a "why this works" explainer.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Every RISK entry should have a tip field
+  // Count the number of "tip:" fields in the RISK array (each entry
+  // should have one). There are 9 risk patterns total.
+  const tipMatches = appSrc.match(/tip:\s*'([^']+)'/g) || [];
+  const tips = tipMatches.map(m => m.match(/tip:\s*'([^']+)'/)[1]);
+  assert.ok(tips.length >= 9,
+    "must have at least 9 tips (one per risk pattern); found " + tips.length);
+  // Each tip should be 1-3 sentences
+  for(let i = 0; i < tips.length; i++){
+    const len = tips[i].length;
+    assert.ok(len > 30 && len < 400,
+      "tip #" + (i+1) + " should be 1-3 sentences (length " + len + ")");
+  }
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
