@@ -4644,6 +4644,33 @@ test("analyzer: Multiple saved versions with names + a picker to choose between 
     "showClearVersionBtn must repopulate the picker dropdown");
 });
 
+test("analyzer: per-version delete (Cmd/Ctrl-click) removes one snapshot without clearing all", () => {
+  // Polishes iter #71 — users can remove a specific saved
+  // version without clearing all. Cmd/Ctrl-click the option to
+  // delete; the rest of the array stays intact.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // deleteVersion must exist
+  assert.match(appSrc, /function deleteVersion\(/,
+    "deleteVersion() must exist (iter #72)");
+
+  // Click handler must use metaKey/ctrlKey
+  assert.match(appSrc, /savedVersionSelect\.addEventListener[\s\S]+?metaKey[\s\S]+?ctrlKey/,
+    "delete handler must check metaKey || ctrlKey (per-version delete)");
+  // Must call deleteVersion
+  assert.match(appSrc, /savedVersionSelect\.addEventListener[\s\S]+?deleteVersion\(id\)/,
+    "delete handler must call deleteVersion");
+  // Must refresh the badge
+  assert.match(appSrc, /savedVersionSelect\.addEventListener[\s\S]+?showClearVersionBtn\(\)/,
+    "delete handler must refresh the badge");
+  // Must show a success toast
+  assert.match(appSrc, /savedVersionSelect\.addEventListener[\s\S]+?Version deleted/,
+    "delete handler must show a success toast");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
