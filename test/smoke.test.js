@@ -4158,6 +4158,55 @@ test("analyzer: after a successful analysis, show a 'Save as template?' prompt",
     ".tpl-suggest-yes must use --green (positive action)");
 });
 
+test("analyzer: Edit-template lets users modify a saved template without re-typing", () => {
+  // Polishes iter #57 — saved templates are useful but uneditable
+  // unless you delete + re-create. Adds an inline edit mode that
+  // replaces the row with a name input + text textarea + Save /
+  // Cancel / Delete buttons. Reuses saveTemplate (which dedupes
+  // by name+text) so we don't need a separate write path.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js", ), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // renderTemplates must emit the edit button on each row
+  const renderFn = appSrc.match(/function renderTemplates\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(renderFn, "renderTemplates() must exist");
+  assert.match(renderFn[0], /data-tpl-edit/,
+    "renderTemplates must render a [data-tpl-edit] button on each row");
+
+  // updateTemplate must exist (helper for the save path)
+  assert.match(appSrc, /function updateTemplate\(idx, name, text\)/,
+    "updateTemplate() must exist (iter #59 extraction)");
+
+  // Delegated click must handle the edit-save path
+  assert.match(appSrc, /tplList\.addEventListener[\s\S]+?data-tpl-edit-save/,
+    "tplList must handle [data-tpl-edit-save] clicks");
+  // Must call updateTemplate with the form values
+  assert.match(appSrc, /data-tpl-edit-save[\s\S]+?updateTemplate\(idx,\s*nameInput\.value,\s*textInput\.value\)/,
+    "edit-save must call updateTemplate(idx, name, text)");
+  // Must handle edit-cancel
+  assert.match(appSrc, /tplList\.addEventListener[\s\S]+?data-tpl-edit-cancel/,
+    "tplList must handle [data-tpl-edit-cancel] clicks");
+  // Must handle edit-delete
+  assert.match(appSrc, /tplList\.addEventListener[\s\S]+?data-tpl-edit-delete/,
+    "tplList must handle [data-tpl-edit-delete] clicks");
+  // Delete must splice the array
+  assert.match(appSrc, /data-tpl-edit-delete[\s\S]+?items\.splice\(idx, 1\)/,
+    "edit-delete must splice the template out of the array");
+
+  // CSS: edit form must be styled
+  assert.match(cssSrc, /\.tpl-edit\{[^}]*cursor:\s*pointer/,
+    ".tpl-edit must be cursor:pointer (clickable)");
+  assert.match(cssSrc, /\.tpl-edit-form\{[^}]*display:\s*flex/,
+    ".tpl-edit-form must be a flex container");
+  assert.match(cssSrc, /\.tpl-edit-save\{[^}]*var\(--green\)/,
+    ".tpl-edit-save must use --green (positive action)");
+  assert.match(cssSrc, /\.tpl-edit-delete\{[^}]*var\(--danger\)/,
+    ".tpl-edit-delete must use --danger (destructive action)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

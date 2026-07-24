@@ -3585,24 +3585,116 @@
           const ts = t && t.ts ? new Date(t.ts) : null;
           const ago = ts ? ts.toLocaleDateString() : '';
           const type = t.type ? '<span class="tpl-type">' + esc(t.type) + '</span>' : '';
-          return '<li><button type="button" class="tpl-item" data-tpl-idx="' + i +
+          return '<li>' +
+            '<button type="button" class="tpl-item" data-tpl-idx="' + i +
             '" title="Click to load this template"><span class="tpl-name">' +
             esc(t.name || 'Untitled') + '</span>' + type +
-            '<span class="tpl-when">' + esc(ago) + '</span></button></li>';
+            '<span class="tpl-when">' + esc(ago) + '</span></button>' +
+            '<button type="button" class="tpl-edit" data-tpl-edit="' + i +
+            '" title="Edit this template">✏️</button>' +
+          '</li>';
         }).join('');
+      }
+      // updateTemplate — update an existing template by index (iter #59).
+      // Removes the old entry, then re-saves with the new fields.
+      // Reuses saveTemplate (which dedupes by name+text) so we don't
+      // need a separate write path.
+      function updateTemplate(idx, name, text){
+        try{
+          const items = readTemplates();
+          if(!Array.isArray(items) || idx < 0 || idx >= items.length) return false;
+          const old = items[idx];
+          if(!old) return false;
+          // Remove the old entry
+          items.splice(idx, 1);
+          localStorage.setItem(TPL_KEY, JSON.stringify(items));
+          // Re-save with the new fields (saveTemplate dedupes)
+          return saveTemplate(name, text, old.type);
+        }catch(_){ return false; }
       }
       if(tplList){
         tplList.addEventListener('click', (e) => {
+          // Edit button (iter #59) — opens inline edit mode
+          const editBtn = e.target.closest && e.target.closest('[data-tpl-edit]');
+          if(editBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const idx = parseInt(editBtn.getAttribute('data-tpl-edit') || '0', 10);
+            const items = (typeof readTemplates === 'function') ? readTemplates() : [];
+            const t = items[idx];
+            if(!t) return;
+            // Render the row in edit mode
+            const li = editBtn.closest('li');
+            if(!li) return;
+            li.innerHTML =
+              '<div class="tpl-edit-form">' +
+                '<input type="text" class="tpl-edit-name" maxlength="60" value="' + esc(t.name || '') + '" aria-label="Template name">' +
+                '<textarea class="tpl-edit-text" rows="4" maxlength="40000" aria-label="Template text">' + esc(t.text || '') + '</textarea>' +
+                '<div class="tpl-edit-actions">' +
+                  '<button type="button" class="tpl-edit-save" data-tpl-edit-save="' + idx + '">💾 Save</button>' +
+                  '<button type="button" class="tpl-edit-cancel" data-tpl-edit-cancel="' + idx + '">Cancel</button>' +
+                  '<button type="button" class="tpl-edit-delete" data-tpl-edit-delete="' + idx + '">🗑 Delete</button>' +
+                '</div>' +
+              '</div>';
+            // Focus the name input
+            const nameInput = li.querySelector('.tpl-edit-name');
+            if(nameInput) setTimeout(() => nameInput.focus(), 0);
+            return;
+          }
+          // Edit-save button — write the updated template
+          const saveBtn = e.target.closest && e.target.closest('[data-tpl-edit-save]');
+          if(saveBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const idx = parseInt(saveBtn.getAttribute('data-tpl-edit-save') || '0', 10);
+            const li = saveBtn.closest('li');
+            const nameInput = li && li.querySelector('.tpl-edit-name');
+            const textInput = li && li.querySelector('.tpl-edit-text');
+            if(!nameInput || !textInput) return;
+            const ok = updateTemplate(idx, nameInput.value, textInput.value);
+            renderTemplates();
+            if(ok){
+              showAnalyzeToast('✓ Template updated');
+            } else {
+              showAnalyzeToast('Template unchanged or duplicate');
+            }
+            return;
+          }
+          // Edit-cancel button — discard changes, re-render
+          const cancelBtn = e.target.closest && e.target.closest('[data-tpl-edit-cancel]');
+          if(cancelBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            renderTemplates();
+            return;
+          }
+          // Edit-delete button — remove the template entirely
+          const deleteBtn = e.target.closest && e.target.closest('[data-tpl-edit-delete]');
+          if(deleteBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const idx = parseInt(deleteBtn.getAttribute('data-tpl-edit-delete') || '0', 10);
+            const items = (typeof readTemplates === 'function') ? readTemplates() : [];
+            if(!Array.isArray(items) || idx < 0 || idx >= items.length) return;
+            const removed = items.splice(idx, 1);
+            try { localStorage.setItem(TPL_KEY, JSON.stringify(items)); } catch(_){}
+            renderTemplates();
+            if(removed.length) showAnalyzeToast('🗑 Template deleted');
+            return;
+          }
+          // Default: load the template into the input
           const btn = e.target.closest && e.target.closest('[data-tpl-idx]');
-          if(!btn || !input) return;
-          const idx = parseInt(btn.getAttribute('data-tpl-idx') || '0', 10);
-          const items = (typeof readTemplates === 'function') ? readTemplates() : [];
-          const t = items[idx];
-          if(!t || !t.text) return;
-          input.value = t.text;
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.focus();
-          if(tplPanel) tplPanel.hidden = true;
+          if(btn && !input) return;
+          if(btn){
+            const idx = parseInt(btn.getAttribute('data-tpl-idx') || '0', 10);
+            const items = (typeof readTemplates === 'function') ? readTemplates() : [];
+            const t = items[idx];
+            if(!t || !t.text) return;
+            input.value = t.text;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.focus();
+            if(tplPanel) tplPanel.hidden = true;
+          }
         });
       }
       if(tplSaveBtn){

@@ -785,6 +785,21 @@ button.risk-preview:hover{filter:brightness(.96)}
 .tpl-actions{display:flex;justify-content:flex-end}
 .tpl-actions .tpl-clear{font:inherit;font-size:var(--t-micro);font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink-soft);background:transparent;color:var(--ink-soft);padding:3px 8px;cursor:pointer}
 .tpl-actions .tpl-clear:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
+/* Template edit form (iter #59) — inline edit mode that replaces
+ * the row with a name input + text textarea + Save / Cancel / Delete. */
+.tpl-edit{font:inherit;font-size:var(--t-micro);padding:2px 6px;margin-left:4px;border:var(--bd-hair) solid var(--ink-soft);background:transparent;color:var(--ink-soft);cursor:pointer;flex-shrink:0}
+.tpl-edit:hover{background:var(--ink-soft);color:var(--paper)}
+.tpl-panel .tpl-edit-form{display:flex;flex-direction:column;gap:6px;padding:6px;border:var(--bd-hair) solid var(--ink);background:var(--paper2);width:100%}
+.tpl-panel .tpl-edit-form .tpl-edit-name,.tpl-panel .tpl-edit-form .tpl-edit-text{font:inherit;width:100%;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper);padding:4px 6px;text-transform:none;letter-spacing:0;font-size:var(--t-meta);font-family:inherit}
+.tpl-panel .tpl-edit-form .tpl-edit-text{font-family:'JetBrains Mono',monospace;min-height:80px;resize:vertical}
+.tpl-panel .tpl-edit-actions{display:flex;gap:6px;flex-wrap:wrap}
+.tpl-panel .tpl-edit-actions button{font:inherit;font-size:var(--t-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:var(--bd-hair) solid currentColor;background:transparent;padding:3px 8px;cursor:pointer}
+.tpl-panel .tpl-edit-save{color:var(--green);border-color:var(--green)}
+.tpl-panel .tpl-edit-save:hover{background:var(--green);color:#fff}
+.tpl-panel .tpl-edit-cancel{color:var(--ink-soft)}
+.tpl-panel .tpl-edit-cancel:hover{background:var(--ink-soft);color:var(--paper)}
+.tpl-panel .tpl-edit-delete{color:var(--danger);border-color:var(--danger)}
+.tpl-panel .tpl-edit-delete:hover{background:var(--danger);color:#fff}
 /* Verdict badge — clear at-a-glance winner above the table.
  * danger = traps decided it (most severe), amber = risks/deadlines,
  * ink = even. */
