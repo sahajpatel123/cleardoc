@@ -4860,6 +4860,50 @@ test("analyzer: risk-trend chart shows a sparkline of recent risk counts", () =>
     "trend modal must show the latest value + delta vs the previous one");
 });
 
+test("analyzer: Negotiation playbook export opens a printable window with suggestions + tips + versions", () => {
+  // New feature — exports the full negotiation workflow
+  // (suggestions + tips + saved versions) as a printable
+  // checklist. Users can print to PDF or share with a co-counsel.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html: playbook button must exist
+  assert.match(html, /id="playbookBtn"/,
+    "analyze.html must contain #playbookBtn");
+  assert.match(html, /📋 playbook/,
+    "playbook button must be labeled '📋 playbook'");
+
+  // Click handler must build the playbook document
+  assert.match(appSrc, /playbookBtn\.addEventListener\(\s*['"]click['"]/,
+    "playbook button must have a click handler");
+  // Must read the rendered risk list (so the playbook matches what's
+  // visible in the expanded list)
+  assert.match(appSrc, /playbookBtn\.addEventListener[\s\S]+?risk-detail-row/,
+    "playbook must read the rendered risk rows for parity with the UI");
+  // Must include original, counter, tip
+  assert.match(appSrc, /playbookBtn\.addEventListener[\s\S]+?original/,
+    "playbook must include the original clause text");
+  assert.match(appSrc, /playbookBtn\.addEventListener[\s\S]+?counter/,
+    "playbook must include the counter-clause text");
+  assert.match(appSrc, /playbookBtn\.addEventListener[\s\S]+?tip/,
+    "playbook must include the 'why this works' tip");
+  // Must include the saved versions section
+  assert.match(appSrc, /playbookBtn\.addEventListener[\s\S]+?readVersions\(\)/,
+    "playbook must include the saved versions");
+  // Must open the document in a new window
+  assert.match(appSrc, /playbookBtn\.addEventListener[\s\S]+?window\.open/,
+    "playbook must open in a new window");
+  // Must revoke the blob URL after a delay
+  assert.match(appSrc, /playbookBtn\.addEventListener[\s\S]+?URL\.revokeObjectURL/,
+    "playbook must revoke the blob URL after a delay");
+  // Must include the print media query
+  assert.match(appSrc, /@media print/,
+    "playbook must have a print media query for clean printing");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
