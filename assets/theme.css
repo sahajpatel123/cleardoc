@@ -591,6 +591,10 @@ button.risk-preview:hover{filter:brightness(.96)}
 .deadlines-preview.dp-urgent{color:var(--danger);background:var(--danger-tint);font-weight:700}
 .deadlines-preview.dp-soon{color:var(--amber);background:var(--amber-tint);font-weight:700}
 .deadlines-preview.dp-future{color:var(--ink-soft);background:var(--paper2)}
+.deadlines-preview .dp-cal{font:inherit;font-size:.92em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid currentColor;background:transparent;color:inherit;padding:3px 8px;cursor:pointer;margin-left:auto;transition:background .15s,color .15s}
+.deadlines-preview .dp-cal:hover{background:currentColor;color:var(--paper)}
+.deadlines-preview .dp-cal:hover span,.deadlines-preview .dp-cal:hover b{color:var(--paper)}
+.deadlines-preview .dp-cal:disabled{opacity:.4;cursor:not-allowed}
 /* Toolbar row — pattern count + Copy button. Stays visually separate
  * from the rows so the button doesn't look like another risk tag. */
 .risk-detail-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border-bottom:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}

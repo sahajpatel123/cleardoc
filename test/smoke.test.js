@@ -2061,6 +2061,79 @@ test("analyzer: deadlines preview shows live count + soonest deadline with urgen
     ".dp-soon must use --amber (<30 days)");
 });
 
+test("analyzer: deadlines preview has an Add-to-Calendar button that exports the soonest deadline as ICS", () => {
+  // Polishes iter #11's deadlines preview. One-click ICS download of
+  // the soonest deadline so users can drop it into Google / Apple /
+  // Outlook. Same Blob+download pattern as the existing draft export.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // _icsDateStamp + buildIcsForDate must exist at the IIFE level
+  assert.match(appSrc, /function _icsDateStamp\(d\)/,
+    "_icsDateStamp() helper must exist at the IIFE level");
+  assert.match(appSrc, /function buildIcsForDate\(dt, summary\)/,
+    "buildIcsForDate() helper must exist at the IIFE level");
+
+  // RFC 5545 compliance: must escape commas, semicolons, backslashes, newlines
+  assert.match(appSrc, /buildIcsForDate[\s\S]+?replace\(/,
+    "buildIcsForDate must escape per RFC 5545 § 3.3.11");
+  // Must include all required ICS sections
+  for (const section of [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:",
+    "BEGIN:VEVENT",
+    "UID:",
+    "DTSTAMP:",
+    "DTSTART",
+    "SUMMARY:",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ]) {
+    assert.ok(appSrc.includes("'" + section + "'") || appSrc.includes('"' + section + '"') || appSrc.includes(section),
+      `buildIcsForDate must emit ${section}`);
+  }
+  // All-day event with VALUE=DATE (no time component)
+  assert.match(appSrc, /VALUE=DATE/,
+    "buildIcsForDate must use VALUE=DATE for all-day deadlines (no time)");
+  // CRLF line endings per RFC 5545
+  assert.match(appSrc, /\\r\\n/,
+    "buildIcsForDate must use CRLF line endings (RFC 5545 requirement)");
+
+  // analyze.html must have the calendar-export button
+  assert.match(html, /id="deadlinesCalBtn"/,
+    "analyze.html must contain #deadlinesCalBtn");
+  assert.match(html, /aria-label="Add soonest deadline to calendar"/,
+    "#deadlinesCalBtn must have an aria-label for screen readers");
+
+  // Click handler must wire up ICS download + Blob URL pattern
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener\(\s*['"]click['"]/,
+    "#deadlinesCalBtn must have a click handler");
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener[\s\S]+?buildIcsForDate/,
+    "click handler must call buildIcsForDate with the soonest deadline");
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener[\s\S]+?new Blob\(\s*\[\s*ics\s*\]/,
+    "click handler must wrap the ICS in a Blob");
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener[\s\S]+?URL\.createObjectURL/,
+    "click handler must use URL.createObjectURL for the download");
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener[\s\S]+?cleardoc-deadline-/,
+    "filename must start with 'cleardoc-deadline-' for sortability in Downloads folder");
+
+  // Flash feedback on success
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener[\s\S]+?added ✓/,
+    "button must flash 'added ✓' for 1.4s on successful export");
+
+  // CSS: button is part of the deadlines preview
+  assert.match(cssSrc, /\.deadlines-preview \.dp-cal\{[^}]*cursor:\s*pointer/,
+    ".dp-cal must be a clickable button (cursor: pointer)");
+  // Hover state mirrors the existing CTA pattern
+  assert.match(cssSrc, /\.deadlines-preview \.dp-cal:hover/,
+    ".dp-cal must have a hover state for affordance");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

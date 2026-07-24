@@ -277,6 +277,60 @@
     out.sort((a, b) => a.urgencyDays - b.urgencyDays);
     return out.slice(0, 8);
   }
+
+  // Format a Date as an iCalendar UTC stamp (YYYYMMDDTHHMMSSZ). The
+  // 'Z' suffix marks UTC — required by RFC 5545 § 3.3.5 for DATE-TIME
+  // values when no TZID is given. Defensive: returns null on bad input.
+  //   _icsDateStamp(new Date('2026-01-15T12:00:00Z')) → '20260115T120000Z'
+  //   _icsDateStamp(null) → null
+  function _icsDateStamp(d){
+    if (!d || isNaN(d.getTime())) return null;
+    const pad = (n) => String(n).padStart(2, '0');
+    return d.getUTCFullYear() +
+      pad(d.getUTCMonth() + 1) +
+      pad(d.getUTCDate()) + 'T' +
+      pad(d.getUTCHours()) +
+      pad(d.getUTCMinutes()) +
+      pad(d.getUTCSeconds()) + 'Z';
+  }
+
+  // Build an ICS file string for a single all-day event marking a
+  // deadline. Output is RFC 5545 compliant — Google / Apple / Outlook
+  // all import it cleanly. CRLF line endings (RFC requirement); lines
+  // are folded at 75 octets per the spec (we keep them short anyway).
+  //   buildIcsForDate(new Date('2026-01-15'), 'Document deadline')
+  //     → "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:...\r\n..."
+  function buildIcsForDate(dt, summary){
+    if (!dt || isNaN(dt.getTime())) return '';
+    const stamp = _icsDateStamp(new Date());
+    // Use VALUE=DATE (all-day event) for deadlines so users don't have
+    // to set a time. Format YYYYMMDD (no T…Z suffix for all-day).
+    const pad = (n) => String(n).padStart(2, '0');
+    const dstart = dt.getUTCFullYear() + pad(dt.getUTCMonth() + 1) + pad(dt.getUTCDate());
+    const uid = 'cleardoc-' + stamp + '-' + dstart + '@cleardoc.app';
+    const safeSummary = String(summary || 'Document deadline')
+      // RFC 5545 § 3.3.11 — escape commas, semicolons, backslashes, newlines
+      .replace(/\\/g, '\\\\')
+      .replace(/;/g, '\\;')
+      .replace(/,/g, '\\,')
+      .replace(/\n/g, '\\n')
+      .slice(0, 80);
+    return [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//ClearDoc//Deadlines//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      'UID:' + uid,
+      'DTSTAMP:' + stamp,
+      'DTSTART;VALUE=DATE:' + dstart,
+      'SUMMARY:' + safeSummary,
+      'DESCRIPTION:Extracted from your document via ClearDoc (cleardoc.app)',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n') + '\r\n';
+  }
   function detectDocType(text){
     const t = String(text||'').trim();
     if (!t || t.length < 20) return null;
@@ -1239,6 +1293,7 @@
           statDocType=$('#statDocType'),docTypeTip=$('#docTypeTip'),docTypeTipText=$('#docTypeTipText'),
           deadlinesPreview=$('#deadlinesPreview'),deadlinesCount=$('#deadlinesCount'),
           deadlinesPlural=$('#deadlinesPlural'),deadlinesSoonest=$('#deadlinesSoonest'),
+          deadlinesCalBtn=$('#deadlinesCalBtn'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
@@ -2542,6 +2597,7 @@
         const dls = extractDeadlines(raw);
         if(dls.length === 0){
           deadlinesPreview.hidden = true;
+          if(deadlinesCalBtn) deadlinesCalBtn._soonest = null;
         } else {
           deadlinesPreview.hidden = false;
           if(deadlinesCount) deadlinesCount.textContent = dls.length;
@@ -2562,6 +2618,13 @@
             }
           }
           if(deadlinesSoonest) deadlinesSoonest.textContent = soonestLabel;
+          // Stash the soonest deadline on the button so its click
+          // handler can build the ICS without re-extracting dates.
+          if(deadlinesCalBtn){
+            deadlinesCalBtn._soonest = soon;
+            deadlinesCalBtn.disabled = false;
+            deadlinesCalBtn.title = 'Add ' + soon.label + ' to your calendar';
+          }
           // Urgency band: past = danger, < 7 days = danger, < 30 days =
           // amber, else default. Past dates read loudest because an
           // already-missed deadline is the most urgent signal.
@@ -2662,6 +2725,43 @@
        * handlers — uses event bubbling to catch clicks on the rendered
        * button. Pattern matches the verdictCopyBtn click handler
        * elsewhere in the file (clipboard API + execCommand fallback). */
+      /* Calendar-export button — single-click ICS download for the
+       * soonest deadline. Uses the same Blob+download pattern as
+       * downloadDraftBtn (analyze-result download). Stashes the
+       * soonest deadline on the button via _soonest so re-renders
+       * during typing don't break the binding. */
+      if(deadlinesCalBtn){
+        deadlinesCalBtn.addEventListener('click', () => {
+          const soon = deadlinesCalBtn._soonest;
+          if(!soon || typeof soon.date === 'undefined' || isNaN(soon.date.getTime())) return;
+          const ics = (typeof buildIcsForDate === 'function')
+            ? buildIcsForDate(soon.date, 'Document deadline: ' + soon.label)
+            : '';
+          if(!ics) return;
+          const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          // Filename: cleardoc-deadline-YYYY-MM-DD.ics — sortable, easy to
+          // find in a Downloads folder, matches the extracted date.
+          const pad = (n) => String(n).padStart(2, '0');
+          const fname = 'cleardoc-deadline-' +
+            soon.date.getFullYear() + '-' +
+            pad(soon.date.getMonth() + 1) + '-' +
+            pad(soon.date.getDate()) + '.ics';
+          a.download = fname;
+          a.click();
+          URL.revokeObjectURL(url);
+          // Flash feedback on the button
+          const orig = '+ calendar';
+          deadlinesCalBtn.textContent = 'added ✓';
+          clearTimeout(deadlinesCalBtn._flashTimer);
+          deadlinesCalBtn._flashTimer = setTimeout(() => {
+            deadlinesCalBtn.textContent = orig;
+          }, 1400);
+        });
+      }
+
       if(riskDetail){
         riskDetail.addEventListener('click', async (e) => {
           const btn = e.target.closest && e.target.closest('[data-rd-copy]');
