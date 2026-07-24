@@ -3753,6 +3753,51 @@ test("analyzer: Apply-all shows a confirmation modal before modifying the source
     "confirm action must use --green (positive visual)");
 });
 
+test("analyzer: confirm modal shows a dry-run preview (before→after pairs) before applying", () => {
+  // Polishes iter #48 — the confirm modal now embeds a diff preview
+  // so users see exactly what will change BEFORE clicking Apply.
+  // The most-requested feature in any rewrite tool — "show me the
+  // diff before I commit".
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Apply-all handler must build a preview with before/after pairs
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?dryrun-item/,
+    "Apply-all must build a .dryrun-item preview for each change");
+  // Must render the original (from) and the replacement (to)
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?dryrun-from/,
+    "preview must render the .dryrun-from line (original matched text)");
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?dryrun-to/,
+    "preview must render the .dryrun-to line (counter-suggestion text)");
+  // Must use esc() on the user-facing text (XSS defense — the matched
+  // substring + counter are user input that could contain HTML)
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?dryrun-from.+\s*esc\(h\.matched/,
+    "preview must esc() h.matched (XSS defense on user text)");
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?dryrun-to.+\s*esc\(h\.counter/,
+    "preview must esc() h.counter (XSS defense on user text)");
+  // Must cap visible items + show "+N more" for long lists
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?pending\.slice\(0,\s*5\)/,
+    "preview must cap visible items at 5");
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?dryrun-more/,
+    "preview must show a '+N more' line for long lists");
+  // Must pass the previewHtml into showConfirmModal
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?bodyHtml:\s*'<p>[\s\S]+?<\/p>'\s*\+\s*previewHtml/,
+    "preview must be injected into the confirm modal body");
+
+  // CSS: dry-run preview styling
+  assert.match(cssSrc, /\.apply-dryrun\{[^}]*border/,
+    ".apply-dryrun must have a visible border (separator from modal body)");
+  assert.match(cssSrc, /\.dryrun-from\{[^}]*line-through/,
+    ".dryrun-from must use line-through (visually marks 'removing')");
+  assert.match(cssSrc, /\.dryrun-from\{[^}]*var\(--danger\)/,
+    ".dryrun-from must use --danger (red = removed text)");
+  assert.match(cssSrc, /\.dryrun-to\{[^}]*var\(--green\)/,
+    ".dryrun-to must use --green (green = added text)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

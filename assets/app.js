@@ -4145,6 +4145,26 @@
               aaBtn._flashTimer = setTimeout(() => { aaBtn.textContent = '✓ Apply all'; }, 1400);
               return;
             }
+            // Build a dry-run preview (iter #49) — show each before→after
+            // pair in the confirm modal so users see the exact change
+            // BEFORE clicking Apply. Cap at 5 visible items + a
+            // "(+N more)" line so the modal doesn't overflow.
+            let previewHtml = '<div class="apply-dryrun">';
+            const visible = pending.slice(0, 5);
+            visible.forEach((h, i) => {
+              previewHtml += '<div class="dryrun-item">' +
+                '<div class="dryrun-num">' + (i + 1) + '.</div>' +
+                '<div class="dryrun-body">' +
+                  '<div class="dryrun-from">− ' + esc(h.matched) + '</div>' +
+                  '<div class="dryrun-to">+ ' + esc(h.counter) + '</div>' +
+                '</div>' +
+              '</div>';
+            });
+            if(pending.length > visible.length){
+              previewHtml += '<div class="dryrun-more">+ ' + (pending.length - visible.length) + ' more change' +
+                (pending.length - visible.length === 1 ? '' : 's') + ' …</div>';
+            }
+            previewHtml += '</div>';
             // Confirm before destructive batch apply (iter #48) —
             // prevents accidental rewrites of a long document.
             (async () => {
@@ -4153,6 +4173,7 @@
                 bodyHtml: '<p>This will replace <b>' + pending.length + '</b> matched clause' +
                   (pending.length === 1 ? '' : 's') + ' in your document with the counter-suggestions ' +
                   'shown above. You can undo with the <b>↶ undo apply</b> chip after.</p>' +
+                  previewHtml +
                   '<p class="apply-confirm-note">Tip: review each suggestion before applying — counter-clauses ' +
                   'are a starting point, not legal advice.</p>',
                 confirmLabel: 'Apply all',

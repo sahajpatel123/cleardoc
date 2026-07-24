@@ -638,6 +638,18 @@ button.risk-preview:hover{filter:brightness(.96)}
 .apply-confirm-actions .acm-btn:hover{background:var(--ink-soft);color:var(--paper)}
 .apply-confirm-actions .acm-confirm{background:var(--green);color:#fff;border-color:var(--green)}
 .apply-confirm-actions .acm-confirm:hover{background:#0f5a44;border-color:#0f5a44}
+/* Dry-run preview (iter #49) — before→after pairs in the confirm
+ * modal. Strikethrough red "from" + green "to" so users see the
+ * exact change BEFORE clicking Apply. Capped at 5 visible items +
+ * a "(+N more)" line for long lists. */
+.apply-dryrun{margin:var(--s3) 0;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper);font-family:'Archivo',sans-serif}
+.apply-dryrun .dryrun-item{display:flex;gap:10px;padding:8px 10px;border-bottom:var(--bd-hair) solid var(--ink-soft)}
+.apply-dryrun .dryrun-item:last-child{border-bottom:0}
+.apply-dryrun .dryrun-num{flex-shrink:0;font-family:'JetBrains Mono';font-size:var(--t-micro);color:var(--ink-soft);font-weight:700;padding-top:1px}
+.apply-dryrun .dryrun-body{flex:1;min-width:0;line-height:1.4;font-size:var(--t-meta);word-break:break-word}
+.apply-dryrun .dryrun-from{color:var(--danger);text-decoration:line-through;opacity:.85;margin-bottom:2px}
+.apply-dryrun .dryrun-to{color:var(--green);font-weight:600}
+.apply-dryrun .dryrun-more{padding:6px 10px;font-family:'JetBrains Mono';font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);text-align:center}
 /* Per-type "what to look for" tip — shown under the type badge.
  * Small, muted, editorial-style: "// watch for balance billing,
  * facility fees, upcoding" — the kicker matches the rest of the
