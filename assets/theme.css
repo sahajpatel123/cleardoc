@@ -694,6 +694,14 @@ button.risk-preview:hover{filter:brightness(.96)}
 .history-panel .hp-item:hover,.history-panel .hp-item:focus{background:var(--ink);color:var(--paper)}
 .history-panel .hp-when{font-family:'JetBrains Mono';font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;opacity:.7;margin-bottom:2px}
 .history-panel .hp-snip{font-family:'Archivo',sans-serif;font-size:var(--t-meta);line-height:1.4;text-transform:none;letter-spacing:0}
+.history-panel .hp-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:2px}
+.history-panel .hp-lang{font-family:'JetBrains Mono';font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;font-weight:700;padding:1px 5px;border:var(--bd-hair) solid currentColor;opacity:.85}
+.history-panel .hp-lang-en{color:#5A554A}
+.history-panel .hp-lang-es{color:#a8326b}
+.history-panel .hp-lang-fr{color:#1f4e79}
+.history-panel .hp-lang-de{color:#7a5b00}
+.history-panel .hp-lang-it{color:#176B53}
+.history-panel .hp-lang-pt{color:#5a4e8b}
 .history-panel .hp-actions{margin-top:8px;display:flex;justify-content:flex-end}
 .history-panel .hp-clear{font:inherit;font-size:var(--t-meta-sm);font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:transparent;color:var(--ink-soft);border:var(--bd-hair) solid var(--ink-soft);padding:4px 10px;cursor:pointer}
 .history-panel .hp-clear:hover{background:var(--danger);color:#fff;border-color:var(--danger)}

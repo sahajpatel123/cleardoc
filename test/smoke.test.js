@@ -3239,6 +3239,44 @@ test("analyzer: language detection tags the doc and picks a matching TTS voice",
     ".ds-lang must have a background tint (pill styling)");
 });
 
+test("analyzer: history entries show their detected language as a small pill", () => {
+  // Polishes iter #35 — when pushHistory saves an entry, it also
+  // detects + stashes the language. renderHistory paints a small
+  // pill per entry so users see at a glance which docs were which
+  // language. Colors map to the doc-type palette for cohesion.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // pushHistory must call detectLanguage + stash the result
+  assert.match(appSrc, /function pushHistory[\s\S]+?detectLanguage/,
+    "pushHistory must call detectLanguage to detect at save time");
+  assert.match(appSrc, /function pushHistory[\s\S]+?lang: lang \? lang\.code : null/,
+    "pushHistory must stash the detected lang code on the entry");
+  assert.match(appSrc, /function pushHistory[\s\S]+?langLabel: lang \? lang\.label : null/,
+    "pushHistory must stash the detected lang label on the entry");
+  // Refresh-on-update must also refresh language
+  assert.match(appSrc, /arr\[0\]\.lang\s*=\s*entry\.lang/,
+    "pushHistory dedupe path must also refresh the language (so pattern improvements propagate)");
+
+  // renderHistory must paint the language pill (it's an arrow function
+  // const renderHistory = () => { ... })
+  const renderFn = appSrc.match(/const renderHistory\s*=\s*\(\)\s*=>\s*\{[\s\S]+?\n\s+\}\s*\};\s*$/m);
+  assert.ok(renderFn, "renderHistory() must exist");
+  assert.match(renderFn[0], /hp-lang/,
+    "renderHistory must render a .hp-lang pill");
+  assert.match(renderFn[0], /it\.langLabel/,
+    "renderHistory must read langLabel from the entry");
+
+  // CSS: each language gets a distinct color
+  for (const cls of [".hp-lang-es", ".hp-lang-fr", ".hp-lang-de", ".hp-lang-it", ".hp-lang-pt", ".hp-lang-en"]) {
+    assert.ok(cssSrc.includes(cls),
+      `theme.css must define ${cls} (per-language color)`);
+  }
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

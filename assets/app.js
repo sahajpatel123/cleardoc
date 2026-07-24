@@ -1735,13 +1735,27 @@
         const text = String(raw || '').trim();
         if (!text || text.length < 8) return false;
         const snippet = text.slice(0, 80).replace(/\s+/g, ' ');
-        const entry = { v: HISTORY_VERSION, ts: Date.now(), snippet, text };
+        // Detect language at save time so the history entry carries
+        // it without re-running detection on every render. Cheap (a few
+        // regexes over the trimmed text).
+        const lang = (typeof detectLanguage === 'function') ? detectLanguage(text) : null;
+        const entry = {
+          v: HISTORY_VERSION,
+          ts: Date.now(),
+          snippet,
+          text,
+          lang: lang ? lang.code : null,
+          langLabel: lang ? lang.label : null,
+        };
         const arr = readHistoryRaw();
         // Skip duplicates of the most recent entry (avoids stacking
         // repeated analyze-button clicks with the same text).
         if (arr.length && arr[0].snippet === snippet && arr[0].text === text){
           // Update timestamp only — refresh recency
           arr[0].ts = entry.ts;
+          // Refresh language too (in case detectLanguage patterns improved)
+          arr[0].lang = entry.lang;
+          arr[0].langLabel = entry.langLabel;
           localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
           return true;
         }
@@ -3082,8 +3096,13 @@
           const full = ts ? ts.toLocaleString() : '';
           const rel = (typeof formatRelativeTime === 'function' && ts) ? formatRelativeTime(it.ts) : full;
           const snippet = (it && it.snippet) ? it.snippet : '';
+          // Language pill — only show if detection was conclusive
+          const langPill = (it && it.langLabel)
+            ? '<span class="hp-lang hp-lang-' + esc(it.lang) + '">' + esc(it.langLabel) + '</span>'
+            : '';
           return '<li><button type="button" class="hp-item" data-hp-idx="' + i +
-            '" title="' + esc(full) + '"><span class="hp-when">' + esc(rel) +
+            '" title="' + esc(full) + '"><span class="hp-row"><span class="hp-when">' +
+            esc(rel) + '</span>' + langPill +
             '</span><span class="hp-snip">' + esc(snippet) + '</span></button></li>';
         }).join('');
       };
