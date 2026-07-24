@@ -3016,6 +3016,59 @@ test("analyzer: TTS read-aloud of risks cross-links to the matched term in the s
     "onboundary must add rd-flash class to the textarea (visual pulse)");
 });
 
+test("analyzer: Read-aloud button speaks each deadline with urgency and highlights the active dot", () => {
+  // New feature — 🔊 in the deadlines preview speaks each deadline
+  // aloud with its urgency. Each dot in the timeline gets a scale-up
+  // + glow when it's the one being spoken. Pairs with iter #11
+  // (deadlines preview) and iter #27/29/30 (TTS family).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: speak button must exist in the deadlines preview
+  assert.match(html, /id="deadlinesSpeakBtn"/,
+    "analyze.html must contain #deadlinesSpeakBtn");
+  assert.match(html, /aria-label="Read deadlines aloud"/,
+    "#deadlinesSpeakBtn must have an aria-label");
+
+  // Must use SpeechSynthesis (same pattern as iter #27/29)
+  assert.match(appSrc, /deadlinesSpeakBtn\.addEventListener\(\s*['"]click['"]/,
+    "#deadlinesSpeakBtn must have a click handler");
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?SpeechSynthesisUtterance/,
+    "speak handler must construct a SpeechSynthesisUtterance");
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?speechSynthesis\.speak/,
+    "speak handler must call speechSynthesis.speak() to start playback");
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?speechSynthesis\.cancel/,
+    "speak handler must call speechSynthesis.cancel() to stop");
+  // Must include friendly urgency phrasing
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?'Deadline: '/,
+    "spoken script must start each deadline with 'Deadline:'");
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?'today'/,
+    "spoken script must include the 'today' phrasing");
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?'tomorrow'/,
+    "spoken script must include the 'tomorrow' phrasing");
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?days ago/,
+    "spoken script must include the 'N days ago' phrasing for past dates");
+
+  // Karaoke: onboundary must toggle .dp-speaking on the active dot
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?onboundary[\s\S]+?dp-speaking/,
+    "deadline TTS must toggle .dp-speaking class on the active dot");
+  // Must clear highlight on end/error
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?onend[\s\S]+?dp-speaking/,
+    "deadline TTS must clear .dp-speaking on end/error");
+
+  // CSS: speak button + dot scale-up highlight
+  assert.match(cssSrc, /\.deadlines-preview \.dp-speak\{[^}]*cursor:\s*pointer/,
+    ".dp-speak must be cursor:pointer (signals clickability)");
+  assert.match(cssSrc, /\.dp-dot\.dp-speaking\{[^}]*transform:\s*scale/,
+    ".dp-dot.dp-speaking must scale up so the active dot pops visually");
+  assert.match(cssSrc, /\.dp-dot\.dp-speaking\{[^}]*box-shadow/,
+    ".dp-dot.dp-speaking must have a glow (box-shadow) for the karaoke effect");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

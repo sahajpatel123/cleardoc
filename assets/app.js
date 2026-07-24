@@ -1451,7 +1451,7 @@
           deadlinesPreview=$('#deadlinesPreview'),deadlinesCount=$('#deadlinesCount'),
           deadlinesPlural=$('#deadlinesPlural'),deadlinesSoonest=$('#deadlinesSoonest'),
           deadlinesTimeline=$('#deadlinesTimeline'),
-          deadlinesCalBtn=$('#deadlinesCalBtn'),
+          deadlinesCalBtn=$('#deadlinesCalBtn'),deadlinesSpeakBtn=$('#deadlinesSpeakBtn'),
           compareToggle=$('#compareToggle'),comparePanel=$('#comparePanel'),
           inputB=$('#docInputB'),compareStats=$('#compareStats'),
           compareVerdict=$('#compareVerdict'),compareDiff=$('#compareDiff'),
@@ -3382,6 +3382,79 @@
        * as downloadDraftBtn. Stashes the deadlines list on the
        * button via _deadlines so re-renders during typing don't
        * break the binding. */
+      /* Deadline-readaloud — speaks each deadline aloud with its
+       * urgency. Reuses the same pattern as risk-readaloud:
+       * SpeechSynthesisUtterance + boundary-event row highlighting
+       * on the timeline dots. Toggles; click again to stop. */
+      if(deadlinesSpeakBtn){
+        deadlinesSpeakBtn.addEventListener('click', () => {
+          const list = deadlinesCalBtn && deadlinesCalBtn._deadlines;
+          if(!Array.isArray(list) || list.length === 0) return;
+          if(typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking){
+            try { window.speechSynthesis.cancel(); } catch(_) {}
+            deadlinesSpeakBtn.classList.remove('dp-speaking');
+            const dots = deadlinesTimeline ? deadlinesTimeline.querySelectorAll('.dp-dot') : [];
+            dots.forEach(d => d.classList.remove('dp-speaking'));
+            return;
+          }
+          if(typeof window === 'undefined' || !('speechSynthesis' in window)){
+            deadlinesSpeakBtn.hidden = true;
+            return;
+          }
+          // Format each deadline as spoken text: "Deadline: in 5 days."
+          // or "Deadline: tomorrow." or "Deadline: January 15, 2026."
+          const phrase = (d) => {
+            const u = typeof d.urgencyDays === 'number' ? d.urgencyDays : null;
+            let when;
+            if(u === null) when = d.label;
+            else if(u < 0) when = Math.abs(u) + ' days ago';
+            else if(u === 0) when = 'today';
+            else if(u === 1) when = 'tomorrow';
+            else if(u < 30) when = 'in ' + u + ' days';
+            else when = d.label;
+            return 'Deadline: ' + when + '.';
+          };
+          const script = list.map(phrase).join(' ');
+          const dots = deadlinesTimeline ? Array.from(deadlinesTimeline.querySelectorAll('.dp-dot')) : [];
+          const u = new SpeechSynthesisUtterance(script);
+          try {
+            const voices = window.speechSynthesis.getVoices();
+            const v = voices.find(v => /^en[-_]/i.test(v.lang)) || voices[0];
+            if(v) u.voice = v;
+          } catch(_){}
+          u.rate = 1.0;
+          // Compute per-dot charIndex ranges so onboundary can advance
+          let perDot = []; // [{end, idx}]
+          let pos = 0;
+          for(let i = 0; i < list.length; i++){
+            pos += phrase(list[i]).length + 1;
+            perDot.push({ end: pos, idx: i });
+          }
+          let activeIdx = -1;
+          u.onboundary = (ev) => {
+            if(typeof ev.charIndex !== 'number') return;
+            let found = activeIdx;
+            for(const r of perDot){
+              if(ev.charIndex < r.end){ found = r.idx; break; }
+              found = r.idx;
+            }
+            if(found !== activeIdx && found >= 0 && dots[found]){
+              activeIdx = found;
+              dots.forEach((d, i) => d.classList.toggle('dp-speaking', i === found));
+              try { dots[found].scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(_){}
+            }
+          };
+          u.onend = u.onerror = () => {
+            deadlinesSpeakBtn.classList.remove('dp-speaking');
+            dots.forEach(d => d.classList.remove('dp-speaking'));
+          };
+          try {
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(u);
+            deadlinesSpeakBtn.classList.add('dp-speaking');
+          } catch(_){}
+        });
+      }
       if(deadlinesCalBtn){
         deadlinesCalBtn.addEventListener('click', () => {
           const list = deadlinesCalBtn._deadlines;
