@@ -5117,9 +5117,26 @@
     // confirm modal so users don't wipe their stats by accident.
     if(resetBadgeBtn){
       resetBadgeBtn.addEventListener('click', async () => {
+        // Show the current count + savings in the confirm so users
+        // know what they're wiping (iter #65). Pulls from the
+        // same getRisksAvoided() the badge uses.
+        let preview = '';
+        if(typeof getRisksAvoided === 'function'){
+          const d = getRisksAvoided();
+          const n = d.count || 0;
+          if(n > 0){
+            const SAVINGS_PER = { r: 200, a: 50, g: 20 };
+            const totalVal = (d.trap||0) * SAVINGS_PER.r +
+                              (d.watch||0) * SAVINGS_PER.a +
+                              (d.note||0) * SAVINGS_PER.g;
+            preview = ' Currently: <b>' + n + ' risk' + (n === 1 ? '' : 's') +
+              ' avoided (~$' + totalVal.toLocaleString('en-US') + ' in saved costs)</b>.';
+          }
+        }
         const ok = await showConfirmModal({
           title: 'Reset the risks-avoided counter?',
           bodyHtml: '<p>This will clear your local "risks avoided" counter. Future analyses will start from 0.</p>' +
+            (preview ? '<p>' + preview + '</p>' : '') +
             '<p class="apply-confirm-note">Useful for new users or if you want to test the counter.</p>',
           confirmLabel: 'Reset',
         });

@@ -4379,6 +4379,26 @@ test("analyzer: Reset button clears the risks-avoided counter after confirm", ()
     "reset must show a success toast");
 });
 
+test("analyzer: reset confirm shows the current count + savings so users know what they're wiping", () => {
+  // Polishes iter #64 — the reset confirm now shows the current
+  // count + estimated $ savings so users know what they're wiping
+  // before they confirm. Standard "destructive action" UX pattern.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Reset confirm must call getRisksAvoided to show the current count
+  assert.match(appSrc, /resetBadgeBtn\.addEventListener[\s\S]+?getRisksAvoided/,
+    "reset confirm must read the current counter");
+  // Must show "Currently: N risk(s) avoided" line
+  assert.match(appSrc, /resetBadgeBtn\.addEventListener[\s\S]+?Currently:/,
+    "reset confirm must show 'Currently: N risks avoided'");
+  // Must include the $ savings in the preview
+  assert.match(appSrc, /resetBadgeBtn\.addEventListener[\s\S]+?saved costs/,
+    "reset preview must include the $ savings");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
