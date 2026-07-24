@@ -4562,6 +4562,37 @@ test("analyzer: '📌 vs saved version' badge persists while a baseline exists",
     ".saved-version-badge must use --accent (visual hierarchy)");
 });
 
+test("analyzer: version-comparison delta is color-coded (green/red/gray)", () => {
+  // Polishes iter #67 — the delta toast now color-codes the
+  // direction of the change. Green = count dropped (improvement),
+  // red = count rose (regression), gray = same. Visual scan
+  // improvement so users can see the result at a glance.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Must compute the delta class
+  assert.match(appSrc, /showVersionDelta[\s\S]+?delta-fixed/,
+    "showVersionDelta must apply the delta-fixed class");
+  assert.match(appSrc, /showVersionDelta[\s\S]+?delta-new/,
+    "showVersionDelta must apply the delta-new class");
+  assert.match(appSrc, /showVersionDelta[\s\S]+?delta-same/,
+    "showVersionDelta must apply the delta-same class");
+  // Must remove all delta classes before adding the new one (idempotent)
+  assert.match(appSrc, /showVersionDelta[\s\S]+?classList\.remove\(['"]delta-fixed/,
+    "showVersionDelta must remove all delta classes before adding the new one");
+
+  // CSS
+  assert.match(cssSrc, /\.analyze-toast\.delta-fixed\{[^}]*var\(--green\)/,
+    "delta-fixed must use --green (improvement)");
+  assert.match(cssSrc, /\.analyze-toast\.delta-new\{[^}]*var\(--danger\)/,
+    "delta-new must use --danger (regression)");
+  assert.match(cssSrc, /\.analyze-toast\.delta-same/,
+    "delta-same must have its own (muted) styling");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

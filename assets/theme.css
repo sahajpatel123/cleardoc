@@ -650,6 +650,12 @@ button.risk-preview:hover{filter:brightness(.96)}
 .analyze-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:10px 20px;border:3px solid var(--green);box-shadow:6px 6px 0 var(--accent);z-index:9999;transition:opacity .3s,transform .3s;pointer-events:none}
 .analyze-toast.toast-in{opacity:1;transform:translateX(-50%) translateY(0)}
 .analyze-toast.toast-out{opacity:0;transform:translateX(-50%) translateY(8px)}
+/* Color-coded delta (iter #70) — green for improvements (count
+ * dropped), red for regressions (count rose), gray for "same".
+ * Applied as a class on the existing analyze-toast element. */
+.analyze-toast.delta-fixed{border-color:var(--green);background:var(--green-tint);color:var(--ink)}
+.analyze-toast.delta-new{border-color:var(--danger);background:var(--danger-tint);color:var(--ink)}
+.analyze-toast.delta-same{border-color:var(--ink-soft);background:var(--paper2);color:var(--ink-soft)}
 /* Template-suggestion prompt (iter #58) — small inline prompt that
  * appears after a successful analysis. "Save as template for next
  * time?" with Yes / No buttons. Auto-dismisses after 12s so it

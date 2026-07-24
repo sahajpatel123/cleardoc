@@ -2871,12 +2871,39 @@
         lastVersionDelta({ before, after: { count: afterCount, trap, watch, note } });
         let sym = '±';
         let label = 'same';
-        if(d < 0){ sym = '−'; label = Math.abs(d) + ' fixed'; }
-        else if(d > 0){ sym = '+'; label = d + ' new'; }
+        // Iter #70: color-code the toast by direction. Green for
+        // improvements (count dropped), red for regressions (rose),
+        // gray for "same". Toggles a class on the existing toast
+        // element so the CSS handles the visual.
+        let deltaCls = 'delta-same';
+        if(d < 0){
+          sym = '−';
+          label = Math.abs(d) + ' fixed';
+          deltaCls = 'delta-fixed';
+        } else if(d > 0){
+          sym = '+';
+          label = d + ' new';
+          deltaCls = 'delta-new';
+        }
         const ago = (Date.now() - before.ts) < 60000 ? 'just now' :
           formatRelativeTime(before.ts);
-        showAnalyzeToast('📊 Saved version: ' + before.count + ' risks → now ' +
-          afterCount + ' (' + sym + ' ' + label + ') · ' + ago);
+        // Paint directly on the toast element (showAnalyzeToast
+        // doesn't support a class; we do it inline so the class
+        // takes effect this frame).
+        if(_analyzeToast){
+          _analyzeToast.textContent = '📊 Saved version: ' + before.count +
+            ' risks → now ' + afterCount + ' (' + sym + ' ' + label + ') · ' + ago;
+          _analyzeToast.classList.remove('delta-fixed','delta-new','delta-same','toast-out');
+          _analyzeToast.classList.add('toast-in', deltaCls);
+          clearTimeout(_analyzeToast._fadeTimer);
+          _analyzeToast._fadeTimer = setTimeout(() => {
+            _analyzeToast.classList.remove('toast-in', deltaCls);
+            _analyzeToast.classList.add('toast-out');
+          }, 3200);
+        } else {
+          showAnalyzeToast('📊 Saved version: ' + before.count + ' risks → now ' +
+            afterCount + ' (' + sym + ' ' + label + ') · ' + ago);
+        }
         // Re-evaluate the clear button (the saved version is still
         // there — just refreshed by comparison)
         if(typeof showClearVersionBtn === 'function') showClearVersionBtn();
