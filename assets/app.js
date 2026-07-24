@@ -1428,6 +1428,8 @@
           inputB=$('#docInputB'),compareStats=$('#compareStats'),
           compareVerdict=$('#compareVerdict'),compareDiff=$('#compareDiff'),
           micBtn=$('#micBtn'),
+          historyBtn=$('#historyBtn'),historyPanel=$('#historyPanel'),
+          historyList=$('#historyList'),historyClearBtn=$('#historyClearBtn'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
@@ -1653,8 +1655,62 @@
         const json=JSON.stringify(payload);
         if(json.length>SNAPSHOT_MAX_BYTES) return false;
         localStorage.setItem(SNAPSHOT_KEY,json);
+        // Push to history (capped) — lets users come back to a doc they
+        // analyzed yesterday. Best-effort; failures are silent.
+        pushHistory(snap.raw);
         return true;
       }catch(_){ return false; }
+    }
+
+    /* ── Analysis history ─────────────────────────────────────────────
+     * Saves the last N analyses (just the raw text + a snippet + ts)
+     * so users can restore any of them. Capped at 5 entries (FIFO) to
+     * stay well under the localStorage quota. 7-day TTL on each entry
+     * mirrors the draft TTL — old analyses are quietly dropped.
+     */
+    const HISTORY_KEY='cleardoc:history';
+    const HISTORY_VERSION=1;
+    const HISTORY_MAX_ENTRIES=5;
+    const HISTORY_TTL_MS=7*24*60*60*1000;
+    function pushHistory(raw){
+      try{
+        const text = String(raw || '').trim();
+        if (!text || text.length < 8) return false;
+        const snippet = text.slice(0, 80).replace(/\s+/g, ' ');
+        const entry = { v: HISTORY_VERSION, ts: Date.now(), snippet, text };
+        const arr = readHistoryRaw();
+        // Skip duplicates of the most recent entry (avoids stacking
+        // repeated analyze-button clicks with the same text).
+        if (arr.length && arr[0].snippet === snippet && arr[0].text === text){
+          // Update timestamp only — refresh recency
+          arr[0].ts = entry.ts;
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+          return true;
+        }
+        arr.unshift(entry);
+        // FIFO cap
+        while (arr.length > HISTORY_MAX_ENTRIES) arr.pop();
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+        return true;
+      }catch(_){ return false; }
+    }
+    function readHistoryRaw(){
+      try{
+        const raw = localStorage.getItem(HISTORY_KEY);
+        if (!raw) return [];
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr)) return [];
+        // TTL sweep: drop entries older than HISTORY_TTL_MS
+        const cutoff = Date.now() - HISTORY_TTL_MS;
+        const fresh = arr.filter(e => e && typeof e.ts === 'number' && e.ts >= cutoff);
+        if (fresh.length !== arr.length){
+          try { localStorage.setItem(HISTORY_KEY, JSON.stringify(fresh)); } catch(_){}
+        }
+        return fresh;
+      }catch(_){ return []; }
+    }
+    function clearHistory(){
+      try { localStorage.removeItem(HISTORY_KEY); } catch(_){}
     }
     function loadStoredSnapshot(){
       try{
@@ -2923,6 +2979,61 @@
       input.addEventListener('input', updateTextStats);
       input.addEventListener('change', updateTextStats);
       updateTextStats(); // initial paint for the preloaded sample
+
+      /* History panel — toggles a dropdown of past analyses (saved
+       * in localStorage on each successful analysis). Click an
+       * entry to load it back into the textarea. */
+      const renderHistory = () => {
+        if(!historyList || !historyPanel) return;
+        const items = (typeof readHistoryRaw === 'function') ? readHistoryRaw() : [];
+        if(items.length === 0){
+          historyList.innerHTML = '<li class="hp-empty">No past analyses yet.</li>';
+          return;
+        }
+        historyList.innerHTML = items.map((it, i) => {
+          const ts = it && it.ts ? new Date(it.ts) : null;
+          const ago = ts ? ts.toLocaleString() : '';
+          const snippet = (it && it.snippet) ? it.snippet : '';
+          return '<li><button type="button" class="hp-item" data-hp-idx="' + i +
+            '" title="' + esc(ago) + '"><span class="hp-when">' + esc(ago) +
+            '</span><span class="hp-snip">' + esc(snippet) + '</span></button></li>';
+        }).join('');
+      };
+      if(historyBtn && historyPanel){
+        historyBtn.addEventListener('click', () => {
+          const willOpen = historyPanel.hidden;
+          historyPanel.hidden = !willOpen;
+          historyBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+          historyBtn.classList.toggle('qf-open', willOpen);
+          historyBtn.textContent = willOpen ? '− history' : '📚 history';
+          if(willOpen) renderHistory();
+        });
+        // Delegated click on a history item → restore that doc
+        historyList.addEventListener('click', (e) => {
+          const btn = e.target.closest && e.target.closest('[data-hp-idx]');
+          if(!btn || !input) return;
+          const idx = parseInt(btn.getAttribute('data-hp-idx') || '0', 10);
+          const items = (typeof readHistoryRaw === 'function') ? readHistoryRaw() : [];
+          const it = items[idx];
+          if(!it || !it.text) return;
+          input.value = it.text;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.focus();
+          // Close the panel
+          historyPanel.hidden = true;
+          historyBtn.setAttribute('aria-expanded', 'false');
+          historyBtn.classList.remove('qf-open');
+          historyBtn.textContent = '📚 history';
+          // Auto-scroll the textarea into view
+          try { input.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){}
+        });
+        if(historyClearBtn){
+          historyClearBtn.addEventListener('click', () => {
+            if(typeof clearHistory === 'function') clearHistory();
+            renderHistory();
+          });
+        }
+      }
 
       /* Voice input — Web Speech API dictation into the main
        * textarea. Hidden by default; only shown when the browser

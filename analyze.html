@@ -183,7 +183,15 @@
         <button class="qf" data-fill="The aforementioned subscriber shall be liable for all charges incurred heretofore, and the provider reserves the right to modify these terms at any time at its sole discretion without notice.">try: Terms</button>
         <button type="button" class="qf qf-toggle" id="compareToggle" aria-expanded="false" aria-controls="comparePanel">+ compare</button>
         <button type="button" class="qf qf-mic" id="micBtn" hidden aria-label="Dictate via voice input">🎤 dictate</button>
+        <button type="button" class="qf qf-history" id="historyBtn" aria-expanded="false" aria-controls="historyPanel">📚 history</button>
         <label class="filelbl">Attach file<input id="fileInput" type="file" accept=".txt,.text,.md,.markdown,.csv,.tsv,.log,.json,.xml,.html,.htm,.rtf,.pdf,.doc,.docx,.odt,.pages,.png,.jpg,.jpeg,.gif,.webp,.bmp,.svg,.heic,.heif,.avif,.tif,.tiff,application/pdf,image/*,text/*" hidden></label>
+      </div>
+      <div class="history-panel mono" id="historyPanel" hidden aria-label="Past analyses">
+        <div class="hp-head">// past analyses (last 5)</div>
+        <ol class="hp-list" id="historyList"></ol>
+        <div class="hp-actions">
+          <button type="button" class="hp-clear" id="historyClearBtn">Clear history</button>
+        </div>
       </div>
       <div class="compare-panel" id="comparePanel" hidden aria-label="Side-by-side comparison">
         <label class="lbl" for="docInputB">Compare against</label>

@@ -661,6 +661,18 @@ button.risk-preview:hover{filter:brightness(.96)}
 .compare-verdict.cmp-verdict-danger{color:var(--danger);background:var(--danger-tint)}
 .compare-verdict.cmp-verdict-amber{color:var(--amber);background:var(--amber-tint)}
 .compare-verdict.cmp-verdict-even{color:var(--ink-soft);background:var(--paper2)}
+/* History panel — list of past analyses (localStorage) */
+.history-panel{margin-top:var(--s2);padding:var(--s2);border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.history-panel .hp-head{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.1em;color:var(--accent-text);margin-bottom:8px;font-weight:700}
+.history-panel .hp-list{list-style:none;margin:0;padding:0;max-height:200px;overflow:auto}
+.history-panel .hp-item{display:flex;flex-direction:column;align-items:flex-start;width:100%;text-align:left;font:inherit;background:var(--paper);border:var(--bd-hair) solid var(--ink-soft);padding:6px 10px;margin-bottom:4px;cursor:pointer;transition:background .12s}
+.history-panel .hp-item:hover,.history-panel .hp-item:focus{background:var(--ink);color:var(--paper)}
+.history-panel .hp-when{font-family:'JetBrains Mono';font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;opacity:.7;margin-bottom:2px}
+.history-panel .hp-snip{font-family:'Archivo',sans-serif;font-size:var(--t-meta);line-height:1.4;text-transform:none;letter-spacing:0}
+.history-panel .hp-actions{margin-top:8px;display:flex;justify-content:flex-end}
+.history-panel .hp-clear{font:inherit;font-size:var(--t-meta-sm);font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:transparent;color:var(--ink-soft);border:var(--bd-hair) solid var(--ink-soft);padding:4px 10px;cursor:pointer}
+.history-panel .hp-clear:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
+.history-panel .hp-empty{padding:10px;color:var(--ink-soft);font-style:italic}
 /* Diff view — sentence-level "what's different" beneath the table.
  * Two columns (Original-only, Compare-only) with color-tinted labels
  * matching the side they describe. Cap at 5 per side via JS. */

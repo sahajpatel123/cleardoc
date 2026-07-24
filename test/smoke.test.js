@@ -2723,6 +2723,80 @@ test("analyzer: voice input auto-pauses after 2.5s of silence", () => {
     ".qf-mic-paused must use --ink-soft (recording stopped, muted state)");
 });
 
+test("analyzer: history panel saves the last 5 analyses and lets users restore any of them", () => {
+  // New feature — localStorage-backed history of past analyses.
+  // Users see a dropdown of their last 5 analyses, click one to
+  // restore it. Survives page reload; 7-day TTL drops old entries.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: history button + panel + list + clear button
+  assert.match(html, /id="historyBtn"/,
+    "analyze.html must contain #historyBtn");
+  assert.match(html, /id="historyPanel"/,
+    "analyze.html must contain #historyPanel");
+  assert.match(html, /id="historyList"/,
+    "analyze.html must contain #historyList");
+  assert.match(html, /id="historyClearBtn"/,
+    "analyze.html must contain #historyClearBtn");
+  assert.match(html, /aria-controls="historyPanel"/,
+    "#historyBtn must aria-controls #historyPanel");
+
+  // pushHistory / readHistoryRaw / clearHistory must exist at IIFE level
+  assert.match(appSrc, /function pushHistory\(raw\)/,
+    "pushHistory() must exist at the IIFE level");
+  assert.match(appSrc, /function readHistoryRaw\(\)/,
+    "readHistoryRaw() must exist at the IIFE level");
+  assert.match(appSrc, /function clearHistory\(\)/,
+    "clearHistory() must exist at the IIFE level");
+  // Must be capped at 5 entries (FIFO)
+  assert.match(appSrc, /HISTORY_MAX_ENTRIES\s*=\s*5/,
+    "history must cap at 5 entries (FIFO)");
+  // Must have a TTL (7 days)
+  assert.match(appSrc, /HISTORY_TTL_MS\s*=\s*7\s*\*\s*24\s*\*\s*60\s*\*\s*60\s*\*\s*1000/,
+    "history must have a 7-day TTL matching the privacy promise");
+  // Must dedupe the most recent entry when re-pushed
+  assert.match(appSrc, /arr\[0\]\.snippet\s*===\s*snippet\s*&&\s*arr\[0\]\.text\s*===\s*text/,
+    "pushHistory must skip duplicates of the most recent entry (avoid stacking repeated clicks)");
+
+  // saveSnapshot must call pushHistory (the auto-save hook)
+  assert.match(appSrc, /function saveSnapshot\(snap\)\{[\s\S]+?pushHistory\(snap\.raw\)/,
+    "saveSnapshot must call pushHistory(snap.raw) so every analyze adds to history");
+
+  // Click handler must toggle the panel + render items
+  assert.match(appSrc, /historyBtn\.addEventListener\(\s*['"]click['"]/,
+    "#historyBtn must have a click handler");
+  assert.match(appSrc, /historyPanel\.hidden\s*=\s*!willOpen/,
+    "click handler must toggle #historyPanel.hidden");
+  // Delegated click on a history item → restore that doc
+  assert.match(appSrc, /historyList\.addEventListener\(\s*['"]click['"]/,
+    "historyList must have a delegated click handler");
+  assert.match(appSrc, /historyList\.addEventListener[\s\S]+?input\.value\s*=\s*it\.text/,
+    "click handler must restore the doc text to the textarea");
+  // Must trigger input event so live stats update
+  assert.match(appSrc, /historyList\.addEventListener[\s\S]+?dispatchEvent\(new Event\(\s*['"]input['"]/,
+    "restore must dispatch input event so live stats update");
+
+  // Clear button must wipe history
+  assert.match(appSrc, /historyClearBtn\.addEventListener\(\s*['"]click['"]/,
+    "#historyClearBtn must have a click handler");
+  assert.match(appSrc, /historyClearBtn\.addEventListener[\s\S]+?clearHistory\(\)/,
+    "clear handler must call clearHistory()");
+
+  // CSS: panel must be visually distinct from textstats
+  assert.match(cssSrc, /\.history-panel\{[^}]*border/,
+    ".history-panel must have a visible border");
+  // Items must be clickable buttons
+  assert.match(cssSrc, /\.history-panel \.hp-item\{[^}]*cursor:\s*pointer/,
+    ".hp-item must be cursor:pointer (signals clickability)");
+  assert.match(cssSrc, /\.history-panel \.hp-item:hover/,
+    ".hp-item must have a hover state");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
