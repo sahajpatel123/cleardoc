@@ -594,6 +594,10 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-detail-toolbar .rd-speak{font:inherit;font-size:.92em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:4px 10px;cursor:pointer;transition:background .15s,color .15s;margin-right:6px}
 .risk-detail-toolbar .rd-speak:hover{background:var(--ink);color:var(--paper)}
 .risk-detail-toolbar .rd-speak.rd-speaking{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* Read-all-suggestions button (iter #56) — sits next to the per-row
+ * read button. Toggles to Stop during playback. */
+.risk-detail-toolbar .rd-speak-suggestions{font:inherit;font-size:.92em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:4px 10px;cursor:pointer;transition:background .15s,color .15s;margin-right:6px}
+.risk-detail-toolbar .rd-speak-suggestions:hover{background:var(--ink);color:var(--paper)}
 /* Active-row highlight — karaoke-style underlay while speaking */
 .risk-detail-row.rd-speaking{background:var(--accent-glow)!important;box-shadow:inset 3px 0 0 var(--accent)}
 /* Click-to-locate: rows are buttons (delegated click + keyboard).

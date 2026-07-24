@@ -1808,6 +1808,7 @@
         '<div class="risk-detail-toolbar">',
           '<span class="rd-count">' + ordered.length + ' pattern' + (ordered.length === 1 ? '' : 's') + '</span>',
           '<button type="button" class="rd-apply-all" data-rd-apply-all="1" aria-label="Apply every suggestion in one click">✓ Apply all</button>',
+          '<button type="button" class="rd-speak-suggestions" data-rd-speak-suggestions="1" aria-label="Read every suggestion aloud">🔊 Read all</button>',
           '<button type="button" class="rd-speak" data-rd-speak="1" aria-label="Read risks aloud">🔊</button>',
           '<button type="button" class="rd-redline" data-rd-redline="1" aria-label="Export redline suggestions">📝 redline</button>',
           '<button type="button" class="rd-copy" data-rd-copy="1" aria-label="Copy match list to clipboard">Copy</button>',
@@ -4396,6 +4397,68 @@
           // 1b. Speak button — read the matched patterns aloud via
           // SpeechSynthesis. Each row gets a karaoke-style highlight
           // as the voice reads it (reuses the rd-speaking class).
+          // 0d. Speak-all-suggestions button (iter #56) — speak every
+          // counter-suggestion in sequence so users can rehearse
+          // the entire negotiation playbook in one pass. Uses the
+          // same SpeechSynthesis pipeline as iter #55's per-row
+          // speak button, with a queue to play them in order.
+          const speakAllBtn = e.target.closest && e.target.closest('[data-rd-speak-suggestions]');
+          if(speakAllBtn && typeof window !== 'undefined' && 'speechSynthesis' in window){
+            e.preventDefault();
+            e.stopPropagation();
+            let hits = (typeof matchRisks === 'function') ? matchRisks(input ? input.value : '') : [];
+            if(!Array.isArray(hits) || hits.length === 0) return;
+            const speakable = hits.filter(h => h.counter);
+            if(speakable.length === 0) return;
+            // Toggle: stop if already speaking
+            if(window.speechSynthesis.speaking){
+              try { window.speechSynthesis.cancel(); } catch(_) {}
+              speakAllBtn.textContent = '🔊 Read all';
+              return;
+            }
+            try { window.speechSynthesis.cancel(); } catch(_) {}
+            const detectedLang = (input && input._detectedLang) || null;
+            const pickVoiceLocal = (langTag) => {
+              try {
+                const voices = window.speechSynthesis.getVoices();
+                if(langTag){
+                  const prefix = String(langTag).toLowerCase().split('-')[0];
+                  return voices.find(v => v && v.lang && v.lang.toLowerCase().startsWith(prefix)) || voices.find(v => /^en[-_]/i.test(v.lang)) || voices[0] || null;
+                }
+                return voices.find(v => /^en[-_]/i.test(v.lang)) || voices[0] || null;
+              } catch(_) { return null; }
+            };
+            const voice = pickVoiceLocal(detectedLang && detectedLang.tts);
+            // Build a script: each suggestion as a separate
+            // utterance so the user can pause between them
+            // (SpeechSynthesisUtterance.onend chains to the next).
+            const queue = [];
+            const labelFor = (h) => (h.sev === 'r' ? 'trap' : (h.sev === 'a' ? 'watch' : 'note'));
+            speakable.forEach((h, i) => {
+              const u = new SpeechSynthesisUtterance(labelFor(h) + '. ' + h.counter);
+              if(voice) u.voice = voice;
+              if(detectedLang && detectedLang.tts) u.lang = detectedLang.tts;
+              u.rate = 1.0; u.pitch = 1.0;
+              queue.push(u);
+            });
+            // Chain: each utterance's onend triggers the next
+            queue.forEach((u, i) => {
+              u.onend = () => {
+                if(i + 1 < queue.length){
+                  try { window.speechSynthesis.speak(queue[i + 1]); } catch(_) {}
+                } else {
+                  // Last one done — restore button label
+                  speakAllBtn.textContent = '🔊 Read all';
+                }
+              };
+              u.onerror = () => { speakAllBtn.textContent = '🔊 Read all'; };
+            });
+            try {
+              window.speechSynthesis.speak(queue[0]);
+              speakAllBtn.textContent = '◼ Stop';
+            } catch(_){}
+            return;
+          }
           const speakBtn = e.target.closest && e.target.closest('[data-rd-speak]');
           if(speakBtn && typeof window !== 'undefined' && 'speechSynthesis' in window){
             e.preventDefault();

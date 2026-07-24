@@ -4011,6 +4011,49 @@ test("analyzer: per-suggestion 🔊 button speaks the counter-clause aloud", () 
     ".rc-speak must be cursor:pointer (signals clickability)");
 });
 
+test("analyzer: Read-all-suggestions button speaks every counter-suggestion in sequence", () => {
+  // Polishes iter #55 — adds a single "🔊 Read all" button in
+  // the risk toolbar that speaks every counter-suggestion in
+  // sequence. Users rehearse the entire negotiation playbook
+  // in one pass.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // renderRiskDetail must emit the [data-rd-speak-suggestions] button
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(renderFn, "renderRiskDetail() must exist");
+  assert.match(renderFn[0], /data-rd-speak-suggestions/,
+    "renderRiskDetail must render a [data-rd-speak-suggestions] button");
+  assert.match(renderFn[0], /Read all/,
+    "button label must read 'Read all'");
+
+  // Click handler must handle the button
+  assert.match(appSrc, /riskDetail\.addEventListener[\s\S]+?data-rd-speak-suggestions/,
+    "riskDetail click handler must handle [data-rd-speak-suggestions] clicks");
+  // Must iterate hits and queue SpeechSynthesisUtterances
+  assert.match(appSrc, /data-rd-speak-suggestions[\s\S]+?forEach\(/,
+    "speak-all must iterate through the speakable hits");
+  // Must chain utterances via onend (so they play in order)
+  assert.match(appSrc, /data-rd-speak-suggestions[\s\S]+?u\.onend\s*=/,
+    "speak-all must chain utterances via onend (play in order)");
+  // Must use the detected language's voice
+  assert.match(appSrc, /data-rd-speak-suggestions[\s\S]+?_detectedLang/,
+    "speak-all must use the detected language's voice");
+  // Must allow toggle (stop if already speaking)
+  assert.match(appSrc, /data-rd-speak-suggestions[\s\S]+?speechSynthesis\.speaking/,
+    "speak-all must check speechSynthesis.speaking (toggle to stop)");
+  // Must restore button label when done
+  assert.match(appSrc, /data-rd-speak-suggestions[\s\S]+?textContent\s*=\s*'🔊 Read all'/,
+    "speak-all must restore the 'Read all' label when playback completes");
+
+  // CSS: button must be styled
+  assert.match(cssSrc, /\.rd-speak-suggestions\{[^}]*cursor:\s*pointer/,
+    ".rd-speak-suggestions must be cursor:pointer (signals clickability)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
