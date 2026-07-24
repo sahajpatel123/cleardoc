@@ -3798,6 +3798,49 @@ test("analyzer: confirm modal shows a dry-run preview (before→after pairs) bef
     ".dryrun-to must use --green (green = added text)");
 });
 
+test("analyzer: dry-run preview shows a stats summary (count + word deltas) above the diffs", () => {
+  // Polishes iter #49 — the preview now starts with a stats summary
+  // so users see the magnitude at a glance: "3 substitutions ·
+  // +18 words · -12 words · net +6". Without this, users have to
+  // count rows in the diff to know whether they're modifying a
+  // word here or rewriting the whole document.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Apply-all must build the stats line
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?dryrun-stats/,
+    "Apply-all must render a .dryrun-stats summary line");
+  // Must include the count
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?substitution/,
+    "stats must include 'substitution(s)'");
+  // Must compute word deltas (add + remove)
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?addedWords \+= add/,
+    "stats must sum the added words across all changes");
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?removedWords \+= rem/,
+    "stats must sum the removed words across all changes");
+  // Must include the net delta
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?wordDelta/,
+    "stats must compute the net word delta");
+  // Must render all three: add, remove, delta
+  assert.match(appSrc, /dryrun-add/,
+    "stats must render a .dryrun-add (green +N) line");
+  assert.match(appSrc, /dryrun-remove/,
+    "stats must render a .dryrun-remove (red -N) line");
+  assert.match(appSrc, /dryrun-delta/,
+    "stats must render a .dryrun-delta (net ±N) line");
+
+  // CSS: stats summary must be styled distinctly from the diff rows
+  assert.match(cssSrc, /\.dryrun-stats\{[^}]*background/,
+    ".dryrun-stats must have a background (separator from diff rows)");
+  assert.match(cssSrc, /\.dryrun-stats \.dryrun-add\{[^}]*var\(--green\)/,
+    ".dryrun-add must use --green (added = green)");
+  assert.match(cssSrc, /\.dryrun-stats \.dryrun-remove\{[^}]*var\(--danger\)/,
+    ".dryrun-remove must use --danger (removed = red)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

@@ -4149,7 +4149,26 @@
             // pair in the confirm modal so users see the exact change
             // BEFORE clicking Apply. Cap at 5 visible items + a
             // "(+N more)" line so the modal doesn't overflow.
-            let previewHtml = '<div class="apply-dryrun">';
+            // Stats summary (iter #50): word-count delta so users see
+            // the magnitude at a glance ("3 substitutions · +18 / -12 words").
+            let previewHtml = '';
+            let addedWords = 0, removedWords = 0;
+            pending.forEach(h => {
+              if(!h || !h.matched || !h.counter) return;
+              const rem = (h.matched || '').trim().split(/\s+/).filter(Boolean).length;
+              const add = (h.counter || '').trim().split(/\s+/).filter(Boolean).length;
+              removedWords += rem;
+              addedWords += add;
+            });
+            const wordDelta = addedWords - removedWords;
+            const wordDeltaStr = wordDelta === 0 ? '±0' : (wordDelta > 0 ? '+' + wordDelta : String(wordDelta));
+            previewHtml += '<div class="dryrun-stats">' +
+              '<b>' + pending.length + '</b> substitution' + (pending.length === 1 ? '' : 's') +
+              ' · <span class="dryrun-add">+' + addedWords + ' words</span>' +
+              ' · <span class="dryrun-remove">−' + removedWords + ' words</span>' +
+              ' · <span class="dryrun-delta">net ' + wordDeltaStr + '</span>' +
+            '</div>';
+            previewHtml += '<div class="apply-dryrun">';
             const visible = pending.slice(0, 5);
             visible.forEach((h, i) => {
               previewHtml += '<div class="dryrun-item">' +
