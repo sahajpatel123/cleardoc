@@ -3664,6 +3664,55 @@ test("analyzer: applied suggestion shows a green badge so users see which they'v
     ".rc-applied text must be line-through (visually marks 'done')");
 });
 
+test("analyzer: Apply-all button replaces every matched risk with its counter in one click", () => {
+  // New feature — ✓ Apply all button walks every unmatched risk and
+  // splices its counter-suggestion into the source input. Users
+  // iterating on a contract can reword the whole doc in one action.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // renderRiskDetail must render the Apply-all button
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(renderFn, "renderRiskDetail() must exist");
+  assert.match(renderFn[0], /data-rd-apply-all/,
+    "renderRiskDetail must render a [data-rd-apply-all] button");
+  assert.match(renderFn[0], /Apply all/,
+    "button label must read 'Apply all'");
+
+  // Click handler must handle the button
+  assert.match(appSrc, /riskDetail\.addEventListener[\s\S]+?data-rd-apply-all/,
+    "riskDetail click handler must handle [data-rd-apply-all] clicks");
+  // Must iterate hits and replace each matched token
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?for\s*\(\s*const h of hits/,
+    "Apply-all must iterate through the hits");
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?workingText\.slice\(0,\s*idx\)\s*\+\s*h\.counter/,
+    "Apply-all must splice h.counter in at the matched position");
+  // Must skip already-applied suggestions (so clicking twice doesn't re-apply)
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?_appliedSuggestions\.has/,
+    "Apply-all must skip already-applied suggestions (idempotent)");
+  // Must track the count for the success feedback
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?applied\+\+/,
+    "Apply-all must track the count of applied suggestions");
+  // Must dispatch input event so live stats update
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?dispatchEvent\(new Event\(\s*['"]input['"]/,
+    "Apply-all must dispatch input event so live stats re-run");
+  // Must re-render so badges light up across all rows
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?updateTextStats/,
+    "Apply-all must call updateTextStats so the risk list re-renders");
+  // Must show feedback with the count
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?applied\+/,
+    "Apply-all must show the count in the flash feedback ('✓ applied N')");
+
+  // CSS: Apply-all must be styled distinctively (green = go)
+  assert.match(cssSrc, /\.rd-apply-all\{[^}]*var\(--green\)/,
+    ".rd-apply-all must use --green (positive action styling)");
+  assert.match(cssSrc, /\.rd-apply-all\{[^}]*cursor:\s*pointer/,
+    ".rd-apply-all must be cursor:pointer (signals clickability)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

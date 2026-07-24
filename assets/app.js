@@ -1616,6 +1616,7 @@
       parts.push(
         '<div class="risk-detail-toolbar">',
           '<span class="rd-count">' + ordered.length + ' pattern' + (ordered.length === 1 ? '' : 's') + '</span>',
+          '<button type="button" class="rd-apply-all" data-rd-apply-all="1" aria-label="Apply every suggestion in one click">✓ Apply all</button>',
           '<button type="button" class="rd-speak" data-rd-speak="1" aria-label="Read risks aloud">🔊</button>',
           '<button type="button" class="rd-redline" data-rd-redline="1" aria-label="Export redline suggestions">📝 redline</button>',
           '<button type="button" class="rd-copy" data-rd-copy="1" aria-label="Copy match list to clipboard">Copy</button>',
@@ -4052,6 +4053,51 @@
             copyBtn.textContent = ok ? 'Copied ✓' : 'Copy failed';
             clearTimeout(copyBtn._flashTimer);
             copyBtn._flashTimer = setTimeout(() => { copyBtn.textContent = orig; }, 1400);
+            return;
+          }
+          // 1. Apply-all button — applies every unmatched suggestion
+          // in sequence. Iterates the live hit list, swaps each
+          // matched token with its counter, and re-renders so the
+          // applied badge (iter #46) lights up across all rows.
+          const aaBtn = e.target.closest && e.target.closest('[data-rd-apply-all]');
+          if(aaBtn && input){
+            e.preventDefault();
+            e.stopPropagation();
+            let hits = (typeof matchRisks === 'function') ? matchRisks(input ? input.value : '') : [];
+            if(!Array.isArray(hits) || hits.length === 0) return;
+            // Snapshot for undo (single-step revert covers the whole batch)
+            const before = input.value || '';
+            input._undoSnapshot = before;
+            if(!input._appliedSuggestions) input._appliedSuggestions = new Set();
+            let applied = 0;
+            let workingText = before;
+            // Walk through hits and replace each one in the working text.
+            // Re-scan the working text each iteration so each successive
+            // replacement uses the updated content (avoids stale offsets).
+            for(const h of hits){
+              if(!h.counter || !h.matched) continue;
+              if(input._appliedSuggestions.has(h.counter)) continue;
+              const idx = workingText.toLowerCase().indexOf(h.matched.toLowerCase());
+              if(idx < 0) continue;
+              workingText = workingText.slice(0, idx) + h.counter + workingText.slice(idx + h.matched.length);
+              input._appliedSuggestions.add(h.counter);
+              applied++;
+            }
+            if(applied === 0){
+              aaBtn.textContent = 'nothing to apply';
+              clearTimeout(aaBtn._flashTimer);
+              aaBtn._flashTimer = setTimeout(() => { aaBtn.textContent = '✓ Apply all'; }, 1400);
+              return;
+            }
+            input.value = workingText;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            // Re-render the risk list so badges light up across all rows
+            if(typeof updateTextStats === 'function') updateTextStats();
+            showUndoChip();
+            // Flash feedback
+            aaBtn.textContent = '✓ applied ' + applied;
+            clearTimeout(aaBtn._flashTimer);
+            aaBtn._flashTimer = setTimeout(() => { aaBtn.textContent = '✓ Apply all'; }, 1800);
             return;
           }
           // 1a. Redline button — export counter-suggestions as a
