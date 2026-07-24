@@ -1381,6 +1381,7 @@
           deadlinesCalBtn=$('#deadlinesCalBtn'),
           compareToggle=$('#compareToggle'),comparePanel=$('#comparePanel'),
           inputB=$('#docInputB'),compareStats=$('#compareStats'),
+          compareVerdict=$('#compareVerdict'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
@@ -2917,10 +2918,18 @@
        * B side is empty. */
       function updateCompareStats(){
         if(!comparePanel || !compareStats) return;
-        if(comparePanel.hidden) { compareStats.innerHTML = ''; return; }
+        if(comparePanel.hidden){
+          compareStats.innerHTML = '';
+          if(compareVerdict){ compareVerdict.hidden = true; compareVerdict.textContent = ''; }
+          return;
+        }
         const a = input ? (input.value || '') : '';
         const b = inputB ? (inputB.value || '') : '';
-        if(!b.trim()){ compareStats.innerHTML = ''; return; }
+        if(!b.trim()){
+          compareStats.innerHTML = '';
+          if(compareVerdict){ compareVerdict.hidden = true; compareVerdict.textContent = ''; }
+          return;
+        }
         const stat = (raw) => {
           const dt = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
           const sev = (typeof countRisksBySeverity === 'function') ? countRisksBySeverity(raw) : {trap:0,watch:0,note:0};
@@ -2939,12 +2948,48 @@
         // Identify riskier side: traps first (worst signal), then total
         // risks, then deadlines. Any column that "wins" is highlighted.
         let leftRiskier = false, rightRiskier = false;
-        if(sb.trap > sa.trap) rightRiskier = true;
-        else if(sa.trap > sb.trap) leftRiskier = true;
-        else if(sb.risks > sa.risks) rightRiskier = true;
-        else if(sa.risks > sb.risks) leftRiskier = true;
-        else if(sb.deadlines > sa.deadlines) rightRiskier = true;
-        else if(sa.deadlines > sb.deadlines) leftRiskier = true;
+        let verdict = '', verdictCls = '';
+        const diff = (n) => (n > 1 ? 's' : '');
+        if(sb.trap > sa.trap){
+          rightRiskier = true;
+          const d = sb.trap - sa.trap;
+          verdict = 'COMPARE WINS — ' + d + ' more trap' + diff(d);
+          verdictCls = 'cmp-verdict-danger';
+        } else if(sa.trap > sb.trap){
+          leftRiskier = true;
+          const d = sa.trap - sb.trap;
+          verdict = 'ORIGINAL WINS — ' + d + ' more trap' + diff(d);
+          verdictCls = 'cmp-verdict-danger';
+        } else if(sb.risks > sa.risks){
+          rightRiskier = true;
+          const d = sb.risks - sa.risks;
+          verdict = 'COMPARE WINS — ' + d + ' more risk' + diff(d);
+          verdictCls = 'cmp-verdict-amber';
+        } else if(sa.risks > sb.risks){
+          leftRiskier = true;
+          const d = sa.risks - sb.risks;
+          verdict = 'ORIGINAL WINS — ' + d + ' more risk' + diff(d);
+          verdictCls = 'cmp-verdict-amber';
+        } else if(sb.deadlines > sa.deadlines){
+          rightRiskier = true;
+          const d = sb.deadlines - sa.deadlines;
+          verdict = 'COMPARE WINS — ' + d + ' more deadline' + diff(d);
+          verdictCls = 'cmp-verdict-amber';
+        } else if(sa.deadlines > sb.deadlines){
+          leftRiskier = true;
+          const d = sa.deadlines - sb.deadlines;
+          verdict = 'ORIGINAL WINS — ' + d + ' more deadline' + diff(d);
+          verdictCls = 'cmp-verdict-amber';
+        } else {
+          verdict = 'EVEN — both score identically';
+          verdictCls = 'cmp-verdict-even';
+        }
+        // Render the verdict badge above the table
+        if(compareVerdict){
+          compareVerdict.hidden = false;
+          compareVerdict.textContent = verdict;
+          compareVerdict.className = 'compare-verdict mono ' + verdictCls;
+        }
         const cell = (s, risk) => '<td class="' + (risk ? 'cmp-riskier' : '') + '">' + s + '</td>';
         compareStats.innerHTML =
           '<table class="cmp-table">' +

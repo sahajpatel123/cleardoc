@@ -2531,6 +2531,50 @@ test("analyzer: side-by-side compare panel renders 2-column stats when a second 
     ".cmp-trap must use --danger (the trap count inside the risks cell)");
 });
 
+test("analyzer: compare panel shows a clear 'WINS' verdict badge above the table", () => {
+  // Polishes iter #19 — instead of just highlighting the riskier
+  // column, paint a verdict header so users see the answer at a
+  // glance: "COMPARE WINS — 2 more traps" / "ORIGINAL WINS — 1
+  // more risk" / "EVEN — both score identically".
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: verdict element above the stats table
+  assert.match(html, /id="compareVerdict"/,
+    "analyze.html must contain #compareVerdict above #compareStats");
+
+  // updateCompareStats must compute + paint the verdict text
+  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateFn, "updateCompareStats() must exist");
+  // Verdict text patterns
+  assert.match(updateFn[0], /COMPARE WINS/,
+    "verdict must include 'COMPARE WINS' for the right-side winner");
+  assert.match(updateFn[0], /ORIGINAL WINS/,
+    "verdict must include 'ORIGINAL WINS' for the left-side winner");
+  assert.match(updateFn[0], /EVEN/,
+    "verdict must include 'EVEN' for tied scores");
+  // Verdict classes
+  for (const cls of ["cmp-verdict-danger", "cmp-verdict-amber", "cmp-verdict-even"]) {
+    assert.ok(updateFn[0].includes(cls),
+      `updateCompareStats must apply ${cls} class`);
+  }
+  // Must clear the verdict when panel closes or B empty
+  assert.match(updateFn[0], /compareVerdict\.hidden\s*=\s*true/,
+    "verdict must hide when panel closes or B side is empty");
+
+  // CSS: three verdict colors
+  assert.match(cssSrc, /\.compare-verdict\.cmp-verdict-danger\{[^}]*var\(--danger\)/,
+    ".cmp-verdict-danger must use --danger (traps decided it = loudest)");
+  assert.match(cssSrc, /\.compare-verdict\.cmp-verdict-amber\{[^}]*var\(--amber\)/,
+    ".cmp-verdict-amber must use --amber (risks/deadlines decided it)");
+  assert.match(cssSrc, /\.compare-verdict\.cmp-verdict-even/,
+    ".cmp-verdict-even must have its own (muted) styling for ties");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
