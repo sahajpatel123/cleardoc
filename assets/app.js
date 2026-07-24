@@ -3523,6 +3523,34 @@
                 activeIdx = found;
                 rowSpans.forEach((s, i) => s.classList.toggle('rd-speaking', i === found));
                 try { rowSpans[found].scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(_){}
+                // Cross-link to the source textarea — highlight the
+                // matched term in the original input as the voice
+                // reads it. Users see + hear + read together. Pairs
+                // with iter #15's click-to-locate; same selection
+                // semantics (case-insensitive indexOf, sentence-
+                // extending selection).
+                if(input && hits[found] && hits[found].matched){
+                  const raw = input.value || '';
+                  const matched = hits[found].matched;
+                  const idx = raw.toLowerCase().indexOf(matched.toLowerCase());
+                  if(idx >= 0){
+                    const sentenceTerm = /[.!?;\n]/g;
+                    const startMatch = raw.slice(0, idx).search(sentenceTerm);
+                    const selStart = startMatch < 0 ? 0 : startMatch + 1;
+                    const after = raw.slice(idx + matched.length);
+                    const endRel = after.search(sentenceTerm);
+                    const selEnd = idx + matched.length + (endRel < 0 ? 0 : endRel);
+                    try {
+                      input.focus();
+                      input.setSelectionRange(selStart, selEnd);
+                      input.classList.add('rd-flash');
+                      clearTimeout(input._rdFlashTimer);
+                      input._rdFlashTimer = setTimeout(() => {
+                        input.classList.remove('rd-flash');
+                      }, 1200);
+                    } catch(_){}
+                  }
+                }
               }
             };
             u.onend = u.onerror = () => {

@@ -2990,6 +2990,32 @@ test("analyzer: Read-aloud button speaks the expanded risk list with row-by-row 
     ".rd-speaking row must use --accent-glow bg (karaoke highlight)");
 });
 
+test("analyzer: TTS read-aloud of risks cross-links to the matched term in the source textarea", () => {
+  // Polishes iter #29 — when the voice reads a risk, the matched
+  // term in the source textarea is also highlighted, so users see
+  // + hear + read together. Reuses the iter #15 selection logic
+  // (case-insensitive indexOf, sentence-extending selection).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // The onboundary handler must also call input.setSelectionRange
+  // with the matched term's position. Verify by inspecting the
+  // speak handler's onboundary body.
+  assert.match(appSrc, /data-rd-speak[\s\S]+?onboundary[\s\S]+?input\.setSelectionRange/,
+    "risk-TTS onboundary must cross-link to source via input.setSelectionRange");
+  // Must look up the matched term from the active hit
+  assert.match(appSrc, /data-rd-speak[\s\S]+?hits\[found\][\s\S]+?\.matched/,
+    "onboundary must read the matched term from hits[found]");
+  // Must extend to the surrounding sentence (context, not bare token)
+  assert.match(appSrc, /data-rd-speak[\s\S]+?search\(sentenceTerm\)/,
+    "onboundary must extend the selection to the surrounding sentence (same as iter #15)");
+  // Must flash the textarea for visual emphasis
+  assert.match(appSrc, /data-rd-speak[\s\S]+?classList\.add\(['"]rd-flash['"]\)/,
+    "onboundary must add rd-flash class to the textarea (visual pulse)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
