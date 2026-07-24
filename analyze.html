@@ -133,14 +133,18 @@
         <span class="stat-sep" aria-hidden="true">·</span>
         <span><span class="stat-lbl">cap</span> <b id="statCap">40,000</b></span>
       </div>
-      <div class="risk-preview mono" id="riskPreview" hidden aria-live="polite">
-        <span class="rp-icon" aria-hidden="true">⚑</span>
-        <span class="rp-seg rp-trap"><b id="riskCount">0</b> trap<span class="rp-plural"></span></span>
-        <span class="rp-sep" aria-hidden="true">·</span>
-        <span class="rp-seg rp-watch" id="watchWrap" hidden><b id="watchCount">0</b> watch<span id="watchS">es</span></span>
-        <span class="rp-sep rp-sep-watch" aria-hidden="true">·</span>
-        <span class="rp-seg rp-note" id="noteWrap" hidden><b id="noteCount">0</b> note<span id="noteS">s</span></span>
-        <span class="rp-suffix">— press Analyze for the breakdown</span>
+      <div class="risk-preview-wrap">
+        <button class="risk-preview mono" id="riskPreview" type="button" hidden aria-live="polite" aria-expanded="false" aria-controls="riskDetail">
+          <span class="rp-icon" aria-hidden="true">⚑</span>
+          <span class="rp-seg rp-trap"><b id="riskCount">0</b> trap<span class="rp-plural"></span></span>
+          <span class="rp-sep" aria-hidden="true">·</span>
+          <span class="rp-seg rp-watch" id="watchWrap" hidden><b id="watchCount">0</b> watch<span id="watchS">es</span></span>
+          <span class="rp-sep rp-sep-watch" aria-hidden="true">·</span>
+          <span class="rp-seg rp-note" id="noteWrap" hidden><b id="noteCount">0</b> note<span id="noteS">s</span></span>
+          <span class="rp-suffix">— press Analyze for the breakdown</span>
+          <span class="rp-chev" aria-hidden="true">▾</span>
+        </button>
+        <div class="risk-detail mono" id="riskDetail" hidden></div>
       </div>
       <div class="ctl">
         <button class="qf" data-fill="Tenant shall forfeit the security deposit in the event that written notice is not tendered sixty days prior to termination, and shall remain liable for all damages howsoever caused during the tenancy.">try: Lease</button>

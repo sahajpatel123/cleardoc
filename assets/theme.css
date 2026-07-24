@@ -517,6 +517,25 @@
 .risk-preview.risk-watch{color:var(--amber);background:var(--amber-tint)}
 .risk-preview.risk-trap{color:var(--danger);background:var(--danger-tint);font-weight:700}
 .risk-preview.risk-note{color:var(--ink-soft);background:var(--paper2)}
+/* risk-preview is a button when expanded-list wiring is in place —
+ * reset button defaults + add a chevron that rotates on open. */
+button.risk-preview{font:inherit;color:inherit;background:inherit;border:var(--bd-hair) solid currentColor;cursor:pointer;text-align:left;width:100%;justify-content:flex-start}
+button.risk-preview:hover{filter:brightness(.96)}
+.risk-preview .rp-chev{display:inline-block;margin-left:auto;transition:transform .18s ease;font-weight:800;opacity:.65}
+.risk-preview.rp-open .rp-chev{transform:rotate(180deg);opacity:1}
+/* Expanded pattern list — one row per matched pattern. */
+.risk-detail{margin-top:4px;border:var(--bd-hair) solid var(--ink-soft);border-top:0;background:var(--paper);font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm)}
+.risk-detail-row{display:grid;grid-template-columns:auto auto 1fr;gap:8px;align-items:baseline;padding:7px 10px;border-top:var(--bd-hair) solid var(--ink-soft)}
+.risk-detail-row:first-child{border-top:0}
+.risk-detail-row .rd-tag{font-weight:800;letter-spacing:.06em;text-transform:uppercase;font-size:.9em;min-width:48px}
+.risk-detail-row .rd-hit{background:var(--paper2);padding:1px 6px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--ink);white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis}
+.risk-detail-row .rd-why{color:var(--ink-soft);font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.45}
+.risk-detail-row.trap .rd-tag{color:var(--danger)}
+.risk-detail-row.watch .rd-tag{color:var(--amber)}
+.risk-detail-row.note .rd-tag{color:var(--ink-soft)}
+.risk-detail-row.trap .rd-hit{background:var(--danger-tint)}
+.risk-detail-row.watch .rd-hit{background:var(--amber-tint)}
+.risk-detail-empty{padding:10px;color:var(--ink-soft);font-style:italic}
 .work .ctl{display:flex;gap:var(--s1);flex-wrap:wrap;align-items:center;margin-top:var(--s2)}
 .work .qf{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;border:var(--bd) solid var(--ink);padding:7px 12px;cursor:pointer;background:var(--paper);transition:background .18s}
 .work .qf:hover{background:var(--ink);color:var(--paper)}.work .qf:active{transform:translateY(1px)}

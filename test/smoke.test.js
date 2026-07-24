@@ -1619,6 +1619,85 @@ test("analyzer: live risk-preview pill appears when the input matches trap patte
     ".risk-preview.risk-trap must use --danger so it shouts");
 });
 
+test("analyzer: risk-preview pill expands to show matched patterns with labels", () => {
+  // Click-to-expand wiring on the risk pill: lets users see WHICH
+  // patterns matched (with their trap/watch/note tag + the smoking-gun
+  // token + the why). Builds on iter #4's severity breakdown — the
+  // pill says "1 trap · 2 watches", clicking expands the list of
+  // matches so users learn the vocabulary of traps.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyzePage() must define matchRisks() returning matched entries
+  const analyzePageFn = appSrc.match(/function analyzePage\(\)\{[\s\S]+?\n  \}/);
+  assert.ok(analyzePageFn, "analyzePage() must exist");
+  assert.match(analyzePageFn[0], /function matchRisks\(text\)/,
+    "matchRisks() helper must live inside analyzePage to access the RISK array");
+  assert.match(analyzePageFn[0], /r\.re\.exec\(t\)/,
+    "matchRisks() must capture the matched substring (not just a boolean)");
+  assert.match(analyzePageFn[0], /function renderRiskDetail\(hits\)/,
+    "renderRiskDetail() must exist to paint the expanded list");
+
+  // analyze.html: pill is a button with aria-controls, detail div exists
+  assert.match(html, /<button[^>]*id="riskPreview"/,
+    "#riskPreview must be a <button> (clickable, keyboard-accessible)");
+  assert.match(html, /aria-expanded="false"/,
+    "#riskPreview must default to aria-expanded=false");
+  assert.match(html, /aria-controls="riskDetail"/,
+    "#riskPreview must aria-controls the #riskDetail div");
+  assert.match(html, /id="riskDetail"/,
+    "analyze.html must contain #riskDetail (the expanded list target)");
+
+  // updateTextStats must re-render the detail list when expanded
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0], /riskDetail && !riskDetail\.hidden &&[\s\S]+?renderRiskDetail\(hits\)/,
+    "updateTextStats() must re-render riskDetail when expanded (stay in sync while typing)");
+  // Must auto-collapse when input is cleared so we don't leave a dangling list
+  assert.match(updateBlock[0], /riskDetail\.hidden\s*=\s*true/,
+    "riskDetail must auto-collapse when input is cleared");
+
+  // Click handler toggles expansion + aria-expanded + chevron rotation
+  assert.match(appSrc, /riskPreview\.addEventListener\(\s*['"]click['"]/,
+    "#riskPreview must have a click handler that toggles the detail list");
+  assert.match(appSrc, /aria-expanded['"],\s*willOpen\s*\?\s*['"]true['"]\s*:\s*['"]false['"]/,
+    "click handler must flip aria-expanded to true/false correctly");
+  assert.match(appSrc, /riskPreview\.classList\.toggle\(\s*['"]rp-open['"],\s*willOpen\s*\)/,
+    "click handler must toggle the rp-open class for chevron rotation");
+
+  // Escape key collapses the list (keyboard a11y parity with FAQ)
+  assert.match(appSrc, /e\.key\s*===\s*['"]Escape['"][\s\S]+?riskDetail\.hidden\s*=\s*true/,
+    "Escape key must collapse the expanded list");
+
+  // renderRiskDetail sorts trap → watch → note so loudest reads first
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(renderFn, "renderRiskDetail() must exist");
+  assert.match(renderFn[0], /rank\[a\.sev\]/,
+    "renderRiskDetail() must sort hits by severity so trap floats to the top");
+  assert.match(renderFn[0], /esc\(h\.matched/,
+    "renderRiskDetail() must esc() the matched substring (XSS defense — user text hits innerHTML)");
+  // Each row shows tag + matched token + why
+  assert.match(renderFn[0], /rd-tag/,
+    "renderRiskDetail() must render a tag element for each row");
+  assert.match(renderFn[0], /rd-hit/,
+    "renderRiskDetail() must render a hit (matched substring) element for each row");
+  assert.match(renderFn[0], /rd-why/,
+    "renderRiskDetail() must render a why (explanation) element for each row");
+
+  // CSS: chevron rotation + detail row layout
+  assert.match(cssSrc, /\.risk-preview\.rp-open\s+\.rp-chev\{[^}]*rotate\(180deg\)/,
+    "rp-open .rp-chev must rotate 180° when the list is expanded");
+  assert.match(cssSrc, /\.risk-detail-row\s*\{[^}]*grid-template-columns/,
+    ".risk-detail-row must use CSS grid (tag | hit | why columns)");
+  for (const cls of [".risk-detail-row.trap .rd-tag", ".risk-detail-row.watch .rd-tag", ".risk-detail-row.note .rd-tag"]) {
+    assert.ok(cssSrc.includes(cls), `theme.css must define ${cls} for severity-coded tags`);
+  }
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

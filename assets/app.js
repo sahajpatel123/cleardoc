@@ -1082,7 +1082,7 @@
           viewShareBtn=$('#viewShareBtn'),dismissShareBtn=$('#dismissShareBtn'),
           textStats=$('#textStats'),statWords=$('#statWords'),statChars=$('#statChars'),
           statReadTime=$('#statReadTime'),statLevel=$('#statLevel'),statCap=$('#statCap'),
-          riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),
+          riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
     const sampleText=input.value.trim();
@@ -1124,6 +1124,66 @@
         else out.note += 1;
       }
       return out;
+    }
+
+    // Return the RISK entries that actually matched the input, in RISK
+    // declaration order (so traps surface before watches before notes).
+    // Each item is { sev, label, why, matched: <substring from input> }
+    // where `matched` is the first hit of the regex against the input
+    // — useful for letting users see WHAT triggered the flag.
+    //   matchRisks("Auto-renews. Non-refundable.")
+    //     → [
+    //         {sev:'a', label:'Watch', why:'Renews automatically…', matched:'Auto-renews'},
+    //         {sev:'r', label:'Trap',  why:"Money you won't…", matched:'Non-refundable'},
+    //       ]
+    //   matchRisks("")  → []
+    function matchRisks(text){
+      const t = String(text||'').trim();
+      const out = [];
+      if (!t || t.length < 4) return out;
+      for (const r of RISK) {
+        if (!r || !r.re) continue;
+        const m = r.re.exec(t);
+        if (!m) continue;
+        out.push({ sev: r.sev, label: r.label, why: r.why, matched: m[0] });
+      }
+      return out;
+    }
+
+    // Render the expanded pattern list under the risk pill. One row
+    // per matched pattern; rows are sorted trap → watch → note so the
+    // loudest always reads first. The matched substring is shown in
+    // mono so it visually pops as the smoking-gun token.
+    //   renderRiskDetail([{sev:'r', label:'Trap', why:'…', matched:'non-refundable'}])
+    //     → <div class="risk-detail-row trap">
+    //         <span class="rd-tag">TRAP</span>
+    //         <code class="rd-hit">non-refundable</code>
+    //         <span class="rd-why">Money you won't get back.</span>
+    //       </div>
+    function renderRiskDetail(hits){
+      if(!riskDetail) return;
+      if(!Array.isArray(hits) || hits.length === 0){
+        riskDetail.innerHTML = '<div class="risk-detail-empty">No patterns matched.</div>';
+        return;
+      }
+      // Severity rank so trap floats to the top of the list.
+      const rank = { r: 0, a: 1, g: 2 };
+      const ordered = hits.slice().sort((a, b) => (rank[a.sev]||9) - (rank[b.sev]||9));
+      // esc() lives in this same scope (analyzePage), defense-in-depth
+      // so a matched substring can never inject HTML.
+      const parts = [];
+      for(const h of ordered){
+        const sevClass = h.sev === 'r' ? 'trap' : (h.sev === 'a' ? 'watch' : 'note');
+        const tagText = h.sev === 'r' ? 'TRAP' : (h.sev === 'a' ? 'WATCH' : 'NOTE');
+        parts.push(
+          '<div class="risk-detail-row ' + sevClass + '">',
+            '<span class="rd-tag">' + tagText + '</span>',
+            '<code class="rd-hit">' + esc(h.matched || '') + '</code>',
+            '<span class="rd-why">' + esc(h.why || '') + '</span>',
+          '</div>'
+        );
+      }
+      riskDetail.innerHTML = parts.join('');
     }
     function splitSentences(t){ return t.replace(/\s+/g,' ').trim().split(/(?<=[.!?;])\s+/).filter(s=>s.trim().length>1); }
     function trunc(s,n){ s=s.trim(); return s.length>n? s.slice(0,n)+'…' : s; }
@@ -2260,6 +2320,23 @@
           else if(sev.watch >= 1) riskPreview.classList.add('risk-watch');
           else riskPreview.classList.add('risk-note');
         }
+        // Render the detail list whenever the user has expanded it.
+        // Collapsed (the common case) → no DOM cost. Expanded →
+        // rebuild with the current matched patterns so it stays in
+        // sync as the user types.
+        if(riskDetail && !riskDetail.hidden && typeof matchRisks === 'function'){
+          const hits = matchRisks(raw);
+          renderRiskDetail(hits);
+        }
+        // If the user just cleared the input, collapse the detail
+        // so we don't leave an orphan expanded list dangling.
+        if(riskDetail && rc === 0 && !riskDetail.hidden){
+          riskDetail.hidden = true;
+          if(riskPreview){
+            riskPreview.setAttribute('aria-expanded','false');
+            riskPreview.classList.remove('rp-open');
+          }
+        }
       }
       if(textStats){
         textStats.classList.toggle('over', overCap);
@@ -2274,6 +2351,27 @@
       input.addEventListener('input', updateTextStats);
       input.addEventListener('change', updateTextStats);
       updateTextStats(); // initial paint for the preloaded sample
+
+      /* Click-to-expand: toggles the matched-pattern list under the
+       * risk pill. Pressing Escape while focused collapses it (matches
+       * the FAQ disclosure pattern elsewhere in the app). */
+      if(riskPreview){
+        riskPreview.addEventListener('click', () => {
+          if(!riskDetail) return;
+          const willOpen = riskDetail.hidden;
+          riskDetail.hidden = !willOpen;
+          riskPreview.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+          riskPreview.classList.toggle('rp-open', willOpen);
+        });
+        riskPreview.addEventListener('keydown', (e) => {
+          if(e.key === 'Escape' && riskDetail && !riskDetail.hidden){
+            e.preventDefault();
+            riskDetail.hidden = true;
+            riskPreview.setAttribute('aria-expanded','false');
+            riskPreview.classList.remove('rp-open');
+          }
+        });
+      }
 
       /* Draft autosave — debounced write to localStorage so a tab-close
        * or refresh doesn't lose the user's in-progress text. Cleared on
