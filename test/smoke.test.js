@@ -3482,6 +3482,63 @@ test("analyzer: negotiation suggestions have a per-suggestion Copy button", () =
     ".rc-copy must be color-keyed to the parent severity (trap / watch)");
 });
 
+test("analyzer: redline button exports counter-suggestions as a downloadable text file", () => {
+  // New feature — 📝 redline button in the risk toolbar exports a
+  // redline-format text file: original clause + why + proposed
+  // replacement. Users paste it into Word / email as a negotiation
+  // starting point.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: redline button must exist in the risk toolbar
+  // (the risk-detail-toolbar is rendered dynamically by app.js — the
+  // template literal lives in renderRiskDetail, not in analyze.html)
+  assert.match(appSrc, /data-rd-redline="1"/,
+    "renderRiskDetail must render a [data-rd-redline] button");
+  assert.match(appSrc, /aria-label="Export redline suggestions"/,
+    "redline button must have an aria-label");
+  // (already checked above)
+
+  // formatRedline helper must exist
+  assert.match(appSrc, /function formatRedline\(hits\)/,
+    "formatRedline() must exist at the IIFE level");
+  // Must include all the standard redline sections
+  for (const section of [
+    "REDLINE",
+    "Negotiation Suggestions",
+    "Proposed:",
+    "Review each suggestion with your lawyer",
+  ]) {
+    assert.ok(appSrc.includes("'" + section + "'") || appSrc.includes('"' + section + '"') || appSrc.includes(section),
+      `formatRedline must include "${section}"`);
+  }
+  // Must read counter from each hit
+  assert.match(appSrc, /formatRedline[\s\S]+?h\.counter/,
+    "formatRedline must include the counter-suggestion text");
+
+  // Click handler must wire up the button
+  assert.match(appSrc, /riskDetail\.addEventListener[\s\S]+?data-rd-redline/,
+    "riskDetail click handler must handle [data-rd-redline] clicks");
+  // Must use Blob + download (same pattern as iter #12 calendar export)
+  assert.match(appSrc, /data-rd-redline[\s\S]+?new Blob\(\s*\[\s*text\s*\][^)]*text\/plain/,
+    "redline handler must create a text/plain Blob");
+  assert.match(appSrc, /data-rd-redline[\s\S]+?cleardoc-redline-/,
+    "filename must start with 'cleardoc-redline-' (sortable in Downloads)");
+  // Flash feedback
+  assert.match(appSrc, /data-rd-redline[\s\S]+?exported/,
+    "button must flash '✓ exported' on success");
+
+  // CSS: button must be styled as clickable
+  assert.match(cssSrc, /\.rd-redline\{[^}]*cursor:\s*pointer/,
+    ".rd-redline must be cursor:pointer (signals clickability)");
+  assert.match(cssSrc, /\.rd-redline\{[^}]*margin-right/,
+    ".rd-redline must have spacing from the Copy button");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

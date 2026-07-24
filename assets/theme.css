@@ -671,6 +671,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-detail-toolbar .rd-count{color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
 .risk-detail-toolbar .rd-copy{font:inherit;font-size:.92em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:4px 10px;cursor:pointer;transition:background .15s,color .15s}
 .risk-detail-toolbar .rd-copy:hover{background:var(--ink);color:var(--paper)}
+.risk-detail-toolbar .rd-redline{font:inherit;font-size:.92em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:4px 10px;cursor:pointer;transition:background .15s,color .15s;margin-right:6px}
+.risk-detail-toolbar .rd-redline:hover{background:var(--ink);color:var(--paper)}
 .work .ctl{display:flex;gap:var(--s1);flex-wrap:wrap;align-items:center;margin-top:var(--s2)}
 .work .qf{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;border:var(--bd) solid var(--ink);padding:7px 12px;cursor:pointer;background:var(--paper);transition:background .18s}
 .work .qf:hover{background:var(--ink);color:var(--paper)}.work .qf:active{transform:translateY(1px)}
