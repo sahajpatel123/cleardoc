@@ -1701,6 +1701,8 @@
           historyBtn=$('#historyBtn'),historyPanel=$('#historyPanel'),
           historyList=$('#historyList'),historyClearBtn=$('#historyClearBtn'),
           historyFilter=$('#historyFilter'),
+          tplBtn=$('#tplBtn'),tplPanel=$('#tplPanel'),tplList=$('#tplList'),
+          tplNameInput=$('#tplNameInput'),tplSaveBtn=$('#tplSaveBtn'),tplClearBtn=$('#tplClearBtn'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
@@ -2087,6 +2089,50 @@
     }
     function clearHistory(){
       try { localStorage.removeItem(HISTORY_KEY); } catch(_){}
+    }
+
+    /* ── Document templates (iter #57) ───────────────────────────
+     * Save a doc + detected type as a reusable template for
+     * similar future docs (e.g. a lease template the user reuses
+     * when analyzing different properties). Distinct from history
+     * (iter #25): history is automatic + 5-entry FIFO, templates
+     * are intentional + named + 10-entry cap + never auto-purged.
+     */
+    const TPL_KEY = 'cleardoc:templates';
+    const TPL_VERSION = 1;
+    const TPL_MAX_ENTRIES = 10;
+    function readTemplates(){
+      try{
+        const raw = localStorage.getItem(TPL_KEY);
+        if(!raw) return [];
+        const arr = JSON.parse(raw);
+        if(!Array.isArray(arr)) return [];
+        return arr.filter(t => t && typeof t.name === 'string' && typeof t.text === 'string');
+      }catch(_){ return []; }
+    }
+    function saveTemplate(name, text, typeLabel){
+      try{
+        const t = (name || '').trim() || ('Untitled ' + new Date().toLocaleDateString());
+        const trimmedText = String(text || '').trim();
+        if(!trimmedText || trimmedText.length < 8) return false;
+        const entry = {
+          v: TPL_VERSION,
+          ts: Date.now(),
+          name: t.slice(0, 60),
+          text: trimmedText.slice(0, 40000), // mirror input cap
+          type: typeLabel || null,
+        };
+        const arr = readTemplates();
+        // Skip if same name + same text already exists
+        if(arr.some(e => e.name === entry.name && e.text === entry.text)) return false;
+        arr.unshift(entry);
+        while(arr.length > TPL_MAX_ENTRIES) arr.pop();
+        localStorage.setItem(TPL_KEY, JSON.stringify(arr));
+        return true;
+      }catch(_){ return false; }
+    }
+    function clearTemplates(){
+      try { localStorage.removeItem(TPL_KEY); } catch(_){}
     }
     function loadStoredSnapshot(){
       try{
@@ -3463,6 +3509,74 @@
           renderHistory();
         });
       }
+
+      // Template panel handlers (iter #57) — save / load / clear
+      // named document templates. Click a saved template to load
+      // its text into the input textarea.
+      function renderTemplates(){
+        if(!tplList || !tplPanel) return;
+        const items = (typeof readTemplates === 'function') ? readTemplates() : [];
+        if(items.length === 0){
+          tplList.innerHTML = '<li class="tpl-empty">No saved templates yet. Type a doc, give it a name, and Save.</li>';
+          return;
+        }
+        tplList.innerHTML = items.map((t, i) => {
+          const ts = t && t.ts ? new Date(t.ts) : null;
+          const ago = ts ? ts.toLocaleDateString() : '';
+          const type = t.type ? '<span class="tpl-type">' + esc(t.type) + '</span>' : '';
+          return '<li><button type="button" class="tpl-item" data-tpl-idx="' + i +
+            '" title="Click to load this template"><span class="tpl-name">' +
+            esc(t.name || 'Untitled') + '</span>' + type +
+            '<span class="tpl-when">' + esc(ago) + '</span></button></li>';
+        }).join('');
+      }
+      if(tplList){
+        tplList.addEventListener('click', (e) => {
+          const btn = e.target.closest && e.target.closest('[data-tpl-idx]');
+          if(!btn || !input) return;
+          const idx = parseInt(btn.getAttribute('data-tpl-idx') || '0', 10);
+          const items = (typeof readTemplates === 'function') ? readTemplates() : [];
+          const t = items[idx];
+          if(!t || !t.text) return;
+          input.value = t.text;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.focus();
+          if(tplPanel) tplPanel.hidden = true;
+        });
+      }
+      if(tplSaveBtn){
+        tplSaveBtn.addEventListener('click', () => {
+          if(!input) return;
+          const name = tplNameInput ? tplNameInput.value : '';
+          // Pull the detected type from the live _detectedLang
+          const detectedLang = input._detectedLang;
+          const typeLabel = detectedLang ? detectedLang.label : null;
+          const ok = saveTemplate(name, input.value, typeLabel);
+          if(ok){
+            if(tplNameInput) tplNameInput.value = '';
+            renderTemplates();
+            if(tplSaveBtn){
+              const orig = tplSaveBtn.textContent;
+              tplSaveBtn.textContent = '✓ saved';
+              clearTimeout(tplSaveBtn._flashTimer);
+              tplSaveBtn._flashTimer = setTimeout(() => { tplSaveBtn.textContent = orig; }, 1400);
+            }
+          } else {
+            if(tplSaveBtn){
+              const orig = tplSaveBtn.textContent;
+              tplSaveBtn.textContent = 'duplicate';
+              clearTimeout(tplSaveBtn._flashTimer);
+              tplSaveBtn._flashTimer = setTimeout(() => { tplSaveBtn.textContent = orig; }, 1400);
+            }
+          }
+        });
+      }
+      if(tplClearBtn){
+        tplClearBtn.addEventListener('click', () => {
+          if(typeof clearTemplates === 'function') clearTemplates();
+          renderTemplates();
+        });
+      }
       if(historyBtn && historyPanel){
         historyBtn.addEventListener('click', () => {
           const willOpen = historyPanel.hidden;
@@ -3604,6 +3718,17 @@
           compareToggle.textContent = willOpen ? '− compare' : '+ compare';
           if(willOpen && inputB) setTimeout(() => inputB.focus(), 50);
           else updateCompareStats();
+        });
+      }
+      // Template panel toggle (iter #57) — shows/hides the saved-templates list
+      if(tplBtn && tplPanel){
+        tplBtn.addEventListener('click', () => {
+          const willOpen = tplPanel.hidden;
+          tplPanel.hidden = !willOpen;
+          tplBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+          tplBtn.classList.toggle('qf-open', willOpen);
+          tplBtn.textContent = willOpen ? '− templates' : '💾 templates';
+          if(willOpen) renderTemplates();
         });
       }
       if(inputB){

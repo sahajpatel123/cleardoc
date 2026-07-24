@@ -185,6 +185,7 @@
         <button class="qf" data-fill="Patient acknowledges that facility fees, notwithstanding any insurance adjustment, shall be the sole responsibility of the patient pursuant to the terms set forth herein, and that balance billing may apply.">try: Medical Bill</button>
         <button class="qf" data-fill="The aforementioned subscriber shall be liable for all charges incurred heretofore, and the provider reserves the right to modify these terms at any time at its sole discretion without notice.">try: Terms</button>
         <button type="button" class="qf qf-toggle" id="compareToggle" aria-expanded="false" aria-controls="comparePanel">+ compare</button>
+        <button type="button" class="qf qf-toggle" id="tplBtn" aria-expanded="false" aria-controls="tplPanel">💾 templates</button>
         <button type="button" class="qf qf-mic" id="micBtn" hidden aria-label="Dictate via voice input">🎤 dictate</button>
         <button type="button" class="qf qf-history" id="historyBtn" aria-expanded="false" aria-controls="historyPanel">📚 history</button>
         <label class="filelbl">Attach file<input id="fileInput" type="file" accept=".txt,.text,.md,.markdown,.csv,.tsv,.log,.json,.xml,.html,.htm,.rtf,.pdf,.doc,.docx,.odt,.pages,.png,.jpg,.jpeg,.gif,.webp,.bmp,.svg,.heic,.heif,.avif,.tif,.tiff,application/pdf,image/*,text/*" hidden></label>
@@ -213,6 +214,17 @@
         <div class="compare-diff mono" id="compareDiff" hidden aria-live="polite"></div>
         <div class="compare-actions">
           <button type="button" class="cmp-png" id="comparePngBtn">📸 Export PNG</button>
+        </div>
+      </div>
+      <div class="tpl-panel mono" id="tplPanel" hidden aria-label="Saved document templates">
+        <div class="tpl-head">// saved templates</div>
+        <div class="tpl-save-row">
+          <input type="text" id="tplNameInput" maxlength="60" placeholder="Template name (e.g. 'My lease')" class="tpl-name-input" aria-label="Template name">
+          <button type="button" class="tpl-save-btn" id="tplSaveBtn">💾 Save current</button>
+        </div>
+        <ol class="tpl-list" id="tplList"></ol>
+        <div class="tpl-actions">
+          <button type="button" class="tpl-clear" id="tplClearBtn">Clear all</button>
         </div>
       </div>
       <div class="attach-tray" id="attachTray" hidden aria-live="polite"></div>

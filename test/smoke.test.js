@@ -4054,6 +4054,68 @@ test("analyzer: Read-all-suggestions button speaks every counter-suggestion in s
     ".rd-speak-suggestions must be cursor:pointer (signals clickability)");
 });
 
+test("analyzer: Save-as-Template panel saves + loads named document templates", () => {
+  // New feature — users analyzing the same kind of contract
+  // (e.g. a lease) repeatedly can save the doc as a named
+  // template and reload it later. Distinct from history (iter #25):
+  // history is automatic + FIFO; templates are intentional +
+  // named + capped at 10 + never auto-purged.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: template panel + button must exist
+  assert.match(html, /id="tplBtn"/,
+    "analyze.html must contain the templates toggle button #tplBtn");
+  assert.match(html, /id="tplPanel"/,
+    "analyze.html must contain the templates panel #tplPanel");
+  assert.match(html, /id="tplNameInput"/,
+    "analyze.html must contain the template name input #tplNameInput");
+  assert.match(html, /id="tplSaveBtn"/,
+    "analyze.html must contain the save button #tplSaveBtn");
+  assert.match(html, /id="tplList"/,
+    "analyze.html must contain the templates list #tplList");
+  assert.match(html, /id="tplClearBtn"/,
+    "analyze.html must contain the clear button #tplClearBtn");
+
+  // localStorage helpers
+  assert.match(appSrc, /const TPL_KEY\s*=\s*'cleardoc:templates'/,
+    "must use localStorage key 'cleardoc:templates'");
+  assert.match(appSrc, /function saveTemplate\(name, text, typeLabel\)/,
+    "saveTemplate() must exist");
+  assert.match(appSrc, /function readTemplates/,
+    "readTemplates() must exist");
+  assert.match(appSrc, /function clearTemplates/,
+    "clearTemplates() must exist");
+  // Must be capped at 10
+  assert.match(appSrc, /TPL_MAX_ENTRIES\s*=\s*10/,
+    "must cap templates at 10 entries");
+  // Must dedupe (same name + text)
+  assert.match(appSrc, /saveTemplate[\s\S]+?e\.name === entry\.name/,
+    "saveTemplate must dedupe by name+text (don't store duplicates)");
+
+  // Toggle handler must show/hide the panel
+  assert.match(appSrc, /tplBtn\.addEventListener[\s\S]+?tplPanel\.hidden/,
+    "toggle handler must show/hide the tplPanel");
+  assert.match(appSrc, /tplBtn\.addEventListener[\s\S]+?renderTemplates/,
+    "toggle handler must call renderTemplates on open");
+
+  // Click on a template must load its text into the input
+  assert.match(appSrc, /tplList\.addEventListener[\s\S]+?input\.value\s*=\s*t\.text/,
+    "clicking a template must load its text into the input");
+
+  // CSS
+  assert.match(cssSrc, /\.tpl-panel\{[^}]*border/,
+    ".tpl-panel must have a visible border");
+  assert.match(cssSrc, /\.tpl-save-btn\{[^}]*cursor:\s*pointer/,
+    ".tpl-save-btn must be cursor:pointer");
+  assert.match(cssSrc, /\.tpl-item\{[^}]*cursor:\s*pointer/,
+    ".tpl-item must be cursor:pointer (clickable template)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

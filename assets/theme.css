@@ -755,6 +755,25 @@ button.risk-preview:hover{filter:brightness(.96)}
 .compare-actions{margin-top:var(--s2);display:flex;justify-content:flex-end}
 .compare-actions .cmp-png{font:inherit;font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:6px 14px;cursor:pointer;transition:background .15s,color .15s}
 .compare-actions .cmp-png:hover{background:var(--ink);color:var(--paper)}
+/* Template panel (iter #57) — save / load / clear named document
+ * templates. Distinct from history (iter #25): history is automatic,
+ * templates are intentional. */
+.tpl-panel{margin-top:var(--s2);padding:var(--s2);border:var(--bd-hair) solid var(--ink);background:var(--paper2)}
+.tpl-panel .tpl-head{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.1em;color:var(--accent-text);margin-bottom:8px;font-weight:700}
+.tpl-panel .tpl-save-row{display:flex;gap:8px;margin-bottom:8px}
+.tpl-panel .tpl-name-input{flex:1;font:inherit;font-size:var(--t-meta);padding:6px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper);text-transform:none;letter-spacing:0}
+.tpl-panel .tpl-save-btn{font:inherit;font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:6px 14px;cursor:pointer;transition:background .12s,color .12s}
+.tpl-panel .tpl-save-btn:hover{background:var(--ink);color:var(--paper)}
+.tpl-panel .tpl-list{list-style:none;margin:0 0 8px 0;padding:0;max-height:200px;overflow:auto}
+.tpl-panel .tpl-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;background:var(--paper);border:var(--bd-hair) solid var(--ink-soft);padding:6px 10px;margin-bottom:4px;cursor:pointer;transition:background .12s,color .12s}
+.tpl-panel .tpl-item:hover{background:var(--ink);color:var(--paper)}
+.tpl-panel .tpl-name{font-weight:700;flex:1;text-transform:none;letter-spacing:0}
+.tpl-panel .tpl-type{font-family:'JetBrains Mono';font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;background:var(--paper2);color:var(--ink-soft);padding:1px 5px}
+.tpl-panel .tpl-when{font-family:'JetBrains Mono';font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+.tpl-panel .tpl-empty{padding:10px;color:var(--ink-soft);font-style:italic}
+.tpl-actions{display:flex;justify-content:flex-end}
+.tpl-actions .tpl-clear{font:inherit;font-size:var(--t-micro);font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink-soft);background:transparent;color:var(--ink-soft);padding:3px 8px;cursor:pointer}
+.tpl-actions .tpl-clear:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
 /* Verdict badge — clear at-a-glance winner above the table.
  * danger = traps decided it (most severe), amber = risks/deadlines,
  * ink = even. */
