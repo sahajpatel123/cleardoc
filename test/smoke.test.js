@@ -4207,6 +4207,49 @@ test("analyzer: Edit-template lets users modify a saved template without re-typi
     ".tpl-edit-delete must use --danger (destructive action)");
 });
 
+test("analyzer: result panel shows a 'N risks avoided' badge across all analyses", () => {
+  // New feature — tracks the total number of risk patterns the
+  // user has caught across all their analyses. Tangible value
+  // metric that drives engagement.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: badge must exist
+  assert.match(html, /id="risksAvoidedBadge"/,
+    "analyze.html must contain #risksAvoidedBadge");
+
+  // localStorage helpers
+  assert.match(appSrc, /const RISKS_KEY\s*=\s*'cleardoc:risksAvoided'/,
+    "must use localStorage key 'cleardoc:risksAvoided'");
+  assert.match(appSrc, /function getRisksAvoided/,
+    "getRisksAvoided() must exist");
+  assert.match(appSrc, /function bumpRisksAvoided/,
+    "bumpRisksAvoided() must exist");
+  // Must have a TTL (avoid stale data — 90 days)
+  assert.match(appSrc, /RISKS_TTL_MS\s*=\s*90\s*\*\s*24\s*\*\s*60\s*\*\s*60\s*\*\s*1000/,
+    "must have a 90-day TTL (avoid stale counters)");
+
+  // saveSnapshot must bump the counter
+  assert.match(appSrc, /function saveSnapshot[\s\S]+?bumpRisksAvoided/,
+    "saveSnapshot must call bumpRisksAvoided");
+
+  // update logic must show/hide the badge based on the count
+  assert.match(appSrc, /risksAvoidedBadge\.hidden\s*=\s*false/,
+    "badge must be visible when count > 0");
+  assert.match(appSrc, /risksAvoidedBadge\.hidden\s*=\s*true/,
+    "badge must be hidden when count = 0");
+
+  // CSS
+  assert.match(cssSrc, /\.risks-avoided-badge\{[^}]*var\(--green\)/,
+    ".risks-avoided-badge must use --green (positive value)");
+  assert.match(cssSrc, /\.risks-avoided-badge\{[^}]*background/,
+    ".risks-avoided-badge must have a background tint (pill style)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

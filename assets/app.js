@@ -1722,7 +1722,7 @@
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
           printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),printDate=$('#printDate'),
           shareBtn=$('#shareBtn'),speakBtn=$('#speakBtn'),
-          voicePicker=$('#voicePicker'),voicePreviewBtn=$('#voicePreviewBtn'),
+          voicePicker=$('#voicePicker'),risksAvoidedBadge=$('#risksAvoidedBadge'),voicePreviewBtn=$('#voicePreviewBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2068,8 +2068,43 @@
         // Push to history (capped) — lets users come back to a doc they
         // analyzed yesterday. Best-effort; failures are silent.
         pushHistory(snap.raw);
+        // Iter #60: also bump the per-user "risks avoided" counter
+        // with the risk count from this analysis. Tangible value
+        // metric that drives engagement.
+        try {
+          const riskCount = Array.isArray(snap.risks) ? snap.risks.length : 0;
+          if(riskCount > 0) bumpRisksAvoided(riskCount);
+        } catch(_){}
         return true;
       }catch(_){ return false; }
+    }
+
+    /* ── Risks-avoided counter (iter #60) ───────────────────────
+     * Tracks the total number of risk patterns the user has
+     * surfaced across all their analyses. Shown in the result
+     * panel and as a "value" stat — gives users a tangible
+     * metric for what ClearDoc has done for them.
+     * Privacy: localStorage only, no PII.
+     */
+    const RISKS_KEY = 'cleardoc:risksAvoided';
+    const RISKS_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+    function getRisksAvoided(){
+      try {
+        const raw = localStorage.getItem(RISKS_KEY);
+        if(!raw) return 0;
+        const data = JSON.parse(raw);
+        if(!data || typeof data.count !== 'number') return 0;
+        if(typeof data.ts === 'number' && (Date.now() - data.ts) > RISKS_TTL_MS) return 0;
+        return data.count;
+      } catch(_){ return 0; }
+    }
+    function bumpRisksAvoided(n){
+      try {
+        if(typeof n !== 'number' || n <= 0) return;
+        const cur = getRisksAvoided();
+        const next = cur + n;
+        localStorage.setItem(RISKS_KEY, JSON.stringify({ count: next, ts: Date.now() }));
+      } catch(_){}
     }
 
     /* ── Analysis history ─────────────────────────────────────────────
@@ -2709,6 +2744,20 @@
           if(!alreadySaved){
             showTemplateSuggestion(raw);
           }
+        }
+      }
+      // Iter #60: update the "📊 N risks avoided" badge in the
+      // result-actions row. Shows a tangible value metric (how many
+      // risk patterns the user has caught across all their analyses)
+      // without leaving the page. Hidden when 0.
+      if(risksAvoidedBadge && typeof getRisksAvoided === 'function'){
+        const total = getRisksAvoided();
+        if(total > 0){
+          risksAvoidedBadge.textContent = '📊 ' + total + ' risk' +
+            (total === 1 ? '' : 's') + ' avoided';
+          risksAvoidedBadge.hidden = false;
+        } else {
+          risksAvoidedBadge.hidden = true;
         }
       }
     }
