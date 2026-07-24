@@ -1441,8 +1441,12 @@
       for(const h of ordered){
         const sevClass = h.sev === 'r' ? 'trap' : (h.sev === 'a' ? 'watch' : 'note');
         const tagText = h.sev === 'r' ? 'TRAP' : (h.sev === 'a' ? 'WATCH' : 'NOTE');
+        // data-rd-locate carries the matched substring verbatim so the
+        // delegated click handler can find it in the source input. The
+        // row is also tabindex=0 + role=button so keyboard users get
+        // parity with mouse — Enter / Space triggers the same locate.
         parts.push(
-          '<div class="risk-detail-row ' + sevClass + '">',
+          '<div class="risk-detail-row ' + sevClass + '" data-rd-locate="' + esc(h.matched || '') + '" tabindex="0" role="button" title="Click to highlight in source">',
             '<span class="rd-tag">' + tagText + '</span>',
             '<code class="rd-hit">' + esc(h.matched || '') + '</code>',
             '<span class="rd-why">' + esc(h.why || '') + '</span>',
@@ -2851,43 +2855,83 @@
 
       if(riskDetail){
         riskDetail.addEventListener('click', async (e) => {
-          const btn = e.target.closest && e.target.closest('[data-rd-copy]');
-          if(!btn) return;
-          e.preventDefault();
-          e.stopPropagation();
-          // Pull the live hit list (matches what's painted). Falls back
-          // to scraping rendered rows if matchRisks isn't in scope.
-          let hits = (typeof matchRisks === 'function') ? matchRisks(input ? input.value : '') : [];
-          if(!Array.isArray(hits) || hits.length === 0){
-            const rows = riskDetail.querySelectorAll('.risk-detail-row');
-            if(rows.length){
-              hits = Array.from(rows).map((r) => {
-                const tag = (r.querySelector('.rd-tag') || {}).textContent || '';
-                const hit = (r.querySelector('.rd-hit') || {}).textContent || '';
-                const why = (r.querySelector('.rd-why') || {}).textContent || '';
-                const sev = /TRAP/.test(tag) ? 'r' : /WATCH/.test(tag) ? 'a' : 'g';
-                return { sev, matched: hit.trim(), why: why.trim() };
-              });
+          // 1. Copy button takes precedence
+          const copyBtn = e.target.closest && e.target.closest('[data-rd-copy]');
+          if(copyBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            // Pull the live hit list (matches what's painted). Falls back
+            // to scraping rendered rows if matchRisks isn't in scope.
+            let hits = (typeof matchRisks === 'function') ? matchRisks(input ? input.value : '') : [];
+            if(!Array.isArray(hits) || hits.length === 0){
+              const rows = riskDetail.querySelectorAll('.risk-detail-row');
+              if(rows.length){
+                hits = Array.from(rows).map((r) => {
+                  const tag = (r.querySelector('.rd-tag') || {}).textContent || '';
+                  const hit = (r.querySelector('.rd-hit') || {}).textContent || '';
+                  const why = (r.querySelector('.rd-why') || {}).textContent || '';
+                  const sev = /TRAP/.test(tag) ? 'r' : /WATCH/.test(tag) ? 'a' : 'g';
+                  return { sev, matched: hit.trim(), why: why.trim() };
+                });
+              }
             }
+            const text = formatMatchesForCopy(hits);
+            if(!text) return;
+            let ok = false;
+            try {
+              if(navigator.clipboard && navigator.clipboard.writeText){
+                await navigator.clipboard.writeText(text);
+                ok = true;
+              } else {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+                document.body.appendChild(ta); ta.select();
+                ok = document.execCommand('copy'); document.body.removeChild(ta);
+              }
+            } catch(_) {}
+            const orig = 'Copy';
+            copyBtn.textContent = ok ? 'Copied ✓' : 'Copy failed';
+            clearTimeout(copyBtn._flashTimer);
+            copyBtn._flashTimer = setTimeout(() => { copyBtn.textContent = orig; }, 1400);
+            return;
           }
-          const text = formatMatchesForCopy(hits);
-          if(!text) return;
-          let ok = false;
-          try {
-            if(navigator.clipboard && navigator.clipboard.writeText){
-              await navigator.clipboard.writeText(text);
-              ok = true;
-            } else {
-              const ta = document.createElement('textarea');
-              ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
-              document.body.appendChild(ta); ta.select();
-              ok = document.execCommand('copy'); document.body.removeChild(ta);
-            }
-          } catch(_) {}
-          const orig = 'Copy';
-          btn.textContent = ok ? 'Copied ✓' : 'Copy failed';
-          clearTimeout(btn._flashTimer);
-          btn._flashTimer = setTimeout(() => { btn.textContent = orig; }, 1400);
+          // 2. Row click → locate the source sentence in the input
+          const row = e.target.closest && e.target.closest('[data-rd-locate]');
+          if(row && input){
+            e.preventDefault();
+            e.stopPropagation();
+            const matched = row.getAttribute('data-rd-locate') || '';
+            if(!matched) return;
+            const raw = input.value || '';
+            const idx = raw.toLowerCase().indexOf(matched.toLowerCase());
+            if(idx < 0) return;
+            // Extend selection to the surrounding sentence so users see
+            // context, not just the bare matched token. Sentence = run of
+            // non-terminator chars on either side.
+            const sentenceTerm = /[.!?;\n]/g;
+            const startMatch = raw.slice(0, idx).search(sentenceTerm);
+            const selStart = startMatch < 0 ? 0 : startMatch + 1;
+            const after = raw.slice(idx + matched.length);
+            const endRel = after.search(sentenceTerm);
+            const selEnd = idx + matched.length + (endRel < 0 ? 0 : endRel);
+            input.focus();
+            try { input.setSelectionRange(selStart, selEnd); } catch(_) {}
+            // Brief flash on the textarea so the selection is visible
+            // even if the user's eye was on the risk list a moment ago.
+            input.classList.add('rd-flash');
+            clearTimeout(input._rdFlashTimer);
+            input._rdFlashTimer = setTimeout(() => {
+              input.classList.remove('rd-flash');
+            }, 1200);
+          }
+        });
+        // Keyboard parity: Enter / Space on a focused row triggers locate
+        riskDetail.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-rd-locate]');
+          if(!row) return;
+          e.preventDefault();
+          row.click();
         });
       }
 

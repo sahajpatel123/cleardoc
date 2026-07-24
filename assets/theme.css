@@ -536,6 +536,15 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-detail-row.trap .rd-hit{background:var(--danger-tint)}
 .risk-detail-row.watch .rd-hit{background:var(--amber-tint)}
 .risk-detail-empty{padding:10px;color:var(--ink-soft);font-style:italic}
+/* Click-to-locate: rows are buttons (delegated click + keyboard).
+ * Cursor pointer + hover bg signal clickability. */
+.risk-detail-row{cursor:pointer;transition:background .12s}
+.risk-detail-row:hover,.risk-detail-row:focus{background:var(--paper2)}
+.risk-detail-row:focus{outline:2px solid var(--accent);outline-offset:-2px}
+/* Textarea flash — brief background pulse when a risk row is clicked
+ * so the user immediately sees where in the source the matched token
+ * lives. Pairs with setSelectionRange to draw the eye to context. */
+.work textarea.rd-flash{box-shadow:inset 0 -3px 0 var(--accent),0 0 0 3px var(--accent-glow);transition:box-shadow .15s}
 /* Document-type badge — distinct color per category so users recognize
  * their doc at a glance. Palette mirrors the existing editorial
  * system (green / amber / ink / accent) so the badge sits naturally

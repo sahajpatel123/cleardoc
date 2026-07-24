@@ -2239,6 +2239,65 @@ test("analyzer: deadlines preview shows inline urgency-dot timeline (every deadl
     ".dp-timeline must be an inline-flex row (compact, inline with the label)");
 });
 
+test("analyzer: clicking a risk row highlights the source sentence in the input", () => {
+  // Polishes iter #5 — clicking a matched pattern now locates the
+  // source sentence in the textarea so users see context. Pairs the
+  // "what" (the matched token in the list) with the "where" (the
+  // original clause in the document).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // renderRiskDetail must add data-rd-locate + tabindex + role to rows
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(renderFn, "renderRiskDetail() must exist");
+  assert.match(renderFn[0], /data-rd-locate="/,
+    "each row must carry data-rd-locate for the click handler to find the source text");
+  assert.match(renderFn[0], /tabindex="0"/,
+    "each row must be tabindex=0 for keyboard focus");
+  assert.match(renderFn[0], /role="button"/,
+    "each row must have role=button for screen-reader semantics");
+  // Must esc() the matched substring before going into the attribute
+  // (defense against attribute-injection via crafted doc text)
+  assert.match(renderFn[0], /esc\(h\.matched[\s\S]+?data-rd-locate/,
+    "data-rd-locate must escape the matched substring (attribute-injection defense)");
+
+  // Click handler must locate the source sentence + extend selection
+  assert.match(appSrc, /riskDetail\.addEventListener\(\s*['"]click['"][\s\S]+?data-rd-locate/,
+    "riskDetail click handler must handle [data-rd-locate] clicks");
+  assert.match(appSrc,
+    /data-rd-locate[\s\S]+?input\.setSelectionRange/,
+    "click handler must call input.setSelectionRange to highlight the match");
+  // Must extend the selection to the surrounding sentence (context)
+  assert.match(appSrc,
+    /data-rd-locate[\s\S]+?\.search\(sentenceTerm\)/,
+    "click handler must extend the selection to the surrounding sentence (context, not just the bare token)");
+  // Must flash the textarea so the selection is visually obvious
+  assert.match(appSrc,
+    /data-rd-locate[\s\S]+?classList\.add\(['"]rd-flash['"]\)/,
+    "click handler must add 'rd-flash' to the textarea for a brief visual pulse");
+
+  // Keyboard parity: Enter / Space triggers locate
+  assert.match(appSrc, /riskDetail\.addEventListener\(\s*['"]keydown['"][\s\S]+?Enter/,
+    "riskDetail must handle Enter key on rows for keyboard parity");
+  assert.match(appSrc, /riskDetail\.addEventListener\(\s*['"]keydown['"][\s\S]+?\s*e\.key\s*!==\s*['"]Enter['"][\s\S]+?\s*e\.key\s*!==\s*['"] ['"]/,
+    "keydown handler must accept both Enter and Space keys");
+
+  // CSS: rows signal clickability
+  assert.match(cssSrc, /\.risk-detail-row\{[^}]*cursor:\s*pointer/,
+    ".risk-detail-row must be cursor:pointer (signals clickability)");
+  assert.match(cssSrc, /\.risk-detail-row:hover/,
+    ".risk-detail-row must have a hover state");
+  // Focus state for keyboard users
+  assert.match(cssSrc, /\.risk-detail-row:focus/,
+    ".risk-detail-row must have a focus state");
+  // Textarea flash for the locate pulse
+  assert.match(cssSrc, /\.work textarea\.rd-flash/,
+    "textarea must have a .rd-flash style for the locate pulse");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
