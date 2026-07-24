@@ -138,20 +138,6 @@
     return (t.match(/\b[\w'-]+\b/g) || []).length >= 8;
   }
 
-  // Approximate reading time in plain English. Uses 250 words/min as the
-  // silent-reading baseline (Brysbaert 2019 meta-analysis of ~9000 readers)
-  // — fast enough to feel honest for legal text, conservative enough that
-  // dense documents don't undersell. Rounds to the nearest 30s once we hit
-  // 1 min so the display doesn't churn between "1 min" and "1 min" as the
-  // user types. Returns '—' for empty / wordless input so the UI never
-  // shows "0s" or "0 min" (which would mislead the user into thinking the
-  // document is trivial).
-  //   readTime("")                              → '—'
-  //   readTime("hello world")                   → '5s'  (2 words → <60s)
-  //   readTime("a ".repeat(100))                → '24s' (100 words → 24s)
-  //   readTime("a ".repeat(500))                → '2 min' (500 words → 2.0 min)
-  //   readTime("a ".repeat(1500))               → '6 min' (1500 words → 6.0 min)
-  //   readTime("a ".repeat(250))                → '1 min' (250 words → 1.0 min)
   function readTime(text){
     const t = String(text||'').trim();
     if (!t) return '—';
@@ -163,6 +149,50 @@
     // 75s → 1.5 min, 100s → 1.5 min, 105s → 2 min.
     const minutes = Math.round(seconds / 30) / 2;
     return minutes + ' min';
+  }
+
+  // Document-type detection — labels the input as a lease, medical bill,
+  // terms of service, etc., so users orient before clicking Analyze.
+  // Each type is keyed off 2-4 distinctive phrases that are highly
+  // unlikely to co-occur in other doc types. We score by total matched
+  // keyword count and return the highest-scoring type, with a
+  // confidence floor (≥2 matches) so the badge only appears when we're
+  // actually confident — better to say nothing than mislabel.
+  //   detectDocType("")                                      → null
+  //   detectDocType("Tenant shall pay rent to the lessor…")   → {name:'lease', label:'Lease', confidence:'high', matches:3}
+  //   detectDocType("This subscription auto-renews monthly…") → {name:'subscription', label:'Subscription', confidence:'high', matches:2}
+  //   detectDocType("hello world foo bar baz")               → null  (only 1 weak match — below confidence floor)
+  const DOC_TYPES = [
+    { name: 'lease',          label: 'Lease',          patterns: [/\b(landlord|lessor|lessee|tenant|security deposit|premises|rent)\b/gi, /\b(eviction|lease term|monthly rent|square (feet|footage))\b/gi] },
+    { name: 'medical',        label: 'Medical Bill',   patterns: [/\b(medical bill|insurance|EOB|copay|coinsurance|deductible|provider)\b/gi, /\b(patient|CPT|ICD|balance bill|facility fee)\b/gi] },
+    { name: 'subscription',   label: 'Subscription',   patterns: [/\b(auto[- ]?renew|subscription|billing (cycle|period)|monthly fee|cancel anytime)\b/gi, /\b(free trial|prorat|refund)\b/gi] },
+    { name: 'employment',     label: 'Employment',     patterns: [/\b(employee|employer|salary|wages|at-will|non[- ]?compete|severance)\b/gi, /\b(overtime|promotion|probation|stock option)\b/gi] },
+    { name: 'loan',           label: 'Loan',           patterns: [/\b(loan|principal|interest rate|mortgage|lender|borrower)\b/gi, /\b(repayment|amortiz|collateral|default|escrow)\b/gi] },
+    { name: 'privacy',        label: 'Privacy Policy', patterns: [/\b(privacy policy|personal (data|information)|cookies|gdpr|ccpa)\b/gi, /\b(data (collection|sharing|retention)|third[- ]?party|opt[- ]?out)\b/gi] },
+    { name: 'terms',          label: 'Terms of Service', patterns: [/\b(terms of (service|use)|acceptable use|prohibited|content)\b/gi, /\b(intellectual property|indemnif|limitation of liability|warranty)\b/gi] },
+    { name: 'insurance',      label: 'Insurance',      patterns: [/\b(insurance|claim|coverage|policyholder|premium|deductible)\b/gi, /\b(adjuster|denial|appeal|underwrit|exclusion)\b/gi] },
+    { name: 'debt',           label: 'Debt Collection', patterns: [/\b(debt|collection|past due|delinquent|creditor)\b/gi, /\b(minimum payment|settlement|charge[- ]?off|wage garnishment)\b/gi] },
+    { name: 'tax',            label: 'Tax',            patterns: [/\b(IRS|tax return|adjusted gross|taxable income|filing)\b/gi, /\b(audit|deduction|withhold|1099|W-?2|estimated tax)\b/gi] },
+  ];
+  function detectDocType(text){
+    const t = String(text||'').trim();
+    if (!t || t.length < 20) return null;
+    let best = null;
+    for (const d of DOC_TYPES) {
+      let m = 0;
+      for (const re of d.patterns) {
+        const hits = t.match(re);
+        if (hits) m += hits.length;
+      }
+      // Confidence: 2-3 matches = "likely", 4+ = "high". 1 match is too
+      // weak (single "tenant" mention in a credit-card terms doc would
+      // be misleading), so we require ≥2.
+      if (m < 2) continue;
+      const conf = m >= 4 ? 'high' : 'likely';
+      const candidate = { name: d.name, label: d.label, confidence: conf, matches: m };
+      if (!best || m > best.matches) best = candidate;
+    }
+    return best;
   }
 
   // Qualitative band for the reading-time pill. Returns one of:
@@ -1082,6 +1112,7 @@
           viewShareBtn=$('#viewShareBtn'),dismissShareBtn=$('#dismissShareBtn'),
           textStats=$('#textStats'),statWords=$('#statWords'),statChars=$('#statChars'),
           statReadTime=$('#statReadTime'),statLevel=$('#statLevel'),statCap=$('#statCap'),
+          statDocType=$('#statDocType'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
@@ -2321,6 +2352,26 @@
         const band = readTimeBand(raw);
         statReadTime.classList.remove('band-quick','band-standard','band-long','band-marathon');
         if (band) statReadTime.classList.add('band-' + band);
+      }
+      // Document-type badge — "Lease" / "Medical Bill" / "Subscription" etc.
+      // Single class swap (doc-type-<name>) lets the CSS own the color
+      // (each type gets a distinct accent so users can recognize their
+      // doc type at a glance). Hidden when no type matches — better to
+      // say "—" than mislabel.
+      if(statDocType){
+        const dt = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
+        if(dt){
+          statDocType.textContent = dt.label;
+          statDocType.title = 'Looks like a ' + dt.label.toLowerCase() +
+            ' (' + dt.matches + ' signal' + (dt.matches === 1 ? '' : 's') + ')';
+          // Drop any old doc-type classes, then add the active one
+          statDocType.className = '';
+          statDocType.classList.add('dt-' + dt.name, 'dt-conf-' + dt.confidence);
+        } else {
+          statDocType.textContent = '—';
+          statDocType.title = '';
+          statDocType.className = '';
+        }
       }
       statLevel.textContent = isGradable(raw) ? (gradeLevel(raw) + 'th') : '—';
       if(statCap) statCap.textContent = cap.toLocaleString();

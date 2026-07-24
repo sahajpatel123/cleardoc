@@ -1750,6 +1750,66 @@ test("analyzer: expanded risk detail has a Copy button that exports matches as p
     ".rd-copy must be a clickable button (cursor: pointer)");
 });
 
+test("analyzer: document-type badge detects lease / medical / subscription / etc. as the user types", () => {
+  // Detects what kind of document the user is reading — lease, medical
+  // bill, subscription, etc. — and shows a color-coded badge in the
+  // textstats row. Pairs with the reading-time + risk-preview to give
+  // a complete "what am I about to read?" picture before Analyze.
+  // The badge is hidden when confidence is too low (single keyword
+  // match) — better to say "—" than mislabel a credit-card terms doc
+  // as a lease because it once said "tenant".
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // detectDocType + DOC_TYPES must live at the IIFE level (sibling of readTime)
+  assert.match(appSrc, /const DOC_TYPES\s*=\s*\[/,
+    "DOC_TYPES array must exist at the IIFE level");
+  assert.match(appSrc, /function detectDocType\(text\)/,
+    "detectDocType() helper must exist at the IIFE level");
+
+  // Must cover the major categories users actually paste in
+  for (const t of ["lease", "medical", "subscription", "employment", "loan", "privacy", "terms", "insurance", "debt", "tax"]) {
+    assert.ok(appSrc.includes(`name: '${t}'`),
+      `DOC_TYPES must include a '${t}' entry (the major categories users paste)`);
+  }
+
+  // Confidence floor — single matches must NOT trigger the badge
+  assert.match(appSrc, /if \(m < 2\) continue;/,
+    "detectDocType must require ≥2 matches (single-keyword label would mislead)");
+
+  // analyze.html must have the #statDocType placeholder in textstats
+  assert.match(html, /id="statDocType"/,
+    "analyze.html must contain #statDocType in the textstats row");
+
+  // updateTextStats must paint the label and toggle the dt-<name> class
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0], /detectDocType\(raw\)/,
+    "updateTextStats() must call detectDocType(raw)");
+  assert.match(updateBlock[0], /statDocType\.textContent\s*=\s*dt\.label/,
+    "statDocType must show the detected type's label");
+  assert.match(updateBlock[0], /classList\.add\(\s*['"]dt-['"]\s*\+\s*dt\.name/,
+    "updateTextStats must add the 'dt-' + dt.name class for color coding");
+  // Must show '—' (not hide) when no type detected, so the row stays aligned
+  assert.match(updateBlock[0], /statDocType\.textContent\s*=\s*'—'/,
+    "statDocType must show '—' (not blank) when no type detected, so the row stays aligned");
+
+  // CSS must define a distinct color per doc type
+  for (const cls of [".dt-lease", ".dt-medical", ".dt-subscription", ".dt-employment",
+                     ".dt-loan", ".dt-privacy", ".dt-terms", ".dt-insurance",
+                     ".dt-debt", ".dt-tax"]) {
+    assert.ok(cssSrc.includes(cls),
+      `theme.css must define ${cls} for distinct doc-type colors`);
+  }
+  // Confidence styling — 'high' must visually pop more than 'likely'
+  assert.match(cssSrc, /\.dt-conf-high\{[^}]*font-weight:\s*800/,
+    ".dt-conf-high must use font-weight 800 so high-confidence types pop");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

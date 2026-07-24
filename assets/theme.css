@@ -536,6 +536,22 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-detail-row.trap .rd-hit{background:var(--danger-tint)}
 .risk-detail-row.watch .rd-hit{background:var(--amber-tint)}
 .risk-detail-empty{padding:10px;color:var(--ink-soft);font-style:italic}
+/* Document-type badge — distinct color per category so users recognize
+ * their doc at a glance. Palette mirrors the existing editorial
+ * system (green / amber / ink / accent) so the badge sits naturally
+ * in the textstats row. Confidence: 'likely' = bold, 'high' = bold + tinted. */
+.textstats .dt-lease{color:#1f4e79}
+.textstats .dt-medical{color:#a8326b}
+.textstats .dt-subscription{color:#5a4e8b}
+.textstats .dt-employment{color:#176B53}
+.textstats .dt-loan{color:#7a5b00}
+.textstats .dt-privacy{color:#1f4e79}
+.textstats .dt-terms{color:var(--ink)}
+.textstats .dt-insurance{color:#2e6b4f}
+.textstats .dt-debt{color:var(--danger)}
+.textstats .dt-tax{color:#7a5b00}
+.textstats .dt-conf-likely{font-weight:700}
+.textstats .dt-conf-high{font-weight:800;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:2px}
 /* Toolbar row — pattern count + Copy button. Stays visually separate
  * from the rows so the button doesn't look like another risk tag. */
 .risk-detail-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border-bottom:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
