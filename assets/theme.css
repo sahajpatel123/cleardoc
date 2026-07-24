@@ -521,8 +521,9 @@
  * reset button defaults + add a chevron that rotates on open. */
 button.risk-preview{font:inherit;color:inherit;background:inherit;border:var(--bd-hair) solid currentColor;cursor:pointer;text-align:left;width:100%;justify-content:flex-start}
 button.risk-preview:hover{filter:brightness(.96)}
-.risk-preview .rp-chev{display:inline-block;margin-left:auto;transition:transform .18s ease;font-weight:800;opacity:.65}
-.risk-preview.rp-open .rp-chev{transform:rotate(180deg);opacity:1}
+.risk-preview .rp-showall{margin-left:auto;font-weight:800;letter-spacing:.06em;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:2px;text-decoration-style:dotted}
+.risk-preview .rp-chev{display:inline-block;margin-left:2px;transition:transform .18s ease;font-weight:800}
+.risk-preview.rp-open .rp-chev{transform:rotate(180deg)}
 /* Expanded pattern list — one row per matched pattern. */
 .risk-detail{margin-top:4px;border:var(--bd-hair) solid var(--ink-soft);border-top:0;background:var(--paper);font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm)}
 .risk-detail-row{display:grid;grid-template-columns:auto auto 1fr;gap:8px;align-items:baseline;padding:7px 10px;border-top:var(--bd-hair) solid var(--ink-soft)}

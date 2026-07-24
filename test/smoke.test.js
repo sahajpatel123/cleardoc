@@ -2298,6 +2298,36 @@ test("analyzer: clicking a risk row highlights the source sentence in the input"
     "textarea must have a .rd-flash style for the locate pulse");
 });
 
+test("analyzer: risk-preview pill has an inline 'show all' link to make expand affordance obvious", () => {
+  // Polishes iter #5 — the chevron hint isn't always noticed. Adds
+  // an explicit "show all" link inside the pill so users know clicking
+  // expands the match list. Styled as a dotted-underline link to
+  // visually distinguish it from the badge content.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: show-all element must exist inside the pill
+  assert.match(html, /<span class="rp-showall">/,
+    "#riskPreview must contain an explicit <span class=\"rp-showall\"> link");
+
+  // The chevron is now INSIDE the show-all (visually grouped)
+  assert.match(html, /rp-showall">\s*show all [\s\S]+?rp-chev/,
+    "the chevron must sit inside .rp-showall (visual grouping)");
+
+  // CSS: show-all must be styled as a discoverable link
+  assert.match(cssSrc, /\.risk-preview \.rp-showall\{[^}]*text-decoration:\s*underline/,
+    ".rp-showall must use text-decoration:underline so it reads as a link");
+  // Margin-left auto pushes it to the right end of the pill
+  assert.match(cssSrc, /\.risk-preview \.rp-showall\{[^}]*margin-left:\s*auto/,
+    ".rp-showall must use margin-left:auto so it sits at the right end of the pill");
+  // Must be font-weight:800 so it visually anchors the affordance
+  assert.match(cssSrc, /\.risk-preview \.rp-showall\{[^}]*font-weight:\s*800/,
+    ".rp-showall must be font-weight:800 (anchors the affordance)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
