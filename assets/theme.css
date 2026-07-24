@@ -556,6 +556,12 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-detail-row.trap .rd-hit{background:var(--danger-tint)}
 .risk-detail-row.watch .rd-hit{background:var(--amber-tint)}
 .risk-detail-empty{padding:10px;color:var(--ink-soft);font-style:italic}
+/* Read-aloud button — small 🔊 in the risk toolbar */
+.risk-detail-toolbar .rd-speak{font:inherit;font-size:.92em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:4px 10px;cursor:pointer;transition:background .15s,color .15s;margin-right:6px}
+.risk-detail-toolbar .rd-speak:hover{background:var(--ink);color:var(--paper)}
+.risk-detail-toolbar .rd-speak.rd-speaking{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* Active-row highlight — karaoke-style underlay while speaking */
+.risk-detail-row.rd-speaking{background:var(--accent-glow)!important;box-shadow:inset 3px 0 0 var(--accent)}
 /* Click-to-locate: rows are buttons (delegated click + keyboard).
  * Cursor pointer + hover bg signal clickability. */
 .risk-detail-row{cursor:pointer;transition:background .12s}

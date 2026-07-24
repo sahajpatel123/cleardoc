@@ -2947,6 +2947,49 @@ test("analyzer: Read-aloud highlights each sentence as it is spoken", () => {
     ".spoken-active must have a visible underline (box-shadow inset) for the karaoke feel");
 });
 
+test("analyzer: Read-aloud button speaks the expanded risk list with row-by-row highlight", () => {
+  // New feature — 🔊 in the risk toolbar speaks the matched-pattern
+  // list aloud. Each row gets a karaoke-style highlight as it's
+  // spoken. Pairs with iter #27 (TTS on rewrite) and iter #5/6
+  // (expanded risk list).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // renderRiskDetail must emit the speak button
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(renderFn, "renderRiskDetail() must exist");
+  assert.match(renderFn[0], /data-rd-speak/,
+    "toolbar must include a [data-rd-speak] button");
+
+  // Delegated click handler must handle the speak button
+  assert.match(appSrc, /e\.target\.closest[\s\S]+?data-rd-speak/,
+    "riskDetail click handler must handle [data-rd-speak] clicks");
+  // Must use SpeechSynthesis (same pattern as iter #27)
+  assert.match(appSrc, /data-rd-speak[\s\S]+?SpeechSynthesisUtterance/,
+    "speak handler must construct a SpeechSynthesisUtterance");
+  assert.match(appSrc, /data-rd-speak[\s\S]+?speechSynthesis\.speak/,
+    "speak handler must call speechSynthesis.speak() to start playback");
+  assert.match(appSrc, /data-rd-speak[\s\S]+?speechSynthesis\.cancel/,
+    "speak handler must call speechSynthesis.cancel() to stop");
+  // Must toggle the active row class on boundary events (karaoke)
+  assert.match(appSrc, /data-rd-speak[\s\S]+?onboundary[\s\S]+?rd-speaking/,
+    "speak handler must toggle .rd-speaking class on row boundary events");
+  // Must clear the highlight on stop / end / error
+  assert.match(appSrc, /data-rd-speak[\s\S]+?onend[\s\S]+?rd-speaking/,
+    "speak handler must clear .rd-speaking on end/error");
+
+  // CSS: speak button + row highlight
+  assert.match(cssSrc, /\.risk-detail-toolbar \.rd-speak\{[^}]*cursor:\s*pointer/,
+    ".rd-speak must be cursor:pointer (signals clickability)");
+  assert.match(cssSrc, /\.risk-detail-toolbar \.rd-speak\.rd-speaking\{[^}]*var\(--accent\)/,
+    ".rd-speak.rd-speaking must use --accent (speaking = visually loud)");
+  assert.match(cssSrc, /\.risk-detail-row\.rd-speaking\{[^}]*var\(--accent-glow\)/,
+    ".rd-speaking row must use --accent-glow bg (karaoke highlight)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

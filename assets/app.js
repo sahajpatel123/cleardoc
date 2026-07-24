@@ -1555,6 +1555,7 @@
       parts.push(
         '<div class="risk-detail-toolbar">',
           '<span class="rd-count">' + ordered.length + ' pattern' + (ordered.length === 1 ? '' : 's') + '</span>',
+          '<button type="button" class="rd-speak" data-rd-speak="1" aria-label="Read risks aloud">🔊</button>',
           '<button type="button" class="rd-copy" data-rd-copy="1" aria-label="Copy match list to clipboard">Copy</button>',
         '</div>'
       );
@@ -3457,6 +3458,82 @@
             copyBtn.textContent = ok ? 'Copied ✓' : 'Copy failed';
             clearTimeout(copyBtn._flashTimer);
             copyBtn._flashTimer = setTimeout(() => { copyBtn.textContent = orig; }, 1400);
+            return;
+          }
+          // 1b. Speak button — read the matched patterns aloud via
+          // SpeechSynthesis. Each row gets a karaoke-style highlight
+          // as the voice reads it (reuses the rd-speaking class).
+          const speakBtn = e.target.closest && e.target.closest('[data-rd-speak]');
+          if(speakBtn && typeof window !== 'undefined' && 'speechSynthesis' in window){
+            e.preventDefault();
+            e.stopPropagation();
+            // If currently speaking, stop
+            if(window.speechSynthesis.speaking){
+              try { window.speechSynthesis.cancel(); } catch(_) {}
+              speakBtn.classList.remove('rd-speaking');
+              return;
+            }
+            // Pull the live hit list (matches what's painted)
+            let hits = (typeof matchRisks === 'function') ? matchRisks(input ? input.value : '') : [];
+            if(!Array.isArray(hits) || hits.length === 0){
+              const rows = riskDetail.querySelectorAll('.risk-detail-row');
+              if(rows.length){
+                hits = Array.from(rows).map((r) => {
+                  const tag = (r.querySelector('.rd-tag') || {}).textContent || '';
+                  const hit = (r.querySelector('.rd-hit') || {}).textContent || '';
+                  const why = (r.querySelector('.rd-why') || {}).textContent || '';
+                  const sev = /TRAP/.test(tag) ? 'r' : /WATCH/.test(tag) ? 'a' : 'g';
+                  return { sev, matched: hit.trim(), why: why.trim() };
+                });
+              }
+            }
+            if(!hits.length) return;
+            // Build a spoken script with explicit per-row markers so we
+            // can advance the highlight via boundary events. Inject a
+            // silent-ish marker (a period) between each row so the
+            // boundary event fires reliably for each transition.
+            const labelFor = (h) => h.sev === 'r' ? 'trap' : (h.sev === 'a' ? 'watch' : 'note');
+            const script = hits.map(h => labelFor(h) + '. ' + (h.matched || '') + '. ' + (h.why || '') + '.').join(' ');
+            const rowSpans = Array.from(riskDetail.querySelectorAll('.risk-detail-row'));
+            const u = new SpeechSynthesisUtterance(script);
+            // Prefer English voice
+            try {
+              const voices = window.speechSynthesis.getVoices();
+              const v = voices.find(v => /^en[-_]/i.test(v.lang)) || voices[0];
+              if(v) u.voice = v;
+            } catch(_){}
+            u.rate = 1.0;
+            // Estimate which row is being spoken by tracking charIndex
+            let perRow = []; // [{end: charIndex, idx: rowIdx}]
+            let pos = 0;
+            for(let i = 0; i < hits.length; i++){
+              const line = labelFor(hits[i]) + '. ' + (hits[i].matched || '') + '. ' + (hits[i].why || '') + '.';
+              pos += line.length + 1; // +1 for the join space
+              perRow.push({ end: pos, idx: i });
+            }
+            let activeIdx = -1;
+            u.onboundary = (ev) => {
+              if(typeof ev.charIndex !== 'number') return;
+              let found = activeIdx;
+              for(const r of perRow){
+                if(ev.charIndex < r.end){ found = r.idx; break; }
+                found = r.idx;
+              }
+              if(found !== activeIdx && found >= 0 && rowSpans[found]){
+                activeIdx = found;
+                rowSpans.forEach((s, i) => s.classList.toggle('rd-speaking', i === found));
+                try { rowSpans[found].scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(_){}
+              }
+            };
+            u.onend = u.onerror = () => {
+              speakBtn.classList.remove('rd-speaking');
+              rowSpans.forEach(s => s.classList.remove('rd-speaking'));
+            };
+            try {
+              window.speechSynthesis.cancel();
+              window.speechSynthesis.speak(u);
+              speakBtn.classList.add('rd-speaking');
+            } catch(_){}
             return;
           }
           // 2. Row click → locate the source sentence in the input
