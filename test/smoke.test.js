@@ -3682,35 +3682,75 @@ test("analyzer: Apply-all button replaces every matched risk with its counter in
   assert.match(renderFn[0], /Apply all/,
     "button label must read 'Apply all'");
 
-  // Click handler must handle the button
+  // Click handler must handle the button (calls doApplyAll after confirm)
   assert.match(appSrc, /riskDetail\.addEventListener[\s\S]+?data-rd-apply-all/,
     "riskDetail click handler must handle [data-rd-apply-all] clicks");
-  // Must iterate hits and replace each matched token
-  assert.match(appSrc, /data-rd-apply-all[\s\S]+?for\s*\(\s*const h of hits/,
-    "Apply-all must iterate through the hits");
-  assert.match(appSrc, /data-rd-apply-all[\s\S]+?workingText\.slice\(0,\s*idx\)\s*\+\s*h\.counter/,
-    "Apply-all must splice h.counter in at the matched position");
-  // Must skip already-applied suggestions (so clicking twice doesn't re-apply)
-  assert.match(appSrc, /data-rd-apply-all[\s\S]+?_appliedSuggestions\.has/,
-    "Apply-all must skip already-applied suggestions (idempotent)");
-  // Must track the count for the success feedback
-  assert.match(appSrc, /data-rd-apply-all[\s\S]+?applied\+\+/,
-    "Apply-all must track the count of applied suggestions");
-  // Must dispatch input event so live stats update
-  assert.match(appSrc, /data-rd-apply-all[\s\S]+?dispatchEvent\(new Event\(\s*['"]input['"]/,
-    "Apply-all must dispatch input event so live stats re-run");
-  // Must re-render so badges light up across all rows
-  assert.match(appSrc, /data-rd-apply-all[\s\S]+?updateTextStats/,
-    "Apply-all must call updateTextStats so the risk list re-renders");
-  // Must show feedback with the count
-  assert.match(appSrc, /data-rd-apply-all[\s\S]+?applied\+/,
-    "Apply-all must show the count in the flash feedback ('✓ applied N')");
+  // Must call the extracted doApplyAll helper (iter #48 refactor)
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?doApplyAll/,
+    "Apply-all click handler must call doApplyAll after confirm");
+  assert.match(appSrc, /function doApplyAll\(pending, input, aaBtn\)/,
+    "doApplyAll() helper must exist (iter #48 extraction)");
+  // doApplyAll must iterate + splice + skip + count
+  assert.match(appSrc, /function doApplyAll[\s\S]+?for\s*\(\s*const h of pending/,
+    "doApplyAll must iterate through the pending hits");
+  assert.match(appSrc, /function doApplyAll[\s\S]+?workingText\.slice\(0,\s*idx\)\s*\+\s*h\.counter/,
+    "doApplyAll must splice h.counter in at the matched position");
+  assert.match(appSrc, /function doApplyAll[\s\S]+?_appliedSuggestions\.has/,
+    "doApplyAll must skip already-applied suggestions (idempotent)");
+  assert.match(appSrc, /function doApplyAll[\s\S]+?applied\+\+/,
+    "doApplyAll must track the count of applied suggestions");
+  assert.match(appSrc, /function doApplyAll[\s\S]+?dispatchEvent\(new Event\(\s*['"]input['"]/,
+    "doApplyAll must dispatch input event so live stats re-run");
 
   // CSS: Apply-all must be styled distinctively (green = go)
   assert.match(cssSrc, /\.rd-apply-all\{[^}]*var\(--green\)/,
     ".rd-apply-all must use --green (positive action styling)");
   assert.match(cssSrc, /\.rd-apply-all\{[^}]*cursor:\s*pointer/,
     ".rd-apply-all must be cursor:pointer (signals clickability)");
+});
+
+test("analyzer: Apply-all shows a confirmation modal before modifying the source document", () => {
+  // Polishes iter #47 — the destructive batch action now requires
+  // an explicit confirm before rewriting the source document. Safety
+  // net against accidental rewrites of long docs.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Confirm modal helper must exist
+  assert.match(appSrc, /function showConfirmModal\(opts\)/,
+    "showConfirmModal() must exist at the IIFE level");
+  assert.match(appSrc, /showConfirmModal[\s\S]+?role.,.dialog/,
+    "confirm modal must have role='dialog' for a11y");
+  // Must handle Escape (cancel) + Enter (confirm)
+  assert.match(appSrc, /showConfirmModal[\s\S]+?Escape[\s\S]+?close\(false\)/,
+    "Escape key must close the modal (cancel)");
+  // Must close on background click
+  assert.match(appSrc, /showConfirmModal[\s\S]+?data-acm-bg/,
+    "modal must close when user clicks the background");
+
+  // doApplyAll must be extracted (so the confirm flow can call it)
+  assert.match(appSrc, /function doApplyAll\(pending, input, aaBtn\)/,
+    "doApplyAll() must exist (extracted from iter #47's inline handler)");
+
+  // Click handler must await the confirm before calling doApplyAll
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?await showConfirmModal/,
+    "Apply-all click handler must await the confirm modal");
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?if\s*\(\s*!ok\s*\)\s*return/,
+    "Apply-all must abort if the user cancels");
+  // Must show the count + undo hint in the modal body
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?Apply\s'\s\+\s*pending\.length/,
+    "confirm modal title must include the count (e.g. 'Apply 5 suggestions?')");
+  assert.match(appSrc, /data-rd-apply-all[\s\S]+?undo apply/,
+    "confirm modal body must mention the undo chip");
+
+  // CSS: confirm modal must be styled
+  assert.match(cssSrc, /\.apply-confirm-card/,
+    ".apply-confirm-card must have its own style rule (modal-specific layout)");
+  assert.match(cssSrc, /\.apply-confirm-actions \.acm-confirm\{[^}]*var\(--green\)/,
+    "confirm action must use --green (positive visual)");
 });
 
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {

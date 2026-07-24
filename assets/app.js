@@ -1471,6 +1471,77 @@
     _undoChip.hidden = false;
   }
 
+  // doApplyAll — apply each pending suggestion in sequence (called
+  // after the iter #48 confirmation modal). Same logic as the inline
+  // apply handler but extracted so the async confirm flow can call it
+  // without re-pulling hits.
+  function doApplyAll(pending, input, aaBtn){
+    if(!pending || pending.length === 0 || !input) return;
+    const before = input.value || '';
+    input._undoSnapshot = before;
+    let applied = 0;
+    let workingText = before;
+    for(const h of pending){
+      if(!h.counter || !h.matched) continue;
+      if(input._appliedSuggestions.has(h.counter)) continue;
+      const idx = workingText.toLowerCase().indexOf(h.matched.toLowerCase());
+      if(idx < 0) continue;
+      workingText = workingText.slice(0, idx) + h.counter + workingText.slice(idx + h.matched.length);
+      input._appliedSuggestions.add(h.counter);
+      applied++;
+    }
+    if(applied === 0) return;
+    input.value = workingText;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    if(typeof updateTextStats === 'function') updateTextStats();
+    showUndoChip();
+    if(aaBtn){
+      aaBtn.textContent = '✓ applied ' + applied;
+      clearTimeout(aaBtn._flashTimer);
+      aaBtn._flashTimer = setTimeout(() => { aaBtn.textContent = '✓ Apply all'; }, 1800);
+    }
+  }
+
+  // Confirm modal — generic in-page dialog used by destructive
+  // actions (e.g. iter #48's apply-all). Returns a Promise so the
+  // caller can await the user's choice. Reuses the kb-modal CSS class
+  // for visual consistency with the keyboard-shortcut help modal.
+  function showConfirmModal(opts){
+    return new Promise((resolve) => {
+      const m = document.createElement('div');
+      m.className = 'kb-modal apply-confirm-modal';
+      m.setAttribute('role','dialog');
+      m.setAttribute('aria-modal','true');
+      m.setAttribute('aria-labelledby','acm-title');
+      m.innerHTML =
+        '<div class="kb-modal-bg" data-acm-bg="1"></div>' +
+        '<div class="kb-modal-card apply-confirm-card">' +
+          '<h2 id="acm-title" class="kb-modal-title">' + esc(opts.title || 'Confirm') + '</h2>' +
+          '<div class="apply-confirm-body">' + (opts.bodyHtml || esc(opts.body || '')) + '</div>' +
+          '<div class="apply-confirm-actions">' +
+            '<button type="button" class="acm-btn acm-cancel" data-acm="0">Cancel</button>' +
+            '<button type="button" class="acm-btn acm-confirm" data-acm="1">' + esc(opts.confirmLabel || 'Confirm') + '</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(m);
+      // Focus the confirm button (safer default for destructive actions)
+      const confirmBtn = m.querySelector('.acm-confirm');
+      if(confirmBtn) setTimeout(() => confirmBtn.focus(), 0);
+      const close = (val) => {
+        if(m.parentNode) m.parentNode.removeChild(m);
+        resolve(val);
+      };
+      m.addEventListener('click', (e) => {
+        if(e.target.matches('[data-acm]')) close(e.target.getAttribute('data-acm') === '1');
+        else if(e.target.matches('[data-acm-bg]')) close(false);
+      });
+      m.addEventListener('keydown', (e) => {
+        if(e.key === 'Escape') close(false);
+        else if(e.key === 'Enter' && document.activeElement && document.activeElement.matches('.acm-confirm')) close(true);
+      });
+    });
+  }
+
   function analyzePage(){
     const input=$('#docInput'); if(!input) return;
     const btn=$('#analyzeBtn'),clearBtn=$('#clearBtn'),fileInput=$('#fileInput'),
@@ -4065,39 +4136,30 @@
             e.stopPropagation();
             let hits = (typeof matchRisks === 'function') ? matchRisks(input ? input.value : '') : [];
             if(!Array.isArray(hits) || hits.length === 0) return;
-            // Snapshot for undo (single-step revert covers the whole batch)
-            const before = input.value || '';
-            input._undoSnapshot = before;
+            // Count how many would actually be applied (skip already-applied)
             if(!input._appliedSuggestions) input._appliedSuggestions = new Set();
-            let applied = 0;
-            let workingText = before;
-            // Walk through hits and replace each one in the working text.
-            // Re-scan the working text each iteration so each successive
-            // replacement uses the updated content (avoids stale offsets).
-            for(const h of hits){
-              if(!h.counter || !h.matched) continue;
-              if(input._appliedSuggestions.has(h.counter)) continue;
-              const idx = workingText.toLowerCase().indexOf(h.matched.toLowerCase());
-              if(idx < 0) continue;
-              workingText = workingText.slice(0, idx) + h.counter + workingText.slice(idx + h.matched.length);
-              input._appliedSuggestions.add(h.counter);
-              applied++;
-            }
-            if(applied === 0){
+            const pending = hits.filter(h => h.counter && h.matched && !input._appliedSuggestions.has(h.counter));
+            if(pending.length === 0){
               aaBtn.textContent = 'nothing to apply';
               clearTimeout(aaBtn._flashTimer);
               aaBtn._flashTimer = setTimeout(() => { aaBtn.textContent = '✓ Apply all'; }, 1400);
               return;
             }
-            input.value = workingText;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            // Re-render the risk list so badges light up across all rows
-            if(typeof updateTextStats === 'function') updateTextStats();
-            showUndoChip();
-            // Flash feedback
-            aaBtn.textContent = '✓ applied ' + applied;
-            clearTimeout(aaBtn._flashTimer);
-            aaBtn._flashTimer = setTimeout(() => { aaBtn.textContent = '✓ Apply all'; }, 1800);
+            // Confirm before destructive batch apply (iter #48) —
+            // prevents accidental rewrites of a long document.
+            (async () => {
+              const ok = await showConfirmModal({
+                title: 'Apply ' + pending.length + ' suggestion' + (pending.length === 1 ? '' : 's') + '?',
+                bodyHtml: '<p>This will replace <b>' + pending.length + '</b> matched clause' +
+                  (pending.length === 1 ? '' : 's') + ' in your document with the counter-suggestions ' +
+                  'shown above. You can undo with the <b>↶ undo apply</b> chip after.</p>' +
+                  '<p class="apply-confirm-note">Tip: review each suggestion before applying — counter-clauses ' +
+                  'are a starting point, not legal advice.</p>',
+                confirmLabel: 'Apply all',
+              });
+              if(!ok) return;
+              doApplyAll(pending, input, aaBtn);
+            })();
             return;
           }
           // 1a. Redline button — export counter-suggestions as a
