@@ -595,6 +595,16 @@ button.risk-preview:hover{filter:brightness(.96)}
 .deadlines-preview .dp-cal:hover{background:currentColor;color:var(--paper)}
 .deadlines-preview .dp-cal:hover span,.deadlines-preview .dp-cal:hover b{color:var(--paper)}
 .deadlines-preview .dp-cal:disabled{opacity:.4;cursor:not-allowed}
+/* Inline urgency-dot timeline — one dot per detected deadline, color-
+ * coded by urgency. Reads at-a-glance: a row of red dots = "lots of
+ * urgency", mostly grey = "plenty of time". Title attribute holds the
+ * full label for hover / screen-reader. */
+.deadlines-preview .dp-timeline{display:inline-flex;align-items:center;gap:3px;vertical-align:middle}
+.deadlines-preview .dp-dot{display:inline-block;width:8px;height:8px;border-radius:50%;border:var(--bd-hair) solid currentColor}
+.deadlines-preview .dp-dot-past{background:var(--danger);color:var(--danger);border-color:var(--danger)}
+.deadlines-preview .dp-dot-urgent{background:var(--danger);color:var(--danger);border-color:var(--danger)}
+.deadlines-preview .dp-dot-soon{background:var(--amber);color:var(--amber);border-color:var(--amber)}
+.deadlines-preview .dp-dot-future{background:transparent;color:var(--ink-soft);border-color:var(--ink-soft)}
 /* Toolbar row — pattern count + Copy button. Stays visually separate
  * from the rows so the button doesn't look like another risk tag. */
 .risk-detail-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border-bottom:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}

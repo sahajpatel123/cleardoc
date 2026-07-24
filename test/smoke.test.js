@@ -2194,6 +2194,51 @@ test("analyzer: calendar button exports ALL detected deadlines as a multi-event 
     "button title must reflect the deadline count for hover + a11y");
 });
 
+test("analyzer: deadlines preview shows inline urgency-dot timeline (every deadline visible)", () => {
+  // Polishes iter #11/13 — instead of hiding 7 of 8 deadlines behind
+  // "soonest: X", shows every detected deadline as a colored dot in
+  // a horizontal row. Dot color = urgency band (past/urgent red,
+  // soon amber, future outlined). Hover for full label. Reads at-a-
+  // glance: a row of red dots = "lots of urgency", mostly outlined =
+  // "plenty of time".
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html must have the #deadlinesTimeline container
+  assert.match(html, /id="deadlinesTimeline"/,
+    "analyze.html must contain #deadlinesTimeline inside #deadlinesPreview");
+
+  // updateTextStats must render one dot per deadline with the right
+  // urgency class (past / urgent / soon / future)
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0], /deadlinesTimeline\.innerHTML\s*=\s*dots/,
+    "updateTextStats must render the dots into deadlinesTimeline.innerHTML");
+  // Must map urgencyDays to the four dot classes
+  for (const cls of ["dp-dot-past", "dp-dot-urgent", "dp-dot-soon", "dp-dot-future"]) {
+    assert.ok(updateBlock[0].includes(cls),
+      `updateTextStats must apply ${cls} based on urgencyDays`);
+  }
+  // Each dot must have a title attribute for hover / screen-reader
+  assert.match(updateBlock[0], /title="[^"]*"/,
+    "each dot must carry a title attribute (hover label)");
+  // Past / urgent dots are filled; future dots are outlined (visual
+  // gradient from past=filled red → future=outlined grey)
+  assert.match(cssSrc, /\.dp-dot-past\{[^}]*background:\s*var\(--danger\)/,
+    ".dp-dot-past must be filled danger red (already missed = filled)");
+  assert.match(cssSrc, /\.dp-dot-future\{[^}]*background:\s*transparent/,
+    ".dp-dot-future must be transparent / outlined (low pressure = outline only)");
+  assert.match(cssSrc, /\.dp-dot-soon\{[^}]*background:\s*var\(--amber\)/,
+    ".dp-dot-soon must be filled amber (coming up)");
+  // Timeline is a flex row of dots
+  assert.match(cssSrc, /\.dp-timeline\{[^}]*display:\s*inline-flex/,
+    ".dp-timeline must be an inline-flex row (compact, inline with the label)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

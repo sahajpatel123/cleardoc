@@ -1336,6 +1336,7 @@
           statDocType=$('#statDocType'),docTypeTip=$('#docTypeTip'),docTypeTipText=$('#docTypeTipText'),
           deadlinesPreview=$('#deadlinesPreview'),deadlinesCount=$('#deadlinesCount'),
           deadlinesPlural=$('#deadlinesPlural'),deadlinesSoonest=$('#deadlinesSoonest'),
+          deadlinesTimeline=$('#deadlinesTimeline'),
           deadlinesCalBtn=$('#deadlinesCalBtn'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
@@ -2688,6 +2689,34 @@
             else if(u < 7) deadlinesPreview.classList.add('dp-urgent');
             else if(u < 30) deadlinesPreview.classList.add('dp-soon');
             else deadlinesPreview.classList.add('dp-future');
+          }
+          // Inline urgency-dot timeline — shows EVERY detected deadline
+          // (up to 8) as a colored dot, so users see the full picture
+          // at a glance instead of just "soonest: X". Dot color maps
+          // to the same urgency bands as the pill bg. Hover for the
+          // full date label.
+          //   [● ● ○ ○]   ← 4 deadlines: 2 urgent, 2 future
+          if(deadlinesTimeline){
+            const dots = dls.map(d => {
+              const du = d.urgencyDays;
+              let cls = 'dp-dot-future';
+              if(typeof du === 'number'){
+                if(du < 0) cls = 'dp-dot-past';
+                else if(du < 7) cls = 'dp-dot-urgent';
+                else if(du < 30) cls = 'dp-dot-soon';
+              }
+              // Title = "Mon DD, YYYY — in N days" / "Nd ago" for screen-readers
+              let tip = d.label;
+              if(typeof du === 'number'){
+                if(du < 0) tip += ' (' + Math.abs(du) + 'd ago)';
+                else if(du > 0) tip = 'in ' + du + ' days';
+                else tip = 'today';
+              }
+              return '<span class="dp-dot ' + cls + '" title="' + tip +
+                '" aria-label="' + tip + '"></span>';
+            }).join('');
+            deadlinesTimeline.innerHTML = dots;
+            deadlinesTimeline.title = dls.length + ' deadline' + (dls.length === 1 ? '' : 's') + ' total';
           }
         }
       }
