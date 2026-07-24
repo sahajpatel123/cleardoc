@@ -4593,6 +4593,57 @@ test("analyzer: version-comparison delta is color-coded (green/red/gray)", () =>
     "delta-same must have its own (muted) styling");
 });
 
+test("analyzer: Multiple saved versions with names + a picker to choose between them", () => {
+  // New feature — users can save multiple baselines ("before first
+  // edit", "before second edit", etc.) and pick which one to
+  // compare against via a <select> dropdown. Up to 5 versions
+  // retained; oldest are dropped FIFO.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html: select must exist
+  assert.match(html, /id="savedVersionSelect"/,
+    "analyze.html must contain #savedVersionSelect");
+
+  // localStorage must store an array of versions (iter #71)
+  assert.match(appSrc, /function readVersions/,
+    "readVersions() must exist (iter #71 multi-version)");
+  assert.match(appSrc, /function writeVersions/,
+    "writeVersions() must exist (iter #71 multi-version)");
+  assert.match(appSrc, /function deleteVersion/,
+    "deleteVersion() must exist (single-version delete)");
+  assert.match(appSrc, /function clearAllVersions/,
+    "clearAllVersions() must exist (reset the array)");
+  // Must cap at 5 versions
+  assert.match(appSrc, /VERSIONS_MAX\s*=\s*5/,
+    "must cap at 5 versions (FIFO)");
+
+  // saveCurrentVersion must accept an optional name
+  assert.match(appSrc, /function saveCurrentVersion\(name\)/,
+    "saveCurrentVersion must accept a name parameter");
+
+  // Save must default to "Snapshot N" when no name given
+  assert.match(appSrc, /Snapshot ' \+ \(readVersions/,
+    "save must default to 'Snapshot N' when no name given");
+
+  // Active version ID is tracked
+  assert.match(appSrc, /_activeVersionId\s*=/,
+    "must track the active version ID");
+  // Picker change updates the active version
+  assert.match(appSrc, /savedVersionSelect\.addEventListener[\s\S]+?_activeVersionId/,
+    "picker change must update the active version");
+  // Picker change must call showClearVersionBtn to refresh the badge
+  assert.match(appSrc, /savedVersionSelect\.addEventListener[\s\S]+?showClearVersionBtn/,
+    "picker change must refresh the badge");
+
+  // showClearVersionBtn must repopulate the picker dropdown
+  assert.match(appSrc, /showClearVersionBtn[\s\S]+?savedVersionSelect\.innerHTML/,
+    "showClearVersionBtn must repopulate the picker dropdown");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

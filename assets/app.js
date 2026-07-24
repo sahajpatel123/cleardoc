@@ -1724,7 +1724,8 @@
           shareBtn=$('#shareBtn'),speakBtn=$('#speakBtn'),
           voicePicker=$('#voicePicker'),risksAvoidedBadge=$('#risksAvoidedBadge'),
           shareBadgeBtn=$('#shareBadgeBtn'),resetBadgeBtn=$('#resetBadgeBtn'),
-          badgeExplainBtn=$('#badgeExplainBtn'),savedVersionBadge=$('#savedVersionBadge'),voicePreviewBtn=$('#voicePreviewBtn'),
+          badgeExplainBtn=$('#badgeExplainBtn'),savedVersionBadge=$('#savedVersionBadge'),
+          savedVersionSelect=$('#savedVersionSelect'),voicePreviewBtn=$('#voicePreviewBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -5168,16 +5169,44 @@
      * users can save a version Monday, edit Tuesday, analyze
      * Wednesday, and see the comparison. */
     const VERSION_KEY = 'cleardoc:savedVersion';
-    function getSavedVersion(){
+    const VERSIONS_MAX = 5;
+    // Iter #71: localStorage now stores an ARRAY of versions
+    // (was a single object in iter #67). Older single-object
+    // payloads are normalized to a one-element array on read.
+    function readVersions(){
       try {
         const raw = localStorage.getItem(VERSION_KEY);
-        if(!raw) return null;
+        if(!raw) return [];
         const v = JSON.parse(raw);
-        if(!v || typeof v.ts !== 'number') return null;
-        return v;
-      } catch(_){ return null; }
+        if(Array.isArray(v)) return v.filter(x => x && typeof x.ts === 'number');
+        // Legacy single-object payload → wrap it
+        if(v && typeof v.ts === 'number') return [v];
+        return [];
+      } catch(_){ return []; }
     }
-    function saveCurrentVersion(){
+    function writeVersions(arr){
+      try {
+        const trimmed = arr.slice(0, VERSIONS_MAX);
+        localStorage.setItem(VERSION_KEY, JSON.stringify(trimmed));
+      } catch(_){}
+    }
+    // The "active" version is the most-recently-saved one by
+    // default. Users can pick a different one via the
+    // savedVersionSelect dropdown.
+    let _activeVersionId = null;
+    function getActiveVersion(){
+      const arr = readVersions();
+      if(arr.length === 0) return null;
+      if(_activeVersionId){
+        const found = arr.find(v => v.id === _activeVersionId);
+        if(found) return found;
+      }
+      return arr[0]; // most recent
+    }
+    function getSavedVersion(){
+      return getActiveVersion();
+    }
+    function saveCurrentVersion(name){
       if(typeof matchRisks !== 'function' || !input) return;
       const raw = input.value || '';
       if(raw.length < 12) return;
@@ -5186,13 +5215,28 @@
       const trap  = hits.filter(h => h && h.sev === 'r').length;
       const watch = hits.filter(h => h && h.sev === 'a').length;
       const note  = hits.filter(h => h && h.sev === 'g').length;
-      try {
-        localStorage.setItem(VERSION_KEY, JSON.stringify({
-          ts: Date.now(),
-          count, trap, watch, note,
-          snippet: raw.slice(0, 80).replace(/\s+/g, ' '),
-        }));
-      } catch(_){}
+      const ts = Date.now();
+      const id = 'v_' + ts + '_' + Math.random().toString(36).slice(2, 8);
+      const label = (name && name.trim()) || ('Snapshot ' + (readVersions().length + 1));
+      const entry = {
+        id, ts, label, count, trap, watch, note,
+        snippet: raw.slice(0, 80).replace(/\s+/g, ' '),
+      };
+      const arr = readVersions();
+      arr.unshift(entry);
+      writeVersions(arr);
+      _activeVersionId = id;
+    }
+    function deleteVersion(id){
+      const arr = readVersions().filter(v => v.id !== id);
+      writeVersions(arr);
+      if(_activeVersionId === id){
+        _activeVersionId = arr.length > 0 ? arr[0].id : null;
+      }
+    }
+    function clearAllVersions(){
+      try { localStorage.removeItem(VERSION_KEY); } catch(_){}
+      _activeVersionId = null;
     }
     const saveVersionBtn = document.getElementById('saveVersionBtn');
     const clearVersionBtn = document.getElementById('clearVersionBtn');
@@ -5215,27 +5259,60 @@
           savedVersionBadge.hidden = true;
         }
       }
+      // Iter #71: refresh the version selector dropdown with all
+      // saved versions. Users pick which one to compare against.
+      if(savedVersionSelect){
+        const arr = readVersions();
+        if(arr.length > 0){
+          savedVersionSelect.innerHTML = '<option value="">— pick a saved version —</option>' +
+            arr.map(v => '<option value="' + esc(v.id) + '"' +
+              (v.id === (_activeVersionId || arr[0].id) ? ' selected' : '') + '>' +
+              esc(v.label) + ' (' + v.count + ' risks · ' +
+              ((Date.now() - v.ts) < 60000 ? 'just now' :
+                (typeof formatRelativeTime === 'function' ? formatRelativeTime(v.ts) : 'recently')) +
+              ')</option>'
+            ).join('');
+          savedVersionSelect.hidden = false;
+        } else {
+          savedVersionSelect.hidden = true;
+        }
+      }
     }
     // After any analysis, the clear button reflects whether a
     // saved version exists. Cheap (one localStorage read).
     showClearVersionBtn();
     if(saveVersionBtn){
-      saveVersionBtn.addEventListener('click', () => {
+      saveVersionBtn.addEventListener('click', async () => {
+        // Iter #71: prompt for an optional name (default: Snapshot N).
+        // showConfirmModal doesn't accept a free-text input, so we use
+        // the native window.prompt for the name. Falls back silently
+        // to the default name on cancel.
+        let name = '';
+        try {
+          name = window.prompt('Name this version (optional):', '');
+          if(name === null) return; // user cancelled
+        } catch(_){ /* old browsers — skip the prompt */ }
         const before = getSavedVersion();
-        saveCurrentVersion();
+        saveCurrentVersion(name);
         const after = getSavedVersion();
         showClearVersionBtn();
         if(!after){
           showAnalyzeToast('📌 No version to save');
           return;
         }
-        if(before && before.count === after.count){
-          showAnalyzeToast('📌 Version saved (no change)');
-        } else if(before){
-          showAnalyzeToast('📌 Version saved (replaces a ' + before.count + '-risk baseline)');
+        if(before && before.id !== after.id && before.count === after.count){
+          showAnalyzeToast('📌 Saved as "' + after.label + '" (same risk count)');
         } else {
-          showAnalyzeToast('📌 Baseline saved (' + after.count + ' risks)');
+          showAnalyzeToast('📌 Saved as "' + after.label + '" (' + after.count + ' risks)');
         }
+      });
+    }
+    // Iter #71: select change — pick a different saved version to
+    // compare against (the dropdown was repopulated by showClearVersionBtn)
+    if(savedVersionSelect){
+      savedVersionSelect.addEventListener('change', () => {
+        _activeVersionId = savedVersionSelect.value || null;
+        showClearVersionBtn();
       });
     }
     if(clearVersionBtn){
