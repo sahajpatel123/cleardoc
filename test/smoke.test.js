@@ -1546,7 +1546,8 @@ test("analyzer: live risk-preview pill appears when the input matches trap patte
   // user types, so they see "3 risks" BEFORE hitting Analyze. Teaches
   // users that ClearDoc catches things they didn't know to look for.
   // The whole point: a clean doc shows nothing, a trap-laden doc
-  // shouts early.
+  // shouts early. Polish (iter #4): broken down by severity so the
+  // pill reads "1 trap · 2 watches · 1 note" instead of just a number.
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1554,43 +1555,65 @@ test("analyzer: live risk-preview pill appears when the input matches trap patte
   const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
-  // analyzePage() must define a countRisks() helper that walks the
-  // local RISK array and returns a count of distinct pattern matches.
+  // analyzePage() must define a countRisksBySeverity() helper that
+  // walks the local RISK array and returns {trap, watch, note} counts.
   const analyzePageFn = appSrc.match(/function analyzePage\(\)\{[\s\S]+?\n  \}/);
   assert.ok(analyzePageFn, "analyzePage() must exist");
-  assert.match(analyzePageFn[0], /function countRisks\(text\)/,
-    "countRisks() helper must live inside analyzePage so it can use the local RISK array");
+  assert.match(analyzePageFn[0], /function countRisksBySeverity\(text\)/,
+    "countRisksBySeverity() helper must live inside analyzePage so it can use the local RISK array");
   assert.match(analyzePageFn[0], /for \(const r of RISK\)/,
-    "countRisks() must iterate RISK to count distinct pattern matches");
+    "countRisksBySeverity() must iterate RISK to count distinct pattern matches");
+  // Must classify into all three severity buckets
+  for (const sev of ["out.trap", "out.watch", "out.note"]) {
+    assert.ok(analyzePageFn[0].includes(sev),
+      `countRisksBySeverity() must classify into ${sev}`);
+  }
 
-  // analyze.html must have the risk-preview block under textstats
+  // analyze.html must have the risk-preview block with all three
+  // severity sub-spans (trap is always visible, watch + note toggle)
   assert.match(html, /id="riskPreview"/,
     "analyze.html must contain #riskPreview below the textstats row");
   assert.match(html, /id="riskCount"/,
-    "analyze.html must contain #riskCount for the dynamic count");
-  assert.match(html, /id="riskS"/,
-    "analyze.html must contain #riskS for the pluralization span");
+    "analyze.html must contain #riskCount for the trap count");
+  assert.match(html, /id="watchWrap"/,
+    "analyze.html must contain #watchWrap (toggles on watch hits)");
+  assert.match(html, /id="watchCount"/,
+    "analyze.html must contain #watchCount for the watch count");
+  assert.match(html, /id="noteWrap"/,
+    "analyze.html must contain #noteWrap (toggles on note hits)");
+  assert.match(html, /id="noteCount"/,
+    "analyze.html must contain #noteCount for the note count");
 
-  // updateTextStats must paint the count and toggle the band class
+  // updateTextStats must paint the breakdown and toggle the band class
   const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
   assert.ok(updateBlock, "updateTextStats() must exist");
-  assert.match(updateBlock[0], /countRisks\(raw\)/,
-    "updateTextStats() must call countRisks(raw)");
+  assert.match(updateBlock[0], /countRisksBySeverity\(raw\)/,
+    "updateTextStats() must call countRisksBySeverity(raw)");
   assert.match(updateBlock[0], /riskPreview\.hidden\s*=\s*rc\s*===\s*0/,
     "riskPreview must hide itself when no patterns match (clean doc → no scary pill)");
-  assert.match(updateBlock[0], /riskCount\.textContent\s*=\s*rc/,
-    "riskCount must show the live pattern count");
+  assert.match(updateBlock[0], /riskCount\.textContent\s*=\s*sev\.trap/,
+    "riskCount must show the live trap count");
+  assert.match(updateBlock[0], /watchCount\.textContent\s*=\s*sev\.watch/,
+    "watchCount must show the live watch count");
+  assert.match(updateBlock[0], /noteCount\.textContent\s*=\s*sev\.note/,
+    "noteCount must show the live note count");
+  // Hide sub-spans with 0 count so the pill doesn't read "0 watches"
+  assert.match(updateBlock[0], /watchWrap\.hidden\s*=\s*sev\.watch\s*===\s*0/,
+    "watchWrap must hide itself when watch count is 0");
+  assert.match(updateBlock[0], /noteWrap\.hidden\s*=\s*sev\.note\s*===\s*0/,
+    "noteWrap must hide itself when note count is 0");
+  // Band priority: trap > watch > note (most severe wins the bg)
   assert.match(updateBlock[0],
-    /classList\.remove\(['"]risk-watch['"],\s*['"]risk-trap['"]\)/,
-    "updateTextStats must remove both risk bands before adding the active one");
-  assert.match(updateBlock[0], /if\s*\(rc\s*>=\s*3\)[\s\S]+?'risk-trap'[\s\S]+?else if\s*\(rc\s*>=\s*1\)[\s\S]+?'risk-watch'/,
-    "3+ risks → risk-trap band; 1-2 → risk-watch band");
+    /classList\.remove\(['"]risk-watch['"],\s*['"]risk-trap['"],\s*['"]risk-note['"]\)/,
+    "updateTextStats must remove all three risk bands before adding the active one");
+  assert.match(updateBlock[0], /if\s*\(sev\.trap\s*>=\s*1\)[\s\S]+?'risk-trap'[\s\S]+?else if\s*\(sev\.watch\s*>=\s*1\)[\s\S]+?'risk-watch'[\s\S]+?else[\s\S]+?'risk-note'/,
+    "trap → risk-trap band; watch → risk-watch band; note → risk-note band");
 
-  // CSS must define both band colors so the visual cue paints
-  assert.ok(cssSrc.includes(".risk-preview.risk-watch"),
-    "theme.css must define .risk-preview.risk-watch");
-  assert.ok(cssSrc.includes(".risk-preview.risk-trap"),
-    "theme.css must define .risk-preview.risk-trap");
+  // CSS must define all three band colors so the visual cue paints
+  for (const cls of [".risk-preview.risk-watch", ".risk-preview.risk-trap", ".risk-preview.risk-note"]) {
+    assert.ok(cssSrc.includes(cls),
+      `theme.css must define ${cls}`);
+  }
   // risk-trap must use --danger so it reads as the loudest band
   assert.match(cssSrc, /\.risk-preview\.risk-trap\{[^}]*var\(--danger\)/,
     ".risk-preview.risk-trap must use --danger so it shouts");

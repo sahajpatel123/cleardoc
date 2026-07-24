@@ -1082,7 +1082,9 @@
           viewShareBtn=$('#viewShareBtn'),dismissShareBtn=$('#dismissShareBtn'),
           textStats=$('#textStats'),statWords=$('#statWords'),statChars=$('#statChars'),
           statReadTime=$('#statReadTime'),statLevel=$('#statLevel'),statCap=$('#statCap'),
-          riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskS=$('#riskS');
+          riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),
+          watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
+          noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
     const sampleText=input.value.trim();
 
     // trap/risk patterns — severity g(note) a(watch) r(trap)
@@ -1097,22 +1099,31 @@
       {re:/governing law|jurisdiction|venue|arbitration/i, sev:'g', label:'Note', why:'Sets which laws/forum apply if there is a dispute.'},
       {re:/confidential|non-?disclosure|proprietary/i, sev:'g', label:'Note', why:'Restricts what you can share.'}
     ];
-    // Count how many distinct RISK patterns the input matches. Same
-    // pattern source as the analyze path, so the live preview is never
-    // out of sync with what Analyze will actually flag. Each pattern
-    // counted at most once even if it matches multiple times — "1 trap"
-    // is more useful to the user than "8 hits on the indemnify regex".
-    //   countRisks("")                           → 0
-    //   countRisks("The fee is non-refundable.") → 1
-    //   countRisks("Auto-renews. Sole discretion. Non-refundable.") → 3
-    function countRisks(text){
+    // Count how many distinct RISK patterns the input matches, broken
+    // down by severity. Same pattern source as the analyze path, so
+    // the live preview is never out of sync with what Analyze will
+    // actually flag. Each pattern counted at most once even if it
+    // matches multiple times — "1 trap" is more useful to the user
+    // than "8 hits on the indemnify regex".
+    //   countRisksBySeverity("")                           → {trap:0, watch:0, note:0}
+    //   countRisksBySeverity("The fee is non-refundable.") → {trap:1, watch:0, note:0}
+    //   countRisksBySeverity("Auto-renews. Sole discretion. Non-refundable.")
+    //                                                         → {trap:1, watch:2, note:0}
+    function countRisksBySeverity(text){
       const t = String(text||'').trim();
-      if (!t || t.length < 4) return 0;
-      let n = 0;
+      const out = { trap: 0, watch: 0, note: 0 };
+      if (!t || t.length < 4) return out;
       for (const r of RISK) {
-        if (r && r.re && r.re.test(t)) n += 1;
+        if (!r || !r.re || !r.re.test(t)) continue;
+        // Map severity code → out key. 'r' = trap (high), 'a' = watch
+        // (amber/medium), 'g' = note (gray/low). Unknown codes fall
+        // into 'note' as the safest default — the analyze path
+        // surfaces them as gray notes anyway.
+        if (r.sev === 'r') out.trap += 1;
+        else if (r.sev === 'a') out.watch += 1;
+        else out.note += 1;
       }
-      return n;
+      return out;
     }
     function splitSentences(t){ return t.replace(/\s+/g,' ').trim().split(/(?<=[.!?;])\s+/).filter(s=>s.trim().length>1); }
     function trunc(s,n){ s=s.trim(); return s.length>n? s.slice(0,n)+'…' : s; }
@@ -2223,21 +2234,31 @@
       // Live risk preview — count trap patterns detected in the input
       // so users see "this doc has 3 risks" BEFORE they hit Analyze.
       // Hides itself when no patterns match (clean docs shouldn't get
-      // a scary-looking pill). countRisks() lives in this same scope
-      // and uses the local RISK array below.
-      if(typeof countRisks === 'function'){
-        const rc = countRisks(raw);
+      // a scary-looking pill). countRisksBySeverity() lives in this
+      // same scope and uses the local RISK array below.
+      if(typeof countRisksBySeverity === 'function'){
+        const sev = countRisksBySeverity(raw);
+        const rc = sev.trap + sev.watch + sev.note;
         if(riskPreview){
           riskPreview.hidden = rc === 0;
-          if(riskCount) riskCount.textContent = rc;
-          // Pluralize the label ("1 pattern" / "2 patterns") so the
-          // pill reads naturally at any count.
-          if(riskS) riskS.textContent = rc === 1 ? '' : 's';
-          // Band: 1-2 = watch (amber), 3+ = trap (danger red). Single
-          // class swap keeps the CSS owning the visual treatment.
-          riskPreview.classList.remove('risk-watch','risk-trap');
-          if(rc >= 3) riskPreview.classList.add('risk-trap');
-          else if(rc >= 1) riskPreview.classList.add('risk-watch');
+          if(riskCount) riskCount.textContent = sev.trap;
+          if(watchCount) watchCount.textContent = sev.watch;
+          if(noteCount) noteCount.textContent = sev.note;
+          // Pluralize the per-severity labels so the pill reads
+          // naturally at any count ("1 trap" / "2 traps").
+          if(watchS) watchS.textContent = sev.watch === 1 ? '' : 'es';
+          if(noteS) noteS.textContent = sev.note === 1 ? '' : 's';
+          // Hide per-severity sub-spans with zero counts so the pill
+          // doesn't read "0 notes" — just show what fired.
+          if(watchWrap) watchWrap.hidden = sev.watch === 0;
+          if(noteWrap) noteWrap.hidden = sev.note === 0;
+          // Band: any trap → trap (danger red, loudest). Otherwise any
+          // watch → watch (amber). Otherwise any note → note (ink).
+          // Single class swap keeps the CSS owning the visual treatment.
+          riskPreview.classList.remove('risk-watch','risk-trap','risk-note');
+          if(sev.trap >= 1) riskPreview.classList.add('risk-trap');
+          else if(sev.watch >= 1) riskPreview.classList.add('risk-watch');
+          else riskPreview.classList.add('risk-note');
         }
       }
       if(textStats){

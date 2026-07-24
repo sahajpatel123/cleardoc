@@ -503,11 +503,20 @@
  * things they didn't know to look for, BEFORE they hit Analyze.
  * risk-watch = 1-2 hits (amber, gentle)
  * risk-trap  = 3+ hits   (danger red, louder, all-caps flag glyph) */
-.risk-preview{display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 10px;border:var(--bd-hair) solid currentColor;font-size:var(--t-meta-sm);letter-spacing:.04em;text-transform:uppercase}
+.risk-preview{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;padding:6px 10px;border:var(--bd-hair) solid currentColor;font-size:var(--t-meta-sm);letter-spacing:.04em;text-transform:uppercase}
 .risk-preview b{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.05em}
 .risk-preview .rp-icon{font-weight:800;font-size:1.15em}
+.risk-preview .rp-seg{display:inline-flex;align-items:baseline;gap:4px}
+.risk-preview .rp-sep{opacity:.4}
+.risk-preview .rp-suffix{opacity:.55;margin-left:2px}
+/* Per-severity emphasis: the count itself carries the visual weight,
+ * so the band controls the bg + border, the seg controls the type. */
+.risk-preview .rp-trap b{color:var(--danger)}
+.risk-preview .rp-watch b{color:var(--amber)}
+.risk-preview .rp-note b{color:var(--ink-soft)}
 .risk-preview.risk-watch{color:var(--amber);background:var(--amber-tint)}
 .risk-preview.risk-trap{color:var(--danger);background:var(--danger-tint);font-weight:700}
+.risk-preview.risk-note{color:var(--ink-soft);background:var(--paper2)}
 .work .ctl{display:flex;gap:var(--s1);flex-wrap:wrap;align-items:center;margin-top:var(--s2)}
 .work .qf{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;border:var(--bd) solid var(--ink);padding:7px 12px;cursor:pointer;background:var(--paper);transition:background .18s}
 .work .qf:hover{background:var(--ink);color:var(--paper)}.work .qf:active{transform:translateY(1px)}
