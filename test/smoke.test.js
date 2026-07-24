@@ -4438,6 +4438,50 @@ test("analyzer: 'Why these numbers?' explainer shows the per-severity $ rate sou
     ".ghost-btn-xs must be the smaller button variant (for the ? explainer)");
 });
 
+test("analyzer: Document version comparison shows the risk delta after a second analysis", () => {
+  // New feature — let users save a "before" version, edit, then
+  // re-analyze to see "Down from 7 risks to 4 (3 fixed)". Powerful
+  // for negotiation: users see the impact of their edits.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html: save-version button must exist
+  assert.match(html, /id="saveVersionBtn"/,
+    "analyze.html must contain #saveVersionBtn");
+  assert.match(html, /Save the current risk state/,
+    "save-version button must explain its purpose in the title");
+
+  // localStorage helpers
+  assert.match(appSrc, /const VERSION_KEY\s*=\s*'cleardoc:savedVersion'/,
+    "must use localStorage key 'cleardoc:savedVersion'");
+  assert.match(appSrc, /function getSavedVersion/,
+    "getSavedVersion() must exist");
+  assert.match(appSrc, /function saveCurrentVersion/,
+    "saveCurrentVersion() must exist");
+  // Must capture the per-severity breakdown
+  assert.match(appSrc, /saveCurrentVersion[\s\S]+?trap\s*=\s*hits\.filter/,
+    "saveCurrentVersion must capture the trap count");
+  // Must skip if the input is too short
+  assert.match(appSrc, /saveCurrentVersion[\s\S]+?raw\.length\s*<\s*12/,
+    "saveCurrentVersion must skip inputs shorter than 12 chars");
+
+  // showVersionDelta must exist + be called from saveSnapshot
+  assert.match(appSrc, /function showVersionDelta/,
+    "showVersionDelta() must exist (iter #67)");
+  assert.match(appSrc, /function saveSnapshot[\s\S]+?showVersionDelta/,
+    "saveSnapshot must call showVersionDelta after persist");
+
+  // Delta toast must include the "fixed" wording when count drops
+  assert.match(appSrc, /showVersionDelta[\s\S]+?fixed/,
+    "showVersionDelta must show the 'fixed' delta when count drops");
+  // Must include the snippet for the "from" version
+  assert.match(appSrc, /showVersionDelta[\s\S]+?just now|formatRelativeTime/,
+    "showVersionDelta must show when the saved version was made");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

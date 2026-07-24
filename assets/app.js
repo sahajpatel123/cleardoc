@@ -2085,6 +2085,9 @@
             bumpRisksAvoidedBySeverity(trap, watch, note);
           }
         } catch(_){}
+        // Iter #67: surface the version-comparison delta (if a saved
+        // "before" version exists). No-op if no saved version.
+        try { if(typeof showVersionDelta === 'function') showVersionDelta(); } catch(_){}
         return true;
       }catch(_){ return false; }
     }
@@ -2740,7 +2743,13 @@
 
       // Persist for restore-on-refresh. Best-effort; failures are silent.
       // Only the renderable shape is stored — no AI API keys, no PII fields.
+      // Iter #67: also surface the version-comparison delta (if a
+      // saved "before" version exists). Quietly no-ops if there's no
+      // saved version.
       saveSnapshot({
+        raw,
+        fileName: attachedFile && attachedFile.name ? attachedFile.name : null,
+        rewriteHtml: plainOut ? plainOut.innerHTML : '',
         raw,
         fileName: attachedFile && attachedFile.name ? attachedFile.name : null,
         rewriteHtml: plainOut ? plainOut.innerHTML : '',
@@ -2836,6 +2845,39 @@
           if(badgeExplainBtn) badgeExplainBtn.hidden = true;
         }
       }
+    }
+
+    // showVersionDelta (iter #67) — if a saved version exists, compute
+    // the delta vs the current analysis and show a one-liner. "Down
+    // from 7 risks to 4 (3 fixed)" — gives users a tangible impact
+    // signal for their edits. Toast shows the snippet of the saved
+    // version so users can verify which one is being compared.
+    const lastVersionDelta = (function(){
+      let lastVal = null;
+      return function() { return lastVal; };
+    })();
+    function showVersionDelta(){
+      try {
+        const v = getSavedVersion();
+        if(!v) return;
+        const before = v;
+        if(typeof matchRisks !== 'function' || !input) return;
+        const afterHits = matchRisks(input.value || '');
+        const afterCount = afterHits.length;
+        const trap = afterHits.filter(h => h && h.sev === 'r').length;
+        const watch = afterHits.filter(h => h && h.sev === 'a').length;
+        const note = afterHits.filter(h => h && h.sev === 'g').length;
+        const d = afterCount - before.count;
+        lastVersionDelta({ before, after: { count: afterCount, trap, watch, note } });
+        let sym = '±';
+        let label = 'same';
+        if(d < 0){ sym = '−'; label = Math.abs(d) + ' fixed'; }
+        else if(d > 0){ sym = '+'; label = d + ' new'; }
+        const ago = (Date.now() - before.ts) < 60000 ? 'just now' :
+          formatRelativeTime(before.ts);
+        showAnalyzeToast('📊 Saved version: ' + before.count + ' risks → now ' +
+          afterCount + ' (' + sym + ' ' + label + ') · ' + ago);
+      } catch(_){}
     }
 
     // Build a local-only analysis snapshot (plain rewrite + regex flags) for fallback
@@ -5088,6 +5130,60 @@
     if(downloadDraftBtn) downloadDraftBtn.addEventListener('click',()=>{ if(!draftOut||!draftOut.value)return; const url=URL.createObjectURL(new Blob([draftOut.value],{type:'text/plain'})); const a=document.createElement('a'); a.href=url; a.download='cleardoc-response-draft.txt'; a.click(); URL.revokeObjectURL(url); });
     if(printBtn) printBtn.addEventListener('click',printAnalysis);
     if(saveBtn) saveBtn.addEventListener('click',saveAnalysis);
+
+    /* Iter #67: Document version comparison — store the current
+     * risk state as a "before" version, then any future re-analysis
+     * shows the delta. Lets users see the impact of their edits
+     * (e.g. "Down from 7 risks to 4"). Persists across reloads so
+     * users can save a version Monday, edit Tuesday, analyze
+     * Wednesday, and see the comparison. */
+    const VERSION_KEY = 'cleardoc:savedVersion';
+    function getSavedVersion(){
+      try {
+        const raw = localStorage.getItem(VERSION_KEY);
+        if(!raw) return null;
+        const v = JSON.parse(raw);
+        if(!v || typeof v.ts !== 'number') return null;
+        return v;
+      } catch(_){ return null; }
+    }
+    function saveCurrentVersion(){
+      if(typeof matchRisks !== 'function' || !input) return;
+      const raw = input.value || '';
+      if(raw.length < 12) return;
+      const hits = matchRisks(raw);
+      const count = hits.length;
+      const trap  = hits.filter(h => h && h.sev === 'r').length;
+      const watch = hits.filter(h => h && h.sev === 'a').length;
+      const note  = hits.filter(h => h && h.sev === 'g').length;
+      try {
+        localStorage.setItem(VERSION_KEY, JSON.stringify({
+          ts: Date.now(),
+          count, trap, watch, note,
+          snippet: raw.slice(0, 80).replace(/\s+/g, ' '),
+        }));
+      } catch(_){}
+    }
+    const saveVersionBtn = document.getElementById('saveVersionBtn');
+    if(saveVersionBtn){
+      saveVersionBtn.addEventListener('click', () => {
+        const before = getSavedVersion();
+        saveCurrentVersion();
+        const after = getSavedVersion();
+        if(!after){
+          showAnalyzeToast('📌 No version to save');
+          return;
+        }
+        if(before && before.count === after.count){
+          showAnalyzeToast('📌 Version saved (no change)');
+        } else if(before){
+          const d = after.count - before.count;
+          showAnalyzeToast('📌 Version saved (replaces a ' + before.count + '-risk baseline)');
+        } else {
+          showAnalyzeToast('📌 Baseline saved (' + after.count + ' risks)');
+        }
+      });
+    }
     if(copyBtn) copyBtn.addEventListener('click',copyAnalysis);
     // Iter #63: Share-button handler — copies the share one-liner
     // to the clipboard with the standard navigator.clipboard
