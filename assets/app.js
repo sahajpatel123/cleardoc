@@ -3596,10 +3596,56 @@
         speakBtn.hidden = true; // unsupported browser → hide entirely
       } else {
         let isSpeaking = false;
+        let sentenceSpans = []; // cached wrapper spans for the highlighter
         const pickVoice = () => {
           const voices = (typeof window.speechSynthesis.getVoices === 'function')
             ? window.speechSynthesis.getVoices() : [];
           return voices.find(v => /^en[-_]/i.test(v.lang)) || voices[0] || null;
+        };
+        // Wrap the rewrite's sentences in <span class="spoken"> so the
+        // active sentence can be highlighted as the TTS reads it. Idempotent
+        // — only wraps once per analyze (cached on the element via a flag).
+        const wrapSentences = () => {
+          if(!plainOut) return [];
+          if(plainOut._spansBuilt) return plainOut._spans;
+          const text = plainOut.textContent || '';
+          const html = plainOut.innerHTML;
+          if(!text || text.length < 4) return [];
+          // Split on terminal punctuation, walk the original HTML and
+          // chunk it into sentences. Cheap heuristic: split by the same
+          // regex we use elsewhere, then re-glue around already-wrapped
+          // HTML tags so we don't break the rewrite's inline marks.
+          const re = /(?<=[.!?])\s+/;
+          const parts = text.split(re).filter(s => s.trim().length > 0);
+          if(parts.length <= 1){
+            plainOut._spansBuilt = true;
+            plainOut._spans = [];
+            return [];
+          }
+          // Rebuild as plain text wrapped in spans (strip the existing
+          // inline markup — this is a one-shot for the audio reader, and
+          // the original rewrite is preserved in the snapshot).
+          const wrapped = parts.map(s => '<span class="spoken">' + esc(s.trim()) + '</span>').join(' ');
+          plainOut.innerHTML = wrapped;
+          plainOut._spansBuilt = true;
+          plainOut._spans = Array.from(plainOut.querySelectorAll('.spoken'));
+          return plainOut._spans;
+        };
+        const clearHighlight = () => {
+          if(sentenceSpans.length){
+            sentenceSpans.forEach(s => s.classList.remove('spoken-active'));
+          }
+        };
+        const setActive = (idx) => {
+          if(!sentenceSpans.length) return;
+          sentenceSpans.forEach((s, i) => {
+            s.classList.toggle('spoken-active', i === idx);
+          });
+          // Auto-scroll the active sentence into view (button-sized window)
+          const active = sentenceSpans[idx];
+          if(active && typeof active.scrollIntoView === 'function'){
+            try { active.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(_){}
+          }
         };
         speakBtn.addEventListener('click', () => {
           if(isSpeaking){
@@ -3607,26 +3653,52 @@
             isSpeaking = false;
             speakBtn.textContent = '🔊 Read aloud';
             speakBtn.classList.remove('speaking');
+            clearHighlight();
             return;
           }
           const text = plainOut ? plainOut.textContent : '';
           if(!text || !text.trim()) return;
           try {
             window.speechSynthesis.cancel(); // wipe any pending utterance
+            sentenceSpans = wrapSentences();
             const u = new SpeechSynthesisUtterance(text);
             const v = pickVoice();
             if(v) u.voice = v;
             u.rate = 1.0;
             u.pitch = 1.0;
+            // boundary event fires at each sentence boundary. charIndex
+            // tells us where in the text we are — we map it to the
+            // highest sentence span whose text starts at or before
+            // that index. Defensive on browsers that don't fire it.
+            let activeIdx = 0;
+            u.onboundary = (ev) => {
+              if(typeof ev.charIndex !== 'number') return;
+              let found = 0;
+              let pos = 0;
+              for(let i = 0; i < sentenceSpans.length; i++){
+                pos += (sentenceSpans[i].textContent || '').length + 1; // +1 for the space
+                if(ev.charIndex < pos) { found = i; break; }
+                found = i;
+              }
+              if(found !== activeIdx){
+                activeIdx = found;
+                setActive(found);
+              }
+            };
             u.onend = u.onerror = () => {
               isSpeaking = false;
               speakBtn.textContent = '🔊 Read aloud';
               speakBtn.classList.remove('speaking');
+              clearHighlight();
             };
             window.speechSynthesis.speak(u);
             isSpeaking = true;
             speakBtn.textContent = '■ Stop';
             speakBtn.classList.add('speaking');
+            // Highlight the first sentence immediately so users see
+            // the highlighter working even before the first boundary
+            // event fires (some browsers delay the first boundary).
+            if(sentenceSpans.length > 0) setActive(0);
           } catch(_) {}
         });
       }

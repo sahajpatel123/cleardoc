@@ -2893,6 +2893,60 @@ test("analyzer: Read-aloud button speaks the plain-English rewrite via SpeechSyn
     ".ghost-btn.speaking must have a pulse animation so live reading reads as live");
 });
 
+test("analyzer: Read-aloud highlights each sentence as it is spoken", () => {
+  // Polishes iter #27 — wraps each sentence in the rewrite in a
+  // .spoken span, then highlights the currently-speaking one via
+  // the onboundary event. Standard audio-reader UX (Kindle, Voice
+  // Dream) — users can follow along visually as the voice reads.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // wrapSentences() must wrap each sentence in <span class="spoken">
+  assert.match(appSrc, /wrapSentences[\s\S]+?class="spoken"/,
+    "wrapSentences must wrap each sentence in a .spoken span");
+  // Must cache the spans on the element (avoid rebuilding per boundary)
+  assert.match(appSrc, /_spansBuilt\s*=\s*true/,
+    "wrapSentences must cache the spans on the element (avoid rebuilding per boundary event)");
+  assert.match(appSrc, /querySelectorAll\('\.spoken'\)/,
+    "wrapSentences must cache the span nodes so the boundary handler can update them O(1)");
+
+  // u.onboundary must advance the active sentence based on charIndex
+  assert.match(appSrc, /u\.onboundary\s*=/,
+    "must hook onboundary to advance the active sentence");
+  assert.match(appSrc, /onboundary[\s\S]+?charIndex/,
+    "onboundary must use charIndex to map position to sentence index");
+  assert.match(appSrc, /onboundary[\s\S]+?setActive\(/,
+    "onboundary must call setActive(idx) to advance the highlight");
+
+  // setActive must toggle .spoken-active + scroll into view
+  assert.match(appSrc, /function setActive[\s\S]+?spoken-active/,
+    "setActive must toggle .spoken-active class");
+  assert.match(appSrc, /setActive[\s\S]+?scrollIntoView/,
+    "setActive must scroll the active sentence into view");
+
+  // Must clear the highlight on stop / end / error
+  assert.match(appSrc, /u\.onend[\s\S]+?clearHighlight/,
+    "onend must clear the highlight when speech finishes");
+  assert.match(appSrc, /u\.onerror[\s\S]+?clearHighlight/,
+    "onerror must clear the highlight (graceful recovery)");
+  assert.match(appSrc, /isSpeaking[\s\S]+?clearHighlight/,
+    "click-while-speaking (stop) must clear the highlight");
+
+  // First sentence highlighted immediately (some browsers delay
+  // the first boundary event)
+  assert.match(appSrc, /setActive\(0\)/,
+    "must highlight sentence 0 immediately so the highlighter works from frame 1");
+
+  // CSS: .spoken-active must be visually distinct
+  assert.match(cssSrc, /#plainOut \.spoken-active\{[^}]*var\(--accent-glow\)/,
+    ".spoken-active must use --accent-glow so the active sentence pops");
+  assert.match(cssSrc, /#plainOut \.spoken-active\{[^}]*box-shadow/,
+    ".spoken-active must have a visible underline (box-shadow inset) for the karaoke feel");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
