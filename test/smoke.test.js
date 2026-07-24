@@ -3586,20 +3586,21 @@ test("analyzer: apply button swaps the counter-clause into the source input with
   // Delegated click handler must handle the apply button
   assert.match(appSrc, /riskDetail\.addEventListener[\s\S]+?data-rc-apply/,
     "riskDetail click handler must handle [data-rc-apply] clicks");
-  // Must stash the previous text on the input for undo
-  assert.match(appSrc, /data-rc-apply[\s\S]+?_undoSnapshot/,
-    "apply handler must stash the previous text on the input for undo");
-  // Must do the replacement at the matched token's position
-  assert.match(appSrc, /data-rc-apply[\s\S]+?indexOf\(matched\.toLowerCase/,
-    "apply handler must locate the matched token (case-insensitive)");
-  assert.match(appSrc, /data-rc-apply[\s\S]+?raw\.slice\(0,\s*idx\)\s*\+\s*suggestion\s*\+\s*raw\.slice/,
-    "apply handler must splice the suggestion in at the matched position");
-  // Must dispatch input event so the live stats update
-  assert.match(appSrc, /data-rc-apply[\s\S]+?dispatchEvent\(new Event\(\s*['"]input['"]/,
-    "apply handler must dispatch input event so live stats re-run");
-  // Flash + select the replaced text
-  assert.match(appSrc, /data-rc-apply[\s\S]+?rd-flash/,
-    "apply handler must flash the textarea for visual feedback");
+  // Iter #51 refactor: the actual apply logic moved to applyOneMatched
+  // so the per-row handler can be async (await the dry-run confirm).
+  // All the iter #45 invariants now live in that helper.
+  assert.match(appSrc, /function applyOneMatched\(input, suggestion, matched, rcApply\)/,
+    "applyOneMatched() helper must exist (iter #51 extraction)");
+  assert.match(appSrc, /function applyOneMatched[\s\S]+?_undoSnapshot/,
+    "applyOneMatched must stash the previous text on the input for undo");
+  assert.match(appSrc, /function applyOneMatched[\s\S]+?indexOf\(matched\.toLowerCase/,
+    "applyOneMatched must locate the matched token (case-insensitive)");
+  assert.match(appSrc, /function applyOneMatched[\s\S]+?raw\.slice\(0,\s*idx\)\s*\+\s*suggestion\s*\+\s*raw\.slice/,
+    "applyOneMatched must splice the suggestion in at the matched position");
+  assert.match(appSrc, /function applyOneMatched[\s\S]+?dispatchEvent\(new Event\(\s*['"]input['"]/,
+    "applyOneMatched must dispatch input event so live stats re-run");
+  assert.match(appSrc, /function applyOneMatched[\s\S]+?rd-flash/,
+    "applyOneMatched must flash the textarea for visual feedback");
 
   // Undo handler must restore from _undoSnapshot
   assert.match(appSrc, /data-undo-apply/,
@@ -3632,8 +3633,8 @@ test("analyzer: applied suggestion shows a green badge so users see which they'v
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // Apply handler must track applied state
-  assert.match(appSrc, /data-rc-apply[\s\S]+?_appliedSuggestions\.add/,
-    "apply handler must add the suggestion to input._appliedSuggestions");
+  assert.match(appSrc, /function applyOneMatched[\s\S]+?_appliedSuggestions\.add/,
+    "applyOneMatched helper must add the suggestion to input._appliedSuggestions");
   assert.match(appSrc, /data-rc-apply[\s\S]+?rc-applied/,
     "apply handler must add the .rc-applied class to the row");
 
@@ -3839,6 +3840,41 @@ test("analyzer: dry-run preview shows a stats summary (count + word deltas) abov
     ".dryrun-add must use --green (added = green)");
   assert.match(cssSrc, /\.dryrun-stats \.dryrun-remove\{[^}]*var\(--danger\)/,
     ".dryrun-remove must use --danger (removed = red)");
+});
+
+test("analyzer: per-row apply shows a single-change dry-run modal before rewriting", () => {
+  // New feature — iter #45's per-row apply was one-click destructive.
+  // Pairs with iter #48 (apply-all confirm) + iter #49/50 (dry-run
+  // preview) so the per-row path has the same safety net. Lighter
+  // modal (one row, no overflow) so it doesn't feel heavy on every
+  // single click.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // applyOneMatched must be extracted (so the async confirm can call it)
+  assert.match(appSrc, /function applyOneMatched\(input, suggestion, matched, rcApply\)/,
+    "applyOneMatched() helper must exist (iter #51 extraction)");
+
+  // Per-row click handler must await the confirm
+  assert.match(appSrc, /data-rc-apply[\s\S]+?await showConfirmModal/,
+    "per-row apply must await the confirm modal before rewriting");
+  assert.match(appSrc, /data-rc-apply[\s\S]+?applyOneMatched/,
+    "per-row apply must call applyOneMatched after confirm");
+  // Must include the matched/counter data attributes in the preview
+  assert.match(appSrc, /data-rc-apply[\s\S]+?dryrun-from[\s\S]+?esc\(matched\)/,
+    "per-row dry-run must esc() the matched text (XSS defense)");
+  assert.match(appSrc, /data-rc-apply[\s\S]+?dryrun-to[\s\S]+?esc\(suggestion\)/,
+    "per-row dry-run must esc() the suggestion text (XSS defense)");
+  // Must include the word-count deltas
+  assert.match(appSrc, /data-rc-apply[\s\S]+?dryrun-add/,
+    "per-row preview must include a +N words delta");
+  assert.match(appSrc, /data-rc-apply[\s\S]+?dryrun-remove/,
+    "per-row preview must include a -N words delta");
+  // Must abort if user cancels
+  assert.match(appSrc, /data-rc-apply[\s\S]+?if\s*\(\s*!ok\s*\)\s*return/,
+    "per-row apply must abort if the user cancels the dry-run");
 });
 
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {

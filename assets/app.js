@@ -1471,6 +1471,43 @@
     _undoChip.hidden = false;
   }
 
+  // applyOneMatched — apply a single suggestion at the matched
+  // token's position. Extracted from the iter #45 inline handler
+  // so the iter #51 dry-run confirm can call it after the user
+  // accepts. Pairs with the existing _undoSnapshot (single-row
+  // overwrite is fine; multi-level undo would be overkill).
+  function applyOneMatched(input, suggestion, matched, rcApply){
+    if(!input || !suggestion || !matched) return;
+    const raw = input.value || '';
+    const idx = raw.toLowerCase().indexOf(matched.toLowerCase());
+    if(idx < 0) return;
+    if(!input._undoSnapshot) input._undoSnapshot = null;
+    input._undoSnapshot = raw;
+    const newValue = raw.slice(0, idx) + suggestion + raw.slice(idx + matched.length);
+    input.value = newValue;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    try {
+      input.focus();
+      input.setSelectionRange(idx, idx + suggestion.length);
+      input.classList.add('rd-flash');
+      clearTimeout(input._rdFlashTimer);
+      input._rdFlashTimer = setTimeout(() => {
+        input.classList.remove('rd-flash');
+      }, 1200);
+    } catch(_){}
+    showUndoChip();
+    if(!input._appliedSuggestions) input._appliedSuggestions = new Set();
+    input._appliedSuggestions.add(suggestion);
+    if(rcApply){
+      const row = rcApply.closest('.risk-counter');
+      if(row) row.classList.add('rc-applied');
+      rcApply.textContent = '✓ applied';
+      rcApply.disabled = true;
+      clearTimeout(rcApply._flashTimer);
+      rcApply._flashTimer = setTimeout(() => { rcApply.textContent = 'applied'; }, 1400);
+    }
+  }
+
   // doApplyAll — apply each pending suggestion in sequence (called
   // after the iter #48 confirmation modal). Same logic as the inline
   // apply handler but extracted so the async confirm flow can call it
@@ -4024,39 +4061,33 @@
             const suggestion = rcApply.getAttribute('data-rc-apply') || '';
             const matched = rcApply.getAttribute('data-rc-match') || '';
             if(!suggestion || !matched) return;
-            const raw = input.value || '';
-            const idx = raw.toLowerCase().indexOf(matched.toLowerCase());
-            if(idx < 0) return;
-            // Stash previous text on the input for one-click undo.
-            if(!input._undoSnapshot) input._undoSnapshot = null;
-            input._undoSnapshot = raw;
-            const newValue = raw.slice(0, idx) + suggestion + raw.slice(idx + matched.length);
-            input.value = newValue;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            // Flash + select the replaced text so users see where it landed
-            try {
-              input.focus();
-              input.setSelectionRange(idx, idx + suggestion.length);
-              input.classList.add('rd-flash');
-              clearTimeout(input._rdFlashTimer);
-              input._rdFlashTimer = setTimeout(() => {
-                input.classList.remove('rd-flash');
-              }, 1200);
-            } catch(_){}
-            // Show undo button — render a small floating control near
-            // the textarea so users can revert with one click.
-            showUndoChip();
-            // Mark the row as applied (iter #46) — green checkmark on
-            // the kicker, dimmed apply button. Tracks applied
-            // suggestions so users can see which they've already used.
-            if(!input._appliedSuggestions) input._appliedSuggestions = new Set();
-            input._appliedSuggestions.add(suggestion);
-            const row = rcApply.closest('.risk-counter');
-            if(row) row.classList.add('rc-applied');
-            rcApply.textContent = '✓ applied';
-            rcApply.disabled = true;
-            clearTimeout(rcApply._flashTimer);
-            rcApply._flashTimer = setTimeout(() => { rcApply.textContent = 'applied'; }, 1400);
+            // Single-row dry-run (iter #51) — show the before→after
+            // for THIS suggestion in a small confirm modal so the
+            // per-row apply is no longer one-click destructive.
+            // Lighter than the apply-all modal (single row, no
+            // overflow, no "review first" disclaimer — it's just one
+            // specific change the user already saw in the suggestion).
+            (async () => {
+              const rem = (matched || '').trim().split(/\s+/).filter(Boolean).length;
+              const add = (suggestion || '').trim().split(/\s+/).filter(Boolean).length;
+              const dryrun = '<div class="apply-dryrun">' +
+                '<div class="dryrun-stats">1 substitution · <span class="dryrun-add">+' + add + '</span> · <span class="dryrun-remove">−' + rem + '</span></div>' +
+                '<div class="dryrun-item">' +
+                  '<div class="dryrun-num">1.</div>' +
+                  '<div class="dryrun-body">' +
+                    '<div class="dryrun-from">− ' + esc(matched) + '</div>' +
+                    '<div class="dryrun-to">+ ' + esc(suggestion) + '</div>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+              const ok = await showConfirmModal({
+                title: 'Apply this suggestion?',
+                bodyHtml: '<p>This will replace one clause in your document with the counter-suggestion shown below. You can undo with the <b>↶ undo apply</b> chip after.</p>' + dryrun,
+                confirmLabel: 'Apply',
+              });
+              if(!ok) return;
+              applyOneMatched(input, suggestion, matched, rcApply);
+            })();
             return;
           }
           // 0. Per-suggestion copy button — copies the counter-clause
