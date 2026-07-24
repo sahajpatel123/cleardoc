@@ -1723,7 +1723,7 @@
           printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),printDate=$('#printDate'),
           shareBtn=$('#shareBtn'),speakBtn=$('#speakBtn'),
           voicePicker=$('#voicePicker'),risksAvoidedBadge=$('#risksAvoidedBadge'),
-          shareBadgeBtn=$('#shareBadgeBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
+          shareBadgeBtn=$('#shareBadgeBtn'),resetBadgeBtn=$('#resetBadgeBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2826,9 +2826,11 @@
               ' with ClearDoc! (cleardoc.app) — approx. ' + fmt(totalVal) +
               ' in saved costs. ' + parts.join(' + ');
           }
+          if(resetBadgeBtn) resetBadgeBtn.hidden = false;
         } else {
           risksAvoidedBadge.hidden = true;
           if(shareBadgeBtn) shareBadgeBtn.hidden = true;
+          if(resetBadgeBtn) resetBadgeBtn.hidden = true;
         }
       }
     }
@@ -5108,6 +5110,26 @@
         shareBadgeBtn.textContent = ok ? '✓ copied' : 'failed';
         clearTimeout(shareBadgeBtn._flashTimer);
         shareBadgeBtn._flashTimer = setTimeout(() => { shareBadgeBtn.textContent = orig; }, 1400);
+      });
+    }
+    // Iter #64: Reset button — clears the localStorage counter
+    // (for testing, new users, or privacy). Uses the existing
+    // confirm modal so users don't wipe their stats by accident.
+    if(resetBadgeBtn){
+      resetBadgeBtn.addEventListener('click', async () => {
+        const ok = await showConfirmModal({
+          title: 'Reset the risks-avoided counter?',
+          bodyHtml: '<p>This will clear your local "risks avoided" counter. Future analyses will start from 0.</p>' +
+            '<p class="apply-confirm-note">Useful for new users or if you want to test the counter.</p>',
+          confirmLabel: 'Reset',
+        });
+        if(!ok) return;
+        try { localStorage.removeItem(RISKS_KEY); } catch(_){}
+        // Hide badge + share + reset buttons
+        if(risksAvoidedBadge) risksAvoidedBadge.hidden = true;
+        if(shareBadgeBtn) shareBadgeBtn.hidden = true;
+        resetBadgeBtn.hidden = true;
+        showAnalyzeToast('↺ Counter reset');
       });
     }
     if(shareBtn) shareBtn.addEventListener('click',shareAnalysis);

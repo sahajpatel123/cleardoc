@@ -4344,6 +4344,41 @@ test("analyzer: Share button copies a one-liner with the user's risk stats", () 
     "share button must flash '✓ copied' on success");
 });
 
+test("analyzer: Reset button clears the risks-avoided counter after confirm", () => {
+  // Polishes iter #60/61 — adds a Reset button next to Share so
+  // users can wipe the localStorage counter (for testing, new
+  // users, or privacy). Uses the existing confirm modal so users
+  // don't wipe their stats by accident.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html: reset button must exist
+  assert.match(html, /id="resetBadgeBtn"/,
+    "analyze.html must contain #resetBadgeBtn");
+
+  // Must be shown/hidden alongside the badge
+  assert.match(appSrc, /resetBadgeBtn\.hidden\s*=\s*false/,
+    "reset button must be visible when badge is visible");
+  assert.match(appSrc, /resetBadgeBtn\.hidden\s*=\s*true/,
+    "reset button must be hidden when badge is hidden");
+
+  // Click handler must use the confirm modal
+  assert.match(appSrc, /resetBadgeBtn\.addEventListener[\s\S]+?showConfirmModal/,
+    "reset click must await the confirm modal");
+  // Must clear the localStorage key
+  assert.match(appSrc, /resetBadgeBtn\.addEventListener[\s\S]+?localStorage\.removeItem\(RISKS_KEY\)/,
+    "reset must clear the localStorage key");
+  // Must abort on cancel
+  assert.match(appSrc, /resetBadgeBtn\.addEventListener[\s\S]+?if\s*\(\s*!ok\s*\)\s*return/,
+    "reset must abort if the user cancels the confirm");
+  // Must show a success toast
+  assert.match(appSrc, /resetBadgeBtn\.addEventListener[\s\S]+?Counter reset/,
+    "reset must show a success toast");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
