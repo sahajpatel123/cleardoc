@@ -3296,6 +3296,14 @@ test("analyzer: history panel has a language filter row that shows count per lan
     assert.ok(html.includes('data-hp-filter="' + code + '"'),
       `historyFilter must include a button for ${code}`);
   }
+  // Each non-`all` button must carry a flag emoji for visual scan
+  for (const flag of ["🇬🇧", "🇪🇸", "🇫🇷", "🇩🇪", "🇮🇹", "🇵🇹"]) {
+    assert.ok(html.includes(flag),
+      `historyFilter must include the ${flag} flag emoji for visual scan`);
+  }
+  // "All" uses a globe — neutral across languages
+  assert.match(html, /data-hp-filter="all"[^>]*>🌐 All/,
+    "historyFilter 'All' must use a globe 🌐 (neutral across languages)");
 
   // renderHistory must apply the filter
   const renderFn = appSrc.match(/const renderHistory\s*=\s*\(\)\s*=>\s*\{[\s\S]+?\n\s+\}\s*\};\s*$/m);
