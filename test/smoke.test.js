@@ -2797,6 +2797,47 @@ test("analyzer: history panel saves the last 5 analyses and lets users restore a
     ".hp-item must have a hover state");
 });
 
+test("analyzer: history panel uses relative time labels ('2h ago', 'yesterday') instead of full timestamps", () => {
+  // Polishes iter #25 — instead of "7/24/2025, 3:42:07 PM", show
+  // "2h ago" / "yesterday" / "3d ago" — the standard chat-client
+  // pattern. Full timestamp preserved as the title (hover) for
+  // precision when users need it.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // formatRelativeTime must exist at the IIFE level
+  assert.match(appSrc, /function formatRelativeTime\(ts\)/,
+    "formatRelativeTime() must exist at the IIFE level");
+
+  // Must handle all the standard buckets
+  assert.match(appSrc, /'just now'/,
+    "formatRelativeTime must return 'just now' for < 1m");
+  assert.match(appSrc, /minutes < 60[\s\S]+?minutes \+ 'm ago'/,
+    "formatRelativeTime must return 'Nm ago' for < 1h");
+  assert.match(appSrc, /hours < 24[\s\S]+?hours \+ 'h ago'/,
+    "formatRelativeTime must return 'Nh ago' for < 24h");
+  assert.match(appSrc, /days === 1[\s\S]+?return 'yesterday'/,
+    "formatRelativeTime must return 'yesterday' at exactly 1 day");
+  assert.match(appSrc, /days < 7[\s\S]+?days \+ 'd ago'/,
+    "formatRelativeTime must return 'Nd ago' for < 7 days");
+  // Fallback to a date string for older entries
+  assert.match(appSrc, /toLocaleDateString/,
+    "formatRelativeTime must fall back to a date string for entries > 7 days old");
+
+  // Defensive on bad input
+  assert.match(appSrc, /formatRelativeTime[\s\S]+?typeof ts !== 'number'/,
+    "formatRelativeTime must short-circuit on non-number input");
+
+  // renderHistory must use formatRelativeTime
+  assert.match(appSrc, /formatRelativeTime\(it\.ts\)/,
+    "renderHistory must call formatRelativeTime(it.ts)");
+  // Must preserve the full timestamp as the title attribute (hover)
+  assert.match(appSrc, /title=['"][^'"]*['"][\s\S]+?hp-when/,
+    "renderHistory must keep the full timestamp as the title attribute for hover");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

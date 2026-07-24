@@ -138,6 +138,34 @@
     return (t.match(/\b[\w'-]+\b/g) || []).length >= 8;
   }
 
+  // Compact "time ago" formatter for the history panel. Picks the
+  // largest sensible unit so users see "just now" / "5m ago" /
+  // "2h ago" / "yesterday" / "3d ago" — the standard pattern in
+  // chat / email clients. Falls back to a short date string once
+  // the difference crosses 7 days. Defensive on bad input.
+  //   formatRelativeTime(Date.now() - 30*1000)   → 'just now'
+  //   formatRelativeTime(Date.now() - 5*60*1000) → '5m ago'
+  //   formatRelativeTime(Date.now() - 2*3600e3)  → '2h ago'
+  //   formatRelativeTime(yesterday)              → 'yesterday'
+  //   formatRelativeTime(Date.now() - 3*86400e3) → '3d ago'
+  //   formatRelativeTime(very old)               → '7/15/2025'
+  function formatRelativeTime(ts){
+    if(typeof ts !== 'number' || !Number.isFinite(ts)) return '';
+    const diff = Date.now() - ts;
+    if(diff < 0) return 'just now'; // future ts (clock skew) — don't say "-5m ago"
+    if(diff < 60 * 1000) return 'just now';
+    const minutes = Math.floor(diff / 60000);
+    if(minutes < 60) return minutes + 'm ago';
+    const hours = Math.floor(diff / 3600000);
+    if(hours < 24) return hours + 'h ago';
+    const days = Math.floor(diff / 86400000);
+    if(days === 1) return 'yesterday';
+    if(days < 7) return days + 'd ago';
+    // Older than a week — fall back to a short date string. toLocaleDateString
+    // without options gives "7/15/2025" on most locales.
+    return new Date(ts).toLocaleDateString();
+  }
+
   // Structural summary of the input — sentence count, paragraph
   // count, average + longest sentence length in words. Lives at the
   // IIFE level so it's available to the analyzer page. Defensive on
@@ -2992,10 +3020,11 @@
         }
         historyList.innerHTML = items.map((it, i) => {
           const ts = it && it.ts ? new Date(it.ts) : null;
-          const ago = ts ? ts.toLocaleString() : '';
+          const full = ts ? ts.toLocaleString() : '';
+          const rel = (typeof formatRelativeTime === 'function' && ts) ? formatRelativeTime(it.ts) : full;
           const snippet = (it && it.snippet) ? it.snippet : '';
           return '<li><button type="button" class="hp-item" data-hp-idx="' + i +
-            '" title="' + esc(ago) + '"><span class="hp-when">' + esc(ago) +
+            '" title="' + esc(full) + '"><span class="hp-when">' + esc(rel) +
             '</span><span class="hp-snip">' + esc(snippet) + '</span></button></li>';
         }).join('');
       };
