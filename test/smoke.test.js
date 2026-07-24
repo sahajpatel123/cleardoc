@@ -2838,6 +2838,61 @@ test("analyzer: history panel uses relative time labels ('2h ago', 'yesterday') 
     "renderHistory must keep the full timestamp as the title attribute for hover");
 });
 
+test("analyzer: Read-aloud button speaks the plain-English rewrite via SpeechSynthesis", () => {
+  // New feature — speak the rewrite aloud via the Web Speech API.
+  // Accessibility win (visually impaired users) + lets users listen
+  // to long docs instead of reading. Toggles playback; "■ Stop"
+  // while speaking. Picks an English voice when available.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: button must exist in the result-actions row
+  assert.match(html, /id="speakBtn"/,
+    "analyze.html must contain #speakBtn");
+  assert.match(html, /aria-label="Read the rewrite aloud"/,
+    "#speakBtn must have an aria-label");
+
+  // Must check for SpeechSynthesis + hide if missing
+  assert.match(appSrc, /speakBtn[\s\S]+?'speechSynthesis' in window/,
+    "must check for speechSynthesis support");
+  assert.match(appSrc, /speakBtn\.hidden\s*=\s*true/,
+    "must hide the button when SpeechSynthesis is unavailable");
+
+  // Show after a successful analysis (only when rewrite exists)
+  assert.match(appSrc, /panel\.hidden\s*=\s*false[\s\S]+?speakBtn\.hidden\s*=\s*false/,
+    "must show speakBtn after analysis when rewrite text exists");
+
+  // Click handler must use SpeechSynthesisUtterance
+  assert.match(appSrc, /speakBtn\.addEventListener\(\s*['"]click['"]/,
+    "#speakBtn must have a click handler");
+  assert.match(appSrc, /new SpeechSynthesisUtterance\(/,
+    "click handler must construct a SpeechSynthesisUtterance from the rewrite text");
+  assert.match(appSrc, /window\.speechSynthesis\.speak\(u\)/,
+    "click handler must call speechSynthesis.speak() to start playback");
+  assert.match(appSrc, /window\.speechSynthesis\.cancel\(\)/,
+    "click handler must call speechSynthesis.cancel() to stop playback");
+
+  // Toggle: button label flips between Read aloud / Stop
+  assert.match(appSrc, /'■ Stop'/,
+    "button label must include '■ Stop' (active state)");
+  assert.match(appSrc, /'🔊 Read aloud'/,
+    "button label must include '🔊 Read aloud' (idle state)");
+
+  // Picks an English voice when available (cross-locale safety)
+  assert.match(appSrc, /\^en\[-_\]/,
+    "voice picker must prefer English-language voices");
+
+  // CSS: speaking state must be visually distinct (pulse animation)
+  assert.match(cssSrc, /\.ghost-btn\.speaking\{[^}]*var\(--accent\)/,
+    ".ghost-btn.speaking must use --accent (recording = visually loud)");
+  assert.match(cssSrc, /\.ghost-btn\.speaking\{[^}]*animation/,
+    ".ghost-btn.speaking must have a pulse animation so live reading reads as live");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

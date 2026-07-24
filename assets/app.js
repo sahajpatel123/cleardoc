@@ -1435,7 +1435,7 @@
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
           printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),printDate=$('#printDate'),
-          shareBtn=$('#shareBtn'),
+          shareBtn=$('#shareBtn'),speakBtn=$('#speakBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2202,6 +2202,14 @@
       if(!noMotion && window.gsap) gsap.from('#riskList .rrow',{opacity:0,y:12,stagger:.07,duration:DUR.base,ease:EASE.enter});
       // reveal results
       if(emptyEl) emptyEl.hidden=true; panel.hidden=false; if(askOut) askOut.innerHTML='';
+      // Show the read-aloud button only when SpeechSynthesis is available
+      // AND there's a rewrite to speak (avoids a broken button when the
+      // local fallback produced no rewrite text).
+      if(speakBtn){
+        if(typeof window !== 'undefined' && 'speechSynthesis' in window && plainOut && plainOut.textContent && plainOut.textContent.trim().length > 0){
+          speakBtn.hidden = false;
+        }
+      }
       if(!noMotion && window.gsap) gsap.fromTo(panel,{opacity:0,y:14},{opacity:1,y:0,duration:DUR.base,ease:EASE.enter});
       if(askInput) askInput.disabled=false; if(askBtn) askBtn.disabled=false;
 
@@ -3578,6 +3586,51 @@
     if(saveBtn) saveBtn.addEventListener('click',saveAnalysis);
     if(copyBtn) copyBtn.addEventListener('click',copyAnalysis);
     if(shareBtn) shareBtn.addEventListener('click',shareAnalysis);
+    /* Read-aloud TTS — speaks the plain-English rewrite via the
+     * Web Speech API. Click toggles playback; the button label
+     * flips to "■ Stop" while speaking. Picks an English voice if
+     * one is available (so e.g. Chrome on a French system still
+     * reads in English). Disabled when SpeechSynthesis is missing. */
+    if(speakBtn){
+      if(typeof window === 'undefined' || !('speechSynthesis' in window)){
+        speakBtn.hidden = true; // unsupported browser → hide entirely
+      } else {
+        let isSpeaking = false;
+        const pickVoice = () => {
+          const voices = (typeof window.speechSynthesis.getVoices === 'function')
+            ? window.speechSynthesis.getVoices() : [];
+          return voices.find(v => /^en[-_]/i.test(v.lang)) || voices[0] || null;
+        };
+        speakBtn.addEventListener('click', () => {
+          if(isSpeaking){
+            try { window.speechSynthesis.cancel(); } catch(_) {}
+            isSpeaking = false;
+            speakBtn.textContent = '🔊 Read aloud';
+            speakBtn.classList.remove('speaking');
+            return;
+          }
+          const text = plainOut ? plainOut.textContent : '';
+          if(!text || !text.trim()) return;
+          try {
+            window.speechSynthesis.cancel(); // wipe any pending utterance
+            const u = new SpeechSynthesisUtterance(text);
+            const v = pickVoice();
+            if(v) u.voice = v;
+            u.rate = 1.0;
+            u.pitch = 1.0;
+            u.onend = u.onerror = () => {
+              isSpeaking = false;
+              speakBtn.textContent = '🔊 Read aloud';
+              speakBtn.classList.remove('speaking');
+            };
+            window.speechSynthesis.speak(u);
+            isSpeaking = true;
+            speakBtn.textContent = '■ Stop';
+            speakBtn.classList.add('speaking');
+          } catch(_) {}
+        });
+      }
+    }
     // Keyboard shortcuts when results are visible: Cmd/Ctrl+P already triggers window.print(),
     // and our print stylesheet routes that through the clean print layout. No extra wiring needed.
 

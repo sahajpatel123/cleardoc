@@ -661,6 +661,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .compare-verdict.cmp-verdict-danger{color:var(--danger);background:var(--danger-tint)}
 .compare-verdict.cmp-verdict-amber{color:var(--amber);background:var(--amber-tint)}
 .compare-verdict.cmp-verdict-even{color:var(--ink-soft);background:var(--paper2)}
+.work .ghost-btn.speaking{background:var(--accent);color:#fff;border-color:var(--accent);animation:micPulse 1.4s ease-in-out infinite}
+@keyframes micPulse{0%,100%{box-shadow:0 0 0 0 var(--accent-glow)}50%{box-shadow:0 0 0 6px transparent}}
 /* History panel — list of past analyses (localStorage) */
 .history-panel{margin-top:var(--s2);padding:var(--s2);border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
 .history-panel .hp-head{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.1em;color:var(--accent-text);margin-bottom:8px;font-weight:700}
