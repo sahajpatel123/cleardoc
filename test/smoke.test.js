@@ -3181,6 +3181,64 @@ test("analyzer: PNG export includes the diff section (unique clauses from each s
     "PNG height must include the diff section (diffH variable)");
 });
 
+test("analyzer: language detection tags the doc and picks a matching TTS voice", () => {
+  // New feature — users paste non-English docs (Spanish leases,
+  // French medical bills); previously the analyzer silently
+  // mislabeled them as English. Now detectLanguage tags the doc
+  // with the detected language and pickVoiceForLang uses it for
+  // TTS so the voice actually reads in the right language.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // detectLanguage must exist at the IIFE level
+  assert.match(appSrc, /function detectLanguage\(text\)/,
+    "detectLanguage() must exist at the IIFE level");
+  // Must support the six major languages we ship patterns for
+  for (const code of ["es", "fr", "de", "it", "pt", "en"]) {
+    assert.ok(appSrc.includes(code + ': { words:'),
+      `detectLanguage must include a pattern map for ${code}`);
+  }
+  // Confidence floor: must require ≥2 hits
+  assert.match(appSrc, /detectLanguage[\s\S]+?best\.count < 2[\s\S]+?return null/,
+    "detectLanguage must require ≥2 hits (no false-positive single-word matches)");
+
+  // analyze.html must have the language tag
+  assert.match(html, /id="dsLang"/,
+    "analyze.html must contain #dsLang");
+
+  // updateTextStats must call detectLanguage and paint the tag
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0], /detectLanguage\(raw\)/,
+    "updateTextStats must call detectLanguage(raw)");
+  assert.match(updateBlock[0], /dsLang\.textContent\s*=\s*'🌐 '/,
+    "dsLang must show the detected language with a globe prefix");
+  // Must stash the detected lang on the input for the TTS handler
+  assert.match(updateBlock[0], /input\._detectedLang\s*=\s*lang/,
+    "updateTextStats must stash the detected lang on the input (TTS picks it up)");
+
+  // TTS handler must use pickVoiceForLang when a lang is detected
+  assert.match(appSrc, /pickVoiceForLang\(detectedLang\.tts\)/,
+    "TTS handler must call pickVoiceForLang(detectedLang.tts) when a lang is detected");
+  assert.match(appSrc, /u\.lang\s*=\s*detectedLang\.tts/,
+    "TTS must set u.lang to the detected BCP-47 tag (browser pronunciation hint)");
+  // pickVoiceForLang must prefer exact match, then prefix, then fallback
+  assert.match(appSrc, /pickVoiceForLang\s*=\s*\(\s*langTag\s*\)/,
+    "pickVoiceForLang() must exist");
+  assert.match(appSrc, /pickVoiceForLang[\s\S]+?v\.lang\.toLowerCase\(\)\s*===\s*String\(langTag\)/,
+    "pickVoiceForLang must prefer exact BCP-47 lang match");
+
+  // CSS: language tag must be visually distinct (accent-tinted bg)
+  assert.match(cssSrc, /\.doc-summary \.ds-lang\{[^}]*var\(--accent-text\)/,
+    ".ds-lang must use --accent-text (visually distinct from the stats)");
+  assert.match(cssSrc, /\.doc-summary \.ds-lang\{[^}]*background/,
+    ".ds-lang must have a background tint (pill styling)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

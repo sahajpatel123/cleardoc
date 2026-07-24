@@ -495,6 +495,8 @@
 .doc-summary .ds-icon{font-weight:800}
 .doc-summary.ds-dense{color:var(--amber)}
 .doc-summary.ds-dense b{color:var(--amber)}
+/* Language tag — small pill showing the detected doc language */
+.doc-summary .ds-lang{font-weight:700;color:var(--accent-text);letter-spacing:.04em;text-transform:uppercase;background:var(--accent-glow);padding:2px 6px;border-radius:2px}
 /* Jargon-swap badge — button that toggles a plain-English preview
  * under the doc-summary. Click-to-reveal; aria-expanded for a11y. */
 .doc-summary .ds-jargon{font:inherit;font-size:1em;font-weight:700;color:var(--ink);background:transparent;border:var(--bd-hair) solid currentColor;padding:2px 8px;cursor:pointer;letter-spacing:.04em;text-transform:uppercase;transition:background .12s,color .12s}

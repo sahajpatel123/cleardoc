@@ -149,6 +149,34 @@
   //   formatRelativeTime(yesterday)              → 'yesterday'
   //   formatRelativeTime(Date.now() - 3*86400e3) → '3d ago'
   //   formatRelativeTime(very old)               → '7/15/2025'
+  function detectLanguage(text){
+    const t = String(text||'').toLowerCase();
+    if (!t || t.length < 12) return null;
+    // Distinctive-word fingerprints per language. Picked words that
+    // are highly characteristic (function words + common legalese
+    // terms) so a 50-word sample is enough to discriminate.
+    const sigs = {
+      es: { words: /\b(este|esta|para|con|los|las|del|por|como| pero|porque|tiene|son|mas|más| días|años|mes|arrendamiento|alquiler|indemnizar|seguro|factura|recibo|cláusula)\b/g, label: 'Spanish', tts: 'es-ES' },
+      fr: { words: /\b(ce|les|des|est|une|avec|pour|dans|que|mais|qui|sur|vous|nous|son|tout|trois|jours|mois|ans|loyer|assurance|facture|reçu|clause|résiliation)\b/g, label: 'French', tts: 'fr-FR' },
+      de: { words: /\b(der|die|das|den|mit|für|auf|von|dem|des|ein|eine|nicht|auch|wird|sind|jahre|monat|tag|miete|versicherung|rechnung|quittung|kündigung)\b/g, label: 'German', tts: 'de-DE' },
+      it: { words: /\b(che|per|con|sono|come|più|degli|della|questo|questa|sono|anni|mese|giorni|affitto|assicurazione|fattura|ricevuta|clausola)\b/g, label: 'Italian', tts: 'it-IT' },
+      pt: { words: /\b(este|esta|para|com|os|as|do|da|por|mas|não|são|anos|mês|dias|aluguel|seguro|fatura|recibo|cláusula|rescisão)\b/g, label: 'Portuguese', tts: 'pt-BR' },
+      en: { words: /\b(the|this|that|with|for|from|are|was|were|will|would|should|days|years|month|rent|insurance|invoice|receipt|clause|landlord|tenant)\b/g, label: 'English', tts: 'en-US' },
+    };
+    let best = null;
+    for(const code of Object.keys(sigs)){
+      const hits = (t.match(sigs[code].words) || []).length;
+      if (hits === 0) continue;
+      if (!best || hits > best.count){
+        best = { code, hits, label: sigs[code].label, tts: sigs[code].tts, count: hits };
+      }
+    }
+    // Require at least 2 hits to claim a language — single hits
+    // would over-claim (e.g. "the" appears in many languages).
+    if (!best || best.count < 2) return null;
+    return best;
+  }
+
   function formatRelativeTime(ts){
     if(typeof ts !== 'number' || !Number.isFinite(ts)) return '';
     const diff = Date.now() - ts;
@@ -1445,7 +1473,7 @@
           statDocType=$('#statDocType'),docTypeTip=$('#docTypeTip'),docTypeTipText=$('#docTypeTipText'),
           docSummary=$('#docSummary'),dsSentences=$('#dsSentences'),dsSentenceS=$('#dsSentenceS'),
           dsParagraphs=$('#dsParagraphs'),dsParagraphS=$('#dsParagraphS'),
-          dsAvgWords=$('#dsAvgWords'),dsLongest=$('#dsLongest'),
+          dsAvgWords=$('#dsAvgWords'),dsLongest=$('#dsLongest'),dsLang=$('#dsLang'),
           dsJargon=$('#dsJargon'),dsJargonCount=$('#dsJargonCount'),dsJargonS=$('#dsJargonS'),
           dsJargonPreview=$('#dsJargonPreview'),
           deadlinesPreview=$('#deadlinesPreview'),deadlinesCount=$('#deadlinesCount'),
@@ -2777,6 +2805,27 @@
           // signal that the doc has run-on legalese worth flagging.
           docSummary.classList.remove('ds-dense');
           if(s.longestWords > 60) docSummary.classList.add('ds-dense');
+          // Language detection — tag the doc with the detected
+          // language (Spanish, French, German, Italian, Portuguese,
+          // English). TTS uses this to pick a matching voice. Hidden
+          // when detection is inconclusive (< 2 hits) so we don't
+          // mislead users with a wrong guess.
+          if(dsLang && typeof detectLanguage === 'function'){
+            const lang = detectLanguage(raw);
+            if(lang){
+              dsLang.hidden = false;
+              dsLang.textContent = '🌐 ' + lang.label;
+              dsLang.title = 'Detected language: ' + lang.label +
+                ' (' + lang.hits + ' signal' + (lang.hits === 1 ? '' : 's') + ')';
+              // Stash on the input so the TTS handler can pick it up
+              if(input) input._detectedLang = lang;
+            } else {
+              dsLang.hidden = true;
+              dsLang.textContent = '';
+              dsLang.title = '';
+              if(input) input._detectedLang = null;
+            }
+          }
           // Jargon-swap count — reuses the home-page clarify() engine
           // to count JARGON matches in the input. Hidden when zero
           // (clean docs shouldn't show a swap badge). When > 0,
@@ -3973,6 +4022,18 @@
             ? window.speechSynthesis.getVoices() : [];
           return voices.find(v => /^en[-_]/i.test(v.lang)) || voices[0] || null;
         };
+        // Voice picker that prefers a specific BCP-47 language tag
+        // (e.g. 'es-ES'). Falls back to the prefix match, then the
+        // first available voice. Pairs with iter #35's detectLanguage.
+        const pickVoiceForLang = (langTag) => {
+          const voices = (typeof window.speechSynthesis.getVoices === 'function')
+            ? window.speechSynthesis.getVoices() : [];
+          if(!langTag) return pickVoice();
+          const prefix = String(langTag).toLowerCase().split('-')[0];
+          return voices.find(v => v && v.lang && v.lang.toLowerCase() === String(langTag).toLowerCase())
+              || voices.find(v => v && v.lang && v.lang.toLowerCase().startsWith(prefix))
+              || pickVoice();
+        };
         // Wrap the rewrite's sentences in <span class="spoken"> so the
         // active sentence can be highlighted as the TTS reads it. Idempotent
         // — only wraps once per analyze (cached on the element via a flag).
@@ -4033,8 +4094,15 @@
             window.speechSynthesis.cancel(); // wipe any pending utterance
             sentenceSpans = wrapSentences();
             const u = new SpeechSynthesisUtterance(text);
-            const v = pickVoice();
+            // Use the detected language for TTS voice selection when
+            // available (set in iter #35). Falls back to pickVoice()
+            // (English-preferring) so legacy behavior is preserved.
+            const detectedLang = input && input._detectedLang;
+            const v = (detectedLang && detectedLang.tts)
+              ? pickVoiceForLang(detectedLang.tts)
+              : pickVoice();
             if(v) u.voice = v;
+            if(detectedLang && detectedLang.tts) u.lang = detectedLang.tts;
             u.rate = 1.0;
             u.pitch = 1.0;
             // boundary event fires at each sentence boundary. charIndex
