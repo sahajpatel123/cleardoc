@@ -1483,6 +1483,52 @@
       _analyzeToast.classList.add('toast-out');
     }, 3200);
   }
+
+  // showTemplateSuggestion (iter #58) — one-click "Save as template?"
+  // prompt that appears after a successful analysis. Smooth on-ramp
+  // from analysis → saved template. Dismissable; user can always
+  // open the templates panel manually to save later.
+  function showTemplateSuggestion(raw){
+    const input = document.getElementById('docInput');
+    if(!input || !raw) return;
+    // Remove any existing suggestion
+    const existing = document.getElementById('tplSuggest');
+    if(existing) existing.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'tplSuggest';
+    wrap.className = 'tpl-suggest';
+    wrap.setAttribute('role','status');
+    wrap.setAttribute('aria-live','polite');
+    wrap.innerHTML =
+      '<span class="tpl-suggest-text">💾 Save as template for next time?</span>' +
+      '<button type="button" class="tpl-suggest-yes" data-tpl-suggest-yes="1">Yes</button>' +
+      '<button type="button" class="tpl-suggest-no" data-tpl-suggest-no="1">No</button>';
+    document.body.appendChild(wrap);
+    // Pre-fill a default name (type label if available)
+    const detectedLang = input._detectedLang;
+    const defaultName = detectedLang ? detectedLang.label + ' template' : 'My template';
+    // Auto-dismiss after 12s (don't be annoying)
+    clearTimeout(wrap._fadeTimer);
+    wrap._fadeTimer = setTimeout(() => {
+      wrap.classList.add('tpl-suggest-out');
+      setTimeout(() => { if(wrap.parentNode) wrap.parentNode.removeChild(wrap); }, 350);
+    }, 12000);
+    // Click handlers
+    wrap.querySelector('[data-tpl-suggest-yes]').addEventListener('click', () => {
+      const ok = saveTemplate(defaultName, raw, detectedLang ? detectedLang.label : null);
+      wrap.classList.add('tpl-suggest-out');
+      setTimeout(() => { if(wrap.parentNode) wrap.parentNode.removeChild(wrap); }, 350);
+      if(ok){
+        showAnalyzeToast('✓ Template saved');
+      } else {
+        showAnalyzeToast('Template already exists');
+      }
+    });
+    wrap.querySelector('[data-tpl-suggest-no]').addEventListener('click', () => {
+      wrap.classList.add('tpl-suggest-out');
+      setTimeout(() => { if(wrap.parentNode) wrap.parentNode.removeChild(wrap); }, 350);
+    });
+  }
   function showUndoChip(){
     if(!_undoChip){
       _undoChip = document.createElement('button');
@@ -2650,6 +2696,21 @@
       if(restoreBanner) restoreBanner.hidden=true;
       // Snapshot supersedes the draft — clear it so we don't resurrect stale text
       clearDraft();
+      // Auto-suggest template (iter #58) — after a successful analysis,
+      // prompt the user to save the doc as a template for next time.
+      // Smooth on-ramp from analysis → saved template. The prompt
+      // skips itself if the doc is already a known template (by content
+      // hash) or is too short to be a meaningful template.
+      if(typeof showTemplateSuggestion === 'function' && input){
+        const raw = (input.value || '').trim();
+        if(raw.length >= 200){
+          const existing = (typeof readTemplates === 'function') ? readTemplates() : [];
+          const alreadySaved = existing.some(t => t.text === raw);
+          if(!alreadySaved){
+            showTemplateSuggestion(raw);
+          }
+        }
+      }
     }
 
     // Build a local-only analysis snapshot (plain rewrite + regex flags) for fallback

@@ -4116,6 +4116,48 @@ test("analyzer: Save-as-Template panel saves + loads named document templates", 
     ".tpl-item must be cursor:pointer (clickable template)");
 });
 
+test("analyzer: after a successful analysis, show a 'Save as template?' prompt", () => {
+  // Polishes iter #57 — after analyze() completes successfully,
+  // show a one-click prompt so the user doesn't have to navigate
+  // to the templates panel. Auto-dismisses after 12s so it
+  // doesn't get in the user's way.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // showTemplateSuggestion must exist
+  assert.match(appSrc, /function showTemplateSuggestion\(raw\)/,
+    "showTemplateSuggestion() must exist");
+  // Must be called after analyze() success
+  assert.match(appSrc, /saveSnapshot\([\s\S]+?showTemplateSuggestion\(raw\)/,
+    "showTemplateSuggestion must be called after saveSnapshot (analyze success path)");
+  // Must check that the doc isn't already saved (dedupe)
+  assert.match(appSrc, /showTemplateSuggestion[\s\S]+?alreadySaved\s*=/,
+    "must dedupe (skip if doc is already a template)");
+  // Must skip if doc is too short to be a meaningful template
+  assert.match(appSrc, /raw\.length\s*>=\s*200/,
+    "must skip if doc is too short (<200 chars)");
+  // Must include a Yes button that saves the template
+  assert.match(appSrc, /data-tpl-suggest-yes/,
+    "must include a 'Yes' button");
+  assert.match(appSrc, /saveTemplate\(defaultName, raw/,
+    "Yes button must call saveTemplate()");
+  // Must include a No button that just dismisses
+  assert.match(appSrc, /data-tpl-suggest-no/,
+    "must include a 'No' (dismiss) button");
+  // Must auto-dismiss after a timeout
+  assert.match(appSrc, /setTimeout\([\s\S]+?tpl-suggest-out[\s\S]+?12000/,
+    "must auto-dismiss after 12s");
+
+  // CSS
+  assert.match(cssSrc, /\.tpl-suggest\{[^}]*position:\s*fixed/,
+    ".tpl-suggest must be position:fixed (floats over content)");
+  assert.match(cssSrc, /\.tpl-suggest-yes\{[^}]*var\(--green\)/,
+    ".tpl-suggest-yes must use --green (positive action)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

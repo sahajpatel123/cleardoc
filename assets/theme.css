@@ -650,6 +650,17 @@ button.risk-preview:hover{filter:brightness(.96)}
 .analyze-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:10px 20px;border:3px solid var(--green);box-shadow:6px 6px 0 var(--accent);z-index:9999;transition:opacity .3s,transform .3s;pointer-events:none}
 .analyze-toast.toast-in{opacity:1;transform:translateX(-50%) translateY(0)}
 .analyze-toast.toast-out{opacity:0;transform:translateX(-50%) translateY(8px)}
+/* Template-suggestion prompt (iter #58) — small inline prompt that
+ * appears after a successful analysis. "Save as template for next
+ * time?" with Yes / No buttons. Auto-dismisses after 12s so it
+ * doesn't get in the user's way. */
+.tpl-suggest{position:fixed;right:20px;top:80px;background:var(--paper);border:3px solid var(--green);box-shadow:6px 6px 0 var(--accent);padding:10px 14px;display:flex;align-items:center;gap:10px;z-index:9998;font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);font-weight:700;text-transform:uppercase;letter-spacing:.04em;transition:opacity .3s,transform .3s}
+.tpl-suggest-out{opacity:0;transform:translateY(-8px)}
+.tpl-suggest-text{color:var(--ink)}
+.tpl-suggest-yes,.tpl-suggest-no{font:inherit;font-size:var(--t-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;cursor:pointer;border:var(--bd-hair) solid var(--ink-soft);background:transparent;color:var(--ink-soft)}
+.tpl-suggest-yes{color:var(--green);border-color:var(--green)}
+.tpl-suggest-yes:hover{background:var(--green);color:#fff}
+.tpl-suggest-no:hover{background:var(--ink-soft);color:var(--paper)}
 /* Apply-confirm modal (iter #48) — reuses kb-modal shell; adds
  * specific content styling for the destructive-action prompt. */
 .apply-confirm-card{max-width:520px}
