@@ -1725,7 +1725,8 @@
           voicePicker=$('#voicePicker'),risksAvoidedBadge=$('#risksAvoidedBadge'),
           shareBadgeBtn=$('#shareBadgeBtn'),resetBadgeBtn=$('#resetBadgeBtn'),
           badgeExplainBtn=$('#badgeExplainBtn'),savedVersionBadge=$('#savedVersionBadge'),
-          savedVersionSelect=$('#savedVersionSelect'),savedVersionSnippet=$('#savedVersionSnippet'),voicePreviewBtn=$('#voicePreviewBtn'),
+          savedVersionSelect=$('#savedVersionSelect'),savedVersionSnippet=$('#savedVersionSnippet'),
+          versionHistoryBtn=$('#versionHistoryBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -5304,6 +5305,44 @@
           savedVersionSnippet.hidden = true;
         }
       }
+      // Iter #76: show the "📚 history" button whenever a version
+      // exists. Click → modal with the full list of saved versions
+      // (date + count + snippet) for inspection.
+      if(versionHistoryBtn){
+        const allVersions = readVersions();
+        versionHistoryBtn.hidden = allVersions.length === 0;
+      }
+    }
+    // Iter #76: version history modal — shows the full list of
+    // saved versions in chronological order (newest first, same
+    // order as the picker). Uses showConfirmModal with custom HTML
+    // for the list, so we can render the rich row content.
+    if(versionHistoryBtn){
+      versionHistoryBtn.addEventListener('click', async () => {
+        const allVersions = readVersions();
+        if(allVersions.length === 0){
+          showAnalyzeToast('📚 No versions saved yet');
+          return;
+        }
+        const rows = allVersions.map((v, i) => {
+          const ago = (Date.now() - v.ts) < 60000 ? 'just now' :
+            (typeof formatRelativeTime === 'function' ? formatRelativeTime(v.ts) : 'recently');
+          return '<div class="vh-row' + (v.id === _activeVersionId ? ' vh-active' : '') + '">' +
+            '<div class="vh-num">' + (i + 1) + '.</div>' +
+            '<div class="vh-body">' +
+              '<div class="vh-name">' + esc(v.label) + (v.id === _activeVersionId ? ' <span class="vh-marker">active</span>' : '') + '</div>' +
+              '<div class="vh-meta">' + v.count + ' risks · ' + esc(ago) + '</div>' +
+              (v.snippet ? '<div class="vh-snippet">"' + esc(v.snippet) + '"</div>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('');
+        await showConfirmModal({
+          title: '📚 Saved versions (' + allVersions.length + ')',
+          bodyHtml: '<div class="vh-list">' + rows + '</div>' +
+            '<p class="vh-note">Active version is highlighted. Use the picker (next to the badge) to switch which version the next analysis compares against.</p>',
+          confirmLabel: 'Close',
+        });
+      });
     }
       // Iter #71: refresh the version selector dropdown with all
       // saved versions. Users pick which one to compare against.

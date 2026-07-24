@@ -4768,6 +4768,55 @@ test("analyzer: every risk pattern has a 'why this works' tip", () => {
   }
 });
 
+test("analyzer: version-history modal lists all saved versions with date + count + snippet", () => {
+  // New feature — users iterating on multiple "before" snapshots
+  // can now see a full list with dates, counts, and snippets via
+  // a single click. Picks the right baseline without opening
+  // DevTools.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: history button must exist
+  assert.match(html, /id="versionHistoryBtn"/,
+    "analyze.html must contain #versionHistoryBtn");
+  assert.match(html, /📚 history/,
+    "history button must be labeled '📚 history'");
+
+  // showClearVersionBtn must toggle the history button visibility
+  assert.match(appSrc, /showClearVersionBtn[\s\S]+?versionHistoryBtn\.hidden\s*=\s*allVersions\.length\s*===\s*0/,
+    "showClearVersionBtn must hide the history button when no versions");
+
+  // Click handler must use the existing confirm modal
+  assert.match(appSrc, /versionHistoryBtn\.addEventListener[\s\S]+?showConfirmModal/,
+    "history click must use the showConfirmModal");
+  // Must include the version list HTML
+  assert.match(appSrc, /versionHistoryBtn\.addEventListener[\s\S]+?vh-list/,
+    "history modal must include a .vh-list container");
+  // Must include the date + count + snippet for each version
+  assert.match(appSrc, /vh-row[\s\S]+?v\.label/,
+    "history must include the version label");
+  assert.match(appSrc, /vh-meta[\s\S]+?v\.count\s*\+/,
+    "history must include the risk count");
+  assert.match(appSrc, /vh-row[\s\S]+?v\.snippet/,
+    "history must include the saved snippet");
+  // Must mark the active version
+  assert.match(appSrc, /vh-active/,
+    "history must mark the active version");
+  // Must have a hint about how to switch
+  assert.match(appSrc, /picker[\s\S]+?switch which version/,
+    "history modal must include a hint about switching the active version");
+
+  // CSS
+  assert.match(cssSrc, /\.vh-list\{[^}]*max-height/,
+    ".vh-list must have a max-height so long lists don't overflow");
+  assert.match(cssSrc, /\.vh-active\{[^}]*var\(--green/,
+    ".vh-active must use --green (highlight the active version)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
