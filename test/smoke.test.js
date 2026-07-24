@@ -3940,6 +3940,40 @@ test("analyzer: re-analyze chip appears next to the undo chip after applying sug
     ".re-analyze-chip must be absolutely positioned (floats next to the textarea)");
 });
 
+test("analyzer: re-analyze shows a success toast with the risk-count delta", () => {
+  // Polishes iter #53 — after re-analyze, show a success toast
+  // with the risk-count delta. "✓ 2 risks remaining (down from 7)"
+  // tells the user the rewrite worked. Standard post-action
+  // feedback pattern (Google Docs, Notion).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // showAnalyzeToast must exist
+  assert.match(appSrc, /function showAnalyzeToast\(text\)/,
+    "showAnalyzeToast() must exist at the IIFE level");
+  // Must be wired to the re-analyze click
+  assert.match(appSrc, /_reAnalyzeChip\.addEventListener[\s\S]+?showAnalyzeToast/,
+    "re-analyze click must call showAnalyzeToast");
+  // Must capture the pre-analyze risk count for the delta
+  assert.match(appSrc, /_reAnalyzeChip\.addEventListener[\s\S]+?pre\s*=/,
+    "re-analyze must capture the pre-analyze risk count");
+  // Must include the "down from N" wording when count drops
+  assert.match(appSrc, /down from/,
+    "toast must include 'down from N' wording when count drops");
+  // Must handle the zero-risk case
+  assert.match(appSrc, /No risk|0 risk|0 risks|No risks/,
+    "toast must handle the zero-risk case");
+
+  // CSS: toast must be positioned + styled
+  assert.match(cssSrc, /\.analyze-toast\{[^}]*position:\s*fixed/,
+    ".analyze-toast must be position:fixed (floats above content)");
+  assert.match(cssSrc, /\.analyze-toast\{[^}]*var\(--green\)/,
+    ".analyze-toast must use --green (matches the re-analyze action)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

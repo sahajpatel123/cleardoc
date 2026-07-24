@@ -633,6 +633,12 @@ button.risk-preview:hover{filter:brightness(.96)}
  * counts after their rewrite). */
 .re-analyze-chip{position:absolute;top:-2px;right:96px;font:inherit;font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:var(--bd-hair) solid var(--green);background:var(--green-tint);color:var(--green);padding:4px 10px;cursor:pointer;z-index:5;transition:background .12s,color .12s}
 .re-analyze-chip:hover{background:var(--green);color:#fff}
+/* Analyze success toast (iter #54) — appears at the bottom of the
+ * viewport after re-analyze, shows the new risk count + delta vs
+ * the pre-apply count. Auto-fades after 3.2s. */
+.analyze-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:10px 20px;border:3px solid var(--green);box-shadow:6px 6px 0 var(--accent);z-index:9999;transition:opacity .3s,transform .3s;pointer-events:none}
+.analyze-toast.toast-in{opacity:1;transform:translateX(-50%) translateY(0)}
+.analyze-toast.toast-out{opacity:0;transform:translateX(-50%) translateY(8px)}
 /* Apply-confirm modal (iter #48) — reuses kb-modal shell; adds
  * specific content styling for the destructive-action prompt. */
 .apply-confirm-card{max-width:520px}

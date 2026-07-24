@@ -1460,8 +1460,29 @@
   // Iter #53: pairs the undo chip with a re-analyze chip so users
   // can immediately re-run the analysis on the modified document
   // and see the new (low) risk counts.
+  // Iter #54: showAnalyzeToast — success message with risk delta
+  // after re-analyze. "✓ 2 risks remaining (down from 7)".
   let _undoChip = null;
   let _reAnalyzeChip = null;
+  let _analyzeToast = null;
+  function showAnalyzeToast(text){
+    if(!_analyzeToast){
+      _analyzeToast = document.createElement('div');
+      _analyzeToast.id = 'analyzeToast';
+      _analyzeToast.className = 'analyze-toast';
+      _analyzeToast.setAttribute('role','status');
+      _analyzeToast.setAttribute('aria-live','polite');
+      document.body.appendChild(_analyzeToast);
+    }
+    _analyzeToast.textContent = text;
+    _analyzeToast.classList.remove('toast-out');
+    _analyzeToast.classList.add('toast-in');
+    clearTimeout(_analyzeToast._fadeTimer);
+    _analyzeToast._fadeTimer = setTimeout(() => {
+      _analyzeToast.classList.remove('toast-in');
+      _analyzeToast.classList.add('toast-out');
+    }, 3200);
+  }
   function showUndoChip(){
     if(!_undoChip){
       _undoChip = document.createElement('button');
@@ -1486,10 +1507,36 @@
       _reAnalyzeChip.hidden = true;
       const input = document.getElementById('docInput');
       if(input && input.parentNode) input.parentNode.appendChild(_reAnalyzeChip);
-      // Click → trigger the existing analyze() flow (iter #53)
+      // Click → trigger the existing analyze() flow (iter #53) and
+      // show a success toast with the risk-count delta (iter #54)
+      // so users see "✓ 2 risks remaining (down from 7)".
       _reAnalyzeChip.addEventListener('click', () => {
+        // Capture pre-analyze risk count (for the delta)
+        const pre = (typeof matchRisks === 'function')
+          ? matchRisks(input ? input.value : '').reduce((a, h) => a + (h ? 1 : 0), 0)
+          : 0;
         const analyzeBtn = document.getElementById('analyzeBtn');
-        if(analyzeBtn) analyzeBtn.click();
+        if(!analyzeBtn) return;
+        analyzeBtn.click();
+        // After a short delay, compute the new count and show the delta.
+        // The delay lets the analyze() flow finish updating
+        // lastSentences + lastFlags before we read them.
+        clearTimeout(_reAnalyzeChip._toastTimer);
+        _reAnalyzeChip._toastTimer = setTimeout(() => {
+          const post = (typeof matchRisks === 'function')
+            ? matchRisks(input ? input.value : '').reduce((a, h) => a + (h ? 1 : 0), 0)
+            : 0;
+          if(post < pre){
+            showAnalyzeToast('✓ ' + (post === 0 ? 'No' : post) + ' risk' +
+              (post === 1 ? '' : 's') + ' remaining (down from ' + pre + ')');
+          } else if(post === pre && post > 0){
+            showAnalyzeToast('✓ ' + post + ' risk' + (post === 1 ? '' : 's') + ' (no change)');
+          } else if(post > pre){
+            showAnalyzeToast('⚠ ' + post + ' risk' + (post === 1 ? '' : 's') + ' (up from ' + pre + ')');
+          } else {
+            showAnalyzeToast('✓ No risks detected');
+          }
+        }, 800);
       });
     }
     // Count applied suggestions (iter #52) so users see "↶ undo N"
