@@ -3069,6 +3069,33 @@ test("analyzer: Read-aloud button speaks each deadline with urgency and highligh
     ".dp-dot.dp-speaking must have a glow (box-shadow) for the karaoke effect");
 });
 
+test("analyzer: deadline TTS cross-links to the matched date in the source textarea", () => {
+  // Polishes iter #31 — when the voice reads a deadline, the matched
+  // date in the source textarea is also selected + flashed. Same
+  // pattern as iter #30 (risk TTS cross-link) and iter #15
+  // (click-to-locate). Users see + hear + read together.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Deadline onboundary must cross-link to the source textarea
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?onboundary[\s\S]+?input\.setSelectionRange/,
+    "deadline TTS onboundary must cross-link via input.setSelectionRange");
+  // Must read the original match from the deadline entry
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?list\[found\][\s\S]+?\.match/,
+    "onboundary must read list[found].match (the original matched substring)");
+  // Must look up the match in the input value (case-insensitive)
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?indexOf\(matched\.toLowerCase/,
+    "onboundary must use case-insensitive indexOf to find the match in the source");
+  // Must flash the textarea
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?classList\.add\(['"]rd-flash['"]\)/,
+    "onboundary must add rd-flash class to the textarea (visual pulse)");
+  // Must only trigger on row transitions (not every boundary event)
+  assert.match(appSrc, /deadlinesSpeakBtn[\s\S]+?found !== activeIdx/,
+    "cross-link must only fire on row transitions (not every boundary)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

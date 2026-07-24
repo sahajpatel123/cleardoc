@@ -3442,6 +3442,28 @@
               activeIdx = found;
               dots.forEach((d, i) => d.classList.toggle('dp-speaking', i === found));
               try { dots[found].scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(_){}
+              // Cross-link to the source textarea — select the matched
+              // date string + flash, so users see + hear + read together.
+              // Pairs with iter #30 (risk cross-link) and iter #15
+              // (click-to-locate). Skipped when the deadline has no
+              // captured original match (e.g. relative-only deadlines
+              // whose match is just a relative phrase).
+              if(input && list[found] && list[found].match){
+                const raw = input.value || '';
+                const matched = list[found].match;
+                const idx = raw.toLowerCase().indexOf(matched.toLowerCase());
+                if(idx >= 0){
+                  try {
+                    input.focus();
+                    input.setSelectionRange(idx, idx + matched.length);
+                    input.classList.add('rd-flash');
+                    clearTimeout(input._rdFlashTimer);
+                    input._rdFlashTimer = setTimeout(() => {
+                      input.classList.remove('rd-flash');
+                    }, 1200);
+                  } catch(_){}
+                }
+              }
             }
           };
           u.onend = u.onerror = () => {
