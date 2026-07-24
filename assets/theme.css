@@ -657,6 +657,17 @@ button.risk-preview:hover{filter:brightness(.96)}
 .compare-verdict.cmp-verdict-danger{color:var(--danger);background:var(--danger-tint)}
 .compare-verdict.cmp-verdict-amber{color:var(--amber);background:var(--amber-tint)}
 .compare-verdict.cmp-verdict-even{color:var(--ink-soft);background:var(--paper2)}
+/* Diff view — sentence-level "what's different" beneath the table.
+ * Two columns (Original-only, Compare-only) with color-tinted labels
+ * matching the side they describe. Cap at 5 per side via JS. */
+.compare-diff{margin-top:var(--s2);padding:var(--s2);border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.compare-diff .cmp-diff-head{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.1em;color:var(--accent-text);margin-bottom:8px;font-weight:700}
+.compare-diff .cmp-diff-row{margin-bottom:6px;font-family:'Archivo',sans-serif}
+.compare-diff .cmp-diff-row b{display:block;font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.compare-diff .cmp-diff-row ol{margin:0;padding-left:20px;line-height:1.5}
+.compare-diff .cmp-diff-row li{margin-bottom:4px;font-size:var(--t-meta)}
+.compare-diff .cmp-diff-a b{color:var(--ink-soft)}
+.compare-diff .cmp-diff-b b{color:var(--accent-text)}
 .compare-stats .cmp-table{width:100%;border-collapse:collapse;font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.04em}
 .compare-stats .cmp-table th,.compare-stats .cmp-table td{padding:6px 10px;border-bottom:var(--bd-hair) solid var(--ink-soft);text-align:left;vertical-align:baseline}
 .compare-stats .cmp-table thead th{color:var(--ink);background:var(--paper2);border-bottom:var(--bd) solid var(--ink)}

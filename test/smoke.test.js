@@ -2575,6 +2575,52 @@ test("analyzer: compare panel shows a clear 'WINS' verdict badge above the table
     ".cmp-verdict-even must have its own (muted) styling for ties");
 });
 
+test("analyzer: compare panel shows sentence-level diff (Original-only / Compare-only clauses)", () => {
+  // New feature — beyond the verdict (who wins) and the score
+  // (type/level/risks/deadlines), show the actual sentences that
+  // differ between the two docs. "what's different?" beyond numbers.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // diffSentences must exist at the IIFE level
+  assert.match(appSrc, /function diffSentences\(a, b\)/,
+    "diffSentences() helper must exist at the IIFE level");
+  // Must normalize for comparison (lowercase + whitespace-collapse)
+  assert.match(appSrc, /diffSentences[\s\S]+?toLowerCase\(\)/,
+    "diffSentences must lowercase for matching (casing shouldn't cause false splits)");
+  assert.match(appSrc, /diffSentences[\s\S]+?replace\(/,
+    "diffSentences must collapse whitespace for matching");
+
+  // analyze.html: diff container
+  assert.match(html, /id="compareDiff"/,
+    "analyze.html must contain #compareDiff below #compareStats");
+
+  // updateCompareStats must call diffSentences + render both rows
+  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateFn, "updateCompareStats() must exist");
+  assert.match(updateFn[0], /diffSentences\(a,\s*b\)/,
+    "updateCompareStats must call diffSentences(a, b)");
+  assert.match(updateFn[0], /only in/,
+    "diff must label the Original-only row ('only in ...')");
+  assert.match(updateFn[0], /row\(\s*'Original'[\s\S]+?row\(\s*'Compare'/,
+    "diff must render both Original and Compare rows");
+  // Must hide when there's no diff (both sides identical)
+  assert.match(updateFn[0], /compareDiff\.hidden\s*=\s*true/,
+    "compareDiff must hide when no sentences differ");
+
+  // CSS: two-column diff with color-coded labels
+  assert.match(cssSrc, /\.compare-diff\{[^}]*border/,
+    ".compare-diff must have a visible border so it reads as a separate section");
+  assert.match(cssSrc, /\.compare-diff \.cmp-diff-a b\{[^}]*var\(--ink-soft\)/,
+    ".cmp-diff-a (Original) label must use --ink-soft (muted)");
+  assert.match(cssSrc, /\.compare-diff \.cmp-diff-b b\{[^}]*var\(--accent-text\)/,
+    ".cmp-diff-b (Compare) label must use --accent-text (accent — second side)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

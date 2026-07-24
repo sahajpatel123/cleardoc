@@ -174,6 +174,50 @@
     };
   }
 
+  // Compare-time diff helper — splits two texts into sentences and
+  // returns the sentences unique to each side. Used by the compare
+  // panel to surface "what's actually different" beyond the score.
+  // Matches are normalized (lowercased, whitespace-collapsed) so
+  // casing and line-wrap differences don't cause false splits.
+  //   diffSentences("A. B. C.", "A. D.") → {onlyA:["B","C"], onlyB:["D"]}
+  //   diffSentences("", "anything")      → {onlyA:[], onlyB:["anything"]}
+  function diffSentences(a, b){
+    const split = (s) => String(s||'')
+      .split(/(?<=[.!?])\s+/)
+      .map(x => x.replace(/\s+/g, ' ').trim().toLowerCase())
+      .filter(x => x.length > 3);
+    const sa = split(a), sb = split(b);
+    const setB = new Set(sb);
+    const setA = new Set(sa);
+    const onlyA = sa.filter(x => !setB.has(x));
+    const onlyB = sb.filter(x => !setA.has(x));
+    // Preserve original casing for display
+    const orig = (s, src) => {
+      const t = String(s||'').split(/(?<=[.!?])\s+/).map(x => x.trim()).filter(x => x.length > 3);
+      return t.filter(x => x.replace(/\s+/g,' ').trim().toLowerCase() === s) || [];
+    };
+    // Map the unique normalized forms back to their original-cased
+    // source sentences by re-splitting the raw input. Cheap (small N).
+    const displayFromRaw = (raw, normalizedList) => {
+      const rawSplit = String(raw||'').split(/(?<=[.!?])\s+/).map(x => x.trim()).filter(x => x.length > 3);
+      const seen = new Set();
+      const out = [];
+      for(const orig of rawSplit){
+        const k = orig.replace(/\s+/g,' ').trim().toLowerCase();
+        if(normalizedList.indexOf(k) >= 0 && !seen.has(k)){
+          seen.add(k);
+          out.push(orig);
+          if(out.length >= 5) break; // cap at 5 per side — no flooding
+        }
+      }
+      return out;
+    };
+    return {
+      onlyA: displayFromRaw(a, onlyA),
+      onlyB: displayFromRaw(b, onlyB),
+    };
+  }
+
   function readTime(text){
     const t = String(text||'').trim();
     if (!t) return '—';
@@ -1381,7 +1425,7 @@
           deadlinesCalBtn=$('#deadlinesCalBtn'),
           compareToggle=$('#compareToggle'),comparePanel=$('#comparePanel'),
           inputB=$('#docInputB'),compareStats=$('#compareStats'),
-          compareVerdict=$('#compareVerdict'),
+          compareVerdict=$('#compareVerdict'),compareDiff=$('#compareDiff'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
@@ -2921,6 +2965,7 @@
         if(comparePanel.hidden){
           compareStats.innerHTML = '';
           if(compareVerdict){ compareVerdict.hidden = true; compareVerdict.textContent = ''; }
+          if(compareDiff){ compareDiff.hidden = true; compareDiff.innerHTML = ''; }
           return;
         }
         const a = input ? (input.value || '') : '';
@@ -2928,6 +2973,7 @@
         if(!b.trim()){
           compareStats.innerHTML = '';
           if(compareVerdict){ compareVerdict.hidden = true; compareVerdict.textContent = ''; }
+          if(compareDiff){ compareDiff.hidden = true; compareDiff.innerHTML = ''; }
           return;
         }
         const stat = (raw) => {
@@ -3000,6 +3046,30 @@
             '<tr><th>risks</th>' + cell(String(sa.risks) + (sa.trap ? ' <span class="cmp-trap">(' + sa.trap + ' trap)</span>' : '')) + cell(String(sb.risks) + (sb.trap ? ' <span class="cmp-trap">(' + sb.trap + ' trap)</span>' : '')) + '</tr>' +
             '<tr><th>deadlines</th>' + cell(String(sa.deadlines)) + cell(String(sb.deadlines)) + '</tr>' +
           '</tbody></table>';
+        // Diff — sentence-level. Pairs with the verdict by answering
+        // "what's actually different?" beyond the score. Cap at 5
+        // per side so the panel doesn't flood.
+        if(compareDiff && typeof diffSentences === 'function'){
+          const d = diffSentences(a, b);
+          const totalDiff = d.onlyA.length + d.onlyB.length;
+          if(totalDiff === 0){
+            compareDiff.hidden = true;
+            compareDiff.innerHTML = '';
+          } else {
+            compareDiff.hidden = false;
+            const row = (label, items, cls) => {
+              if(items.length === 0) return '';
+              return '<div class="cmp-diff-row ' + cls + '"><b>only in ' + label +
+                ' (' + items.length + ')</b><ol>' +
+                items.map(s => '<li>' + esc(s) + '</li>').join('') +
+                '</ol></div>';
+            };
+            compareDiff.innerHTML =
+              '<div class="cmp-diff-head">// what\'s different</div>' +
+              row('Original', d.onlyA, 'cmp-diff-a') +
+              row('Compare',  d.onlyB, 'cmp-diff-b');
+          }
+        }
       }
 
       /* Jargon-swap button — toggles a plain-English preview under the
