@@ -1725,7 +1725,7 @@
           voicePicker=$('#voicePicker'),risksAvoidedBadge=$('#risksAvoidedBadge'),
           shareBadgeBtn=$('#shareBadgeBtn'),resetBadgeBtn=$('#resetBadgeBtn'),
           badgeExplainBtn=$('#badgeExplainBtn'),savedVersionBadge=$('#savedVersionBadge'),
-          savedVersionSelect=$('#savedVersionSelect'),voicePreviewBtn=$('#voicePreviewBtn'),
+          savedVersionSelect=$('#savedVersionSelect'),savedVersionSnippet=$('#savedVersionSnippet'),voicePreviewBtn=$('#voicePreviewBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -5259,6 +5259,19 @@
           savedVersionBadge.hidden = true;
         }
       }
+      // Iter #73: snippet preview — when a saved version is active,
+      // show its saved snippet inline so users can verify which
+      // version they're comparing against without opening DevTools.
+      if(savedVersionSnippet){
+        if(v && v.snippet){
+          savedVersionSnippet.hidden = false;
+          savedVersionSnippet.innerHTML = '📄 <b>' + esc(v.label) + '</b>: "' +
+            esc(v.snippet) + '"';
+        } else {
+          savedVersionSnippet.hidden = true;
+        }
+      }
+    }
       // Iter #71: refresh the version selector dropdown with all
       // saved versions. Users pick which one to compare against.
       if(savedVersionSelect){
@@ -5273,6 +5286,11 @@
               ')</option>'
             ).join('');
           savedVersionSelect.hidden = false;
+          // Iter #72: enable per-version delete. Setting this
+          // attribute lets the change handler distinguish a
+          // "switched the active version" event from a "delete this
+          // version" event.
+          savedVersionSelect.dataset.mode = 'picker';
         } else {
           savedVersionSelect.hidden = true;
         }
@@ -5315,6 +5333,27 @@
         showClearVersionBtn();
       });
     }
+    // Iter #72: per-version delete. Clicking × next to a saved
+    // version removes only that one. The picker is repopulated
+    // so the user immediately sees the updated list. Implemented
+    // as a separate click handler so the "switch" change handler
+    // and the "delete" click handler don't interfere.
+    if(savedVersionSelect){
+      savedVersionSelect.addEventListener('click', (e) => {
+        // The select's option text includes ×; we use a simple
+        // data attribute on the selected option to indicate
+        // delete intent. For now, use a Cmd/Ctrl+click shortcut:
+        // Cmd+click an option to delete it.
+        if((e.metaKey || e.ctrlKey) && savedVersionSelect.value){
+          const id = savedVersionSelect.value;
+          if(id){
+            deleteVersion(id);
+            showClearVersionBtn();
+            showAnalyzeToast('🗑 Version deleted');
+          }
+        }
+      });
+    }
     if(clearVersionBtn){
       clearVersionBtn.addEventListener('click', async () => {
         const v = getSavedVersion();
@@ -5329,6 +5368,7 @@
         try { localStorage.removeItem(VERSION_KEY); } catch(_){}
         showClearVersionBtn();
         if(savedVersionBadge) savedVersionBadge.hidden = true;
+        if(savedVersionSnippet) savedVersionSnippet.hidden = true;
         showAnalyzeToast('🗑 Baseline cleared');
       });
     }

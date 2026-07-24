@@ -4671,6 +4671,42 @@ test("analyzer: per-version delete (Cmd/Ctrl-click) removes one snapshot without
     "delete handler must show a success toast");
 });
 
+test("analyzer: saved-version snippet is shown inline when a version is active", () => {
+  // New feature — when a saved version is active, show its saved
+  // snippet inline so users can verify which version they're
+  // comparing against without opening DevTools.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: snippet element must exist
+  assert.match(html, /id="savedVersionSnippet"/,
+    "analyze.html must contain #savedVersionSnippet");
+
+  // showClearVersionBtn must update the snippet
+  assert.match(appSrc, /showClearVersionBtn[\s\S]+?savedVersionSnippet\.hidden\s*=\s*false/,
+    "showClearVersionBtn must show the snippet when a version exists");
+  assert.match(appSrc, /showClearVersionBtn[\s\S]+?savedVersionSnippet\.hidden\s*=\s*true/,
+    "showClearVersionBtn must hide the snippet when no version");
+  // Must include the saved snippet text
+  assert.match(appSrc, /showClearVersionBtn[\s\S]+?v\.snippet/,
+    "snippet must read v.snippet (the saved text)");
+  // Must show the version label too
+  assert.match(appSrc, /showClearVersionBtn[\s\S]+?v\.label/,
+    "snippet must show the version label too");
+
+  // Clear must hide the snippet
+  assert.match(appSrc, /clearVersionBtn\.addEventListener[\s\S]+?savedVersionSnippet\.hidden\s*=\s*true/,
+    "clear must hide the snippet");
+
+  // CSS
+  assert.match(cssSrc, /\.saved-version-snippet\{[^}]*font-style:\s*italic/,
+    ".saved-version-snippet must use italic (visual hierarchy)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
