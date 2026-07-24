@@ -181,7 +181,13 @@
         <button class="qf" data-fill="Tenant shall forfeit the security deposit in the event that written notice is not tendered sixty days prior to termination, and shall remain liable for all damages howsoever caused during the tenancy.">try: Lease</button>
         <button class="qf" data-fill="Patient acknowledges that facility fees, notwithstanding any insurance adjustment, shall be the sole responsibility of the patient pursuant to the terms set forth herein, and that balance billing may apply.">try: Medical Bill</button>
         <button class="qf" data-fill="The aforementioned subscriber shall be liable for all charges incurred heretofore, and the provider reserves the right to modify these terms at any time at its sole discretion without notice.">try: Terms</button>
+        <button type="button" class="qf qf-toggle" id="compareToggle" aria-expanded="false" aria-controls="comparePanel">+ compare</button>
         <label class="filelbl">Attach file<input id="fileInput" type="file" accept=".txt,.text,.md,.markdown,.csv,.tsv,.log,.json,.xml,.html,.htm,.rtf,.pdf,.doc,.docx,.odt,.pages,.png,.jpg,.jpeg,.gif,.webp,.bmp,.svg,.heic,.heif,.avif,.tif,.tiff,application/pdf,image/*,text/*" hidden></label>
+      </div>
+      <div class="compare-panel" id="comparePanel" hidden aria-label="Side-by-side comparison">
+        <label class="lbl" for="docInputB">Compare against</label>
+        <textarea id="docInputB" maxlength="40000" placeholder="Paste a second clause, contract, or bill to compare against the first."></textarea>
+        <div class="compare-stats mono" id="compareStats" aria-live="polite"></div>
       </div>
       <div class="attach-tray" id="attachTray" hidden aria-live="polite"></div>
       <div class="run-row">

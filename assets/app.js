@@ -1379,6 +1379,8 @@
           deadlinesPlural=$('#deadlinesPlural'),deadlinesSoonest=$('#deadlinesSoonest'),
           deadlinesTimeline=$('#deadlinesTimeline'),
           deadlinesCalBtn=$('#deadlinesCalBtn'),
+          compareToggle=$('#compareToggle'),comparePanel=$('#comparePanel'),
+          inputB=$('#docInputB'),compareStats=$('#compareStats'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
@@ -2874,6 +2876,86 @@
       input.addEventListener('input', updateTextStats);
       input.addEventListener('change', updateTextStats);
       updateTextStats(); // initial paint for the preloaded sample
+
+      /* Compare-panel toggle — opens the second textarea. Click
+       * again (or Escape) to close. The comparison row beneath both
+       * inputs shows side-by-side stats so users can see which
+       * contract / clause is riskier at a glance. */
+      if(compareToggle && comparePanel){
+        compareToggle.addEventListener('click', () => {
+          const willOpen = comparePanel.hidden;
+          comparePanel.hidden = !willOpen;
+          compareToggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+          compareToggle.classList.toggle('qf-open', willOpen);
+          compareToggle.textContent = willOpen ? '− compare' : '+ compare';
+          if(willOpen && inputB) setTimeout(() => inputB.focus(), 50);
+          else updateCompareStats();
+        });
+      }
+      if(inputB){
+        inputB.addEventListener('input', updateCompareStats);
+        inputB.addEventListener('change', updateCompareStats);
+        inputB.addEventListener('keydown', (e) => {
+          if(e.key === 'Escape' && comparePanel && !comparePanel.hidden){
+            e.preventDefault();
+            comparePanel.hidden = true;
+            if(compareToggle){
+              compareToggle.setAttribute('aria-expanded', 'false');
+              compareToggle.classList.remove('qf-open');
+              compareToggle.textContent = '+ compare';
+            }
+            input.focus();
+          }
+        });
+      }
+
+      /* Side-by-side comparison stats — fires on input changes to
+       * either textarea. Renders a 2-column row (Original | Compare)
+       * showing type, level, risks, deadlines. The riskier side is
+       * highlighted with .cmp-riskier so users see "LEFT is riskier"
+       * without parsing every cell. Hidden when panel closed or
+       * B side is empty. */
+      function updateCompareStats(){
+        if(!comparePanel || !compareStats) return;
+        if(comparePanel.hidden) { compareStats.innerHTML = ''; return; }
+        const a = input ? (input.value || '') : '';
+        const b = inputB ? (inputB.value || '') : '';
+        if(!b.trim()){ compareStats.innerHTML = ''; return; }
+        const stat = (raw) => {
+          const dt = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
+          const sev = (typeof countRisksBySeverity === 'function') ? countRisksBySeverity(raw) : {trap:0,watch:0,note:0};
+          const grade = (typeof gradeLevel === 'function' && typeof friendlyGrade === 'function')
+            ? friendlyGrade(gradeLevel(raw)) : null;
+          const dls = (typeof extractDeadlines === 'function') ? extractDeadlines(raw) : [];
+          return {
+            type: dt ? dt.label : '—',
+            risks: sev.trap + sev.watch + sev.note,
+            trap: sev.trap,
+            level: grade || '—',
+            deadlines: dls.length,
+          };
+        };
+        const sa = stat(a), sb = stat(b);
+        // Identify riskier side: traps first (worst signal), then total
+        // risks, then deadlines. Any column that "wins" is highlighted.
+        let leftRiskier = false, rightRiskier = false;
+        if(sb.trap > sa.trap) rightRiskier = true;
+        else if(sa.trap > sb.trap) leftRiskier = true;
+        else if(sb.risks > sa.risks) rightRiskier = true;
+        else if(sa.risks > sb.risks) leftRiskier = true;
+        else if(sb.deadlines > sa.deadlines) rightRiskier = true;
+        else if(sa.deadlines > sb.deadlines) leftRiskier = true;
+        const cell = (s, risk) => '<td class="' + (risk ? 'cmp-riskier' : '') + '">' + s + '</td>';
+        compareStats.innerHTML =
+          '<table class="cmp-table">' +
+          '<thead><tr><th></th>' + cell('Original', leftRiskier) + cell('Compare', rightRiskier) + '</tr></thead>' +
+          '<tbody>' +
+            '<tr><th>type</th>' + cell(esc(sa.type)) + cell(esc(sb.type)) + '</tr>' +
+            '<tr><th>level</th>' + cell(esc(sa.level)) + cell(esc(sb.level)) + '</tr>' +
+            '<tr><th>risks</th>' + cell(String(sa.risks) + (sa.trap ? ' <span class="cmp-trap">(' + sa.trap + ' trap)</span>' : '')) + cell(String(sb.risks) + (sb.trap ? ' <span class="cmp-trap">(' + sb.trap + ' trap)</span>' : '')) + '</tr>' +
+            '<tr><th>deadlines</th>' + cell(String(sa.deadlines)) + cell(String(sb.deadlines)) + '</tr>' +
+          '</tbody></table>';
+      }
 
       /* Jargon-swap button — toggles a plain-English preview under the
        * doc-summary. Reuses the home-page clarify() engine so the

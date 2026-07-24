@@ -2457,6 +2457,80 @@ test("analyzer: doc-summary line shows jargon-swap count that toggles a plain-En
     ".ds-preview <b> must be amber-tinted (swapped terms pop)");
 });
 
+test("analyzer: side-by-side compare panel renders 2-column stats when a second clause is pasted", () => {
+  // New feature — toggle a second textarea + render a side-by-side
+  // comparison row showing type, level, risks, deadlines for both.
+  // The riskier side is highlighted (.cmp-riskier) so users can spot
+  // the dangerous clause without parsing every cell.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: toggle button + panel + second textarea + stats
+  assert.match(html, /id="compareToggle"/,
+    "analyze.html must contain #compareToggle");
+  assert.match(html, /id="comparePanel"/,
+    "analyze.html must contain #comparePanel");
+  assert.match(html, /id="docInputB"/,
+    "analyze.html must contain #docInputB (the second textarea)");
+  assert.match(html, /id="compareStats"/,
+    "analyze.html must contain #compareStats (the comparison table target)");
+  // Toggle button must aria-control the panel
+  assert.match(html, /aria-controls="comparePanel"/,
+    "#compareToggle must aria-controls #comparePanel");
+
+  // updateCompareStats must exist and compute per-side stats
+  assert.match(appSrc, /function updateCompareStats\(\)/,
+    "updateCompareStats() must exist");
+  assert.match(appSrc, /updateCompareStats[\s\S]+?detectDocType/,
+    "updateCompareStats must call detectDocType on each side");
+  assert.match(appSrc, /updateCompareStats[\s\S]+?countRisksBySeverity/,
+    "updateCompareStats must call countRisksBySeverity on each side");
+  assert.match(appSrc, /updateCompareStats[\s\S]+?extractDeadlines/,
+    "updateCompareStats must call extractDeadlines on each side");
+  assert.match(appSrc, /updateCompareStats[\s\S]+?friendlyGrade/,
+    "updateCompareStats must call friendlyGrade on each side");
+  // Must hide when panel closed or B side empty
+  assert.match(appSrc, /updateCompareStats[\s\S]+?comparePanel\.hidden[\s\S]+?innerHTML\s*=\s*''/,
+    "updateCompareStats must clear the stats when panel closed or B empty");
+  // Must render the table with cmp-riskier highlighting the riskier side
+  assert.match(appSrc, /updateCompareStats[\s\S]+?cmp-riskier/,
+    "updateCompareStats must apply cmp-riskier class to the riskier side");
+  assert.match(appSrc, /updateCompareStats[\s\S]+?leftRiskier\s*=\s*true/,
+    "updateCompareStats must compute leftRiskier (Original wins)");
+  assert.match(appSrc, /updateCompareStats[\s\S]+?rightRiskier\s*=\s*true/,
+    "updateCompareStats must compute rightRiskier (Compare wins)");
+
+  // Click handler must toggle the panel + flip the button label
+  assert.match(appSrc, /compareToggle\.addEventListener\(\s*['"]click['"]/,
+    "#compareToggle must have a click handler");
+  assert.match(appSrc, /compareToggle\.addEventListener[\s\S]+?comparePanel\.hidden\s*=\s*!willOpen/,
+    "click handler must toggle #comparePanel.hidden");
+  assert.match(appSrc, /compareToggle\.addEventListener[\s\S]+?'− compare'[\s\S]+?'\+ compare'/,
+    "click handler must swap button label between '+ compare' and '− compare'");
+
+  // inputB must wire to updateCompareStats on input
+  assert.match(appSrc, /inputB\.addEventListener\(\s*['"]input['"],\s*updateCompareStats/,
+    "inputB must call updateCompareStats on input");
+  // Escape on inputB closes the panel
+  assert.match(appSrc, /inputB\.addEventListener[\s\S]+?Escape/,
+    "inputB must handle Escape to close the panel");
+
+  // CSS: panel + table + riskier highlight
+  assert.match(cssSrc, /\.compare-panel\{[^}]*border/,
+    ".compare-panel must have a visible border so it reads as a separate section");
+  assert.match(cssSrc, /\.compare-stats \.cmp-table\{[^}]*border-collapse:\s*collapse/,
+    ".cmp-table must use border-collapse for clean grid lines");
+  assert.match(cssSrc, /\.compare-stats \.cmp-table td\.cmp-riskier\{[^}]*var\(--danger\)/,
+    ".cmp-riskier must use --danger so the riskier side pops");
+  // Trap count must also use --danger (sub-stat emphasis)
+  assert.match(cssSrc, /\.compare-stats \.cmp-trap\{[^}]*var\(--danger\)/,
+    ".cmp-trap must use --danger (the trap count inside the risks cell)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
