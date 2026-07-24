@@ -552,6 +552,25 @@ button.risk-preview:hover{filter:brightness(.96)}
 .textstats .dt-tax{color:#7a5b00}
 .textstats .dt-conf-likely{font-weight:700}
 .textstats .dt-conf-high{font-weight:800;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:2px}
+/* Per-type "what to look for" tip — shown under the type badge.
+ * Small, muted, editorial-style: "// watch for balance billing,
+ * facility fees, upcoding" — the kicker matches the rest of the
+ * site's //-comment styling so the tip reads as an editorial
+ * annotation, not a system message. Color follows the detected
+ * type so users see a consistent visual link between badge + tip. */
+.doc-type-tip{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:4px;padding:4px 0;font-size:var(--t-meta-sm);line-height:1.5}
+.doc-type-tip .dtt-kicker{color:var(--accent-text);font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
+.doc-type-tip .dtt-text{color:var(--ink-soft);font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0}
+.doc-type-tip.dtt-lease .dtt-text{color:#1f4e79}
+.doc-type-tip.dtt-medical .dtt-text{color:#a8326b}
+.doc-type-tip.dtt-subscription .dtt-text{color:#5a4e8b}
+.doc-type-tip.dtt-employment .dtt-text{color:#176B53}
+.doc-type-tip.dtt-loan .dtt-text{color:#7a5b00}
+.doc-type-tip.dtt-privacy .dtt-text{color:#1f4e79}
+.doc-type-tip.dtt-terms .dtt-text{color:var(--ink)}
+.doc-type-tip.dtt-insurance .dtt-text{color:#2e6b4f}
+.doc-type-tip.dtt-debt .dtt-text{color:var(--danger)}
+.doc-type-tip.dtt-tax .dtt-text{color:#7a5b00}
 /* Toolbar row — pattern count + Copy button. Stays visually separate
  * from the rows so the button doesn't look like another risk tag. */
 .risk-detail-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border-bottom:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}

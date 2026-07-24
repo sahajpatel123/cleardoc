@@ -174,6 +174,32 @@
     { name: 'debt',           label: 'Debt Collection', patterns: [/\b(debt|collection|past due|delinquent|creditor)\b/gi, /\b(minimum payment|settlement|charge[- ]?off|wage garnishment)\b/gi] },
     { name: 'tax',            label: 'Tax',            patterns: [/\b(IRS|tax return|adjusted gross|taxable income|filing)\b/gi, /\b(audit|deduction|withhold|1099|W-?2|estimated tax)\b/gi] },
   ];
+
+  // Per-type "what to look for" tips — shown below the type badge so
+  // users learn the vocabulary of traps BEFORE they hit Analyze. Each
+  // tip is a short, scannable list of the 3-4 most common trap clauses
+  // in that document category. Tips are hand-curated, not auto-generated,
+  // so each one is something a lawyer or paralegal would actually point
+  // out — not a guess from the keyword patterns.
+  //   getDocTypeTip('lease')    → 'early-termination fees, security-deposit traps, rent escalation'
+  //   getDocTypeTip('medical')  → 'balance billing, facility fees, upcoding, out-of-network charges'
+  //   getDocTypeTip('unknown')  → null
+  const DOC_TYPE_TIPS = {
+    lease:        'early-termination fees, security-deposit traps, rent escalation, subletting bans',
+    medical:      'balance billing, facility fees, upcoding, surprise out-of-network charges',
+    subscription: 'auto-renewal clauses, free-trial → paid traps, cancellation friction, price-change rights',
+    employment:   'non-compete scope, IP assignment, at-will waivers, severance limits, arbitration',
+    loan:         'prepayment penalties, variable-rate resets, balloon payments, default triggers',
+    privacy:      'data-sharing with third parties, arbitration clauses, opt-out friction, retention periods',
+    terms:        'unilateral changes, IP license grants, class-action waivers, indemnification, warranty disclaimers',
+    insurance:    'coverage exclusions, claim-denial procedures, network restrictions, pre-authorization traps',
+    debt:         'validation rights, statute of limitations, settlement pitfalls, wage-garnishment exposure',
+    tax:          'filing deadlines, estimated-tax underpayment, audit triggers, deduction limits',
+  };
+  function getDocTypeTip(name){
+    if(!name || typeof name !== 'string') return null;
+    return DOC_TYPE_TIPS[name] || null;
+  }
   function detectDocType(text){
     const t = String(text||'').trim();
     if (!t || t.length < 20) return null;
@@ -1112,7 +1138,7 @@
           viewShareBtn=$('#viewShareBtn'),dismissShareBtn=$('#dismissShareBtn'),
           textStats=$('#textStats'),statWords=$('#statWords'),statChars=$('#statChars'),
           statReadTime=$('#statReadTime'),statLevel=$('#statLevel'),statCap=$('#statCap'),
-          statDocType=$('#statDocType'),
+          statDocType=$('#statDocType'),docTypeTip=$('#docTypeTip'),docTypeTipText=$('#docTypeTipText'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
@@ -2367,10 +2393,25 @@
           // Drop any old doc-type classes, then add the active one
           statDocType.className = '';
           statDocType.classList.add('dt-' + dt.name, 'dt-conf-' + dt.confidence);
+          // Per-type "what to look for" tip — hand-curated vocabulary of
+          // traps for each doc category. Shown only when the badge is
+          // active, so a clean / unknown doc doesn't get a dangling tip.
+          if(docTypeTip && docTypeTipText && typeof getDocTypeTip === 'function'){
+            const tip = getDocTypeTip(dt.name);
+            if(tip){
+              docTypeTipText.textContent = tip;
+              docTypeTip.hidden = false;
+              docTypeTip.className = 'doc-type-tip mono dtt-' + dt.name;
+            } else {
+              docTypeTip.hidden = true;
+            }
+          }
         } else {
           statDocType.textContent = '—';
           statDocType.title = '';
           statDocType.className = '';
+          // No type → hide the tip too (no orphan tip when type disappears)
+          if(docTypeTip) docTypeTip.hidden = true;
         }
       }
       statLevel.textContent = isGradable(raw) ? (gradeLevel(raw) + 'th') : '—';

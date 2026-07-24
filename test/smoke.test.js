@@ -1810,6 +1810,69 @@ test("analyzer: document-type badge detects lease / medical / subscription / etc
     ".dt-conf-high must use font-weight 800 so high-confidence types pop");
 });
 
+test("analyzer: doc-type tip shows per-type 'what to look for' below the badge", () => {
+  // Polishes iter #7's doc-type badge with hand-curated watch-for tips.
+  // Each tip is the 3-5 most common trap clauses for that category,
+  // so users learn the vocabulary of traps BEFORE they hit Analyze.
+  // The tip color matches the badge color (visual link).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // DOC_TYPE_TIPS map must exist at the IIFE level (sibling of DOC_TYPES)
+  assert.match(appSrc, /const DOC_TYPE_TIPS\s*=\s*\{/,
+    "DOC_TYPE_TIPS map must exist at the IIFE level");
+  assert.match(appSrc, /function getDocTypeTip\(name\)/,
+    "getDocTypeTip() helper must exist at the IIFE level");
+  // Must cover all 10 doc types
+  for (const t of ["lease", "medical", "subscription", "employment", "loan",
+                   "privacy", "terms", "insurance", "debt", "tax"]) {
+    assert.ok(appSrc.includes(`${t}:`),
+      `DOC_TYPE_TIPS must include an entry for '${t}'`);
+  }
+  // Tips must be substantive (3-5 hand-curated items per type)
+  const leaseTip = appSrc.match(/lease:\s*'([^']+)'/);
+  assert.ok(leaseTip && leaseTip[1].split(',').length >= 3,
+    "lease tip must have at least 3 watch-for items (substance check)");
+
+  // analyze.html must have the tip element with both the kicker + text spans
+  assert.match(html, /id="docTypeTip"/,
+    "analyze.html must contain #docTypeTip below the textstats row");
+  assert.match(html, /class="dtt-kicker"/,
+    "#docTypeTip must include the //-style kicker span");
+  assert.match(html, /id="docTypeTipText"/,
+    "#docTypeTip must include #docTypeTipText for the dynamic tip body");
+
+  // updateTextStats must paint the tip and toggle visibility with the badge
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0], /getDocTypeTip\(dt\.name\)/,
+    "updateTextStats must call getDocTypeTip(dt.name) when a type is detected");
+  assert.match(updateBlock[0], /docTypeTipText\.textContent\s*=\s*tip/,
+    "docTypeTipText must show the tip body when type is detected");
+  assert.match(updateBlock[0], /docTypeTip\.hidden\s*=\s*false/,
+    "docTypeTip must unhide when a tip is available");
+  // Must hide the tip when no type is detected (no orphan tip dangling)
+  assert.match(updateBlock[0], /docTypeTip\.hidden\s*=\s*true/,
+    "docTypeTip must hide when no type is detected (no orphan tip)");
+
+  // CSS must style the tip with the //-kicker accent
+  assert.match(cssSrc, /\.doc-type-tip\s*\{[^}]*display:\s*flex/,
+    ".doc-type-tip must be a flex row (kicker | text)");
+  assert.match(cssSrc, /\.doc-type-tip\s+\.dtt-kicker\{[^}]*var\(--accent-text\)/,
+    ".dtt-kicker must use --accent-text (the //-kicker color used elsewhere)");
+  // Per-type color rules so the tip follows the badge color
+  for (const cls of [".dtt-lease", ".dtt-medical", ".dtt-subscription", ".dtt-employment",
+                     ".dtt-loan", ".dtt-privacy", ".dtt-terms", ".dtt-insurance",
+                     ".dtt-debt", ".dtt-tax"]) {
+    assert.ok(cssSrc.includes(cls),
+      `theme.css must define ${cls} .dtt-text color (visual link to badge)`);
+  }
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
