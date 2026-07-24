@@ -682,6 +682,7 @@ button.risk-preview:hover{filter:brightness(.96)}
 @keyframes micPulse{0%,100%{box-shadow:0 0 0 0 var(--accent-glow)}50%{box-shadow:0 0 0 6px transparent}}
 /* Voice picker — styled <select> matching the ghost-btn aesthetic */
 .voice-picker{font:inherit;font-size:var(--t-meta);letter-spacing:.04em;text-transform:uppercase;background:var(--paper);color:var(--ink);border:var(--bd-hair) solid var(--ink);padding:5px 10px;cursor:pointer;max-width:180px;text-overflow:ellipsis}
+.voice-preview{font:inherit;font-size:var(--t-meta-sm);letter-spacing:.04em;text-transform:uppercase}
 /* Read-aloud sentence highlight — each sentence in the rewrite gets
  * wrapped in <span class="spoken"> when the user clicks Read aloud.
  * The currently-speaking sentence gets .spoken-active with a soft

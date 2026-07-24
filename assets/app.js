@@ -1464,7 +1464,7 @@
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
           printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),printDate=$('#printDate'),
           shareBtn=$('#shareBtn'),speakBtn=$('#speakBtn'),
-          voicePicker=$('#voicePicker'),
+          voicePicker=$('#voicePicker'),voicePreviewBtn=$('#voicePreviewBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2261,6 +2261,12 @@
           if(voicePicker && typeof populateVoicePicker === 'function'){
             populateVoicePicker(plainOut._detectedLang || null);
             voicePicker.hidden = voicePicker.options.length <= 1;
+          }
+          // Preview button follows the picker (or shows alone if
+          // SpeechSynthesis exists but picker has 0 voices — at least
+          // users get the System default preview)
+          if(voicePreviewBtn){
+            voicePreviewBtn.hidden = !voicePicker || voicePicker.hidden;
           }
         }
       }
@@ -4133,6 +4139,32 @@
               populateVoicePicker((plainOut && plainOut._detectedLang) || null);
             }
           };
+        }
+        // Preview button — speak a sample phrase using the
+        // currently-selected voice so users can compare voices before
+        // committing. The sample is language-aware: uses the detected
+        // language's BCP-47 tag (so the voice speaks in the right
+        // language even if the picked voice isn't a great match).
+        if(voicePreviewBtn){
+          voicePreviewBtn.addEventListener('click', () => {
+            if(!window.speechSynthesis) return;
+            // Stop any current speech first
+            try { window.speechSynthesis.cancel(); } catch(_) {}
+            const sample = 'Hello — this is a sample of how I sound.';
+            const u = new SpeechSynthesisUtterance(sample);
+            const allVoices = window.speechSynthesis.getVoices();
+            const stored = (typeof getStoredVoice === 'function') ? getStoredVoice() : '';
+            const explicit = stored && allVoices.find(v => v && v.name === stored);
+            if(explicit) u.voice = explicit;
+            const detectedLang = (plainOut && plainOut._detectedLang) || null;
+            if(detectedLang && detectedLang.tts) u.lang = detectedLang.tts;
+            u.rate = 1.0; u.pitch = 1.0;
+            const orig = '▶ preview';
+            u.onend = u.onerror = () => {
+              voicePreviewBtn.textContent = orig;
+            };
+            try { window.speechSynthesis.speak(u); voicePreviewBtn.textContent = '◼ stop'; } catch(_){}
+          });
         }
         const pickVoice = () => {
           const voices = (typeof window.speechSynthesis.getVoices === 'function')

@@ -3357,6 +3357,50 @@ test("analyzer: voice picker dropdown lets users choose a specific TTS voice", (
     ".voice-picker must have a paper background (matches ghost-btn aesthetic)");
 });
 
+test("analyzer: voice preview button speaks a sample phrase in the selected voice", () => {
+  // Polishes iter #39 — adds a ▶ preview button next to the voice
+  // picker so users can HEAR a voice before committing. Standard
+  // voice-picker UX pattern (macOS, iOS, Windows Voice settings).
+  // Sample phrase uses the detected language's BCP-47 tag so the
+  // voice speaks in the right language.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: preview button must exist next to the picker
+  assert.match(html, /<button[^>]*id="voicePreviewBtn"/,
+    "analyze.html must contain <button id=\"voicePreviewBtn\">");
+  assert.match(html, /aria-label="Preview the selected voice"/,
+    "#voicePreviewBtn must have an aria-label");
+
+  // Click handler must construct a SpeechSynthesisUtterance for the sample
+  assert.match(appSrc, /voicePreviewBtn\.addEventListener\(\s*['"]click['"]/,
+    "#voicePreviewBtn must have a click handler");
+  assert.match(appSrc, /voicePreviewBtn\.addEventListener[\s\S]+?SpeechSynthesisUtterance/,
+    "preview handler must construct a SpeechSynthesisUtterance");
+  assert.match(appSrc, /voicePreviewBtn\.addEventListener[\s\S]+?Hello\s*—\s*this is a sample/,
+    "preview handler must speak a sample phrase ('Hello — this is a sample...')");
+
+  // Must use the currently-selected voice (same lookup logic as iter #39)
+  assert.match(appSrc, /voicePreviewBtn\.addEventListener[\s\S]+?explicit/,
+    "preview must use the explicit user-picked voice (same lookup as main TTS)");
+
+  // Must cancel any current speech first (don't overlap)
+  assert.match(appSrc, /voicePreviewBtn\.addEventListener[\s\S]+?speechSynthesis\.cancel/,
+    "preview must cancel any current speech before starting");
+
+  // Must restore the original label on end/error
+  assert.match(appSrc, /voicePreviewBtn\.addEventListener[\s\S]+?onend[\s\S]+?orig/,
+    "preview must restore the original button label on end/error");
+
+  // CSS: preview button must be styled as part of the result-actions row
+  assert.match(cssSrc, /\.voice-preview\{[^}]*text-transform:\s*uppercase/,
+    ".voice-preview must use uppercase styling (matches ghost-btn aesthetic)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
