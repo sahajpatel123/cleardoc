@@ -3877,6 +3877,31 @@ test("analyzer: per-row apply shows a single-change dry-run modal before rewriti
     "per-row apply must abort if the user cancels the dry-run");
 });
 
+test("analyzer: undo chip shows the count of applied suggestions that will be reverted", () => {
+  // Polishes the iter #45 undo chip — instead of just "↶ undo apply",
+  // show "↶ undo N" where N is the count of currently-applied
+  // suggestions. One click still reverts ALL of them; the count is
+  // just transparency. Users want to know "if I click, how much
+  // will revert?" before they commit.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // showUndoChip must read _appliedSuggestions
+  assert.match(appSrc, /function showUndoChip[\s\S]+?_appliedSuggestions\.size/,
+    "showUndoChip must read _appliedSuggestions.size");
+  // Must render "↶ undo N" with the count
+  assert.match(appSrc, /showUndoChip[\s\S]+?undo\s+'\s\+\s*count/,
+    "showUndoChip must render 'undo ' + count when count > 0");
+  // Must fall back to the plain "undo apply" when count is 0
+  assert.match(appSrc, /showUndoChip[\s\S]+?else\s*\{[\s\S]+?undo apply/,
+    "showUndoChip must fall back to 'undo apply' when no applied suggestions");
+  // _undoChip must be created with the data-undo-apply attribute
+  assert.match(appSrc, /_undoChip\.setAttribute\(\s*'data-undo-apply'/,
+    "undo chip must be created with the data-undo-apply attribute");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

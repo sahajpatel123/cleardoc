@@ -1453,6 +1453,10 @@
   // showUndoChip — renders a small floating "↶ undo" control near
   // the textarea after a successful apply, so users can revert in
   // one click. Hidden on initial render. Reused by the apply path.
+  // Iter #52: shows the count of applied suggestions so users see
+  // how many changes will be reverted on click ("↶ undo 5" = 5
+  // suggestions currently applied). One click still reverts ALL of
+  // them — the count is just for transparency.
   let _undoChip = null;
   function showUndoChip(){
     if(!_undoChip){
@@ -1461,12 +1465,21 @@
       _undoChip.id = 'applyUndoChip';
       _undoChip.className = 'apply-undo-chip';
       _undoChip.setAttribute('data-undo-apply', '1');
-      _undoChip.textContent = '↶ undo apply';
       _undoChip.title = 'Restore the input to its pre-apply state';
       _undoChip.hidden = true;
       // Insert near the textarea
       const input = document.getElementById('docInput');
       if(input && input.parentNode) input.parentNode.appendChild(_undoChip);
+    }
+    // Count applied suggestions (iter #52) so users see "↶ undo N"
+    // instead of just "↶ undo apply". Reads from the same
+    // _appliedSuggestions set the apply path maintains.
+    const input = document.getElementById('docInput');
+    const count = (input && input._appliedSuggestions) ? input._appliedSuggestions.size : 0;
+    if(count > 0){
+      _undoChip.textContent = '↶ undo ' + count;
+    } else {
+      _undoChip.textContent = '↶ undo apply';
     }
     _undoChip.hidden = false;
   }
