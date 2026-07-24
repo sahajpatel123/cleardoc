@@ -1724,7 +1724,7 @@
           shareBtn=$('#shareBtn'),speakBtn=$('#speakBtn'),
           voicePicker=$('#voicePicker'),risksAvoidedBadge=$('#risksAvoidedBadge'),
           shareBadgeBtn=$('#shareBadgeBtn'),resetBadgeBtn=$('#resetBadgeBtn'),
-          badgeExplainBtn=$('#badgeExplainBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
+          badgeExplainBtn=$('#badgeExplainBtn'),savedVersionBadge=$('#savedVersionBadge'),voicePreviewBtn=$('#voicePreviewBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -5173,6 +5173,21 @@
       if(!clearVersionBtn) return;
       const v = getSavedVersion();
       clearVersionBtn.hidden = !v;
+      // Iter #69: also show a persistent "📌 vs saved version"
+      // badge while a baseline exists, so users always know there's
+      // something to compare against.
+      if(savedVersionBadge){
+        if(v){
+          savedVersionBadge.hidden = false;
+          const ago = (Date.now() - v.ts) < 60000 ? 'just now' :
+            (typeof formatRelativeTime === 'function' ? formatRelativeTime(v.ts) : 'recently');
+          savedVersionBadge.textContent = '📌 vs saved version (' + v.count + ' risks · ' + ago + ')';
+          savedVersionBadge.title = 'The next analysis will compare against this saved baseline. ' +
+            (v.snippet ? 'Saved snippet: "' + v.snippet + '"' : '');
+        } else {
+          savedVersionBadge.hidden = true;
+        }
+      }
     }
     // After any analysis, the clear button reflects whether a
     // saved version exists. Cheap (one localStorage read).
@@ -5209,6 +5224,7 @@
         if(!ok) return;
         try { localStorage.removeItem(VERSION_KEY); } catch(_){}
         showClearVersionBtn();
+        if(savedVersionBadge) savedVersionBadge.hidden = true;
         showAnalyzeToast('🗑 Baseline cleared');
       });
     }

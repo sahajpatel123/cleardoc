@@ -4522,6 +4522,46 @@ test("analyzer: Clear baseline button wipes the saved 'before' version after con
     "clear must show a success toast");
 });
 
+test("analyzer: '📌 vs saved version' badge persists while a baseline exists", () => {
+  // Polishes iter #67/68 — persistent indicator so users always
+  // know there's a saved baseline in play. Hidden when no version
+  // exists; shown with the count + relative timestamp when one does.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: badge must exist
+  assert.match(html, /id="savedVersionBadge"/,
+    "analyze.html must contain #savedVersionBadge");
+  assert.match(html, /📌 vs saved version/,
+    "badge must be labeled '📌 vs saved version'");
+
+  // Must be shown/hidden by showClearVersionBtn
+  assert.match(appSrc, /showClearVersionBtn[\s\S]+?savedVersionBadge\.hidden\s*=\s*false/,
+    "showClearVersionBtn must show the badge when a version exists");
+  assert.match(appSrc, /showClearVersionBtn[\s\S]+?savedVersionBadge\.hidden\s*=\s*true/,
+    "showClearVersionBtn must hide the badge when no version");
+  // Must include the count + relative timestamp
+  assert.match(appSrc, /showClearVersionBtn[\s\S]+?v\.count/,
+    "badge must include the saved count");
+  assert.match(appSrc, /showClearVersionBtn[\s\S]+?formatRelativeTime/,
+    "badge must use formatRelativeTime for the 'when saved' label");
+  // Must include a tooltip with the saved snippet
+  assert.match(appSrc, /showClearVersionBtn[\s\S]+?Saved snippet/,
+    "badge must have a tooltip with the saved snippet");
+
+  // Clear must hide the badge
+  assert.match(appSrc, /clearVersionBtn\.addEventListener[\s\S]+?savedVersionBadge\.hidden\s*=\s*true/,
+    "clear must hide the badge");
+
+  // CSS
+  assert.match(cssSrc, /\.saved-version-badge\{[^}]*var\(--accent\)/,
+    ".saved-version-badge must use --accent (visual hierarchy)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
