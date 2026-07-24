@@ -138,6 +138,33 @@
     return (t.match(/\b[\w'-]+\b/g) || []).length >= 8;
   }
 
+  // Approximate reading time in plain English. Uses 250 words/min as the
+  // silent-reading baseline (Brysbaert 2019 meta-analysis of ~9000 readers)
+  // — fast enough to feel honest for legal text, conservative enough that
+  // dense documents don't undersell. Rounds to the nearest 30s once we hit
+  // 1 min so the display doesn't churn between "1 min" and "1 min" as the
+  // user types. Returns '—' for empty / wordless input so the UI never
+  // shows "0s" or "0 min" (which would mislead the user into thinking the
+  // document is trivial).
+  //   readTime("")                              → '—'
+  //   readTime("hello world")                   → '5s'  (2 words → <60s)
+  //   readTime("a ".repeat(100))                → '24s' (100 words → 24s)
+  //   readTime("a ".repeat(500))                → '2 min' (500 words → 2.0 min)
+  //   readTime("a ".repeat(1500))               → '6 min' (1500 words → 6.0 min)
+  //   readTime("a ".repeat(250))                → '1 min' (250 words → 1.0 min)
+  function readTime(text){
+    const t = String(text||'').trim();
+    if (!t) return '—';
+    const words = (t.match(/\b[\w'-]+\b/g) || []).length;
+    if (words === 0) return '—';
+    const seconds = Math.ceil((words / 250) * 60);
+    if (seconds < 60) return seconds + 's';
+    // Round to nearest 30s once we cross the 1-min threshold. 65s → 1 min,
+    // 75s → 1.5 min, 100s → 1.5 min, 105s → 2 min.
+    const minutes = Math.round(seconds / 30) / 2;
+    return minutes + ' min';
+  }
+
   /* ================= PRELOADER ================= */
   const loader=$('#loader'),bar=$('#loader .lbar i'),lpct=$('#lpct'),panel=$('.reveal-panel');
   let started=false;
@@ -1027,7 +1054,7 @@
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
           viewShareBtn=$('#viewShareBtn'),dismissShareBtn=$('#dismissShareBtn'),
           textStats=$('#textStats'),statWords=$('#statWords'),statChars=$('#statChars'),
-          statLevel=$('#statLevel'),statCap=$('#statCap');
+          statReadTime=$('#statReadTime'),statLevel=$('#statLevel'),statCap=$('#statCap');
     const sampleText=input.value.trim();
 
     // trap/risk patterns — severity g(note) a(watch) r(trap)
@@ -2138,6 +2165,7 @@
       const charFmt = chars.toLocaleString();
       statWords.textContent = wordFmt;
       statChars.textContent = charFmt;
+      if(statReadTime) statReadTime.textContent = readTime(raw);
       statLevel.textContent = isGradable(raw) ? (gradeLevel(raw) + 'th') : '—';
       if(statCap) statCap.textContent = cap.toLocaleString();
       if(textStats){

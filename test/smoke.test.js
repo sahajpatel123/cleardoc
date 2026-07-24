@@ -1455,6 +1455,40 @@ skip("BYOF: reading level is computed live from the input (not hardcoded 12th→
   assert.match(byofBlock[0], /addEventListener\(['"]input['"]/, "byof() must recompute reading level on input");
 });
 
+test("analyzer: live reading-time estimate is computed and shown in the textstats row", () => {
+  // Adds a "read Xs / X min" pill next to the word/char count so users
+  // know the document's scope before they hit Analyze. Pairs with the
+  // existing reading-level display to give a complete "what am I
+  // about to read?" picture.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // readTime helper must exist at the IIFE level (sibling of gradeLevel)
+  assert.match(appSrc, /function readTime\(text\)/,
+    "readTime helper must exist at the IIFE level");
+  // Must cap the rate at 250 WPM (Brysbaert 2019 silent-reading baseline)
+  assert.match(appSrc, /\/ 250/,
+    "readTime must use the 250 WPM silent-reading baseline");
+  // Must short-circuit on empty input so the UI never shows "0s"
+  assert.match(appSrc, /if \(!t\) return '—';/,
+    "readTime must return '—' for empty input (no '0s' display)");
+
+  // analyze.html must have the #statReadTime placeholder in textstats
+  assert.match(html, /id="statReadTime"/,
+    "analyze.html must contain #statReadTime in the textstats row");
+  // And it must be wired to updateTextStats (cached ref + paint)
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0], /statReadTime[\s\S]+?\.textContent\s*=\s*readTime\(/,
+    "updateTextStats() must paint readTime(raw) into #statReadTime");
+  // The cached-ref destructure must include statReadTime
+  assert.match(appSrc, /statReadTime\s*=\s*\$\(\s*['"]#statReadTime['"]\s*\)/,
+    "the cached-refs block must include statReadTime=$('#statReadTime')");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
