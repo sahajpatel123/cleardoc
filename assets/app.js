@@ -215,6 +215,7 @@
     return {
       onlyA: displayFromRaw(a, onlyA),
       onlyB: displayFromRaw(b, onlyB),
+      shared: sa.length - onlyA.length, // = sb.length - onlyB.length
     };
   }
 
@@ -3064,8 +3065,15 @@
                 items.map(s => '<li>' + esc(s) + '</li>').join('') +
                 '</ol></div>';
             };
+            // Shared-count header — "X in both" plus the two
+            // only-in counts, all in one line so users see the
+            // shape of the diff at a glance before reading the rows.
+            const shared = typeof d.shared === 'number' ? d.shared : 0;
             compareDiff.innerHTML =
               '<div class="cmp-diff-head">// what\'s different</div>' +
+              '<div class="cmp-diff-summary"><b>' + shared + '</b> in both' +
+              ' · <b>' + d.onlyA.length + '</b> only in Original' +
+              ' · <b>' + d.onlyB.length + '</b> only in Compare</div>' +
               row('Original', d.onlyA, 'cmp-diff-a') +
               row('Compare',  d.onlyB, 'cmp-diff-b');
           }

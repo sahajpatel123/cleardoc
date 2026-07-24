@@ -2589,6 +2589,9 @@ test("analyzer: compare panel shows sentence-level diff (Original-only / Compare
   // diffSentences must exist at the IIFE level
   assert.match(appSrc, /function diffSentences\(a, b\)/,
     "diffSentences() helper must exist at the IIFE level");
+  // Must return shared count alongside onlyA/onlyB
+  assert.match(appSrc, /diffSentences[\s\S]+?shared:/,
+    "diffSentences must return a shared count alongside onlyA/onlyB");
   // Must normalize for comparison (lowercase + whitespace-collapse)
   assert.match(appSrc, /diffSentences[\s\S]+?toLowerCase\(\)/,
     "diffSentences must lowercase for matching (casing shouldn't cause false splits)");
@@ -2619,6 +2622,19 @@ test("analyzer: compare panel shows sentence-level diff (Original-only / Compare
     ".cmp-diff-a (Original) label must use --ink-soft (muted)");
   assert.match(cssSrc, /\.compare-diff \.cmp-diff-b b\{[^}]*var\(--accent-text\)/,
     ".cmp-diff-b (Compare) label must use --accent-text (accent — second side)");
+
+  // Shared-count summary line — polish on iter #21
+  const updateFnDiff = appSrc.match(/function updateCompareStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateFnDiff, "updateCompareStats() must exist");
+  assert.match(updateFnDiff[0], /cmp-diff-summary/,
+    "diff must render a summary line with the shared + unique counts");
+  assert.match(updateFnDiff[0], /in both/,
+    "summary must say 'X in both' for the shared count");
+  assert.match(updateFnDiff[0], /only in Original[\s\S]+?only in Compare/,
+    "summary must include both only-in-Original and only-in-Compare counts");
+  // CSS: summary must be visually distinct from the row labels
+  assert.match(cssSrc, /\.compare-diff \.cmp-diff-summary/,
+    ".cmp-diff-summary must have its own CSS rule (visually distinct from row labels)");
 });
 
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
