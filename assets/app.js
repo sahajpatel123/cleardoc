@@ -1081,7 +1081,8 @@
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
           viewShareBtn=$('#viewShareBtn'),dismissShareBtn=$('#dismissShareBtn'),
           textStats=$('#textStats'),statWords=$('#statWords'),statChars=$('#statChars'),
-          statReadTime=$('#statReadTime'),statLevel=$('#statLevel'),statCap=$('#statCap');
+          statReadTime=$('#statReadTime'),statLevel=$('#statLevel'),statCap=$('#statCap'),
+          riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskS=$('#riskS');
     const sampleText=input.value.trim();
 
     // trap/risk patterns — severity g(note) a(watch) r(trap)
@@ -1096,6 +1097,23 @@
       {re:/governing law|jurisdiction|venue|arbitration/i, sev:'g', label:'Note', why:'Sets which laws/forum apply if there is a dispute.'},
       {re:/confidential|non-?disclosure|proprietary/i, sev:'g', label:'Note', why:'Restricts what you can share.'}
     ];
+    // Count how many distinct RISK patterns the input matches. Same
+    // pattern source as the analyze path, so the live preview is never
+    // out of sync with what Analyze will actually flag. Each pattern
+    // counted at most once even if it matches multiple times — "1 trap"
+    // is more useful to the user than "8 hits on the indemnify regex".
+    //   countRisks("")                           → 0
+    //   countRisks("The fee is non-refundable.") → 1
+    //   countRisks("Auto-renews. Sole discretion. Non-refundable.") → 3
+    function countRisks(text){
+      const t = String(text||'').trim();
+      if (!t || t.length < 4) return 0;
+      let n = 0;
+      for (const r of RISK) {
+        if (r && r.re && r.re.test(t)) n += 1;
+      }
+      return n;
+    }
     function splitSentences(t){ return t.replace(/\s+/g,' ').trim().split(/(?<=[.!?;])\s+/).filter(s=>s.trim().length>1); }
     function trunc(s,n){ s=s.trim(); return s.length>n? s.slice(0,n)+'…' : s; }
     function esc(s){
@@ -2202,6 +2220,26 @@
       }
       statLevel.textContent = isGradable(raw) ? (gradeLevel(raw) + 'th') : '—';
       if(statCap) statCap.textContent = cap.toLocaleString();
+      // Live risk preview — count trap patterns detected in the input
+      // so users see "this doc has 3 risks" BEFORE they hit Analyze.
+      // Hides itself when no patterns match (clean docs shouldn't get
+      // a scary-looking pill). countRisks() lives in this same scope
+      // and uses the local RISK array below.
+      if(typeof countRisks === 'function'){
+        const rc = countRisks(raw);
+        if(riskPreview){
+          riskPreview.hidden = rc === 0;
+          if(riskCount) riskCount.textContent = rc;
+          // Pluralize the label ("1 pattern" / "2 patterns") so the
+          // pill reads naturally at any count.
+          if(riskS) riskS.textContent = rc === 1 ? '' : 's';
+          // Band: 1-2 = watch (amber), 3+ = trap (danger red). Single
+          // class swap keeps the CSS owning the visual treatment.
+          riskPreview.classList.remove('risk-watch','risk-trap');
+          if(rc >= 3) riskPreview.classList.add('risk-trap');
+          else if(rc >= 1) riskPreview.classList.add('risk-watch');
+        }
+      }
       if(textStats){
         textStats.classList.toggle('over', overCap);
         if(overCap && msg){

@@ -1541,6 +1541,61 @@ test("analyzer: reading-time pill is color-banded by scope (quick / standard / l
     ".band-marathon must use --danger so it reads as the loudest band");
 });
 
+test("analyzer: live risk-preview pill appears when the input matches trap patterns", () => {
+  // Counts distinct trap patterns from the local RISK array as the
+  // user types, so they see "3 risks" BEFORE hitting Analyze. Teaches
+  // users that ClearDoc catches things they didn't know to look for.
+  // The whole point: a clean doc shows nothing, a trap-laden doc
+  // shouts early.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyzePage() must define a countRisks() helper that walks the
+  // local RISK array and returns a count of distinct pattern matches.
+  const analyzePageFn = appSrc.match(/function analyzePage\(\)\{[\s\S]+?\n  \}/);
+  assert.ok(analyzePageFn, "analyzePage() must exist");
+  assert.match(analyzePageFn[0], /function countRisks\(text\)/,
+    "countRisks() helper must live inside analyzePage so it can use the local RISK array");
+  assert.match(analyzePageFn[0], /for \(const r of RISK\)/,
+    "countRisks() must iterate RISK to count distinct pattern matches");
+
+  // analyze.html must have the risk-preview block under textstats
+  assert.match(html, /id="riskPreview"/,
+    "analyze.html must contain #riskPreview below the textstats row");
+  assert.match(html, /id="riskCount"/,
+    "analyze.html must contain #riskCount for the dynamic count");
+  assert.match(html, /id="riskS"/,
+    "analyze.html must contain #riskS for the pluralization span");
+
+  // updateTextStats must paint the count and toggle the band class
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0], /countRisks\(raw\)/,
+    "updateTextStats() must call countRisks(raw)");
+  assert.match(updateBlock[0], /riskPreview\.hidden\s*=\s*rc\s*===\s*0/,
+    "riskPreview must hide itself when no patterns match (clean doc → no scary pill)");
+  assert.match(updateBlock[0], /riskCount\.textContent\s*=\s*rc/,
+    "riskCount must show the live pattern count");
+  assert.match(updateBlock[0],
+    /classList\.remove\(['"]risk-watch['"],\s*['"]risk-trap['"]\)/,
+    "updateTextStats must remove both risk bands before adding the active one");
+  assert.match(updateBlock[0], /if\s*\(rc\s*>=\s*3\)[\s\S]+?'risk-trap'[\s\S]+?else if\s*\(rc\s*>=\s*1\)[\s\S]+?'risk-watch'/,
+    "3+ risks → risk-trap band; 1-2 → risk-watch band");
+
+  // CSS must define both band colors so the visual cue paints
+  assert.ok(cssSrc.includes(".risk-preview.risk-watch"),
+    "theme.css must define .risk-preview.risk-watch");
+  assert.ok(cssSrc.includes(".risk-preview.risk-trap"),
+    "theme.css must define .risk-preview.risk-trap");
+  // risk-trap must use --danger so it reads as the loudest band
+  assert.match(cssSrc, /\.risk-preview\.risk-trap\{[^}]*var\(--danger\)/,
+    ".risk-preview.risk-trap must use --danger so it shouts");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
