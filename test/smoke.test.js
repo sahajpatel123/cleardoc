@@ -4707,6 +4707,44 @@ test("analyzer: saved-version snippet is shown inline when a version is active",
     ".saved-version-snippet must use italic (visual hierarchy)");
 });
 
+test("analyzer: counter-suggestions have a 'Why this works' tip (💡 button)", () => {
+  // New feature — each counter-suggestion has a small 💡 button
+  // that pops a modal explaining the legal/business rationale
+  // for the counter-clause. Builds trust by explaining the
+  // reasoning, not just the clause text.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // renderRiskDetail must render the tip button when h.tip is set
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(renderFn, "renderRiskDetail() must exist");
+  assert.match(renderFn[0], /data-rc-tip/,
+    "renderRiskDetail must render [data-rc-tip] when h.tip is set");
+  assert.match(renderFn[0], /esc\(h\.tip\)/,
+    "tip data must be esc()d (XSS defense)");
+
+  // Delegated click handler must handle the tip button
+  assert.match(appSrc, /riskDetail\.addEventListener[\s\S]+?data-rc-tip/,
+    "riskDetail must handle [data-rc-tip] clicks");
+  // Must use the existing confirm modal
+  assert.match(appSrc, /data-rc-tip[\s\S]+?showConfirmModal/,
+    "tip handler must use the showConfirmModal for the explanation");
+  // Modal title must be "Why this works"
+  assert.match(appSrc, /data-rc-tip[\s\S]+?Why this works/,
+    "tip modal must be titled 'Why this works'");
+
+  // At least one risk must include a tip (the perpetual pattern)
+  assert.match(appSrc, /perpetuity[\s\S]+?tip:\s*'/,
+    "at least one risk (perpetual) must include a tip");
+
+  // CSS: the 💡 button must be styled
+  assert.match(cssSrc, /\.rc-tip\{[^}]*cursor:\s*pointer/,
+    ".rc-tip must be cursor:pointer (signals clickability)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

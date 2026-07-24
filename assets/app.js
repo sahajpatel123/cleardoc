@@ -1760,7 +1760,8 @@
     // trap/risk patterns — severity g(note) a(watch) r(trap)
     const RISK=[
       {re:/in perpetuity|perpetual|survive (the )?termination/i, sev:'r', label:'Trap', why:'Never expires — there is no time limit.',
-        counter:'Limit this clause to a fixed term (e.g. 2 years) or to claims discovered within 12 months of termination.'},
+        counter:'Limit this clause to a fixed term (e.g. 2 years) or to claims discovered within 12 months of termination.',
+        tip:'A fixed-term liability cap limits your worst-case exposure to a known amount and timeframe. Insurers and courts both expect this — the "perpetual" wording is a holdover from old commercial-paper drafting, not a real risk-shifting term.'},
       {re:/indemnif|hold\s+\w*\s*harmless/i, sev:'r', label:'Trap', why:"You may have to cover the other side's losses, including legal fees.",
         counter:'Narrow to "mutual indemnification" (both sides cover their own losses) and cap at the value of the contract.'},
       {re:/waiv\w*.{0,30}(jury|class action)|class action waiver|trial by jury/i, sev:'r', label:'Trap', why:'You give up the right to sue in court or join a class action.',
@@ -1894,6 +1895,12 @@
           const rowCls = sevClass + (isApplied ? ' rc-applied' : '');
           const applyLabel = isApplied ? '✓ applied' : 'apply';
           const applyDisabled = isApplied ? ' disabled' : '';
+          // Iter #74: optional "why this works" tip — pulled from
+          // h.tip if the risk pattern provides one. Builds trust
+          // by explaining the legal/business rationale, not just
+          // the counter-clause text.
+          const tip = h.tip ? '<button type="button" class="rc-tip" data-rc-tip="' +
+            esc(h.tip) + '" aria-label="Why this works">💡</button>' : '';
           parts.push(
             '<div class="risk-counter ' + rowCls + '">',
               '<span class="rc-kicker">' + (isApplied ? '✓ applied:' : '→ suggest:') + '</span>',
@@ -1901,6 +1908,7 @@
               '<button type="button" class="rc-apply" data-rc-apply="' + esc(h.counter) + '" data-rc-match="' + esc(h.matched || '') + '" aria-label="Apply this suggestion to the source"' + applyDisabled + '>' + applyLabel + '</button>',
               '<button type="button" class="rc-copy" data-rc-copy="' + esc(h.counter) + '" aria-label="Copy suggestion to clipboard">copy</button>',
               '<button type="button" class="rc-speak" data-rc-speak="' + esc(h.counter) + '" aria-label="Read suggestion aloud">🔊</button>',
+              tip,
             '</div>'
           );
         }
@@ -4651,7 +4659,24 @@
             })();
             return;
           }
-          // 0. Per-suggestion copy button — copies the counter-clause
+          // 0a. Per-suggestion 💡 tip button (iter #74) — shows
+          // why this counter-clause works in a small modal. Builds
+          // trust by explaining the legal/business rationale, not
+          // just the counter-clause text.
+          const rcTip = e.target.closest && e.target.closest('[data-rc-tip]');
+          if(rcTip){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = rcTip.getAttribute('data-rc-tip') || '';
+            if(!text) return;
+            showConfirmModal({
+              title: 'Why this works',
+              bodyHtml: '<p style="font-family:Archivo,sans-serif;text-transform:none;letter-spacing:0;line-height:1.5">' + esc(text) + '</p>',
+              confirmLabel: 'Got it',
+            });
+            return;
+          }
+          // 0b. Per-suggestion copy button — copies the counter-clause
           // text only (not the whole match list) so the user can
           // paste it directly into an email / redline.
           const rcCopy = e.target.closest && e.target.closest('[data-rc-copy]');
