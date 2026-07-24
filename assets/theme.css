@@ -1049,6 +1049,8 @@ button.risk-preview:hover{filter:brightness(.96)}
  * result-actions row. Shows the total risk patterns the user has
  * caught across all analyses. Tangible value metric. */
 .risks-avoided-badge{font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--green);background:var(--green-tint);border:var(--bd-hair) solid var(--green);padding:5px 10px;white-space:nowrap}
+.result-actions .ghost-btn-xs{font-size:var(--t-micro);font-weight:700;padding:3px 8px;min-width:24px}
+.result-actions .ghost-btn-sm{font-size:var(--t-meta-sm);font-weight:700;padding:3px 10px}
 .result-actions .ghost-btn{padding:9px 14px;font-size:var(--t-meta-sm);font-family:'JetBrains Mono',monospace;text-transform:none;letter-spacing:.02em;display:inline-flex;align-items:center;gap:6px}
 .result-actions .ghost-btn:hover{background:var(--ink);color:var(--paper)}
 .result-actions #printBtn{background:var(--ink);color:var(--paper);border-color:var(--ink)}

@@ -1723,7 +1723,8 @@
           printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),printDate=$('#printDate'),
           shareBtn=$('#shareBtn'),speakBtn=$('#speakBtn'),
           voicePicker=$('#voicePicker'),risksAvoidedBadge=$('#risksAvoidedBadge'),
-          shareBadgeBtn=$('#shareBadgeBtn'),resetBadgeBtn=$('#resetBadgeBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
+          shareBadgeBtn=$('#shareBadgeBtn'),resetBadgeBtn=$('#resetBadgeBtn'),
+          badgeExplainBtn=$('#badgeExplainBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2827,10 +2828,12 @@
               ' in saved costs. ' + parts.join(' + ');
           }
           if(resetBadgeBtn) resetBadgeBtn.hidden = false;
+          if(badgeExplainBtn) badgeExplainBtn.hidden = false;
         } else {
           risksAvoidedBadge.hidden = true;
           if(shareBadgeBtn) shareBadgeBtn.hidden = true;
           if(resetBadgeBtn) resetBadgeBtn.hidden = true;
+          if(badgeExplainBtn) badgeExplainBtn.hidden = true;
         }
       }
     }
@@ -5147,6 +5150,25 @@
         if(shareBadgeBtn) shareBadgeBtn.hidden = true;
         resetBadgeBtn.hidden = true;
         showAnalyzeToast('↺ Counter reset');
+      });
+    }
+    // Iter #66: explainer button — opens a small dialog with the
+    // reasoning behind the per-severity $ rates. Transparency
+    // builds trust: users see where the numbers come from.
+    if(badgeExplainBtn){
+      badgeExplainBtn.addEventListener('click', async () => {
+        await showConfirmModal({
+          title: 'Where do these numbers come from?',
+          bodyHtml: '<p>The badge estimates how much these risks would have cost you. Per-severity rates:</p>' +
+            '<p><b style="color:var(--danger)">trap  = $200</b><br>' +
+            'High stakes. Could void a contract, trigger a penalty, or shift a big liability. Conservative — the actual cost can be much higher.</p>' +
+            '<p><b style="color:var(--amber)">watch = $50</b><br>' +
+            'Medium stakes. Could trigger unwanted terms, missed deadlines, or administrative headaches.</p>' +
+            '<p><b style="color:var(--green)">note  = $20</b><br>' +
+            'Low stakes. Minor administrative cost — extra paperwork, follow-up calls, or small fees.</p>' +
+            '<p class="apply-confirm-note">These are conservative industry-rough estimates. Real costs vary wildly by contract, jurisdiction, and situation. Use the number as a relative gauge, not a literal price tag.</p>',
+          confirmLabel: 'Got it',
+        });
       });
     }
     if(shareBtn) shareBtn.addEventListener('click',shareAnalysis);

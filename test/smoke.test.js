@@ -4399,6 +4399,45 @@ test("analyzer: reset confirm shows the current count + savings so users know wh
     "reset preview must include the $ savings");
 });
 
+test("analyzer: 'Why these numbers?' explainer shows the per-severity $ rate sources", () => {
+  // New feature — transparency around the iter #62 $ rates. Click
+  // the "?" button to see where trap/watch/note prices come from.
+  // Builds trust: users see the reasoning, not just a magic number.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: explainer button must exist
+  assert.match(html, /id="badgeExplainBtn"/,
+    "analyze.html must contain #badgeExplainBtn");
+  assert.match(html, /Why these numbers\?/,
+    "explainer button must be labeled 'Why these numbers?'");
+
+  // Click handler must open the explainer modal
+  assert.match(appSrc, /badgeExplainBtn\.addEventListener\(\s*['"]click['"]/,
+    "explainer button must have a click handler");
+  // Must show "Where do these numbers come from?" title
+  assert.match(appSrc, /badgeExplainBtn\.addEventListener[\s\S]+?Where do these numbers/,
+    "explainer modal must ask 'Where do these numbers come from?'");
+  // Must include all three $ rates with explanations
+  assert.match(appSrc, /badgeExplainBtn\.addEventListener[\s\S]+?trap\s*=\s*\$200/,
+    "explainer must include trap = $200");
+  assert.match(appSrc, /badgeExplainBtn\.addEventListener[\s\S]+?watch\s*=\s*\$50/,
+    "explainer must include watch = $50");
+  assert.match(appSrc, /badgeExplainBtn\.addEventListener[\s\S]+?note\s*=\s*\$20/,
+    "explainer must include note = $20");
+  // Must include a disclaimer about the estimates being rough
+  assert.match(appSrc, /badgeExplainBtn\.addEventListener[\s\S]+?conservative|industry-rough|relative gauge/,
+    "explainer must include a disclaimer (estimates are rough)");
+
+  // CSS: smaller button variant
+  assert.match(cssSrc, /\.ghost-btn-xs\{[^}]*padding:\s*3px/,
+    ".ghost-btn-xs must be the smaller button variant (for the ? explainer)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
