@@ -1936,6 +1936,52 @@ test("analyzer: reading-level shows friendly label (College / Graduate / etc.) n
     ".density-very-dense must use --danger so graduate-level docs warn the reader");
 });
 
+test("analyzer: textstats row is ordered by signal-strength (type → level → read → words → chars → cap)", () => {
+  // Polishes the textstats row so the high-signal qualitative info
+  // (TYPE, LEVEL) leads, then the time estimate (READ), then the
+  // raw counts (WORDS, CHARS), with the limit (CAP) last. Puts the
+  // insight before the data — users see "Lease · College · 3 min"
+  // before they see "750 words".
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // Extract the textstats block
+  const block = html.match(/<div class="textstats mono" id="textStats"[^>]*>([\s\S]+?)<\/div>/);
+  assert.ok(block, "analyze.html must contain the #textStats block");
+  const inner = block[1];
+
+  // Find the positions of each stat's id within the block
+  const pos = (id) => inner.indexOf('id="' + id + '"');
+  const positions = {
+    statDocType: pos("statDocType"),
+    statLevel:   pos("statLevel"),
+    statFriendly: pos("statFriendly"),
+    statReadTime: pos("statReadTime"),
+    statWords:    pos("statWords"),
+    statChars:    pos("statChars"),
+    statCap:      pos("statCap"),
+  };
+
+  // All ids must exist
+  for (const k of Object.keys(positions)) {
+    assert.ok(positions[k] >= 0, k + " must appear in the textstats block");
+  }
+
+  // TYPE must lead (position 0+)
+  assert.ok(positions.statDocType < positions.statLevel,
+    "TYPE must come before LEVEL (qualitative info first)");
+  assert.ok(positions.statLevel < positions.statReadTime,
+    "LEVEL must come before READ (density before time)");
+  assert.ok(positions.statReadTime < positions.statWords,
+    "READ must come before WORDS (estimate before counts)");
+  assert.ok(positions.statWords < positions.statChars,
+    "WORDS must come before CHARS (more familiar metric first)");
+  assert.ok(positions.statChars < positions.statCap,
+    "CHARS must come before CAP (count before limit)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
