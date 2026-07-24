@@ -1487,6 +1487,7 @@
           micBtn=$('#micBtn'),
           historyBtn=$('#historyBtn'),historyPanel=$('#historyPanel'),
           historyList=$('#historyList'),historyClearBtn=$('#historyClearBtn'),
+          historyFilter=$('#historyFilter'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
@@ -3084,14 +3085,44 @@
       /* History panel — toggles a dropdown of past analyses (saved
        * in localStorage on each successful analysis). Click an
        * entry to load it back into the textarea. */
+      // Current language filter ('all' or a 2-letter code). Default 'all'.
+      let currentLangFilter = 'all';
       const renderHistory = () => {
         if(!historyList || !historyPanel) return;
         const items = (typeof readHistoryRaw === 'function') ? readHistoryRaw() : [];
         if(items.length === 0){
           historyList.innerHTML = '<li class="hp-empty">No past analyses yet.</li>';
+          if(historyFilter) historyFilter.hidden = true;
           return;
         }
-        historyList.innerHTML = items.map((it, i) => {
+        // Update the filter row — show count per language so users
+        // see at a glance which languages are present in history.
+        if(historyFilter){
+          historyFilter.hidden = false;
+          const counts = items.reduce((acc, it) => {
+            const k = it && it.lang ? it.lang : 'und';
+            acc[k] = (acc[k] || 0) + 1;
+            return acc;
+          }, {});
+          historyFilter.querySelectorAll('[data-hp-filter]').forEach(btn => {
+            const code = btn.getAttribute('data-hp-filter');
+            const isActive = code === currentLangFilter;
+            btn.classList.toggle('hp-filter-active', isActive);
+            // Label format: "English (3)" / "Spanish (1)" / "All (5)"
+            const base = btn.textContent.replace(/\s*\(\d+\)\s*$/, '');
+            const count = code === 'all' ? items.length : (counts[code] || 0);
+            btn.textContent = base + ' (' + count + ')';
+          });
+        }
+        // Apply the filter
+        const filtered = currentLangFilter === 'all'
+          ? items
+          : items.filter(it => it && it.lang === currentLangFilter);
+        if(filtered.length === 0){
+          historyList.innerHTML = '<li class="hp-empty">No analyses match that language filter.</li>';
+          return;
+        }
+        historyList.innerHTML = filtered.map((it, i) => {
           const ts = it && it.ts ? new Date(it.ts) : null;
           const full = ts ? ts.toLocaleString() : '';
           const rel = (typeof formatRelativeTime === 'function' && ts) ? formatRelativeTime(it.ts) : full;
@@ -3106,6 +3137,15 @@
             '</span><span class="hp-snip">' + esc(snippet) + '</span></button></li>';
         }).join('');
       };
+      // Filter button click handler (delegated)
+      if(historyFilter){
+        historyFilter.addEventListener('click', (e) => {
+          const btn = e.target.closest && e.target.closest('[data-hp-filter]');
+          if(!btn) return;
+          currentLangFilter = btn.getAttribute('data-hp-filter') || 'all';
+          renderHistory();
+        });
+      }
       if(historyBtn && historyPanel){
         historyBtn.addEventListener('click', () => {
           const willOpen = historyPanel.hidden;

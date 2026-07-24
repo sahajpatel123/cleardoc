@@ -3277,6 +3277,55 @@ test("analyzer: history entries show their detected language as a small pill", (
   }
 });
 
+test("analyzer: history panel has a language filter row that shows count per language", () => {
+  // New feature — with multi-language docs in history (iter #35 + #36),
+  // a filter row lets users narrow to "only Spanish" / "only English"
+  // etc. Each button shows a count so users see at a glance which
+  // languages are present.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: filter row with all 7 buttons (All + 6 langs)
+  assert.match(html, /id="historyFilter"/,
+    "analyze.html must contain #historyFilter");
+  for (const code of ["all", "en", "es", "fr", "de", "it", "pt"]) {
+    assert.ok(html.includes('data-hp-filter="' + code + '"'),
+      `historyFilter must include a button for ${code}`);
+  }
+
+  // renderHistory must apply the filter
+  const renderFn = appSrc.match(/const renderHistory\s*=\s*\(\)\s*=>\s*\{[\s\S]+?\n\s+\}\s*\};\s*$/m);
+  assert.ok(renderFn, "renderHistory() must exist");
+  assert.match(renderFn[0], /currentLangFilter/,
+    "renderHistory must reference currentLangFilter");
+  assert.match(renderFn[0], /items\.filter\(it => it && it\.lang === currentLangFilter\)/,
+    "renderHistory must filter items by the current language");
+
+  // Count per language must be painted into the buttons
+  assert.match(renderFn[0], /'data-hp-filter'\)[\s\S]+?counts/,
+    "renderHistory must compute counts per language");
+  assert.match(renderFn[0], /base\s*\+\s*' \(' \+\s*count\s*\+\s*'\)'/,
+    "renderHistory must format button labels as 'Name (count)'");
+
+  // Delegated click handler must update currentLangFilter + re-render
+  assert.match(appSrc, /historyFilter\.addEventListener\(\s*['"]click['"]/,
+    "historyFilter must have a click handler");
+  assert.match(appSrc, /historyFilter\.addEventListener[\s\S]+?currentLangFilter\s*=\s*btn\.getAttribute/,
+    "click handler must update currentLangFilter from the clicked button");
+  assert.match(appSrc, /historyFilter\.addEventListener[\s\S]+?renderHistory\(\)/,
+    "click handler must call renderHistory() to re-paint");
+
+  // CSS: filter buttons must look clickable + have an active state
+  assert.match(cssSrc, /\.hp-filter-btn\{[^}]*cursor:\s*pointer/,
+    ".hp-filter-btn must be cursor:pointer (signals clickability)");
+  assert.match(cssSrc, /\.hp-filter-btn\.hp-filter-active\{[^}]*var\(--ink\)/,
+    ".hp-filter-btn.hp-filter-active must use --ink (selected state stands out)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

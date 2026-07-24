@@ -191,6 +191,15 @@
       </div>
       <div class="history-panel mono" id="historyPanel" hidden aria-label="Past analyses">
         <div class="hp-head">// past analyses (last 5)</div>
+        <div class="hp-filter mono" id="historyFilter" hidden>
+          <button type="button" class="hp-filter-btn hp-filter-active" data-hp-filter="all">All</button>
+          <button type="button" class="hp-filter-btn" data-hp-filter="en">English</button>
+          <button type="button" class="hp-filter-btn" data-hp-filter="es">Spanish</button>
+          <button type="button" class="hp-filter-btn" data-hp-filter="fr">French</button>
+          <button type="button" class="hp-filter-btn" data-hp-filter="de">German</button>
+          <button type="button" class="hp-filter-btn" data-hp-filter="it">Italian</button>
+          <button type="button" class="hp-filter-btn" data-hp-filter="pt">Portuguese</button>
+        </div>
         <ol class="hp-list" id="historyList"></ol>
         <div class="hp-actions">
           <button type="button" class="hp-clear" id="historyClearBtn">Clear history</button>
