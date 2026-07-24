@@ -1726,7 +1726,7 @@
           shareBadgeBtn=$('#shareBadgeBtn'),resetBadgeBtn=$('#resetBadgeBtn'),
           badgeExplainBtn=$('#badgeExplainBtn'),savedVersionBadge=$('#savedVersionBadge'),
           savedVersionSelect=$('#savedVersionSelect'),savedVersionSnippet=$('#savedVersionSnippet'),
-          versionHistoryBtn=$('#versionHistoryBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
+          versionHistoryBtn=$('#versionHistoryBtn'),riskTrendBtn=$('#riskTrendBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2101,6 +2101,8 @@
               else if(r.sev === 'g') note++;
             }
             bumpRisksAvoidedBySeverity(trap, watch, note);
+            // Iter #77: also push to the risk-trend sparkline
+            try { if(typeof pushRiskTrend === 'function') pushRiskTrend(snap.risks.length); } catch(_){}
           }
         } catch(_){}
         // Iter #67: surface the version-comparison delta (if a saved
@@ -2162,6 +2164,38 @@
     // 0/0/n so the totals stay consistent.
     function bumpRisksAvoided(n){
       bumpRisksAvoidedBySeverity(0, 0, n);
+    }
+
+    /* ── Risk trend (iter #77) ─────────────────────────────────────
+     * Saves the last N risk counts (just the number + ts) so
+     * users can see a sparkline of how their risk counts trend
+     * over time. Visual engagement metric.
+     */
+    const TREND_KEY = 'cleardoc:riskTrend';
+    const TREND_MAX = 10;
+    const TREND_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+    function getRiskTrend(){
+      try {
+        const raw = localStorage.getItem(TREND_KEY);
+        if(!raw) return [];
+        const arr = JSON.parse(raw);
+        if(!Array.isArray(arr)) return [];
+        const cutoff = Date.now() - TREND_TTL_MS;
+        const fresh = arr.filter(p => p && typeof p.ts === 'number' && p.ts >= cutoff);
+        if(fresh.length !== arr.length){
+          try { localStorage.setItem(TREND_KEY, JSON.stringify(fresh)); } catch(_){}
+        }
+        return fresh;
+      } catch(_){ return []; }
+    }
+    function pushRiskTrend(count){
+      try {
+        if(typeof count !== 'number' || count < 0) return;
+        const arr = getRiskTrend();
+        arr.unshift({ ts: Date.now(), count });
+        while(arr.length > TREND_MAX) arr.pop();
+        localStorage.setItem(TREND_KEY, JSON.stringify(arr));
+      } catch(_){}
     }
 
     /* ── Analysis history ─────────────────────────────────────────────
@@ -5317,6 +5351,50 @@
     // saved versions in chronological order (newest first, same
     // order as the picker). Uses showConfirmModal with custom HTML
     // for the list, so we can render the rich row content.
+    // Iter #77: risk-trend button visibility — shown when there's
+    // at least 2 trend points (1 point is meaningless).
+    if(riskTrendBtn){
+      const trend = (typeof getRiskTrend === 'function') ? getRiskTrend() : [];
+      riskTrendBtn.hidden = trend.length < 2;
+    }
+    if(riskTrendBtn){
+      riskTrendBtn.addEventListener('click', async () => {
+        const trend = (typeof getRiskTrend === 'function') ? getRiskTrend() : [];
+        if(trend.length < 2){
+          showAnalyzeToast('📈 Need at least 2 analyses to show a trend');
+          return;
+        }
+        // Build a simple ASCII chart (sparkline-style)
+        const max = Math.max.apply(null, trend.map(p => p.count));
+        const min = Math.min.apply(null, trend.map(p => p.count));
+        const range = Math.max(1, max - min);
+        const bars = trend.slice().reverse().map(p => {
+          const h = Math.round((p.count - min) / range * 5);
+          return '▁▂▃▄▅▆▇'[h] || '▁';
+        }).join('');
+        const latest = trend[0];
+        const previous = trend[1];
+        const delta = latest.count - previous.count;
+        const dir = delta < 0 ? '↓' : (delta > 0 ? '↑' : '±');
+        const ago = (Date.now() - latest.ts) < 60000 ? 'just now' :
+          (typeof formatRelativeTime === 'function' ? formatRelativeTime(latest.ts) : 'recently');
+        const body = '<div class="trend-chart" style="font-family:JetBrains Mono,monospace;line-height:1.4;font-size:14px;letter-spacing:0">' +
+          '<div style="color:var(--ink-soft);font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em">Risk counts over time (newest right)</div>' +
+          '<div style="font-size:18px;margin:8px 0;color:var(--ink)">' + bars + '</div>' +
+          '<div style="color:var(--ink-soft);font-size:var(--t-meta)">' +
+            'Latest: <b style="color:var(--ink)">' + latest.count + ' risks</b> · ' + ago +
+            (delta !== 0 ? ' (<b style="color:' + (delta < 0 ? 'var(--green)' : 'var(--danger)') + '">' + dir + ' ' + Math.abs(delta) + '</b>)' : ' (no change)') +
+          '</div>' +
+        '</div>' +
+        '<p class="vh-note" style="margin-top:var(--s2)">Trend is from the last ' + trend.length + ' analyses (max 10, 30-day window). Local only — never leaves your device.</p>';
+        await showConfirmModal({
+          title: '📈 Risk trend',
+          bodyHtml: body,
+          confirmLabel: 'Close',
+        });
+      });
+    }
+
     if(versionHistoryBtn){
       versionHistoryBtn.addEventListener('click', async () => {
         const allVersions = readVersions();

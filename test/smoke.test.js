@@ -4817,6 +4817,49 @@ test("analyzer: version-history modal lists all saved versions with date + count
     ".vh-active must use --green (highlight the active version)");
 });
 
+test("analyzer: risk-trend chart shows a sparkline of recent risk counts", () => {
+  // New feature — users iterating on multiple analyses can see
+  // a sparkline of their risk counts over the last 10 analyses
+  // (30-day window). Visual engagement metric.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html: trend button must exist
+  assert.match(html, /id="riskTrendBtn"/,
+    "analyze.html must contain #riskTrendBtn");
+
+  // localStorage helpers
+  assert.match(appSrc, /const TREND_KEY\s*=\s*'cleardoc:riskTrend'/,
+    "must use localStorage key 'cleardoc:riskTrend'");
+  assert.match(appSrc, /function getRiskTrend/,
+    "getRiskTrend() must exist");
+  assert.match(appSrc, /function pushRiskTrend/,
+    "pushRiskTrend() must exist (iter #77 trend push)");
+  // Must be capped at 10
+  assert.match(appSrc, /TREND_MAX\s*=\s*10/,
+    "must cap at 10 entries (FIFO)");
+  // Must have a 30-day TTL
+  assert.match(appSrc, /TREND_TTL_MS\s*=\s*30/,
+    "must have a 30-day TTL");
+
+  // saveSnapshot must call pushRiskTrend
+  assert.match(appSrc, /function saveSnapshot[\s\S]+?pushRiskTrend/,
+    "saveSnapshot must call pushRiskTrend on every analysis");
+
+  // Click handler must build an ASCII sparkline
+  assert.match(appSrc, /riskTrendBtn\.addEventListener[\s\S]+?bars\s*=/,
+    "trend click must build an ASCII sparkline");
+  // Must use the confirm modal
+  assert.match(appSrc, /riskTrendBtn\.addEventListener[\s\S]+?showConfirmModal/,
+    "trend click must use the existing confirm modal");
+  // Must show the latest value + delta
+  assert.match(appSrc, /riskTrendBtn\.addEventListener[\s\S]+?delta/,
+    "trend modal must show the latest value + delta vs the previous one");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
