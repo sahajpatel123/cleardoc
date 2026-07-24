@@ -489,6 +489,15 @@
 .textstats .stat-lbl{opacity:.65}
 .textstats .stat-sep{opacity:.4}
 .textstats.over b{color:var(--danger)}
+/* Reading-time bands — at-a-glance scope cue.
+ * quick    = short clause, ~1 min or less (default ink)
+ * standard = typical email / letter / brief contract (accent for pop)
+ * long     = multi-page contract (amber)
+ * marathon = book-length lease + exhibits (danger red) */
+.textstats .band-quick{color:var(--ink)}
+.textstats .band-standard{color:var(--accent-text)}
+.textstats .band-long{color:var(--amber);font-weight:800}
+.textstats .band-marathon{color:var(--danger);font-weight:800;text-transform:uppercase;letter-spacing:.06em}
 .work .ctl{display:flex;gap:var(--s1);flex-wrap:wrap;align-items:center;margin-top:var(--s2)}
 .work .qf{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;border:var(--bd) solid var(--ink);padding:7px 12px;cursor:pointer;background:var(--paper);transition:background .18s}
 .work .qf:hover{background:var(--ink);color:var(--paper)}.work .qf:active{transform:translateY(1px)}

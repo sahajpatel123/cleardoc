@@ -1489,6 +1489,58 @@ test("analyzer: live reading-time estimate is computed and shown in the textstat
     "the cached-refs block must include statReadTime=$('#statReadTime')");
 });
 
+test("analyzer: reading-time pill is color-banded by scope (quick / standard / long / marathon)", () => {
+  // Polishes iter #1's readTime helper with a qualitative band that maps
+  // the raw minutes to a user-friendly visual: green/ink for short, amber
+  // for long docs, danger red for marathons. At-a-glance scope cue so
+  // users know what they're about to read without parsing the number.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // readTimeBand helper must exist at the IIFE level
+  assert.match(appSrc, /function readTimeBand\(text\)/,
+    "readTimeBand helper must exist at the IIFE level (sibling of readTime)");
+
+  // Must short-circuit on empty input → null (no pill class added)
+  assert.match(appSrc, /function readTimeBand[\s\S]+?if \(!t\) return null;/,
+    "readTimeBand must return null for empty input (no band class)");
+
+  // Must hit all four bands — locks the thresholds
+  for (const band of ["'quick'", "'standard'", "'long'", "'marathon'"]) {
+    assert.ok(appSrc.includes(band),
+      `readTimeBand must classify into ${band} (threshold test)`);
+  }
+
+  // The 15-minute boundary matters most — under it is 'long', at/above is 'marathon'.
+  // Verify the threshold literal appears (15 in the marathon check).
+  const bandFn = appSrc.match(/function readTimeBand\(text\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(bandFn, "readTimeBand() must exist");
+  assert.match(bandFn[0], /15/,
+    "readTimeBand must use 15 as the long→marathon threshold");
+
+  // updateTextStats must wire the band class onto #statReadTime
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0],
+    /classList\.remove\(['"]band-quick['"],\s*['"]band-standard['"],\s*['"]band-long['"],\s*['"]band-marathon['"]\)/,
+    "updateTextStats() must remove all four band classes before adding the active one");
+  assert.match(updateBlock[0],
+    /classList\.add\(['"]band-['"]\s*\+\s*band\)/,
+    "updateTextStats() must add 'band-' + band to #statReadTime");
+
+  // CSS must define all four band colors so the visual cue actually paints
+  for (const cls of [".band-quick", ".band-standard", ".band-long", ".band-marathon"]) {
+    assert.ok(cssSrc.includes(cls),
+      `theme.css must define a rule for ${cls}`);
+  }
+  // Marathon should be the loudest — danger color + bold + uppercase
+  assert.match(cssSrc, /\.textstats\s+\.band-marathon\{[^}]*var\(--danger\)/,
+    ".band-marathon must use --danger so it reads as the loudest band");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

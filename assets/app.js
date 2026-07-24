@@ -165,6 +165,33 @@
     return minutes + ' min';
   }
 
+  // Qualitative band for the reading-time pill. Returns one of:
+  //   'quick'     — under 1 min   (short clauses, a single paragraph)
+  //   'standard'  — 1..5 min      (typical email, letter, brief contract)
+  //   'long'      — 5..15 min     (multi-page contract, dense policy)
+  //   'marathon'  — 15+ min       (book-length lease + exhibits)
+  //   null        — empty input   (no pill color)
+  // Bands key off minutes so a 4-min doc doesn't flip into 'long' just
+  // because the user typed one more word. Thresholds picked to match
+  // what users intuitively feel as "long" vs "absurd" — not arbitrary
+  // quartiles of typical document sizes.
+  //   readTimeBand("")                  → null
+  //   readTimeBand("a".repeat(100))     → 'quick'    (24s)
+  //   readTimeBand("a ".repeat(500))    → 'standard' (2 min)
+  //   readTimeBand("a ".repeat(2500))   → 'long'     (10 min)
+  //   readTimeBand("a ".repeat(5000))   → 'marathon' (20 min)
+  function readTimeBand(text){
+    const t = String(text||'').trim();
+    if (!t) return null;
+    const words = (t.match(/\b[\w'-]+\b/g) || []).length;
+    if (words === 0) return null;
+    const minutes = words / 250; // raw minutes, not rounded
+    if (minutes < 1) return 'quick';
+    if (minutes < 5) return 'standard';
+    if (minutes < 15) return 'long';
+    return 'marathon';
+  }
+
   /* ================= PRELOADER ================= */
   const loader=$('#loader'),bar=$('#loader .lbar i'),lpct=$('#lpct'),panel=$('.reveal-panel');
   let started=false;
@@ -2165,7 +2192,14 @@
       const charFmt = chars.toLocaleString();
       statWords.textContent = wordFmt;
       statChars.textContent = charFmt;
-      if(statReadTime) statReadTime.textContent = readTime(raw);
+      if(statReadTime){
+        statReadTime.textContent = readTime(raw);
+        // Band-based color cue. Single class swap (add+remove) keeps the
+        // toggle O(1) and lets the CSS own the visual treatment.
+        const band = readTimeBand(raw);
+        statReadTime.classList.remove('band-quick','band-standard','band-long','band-marathon');
+        if (band) statReadTime.classList.add('band-' + band);
+      }
       statLevel.textContent = isGradable(raw) ? (gradeLevel(raw) + 'th') : '—';
       if(statCap) statCap.textContent = cap.toLocaleString();
       if(textStats){
