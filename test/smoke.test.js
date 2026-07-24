@@ -3902,6 +3902,44 @@ test("analyzer: undo chip shows the count of applied suggestions that will be re
     "undo chip must be created with the data-undo-apply attribute");
 });
 
+test("analyzer: re-analyze chip appears next to the undo chip after applying suggestions", () => {
+  // New feature — after applying suggestions, the re-analyze chip
+  // appears next to the undo chip. Clicking it triggers the
+  // existing analyze() flow so users see the new (low) risk
+  // counts on the modified document. The natural next step in
+  // any rewrite tool.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Re-analyze chip must exist
+  assert.match(appSrc, /_reAnalyzeChip\s*=/,
+    "re-analyze chip must be created");
+  assert.match(appSrc, /id\s*=\s*.reAnalyzeChip/,
+    "re-analyze chip must have id='reAnalyzeChip'");
+  // Must trigger the existing analyze flow
+  assert.match(appSrc, /_reAnalyzeChip\.addEventListener[\s\S]+?getElementById\(['"]analyzeBtn['"]\)/,
+    "re-analyze must trigger the existing #analyzeBtn click");
+  assert.match(appSrc, /_reAnalyzeChip\.addEventListener[\s\S]+?analyzeBtn\.click/,
+    "re-analyze must call analyzeBtn.click() to trigger the analyze flow");
+  // Must be created alongside the undo chip
+  assert.match(appSrc, /function showUndoChip[\s\S]+?_reAnalyzeChip/,
+    "re-analyze chip must be created inside showUndoChip");
+  // Must be hidden when no suggestions are applied
+  assert.match(appSrc, /_reAnalyzeChip\.hidden\s*=\s*true/,
+    "re-analyze chip must be hidden by default (no applied suggestions)");
+
+  // CSS: re-analyze chip must be styled distinctively
+  assert.match(cssSrc, /\.re-analyze-chip\{[^}]*var\(--green\)/,
+    ".re-analyze-chip must use --green (positive action styling)");
+  assert.match(cssSrc, /\.re-analyze-chip\{[^}]*cursor:\s*pointer/,
+    ".re-analyze-chip must be cursor:pointer (signals clickability)");
+  assert.match(cssSrc, /\.re-analyze-chip\{[^}]*position:\s*absolute/,
+    ".re-analyze-chip must be absolutely positioned (floats next to the textarea)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

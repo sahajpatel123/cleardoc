@@ -1457,7 +1457,11 @@
   // how many changes will be reverted on click ("↶ undo 5" = 5
   // suggestions currently applied). One click still reverts ALL of
   // them — the count is just for transparency.
+  // Iter #53: pairs the undo chip with a re-analyze chip so users
+  // can immediately re-run the analysis on the modified document
+  // and see the new (low) risk counts.
   let _undoChip = null;
+  let _reAnalyzeChip = null;
   function showUndoChip(){
     if(!_undoChip){
       _undoChip = document.createElement('button');
@@ -1471,6 +1475,23 @@
       const input = document.getElementById('docInput');
       if(input && input.parentNode) input.parentNode.appendChild(_undoChip);
     }
+    if(!_reAnalyzeChip){
+      _reAnalyzeChip = document.createElement('button');
+      _reAnalyzeChip.type = 'button';
+      _reAnalyzeChip.id = 'reAnalyzeChip';
+      _reAnalyzeChip.className = 're-analyze-chip';
+      _reAnalyzeChip.setAttribute('data-re-analyze', '1');
+      _reAnalyzeChip.textContent = '↻ Re-analyze';
+      _reAnalyzeChip.title = 'Re-run the analysis on the modified document';
+      _reAnalyzeChip.hidden = true;
+      const input = document.getElementById('docInput');
+      if(input && input.parentNode) input.parentNode.appendChild(_reAnalyzeChip);
+      // Click → trigger the existing analyze() flow (iter #53)
+      _reAnalyzeChip.addEventListener('click', () => {
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        if(analyzeBtn) analyzeBtn.click();
+      });
+    }
     // Count applied suggestions (iter #52) so users see "↶ undo N"
     // instead of just "↶ undo apply". Reads from the same
     // _appliedSuggestions set the apply path maintains.
@@ -1478,8 +1499,10 @@
     const count = (input && input._appliedSuggestions) ? input._appliedSuggestions.size : 0;
     if(count > 0){
       _undoChip.textContent = '↶ undo ' + count;
+      _reAnalyzeChip.hidden = false;
     } else {
       _undoChip.textContent = '↶ undo apply';
+      _reAnalyzeChip.hidden = true;
     }
     _undoChip.hidden = false;
   }

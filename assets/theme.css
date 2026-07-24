@@ -627,6 +627,12 @@ button.risk-preview:hover{filter:brightness(.96)}
  * counter-clause has been applied. One-click revert. */
 .apply-undo-chip{position:absolute;top:-2px;right:6px;font:inherit;font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:4px 10px;cursor:pointer;z-index:5;transition:background .12s,color .12s}
 .apply-undo-chip:hover{background:var(--ink);color:var(--paper)}
+/* Re-analyze chip (iter #53) — sits to the LEFT of the undo chip
+ * so they read as a pair ("[↻ Re-analyze] [↶ undo 5]"). Only shown
+ * when suggestions are applied (so users can see the new risk
+ * counts after their rewrite). */
+.re-analyze-chip{position:absolute;top:-2px;right:96px;font:inherit;font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:var(--bd-hair) solid var(--green);background:var(--green-tint);color:var(--green);padding:4px 10px;cursor:pointer;z-index:5;transition:background .12s,color .12s}
+.re-analyze-chip:hover{background:var(--green);color:#fff}
 /* Apply-confirm modal (iter #48) — reuses kb-modal shell; adds
  * specific content styling for the destructive-action prompt. */
 .apply-confirm-card{max-width:520px}
