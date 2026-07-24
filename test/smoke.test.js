@@ -2328,6 +2328,74 @@ test("analyzer: risk-preview pill has an inline 'show all' link to make expand a
     ".rp-showall must be font-weight:800 (anchors the affordance)");
 });
 
+test("analyzer: document summary line shows sentence / paragraph / avg / longest counts", () => {
+  // New shape-of-the-doc read above textstats. Single line:
+  //   📄 47 sentences · 4 paragraphs · avg 18 words · longest 64
+  // Hides on short input; flips to amber when longest > 60 words
+  // (run-on legalese signal — legal contracts routinely have 100+
+  // word sentences).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // summarizeStructure helper must exist at the IIFE level
+  assert.match(appSrc, /function summarizeStructure\(text\)/,
+    "summarizeStructure() helper must exist at the IIFE level");
+
+  // Must classify into sentences, paragraphs, avgWords, longestWords
+  for (const key of ["sentences:", "paragraphs:", "avgWords:", "longestWords:"]) {
+    assert.ok(appSrc.includes(key),
+      `summarizeStructure must compute ${key}`);
+  }
+  // Must guard on short input
+  assert.match(appSrc, /function summarizeStructure\(text\)\{[\s\S]+?if \(!t \|\| t\.length < 8\)/,
+    "summarizeStructure must guard on too-short input");
+  // Sentence split uses terminal-punctuation regex
+  assert.match(appSrc, /summarizeStructure[\s\S]+?\[\.!\?]/,
+    "summarizeStructure must split on terminal punctuation");
+  // Paragraph split on blank lines (NOT single newlines)
+  assert.match(appSrc, /summarizeStructure[\s\S]+?split\([^)]*\\n\\s\*\\n/,
+    "summarizeStructure must split paragraphs on blank lines, not single newlines");
+
+  // analyze.html must have the doc-summary block
+  assert.match(html, /id="docSummary"/,
+    "analyze.html must contain #docSummary above textstats");
+  assert.match(html, /id="dsSentences"/,
+    "#docSummary must include #dsSentences");
+  assert.match(html, /id="dsParagraphs"/,
+    "#docSummary must include #dsParagraphs");
+  assert.match(html, /id="dsAvgWords"/,
+    "#docSummary must include #dsAvgWords");
+  assert.match(html, /id="dsLongest"/,
+    "#docSummary must include #dsLongest");
+
+  // updateTextStats must paint all four counts + toggle visibility
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0], /summarizeStructure\(raw\)/,
+    "updateTextStats must call summarizeStructure(raw)");
+  assert.match(updateBlock[0], /docSummary\.hidden\s*=\s*true/,
+    "docSummary must hide when summarizeStructure returns null");
+  assert.match(updateBlock[0], /dsSentences\.textContent\s*=\s*s\.sentences/,
+    "dsSentences must show the sentence count");
+  assert.match(updateBlock[0], /dsParagraphs\.textContent\s*=\s*s\.paragraphs/,
+    "dsParagraphs must show the paragraph count");
+  assert.match(updateBlock[0], /dsAvgWords\.textContent\s*=\s*s\.avgWords/,
+    "dsAvgWords must show the average words per sentence");
+  assert.match(updateBlock[0], /dsLongest\.textContent\s*=\s*s\.longestWords/,
+    "dsLongest must show the longest sentence in words");
+  // Dense-prose flag at > 60 words (legalese threshold)
+  assert.match(updateBlock[0], /s\.longestWords\s*>\s*60/,
+    "updateTextStats must flag longest > 60 words as 'ds-dense' (legalese signal)");
+
+  // CSS: dense state must be amber
+  assert.match(cssSrc, /\.doc-summary\.ds-dense\{[^}]*var\(--amber\)/,
+    ".ds-dense must use --amber (dense legalese reads louder)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

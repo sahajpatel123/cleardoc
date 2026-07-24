@@ -138,6 +138,42 @@
     return (t.match(/\b[\w'-]+\b/g) || []).length >= 8;
   }
 
+  // Structural summary of the input — sentence count, paragraph
+  // count, average + longest sentence length in words. Lives at the
+  // IIFE level so it's available to the analyzer page. Defensive on
+  // every step: empty input → null (caller hides the summary line).
+  //   summarizeStructure("")
+  //     → null
+  //   summarizeStructure("Hello world. This is a test.")
+  //     → {sentences:2, paragraphs:1, avgWords:3, longestWords:4}
+  //   summarizeStructure("P1.\n\nP2 sentence one. P2 sentence two.")
+  //     → {sentences:3, paragraphs:2, avgWords:3, longestWords:4}
+  function summarizeStructure(text){
+    const t = String(text||'').trim();
+    if (!t || t.length < 8) return null;
+    // Sentence split: terminal punctuation + whitespace. Defensive
+    // against runs of terminators ("Wait... Really?!" → 2 sentences).
+    const sentences = t.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 1);
+    if (sentences.length === 0) return null;
+    // Paragraph split: blank-line separated. A single newline is a
+    // hard line wrap (often used in legal docs), not a paragraph.
+    const paragraphs = t.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+    // Word counts per sentence
+    const wordCounts = sentences.map(s => {
+      const m = s.match(/\b[\w'-]+\b/g);
+      return m ? m.length : 0;
+    });
+    const totalWords = wordCounts.reduce((a, b) => a + b, 0);
+    const avgWords = Math.round(totalWords / sentences.length);
+    const longestWords = wordCounts.reduce((a, b) => Math.max(a, b), 0);
+    return {
+      sentences: sentences.length,
+      paragraphs: Math.max(paragraphs.length, 1),
+      avgWords,
+      longestWords,
+    };
+  }
+
   function readTime(text){
     const t = String(text||'').trim();
     if (!t) return '—';
@@ -1334,6 +1370,9 @@
           textStats=$('#textStats'),statWords=$('#statWords'),statChars=$('#statChars'),
           statReadTime=$('#statReadTime'),statLevel=$('#statLevel'),statFriendly=$('#statFriendly'),statCap=$('#statCap'),
           statDocType=$('#statDocType'),docTypeTip=$('#docTypeTip'),docTypeTipText=$('#docTypeTipText'),
+          docSummary=$('#docSummary'),dsSentences=$('#dsSentences'),dsSentenceS=$('#dsSentenceS'),
+          dsParagraphs=$('#dsParagraphs'),dsParagraphS=$('#dsParagraphS'),
+          dsAvgWords=$('#dsAvgWords'),dsLongest=$('#dsLongest'),
           deadlinesPreview=$('#deadlinesPreview'),deadlinesCount=$('#deadlinesCount'),
           deadlinesPlural=$('#deadlinesPlural'),deadlinesSoonest=$('#deadlinesSoonest'),
           deadlinesTimeline=$('#deadlinesTimeline'),
@@ -2574,6 +2613,27 @@
       const charFmt = chars.toLocaleString();
       statWords.textContent = wordFmt;
       statChars.textContent = charFmt;
+      // Document structural summary — sentence count, paragraph count,
+      // avg + longest sentence length. Sits above textstats as a quick
+      // shape-of-the-doc read. Hidden when too short to be meaningful.
+      if(docSummary && typeof summarizeStructure === 'function'){
+        const s = summarizeStructure(raw);
+        if(!s){
+          docSummary.hidden = true;
+        } else {
+          docSummary.hidden = false;
+          if(dsSentences) dsSentences.textContent = s.sentences;
+          if(dsSentenceS) dsSentenceS.textContent = s.sentences === 1 ? '' : 's';
+          if(dsParagraphs) dsParagraphs.textContent = s.paragraphs;
+          if(dsParagraphS) dsParagraphS.textContent = s.paragraphs === 1 ? '' : 's';
+          if(dsAvgWords) dsAvgWords.textContent = s.avgWords;
+          if(dsLongest) dsLongest.textContent = s.longestWords;
+          // Flag dense prose: longest sentence > 60 words is a strong
+          // signal that the doc has run-on legalese worth flagging.
+          docSummary.classList.remove('ds-dense');
+          if(s.longestWords > 60) docSummary.classList.add('ds-dense');
+        }
+      }
       if(statReadTime){
         statReadTime.textContent = readTime(raw);
         // Band-based color cue. Single class swap (add+remove) keeps the

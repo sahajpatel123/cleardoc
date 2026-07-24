@@ -122,6 +122,16 @@
     <div class="col in">
       <label class="lbl" for="docInput">Your document or clause</label>
       <textarea id="docInput" maxlength="40000">This Agreement shall automatically renew for successive twelve-month terms unless either party provides sixty days' written notice. Lessee shall indemnify and hold lessor harmless from any and all liabilities in perpetuity. In the event of early termination, a non-refundable cancellation assessment equal to the remaining charges shall become immediately due. Subscriber hereby waives the right to trial by jury and to participate in any class action.</textarea>
+      <div class="doc-summary mono" id="docSummary" hidden aria-live="polite">
+        <span class="ds-icon" aria-hidden="true">📄</span>
+        <b id="dsSentences">0</b> sentence<span id="dsSentenceS">s</span>
+        <span class="ds-sep" aria-hidden="true">·</span>
+        <b id="dsParagraphs">0</b> paragraph<span id="dsParagraphS">s</span>
+        <span class="ds-sep" aria-hidden="true">·</span>
+        avg <b id="dsAvgWords">0</b> words
+        <span class="ds-sep" aria-hidden="true">·</span>
+        longest <b id="dsLongest">0</b>
+      </div>
       <div class="textstats mono" id="textStats" aria-live="polite">
         <span><span class="stat-lbl">type</span> <b id="statDocType">—</b></span>
         <span class="stat-sep" aria-hidden="true">·</span>
