@@ -536,6 +536,12 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-detail-row.trap .rd-hit{background:var(--danger-tint)}
 .risk-detail-row.watch .rd-hit{background:var(--amber-tint)}
 .risk-detail-empty{padding:10px;color:var(--ink-soft);font-style:italic}
+/* Toolbar row — pattern count + Copy button. Stays visually separate
+ * from the rows so the button doesn't look like another risk tag. */
+.risk-detail-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border-bottom:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.risk-detail-toolbar .rd-count{color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.risk-detail-toolbar .rd-copy{font:inherit;font-size:.92em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:4px 10px;cursor:pointer;transition:background .15s,color .15s}
+.risk-detail-toolbar .rd-copy:hover{background:var(--ink);color:var(--paper)}
 .work .ctl{display:flex;gap:var(--s1);flex-wrap:wrap;align-items:center;margin-top:var(--s2)}
 .work .qf{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;border:var(--bd) solid var(--ink);padding:7px 12px;cursor:pointer;background:var(--paper);transition:background .18s}
 .work .qf:hover{background:var(--ink);color:var(--paper)}.work .qf:active{transform:translateY(1px)}

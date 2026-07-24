@@ -1172,6 +1172,16 @@
       // esc() lives in this same scope (analyzePage), defense-in-depth
       // so a matched substring can never inject HTML.
       const parts = [];
+      // Copy button — exports the matched patterns as plain text so
+      // users can paste into an email / doc without screenshotting.
+      // Delegated to riskDetail (not bound per-render) so re-renders
+      // during typing don't stack handlers.
+      parts.push(
+        '<div class="risk-detail-toolbar">',
+          '<span class="rd-count">' + ordered.length + ' pattern' + (ordered.length === 1 ? '' : 's') + '</span>',
+          '<button type="button" class="rd-copy" data-rd-copy="1" aria-label="Copy match list to clipboard">Copy</button>',
+        '</div>'
+      );
       for(const h of ordered){
         const sevClass = h.sev === 'r' ? 'trap' : (h.sev === 'a' ? 'watch' : 'note');
         const tagText = h.sev === 'r' ? 'TRAP' : (h.sev === 'a' ? 'WATCH' : 'NOTE');
@@ -1184,6 +1194,29 @@
         );
       }
       riskDetail.innerHTML = parts.join('');
+    }
+
+    // Format the matched-pattern list as plain text suitable for pasting
+    // into email / a chat / a doc. Trap reads loudest; one row per hit;
+    // closes with a ClearDoc attribution so the source is preserved.
+    //   formatMatchesForCopy(hits) →
+    //     "TRAP — non-refundable: Money you won't get back.
+    //      WATCH — auto-renews: Renews automatically unless you cancel in time.
+    //      ...
+    //      — matched by ClearDoc (cleardoc.app)"
+    function formatMatchesForCopy(hits){
+      if(!Array.isArray(hits) || hits.length === 0) return '';
+      const rank = { r: 0, a: 1, g: 2 };
+      const ordered = hits.slice().sort((a, b) => (rank[a.sev]||9) - (rank[b.sev]||9));
+      const lines = [];
+      for(const h of ordered){
+        const tag = h.sev === 'r' ? 'TRAP' : (h.sev === 'a' ? 'WATCH' : 'NOTE');
+        const matched = (h.matched || '').trim();
+        const why = (h.why || '').trim();
+        lines.push(tag + ' — ' + matched + ': ' + why);
+      }
+      lines.push('', '— matched by ClearDoc (cleardoc.app)');
+      return lines.join('\n');
     }
     function splitSentences(t){ return t.replace(/\s+/g,' ').trim().split(/(?<=[.!?;])\s+/).filter(s=>s.trim().length>1); }
     function trunc(s,n){ s=s.trim(); return s.length>n? s.slice(0,n)+'…' : s; }
@@ -2370,6 +2403,52 @@
             riskPreview.setAttribute('aria-expanded','false');
             riskPreview.classList.remove('rp-open');
           }
+        });
+      }
+      /* Copy-button delegation on riskDetail. Bound once (outside any
+       * per-render loop) so re-renders during typing don't stack
+       * handlers — uses event bubbling to catch clicks on the rendered
+       * button. Pattern matches the verdictCopyBtn click handler
+       * elsewhere in the file (clipboard API + execCommand fallback). */
+      if(riskDetail){
+        riskDetail.addEventListener('click', async (e) => {
+          const btn = e.target.closest && e.target.closest('[data-rd-copy]');
+          if(!btn) return;
+          e.preventDefault();
+          e.stopPropagation();
+          // Pull the live hit list (matches what's painted). Falls back
+          // to scraping rendered rows if matchRisks isn't in scope.
+          let hits = (typeof matchRisks === 'function') ? matchRisks(input ? input.value : '') : [];
+          if(!Array.isArray(hits) || hits.length === 0){
+            const rows = riskDetail.querySelectorAll('.risk-detail-row');
+            if(rows.length){
+              hits = Array.from(rows).map((r) => {
+                const tag = (r.querySelector('.rd-tag') || {}).textContent || '';
+                const hit = (r.querySelector('.rd-hit') || {}).textContent || '';
+                const why = (r.querySelector('.rd-why') || {}).textContent || '';
+                const sev = /TRAP/.test(tag) ? 'r' : /WATCH/.test(tag) ? 'a' : 'g';
+                return { sev, matched: hit.trim(), why: why.trim() };
+              });
+            }
+          }
+          const text = formatMatchesForCopy(hits);
+          if(!text) return;
+          let ok = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(text);
+              ok = true;
+            } else {
+              const ta = document.createElement('textarea');
+              ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+              document.body.appendChild(ta); ta.select();
+              ok = document.execCommand('copy'); document.body.removeChild(ta);
+            }
+          } catch(_) {}
+          const orig = 'Copy';
+          btn.textContent = ok ? 'Copied ✓' : 'Copy failed';
+          clearTimeout(btn._flashTimer);
+          btn._flashTimer = setTimeout(() => { btn.textContent = orig; }, 1400);
         });
       }
 

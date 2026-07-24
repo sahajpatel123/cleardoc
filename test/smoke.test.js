@@ -1698,6 +1698,58 @@ test("analyzer: risk-preview pill expands to show matched patterns with labels",
   }
 });
 
+test("analyzer: expanded risk detail has a Copy button that exports matches as plain text", () => {
+  // Polishes iter #5's expanded list. The Copy button lets users paste
+  // the matched-pattern summary into email / a doc without screenshotting.
+  // Uses the same navigator.clipboard pattern + execCommand fallback as
+  // the existing verdictCopyBtn elsewhere in the file.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  const analyzePageFn = appSrc.match(/function analyzePage\(\)\{[\s\S]+?\n  \}/);
+  assert.ok(analyzePageFn, "analyzePage() must exist");
+
+  // formatMatchesForCopy() must exist and produce a structured plain-text list
+  assert.match(analyzePageFn[0], /function formatMatchesForCopy\(hits\)/,
+    "formatMatchesForCopy() helper must live inside analyzePage");
+  assert.match(analyzePageFn[0], /'TRAP'[\s\S]+?'WATCH'[\s\S]+?'NOTE'/,
+    "formatMatchesForCopy() must use all three severity tags");
+  assert.match(analyzePageFn[0], /— matched by ClearDoc/,
+    "formatMatchesForCopy() must close with a ClearDoc attribution so the source is preserved");
+
+  // renderRiskDetail must paint the toolbar with the copy button
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(renderFn, "renderRiskDetail() must exist");
+  assert.match(renderFn[0], /risk-detail-toolbar/,
+    "renderRiskDetail() must render a .risk-detail-toolbar row");
+  assert.match(renderFn[0], /data-rd-copy="1"/,
+    "renderRiskDetail() must render a copy button with [data-rd-copy] for delegated clicks");
+  assert.match(renderFn[0], /rd-count/,
+    "renderRiskDetail() must render a .rd-count element showing the pattern count");
+
+  // Delegated click handler on riskDetail (not per-render)
+  assert.match(analyzePageFn[0],
+    /riskDetail\.addEventListener\(\s*['"]click['"][\s\S]+?closest\([^)]*data-rd-copy/,
+    "riskDetail must delegate clicks via [data-rd-copy] so re-renders don't stack handlers");
+  // Must use the same clipboard pattern as verdictCopyBtn (navigator.clipboard + execCommand fallback)
+  assert.match(analyzePageFn[0],
+    /riskDetail\.addEventListener[\s\S]+?navigator\.clipboard\.writeText[\s\S]+?document\.execCommand\(\s*['"]copy['"]\s*\)/,
+    "Copy handler must use navigator.clipboard with execCommand fallback");
+  // Flash feedback "Copied ✓" / "Copy failed"
+  assert.match(analyzePageFn[0],
+    /riskDetail\.addEventListener[\s\S]+?Copied ✓[\s\S]+?Copy failed/,
+    "Copy handler must flash 'Copied ✓' or 'Copy failed' for 1.4s");
+
+  // CSS must style the toolbar + copy button
+  assert.match(cssSrc, /\.risk-detail-toolbar\{[^}]*display:\s*flex/,
+    ".risk-detail-toolbar must be a flex row (count | copy button)");
+  assert.match(cssSrc, /\.risk-detail-toolbar \.rd-copy\{[^}]*cursor:\s*pointer/,
+    ".rd-copy must be a clickable button (cursor: pointer)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
