@@ -3096,6 +3096,61 @@ test("analyzer: deadline TTS cross-links to the matched date in the source texta
     "cross-link must only fire on row transitions (not every boundary)");
 });
 
+test("analyzer: compare panel exports the verdict + stats as a shareable PNG image", () => {
+  // New feature — "📸 Export PNG" button renders the verdict + stats
+  // table to a canvas and downloads as a PNG. Users get a shareable
+  // image for Slack/email threads when asking "which contract is
+  // better?" — the visual verdict travels without the docs.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: PNG button must exist in the compare panel
+  assert.match(html, /id="comparePngBtn"/,
+    "analyze.html must contain #comparePngBtn");
+  assert.match(html, /📸 Export PNG/,
+    "PNG button must be labeled '📸 Export PNG'");
+
+  // Click handler must render to canvas
+  assert.match(appSrc, /comparePngBtn\.addEventListener\(\s*['"]click['"]/,
+    "#comparePngBtn must have a click handler");
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?document\.createElement\(['"]canvas['"]\)/,
+    "click handler must create a canvas");
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?getContext\(['"]2d['"]\)/,
+    "click handler must get a 2D canvas context");
+  // Must draw the verdict text
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?fillText\(verdictText/,
+    "canvas must render the verdict text");
+  // Must use the verdict color (danger / amber / even)
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?verdictKind === 'danger'[\s\S]+?'#C6361F'/,
+    "danger verdict must use --danger color in the canvas");
+  // Must include the brand header
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?fillText\('CLEARDOC'/,
+    "PNG must include the CLEARDOC brand header");
+  // Must include the footer timestamp
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?cleardoc\.app/,
+    "PNG must include the footer attribution with cleardoc.app");
+  // Must download as PNG
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?toBlob/,
+    "must use canvas.toBlob to export the canvas");
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?image\/png/,
+    "must export as image/png");
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?cleardoc-comparison-/,
+    "filename must start with cleardoc-comparison-");
+  // Flash feedback
+  assert.match(appSrc, /comparePngBtn\.addEventListener[\s\S]+?exported/,
+    "button must flash 'exported' on success");
+
+  // CSS: button must be styled as a clickable cta
+  assert.match(cssSrc, /\.compare-actions \.cmp-png\{[^}]*cursor:\s*pointer/,
+    ".cmp-png must be cursor:pointer (signals clickability)");
+  assert.match(cssSrc, /\.compare-actions \.cmp-png:hover/,
+    ".cmp-png must have a hover state");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

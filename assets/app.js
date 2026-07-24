@@ -1455,6 +1455,7 @@
           compareToggle=$('#compareToggle'),comparePanel=$('#comparePanel'),
           inputB=$('#docInputB'),compareStats=$('#compareStats'),
           compareVerdict=$('#compareVerdict'),compareDiff=$('#compareDiff'),
+          comparePngBtn=$('#comparePngBtn'),
           micBtn=$('#micBtn'),
           historyBtn=$('#historyBtn'),historyPanel=$('#historyPanel'),
           historyList=$('#historyList'),historyClearBtn=$('#historyClearBtn'),
@@ -3194,6 +3195,107 @@
             }
             input.focus();
           }
+        });
+      }
+
+      /* Export comparison as PNG — render the verdict + side-by-side
+       * stats to a canvas, then download as a PNG. Uses the same
+       * Blob + download pattern as the calendar export. The user
+       * gets a shareable image for Slack/email threads. */
+      if(comparePngBtn){
+        comparePngBtn.addEventListener('click', () => {
+          if(!compareStats || !compareVerdict) return;
+          const verdictText = (compareVerdict.textContent || '').trim();
+          const verdictCls = (compareVerdict.className || '').match(/cmp-verdict-(\w+)/);
+          const verdictKind = verdictCls ? verdictCls[1] : 'even';
+          if(!verdictText) return;
+          // Parse the rendered table to a 2D array (rows × cols)
+          const table = compareStats.querySelector('table');
+          const rows = [];
+          if(table){
+            const trs = table.querySelectorAll('tr');
+            trs.forEach(tr => {
+              const cells = Array.from(tr.querySelectorAll('th,td')).map(c => c.textContent.trim());
+              rows.push(cells);
+            });
+          }
+          // Render to canvas
+          const W = 560, rowH = 36, headerH = 60, verdictH = 56, footerH = 32;
+          const H = headerH + verdictH + (rows.length * rowH) + footerH;
+          const canvas = document.createElement('canvas');
+          canvas.width = W; canvas.height = H;
+          const ctx = canvas.getContext('2d');
+          // Background — paper
+          ctx.fillStyle = '#EDE7D8';
+          ctx.fillRect(0, 0, W, H);
+          // Header bar
+          ctx.fillStyle = '#14120E';
+          ctx.fillRect(0, 0, W, headerH);
+          ctx.fillStyle = '#FF3B00';
+          ctx.font = 'bold 24px monospace';
+          ctx.fillText('CLEARDOC', 16, 28);
+          ctx.fillStyle = '#EDE7D8';
+          ctx.font = '12px monospace';
+          ctx.fillText('document comparison', 16, 48);
+          // Verdict band
+          const verdictColor = verdictKind === 'danger' ? '#C6361F' :
+                               verdictKind === 'amber' ? '#9A6A00' : '#5A554A';
+          ctx.fillStyle = verdictColor;
+          ctx.fillRect(0, headerH, W, verdictH);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 18px monospace';
+          ctx.fillText(verdictText, 18, headerH + 36);
+          // Table
+          const tableY = headerH + verdictH;
+          if(rows.length){
+            const labelW = 110;
+            const colW = (W - 16 - labelW - 16) / 2;
+            // Header row
+            ctx.fillStyle = '#14120E';
+            ctx.fillRect(0, tableY, W, rowH);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px monospace';
+            ctx.fillText('', 16, tableY + 22);
+            ctx.fillText('ORIGINAL', 16 + labelW, tableY + 22);
+            ctx.fillText('COMPARE', 16 + labelW + colW, tableY + 22);
+            // Body rows
+            for(let i = 1; i < rows.length; i++){
+              const r = rows[i];
+              const y = tableY + i * rowH;
+              if(i % 2 === 0){ ctx.fillStyle = '#E3DBC8'; ctx.fillRect(0, y, W, rowH); }
+              ctx.fillStyle = '#5A554A';
+              ctx.font = '11px monospace';
+              ctx.fillText((r[0] || '').toUpperCase(), 16, y + 22);
+              ctx.fillStyle = '#14120E';
+              ctx.font = 'bold 14px monospace';
+              ctx.fillText((r[1] || '').slice(0, 24), 16 + labelW, y + 22);
+              ctx.fillText((r[2] || '').slice(0, 24), 16 + labelW + colW, y + 22);
+            }
+          }
+          // Footer
+          ctx.fillStyle = '#5A554A';
+          ctx.font = '10px monospace';
+          const ts = new Date().toISOString().slice(0, 16).replace('T', ' ');
+          ctx.fillText('cleardoc.app · exported ' + ts + ' UTC', 16, H - 12);
+          // Download
+          try {
+            canvas.toBlob((blob) => {
+              if(!blob) return;
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'cleardoc-comparison-' + Date.now() + '.png';
+              a.click();
+              URL.revokeObjectURL(url);
+              // Flash feedback
+              const orig = '📸 Export PNG';
+              comparePngBtn.textContent = '✓ exported';
+              clearTimeout(comparePngBtn._flashTimer);
+              comparePngBtn._flashTimer = setTimeout(() => {
+                comparePngBtn.textContent = orig;
+              }, 1400);
+            }, 'image/png');
+          } catch(_){}
         });
       }
 

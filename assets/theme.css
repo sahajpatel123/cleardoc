@@ -665,6 +665,10 @@ button.risk-preview:hover{filter:brightness(.96)}
 .compare-panel textarea:focus{box-shadow:inset 0 -3px 0 var(--accent)}
 .compare-panel .lbl{display:block;font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;color:var(--ink-soft)}
 .compare-stats{margin-top:var(--s2);overflow-x:auto}
+/* PNG export button — sits at the bottom of the compare panel */
+.compare-actions{margin-top:var(--s2);display:flex;justify-content:flex-end}
+.compare-actions .cmp-png{font:inherit;font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:6px 14px;cursor:pointer;transition:background .15s,color .15s}
+.compare-actions .cmp-png:hover{background:var(--ink);color:var(--paper)}
 /* Verdict badge — clear at-a-glance winner above the table.
  * danger = traps decided it (most severe), amber = risks/deadlines,
  * ink = even. */
