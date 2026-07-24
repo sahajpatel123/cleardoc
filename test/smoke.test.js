@@ -4250,6 +4250,43 @@ test("analyzer: result panel shows a 'N risks avoided' badge across all analyses
     ".risks-avoided-badge must have a background tint (pill style)");
 });
 
+test("analyzer: risks-avoided badge breaks the total down by severity", () => {
+  // Polishes iter #60 — instead of just a flat total, show the
+  // breakdown by severity so users see the kind of risk they
+  // caught. "📊 14 risks avoided (8 trap + 5 watch + 1 note)"
+  // vs "📊 14 risks avoided" is much more informative.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // New: bumpRisksAvoidedBySeverity must exist
+  assert.match(appSrc, /function bumpRisksAvoidedBySeverity\(trap, watch, note\)/,
+    "bumpRisksAvoidedBySeverity() must exist (iter #61 split)");
+  // saveSnapshot must use the severity-aware path
+  assert.match(appSrc, /function saveSnapshot[\s\S]+?bumpRisksAvoidedBySeverity/,
+    "saveSnapshot must call bumpRisksAvoidedBySeverity");
+  // Must count trap/watch/note separately
+  assert.match(appSrc, /r\.sev\s*===\s*.r.[\s\S]+?trap\+\+/,
+    "must count trap (sev 'r') separately");
+  assert.match(appSrc, /r\.sev\s*===\s*.a.[\s\S]+?watch\+\+/,
+    "must count watch (sev 'a') separately");
+  assert.match(appSrc, /r\.sev\s*===\s*.g.[\s\S]+?note\+\+/,
+    "must count note (sev 'g') separately");
+
+  // getRisksAvoided must return the breakdown object (not just count)
+  assert.match(appSrc, /function getRisksAvoided[\s\S]+?return\s*\{[\s\S]+?trap/,
+    "getRisksAvoided must return a breakdown object (trap field)");
+
+  // Badge text must include the per-severity breakdown
+  assert.match(appSrc, /deadlinesAvoidedBadge|risksAvoidedBadge\.textContent[\s\S]+?trap/,
+    "badge text must include trap count");
+  assert.match(appSrc, /risksAvoidedBadge\.textContent[\s\S]+?watch/,
+    "badge text must include watch count");
+  assert.match(appSrc, /risksAvoidedBadge\.textContent[\s\S]+?note/,
+    "badge text must include note count");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

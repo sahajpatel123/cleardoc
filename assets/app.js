@@ -2068,12 +2068,20 @@
         // Push to history (capped) — lets users come back to a doc they
         // analyzed yesterday. Best-effort; failures are silent.
         pushHistory(snap.raw);
-        // Iter #60: also bump the per-user "risks avoided" counter
-        // with the risk count from this analysis. Tangible value
-        // metric that drives engagement.
+        // Iter #60/61: bump the per-user "risks avoided" counter
+        // with the risk count from this analysis, broken down by
+        // severity. Tangible value metric that drives engagement.
         try {
-          const riskCount = Array.isArray(snap.risks) ? snap.risks.length : 0;
-          if(riskCount > 0) bumpRisksAvoided(riskCount);
+          if(Array.isArray(snap.risks) && snap.risks.length > 0){
+            let trap = 0, watch = 0, note = 0;
+            for(const r of snap.risks){
+              if(!r) continue;
+              if(r.sev === 'r') trap++;
+              else if(r.sev === 'a') watch++;
+              else if(r.sev === 'g') note++;
+            }
+            bumpRisksAvoidedBySeverity(trap, watch, note);
+          }
         } catch(_){}
         return true;
       }catch(_){ return false; }
@@ -2089,22 +2097,48 @@
     const RISKS_KEY = 'cleardoc:risksAvoided';
     const RISKS_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
     function getRisksAvoided(){
+      // Iter #61: returns a breakdown by severity (trap/watch/note)
+      // in addition to the total count. Backward-compatible — old
+      // payloads (count + ts) still return a count; severity fields
+      // default to 0 if missing.
       try {
         const raw = localStorage.getItem(RISKS_KEY);
-        if(!raw) return 0;
+        if(!raw) return { count: 0, trap: 0, watch: 0, note: 0 };
         const data = JSON.parse(raw);
-        if(!data || typeof data.count !== 'number') return 0;
-        if(typeof data.ts === 'number' && (Date.now() - data.ts) > RISKS_TTL_MS) return 0;
-        return data.count;
-      } catch(_){ return 0; }
+        if(!data || typeof data.count !== 'number') return { count: 0, trap: 0, watch: 0, note: 0 };
+        if(typeof data.ts === 'number' && (Date.now() - data.ts) > RISKS_TTL_MS) return { count: 0, trap: 0, watch: 0, note: 0 };
+        return {
+          count: data.count,
+          trap: typeof data.trap === 'number' ? data.trap : 0,
+          watch: typeof data.watch === 'number' ? data.watch : 0,
+          note: typeof data.note === 'number' ? data.note : 0,
+        };
+      } catch(_){ return { count: 0, trap: 0, watch: 0, note: 0 }; }
     }
-    function bumpRisksAvoided(n){
+    // bumpRisksAvoidedBySeverity — iter #61. Bumps the counter
+    // using the per-severity breakdown from this analysis. Falls
+    // back to the legacy n-only bump when no breakdown is given
+    // (backward-compat for older callers).
+    function bumpRisksAvoidedBySeverity(trap, watch, note){
       try {
-        if(typeof n !== 'number' || n <= 0) return;
         const cur = getRisksAvoided();
-        const next = cur + n;
-        localStorage.setItem(RISKS_KEY, JSON.stringify({ count: next, ts: Date.now() }));
+        const n = (Number(trap)||0) + (Number(watch)||0) + (Number(note)||0);
+        if(n <= 0) return;
+        const next = {
+          count: cur.count + n,
+          trap:  cur.trap  + (Number(trap)  || 0),
+          watch: cur.watch + (Number(watch) || 0),
+          note:  cur.note  + (Number(note)  || 0),
+          ts: Date.now(),
+        };
+        localStorage.setItem(RISKS_KEY, JSON.stringify(next));
       } catch(_){}
+    }
+    // Legacy single-n bump (kept for callers that don't have a
+    // breakdown). Routes through bumpRisksAvoidedBySeverity with
+    // 0/0/n so the totals stay consistent.
+    function bumpRisksAvoided(n){
+      bumpRisksAvoidedBySeverity(0, 0, n);
     }
 
     /* ── Analysis history ─────────────────────────────────────────────
@@ -2746,15 +2780,25 @@
           }
         }
       }
-      // Iter #60: update the "📊 N risks avoided" badge in the
-      // result-actions row. Shows a tangible value metric (how many
-      // risk patterns the user has caught across all their analyses)
-      // without leaving the page. Hidden when 0.
+      // Iter #60/61: update the "📊 N risks avoided" badge in the
+      // result-actions row. Shows a tangible value metric broken
+      // down by severity: "📊 8 trap + 5 watch + 1 note avoided".
+      // Falls back to the plain total if all severity counts are 0
+      // (backward-compat with old payloads).
       if(risksAvoidedBadge && typeof getRisksAvoided === 'function'){
-        const total = getRisksAvoided();
+        const data = getRisksAvoided();
+        const total = data.count || 0;
         if(total > 0){
-          risksAvoidedBadge.textContent = '📊 ' + total + ' risk' +
-            (total === 1 ? '' : 's') + ' avoided';
+          let text = '📊 ' + total + ' risk' + (total === 1 ? '' : 's') + ' avoided';
+          // Add severity breakdown if any of the per-sev counts are > 0
+          if(data.trap || data.watch || data.note){
+            const parts = [];
+            if(data.trap)  parts.push(data.trap  + ' trap');
+            if(data.watch) parts.push(data.watch + ' watch');
+            if(data.note)  parts.push(data.note  + ' note');
+            if(parts.length > 0) text += ' (' + parts.join(' + ') + ')';
+          }
+          risksAvoidedBadge.textContent = text;
           risksAvoidedBadge.hidden = false;
         } else {
           risksAvoidedBadge.hidden = true;
