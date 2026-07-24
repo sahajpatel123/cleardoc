@@ -1373,6 +1373,8 @@
           docSummary=$('#docSummary'),dsSentences=$('#dsSentences'),dsSentenceS=$('#dsSentenceS'),
           dsParagraphs=$('#dsParagraphs'),dsParagraphS=$('#dsParagraphS'),
           dsAvgWords=$('#dsAvgWords'),dsLongest=$('#dsLongest'),
+          dsJargon=$('#dsJargon'),dsJargonCount=$('#dsJargonCount'),dsJargonS=$('#dsJargonS'),
+          dsJargonPreview=$('#dsJargonPreview'),
           deadlinesPreview=$('#deadlinesPreview'),deadlinesCount=$('#deadlinesCount'),
           deadlinesPlural=$('#deadlinesPlural'),deadlinesSoonest=$('#deadlinesSoonest'),
           deadlinesTimeline=$('#deadlinesTimeline'),
@@ -2632,6 +2634,33 @@
           // signal that the doc has run-on legalese worth flagging.
           docSummary.classList.remove('ds-dense');
           if(s.longestWords > 60) docSummary.classList.add('ds-dense');
+          // Jargon-swap count — reuses the home-page clarify() engine
+          // to count JARGON matches in the input. Hidden when zero
+          // (clean docs shouldn't show a swap badge). When > 0,
+          // clicking the badge reveals the plain-English preview.
+          if(dsJargon && typeof clarify === 'function'){
+            const c = clarify(raw);
+            if(c && c.found > 0){
+              dsJargon.hidden = false;
+              if(dsJargonCount) dsJargonCount.textContent = c.found;
+              if(dsJargonS) dsJargonS.textContent = c.found === 1 ? '' : 's';
+              // Stash the rendered preview on the button so the click
+              // handler can paint it without re-running clarify().
+              dsJargon._previewHtml = c.html;
+              // If the preview is already open, refresh its content
+              // so it stays in sync with the input.
+              if(dsJargonPreview && !dsJargonPreview.hidden){
+                dsJargonPreview.innerHTML = c.html;
+              }
+            } else {
+              dsJargon.hidden = true;
+              if(dsJargonPreview && !dsJargonPreview.hidden){
+                dsJargonPreview.hidden = true;
+                dsJargon.setAttribute('aria-expanded', 'false');
+                dsJargon.classList.remove('ds-open');
+              }
+            }
+          }
         }
       }
       if(statReadTime){
@@ -2845,6 +2874,35 @@
       input.addEventListener('input', updateTextStats);
       input.addEventListener('change', updateTextStats);
       updateTextStats(); // initial paint for the preloaded sample
+
+      /* Jargon-swap button — toggles a plain-English preview under the
+       * doc-summary. Reuses the home-page clarify() engine so the
+       * mappings stay in sync with the home-page BYOF demo. The
+       * rendered HTML is stashed on the button at updateTextStats()
+       * time so the click is O(1) — no re-clarify on every open. */
+      if(dsJargon && dsJargonPreview){
+        dsJargon.addEventListener('click', () => {
+          if(!dsJargon._previewHtml){
+            dsJargon.hidden = true;
+            return;
+          }
+          const willOpen = dsJargonPreview.hidden;
+          dsJargonPreview.hidden = !willOpen;
+          dsJargon.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+          dsJargon.classList.toggle('ds-open', willOpen);
+          if(willOpen){
+            dsJargonPreview.innerHTML = dsJargon._previewHtml;
+          }
+        });
+        dsJargon.addEventListener('keydown', (e) => {
+          if(e.key === 'Escape' && !dsJargonPreview.hidden){
+            e.preventDefault();
+            dsJargonPreview.hidden = true;
+            dsJargon.setAttribute('aria-expanded', 'false');
+            dsJargon.classList.remove('ds-open');
+          }
+        });
+      }
 
       /* Click-to-expand: toggles the matched-pattern list under the
        * risk pill. Pressing Escape while focused collapses it (matches

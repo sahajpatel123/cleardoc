@@ -495,6 +495,15 @@
 .doc-summary .ds-icon{font-weight:800}
 .doc-summary.ds-dense{color:var(--amber)}
 .doc-summary.ds-dense b{color:var(--amber)}
+/* Jargon-swap badge — button that toggles a plain-English preview
+ * under the doc-summary. Click-to-reveal; aria-expanded for a11y. */
+.doc-summary .ds-jargon{font:inherit;font-size:1em;font-weight:700;color:var(--ink);background:transparent;border:var(--bd-hair) solid currentColor;padding:2px 8px;cursor:pointer;letter-spacing:.04em;text-transform:uppercase;transition:background .12s,color .12s}
+.doc-summary .ds-jargon:hover{background:var(--ink);color:var(--paper)}
+.doc-summary .ds-jargon.ds-open{background:var(--ink);color:var(--paper)}
+/* Plain-English preview — the input with jargon terms bolded +
+ * replaced inline. Sits under the doc-summary, hidden by default. */
+.ds-preview{margin-top:4px;padding:10px 12px;border:var(--bd-hair) solid var(--ink);background:var(--paper);font-family:'Archivo',sans-serif;font-size:var(--t-card);line-height:1.55;color:var(--ink);max-height:200px;overflow:auto;text-transform:none;letter-spacing:0}
+.ds-preview b{background:var(--amber-tint);color:var(--accent-text);font-weight:700;padding:0 2px}
 .textstats b{color:var(--ink);font-weight:700;font-family:'JetBrains Mono',monospace}
 .textstats .stat-lbl{opacity:.65}
 .textstats .stat-sep{opacity:.4}

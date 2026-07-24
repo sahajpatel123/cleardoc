@@ -2396,6 +2396,67 @@ test("analyzer: document summary line shows sentence / paragraph / avg / longest
     ".ds-dense must use --amber (dense legalese reads louder)");
 });
 
+test("analyzer: doc-summary line shows jargon-swap count that toggles a plain-English preview", () => {
+  // Polishes iter #17 — adds a jargon-swap badge inline with the doc
+  // structural summary. Click reveals the input with jargon terms
+  // bolded + replaced inline (reuses the home-page clarify() engine).
+  // Lets users see jargon → plain-English BEFORE hitting Analyze.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html must have the jargon-swap button + preview container
+  assert.match(html, /id="dsJargon"/,
+    "analyze.html must contain #dsJargon (the toggle button)");
+  assert.match(html, /id="dsJargonCount"/,
+    "#dsJargon must include #dsJargonCount for the dynamic count");
+  assert.match(html, /id="dsJargonPreview"/,
+    "analyze.html must contain #dsJargonPreview (the toggled preview)");
+  assert.match(html, /aria-controls="dsJargonPreview"/,
+    "#dsJargon must aria-controls #dsJargonPreview for screen readers");
+
+  // updateTextStats must call clarify() and paint the count
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0], /clarify\(raw\)/,
+    "updateTextStats must call clarify(raw) to count jargon matches");
+  assert.match(updateBlock[0], /dsJargonCount\.textContent\s*=\s*c\.found/,
+    "dsJargonCount must show the found count");
+  // Hide when no jargon found (clean docs shouldn't show a swap badge)
+  assert.match(updateBlock[0], /dsJargon\.hidden\s*=\s*true/,
+    "dsJargon must hide when no jargon is found");
+  // Stash the preview HTML on the button so the click is O(1)
+  assert.match(updateBlock[0], /dsJargon\._previewHtml\s*=\s*c\.html/,
+    "updateTextStats must stash the rendered preview on the button");
+
+  // Click handler must toggle the preview + flip aria-expanded
+  assert.match(appSrc, /dsJargon\.addEventListener\(\s*['"]click['"]/,
+    "#dsJargon must have a click handler");
+  assert.match(appSrc, /dsJargonPreview\.hidden\s*=\s*!willOpen/,
+    "click handler must toggle dsJargonPreview.hidden");
+  assert.match(appSrc, /aria-expanded['"],\s*willOpen\s*\?\s*['"]true['"]\s*:\s*['"]false['"]/,
+    "click handler must flip aria-expanded correctly");
+  // Escape key collapses (keyboard a11y)
+  assert.match(appSrc, /e\.key\s*===\s*['"]Escape['"][\s\S]+?dsJargonPreview\.hidden\s*=\s*true/,
+    "Escape key must collapse the preview");
+
+  // CSS: button is a clickable badge, preview is a bordered box
+  assert.match(cssSrc, /\.doc-summary \.ds-jargon\{[^}]*cursor:\s*pointer/,
+    ".ds-jargon must be a clickable button (cursor: pointer)");
+  assert.match(cssSrc, /\.doc-summary \.ds-jargon\.ds-open/,
+    ".ds-jargon must have an .ds-open state for the active toggle");
+  assert.match(cssSrc, /\.ds-preview\{[^}]*border/,
+    ".ds-preview must have a visible border so it reads as a panel");
+  // The <b> tags inside the preview are the swapped terms — must
+  // visually pop with amber tint (matches the doc-summary dense color
+  // family for visual cohesion).
+  assert.match(cssSrc, /\.ds-preview b\{[^}]*var\(--amber-tint\)/,
+    ".ds-preview <b> must be amber-tinted (swapped terms pop)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

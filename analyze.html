@@ -131,7 +131,12 @@
         avg <b id="dsAvgWords">0</b> words
         <span class="ds-sep" aria-hidden="true">·</span>
         longest <b id="dsLongest">0</b>
+        <span class="ds-sep" aria-hidden="true">·</span>
+        <button type="button" class="ds-jargon" id="dsJargon" hidden aria-expanded="false" aria-controls="dsJargonPreview">
+          <b id="dsJargonCount">0</b> jargon swap<span id="dsJargonS">s</span>
+        </button>
       </div>
+      <div class="ds-preview mono" id="dsJargonPreview" hidden aria-live="polite"></div>
       <div class="textstats mono" id="textStats" aria-live="polite">
         <span><span class="stat-lbl">type</span> <b id="statDocType">—</b></span>
         <span class="stat-sep" aria-hidden="true">·</span>
