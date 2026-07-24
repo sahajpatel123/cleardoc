@@ -1621,6 +1621,7 @@
             '<div class="risk-counter ' + sevClass + '">',
               '<span class="rc-kicker">→ suggest:</span>',
               '<span class="rc-text">' + esc(h.counter) + '</span>',
+              '<button type="button" class="rc-copy" data-rc-copy="' + esc(h.counter) + '" aria-label="Copy suggestion to clipboard">copy</button>',
             '</div>'
           );
         }
@@ -3829,6 +3830,33 @@
 
       if(riskDetail){
         riskDetail.addEventListener('click', async (e) => {
+          // 0. Per-suggestion copy button — copies the counter-clause
+          // text only (not the whole match list) so the user can
+          // paste it directly into an email / redline.
+          const rcCopy = e.target.closest && e.target.closest('[data-rc-copy]');
+          if(rcCopy){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = rcCopy.getAttribute('data-rc-copy') || '';
+            if(!text) return;
+            let ok = false;
+            try {
+              if(navigator.clipboard && navigator.clipboard.writeText){
+                await navigator.clipboard.writeText(text);
+                ok = true;
+              } else {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+                document.body.appendChild(ta); ta.select();
+                ok = document.execCommand('copy'); document.body.removeChild(ta);
+              }
+            } catch(_) {}
+            const orig = 'copy';
+            rcCopy.textContent = ok ? '✓ copied' : 'failed';
+            clearTimeout(rcCopy._flashTimer);
+            rcCopy._flashTimer = setTimeout(() => { rcCopy.textContent = orig; }, 1400);
+            return;
+          }
           // 1. Copy button takes precedence
           const copyBtn = e.target.closest && e.target.closest('[data-rd-copy]');
           if(copyBtn){

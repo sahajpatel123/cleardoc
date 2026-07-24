@@ -569,6 +569,13 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-detail .risk-counter .rc-kicker{font-family:'JetBrains Mono';font-size:var(--t-micro);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink);white-space:nowrap;flex-shrink:0}
 .risk-detail .risk-counter.trap .rc-kicker{color:var(--danger)}
 .risk-detail .risk-counter.watch .rc-kicker{color:var(--amber)}
+/* Per-suggestion copy button — inline at the end of the counter row.
+ * One-click copy of just the counter-clause text (not the whole match
+ * list) so the user can paste it into a redline / email directly. */
+.risk-detail .risk-counter .rc-copy{font:inherit;font-size:var(--t-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:var(--bd-hair) solid currentColor;background:transparent;color:inherit;padding:2px 7px;cursor:pointer;margin-left:auto;flex-shrink:0;transition:background .12s,color .12s}
+.risk-detail .risk-counter .rc-copy:hover{background:currentColor;color:var(--paper)}
+.risk-detail .risk-counter.trap .rc-copy{color:var(--danger)}
+.risk-detail .risk-counter.watch .rc-copy{color:var(--amber)}
 /* Read-aloud button — small 🔊 in the risk toolbar */
 .risk-detail-toolbar .rd-speak{font:inherit;font-size:.92em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:4px 10px;cursor:pointer;transition:background .15s,color .15s;margin-right:6px}
 .risk-detail-toolbar .rd-speak:hover{background:var(--ink);color:var(--paper)}

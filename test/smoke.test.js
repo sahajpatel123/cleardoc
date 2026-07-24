@@ -3442,6 +3442,46 @@ test("analyzer: each risk row shows a 'suggest' counter-clause the user could pr
     ".risk-counter.watch must use --amber (watch suggestion = medium)");
 });
 
+test("analyzer: negotiation suggestions have a per-suggestion Copy button", () => {
+  // Polishes iter #41 — each counter-clause has its own Copy
+  // button (in addition to the global Copy). Lets users paste a
+  // single counter-clause into a redline without copying the
+  // entire match list.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // renderRiskDetail must render the copy button in the counter row
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(renderFn, "renderRiskDetail() must exist");
+  assert.match(renderFn[0], /data-rc-copy/,
+    "renderRiskDetail must render [data-rc-copy] button");
+  // Button must carry the counter text in the data attribute (so
+  // the click handler can extract it without re-running matchRisks)
+  assert.match(renderFn[0], /data-rc-copy="'\s*\+\s*esc\(h\.counter\)/,
+    "data-rc-copy attribute must hold the counter text (escaped)");
+
+  // Delegated click handler must handle the copy button
+  assert.match(appSrc, /riskDetail\.addEventListener[\s\S]+?data-rc-copy/,
+    "riskDetail click handler must handle [data-rc-copy] clicks");
+  // Must use the same clipboard pattern as other copy buttons
+  assert.match(appSrc, /data-rc-copy[\s\S]+?clipboard\.writeText/,
+    "copy handler must use navigator.clipboard.writeText");
+  assert.match(appSrc, /data-rc-copy[\s\S]+?execCommand\(\s*['"]copy['"]\s*\)/,
+    "copy handler must fall back to execCommand('copy') on older browsers");
+  // Flash feedback on success
+  assert.match(appSrc, /data-rc-copy[\s\S]+?copied/,
+    "button must flash '✓ copied' on success");
+
+  // CSS: copy button must be styled as a clickable, color-keyed control
+  assert.match(cssSrc, /\.rc-copy\{[^}]*cursor:\s*pointer/,
+    ".rc-copy must be cursor:pointer (signals clickability)");
+  assert.match(cssSrc, /\.rc-copy\.trap|\.risk-counter\.trap \.rc-copy/,
+    ".rc-copy must be color-keyed to the parent severity (trap / watch)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
