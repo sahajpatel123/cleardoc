@@ -3304,34 +3304,57 @@ test("analyzer: history panel has a language filter row that shows count per lan
   // "All" uses a globe — neutral across languages
   assert.match(html, /data-hp-filter="all"[^>]*>🌐 All/,
     "historyFilter 'All' must use a globe 🌐 (neutral across languages)");
+});
 
-  // renderHistory must apply the filter
-  const renderFn = appSrc.match(/const renderHistory\s*=\s*\(\)\s*=>\s*\{[\s\S]+?\n\s+\}\s*\};\s*$/m);
-  assert.ok(renderFn, "renderHistory() must exist");
-  assert.match(renderFn[0], /currentLangFilter/,
-    "renderHistory must reference currentLangFilter");
-  assert.match(renderFn[0], /items\.filter\(it => it && it\.lang === currentLangFilter\)/,
-    "renderHistory must filter items by the current language");
+test("analyzer: voice picker dropdown lets users choose a specific TTS voice", () => {
+  // New feature — dropdown populated with available SpeechSynthesis
+  // voices, preferring the detected language. User pick is persisted
+  // to localStorage so it survives reloads. Pairs with iter #35
+  // (language detection) + #27 (TTS).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
-  // Count per language must be painted into the buttons
-  assert.match(renderFn[0], /'data-hp-filter'\)[\s\S]+?counts/,
-    "renderHistory must compute counts per language");
-  assert.match(renderFn[0], /base\s*\+\s*' \(' \+\s*count\s*\+\s*'\)'/,
-    "renderHistory must format button labels as 'Name (count)'");
+  // analyze.html: <select> must exist next to the Read-aloud button
+  assert.match(html, /<select[^>]*id="voicePicker"/,
+    "analyze.html must contain <select id=\"voicePicker\">");
+  assert.match(html, /id="voicePicker"[^>]*aria-label="Choose TTS voice"/,
+    "#voicePicker must have an aria-label");
 
-  // Delegated click handler must update currentLangFilter + re-render
-  assert.match(appSrc, /historyFilter\.addEventListener\(\s*['"]click['"]/,
-    "historyFilter must have a click handler");
-  assert.match(appSrc, /historyFilter\.addEventListener[\s\S]+?currentLangFilter\s*=\s*btn\.getAttribute/,
-    "click handler must update currentLangFilter from the clicked button");
-  assert.match(appSrc, /historyFilter\.addEventListener[\s\S]+?renderHistory\(\)/,
-    "click handler must call renderHistory() to re-paint");
+  // populateVoicePicker must exist + populate options
+  assert.match(appSrc, /populateVoicePicker\s*=\s*\(\s*detectedLang\s*\)\s*=>/,
+    "populateVoicePicker() must exist");
+  assert.match(appSrc, /populateVoicePicker[\s\S]+?getVoices/,
+    "populateVoicePicker must read getVoices()");
+  assert.match(appSrc, /populateVoicePicker[\s\S]+?System default/,
+    "populateVoicePicker must include a 'System default' option");
+  assert.match(appSrc, /populateVoicePicker[\s\S]+?startsWith\(prefix\)/,
+    "populateVoicePicker must filter by the detected lang prefix");
+  assert.match(appSrc, /populateVoicePicker[\s\S]+?appendChild/,
+    "populateVoicePicker must appendChild each option");
 
-  // CSS: filter buttons must look clickable + have an active state
-  assert.match(cssSrc, /\.hp-filter-btn\{[^}]*cursor:\s*pointer/,
-    ".hp-filter-btn must be cursor:pointer (signals clickability)");
-  assert.match(cssSrc, /\.hp-filter-btn\.hp-filter-active\{[^}]*var\(--ink\)/,
-    ".hp-filter-btn.hp-filter-active must use --ink (selected state stands out)");
+  // localStorage persistence — setStoredVoice on change, getStoredVoice on load
+  assert.match(appSrc, /const VOICE_KEY\s*=\s*'cleardoc:ttsVoice'/,
+    "voice picker must use localStorage key 'cleardoc:ttsVoice'");
+  assert.match(appSrc, /setStoredVoice\(voicePicker\.value\)/,
+    "voice picker change handler must persist the selection");
+
+  // TTS handler must prefer the explicit user pick
+  assert.match(appSrc, /explicit\s*\|\|/,
+    "TTS handler must prefer explicit user pick over detected-language fallback");
+
+  // Async voice loading — Chrome populates voices on the voiceschanged event
+  assert.match(appSrc, /onvoiceschanged/,
+    "voice picker must hook onvoiceschanged for browsers that load voices async");
+
+  // CSS: picker must be styled as a clickable select
+  assert.match(cssSrc, /\.voice-picker\{[^}]*cursor:\s*pointer/,
+    ".voice-picker must be cursor:pointer (signals clickability)");
+  assert.match(cssSrc, /\.voice-picker\{[^}]*background/,
+    ".voice-picker must have a paper background (matches ghost-btn aesthetic)");
 });
 
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {

@@ -680,6 +680,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .compare-verdict.cmp-verdict-even{color:var(--ink-soft);background:var(--paper2)}
 .work .ghost-btn.speaking{background:var(--accent);color:#fff;border-color:var(--accent);animation:micPulse 1.4s ease-in-out infinite}
 @keyframes micPulse{0%,100%{box-shadow:0 0 0 0 var(--accent-glow)}50%{box-shadow:0 0 0 6px transparent}}
+/* Voice picker — styled <select> matching the ghost-btn aesthetic */
+.voice-picker{font:inherit;font-size:var(--t-meta);letter-spacing:.04em;text-transform:uppercase;background:var(--paper);color:var(--ink);border:var(--bd-hair) solid var(--ink);padding:5px 10px;cursor:pointer;max-width:180px;text-overflow:ellipsis}
 /* Read-aloud sentence highlight — each sentence in the rewrite gets
  * wrapped in <span class="spoken"> when the user clicks Read aloud.
  * The currently-speaking sentence gets .spoken-active with a soft

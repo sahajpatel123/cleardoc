@@ -1464,6 +1464,7 @@
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
           printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),printDate=$('#printDate'),
           shareBtn=$('#shareBtn'),speakBtn=$('#speakBtn'),
+          voicePicker=$('#voicePicker'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2253,6 +2254,14 @@
       if(speakBtn){
         if(typeof window !== 'undefined' && 'speechSynthesis' in window && plainOut && plainOut.textContent && plainOut.textContent.trim().length > 0){
           speakBtn.hidden = false;
+          // Voice picker: only show if there are actual voices to
+          // choose from. Some browsers expose getVoices() but return
+          // [] until the first async load — we re-populate when that
+          // happens (voiceschanged event).
+          if(voicePicker && typeof populateVoicePicker === 'function'){
+            populateVoicePicker(plainOut._detectedLang || null);
+            voicePicker.hidden = voicePicker.options.length <= 1;
+          }
         }
       }
       if(!noMotion && window.gsap) gsap.fromTo(panel,{opacity:0,y:14},{opacity:1,y:0,duration:DUR.base,ease:EASE.enter});
@@ -4076,6 +4085,55 @@
       } else {
         let isSpeaking = false;
         let sentenceSpans = []; // cached wrapper spans for the highlighter
+
+        // Voice picker — populates the <select> with all available
+        // voices, preferring the detected language. User's pick is
+        // persisted to localStorage so it survives reloads. Falls
+        // back gracefully when no voices are available.
+        const VOICE_KEY = 'cleardoc:ttsVoice';
+        const getStoredVoice = () => {
+          try { return localStorage.getItem(VOICE_KEY) || ''; } catch(_) { return ''; }
+        };
+        const setStoredVoice = (v) => {
+          try { localStorage.setItem(VOICE_KEY, v || ''); } catch(_) {}
+        };
+        const populateVoicePicker = (detectedLang) => {
+          if(!voicePicker) return;
+          const allVoices = (typeof window.speechSynthesis.getVoices === 'function')
+            ? window.speechSynthesis.getVoices() : [];
+          if(allVoices.length === 0) return;
+          // Build the option list. Group: detected-lang voices first
+          // (if any), then other voices. Each option's value is the
+          // voice's name (which uniquely identifies it in
+          // SpeechSynthesis).
+          const storedName = getStoredVoice();
+          const prefix = detectedLang ? String(detectedLang.tts || '').toLowerCase().split('-')[0] : '';
+          const matching = prefix ? allVoices.filter(v => v && v.lang && v.lang.toLowerCase().startsWith(prefix)) : [];
+          const others = allVoices.filter(v => !matching.includes(v));
+          const ordered = matching.concat(others);
+          // Default option: "System default" — lets the OS pick
+          voicePicker.innerHTML = '<option value="">System default</option>';
+          ordered.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v.name;
+            opt.textContent = v.name + ' (' + (v.lang || '?') + ')';
+            voicePicker.appendChild(opt);
+          });
+          // Restore prior selection if it still exists
+          if(storedName && ordered.some(v => v.name === storedName)){
+            voicePicker.value = storedName;
+          }
+          voicePicker.onchange = () => setStoredVoice(voicePicker.value);
+        };
+        // Some browsers (Chrome) load voices asynchronously. Re-populate
+        // when they become available. One-shot (not duplicated).
+        if(typeof window.speechSynthesis.onvoiceschanged !== 'undefined'){
+          window.speechSynthesis.onvoiceschanged = () => {
+            if(voicePicker && !voicePicker.hidden){
+              populateVoicePicker((plainOut && plainOut._detectedLang) || null);
+            }
+          };
+        }
         const pickVoice = () => {
           const voices = (typeof window.speechSynthesis.getVoices === 'function')
             ? window.speechSynthesis.getVoices() : [];
@@ -4153,13 +4211,16 @@
             window.speechSynthesis.cancel(); // wipe any pending utterance
             sentenceSpans = wrapSentences();
             const u = new SpeechSynthesisUtterance(text);
-            // Use the detected language for TTS voice selection when
-            // available (set in iter #35). Falls back to pickVoice()
-            // (English-preferring) so legacy behavior is preserved.
+            // Voice priority: explicit user pick (voicePicker) →
+            // detected language → English-preferring default.
             const detectedLang = input && input._detectedLang;
-            const v = (detectedLang && detectedLang.tts)
-              ? pickVoiceForLang(detectedLang.tts)
-              : pickVoice();
+            const stored = (typeof getStoredVoice === 'function') ? getStoredVoice() : '';
+            const allVoices = (typeof window.speechSynthesis.getVoices === 'function')
+              ? window.speechSynthesis.getVoices() : [];
+            const explicit = stored && allVoices.find(v => v && v.name === stored);
+            const v = explicit
+              || (detectedLang && detectedLang.tts ? pickVoiceForLang(detectedLang.tts) : null)
+              || pickVoice();
             if(v) u.voice = v;
             if(detectedLang && detectedLang.tts) u.lang = detectedLang.tts;
             u.rate = 1.0;
