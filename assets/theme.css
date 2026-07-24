@@ -644,6 +644,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .work .qf{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;border:var(--bd) solid var(--ink);padding:7px 12px;cursor:pointer;background:var(--paper);transition:background .18s}
 .work .qf:hover{background:var(--ink);color:var(--paper)}.work .qf:active{transform:translateY(1px)}
 .work .qf.qf-open{background:var(--ink);color:var(--paper)}
+/* Mic button — active state pulses red so users see recording is live */
+.work .qf.qf-mic.qf-mic-active{background:var(--danger);color:#fff;border-color:var(--danger);animation:micPulse 1.4s ease-in-out infinite}
+@keyframes micPulse{0%,100%{box-shadow:0 0 0 0 var(--accent-glow)}50%{box-shadow:0 0 0 6px transparent}}
 /* Compare panel — second textarea + side-by-side stats table */
 .compare-panel{margin-top:var(--s2);padding:var(--s2);border:var(--bd-hair) solid var(--ink);background:var(--paper2)}
 .compare-panel textarea{width:100%;min-height:120px;border:var(--bd) solid var(--ink);background:#fff;padding:12px;font-family:'JetBrains Mono';font-size:var(--t-card);line-height:1.5;color:var(--ink);resize:vertical;outline:none}

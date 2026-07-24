@@ -2637,6 +2637,57 @@ test("analyzer: compare panel shows sentence-level diff (Original-only / Compare
     ".cmp-diff-summary must have its own CSS rule (visually distinct from row labels)");
 });
 
+test("analyzer: voice input button dictates into the textarea via Web Speech API", () => {
+  // New feature — click a 🎤 button to dictate the document via the
+  // Web Speech API. Hidden when the browser doesn't support it
+  // (Firefox, Safari < 14.1). Click toggles recording; interim
+  // results paint live so users see what they're saying.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: mic button must exist
+  assert.match(html, /id="micBtn"/,
+    "analyze.html must contain #micBtn");
+  assert.match(html, /aria-label="Dictate via voice input"/,
+    "#micBtn must have an aria-label for screen readers");
+
+  // App must check for SpeechRecognition + fall back to webkit
+  assert.match(appSrc, /micBtn[\s\S]+?SpeechRecognition \|\| window\.webkitSpeechRecognition/,
+    "must check both SpeechRecognition and webkitSpeechRecognition for cross-browser support");
+  // Must hide the button when the API is unsupported
+  assert.match(appSrc, /!SR[\s\S]+?micBtn\.hidden\s*=\s*true/,
+    "micBtn must hide when SpeechRecognition is unavailable");
+  // Must wire click → start, click again → stop
+  assert.match(appSrc, /micBtn\.addEventListener\(\s*['"]click['"]/,
+    "#micBtn must have a click handler");
+  assert.match(appSrc, /isRecording[\s\S]+?recognition\.stop/,
+    "click handler must stop recognition when isRecording");
+  assert.match(appSrc, /recognition\.start\(\)/,
+    "click handler must call recognition.start() to begin dictation");
+  // Interim results must paint live so users see what they're saying
+  assert.match(appSrc, /interimResults\s*=\s*true/,
+    "recognition must enable interimResults so partial transcripts stream live");
+  // Append interim + final text to the existing textarea value
+  assert.match(appSrc, /input\.value\s*=\s*baseValue\s*\+/,
+    "must append recognized text to the existing textarea value (don't clobber)");
+  // Trigger input event so the live stats update as the user dictates
+  assert.match(appSrc, /dispatchEvent\(new Event\(\s*['"]input['"]/,
+    "must dispatch input event so the live stats update during dictation");
+  // Visual feedback: active state when recording
+  assert.match(appSrc, /qf-mic-active/,
+    "must add qf-mic-active class when recording starts");
+
+  // CSS: active state must be visually distinct (pulse red)
+  assert.match(cssSrc, /\.qf-mic\.qf-mic-active\{[^}]*var\(--danger\)/,
+    ".qf-mic-active must use --danger (recording = visually loud)");
+  assert.match(cssSrc, /\.qf-mic\.qf-mic-active\{[^}]*animation/,
+    ".qf-mic-active must have a pulse animation so live recording reads as live");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

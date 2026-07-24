@@ -1427,6 +1427,7 @@
           compareToggle=$('#compareToggle'),comparePanel=$('#comparePanel'),
           inputB=$('#docInputB'),compareStats=$('#compareStats'),
           compareVerdict=$('#compareVerdict'),compareDiff=$('#compareDiff'),
+          micBtn=$('#micBtn'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
@@ -2922,6 +2923,74 @@
       input.addEventListener('input', updateTextStats);
       input.addEventListener('change', updateTextStats);
       updateTextStats(); // initial paint for the preloaded sample
+
+      /* Voice input — Web Speech API dictation into the main
+       * textarea. Hidden by default; only shown when the browser
+       * supports SpeechRecognition (Chrome, Edge, Safari 14.1+).
+       * Click again to stop; interim results paint live so users
+       * see what they're saying as they say it. */
+      if(micBtn && input){
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if(!SR){
+          micBtn.hidden = true; // unsupported browser → hide entirely
+        } else {
+          let recognition = null;
+          let isRecording = false;
+          let baseValue = ''; // text in the textarea when recording started
+          micBtn.addEventListener('click', () => {
+            if(isRecording){
+              try { recognition && recognition.stop(); } catch(_) {}
+              isRecording = false;
+              micBtn.textContent = '🎤 dictate';
+              micBtn.classList.remove('qf-mic-active');
+              return;
+            }
+            try {
+              recognition = new SR();
+              recognition.continuous = true;
+              recognition.interimResults = true;
+              recognition.lang = navigator.language || 'en-US';
+              baseValue = input.value || '';
+              recognition.onresult = (e) => {
+                let interim = '', final = '';
+                for(let i = e.resultIndex; i < e.results.length; i++){
+                  const t = e.results[i][0].transcript;
+                  if(e.results[i].isFinal) final += t;
+                  else interim += t;
+                }
+                const sep = baseValue && !baseValue.endsWith(' ') && final ? ' ' : '';
+                input.value = baseValue + sep + final + interim;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+              };
+              recognition.onerror = (e) => {
+                // 'no-speech', 'aborted', 'not-allowed' — surface a
+                // brief flash but don't crash the page
+                micBtn.textContent = '🎤 ' + (e.error || 'error');
+                clearTimeout(micBtn._errTimer);
+                micBtn._errTimer = setTimeout(() => {
+                  micBtn.textContent = isRecording ? '■ stop' : '🎤 dictate';
+                }, 1400);
+              };
+              recognition.onend = () => {
+                isRecording = false;
+                micBtn.textContent = '🎤 dictate';
+                micBtn.classList.remove('qf-mic-active');
+              };
+              recognition.start();
+              isRecording = true;
+              micBtn.textContent = '■ stop';
+              micBtn.classList.add('qf-mic-active');
+            } catch(err){
+              // Start can throw if the page isn't HTTPS or mic is blocked
+              micBtn.textContent = '🎤 unavailable';
+              clearTimeout(micBtn._errTimer);
+              micBtn._errTimer = setTimeout(() => {
+                micBtn.textContent = '🎤 dictate';
+              }, 1400);
+            }
+          });
+        }
+      }
 
       /* Compare-panel toggle — opens the second textarea. Click
        * again (or Escape) to close. The comparison row beneath both
