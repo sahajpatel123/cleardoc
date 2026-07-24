@@ -200,6 +200,83 @@
     if(!name || typeof name !== 'string') return null;
     return DOC_TYPE_TIPS[name] || null;
   }
+
+  // Live deadline preview — finds date / "by X days" / "before [date]"
+  // patterns in the input as the user types. Same regex shape as the
+  // AI-side deadline extractor, so what we count here is what the
+  // analyze panel will surface. Each pattern produces { match, kind,
+  // urgencyDays, label }. urgencyDays < 0 means already past (red);
+  // < 7 = urgent (danger); < 30 = soon (amber); else = future (ink).
+  //   extractDeadlines("within 30 days of signing.")
+  //     → [{match:'within 30 days', kind:'relative', urgencyDays:30,
+  //         label:'in 30 days'}]
+  //   extractDeadlines("") → []
+  const MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  // (month, day, year) e.g. "January 15, 2026" or "Jan 15 2026"
+  const DATE_PATTERNS = [
+    // "January 15, 2026" / "Jan 15, 2026" / "January 15 2026"
+    { re: /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b/gi, kind: 'absolute' },
+    // "by 2026-01-15" / "2026/01/15"
+    { re: /\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/g, kind: 'iso' },
+    // "within N days" / "in N days" / "N-day notice"
+    { re: /\b(?:within|in|after|before|by)\s+(\d{1,3})\s+(?:days?|business\s+days?)\b/gi, kind: 'relative' },
+    { re: /\b(\d{1,3})[- ](?:day|days?)[\s-]+(?:notice|window|period)\b/gi, kind: 'relative-notice' },
+  ];
+  function _parseAbsoluteDate(month, day, year){
+    const mi = MONTHS.indexOf(month.toLowerCase().slice(0,3));
+    if (mi < 0) return null;
+    const d = parseInt(day, 10), y = parseInt(year, 10);
+    if (!d || d < 1 || d > 31) return null;
+    if (!y || y < 1900 || y > 2200) return null;
+    return new Date(y, mi, d);
+  }
+  function _urgencyFromDate(dt){
+    if (!dt || isNaN(dt.getTime())) return null;
+    const ms = dt.getTime() - Date.now();
+    return Math.round(ms / (1000 * 60 * 60 * 24));
+  }
+  function extractDeadlines(text){
+    const t = String(text||'');
+    if (!t || t.length < 8) return [];
+    const out = [];
+    const seen = new Set();
+    for (const p of DATE_PATTERNS) {
+      // Reset lastIndex between patterns (regex with /g flag is stateful)
+      p.re.lastIndex = 0;
+      let m;
+      while ((m = p.re.exec(t)) !== null) {
+        let dt = null, label = m[0].trim();
+        if (p.kind === 'absolute') {
+          dt = _parseAbsoluteDate(m[1], m[2], m[3]);
+          if (dt) label = m[1] + ' ' + m[2] + ', ' + m[3];
+        } else if (p.kind === 'iso') {
+          dt = new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10));
+          if (dt) label = m[1] + '-' + m[2].padStart(2,'0') + '-' + m[3].padStart(2,'0');
+        } else if (p.kind === 'relative') {
+          const n = parseInt(m[1], 10);
+          if (!n) continue;
+          dt = new Date(Date.now() + n * 86400000);
+          label = 'in ' + n + ' day' + (n === 1 ? '' : 's');
+        } else if (p.kind === 'relative-notice') {
+          const n = parseInt(m[1], 10);
+          if (!n) continue;
+          dt = new Date(Date.now() + n * 86400000);
+          label = n + '-day notice';
+        }
+        if (!dt) continue;
+        // De-dupe by date (so "Jan 15" + "January 15" both match the same row)
+        const key = dt.toISOString().slice(0,10);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const urgency = _urgencyFromDate(dt);
+        out.push({ match: m[0], label, date: dt, urgencyDays: urgency });
+      }
+    }
+    // Sort by urgency ascending — past dates first (most urgent), then
+    // soonest future date. Cap at 8 unique deadlines.
+    out.sort((a, b) => a.urgencyDays - b.urgencyDays);
+    return out.slice(0, 8);
+  }
   function detectDocType(text){
     const t = String(text||'').trim();
     if (!t || t.length < 20) return null;
@@ -1160,6 +1237,8 @@
           textStats=$('#textStats'),statWords=$('#statWords'),statChars=$('#statChars'),
           statReadTime=$('#statReadTime'),statLevel=$('#statLevel'),statFriendly=$('#statFriendly'),statCap=$('#statCap'),
           statDocType=$('#statDocType'),docTypeTip=$('#docTypeTip'),docTypeTipText=$('#docTypeTipText'),
+          deadlinesPreview=$('#deadlinesPreview'),deadlinesCount=$('#deadlinesCount'),
+          deadlinesPlural=$('#deadlinesPlural'),deadlinesSoonest=$('#deadlinesSoonest'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
@@ -2454,6 +2533,46 @@
           }
         } else {
           statFriendly.hidden = true;
+        }
+      }
+      // Live deadlines preview — count date / "N days" patterns detected
+      // in the input. Shows the soonest one with urgency color so users
+      // see timing pressure before clicking Analyze. Hidden when none.
+      if(deadlinesPreview && typeof extractDeadlines === 'function'){
+        const dls = extractDeadlines(raw);
+        if(dls.length === 0){
+          deadlinesPreview.hidden = true;
+        } else {
+          deadlinesPreview.hidden = false;
+          if(deadlinesCount) deadlinesCount.textContent = dls.length;
+          if(deadlinesPlural) deadlinesPlural.textContent = dls.length === 1 ? '' : 's';
+          // Soonest is dls[0] (sorted ascending by urgencyDays — past
+          // dates first, then soonest future). Format the label.
+          const soon = dls[0];
+          let soonestLabel = soon.label;
+          if(typeof soon.urgencyDays === 'number'){
+            if(soon.urgencyDays < 0){
+              soonestLabel = soon.label + ' (' + Math.abs(soon.urgencyDays) + 'd ago)';
+            } else if(soon.urgencyDays === 0){
+              soonestLabel = 'today';
+            } else if(soon.urgencyDays === 1){
+              soonestLabel = 'tomorrow';
+            } else if(soon.urgencyDays < 30){
+              soonestLabel = 'in ' + soon.urgencyDays + ' days';
+            }
+          }
+          if(deadlinesSoonest) deadlinesSoonest.textContent = soonestLabel;
+          // Urgency band: past = danger, < 7 days = danger, < 30 days =
+          // amber, else default. Past dates read loudest because an
+          // already-missed deadline is the most urgent signal.
+          deadlinesPreview.classList.remove('dp-past','dp-urgent','dp-soon','dp-future');
+          const u = soon.urgencyDays;
+          if(typeof u === 'number'){
+            if(u < 0) deadlinesPreview.classList.add('dp-past');
+            else if(u < 7) deadlinesPreview.classList.add('dp-urgent');
+            else if(u < 30) deadlinesPreview.classList.add('dp-soon');
+            else deadlinesPreview.classList.add('dp-future');
+          }
         }
       }
       if(statCap) statCap.textContent = cap.toLocaleString();

@@ -1982,6 +1982,85 @@ test("analyzer: textstats row is ordered by signal-strength (type → level → 
     "CHARS must come before CAP (count before limit)");
 });
 
+test("analyzer: deadlines preview shows live count + soonest deadline with urgency color", () => {
+  // Counts date / "N days" patterns detected in the input as the
+  // user types. Surfaces the soonest one with urgency color so users
+  // see timing pressure before clicking Analyze. Past dates read
+  // loudest (already missed), < 7 days next, then < 30, else muted.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // extractDeadlines must live at the IIFE level
+  assert.match(appSrc, /function extractDeadlines\(text\)/,
+    "extractDeadlines() helper must exist at the IIFE level");
+  // Must handle all 4 pattern shapes
+  assert.match(appSrc, /kind:\s*['"]absolute['"]/,
+    "extractDeadlines must handle absolute dates ('January 15, 2026')");
+  assert.match(appSrc, /kind:\s*['"]iso['"]/,
+    "extractDeadlines must handle ISO dates ('2026-01-15')");
+  assert.match(appSrc, /kind:\s*['"]relative['"]/,
+    "extractDeadlines must handle relative dates ('within 30 days')");
+  assert.match(appSrc, /kind:\s*['"]relative-notice['"]/,
+    "extractDeadlines must handle 'N-day notice' patterns");
+  // Must sort by urgency ascending (past dates first)
+  assert.match(appSrc, /a\.urgencyDays\s*-\s*b\.urgencyDays/,
+    "extractDeadlines must sort by urgencyDays ascending so soonest reads first");
+  // Must cap the list (don't surface 50 deadlines)
+  assert.match(appSrc, /slice\(0,\s*8\)/,
+    "extractDeadlines must cap at 8 results (no flooding the pill)");
+
+  // analyze.html must have the deadlines preview block
+  assert.match(html, /id="deadlinesPreview"/,
+    "analyze.html must contain #deadlinesPreview");
+  assert.match(html, /id="deadlinesCount"/,
+    "analyze.html must contain #deadlinesCount");
+  assert.match(html, /id="deadlinesSoonest"/,
+    "analyze.html must contain #deadlinesSoonest");
+  assert.match(html, /id="deadlinesPlural"/,
+    "analyze.html must contain #deadlinesPlural for 'deadline' / 'deadlines'");
+
+  // updateTextStats must paint the count + soonest label + urgency band
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0], /extractDeadlines\(raw\)/,
+    "updateTextStats must call extractDeadlines(raw)");
+  assert.match(updateBlock[0], /deadlinesPreview\.hidden\s*=\s*true/,
+    "deadlinesPreview must hide when no deadlines found");
+  assert.match(updateBlock[0], /deadlinesCount\.textContent\s*=\s*dls\.length/,
+    "deadlinesCount must show the live count");
+  assert.match(updateBlock[0], /deadlinesSoonest\.textContent\s*=\s*soonestLabel/,
+    "deadlinesSoonest must show the formatted soonest label");
+  // Friendly formatting: 'today' / 'tomorrow' / 'in N days'
+  for (const label of ["'today'", "'tomorrow'", "'in '"]) {
+    assert.ok(updateBlock[0].includes(label),
+      `deadlinesSoonest must support friendly ${label} formatting`);
+  }
+  // Urgency bands
+  assert.match(updateBlock[0], /classList\.add\(\s*['"]dp-(?:past|urgent|soon|future)['"]/,
+    "updateTextStats must apply one of dp-past/dp-urgent/dp-soon/dp-future");
+  assert.match(updateBlock[0], /dp-past['"][\s\S]+?dp-urgent['"][\s\S]+?dp-soon['"][\s\S]+?dp-future/,
+    "Urgency priority must be past < urgent (<7d) < soon (<30d) < future");
+
+  // CSS must define all four urgency band colors
+  for (const cls of [".deadlines-preview.dp-past", ".deadlines-preview.dp-urgent",
+                     ".deadlines-preview.dp-soon", ".deadlines-preview.dp-future"]) {
+    assert.ok(cssSrc.includes(cls),
+      `theme.css must define ${cls} for urgency band color`);
+  }
+  // Past/urgent must use --danger (already missed = loudest signal)
+  assert.match(cssSrc, /\.deadlines-preview\.dp-past\{[^}]*var\(--danger\)/,
+    ".dp-past must use --danger (missed deadline = loudest urgency)");
+  assert.match(cssSrc, /\.deadlines-preview\.dp-urgent\{[^}]*var\(--danger\)/,
+    ".dp-urgent must use --danger (<7 days = urgent)");
+  // Soon (<30 days) must use --amber
+  assert.match(cssSrc, /\.deadlines-preview\.dp-soon\{[^}]*var\(--amber\)/,
+    ".dp-soon must use --amber (<30 days)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

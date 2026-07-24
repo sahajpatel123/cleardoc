@@ -580,6 +580,17 @@ button.risk-preview:hover{filter:brightness(.96)}
 .doc-type-tip.dtt-insurance .dtt-text{color:#2e6b4f}
 .doc-type-tip.dtt-debt .dtt-text{color:var(--danger)}
 .doc-type-tip.dtt-tax .dtt-text{color:#7a5b00}
+/* Deadlines preview — surfaces date / "N days" patterns as the user
+ * types, with urgency color so a missed deadline reads louder than
+ * one 6 months out. Past = danger red (loudest), <7 days = danger,
+ * <30 = amber, else ink. Hides itself when no patterns match. */
+.deadlines-preview{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;padding:5px 10px;border:var(--bd-hair) solid currentColor;font-size:var(--t-meta-sm);letter-spacing:.04em;text-transform:uppercase}
+.deadlines-preview b{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.05em}
+.deadlines-preview .dp-icon{font-weight:800}
+.deadlines-preview.dp-past{color:var(--danger);background:var(--danger-tint);font-weight:700}
+.deadlines-preview.dp-urgent{color:var(--danger);background:var(--danger-tint);font-weight:700}
+.deadlines-preview.dp-soon{color:var(--amber);background:var(--amber-tint);font-weight:700}
+.deadlines-preview.dp-future{color:var(--ink-soft);background:var(--paper2)}
 /* Toolbar row — pattern count + Copy button. Stays visually separate
  * from the rows so the button doesn't look like another risk tag. */
 .risk-detail-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border-bottom:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
