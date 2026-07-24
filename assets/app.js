@@ -221,21 +221,6 @@
     return best;
   }
 
-  // Qualitative band for the reading-time pill. Returns one of:
-  //   'quick'     — under 1 min   (short clauses, a single paragraph)
-  //   'standard'  — 1..5 min      (typical email, letter, brief contract)
-  //   'long'      — 5..15 min     (multi-page contract, dense policy)
-  //   'marathon'  — 15+ min       (book-length lease + exhibits)
-  //   null        — empty input   (no pill color)
-  // Bands key off minutes so a 4-min doc doesn't flip into 'long' just
-  // because the user typed one more word. Thresholds picked to match
-  // what users intuitively feel as "long" vs "absurd" — not arbitrary
-  // quartiles of typical document sizes.
-  //   readTimeBand("")                  → null
-  //   readTimeBand("a".repeat(100))     → 'quick'    (24s)
-  //   readTimeBand("a ".repeat(500))    → 'standard' (2 min)
-  //   readTimeBand("a ".repeat(2500))   → 'long'     (10 min)
-  //   readTimeBand("a ".repeat(5000))   → 'marathon' (20 min)
   function readTimeBand(text){
     const t = String(text||'').trim();
     if (!t) return null;
@@ -246,6 +231,42 @@
     if (minutes < 5) return 'standard';
     if (minutes < 15) return 'long';
     return 'marathon';
+  }
+
+  // Convert a numeric Flesch-Kincaid grade (4..18) to a human-friendly
+  // label so the analyzer doesn't read like a school grade report.
+  // "12th" makes users feel judged; "College" is descriptive of the
+  // document, not the reader. Bands match the conventional US school
+  // grade ranges so users can mentally translate back to the numeric.
+  //   friendlyGrade(4)  → 'Elementary'
+  //   friendlyGrade(7)  → 'Middle school'
+  //   friendlyGrade(10) → 'High school'
+  //   friendlyGrade(13) → 'College'
+  //   friendlyGrade(16) → 'Graduate'
+  //   friendlyGrade(null) → null
+  function friendlyGrade(n){
+    if(typeof n !== 'number' || !Number.isFinite(n)) return null;
+    if (n <= 5) return 'Elementary';
+    if (n <= 8) return 'Middle school';
+    if (n <= 12) return 'High school';
+    if (n <= 15) return 'College';
+    return 'Graduate';
+  }
+
+  // Density band for the friendly-grade label — drives the color cue
+  // (lighter = simpler doc, darker = denser). Matches how the
+  // readTimeBand works: a friendly visual cue that scales with how
+  // hard the doc will be to read.
+  //   gradeDensity(4)  → 'easy'        (green — plain English)
+  //   gradeDensity(10) → 'standard'    (default ink — typical)
+  //   gradeDensity(13) → 'dense'       (amber — college-level)
+  //   gradeDensity(17) → 'very-dense'  (danger red — graduate-level)
+  function gradeDensity(n){
+    if(typeof n !== 'number' || !Number.isFinite(n)) return null;
+    if (n <= 8) return 'easy';
+    if (n <= 12) return 'standard';
+    if (n <= 15) return 'dense';
+    return 'very-dense';
   }
 
   /* ================= PRELOADER ================= */
@@ -1137,7 +1158,7 @@
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
           viewShareBtn=$('#viewShareBtn'),dismissShareBtn=$('#dismissShareBtn'),
           textStats=$('#textStats'),statWords=$('#statWords'),statChars=$('#statChars'),
-          statReadTime=$('#statReadTime'),statLevel=$('#statLevel'),statCap=$('#statCap'),
+          statReadTime=$('#statReadTime'),statLevel=$('#statLevel'),statFriendly=$('#statFriendly'),statCap=$('#statCap'),
           statDocType=$('#statDocType'),docTypeTip=$('#docTypeTip'),docTypeTipText=$('#docTypeTipText'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
@@ -2415,6 +2436,26 @@
         }
       }
       statLevel.textContent = isGradable(raw) ? (gradeLevel(raw) + 'th') : '—';
+      // Friendly label next to the numeric grade — "12th · College"
+      // reads as a description of the document, not a judgment of the
+      // reader. Color-codes by density (easy/standard/dense/very-dense).
+      if(statFriendly){
+        if(isGradable(raw)){
+          const g = gradeLevel(raw);
+          const label = friendlyGrade(g);
+          const density = gradeDensity(g);
+          if(label){
+            statFriendly.textContent = label;
+            statFriendly.title = 'Grade ' + g + ' (' + label + ' level)';
+            statFriendly.hidden = false;
+            statFriendly.className = 'stat-friendly density-' + (density || 'standard');
+          } else {
+            statFriendly.hidden = true;
+          }
+        } else {
+          statFriendly.hidden = true;
+        }
+      }
       if(statCap) statCap.textContent = cap.toLocaleString();
       // Live risk preview — count trap patterns detected in the input
       // so users see "this doc has 3 risks" BEFORE they hit Analyze.

@@ -552,6 +552,15 @@ button.risk-preview:hover{filter:brightness(.96)}
 .textstats .dt-tax{color:#7a5b00}
 .textstats .dt-conf-likely{font-weight:700}
 .textstats .dt-conf-high{font-weight:800;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:2px}
+/* Friendly reading-level label — descriptive (College) not judgmental
+ * (12th). Color-codes by density so users see how dense the doc is
+ * at a glance: green for plain English, amber for college-level, red
+ * for graduate-level. Sits next to the numeric grade in the textstats. */
+.textstats .stat-friendly{margin-left:6px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:.92em}
+.textstats .stat-friendly.density-easy{color:var(--green)}
+.textstats .stat-friendly.density-standard{color:var(--ink-soft)}
+.textstats .stat-friendly.density-dense{color:var(--amber)}
+.textstats .stat-friendly.density-very-dense{color:var(--danger)}
 /* Per-type "what to look for" tip — shown under the type badge.
  * Small, muted, editorial-style: "// watch for balance billing,
  * facility fees, upcoding" — the kicker matches the rest of the

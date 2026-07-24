@@ -1873,6 +1873,69 @@ test("analyzer: doc-type tip shows per-type 'what to look for' below the badge",
   }
 });
 
+test("analyzer: reading-level shows friendly label (College / Graduate / etc.) next to numeric grade", () => {
+  // Replaces the bare "12th" with "12th · College" so the analyzer
+  // describes the document, not the reader. Color-codes by density:
+  // green for plain English, amber for college, danger red for grad.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // friendlyGrade + gradeDensity must exist at the IIFE level
+  assert.match(appSrc, /function friendlyGrade\(n\)/,
+    "friendlyGrade() helper must exist at the IIFE level");
+  assert.match(appSrc, /function gradeDensity\(n\)/,
+    "gradeDensity() helper must exist at the IIFE level");
+
+  // Must classify into all five conventional US school grade ranges
+  for (const label of ["'Elementary'", "'Middle school'", "'High school'", "'College'", "'Graduate'"]) {
+    assert.ok(appSrc.includes(label),
+      `friendlyGrade must classify into ${label}`);
+  }
+  // Density bands: easy / standard / dense / very-dense
+  for (const density of ["'easy'", "'standard'", "'dense'", "'very-dense'"]) {
+    assert.ok(appSrc.includes(density),
+      `gradeDensity must classify into ${density}`);
+  }
+  // Must short-circuit on non-numeric / non-finite inputs
+  assert.match(appSrc, /friendlyGrade[\s\S]+?typeof n !== 'number'/,
+    "friendlyGrade must short-circuit on non-number input");
+  assert.match(appSrc, /gradeDensity[\s\S]+?typeof n !== 'number'/,
+    "gradeDensity must short-circuit on non-number input");
+
+  // analyze.html must have the #statFriendly placeholder next to #statLevel
+  assert.match(html, /id="statFriendly"/,
+    "analyze.html must contain #statFriendly next to #statLevel");
+  assert.match(html, /class="stat-friendly"/,
+    "#statFriendly must have the stat-friendly class for the color-coding");
+
+  // updateTextStats must paint the friendly label and apply density class
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0], /statFriendly\.textContent\s*=\s*label/,
+    "statFriendly must show the friendlyGrade label");
+  assert.match(updateBlock[0], /statFriendly\.className\s*=\s*['"]stat-friendly density-['"]\s*\+\s*/,
+    "statFriendly must apply the density-<density> class for color coding");
+  // Must hide when input is not gradable
+  assert.match(updateBlock[0], /statFriendly\.hidden\s*=\s*true/,
+    "statFriendly must hide when input is not gradable");
+
+  // CSS: density color rules
+  for (const cls of [".density-easy", ".density-standard", ".density-dense", ".density-very-dense"]) {
+    assert.ok(cssSrc.includes(cls),
+      `theme.css must define ${cls} for the friendly label color`);
+  }
+  // Easy = green (plain English = reassuring)
+  assert.match(cssSrc, /\.stat-friendly\.density-easy\{[^}]*var\(--green\)/,
+    ".density-easy must use --green so plain-English docs feel reassuring");
+  // Very-dense = danger red (graduate-level = a warning to the reader)
+  assert.match(cssSrc, /\.stat-friendly\.density-very-dense\{[^}]*var\(--danger\)/,
+    ".density-very-dense must use --danger so graduate-level docs warn the reader");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
