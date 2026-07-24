@@ -616,6 +616,10 @@ button.risk-preview:hover{filter:brightness(.96)}
 .textstats .stat-friendly.density-standard{color:var(--ink-soft)}
 .textstats .stat-friendly.density-dense{color:var(--amber)}
 .textstats .stat-friendly.density-very-dense{color:var(--danger)}
+/* Undo-apply chip — floating control next to the textarea after a
+ * counter-clause has been applied. One-click revert. */
+.apply-undo-chip{position:absolute;top:-2px;right:6px;font:inherit;font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:4px 10px;cursor:pointer;z-index:5;transition:background .12s,color .12s}
+.apply-undo-chip:hover{background:var(--ink);color:var(--paper)}
 /* Per-type "what to look for" tip — shown under the type badge.
  * Small, muted, editorial-style: "// watch for balance billing,
  * facility fees, upcoding" — the kicker matches the rest of the

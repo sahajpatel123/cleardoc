@@ -3563,6 +3563,63 @@ test("analyzer: Copy includes counter-suggestions so users get the full negotiat
     "formatMatchesForCopy must include a 'RISK REPORT' header");
 });
 
+test("analyzer: apply button swaps the counter-clause into the source input with undo", () => {
+  // New feature — for each counter-suggestion, an inline apply
+  // button swaps it into the source textarea at the position of
+  // the matched token. Pairs with iter #15's selection logic for
+  // visual feedback and an undo chip for one-click revert.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // renderRiskDetail must render an [data-rc-apply] button with both
+  // the suggestion text and the matched substring in data attributes
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(renderFn, "renderRiskDetail() must exist");
+  assert.match(renderFn[0], /data-rc-apply/,
+    "renderRiskDetail must render a [data-rc-apply] button");
+  assert.match(renderFn[0], /data-rc-match/,
+    "[data-rc-apply] must carry data-rc-match for the source-text lookup");
+
+  // Delegated click handler must handle the apply button
+  assert.match(appSrc, /riskDetail\.addEventListener[\s\S]+?data-rc-apply/,
+    "riskDetail click handler must handle [data-rc-apply] clicks");
+  // Must stash the previous text on the input for undo
+  assert.match(appSrc, /data-rc-apply[\s\S]+?_undoSnapshot/,
+    "apply handler must stash the previous text on the input for undo");
+  // Must do the replacement at the matched token's position
+  assert.match(appSrc, /data-rc-apply[\s\S]+?indexOf\(matched\.toLowerCase/,
+    "apply handler must locate the matched token (case-insensitive)");
+  assert.match(appSrc, /data-rc-apply[\s\S]+?raw\.slice\(0,\s*idx\)\s*\+\s*suggestion\s*\+\s*raw\.slice/,
+    "apply handler must splice the suggestion in at the matched position");
+  // Must dispatch input event so the live stats update
+  assert.match(appSrc, /data-rc-apply[\s\S]+?dispatchEvent\(new Event\(\s*['"]input['"]/,
+    "apply handler must dispatch input event so live stats re-run");
+  // Flash + select the replaced text
+  assert.match(appSrc, /data-rc-apply[\s\S]+?rd-flash/,
+    "apply handler must flash the textarea for visual feedback");
+
+  // Undo handler must restore from _undoSnapshot
+  assert.match(appSrc, /data-undo-apply/,
+    "undo-apply handler must exist");
+  assert.match(appSrc, /input\._undoSnapshot\s*=\s*null/,
+    "undo handler must clear _undoSnapshot after restore");
+
+  // showUndoChip helper must exist + render the floating chip
+  assert.match(appSrc, /function showUndoChip/,
+    "showUndoChip() must exist");
+  assert.match(appSrc, /showUndoChip[\s\S]+?data-undo-apply/,
+    "showUndoChip must render the chip with data-undo-apply");
+
+  // CSS: undo chip must be styled as a floating button
+  assert.match(cssSrc, /\.apply-undo-chip\{[^}]*cursor:\s*pointer/,
+    ".apply-undo-chip must be cursor:pointer (signals clickability)");
+  assert.match(cssSrc, /\.apply-undo-chip\{[^}]*position:\s*absolute/,
+    ".apply-undo-chip must be absolutely positioned (floats next to the textarea)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

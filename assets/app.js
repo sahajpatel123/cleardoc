@@ -1450,6 +1450,27 @@
     gsap.to('#kinetic',{xPercent:-28,scrollTrigger:{trigger:'.end',start:'top bottom',end:'bottom top',scrub:.5}}); }
 
   /* ================= ANALYZE PAGE (real, offline) ================= */
+  // showUndoChip — renders a small floating "↶ undo" control near
+  // the textarea after a successful apply, so users can revert in
+  // one click. Hidden on initial render. Reused by the apply path.
+  let _undoChip = null;
+  function showUndoChip(){
+    if(!_undoChip){
+      _undoChip = document.createElement('button');
+      _undoChip.type = 'button';
+      _undoChip.id = 'applyUndoChip';
+      _undoChip.className = 'apply-undo-chip';
+      _undoChip.setAttribute('data-undo-apply', '1');
+      _undoChip.textContent = '↶ undo apply';
+      _undoChip.title = 'Restore the input to its pre-apply state';
+      _undoChip.hidden = true;
+      // Insert near the textarea
+      const input = document.getElementById('docInput');
+      if(input && input.parentNode) input.parentNode.appendChild(_undoChip);
+    }
+    _undoChip.hidden = false;
+  }
+
   function analyzePage(){
     const input=$('#docInput'); if(!input) return;
     const btn=$('#analyzeBtn'),clearBtn=$('#clearBtn'),fileInput=$('#fileInput'),
@@ -1618,10 +1639,13 @@
         // a counter-clause the user could propose. Shown as a sub-row
         // with a "→ suggest:" prefix so users see WHAT to ask for.
         if(h.counter){
+          // data-rc-match carries the original matched substring so the
+          // apply handler can find+replace it in the source input.
           parts.push(
             '<div class="risk-counter ' + sevClass + '">',
               '<span class="rc-kicker">→ suggest:</span>',
               '<span class="rc-text">' + esc(h.counter) + '</span>',
+              '<button type="button" class="rc-apply" data-rc-apply="' + esc(h.counter) + '" data-rc-match="' + esc(h.matched || '') + '" aria-label="Apply this suggestion to the source">apply</button>',
               '<button type="button" class="rc-copy" data-rc-copy="' + esc(h.counter) + '" aria-label="Copy suggestion to clipboard">copy</button>',
             '</div>'
           );
@@ -3884,6 +3908,46 @@
 
       if(riskDetail){
         riskDetail.addEventListener('click', async (e) => {
+          // 0b. Apply button — swaps the counter-clause into the source
+          // input at the position of the matched token. Stores the
+          // previous text on the input so the user can undo with one
+          // click ("revert"). Pairs with iter #15's selection logic
+          // for visual feedback.
+          const rcApply = e.target.closest && e.target.closest('[data-rc-apply]');
+          if(rcApply && input){
+            e.preventDefault();
+            e.stopPropagation();
+            const suggestion = rcApply.getAttribute('data-rc-apply') || '';
+            const matched = rcApply.getAttribute('data-rc-match') || '';
+            if(!suggestion || !matched) return;
+            const raw = input.value || '';
+            const idx = raw.toLowerCase().indexOf(matched.toLowerCase());
+            if(idx < 0) return;
+            // Stash previous text on the input for one-click undo.
+            if(!input._undoSnapshot) input._undoSnapshot = null;
+            input._undoSnapshot = raw;
+            const newValue = raw.slice(0, idx) + suggestion + raw.slice(idx + matched.length);
+            input.value = newValue;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            // Flash + select the replaced text so users see where it landed
+            try {
+              input.focus();
+              input.setSelectionRange(idx, idx + suggestion.length);
+              input.classList.add('rd-flash');
+              clearTimeout(input._rdFlashTimer);
+              input._rdFlashTimer = setTimeout(() => {
+                input.classList.remove('rd-flash');
+              }, 1200);
+            } catch(_){}
+            // Show undo button — render a small floating control near
+            // the textarea so users can revert with one click.
+            showUndoChip();
+            // Flash feedback on the apply button
+            rcApply.textContent = '✓ applied';
+            clearTimeout(rcApply._flashTimer);
+            rcApply._flashTimer = setTimeout(() => { rcApply.textContent = 'apply'; }, 1400);
+            return;
+          }
           // 0. Per-suggestion copy button — copies the counter-clause
           // text only (not the whole match list) so the user can
           // paste it directly into an email / redline.
