@@ -583,6 +583,13 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-detail .risk-counter .rc-copy:hover{background:currentColor;color:var(--paper)}
 .risk-detail .risk-counter.trap .rc-copy{color:var(--danger)}
 .risk-detail .risk-counter.watch .rc-copy{color:var(--amber)}
+/* Per-suggestion speak button (iter #55) — small 🔊 in the counter
+ * row so users can hear the proposed replacement clause. Matches
+ * the styling of the existing rc-copy button. */
+.risk-detail .risk-counter .rc-speak{font:inherit;font-size:var(--t-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:var(--bd-hair) solid currentColor;background:transparent;color:inherit;padding:2px 7px;cursor:pointer;flex-shrink:0;transition:background .12s,color .12s}
+.risk-detail .risk-counter .rc-speak:hover{background:currentColor;color:var(--paper)}
+.risk-detail .risk-counter.trap .rc-speak{color:var(--danger)}
+.risk-detail .risk-counter.watch .rc-speak{color:var(--amber)}
 /* Read-aloud button — small 🔊 in the risk toolbar */
 .risk-detail-toolbar .rd-speak{font:inherit;font-size:.92em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:4px 10px;cursor:pointer;transition:background .15s,color .15s;margin-right:6px}
 .risk-detail-toolbar .rd-speak:hover{background:var(--ink);color:var(--paper)}

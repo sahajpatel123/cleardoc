@@ -1848,6 +1848,7 @@
               '<span class="rc-text">' + esc(h.counter) + '</span>',
               '<button type="button" class="rc-apply" data-rc-apply="' + esc(h.counter) + '" data-rc-match="' + esc(h.matched || '') + '" aria-label="Apply this suggestion to the source"' + applyDisabled + '>' + applyLabel + '</button>',
               '<button type="button" class="rc-copy" data-rc-copy="' + esc(h.counter) + '" aria-label="Copy suggestion to clipboard">copy</button>',
+              '<button type="button" class="rc-speak" data-rc-speak="' + esc(h.counter) + '" aria-label="Read suggestion aloud">🔊</button>',
             '</div>'
           );
         }
@@ -4198,6 +4199,44 @@
             rcCopy.textContent = ok ? '✓ copied' : 'failed';
             clearTimeout(rcCopy._flashTimer);
             rcCopy._flashTimer = setTimeout(() => { rcCopy.textContent = orig; }, 1400);
+            return;
+          }
+          // 0c. Per-suggestion speak button (iter #55) — speak the
+          // counter-clause text aloud so users can rehearse it
+          // before they go into a negotiation. Reuses the same
+          // SpeechSynthesis pattern as the iter #27/29 TTS.
+          const rcSpeak = e.target.closest && e.target.closest('[data-rc-speak]');
+          if(rcSpeak && typeof window !== 'undefined' && 'speechSynthesis' in window){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = rcSpeak.getAttribute('data-rc-speak') || '';
+            if(!text) return;
+            // Stop any current speech first (so multiple plays don't
+            // overlap)
+            try { window.speechSynthesis.cancel(); } catch(_) {}
+            const u = new SpeechSynthesisUtterance(text);
+            // Prefer the detected language's voice (iter #35)
+            try {
+              const input = document.getElementById('docInput');
+              const detectedLang = (input && input._detectedLang) || null;
+              if(detectedLang && detectedLang.tts){
+                u.lang = detectedLang.tts;
+                const voices = window.speechSynthesis.getVoices();
+                const v = voices.find(v => v && v.lang && v.lang.toLowerCase().startsWith(detectedLang.tts.toLowerCase().split('-')[0]));
+                if(v) u.voice = v;
+              } else {
+                const voices = window.speechSynthesis.getVoices();
+                const v = voices.find(v => /^en[-_]/i.test(v.lang)) || voices[0];
+                if(v) u.voice = v;
+              }
+            } catch(_){}
+            u.rate = 1.0; u.pitch = 1.0;
+            const orig = '🔊';
+            rcSpeak.textContent = '◼';
+            u.onend = u.onerror = () => {
+              rcSpeak.textContent = orig;
+            };
+            try { window.speechSynthesis.speak(u); } catch(_){}
             return;
           }
           // 1. Copy button takes precedence

@@ -3974,6 +3974,43 @@ test("analyzer: re-analyze shows a success toast with the risk-count delta", () 
     ".analyze-toast must use --green (matches the re-analyze action)");
 });
 
+test("analyzer: per-suggestion 🔊 button speaks the counter-clause aloud", () => {
+  // New feature — 🔊 button on each risk-counter row speaks the
+  // counter-clause text aloud via SpeechSynthesis. Users rehearse
+  // the proposed replacement before they go into a negotiation.
+  // Same TTS pattern as iter #27/29 (prefer detected language).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // renderRiskDetail must emit the [data-rc-speak] button
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(renderFn, "renderRiskDetail() must exist");
+  assert.match(renderFn[0], /data-rc-speak/,
+    "renderRiskDetail must render a [data-rc-speak] button");
+
+  // Delegated click handler must handle the button
+  assert.match(appSrc, /riskDetail\.addEventListener[\s\S]+?data-rc-speak/,
+    "riskDetail click handler must handle [data-rc-speak] clicks");
+  // Must use SpeechSynthesisUtterance
+  assert.match(appSrc, /data-rc-speak[\s\S]+?SpeechSynthesisUtterance/,
+    "speak handler must construct a SpeechSynthesisUtterance");
+  assert.match(appSrc, /data-rc-speak[\s\S]+?speechSynthesis\.speak/,
+    "speak handler must call speechSynthesis.speak() to start playback");
+  // Must cancel any current speech (don't overlap)
+  assert.match(appSrc, /data-rc-speak[\s\S]+?speechSynthesis\.cancel/,
+    "speak handler must cancel current speech before starting");
+  // Must use the detected language for the voice
+  assert.match(appSrc, /data-rc-speak[\s\S]+?_detectedLang/,
+    "speak handler must use the detected language's voice");
+
+  // CSS: rc-speak must be styled as a clickable control
+  assert.match(cssSrc, /\.rc-speak\{[^}]*cursor:\s*pointer/,
+    ".rc-speak must be cursor:pointer (signals clickability)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
