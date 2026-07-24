@@ -1641,11 +1641,20 @@
         if(h.counter){
           // data-rc-match carries the original matched substring so the
           // apply handler can find+replace it in the source input.
+          // If the user already applied this suggestion, render the
+          // row in its applied state (green checkmark, disabled button)
+          // so they can see which suggestions they've used.
+          const input = (typeof window !== 'undefined' && document.getElementById) ? document.getElementById('docInput') : null;
+          const appliedSet = (input && input._appliedSuggestions) || null;
+          const isApplied = appliedSet && appliedSet.has(h.counter);
+          const rowCls = sevClass + (isApplied ? ' rc-applied' : '');
+          const applyLabel = isApplied ? '✓ applied' : 'apply';
+          const applyDisabled = isApplied ? ' disabled' : '';
           parts.push(
-            '<div class="risk-counter ' + sevClass + '">',
-              '<span class="rc-kicker">→ suggest:</span>',
+            '<div class="risk-counter ' + rowCls + '">',
+              '<span class="rc-kicker">' + (isApplied ? '✓ applied:' : '→ suggest:') + '</span>',
               '<span class="rc-text">' + esc(h.counter) + '</span>',
-              '<button type="button" class="rc-apply" data-rc-apply="' + esc(h.counter) + '" data-rc-match="' + esc(h.matched || '') + '" aria-label="Apply this suggestion to the source">apply</button>',
+              '<button type="button" class="rc-apply" data-rc-apply="' + esc(h.counter) + '" data-rc-match="' + esc(h.matched || '') + '" aria-label="Apply this suggestion to the source"' + applyDisabled + '>' + applyLabel + '</button>',
               '<button type="button" class="rc-copy" data-rc-copy="' + esc(h.counter) + '" aria-label="Copy suggestion to clipboard">copy</button>',
             '</div>'
           );
@@ -3908,6 +3917,29 @@
 
       if(riskDetail){
         riskDetail.addEventListener('click', async (e) => {
+          // 0a. Undo chip — restore the input to its pre-apply state.
+          // Also clears all "applied" badges so the risk rows reset.
+          const undoBtn = e.target.closest && e.target.closest('[data-undo-apply]');
+          if(undoBtn && input && typeof input._undoSnapshot === 'string'){
+            e.preventDefault();
+            e.stopPropagation();
+            input.value = input._undoSnapshot;
+            input._undoSnapshot = null;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            // Reset all applied badges
+            input._appliedSuggestions = null;
+            riskDetail.querySelectorAll('.risk-counter.rc-applied').forEach(row => {
+              row.classList.remove('rc-applied');
+            });
+            riskDetail.querySelectorAll('.rc-apply').forEach(btn => {
+              btn.textContent = 'apply';
+              btn.disabled = false;
+            });
+            // Hide the chip
+            const chip = document.getElementById('applyUndoChip');
+            if(chip) chip.hidden = true;
+            return;
+          }
           // 0b. Apply button — swaps the counter-clause into the source
           // input at the position of the matched token. Stores the
           // previous text on the input so the user can undo with one
@@ -3942,10 +3974,17 @@
             // Show undo button — render a small floating control near
             // the textarea so users can revert with one click.
             showUndoChip();
-            // Flash feedback on the apply button
+            // Mark the row as applied (iter #46) — green checkmark on
+            // the kicker, dimmed apply button. Tracks applied
+            // suggestions so users can see which they've already used.
+            if(!input._appliedSuggestions) input._appliedSuggestions = new Set();
+            input._appliedSuggestions.add(suggestion);
+            const row = rcApply.closest('.risk-counter');
+            if(row) row.classList.add('rc-applied');
             rcApply.textContent = '✓ applied';
+            rcApply.disabled = true;
             clearTimeout(rcApply._flashTimer);
-            rcApply._flashTimer = setTimeout(() => { rcApply.textContent = 'apply'; }, 1400);
+            rcApply._flashTimer = setTimeout(() => { rcApply.textContent = 'applied'; }, 1400);
             return;
           }
           // 0. Per-suggestion copy button — copies the counter-clause

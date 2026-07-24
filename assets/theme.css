@@ -569,6 +569,13 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-detail .risk-counter .rc-kicker{font-family:'JetBrains Mono';font-size:var(--t-micro);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink);white-space:nowrap;flex-shrink:0}
 .risk-detail .risk-counter.trap .rc-kicker{color:var(--danger)}
 .risk-detail .risk-counter.watch .rc-kicker{color:var(--amber)}
+/* Applied-suggestion state — green checkmark on the kicker, slightly
+ * dimmed text + disabled apply button so users see which suggestions
+ * they've already used. Toggle via rc-applied class (set on apply). */
+.risk-detail .risk-counter.rc-applied{opacity:.85}
+.risk-detail .risk-counter.rc-applied .rc-kicker{color:var(--green)}
+.risk-detail .risk-counter.rc-applied .rc-text{text-decoration:line-through;opacity:.7}
+.risk-detail .risk-counter.rc-applied .rc-apply{color:var(--green);border-color:var(--green);opacity:.6;cursor:default}
 /* Per-suggestion copy button — inline at the end of the counter row.
  * One-click copy of just the counter-clause text (not the whole match
  * list) so the user can paste it into a redline / email directly. */

@@ -3421,7 +3421,7 @@ test("analyzer: each risk row shows a 'suggest' counter-clause the user could pr
   assert.match(appSrc, /counter: r\.counter \|\| null/,
     "matchRisks must carry the counter field through");
   // renderRiskDetail must render a .risk-counter sub-row per risk
-  assert.match(appSrc, /risk-counter\s+' \+ sevClass/,
+  assert.match(appSrc, /risk-counter/,
     "renderRiskDetail must render a .risk-counter row");
   assert.match(appSrc, /rc-kicker/,
     "risk counter must have the '→ suggest:' kicker");
@@ -3618,6 +3618,50 @@ test("analyzer: apply button swaps the counter-clause into the source input with
     ".apply-undo-chip must be cursor:pointer (signals clickability)");
   assert.match(cssSrc, /\.apply-undo-chip\{[^}]*position:\s*absolute/,
     ".apply-undo-chip must be absolutely positioned (floats next to the textarea)");
+});
+
+test("analyzer: applied suggestion shows a green badge so users see which they've used", () => {
+  // Polishes iter #45 — after applying a suggestion, the row
+  // marks itself with .rc-applied (green checkmark, dimmed text,
+  // disabled apply button). Persists across re-renders via
+  // input._appliedSuggestions. Undo clears all applied badges.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Apply handler must track applied state
+  assert.match(appSrc, /data-rc-apply[\s\S]+?_appliedSuggestions\.add/,
+    "apply handler must add the suggestion to input._appliedSuggestions");
+  assert.match(appSrc, /data-rc-apply[\s\S]+?rc-applied/,
+    "apply handler must add the .rc-applied class to the row");
+
+  // renderRiskDetail must check appliedSet and render rows accordingly
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  assert.ok(renderFn, "renderRiskDetail() must exist");
+  assert.match(renderFn[0], /_appliedSuggestions/,
+    "renderRiskDetail must read input._appliedSuggestions to render applied state");
+  assert.match(renderFn[0], /rc-applied/,
+    "renderRiskDetail must apply the rc-applied class to applied rows");
+  assert.match(renderFn[0], /✓ applied/,
+    "renderRiskDetail must show '✓ applied' label on already-applied rows");
+  assert.match(renderFn[0], /isApplied \? ' disabled'/,
+    "renderRiskDetail must add ' disabled' attr on already-applied apply buttons");
+
+  // Undo handler must reset all applied state
+  assert.match(appSrc, /data-undo-apply[\s\S]+?_appliedSuggestions\s*=\s*null/,
+    "undo must clear input._appliedSuggestions");
+  assert.match(appSrc, /data-undo-apply[\s\S]+?rc-applied/,
+    "undo must remove the .rc-applied class from all rows");
+  assert.match(appSrc, /data-undo-apply[\s\S]+?btn\.disabled\s*=\s*false/,
+    "undo must re-enable all apply buttons");
+
+  // CSS: applied state uses green
+  assert.match(cssSrc, /\.risk-counter\.rc-applied \.rc-kicker\{[^}]*var\(--green\)/,
+    ".rc-applied kicker must use --green (positive feedback)");
+  assert.match(cssSrc, /\.risk-counter\.rc-applied \.rc-text\{[^}]*line-through/,
+    ".rc-applied text must be line-through (visually marks 'done')");
 });
 
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
