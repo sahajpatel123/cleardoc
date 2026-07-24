@@ -4300,6 +4300,50 @@ test("analyzer: risks-avoided badge breaks the total down by severity", () => {
     "tooltip must include a disclaimer (estimates are not exact)");
 });
 
+test("analyzer: Share button copies a one-liner with the user's risk stats", () => {
+  // Polishes iter #60/61/62 — adds a Share button next to the
+  // badge. Click → copy "I avoided 14 risks with ClearDoc!
+  // (cleardoc.app) — approx. $1,700 in saved costs. 8 trap + 5 watch
+  // + 1 note" to the clipboard. Drives organic growth (users share
+  // their results).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html: share button must exist
+  assert.match(html, /id="shareBadgeBtn"/,
+    "analyze.html must contain #shareBadgeBtn");
+
+  // Must build a share one-liner from the data
+  assert.match(appSrc, /shareBadgeBtn\.dataset\.text\s*=/,
+    "share button must build its text via dataset.text");
+  // Must include "I avoided N risks with ClearDoc"
+  assert.match(appSrc, /I avoided/,
+    "share text must start with 'I avoided'");
+  // Must include the cleardoc.app URL
+  assert.match(appSrc, /cleardoc\.app/,
+    "share text must include the cleardoc.app URL");
+  // Must include the $ savings value
+  assert.match(appSrc, /saved costs/,
+    "share text must mention the saved costs");
+  // Must be shown/hidden based on the badge state
+  assert.match(appSrc, /shareBadgeBtn\.hidden\s*=\s*false/,
+    "share button must be visible when badge is visible");
+  assert.match(appSrc, /shareBadgeBtn\.hidden\s*=\s*true/,
+    "share button must be hidden when badge is hidden");
+
+  // Click handler must use the standard clipboard pattern
+  assert.match(appSrc, /shareBadgeBtn\.addEventListener[\s\S]+?navigator\.clipboard\.writeText/,
+    "share click must use navigator.clipboard.writeText");
+  assert.match(appSrc, /shareBadgeBtn\.addEventListener[\s\S]+?execCommand\(\s*['"]copy['"]\)/,
+    "share click must fall back to execCommand('copy') on older browsers");
+  // Flash feedback on success
+  assert.match(appSrc, /shareBadgeBtn\.addEventListener[\s\S]+?copied/,
+    "share button must flash '✓ copied' on success");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

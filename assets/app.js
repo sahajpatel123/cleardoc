@@ -1722,7 +1722,8 @@
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
           printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),printDate=$('#printDate'),
           shareBtn=$('#shareBtn'),speakBtn=$('#speakBtn'),
-          voicePicker=$('#voicePicker'),risksAvoidedBadge=$('#risksAvoidedBadge'),voicePreviewBtn=$('#voicePreviewBtn'),
+          voicePicker=$('#voicePicker'),risksAvoidedBadge=$('#risksAvoidedBadge'),
+          shareBadgeBtn=$('#shareBadgeBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2816,8 +2817,18 @@
             fmt(noteVal) + ' from ' + (data.note  || 0) + ' note). ' +
             'Estimates only — actual cost varies by contract.';
           risksAvoidedBadge.hidden = false;
+          // Iter #63: show the share button so users can copy a
+          // one-liner to clipboard for social / email.
+          if(shareBadgeBtn){
+            shareBadgeBtn.hidden = false;
+            shareBadgeBtn.dataset.text =
+              'I avoided ' + total + ' risk' + (total === 1 ? '' : 's') +
+              ' with ClearDoc! (cleardoc.app) — approx. ' + fmt(totalVal) +
+              ' in saved costs. ' + parts.join(' + ');
+          }
         } else {
           risksAvoidedBadge.hidden = true;
+          if(shareBadgeBtn) shareBadgeBtn.hidden = true;
         }
       }
     }
@@ -5073,6 +5084,32 @@
     if(printBtn) printBtn.addEventListener('click',printAnalysis);
     if(saveBtn) saveBtn.addEventListener('click',saveAnalysis);
     if(copyBtn) copyBtn.addEventListener('click',copyAnalysis);
+    // Iter #63: Share-button handler — copies the share one-liner
+    // to the clipboard with the standard navigator.clipboard
+    // + execCommand fallback pattern (same as the existing
+    // copy/apply/rc-copy handlers in the file).
+    if(shareBadgeBtn){
+      shareBadgeBtn.addEventListener('click', async () => {
+        const text = shareBadgeBtn.dataset.text || '';
+        if(!text) return;
+        let ok = false;
+        try {
+          if(navigator.clipboard && navigator.clipboard.writeText){
+            await navigator.clipboard.writeText(text);
+            ok = true;
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+            document.body.appendChild(ta); ta.select();
+            ok = document.execCommand('copy'); document.body.removeChild(ta);
+          }
+        } catch(_) {}
+        const orig = '📤 Share';
+        shareBadgeBtn.textContent = ok ? '✓ copied' : 'failed';
+        clearTimeout(shareBadgeBtn._flashTimer);
+        shareBadgeBtn._flashTimer = setTimeout(() => { shareBadgeBtn.textContent = orig; }, 1400);
+      });
+    }
     if(shareBtn) shareBtn.addEventListener('click',shareAnalysis);
     /* Read-aloud TTS — speaks the plain-English rewrite via the
      * Web Speech API. Click toggles playback; the button label
