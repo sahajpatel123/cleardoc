@@ -4482,6 +4482,46 @@ test("analyzer: Document version comparison shows the risk delta after a second 
     "showVersionDelta must show when the saved version was made");
 });
 
+test("analyzer: Clear baseline button wipes the saved 'before' version after confirm", () => {
+  // Polishes iter #67 — after a comparison, users may want to
+  // clear the baseline so the next analysis is a fresh start.
+  // Uses the existing confirm modal so users don't wipe by accident.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html: clear button must exist
+  assert.match(html, /id="clearVersionBtn"/,
+    "analyze.html must contain #clearVersionBtn");
+  assert.match(html, /hidden title="Clear the saved baseline/,
+    "clear button must be hidden initially and labeled 'Clear the saved baseline'");
+
+  // showClearVersionBtn helper must exist
+  assert.match(appSrc, /function showClearVersionBtn/,
+    "showClearVersionBtn() must exist (iter #68)");
+
+  // Must toggle the clear button based on whether a version exists
+  assert.match(appSrc, /showClearVersionBtn[\s\S]+?getSavedVersion/,
+    "showClearVersionBtn must read getSavedVersion");
+  assert.match(appSrc, /showClearVersionBtn[\s\S]+?hidden\s*=\s*!/,
+    "showClearVersionBtn must toggle hidden based on existence");
+
+  // Click handler must use the confirm modal
+  assert.match(appSrc, /clearVersionBtn\.addEventListener[\s\S]+?showConfirmModal/,
+    "clear click must await the confirm modal");
+  // Must clear the localStorage key
+  assert.match(appSrc, /clearVersionBtn\.addEventListener[\s\S]+?localStorage\.removeItem\(VERSION_KEY\)/,
+    "clear must remove the VERSION_KEY from localStorage");
+  // Must abort on cancel
+  assert.match(appSrc, /clearVersionBtn\.addEventListener[\s\S]+?if\s*\(\s*!ok\s*\)\s*return/,
+    "clear must abort if the user cancels the confirm");
+  // Must show a success toast
+  assert.match(appSrc, /clearVersionBtn\.addEventListener[\s\S]+?Baseline cleared/,
+    "clear must show a success toast");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

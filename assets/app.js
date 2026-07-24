@@ -2877,6 +2877,9 @@
           formatRelativeTime(before.ts);
         showAnalyzeToast('📊 Saved version: ' + before.count + ' risks → now ' +
           afterCount + ' (' + sym + ' ' + label + ') · ' + ago);
+        // Re-evaluate the clear button (the saved version is still
+        // there — just refreshed by comparison)
+        if(typeof showClearVersionBtn === 'function') showClearVersionBtn();
       } catch(_){}
     }
 
@@ -5165,11 +5168,21 @@
       } catch(_){}
     }
     const saveVersionBtn = document.getElementById('saveVersionBtn');
+    const clearVersionBtn = document.getElementById('clearVersionBtn');
+    function showClearVersionBtn(){
+      if(!clearVersionBtn) return;
+      const v = getSavedVersion();
+      clearVersionBtn.hidden = !v;
+    }
+    // After any analysis, the clear button reflects whether a
+    // saved version exists. Cheap (one localStorage read).
+    showClearVersionBtn();
     if(saveVersionBtn){
       saveVersionBtn.addEventListener('click', () => {
         const before = getSavedVersion();
         saveCurrentVersion();
         const after = getSavedVersion();
+        showClearVersionBtn();
         if(!after){
           showAnalyzeToast('📌 No version to save');
           return;
@@ -5177,11 +5190,26 @@
         if(before && before.count === after.count){
           showAnalyzeToast('📌 Version saved (no change)');
         } else if(before){
-          const d = after.count - before.count;
           showAnalyzeToast('📌 Version saved (replaces a ' + before.count + '-risk baseline)');
         } else {
           showAnalyzeToast('📌 Baseline saved (' + after.count + ' risks)');
         }
+      });
+    }
+    if(clearVersionBtn){
+      clearVersionBtn.addEventListener('click', async () => {
+        const v = getSavedVersion();
+        if(!v) return;
+        const ok = await showConfirmModal({
+          title: 'Clear the saved baseline?',
+          bodyHtml: '<p>This will delete your "before" version. Future analyses won\'t show a delta until you save a new baseline.</p>' +
+            '<p class="apply-confirm-note">Useful when you want to start a new before/after cycle.</p>',
+          confirmLabel: 'Clear',
+        });
+        if(!ok) return;
+        try { localStorage.removeItem(VERSION_KEY); } catch(_){}
+        showClearVersionBtn();
+        showAnalyzeToast('🗑 Baseline cleared');
       });
     }
     if(copyBtn) copyBtn.addEventListener('click',copyAnalysis);
