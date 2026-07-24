@@ -3539,6 +3539,30 @@ test("analyzer: redline button exports counter-suggestions as a downloadable tex
     ".rd-redline must have spacing from the Copy button");
 });
 
+test("analyzer: Copy includes counter-suggestions so users get the full negotiation playbook", () => {
+  // Polishes iter #41 + #43 — the Copy button now includes the
+  // counter-suggestions in the output. One Copy → full negotiation
+  // playbook (TRAP/WATCH + why + → Suggest) ready to paste into
+  // an email / chat / ticket.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // formatMatchesForCopy must include the counter line when present
+  assert.match(appSrc, /formatMatchesForCopy[\s\S]+?h\.counter/,
+    "formatMatchesForCopy must read h.counter when present");
+  assert.match(appSrc, /formatMatchesForCopy[\s\S]+?Suggest:/,
+    "formatMatchesForCopy must render 'Suggest:' for counter-suggestions");
+  // Must also include the why line
+  assert.match(appSrc, /formatMatchesForCopy[\s\S]+?Why:/,
+    "formatMatchesForCopy must render 'Why:' for the original reason");
+  // Must include a header (recognition value — users see this is a
+  // ClearDoc report at a glance when pasting)
+  assert.match(appSrc, /formatMatchesForCopy[\s\S]+?RISK REPORT/,
+    "formatMatchesForCopy must include a 'RISK REPORT' header");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

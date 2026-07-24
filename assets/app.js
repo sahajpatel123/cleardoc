@@ -1643,11 +1643,24 @@
       const rank = { r: 0, a: 1, g: 2 };
       const ordered = hits.slice().sort((a, b) => (rank[a.sev]||9) - (rank[b.sev]||9));
       const lines = [];
+      // Header — gives the export a recognizable shape when pasted
+      // into an email / chat ("ClearDoc Risk Report" + count + date)
+      lines.push('CLEARINGDOC RISK REPORT');
+      lines.push(new Date().toISOString().slice(0, 10) + ' · ' + ordered.length + ' pattern' + (ordered.length === 1 ? '' : 's'));
+      lines.push('');
+      let n = 0;
       for(const h of ordered){
+        n++;
         const tag = h.sev === 'r' ? 'TRAP' : (h.sev === 'a' ? 'WATCH' : 'NOTE');
         const matched = (h.matched || '').trim();
         const why = (h.why || '').trim();
-        lines.push(tag + ' — ' + matched + ': ' + why);
+        lines.push(n + '. [' + tag + '] ' + matched);
+        lines.push('   Why: ' + why);
+        // Include the counter-suggestion when present (iter #41)
+        // so a single Copy captures the full negotiation playbook
+        if(h.counter){
+          lines.push('   → Suggest: ' + h.counter);
+        }
       }
       lines.push('', '— matched by ClearDoc (cleardoc.app)');
       return lines.join('\n');
