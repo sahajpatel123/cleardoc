@@ -1218,6 +1218,15 @@ button.risk-preview:hover{filter:brightness(.96)}
 .neg-original{font-size:var(--t-meta);color:var(--ink);background:var(--paper);border:var(--bd-hair) solid var(--ink-soft);padding:6px 8px;margin-bottom:4px;font-family:'JetBrains Mono',monospace}
 .neg-original b{color:var(--ink-soft);font-family:'JetBrains Mono',monospace}
 
+/* Freshness stamp (iter #118) — date markers + version. */
+.fresh-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.fresh-row{border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);padding:8px 10px}
+.fresh-row.fresh-old{border-color:var(--amber);background:var(--amber-tint)}
+.fresh-row.fresh-future{border-color:var(--green);background:var(--green-tint)}
+.fresh-label{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;font-weight:700}
+.fresh-when{font-size:14px;font-weight:700;color:var(--ink);font-family:'JetBrains Mono',monospace;margin:2px 0}
+.fresh-raw{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);font-style:italic}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}

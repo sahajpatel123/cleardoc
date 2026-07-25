@@ -1836,6 +1836,7 @@
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
+          freshBlock=$('#freshBlock'),freshNote=$('#freshNote'),freshGrid=$('#freshGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3357,6 +3358,72 @@
       neutral:  '[INSERT: Optional replacement language — {counter}. Note: {why}.]',
       friendly: '[INSERT: Friendly counter — {counter}. Original language concerned because {why}.]',
     };
+    // Iter #118: freshness stamp — detect document version /
+    // effective-date / revision markers and warn if the document
+    // looks outdated. Pure local; regex only.
+    const FRESH_PATTERNS = [
+      { key: 'effective', label: 'Effective date', hint: 'When this version came into force.', re: /\beffective\s+(?:as\s+of|from|date\s+of)\s+([A-Z][a-z]+\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4})/i },
+      { key: 'revised', label: 'Last revised', hint: 'When the document was last revised.', re: /\b(?:last\s+revised|revised\s+(?:on|as\s+of)?|updated\s+(?:on|as\s+of)?)\s*:?\s*([A-Z][a-z]+\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4})/i },
+      { key: 'version', label: 'Version', hint: 'Version identifier that lets you know you have the latest draft.', re: /\bv(?:er(?:sion)?)?\.?\s*(\d+(?:\.\d+){0,3})\b/i },
+      { key: 'executed', label: 'Execution date', hint: 'When this contract was first signed.', re: /\b(?:executed|signed|entered\s+into)\s+on\s+([A-Z][a-z]+\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4})/i },
+    ];
+    function detectFreshness(raw){
+      const text = String(raw || '');
+      const lower = text.toLowerCase();
+      const hits = [];
+      const months = { january:0,jan:0,february:1,feb:1,march:2,mar:2,april:3,apr:3,may:4,june:5,jun:5,july:6,jul:6,august:7,aug:7,september:8,sep:8,october:9,oct:9,november:10,nov:10,december:11,dec:11 };
+      const parseDate = (s) => {
+        if(!s) return null;
+        s = s.trim();
+        let m;
+        if((m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s))) return new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+        if((m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s))) return new Date(Date.UTC(+m[3], +m[1]-1, +m[2]));
+        if((m = /^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/.exec(s))) {
+          const mo = months[m[1].toLowerCase()];
+          if(mo !== undefined) return new Date(Date.UTC(+m[3], mo, +m[2]));
+        }
+        return null;
+      };
+      for(const p of FRESH_PATTERNS){
+        const re = new RegExp(p.re.source, 'gi');
+        let m;
+        while((m = re.exec(text))){
+          const dt = parseDate(m[1]);
+          hits.push({ key: p.key, label: p.label, hint: p.hint, raw: m[0], date: dt });
+        }
+      }
+      return { items: hits.slice(0, 6) };
+    }
+    function renderFreshnessBlock(result){
+      if(!freshBlock || !freshGrid || !result) return;
+      const items = (result.items || []).filter(i => i.date || i.key === 'version');
+      if(!items.length){ freshBlock.hidden = true; return; }
+      const now = Date.now();
+      const rows = items.map(it => {
+        let when = '—';
+        if(it.key === 'version'){ when = it.raw; }
+        else if(it.date){
+          const monthsAgo = Math.round((now - it.date.getTime()) / (30 * 86400000));
+          when = monthsAgo === 0 ? 'this month' : (monthsAgo < 0 ? 'in ' + Math.abs(monthsAgo) + ' months' : monthsAgo + ' months ago');
+        }
+        const isOld = it.date && (now - it.date.getTime() > 365 * 86400000);
+        const isFuture = it.date && (it.date.getTime() > now + 30 * 86400000);
+        return '<div class="fresh-row' + (isOld ? ' fresh-old' : isFuture ? ' fresh-future' : '') + '">' +
+          '<div class="fresh-label">' + esc(it.label) + '</div>' +
+          '<div class="fresh-when">' + esc(when) + '</div>' +
+          '<div class="fresh-raw">' + esc(it.raw) + '</div>' +
+        '</div>';
+      }).join('');
+      const count = items.length;
+      const old = items.filter(i => i.date && (now - i.date.getTime() > 365 * 86400000)).length;
+      freshGrid.innerHTML = rows;
+      freshBlock.hidden = false;
+      if(freshNote){
+        freshNote.innerHTML = '<span class="riskNote-lead">' + count + ' freshness marker' + (count === 1 ? '' : 's') + '</span> ' +
+          (old > 0 ? '⚠ At least one date is >1 year old — confirm you have the latest revision before signing.' : 'Looks current. Always double-check you have the latest revision.');
+      }
+    }
+
     function renderNegotiateBlock(flags){
       if(!negotiateBlock || !negotiateList || !flags) return;
       const flagList = (flags || []).filter(f => f.rule && f.rule.label && f.rule.why);
@@ -4351,6 +4418,14 @@
         renderNegotiateBlock(flags);
       } else if(negotiateBlock) {
         negotiateBlock.hidden = true;
+      }
+      // Iter #118: freshness stamp — surfaces effective / revised /
+      // version markers so users know how old the doc is.
+      if(freshBlock && typeof detectFreshness === 'function'){
+        const fr = detectFreshness(raw);
+        renderFreshnessBlock(fr);
+      } else if(freshBlock) {
+        freshBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

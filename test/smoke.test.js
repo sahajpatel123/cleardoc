@@ -7211,6 +7211,35 @@ test("analyzer: Negotiate-it polished with original-vs-counter compare + swap-in
     ".neg-original compare style must exist");
 });
 
+// Iter #118: freshness stamp — surfaces effective / revised /
+// version / execution-date markers so users know how old the
+// document is before signing.
+test("analyzer: Freshness stamp surfaces effective-date / revised / version markers", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="freshBlock"/, "analyze.html must contain #freshBlock");
+  assert.match(appSrc, /function detectFreshness\(/, "detectFreshness must exist");
+  assert.match(appSrc, /function renderFreshnessBlock\(/, "renderFreshnessBlock must exist");
+  assert.match(appSrc, /FRESH_PATTERNS/, "FRESH_PATTERNS must exist");
+  // Cover all 4 categories
+  for(const k of ["effective","revised","version","executed"]){
+    assert.match(appSrc, new RegExp("key: '" + k + "'"),
+      "FRESH_PATTERNS must include '" + k + "'");
+  }
+  // Wiring
+  assert.match(appSrc, /detectFreshness\(raw\)/, "render() must call detectFreshness on raw text");
+  assert.match(appSrc, /freshBlock\.hidden = (true|false)/, "freshBlock.hidden must be toggled");
+
+  // CSS: row + old/future bands
+  assert.match(cssSrc, /\.fresh-row\b/, ".fresh-row style must exist");
+  assert.match(cssSrc, /\.fresh-row\.fresh-old\b/, ".fresh-old band style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,
