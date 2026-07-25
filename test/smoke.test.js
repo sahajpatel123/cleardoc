@@ -6894,3 +6894,40 @@ test("analyzer: Signing checklist polished with per-item toggle + persistence + 
   assert.match(cssSrc, /\.act-reset\b/,
     ".act-reset style must exist");
 });
+
+// Iter #104: gap detector — surfaces clauses the document is missing
+// (termination / refund / cancellation / privacy / force majeure /
+// liability cap / warranty / auto-renewal / payment / etc.).
+test("analyzer: Gap detector surfaces clauses the document is missing", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html
+  assert.match(html, /id="gapBlock"/, "analyze.html must contain #gapBlock");
+  assert.match(html, /id="gapList"/, "analyze.html must contain #gapList");
+  assert.match(html, /What.{0,3}s missing/, "result block must be titled 'What's missing'");
+
+  // app.js
+  assert.match(appSrc, /function detectGaps\(/, "detectGaps must exist");
+  assert.match(appSrc, /function renderGapBlock\(/, "renderGapBlock must exist");
+  assert.match(appSrc, /GAP_PATTERNS/, "GAP_PATTERNS table must exist");
+  // Cover at least the 6 critical gaps
+  for(const k of ["termination","refund","cancellation","dispute","data","force"]){
+    assert.match(appSrc, new RegExp("key: '" + k + "'"),
+      "GAP_PATTERNS must include '" + k + "'");
+  }
+  // Wiring — call inside render()
+  assert.match(appSrc, /detectGaps\(raw\)/,
+    "render() must call detectGaps on the raw text");
+  // Block visibility toggle
+  assert.match(appSrc, /gapBlock\.hidden = (true|false)/,
+    "gapBlock.hidden must be toggled");
+
+  // CSS
+  assert.match(cssSrc, /\.gap-row\b/, ".gap-row style must exist");
+  assert.match(cssSrc, /\.gap-glyph\b/, ".gap-glyph style must exist");
+});

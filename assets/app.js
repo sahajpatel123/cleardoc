@@ -1832,6 +1832,7 @@
           legendBtn=$('#legendBtn'),
           transBlock=$('#transBlock'),transNote=$('#transNote'),transList=$('#transList'),
           actionBlock=$('#actionBlock'),actionNote=$('#actionNote'),actionGrid=$('#actionGrid'),
+          gapBlock=$('#gapBlock'),gapNote=$('#gapNote'),gapList=$('#gapList'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3219,10 +3220,124 @@
       return { items: items.slice(0, 10), count: items.length };
     }
 
+    // Iter #104: gap detector — surfaces what the document does
+    // NOT say. Experienced negotiators look for missing sections
+    // (no termination clause / no data retention / no force majeure
+    // / no dispute resolution) and ask for them. First-timers miss
+    // these because absence is invisible. Pure local — pattern-deny
+    // detection on the analyzed text.
+    const GAP_PATTERNS = [
+      { key: 'termination', label: 'Termination clause',
+        hint: 'How either party may end the agreement. Without it, you may be locked in.',
+        re: /\b(?:term(?:inat(?:e|ion))|end|cancel)\s+this\s+(?:agreement|contract)|may\s+terminat/ },
+      { key: 'refund', label: 'Refund policy',
+        hint: 'Under what conditions you get money back. Default: usually none. Ask for at least a partial refund window.',
+        re: /\b(?:refund|return[\s-]?(?:of|policy|window)|money[\s-]?back)\b/i },
+      { key: 'cancellation', label: 'Cancellation clause',
+        hint: 'How to cancel auto-renewals before they auto-charge you again.',
+        re: /\bcancel(?:lation)?\b/i },
+      { key: 'dispute', label: 'Dispute resolution',
+        hint: 'What happens if you and the other side disagree (mediation / arbitration / courts).',
+        re: /\b(?:dispute\s+resolution|mediation|arbitration|small[\s-]?claims)\b/i },
+      { key: 'data', label: 'Data retention / privacy',
+        hint: 'How long they keep your data and how they delete it on request.',
+        re: /\b(?:data\s+retention|retain[\s\S]*?data|right\s+to\s+(?:delet|eras|be\s+forgotten)|privacy\s+policy|GDPR|CCPA)\b/i },
+      { key: 'force', label: 'Force majeure',
+        hint: 'What happens when an act of God (pandemic, war, hurricane) prevents performance.',
+        re: /\bforce\s+majeure\b/i },
+      { key: 'liability', label: 'Liability cap',
+        hint: 'The maximum they can sue you for. Default: unlimited (bad).',
+        re: /\b(?:limit(?:ation)?\s+of\s+liabilit|liability\s+cap|aggregate\s+liabilit)\b/i },
+      { key: 'warranty', label: 'Warranty disclaimer',
+        hint: 'Their warranty for the product/service. Most contracts bury this — look for "AS IS".',
+        re: /\b(?:warranty|warranties|guarantee|as[\s-]?is)\b/i },
+      { key: 'auto', label: 'Renewal / evergreen',
+        hint: 'How the contract auto-renews. If absent, you have to actively re-sign — usually better for you.',
+        re: /\b(?:auto(?:matic(?:ally)?|mat)?\s*renew|evergreen|autorenew)\b/i },
+      { key: 'payment', label: 'Payment schedule',
+        hint: 'When payments happen and what happens on late / missed ones.',
+        re: /\b(?:payment\s+(?:schedule|terms|due)|invoice[\s\S]*?net\s+\d+|net[\s-]?\d+\s+days)\b/i },
+      { key: 'severability', label: 'Severability clause',
+        hint: "If one clause is void, the rest still stands. Without this, one bad clause can void the entire deal.",
+        re: /\bseverab(?:ility|le)\b/i },
+      { key: 'notice', label: 'How to send notices',
+        hint: 'The legal address where official notices (termination, breach, etc.) must be sent.',
+        re: /\b(?:notice\s+(?:shall|must|will)\s+be\s+(?:sent|delivered|given)|by\s+(?:certified|registered)\s+mail)\b/i },
+    ];
+
+    function detectGaps(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], count: 0 };
+      const items = [];
+      for(const g of GAP_PATTERNS){
+        g.re.lastIndex = 0;
+        const found = g.re.test(text);
+        if(!found){
+          items.push({ key: g.key, label: g.label, hint: g.hint, why: 'absent from the document' });
+        }
+      }
+      return { items: items.slice(0, 8), count: items.length };
+    }
+
+    // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
       if(!result.items.length){ actionBlock.hidden = true; return; }
-      // Iter #103: per-item check-state persisted in localStorage so the
+      const STORAGE_KEY = 'cleardoc:signing-checklist';
+      let completed = {};
+      try { completed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch(_){ completed = {}; }
+      const grouped = { you: [], lawyer: [], notary: [], counterparty: [] };
+      result.items.forEach(it => {
+        const key = grouped[it.who] ? it.who : 'counterparty';
+        grouped[key].push(it);
+      });
+      const order = ['you','counterparty','lawyer','notary'];
+      const labels = { you:'👤 You do', counterparty:'🤝 Counterparty does', lawyer:'⚖ Lawyer reviews', notary:'📜 Notary witnesses' };
+      const totalForCounter = result.items.length;
+      const doneCount = result.items.filter(it => completed[it.key]).length;
+      const cells = order.filter(k => grouped[k].length).map(k => (
+        '<div class="act-group act-' + k + '">' +
+          '<div class="act-group-kicker">' + labels[k] + '</div>' +
+          '<ul class="act-list">' +
+            grouped[k].map(it => {
+              const checked = completed[it.key] ? ' act-checked' : '';
+              return '<li class="act-item' + checked + '" data-act-key="' + esc(it.key) + '" data-act-matched="' + esc(it.matched) + '">' +
+                '<button type="button" class="act-glyph-btn" data-act-check="' + esc(it.key) + '">' + (completed[it.key] ? '✓' : '☑') + '</button>' +
+                '<div class="act-body">' +
+                  '<div class="act-label">' + esc(it.label) + '</div>' +
+                  '<div class="act-hint">' + esc(it.hint) + '</div>' +
+                '</div>' +
+              '</li>';
+            }).join('') +
+          '</ul>' +
+        '</div>'
+      )).join('');
+      const controls = '<div class="act-controls"><span class="act-count"><b>' + doneCount + '</b> of ' + totalForCounter + ' done</span><button type="button" class="act-reset ghost-btn ghost-btn-sm" id="actResetBtn">reset all</button></div>';
+      actionGrid.innerHTML = cells + controls;
+      actionBlock.hidden = false;
+    }
+
+    function renderGapBlock(result){
+      if(!gapBlock || !gapList || !result) return;
+      if(!result.items.length){ gapBlock.hidden = true; return; }
+      const rows = result.items.map(it => (
+        '<div class="gap-row" title="This clause is NOT in the document">' +
+          '<span class="gap-glyph">○</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">No <b>' + esc(it.label) + '</b></div>' +
+            '<div class="gap-hint">' + esc(it.hint) + '</div>' +
+          '</div>' +
+        '</div>'
+      )).join('');
+      gapList.innerHTML = rows;
+      gapBlock.hidden = false;
+      if(gapNote){
+        gapNote.innerHTML = '<span class="riskNote-lead">' + result.count + ' thing' + (result.count === 1 ? '' : 's') + ' missing</span> ' +
+          'Experienced negotiators ask for these explicitly because absence is silent. Click an item to copy a "please add this" snippet.';
+      }
+    }
+
+    function clearKeyClausePreview(){
       // checklist survives reloads. Keyed by item.key (e.g. "notarize").
       const STORAGE_KEY = 'cleardoc:signing-checklist';
       let completed = {};
@@ -3758,6 +3873,17 @@
         renderActionsBlock(ar);
       } else if(actionBlock) {
         actionBlock.hidden = true;
+      }
+
+      // Iter #104: gap detector — surfaces what the document does
+      // NOT say (termination / refund / cancellation / privacy /
+      // force majeure / liability cap / etc.) so first-timers
+      // know what to ask for.
+      if(gapBlock && typeof detectGaps === 'function'){
+        const gp = detectGaps(raw);
+        renderGapBlock(gp);
+      } else if(gapBlock) {
+        gapBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
