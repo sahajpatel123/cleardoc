@@ -1835,6 +1835,7 @@
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
           jurisBlock=$('#jurisBlock'),jurisNote=$('#jurisNote'),jurisRow=$('#jurisRow'),
+          coverageStrip=$('#coverageStrip'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2996,6 +2997,67 @@
       return { jurisdiction: juris, explicit: !!explicit, raw: explicit };
     }
 
+    // Iter #96: coverage highlights strip — one-line summary at the
+    // top of the result panel that lists every surface the analysis
+    // touched: risk radar, verdict, deadlines, maturity score,
+    // exposure, jurisdiction, translation cheat sheet, heat map.
+    // Helps users see "everything this analysis covered" without
+    // scrolling. Pure local — built from already-rendered DOM.
+    function renderCoverageStrip(ctx){
+      if(!coverageStrip) return;
+      const items = [];
+      // 1) Plain-English rewrite (always shown when analysis ran)
+      if(plainOut && plainOut.textContent && plainOut.textContent.trim()){
+        items.push({ key: 'rewrite', glyph: '✦', label: 'Plain-English rewrite', state: 'on' });
+      }
+      // 2) Risk radar — pull from live riskNote if it mentions flags
+      if(riskNote && /\b\d+\b\s+flagged|trap\b|watch\b/i.test(riskNote.textContent || '')){
+        items.push({ key: 'risk', glyph: '⚠', label: 'Risk radar', state: (flags && flags.length) ? 'on' : 'clean' });
+      }
+      // 3) Verdict
+      if(verdictDisplay && verdictDisplay.textContent.trim().length > 0){
+        items.push({ key: 'verdict', glyph: '✧', label: 'AI verdict', state: 'on' });
+      }
+      // 4) Deadlines
+      if(deadlinesList && deadlinesList.children.length > 0){
+        items.push({ key: 'deadlines', glyph: '⏰', label: 'Deadlines extracted', state: 'on' });
+      }
+      // 5) Translation cheat sheet (only on non-English docs)
+      if(transBlock && !transBlock.hidden && transList && transList.children.length){
+        items.push({ key: 'trans', glyph: '🌍', label: 'Translation cheat sheet', state: 'on' });
+      }
+      // 6) Heat map
+      if(heatBlock && !heatBlock.hidden && heatMap && heatMap.children.length){
+        items.push({ key: 'heat', glyph: '🔥', label: 'Document heat map', state: 'on' });
+      }
+      // 7) Worst-case exposure
+      if(riskDetail && /\bworst-case exposure\b/i.test(riskDetail.textContent || '')){
+        items.push({ key: 'exposure', glyph: '💰', label: 'Worst-case exposure', state: 'on' });
+      }
+      // 8) Maturity score
+      if(maturityBlock && !maturityBlock.hidden){
+        items.push({ key: 'maturity', glyph: '📊', label: 'Maturity score', state: 'on' });
+      }
+      // 9) Jurisdiction
+      if(jurisBlock && !jurisBlock.hidden){
+        items.push({ key: 'juris', glyph: '⚖', label: 'Jurisdiction & venue', state: 'on' });
+      }
+      // Always-available surfaces that don't depend on detection
+      // — flagged as 'always' so the strip reads as comprehensive
+      // even on a clean doc.
+      items.push({ key: 'draft', glyph: '✍', label: 'Response draft', state: 'always' });
+      items.push({ key: 'share', glyph: '⇆', label: 'Share / .txt / print', state: 'always' });
+      if(!items.length){ coverageStrip.hidden = true; return; }
+      const html = items.map(it => (
+        '<span class="cov-pill cov-' + it.state + '" role="listitem" title="' + esc(it.label) + ' (' + it.state + ')">' +
+          '<span class="cov-glyph">' + esc(it.glyph) + '</span>' +
+          '<span class="cov-label">' + esc(it.label) + '</span>' +
+        '</span>'
+      )).join('');
+      coverageStrip.innerHTML = '<span class="cov-kicker">Coverage:</span>' + html;
+      coverageStrip.hidden = false;
+    }
+
     function renderJurisdictionBlock(result){
       if(!jurisBlock || !jurisRow || !result || !result.jurisdiction) return;
       const j = result.jurisdiction;
@@ -3146,6 +3208,13 @@
         renderJurisdictionBlock(jr);
       } else if(jurisBlock) {
         jurisBlock.hidden = true;
+      }
+
+      // Iter #96: coverage highlights strip — list the surfaces
+      // the analysis actually produced, so users see at a glance
+      // what their analysis covers.
+      if(typeof renderCoverageStrip === 'function'){
+        renderCoverageStrip(ctx);
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

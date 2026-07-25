@@ -1076,7 +1076,18 @@ button.risk-preview:hover{filter:brightness(.96)}
  * EN row + XX row, with a tiny language code tag.
  * Iter #87: tone-hint chip + per-row 🔊 speak button. */
 
-/* Jurisdiction & venue (iter #94) — flag + jurisdiction + source
+/* Coverage highlights strip (iter #96) — pills at the top of the
+ * result panel listing every surface the analysis produced, plus
+ * the always-available ones (draft, share). One read = full coverage. */
+.coverage-strip{display:flex;flex-wrap:wrap;gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4;padding:8px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper);margin:0 0 var(--s2) 0;align-items:center}
+.coverage-strip .cov-kicker{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-right:4px}
+.cov-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);font-size:var(--t-micro);font-weight:600;color:var(--ink)}
+.cov-pill .cov-glyph{font-size:14px;line-height:1}
+.cov-pill.cov-on{border-color:var(--green);background:var(--green-tint)}
+.cov-pill.cov-clean{border-color:var(--ink-soft);background:var(--paper)}
+.cov-pill.cov-always{border-color:var(--ink-soft);background:var(--paper);font-style:italic;color:var(--ink-soft)}
+@media print{ .coverage-strip{display:none} }
+
  * (explicit vs inferred). Pure local; the venue is one of the
  * biggest levers in a contract — most users never think to ask for
  * their own home state. */

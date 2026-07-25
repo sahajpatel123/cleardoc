@@ -6578,3 +6578,49 @@ test("analyzer: Jurisdiction chip polished with copy / speak / explain actions",
   assert.match(cssSrc, /\.juris-speak\{|\.juris-speak\b/,
     ".juris-speak style must exist");
 });
+
+// Iter #96: coverage highlights strip — pills at the top of the
+// result panel listing every surface the analysis touched. Pure
+// local; built from already-rendered DOM.
+test("analyzer: Coverage highlights strip lists every surface the analysis produced", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html
+  assert.match(html, /id="coverageStrip"/,
+    "analyze.html must contain #coverageStrip");
+  assert.match(html, /coverage-strip/,
+    "coverage-strip class must exist");
+
+  // app.js
+  assert.match(appSrc, /function renderCoverageStrip\(/,
+    "renderCoverageStrip must exist");
+  // Must surface key surfaces (rewrite, risk, verdict, deadlines, heat, exposure, maturity, juris)
+  for(const k of ["rewrite","risk","verdict","deadlines","heat","exposure","maturity","juris"]){
+    assert.match(appSrc, new RegExp("key: '" + k + "'"),
+      "renderCoverageStrip must include surface '" + k + "'");
+  }
+  // Wiring — must be called inside render()
+  assert.match(appSrc, /renderCoverageStrip\(ctx\)/,
+    "render() must call renderCoverageStrip");
+  // "Coverage:" kicker label
+  assert.match(appSrc, /Coverage:/,
+    "render must print a 'Coverage:' kicker label");
+  // Always-on surfaces (draft, share) — they don't depend on detection
+  assert.match(appSrc, /key: 'draft'/,
+    "render must include the always-on 'draft' pill");
+  assert.match(appSrc, /key: 'share'/,
+    "render must include the always-on 'share' pill");
+
+  // CSS
+  assert.match(cssSrc, /\.coverage-strip\b/,
+    ".coverage-strip style must exist");
+  assert.match(cssSrc, /\.cov-pill\.cov-on\b/,
+    "active pill (cov-on) style must exist");
+  assert.match(cssSrc, /\.cov-pill\.cov-always\b/,
+    "always-on pill (cov-always) style must exist");
+});
