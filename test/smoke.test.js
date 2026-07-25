@@ -6339,3 +6339,33 @@ test("analyzer: Document heat map is interactive (click → jump, filter chips, 
   assert.match(cssSrc, /\.heat-map\.heat-mode-list/,
     ".heat-mode-list style must exist");
 });
+
+// Iter #90: worst-case exposure line — one bold "If you signed today,
+// worst-case exposure ≈ $X" headline at the top of the expanded risk
+// panel. Sums per-severity iter #79 rates ($200 trap, $50 watch,
+// $20 note) so the total is consistent with the rest of the app.
+test("analyzer: Worst-case exposure headline summarizes the risk panel in one line", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Rates must match iter #79 exactly
+  assert.match(appSrc, /RATE_PER[\s\S]+?r:\s*200[\s\S]+?a:\s*50[\s\S]+?g:\s*20/,
+    "RATE_PER must keep iter #79 rates (200/50/20)");
+
+  // Render path must produce the exposure line + total + per-severity breakdown
+  assert.match(appSrc, /worst-case exposure.{0,8}\\u2248|worst-case exposure\s*\\u2248|worst-case exposure/,
+    "exposure line must say 'worst-case exposure'");
+  assert.match(appSrc, /risk-exposure-line/,
+    "render must use .risk-exposure-line class");
+  assert.match(appSrc, /re-total/,
+    "render must use .re-total class for the headline number");
+
+  // CSS: container + headline
+  assert.match(cssSrc, /\.risk-exposure-line\{/,
+    ".risk-exposure-line style must exist");
+  assert.match(cssSrc, /\.risk-exposure-line \.re-total\{/,
+    ".re-total (the headline number) must be styled distinctly");
+});

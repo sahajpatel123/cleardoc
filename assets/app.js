@@ -1971,6 +1971,29 @@
       // users can paste into an email / doc without screenshotting.
       // Delegated to riskDetail (not bound per-render) so re-renders
       // during typing don't stack handlers.
+      // Iter #90: worst-case exposure summary line at the top of the
+      // expanded panel. Same per-severity rate table as iter #79 +
+      // the iter #62 badge. Stays consistent across surfaces.
+      const RATE_PER = { r: 200, a: 50, g: 20 };
+      const exp = { r: 0, a: 0, g: 0 };
+      ordered.forEach(h => {
+        const sev = h.sev === 'r' ? 'r' : (h.sev === 'a' ? 'a' : 'g');
+        exp[sev] += RATE_PER[sev];
+      });
+      const totalExposure = exp.r + exp.a + exp.g;
+      if(totalExposure > 0){
+        const breakdown = [];
+        if(exp.r) breakdown.push('<b style="color:var(--danger)">$' + exp.r + ' traps</b>');
+        if(exp.a) breakdown.push('<b style="color:var(--amber)">$' + exp.a + ' watches</b>');
+        if(exp.g) breakdown.push('<b style="color:var(--green)">$' + exp.g + ' notes</b>');
+        parts.push(
+          '<div class="risk-exposure-line" role="note" aria-label="Estimated worst-case exposure">',
+            '<span class="re-kicker">If you signed today, worst-case exposure ≈</span> ',
+            '<span class="re-total">$' + totalExposure + '</span>',
+            '<span class="re-breakdown"> (' + breakdown.join(' + ') + ')</span>',
+          '</div>'
+        );
+      }
       parts.push(
         '<div class="risk-detail-toolbar">',
           '<span class="rd-count">' + ordered.length + ' pattern' + (ordered.length === 1 ? '' : 's') + '</span>',
