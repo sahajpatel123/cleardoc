@@ -5188,6 +5188,36 @@
       const voiceStopBtn = document.getElementById('voiceModeStopBtn');
       const voiceMeter = document.getElementById('voiceModeMeter');
       const showVoiceBtn = () => { if(voiceBtn) voiceBtn.hidden = false; };
+      // Iter #107 polish: hold the playback queue so prev / next /
+      // pause controls can scrub through it. We use a closure-scoped
+      // array + index.
+      let voiceQueue = [];
+      let voiceIndex = 0;
+      const stopVoice = () => {
+        try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
+        showVoiceBtn();
+        if(voiceStopBtn) voiceStopBtn.hidden = true;
+        if(voicePrevBtn) voicePrevBtn.hidden = true;
+        if(voiceNextBtn) voiceNextBtn.hidden = true;
+        if(voicePauseBtn){ voicePauseBtn.hidden = true; voicePauseBtn.textContent = '⏸ pause'; }
+        if(voiceMeter){ voiceMeter.hidden = true; voiceMeter.textContent = ''; }
+        voiceQueue = [];
+        voiceIndex = 0;
+      };
+      const playCurrent = () => {
+        if(voiceIndex < 0) voiceIndex = 0;
+        if(voiceIndex >= voiceQueue.length) return;
+        try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
+        if(voiceMeter) voiceMeter.textContent = '🎙 ' + (voiceIndex + 1) + ' / ' + voiceQueue.length;
+        const u = new SpeechSynthesisUtterance(voiceQueue[voiceIndex]);
+        u.rate = 0.95;
+        u.onend = u.onerror = () => {
+          voiceIndex++;
+          if(voiceIndex < voiceQueue.length) playCurrent();
+          else stopVoice();
+        };
+        window.speechSynthesis.speak(u);
+      };
       if(voiceBtn){
         voiceBtn.addEventListener('click', () => {
           if(typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -5220,30 +5250,51 @@
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to read yet — analyze first');
             return;
           }
+          voiceQueue = segs;
+          voiceIndex = 0;
           try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
           voiceBtn.hidden = true;
           if(voiceStopBtn) voiceStopBtn.hidden = false;
+          if(voicePrevBtn) voicePrevBtn.hidden = false;
+          if(voiceNextBtn) voiceNextBtn.hidden = false;
+          if(voicePauseBtn) voicePauseBtn.hidden = false;
           if(voiceMeter) voiceMeter.hidden = false;
-          let i = 0;
-          const total = segs.length;
-          const playNext = () => {
-            if(i >= total){ return; }
-            if(voiceMeter) voiceMeter.textContent = '🎙 ' + (i + 1) + ' / ' + total;
-            const u = new SpeechSynthesisUtterance(segs[i]);
-            u.rate = 0.95;
-            u.onend = u.onerror = () => { i++; playNext(); };
-            window.speechSynthesis.speak(u);
-          };
-          playNext();
+          playCurrent();
+        });
+      }
+      const voicePrevBtn = document.getElementById('voiceModePrevBtn');
+      const voiceNextBtn = document.getElementById('voiceModeNextBtn');
+      const voicePauseBtn = document.getElementById('voiceModePauseBtn');
+      if(voicePrevBtn){
+        voicePrevBtn.addEventListener('click', () => {
+          if(!voiceQueue.length) return;
+          voiceIndex = Math.max(0, voiceIndex - 1);
+          playCurrent();
+        });
+      }
+      if(voiceNextBtn){
+        voiceNextBtn.addEventListener('click', () => {
+          if(!voiceQueue.length) return;
+          voiceIndex = Math.min(voiceQueue.length - 1, voiceIndex + 1);
+          playCurrent();
+        });
+      }
+      if(voicePauseBtn){
+        voicePauseBtn.addEventListener('click', () => {
+          if(typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+          try {
+            if(window.speechSynthesis.speaking && !window.speechSynthesis.paused){
+              window.speechSynthesis.pause();
+              voicePauseBtn.textContent = '▶ resume';
+            } else if(window.speechSynthesis.paused){
+              window.speechSynthesis.resume();
+              voicePauseBtn.textContent = '⏸ pause';
+            }
+          } catch(_){ /* ignore */ }
         });
       }
       if(voiceStopBtn){
-        voiceStopBtn.addEventListener('click', () => {
-          try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
-          showVoiceBtn();
-          voiceStopBtn.hidden = true;
-          if(voiceMeter){ voiceMeter.hidden = true; voiceMeter.textContent = ''; }
-        });
+        voiceStopBtn.addEventListener('click', stopVoice);
       }
 
       // Iter #93: maturity score polish — delegated click handler

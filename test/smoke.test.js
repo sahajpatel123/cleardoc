@@ -6974,6 +6974,12 @@ test("analyzer: Voice-mode reader plays every analysis block aloud in order", ()
     "analyze.html must contain #voiceModeBtn");
   assert.match(html, /id="voiceModeStopBtn"/,
     "analyze.html must contain #voiceModeStopBtn");
+  assert.match(html, /id="voiceModePrevBtn"/,
+    "analyze.html must contain #voiceModePrevBtn");
+  assert.match(html, /id="voiceModeNextBtn"/,
+    "analyze.html must contain #voiceModeNextBtn");
+  assert.match(html, /id="voiceModePauseBtn"/,
+    "analyze.html must contain #voiceModePauseBtn");
   assert.match(html, /id="voiceModeMeter"/,
     "analyze.html must contain #voiceModeMeter");
   assert.match(html, /voice\s*mode/i,
@@ -6995,4 +7001,12 @@ test("analyzer: Voice-mode reader plays every analysis block aloud in order", ()
   // CSS
   assert.match(cssSrc, /\.voice-mode-btn\b|\.voice-mode-meter\b/,
     "voice-mode UI styles must exist");
+
+  // Iter #107 polish: prev / next / pause controls
+  assert.match(appSrc, /document\.getElementById\(['"]voiceModePrevBtn['"]\)/,
+    "iter #107 must wire voiceModePrevBtn via document.getElementById");
+  assert.match(appSrc, /voiceIndex\s*=\s*Math\.(max|min)/,
+    "iter #107 must scrub voiceIndex on prev/next");
+  assert.match(appSrc, /window\.speechSynthesis\.pause[\s\S]+?resume/,
+    "iter #107 must use pause/resume for the play/pause toggle");
 });
