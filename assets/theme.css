@@ -1196,6 +1196,11 @@ button.risk-preview:hover{filter:brightness(.96)}
 .date-when{font-size:var(--t-meta);font-weight:700;color:var(--ink);margin-top:2px}
 .date-row.date-close .date-when{color:var(--danger)}
 .date-raw{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);margin-top:4px;font-style:italic;text-transform:lowercase}
+.date-row.date-past{opacity:.7;border-left-color:var(--ink-soft)}
+.date-ics{margin-top:4px;font-size:11px;padding:2px 6px;cursor:pointer}
+.date-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-meta)}
+.date-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;font-size:var(--t-micro);margin-right:auto}
+.date-show-past{margin-left:0;font-size:11px;padding:2px 8px}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

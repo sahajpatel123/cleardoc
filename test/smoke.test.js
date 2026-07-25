@@ -7142,6 +7142,15 @@ test("analyzer: Date timeline surfaces the next 12 upcoming deadlines", () => {
   // CSS
   assert.match(cssSrc, /\.date-row\b/, ".date-row style must exist");
   assert.match(cssSrc, /\.date-row\.date-close\b/, ".date-close (urgent) style must exist");
+
+  // Iter #115 polish: per-tile click-to-jump + .ics export + show-past toggle.
+  assert.match(appSrc, /date-row[\s\S]+?addEventListener\(['"]click['"][\s\S]+?setSelectionRange/,
+    "iter #115 must wire click-to-jump on date tiles");
+  assert.match(appSrc, /data-date-ics[\s\S]+?BEGIN:VCALENDAR|BEGIN:VCALENDAR/,
+    "iter #115 must produce a VCALENDAR .ics payload");
+  assert.match(appSrc, /dateShowPastBtn|dateTimeline\._showPast/,
+    "iter #115 must toggle the show-past filter");
+  assert.match(cssSrc, /\.date-ics\b/, ".date-ics button style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,

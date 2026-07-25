@@ -3346,32 +3346,105 @@
       const seen = new Set();
       return hits.filter(h => { const k = h.ts + ':' + h.raw; if(seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => a.ts - b.ts);
     }
+    // Stash the full dates list on the timeline so the "show past"
+    // toggle can re-render without re-extracting. Iter #115 polish.
     function renderDateTimeline(dates){
       if(!dateBlock || !dateTimeline) return;
       if(!dates || !dates.length){ dateBlock.hidden = true; dateTimeline.innerHTML = ''; return; }
+      try { dateTimeline._allDates = dates; } catch(_){ /* non-DOM */ }
       const now = Date.now();
-      const upcoming = dates.filter(d => d.ts >= now - 86400000).slice(0, 12);
-      const rows = upcoming.map(d => {
+      const visible = (dateTimeline._showPast) ? dates.slice(0, 16) : dates.filter(d => d.ts >= now - 86400000).slice(0, 12);
+      const rows = visible.map(d => {
         const monthIdx = d.date.getUTCMonth();
         const day = d.date.getUTCDate();
         const year = d.date.getUTCFullYear();
-        const monthsToGo = Math.max(0, Math.round((d.ts - now) / (30 * 86400000)));
-        const daysToGo = Math.max(0, Math.round((d.ts - now) / 86400000));
+        const monthsToGo = Math.round((d.ts - now) / (30 * 86400000));
+        const daysToGo = Math.round((d.ts - now) / 86400000);
         const isClose = daysToGo <= 30;
-        return '<div class="date-row' + (isClose ? ' date-close' : '') + '" data-date-raw="' + esc(d.raw) + '" title="' + esc(d.raw) + '">' +
+        const isPast = d.ts < now - 86400000;
+        const cls = 'date-row' + (isPast ? ' date-past' : '') + (isClose ? ' date-close' : '');
+        return '<div class="' + cls + '" data-date-raw="' + esc(d.raw) + '" data-date-iso="' + year + '-' + String(monthIdx + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0') + '" data-date-text="' + esc(d.raw) + '" title="' + esc(d.raw) + ' · click to jump / ics to add to calendar">' +
           '<div class="date-date">' + MONTH_ABBR[monthIdx] + ' ' + day + '</div>' +
           '<div class="date-year">' + year + '</div>' +
-          '<div class="date-when">' + (daysToGo <= 0 ? 'today / past' : (daysToGo < 60 ? 'in ' + daysToGo + ' days' : 'in ' + monthsToGo + ' months')) + '</div>' +
+          '<div class="date-when">' + (isPast ? 'past — ' + Math.abs(daysToGo) + ' days ago' : (daysToGo <= 0 ? 'today / overdue' : (daysToGo < 60 ? 'in ' + daysToGo + ' days' : 'in ' + monthsToGo + ' months'))) + '</div>' +
           '<div class="date-raw">' + esc(d.raw) + '</div>' +
+          '<button type="button" class="date-ics ghost-btn ghost-btn-sm" data-date-ics="' + esc(d.raw) + '" title="Export as .ics calendar event">📅 ics</button>' +
         '</div>';
       }).join('');
-      dateTimeline.innerHTML = rows;
+      const controls = '<div class="date-controls">' +
+        '<span class="date-count">' + visible.length + ' of ' + dates.length + ' dates</span>' +
+        '<button type="button" class="date-show-past ghost-btn ghost-btn-sm" id="dateShowPastBtn" title="Include past dates">' + (dateTimeline._showPast ? 'hide past' : 'show past') + '</button>' +
+      '</div>';
+      dateTimeline.innerHTML = rows + controls;
       dateBlock.hidden = false;
       if(dateNote){
-        dateNote.innerHTML = '<span class="riskNote-lead">' + upcoming.length + ' upcoming date' + (upcoming.length === 1 ? '' : 's') + '</span> ' +
-          (upcoming.length && (upcoming[0].date.getTime() - now) < 60 * 86400000 ?
-            '⚠ Some dates are within the next 60 days — pin them to your calendar.' :
-            'Next anniversaries / deadlines at a glance. Pure local; no server.');
+        const ahead = visible.filter(d => d.ts >= now - 86400000).length;
+        const soonest = visible.find(d => d.ts >= now - 86400000);
+        dateNote.innerHTML =
+          '<span class="riskNote-lead">' + ahead + ' upcoming, ' + dates.length + ' total</span> ' +
+          (soonest && (soonest.date.getTime() - now) < 60 * 86400000 ?
+            '⚠ Closest deadline within 60 days — pin to calendar.' :
+            'Next anniversaries at a glance · click any tile to jump · 📅 to export .ics.');
+      }
+      // Iter #115: click tile → jump; click ics → download .ics event
+      $$('.date-row', dateTimeline).forEach(row => {
+        row.addEventListener('click', (e) => {
+          if(e.target.closest && e.target.closest('[data-date-ics]')) return; // handled below
+          if(!input) return;
+          const raw = row.getAttribute('data-date-raw') || '';
+          if(!raw) return;
+          const idx2 = input.value.indexOf(raw);
+          if(idx2 >= 0){
+            try { input.focus(); input.setSelectionRange(idx2, idx2 + raw.length); } catch(_){ /* ignore */ }
+            try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ Date no longer in input — the doc was edited');
+          }
+        });
+      });
+      $$('[data-date-ics]', dateTimeline).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const raw = btn.getAttribute('data-date-ics') || '';
+          const row = btn.closest('.date-row');
+          const iso = row && row.getAttribute('data-date-iso');
+          if(!iso) return;
+          // Build a one-event .ics calendar file
+          const ymd = iso.split('-');
+          const dt = new Date(Date.UTC(parseInt(ymd[0],10), parseInt(ymd[1],10) - 1, parseInt(ymd[2],10), 12));
+          const stamp = dt.toISOString().replace(/[-:]|\.\d{3}/g, '');
+          const ics =
+            'BEGIN:VCALENDAR\r\n' +
+            'VERSION:2.0\r\n' +
+            'PRODID:-//ClearDoc//date-timeline//EN\r\n' +
+            'BEGIN:VEVENT\r\n' +
+            'UID:' + raw.replace(/\W+/g, '-') + '@cleardoc\r\n' +
+            'DTSTAMP:' + new Date().toISOString().replace(/[-:]|\.\d{3}/g, '') + '\r\n' +
+            'DTSTART:' + stamp + '\r\n' +
+            'SUMMARY:Contract deadline — ' + raw + '\r\n' +
+            'DESCRIPTION:Detected by ClearDoc from your analyzed document.\r\n' +
+            'END:VEVENT\r\n' +
+            'END:VCALAR\r\n';
+          try {
+            const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-' + iso + '.ics';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 4000);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📅 Calendar event saved');
+          } catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t generate calendar file');
+          }
+        });
+      });
+      const showPastBtn = document.getElementById('dateShowPastBtn');
+      if(showPastBtn){
+        showPastBtn.addEventListener('click', () => {
+          dateTimeline._showPast = !dateTimeline._showPast;
+          renderDateTimeline(dates);
+        });
       }
     }
 
