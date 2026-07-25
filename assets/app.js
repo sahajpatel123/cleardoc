@@ -3169,19 +3169,48 @@
       const preview = document.getElementById('keyClausePreview');
       const list = document.getElementById('keyClauseList');
       if(!preview || !list) return;
-      const picks = pickKeyClauses(sentences, flags);
+      // Iter #101: stash the raw picks + sentences on the list so the
+      // "expand to all sentences" / "show first N only" toggle can
+      // re-render without re-running pickKeyClauses. Pure local.
+      let picks = pickKeyClauses(sentences, flags);
       if(!picks.length){ preview.hidden = true; list.innerHTML = ''; return; }
+      // Capture the full-key + truncated picker for the toggle
+      try { list._allPicks = picks; list._sentences = sentences; list._flags = flags; } catch(_){ /* non-DOM */ }
+      // Iter #101: counter badge "X of N shown · expand" — appended below.
+      const counterHtml =
+        '<div class="kc-controls">' +
+          '<span class="kc-count">' + picks.length + ' clauses</span>' +
+          '<button type="button" class="kc-expand ghost-btn ghost-btn-sm" id="kcExpandBtn" title="Show every long sentence in the document">expand all</button>' +
+        '</div>';
       list.innerHTML = picks.map((it, idx) => (
         '<li class="kc-row kc-' + it.sev + '" data-kc-idx="' + esc(it.i) + '" data-kc-snippet="' + esc(it.s.slice(0, 240)) + '">' +
           '<span class="kc-num">' + (idx + 1) + '.</span>' +
           '<span class="kc-sev kc-tag-' + it.sev + '">' + (it.sev === 'r' ? 'trap' : it.sev === 'a' ? 'watch' : 'note') + '</span>' +
           '<span class="kc-text">' + esc(it.s.length > 220 ? it.s.slice(0, 217) + '…' : it.s) + '</span>' +
+          '<button type="button" class="kc-speak ghost-btn ghost-btn-sm" data-kc-speak="' + esc(it.s.slice(0, 200)) + '" title="Speak this clause aloud">🔊</button>' +
         '</li>'
-      )).join('');
+      )).join('') + counterHtml;
       preview.hidden = false;
       // Click a row → jump to the source sentence in the textarea.
       $$('.kc-row', list).forEach(row => {
-        row.addEventListener('click', () => {
+        row.addEventListener('click', (e) => {
+          // Iter #101 — if user clicks the inner 🔊 button, speak
+          // instead of jumping to source.
+          const speakBtn = e.target.closest && e.target.closest('[data-kc-speak]');
+          if(speakBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = speakBtn.getAttribute('data-kc-speak') || '';
+            if(text && typeof window !== 'undefined' && 'speechSynthesis' in window){
+              try {
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = 0.95;
+                window.speechSynthesis.speak(u);
+              } catch(_){ /* ignore */ }
+            }
+            return;
+          }
           const snippet = row.getAttribute('data-kc-snippet') || '';
           if(!snippet || !input) return;
           const idx2 = input.value.indexOf(snippet.slice(0, 80));

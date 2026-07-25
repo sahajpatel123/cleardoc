@@ -6783,3 +6783,32 @@ test("analyzer: Key-clause highlighter surfaces the most consequential sentences
   assert.match(cssSrc, /\.kc-row\.kc-r\b/,
     ".kc-r (trap) styling must exist");
 });
+
+// Iter #101: key-clause polish — per-row 🔊 speak button + counter
+// badge + click-vs-speak disambiguation.
+test("analyzer: Key-clause preview polished with per-row 🔊 + counter badge", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Per-row speak button
+  assert.match(appSrc, /data-kc-speak=/,
+    "kc-row markup must carry a data-kc-speak attribute");
+  // Speak handler must call SpeechSynthesisUtterance
+  assert.match(appSrc, /data-kc-speak[\s\S]+?SpeechSynthesisUtterance/,
+    "speak handler must use SpeechSynthesisUtterance");
+  // Click handler must disambiguate row-jump vs speak
+  assert.match(appSrc, /data-kc-speak[\s\S]+?closest\(['"]\[data-kc-speak\][\'"]\)/,
+    "click handler must detect the inner speak button");
+  // Counter badge
+  assert.match(appSrc, /class="kc-count"|kc-count[^a-zA-Z]/,
+    "render must include a .kc-count counter");
+
+  // CSS
+  assert.match(cssSrc, /\.kc-speak\b/,
+    ".kc-speak style must exist");
+  assert.match(cssSrc, /\.kc-count\b/,
+    ".kc-count style must exist");
+});

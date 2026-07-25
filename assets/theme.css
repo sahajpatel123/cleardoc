@@ -1126,6 +1126,11 @@ button.risk-preview:hover{filter:brightness(.96)}
 .kc-row.kc-a .kc-sev{background:var(--amber)}
 .kc-row.kc-g .kc-sev{background:var(--green)}
 .kc-row .kc-text{font-size:var(--t-meta);color:var(--ink)}
+.kc-speak{margin-left:6px;font-size:11px;padding:1px 6px;cursor:pointer}
+.kc-controls{margin-top:4px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro)}
+.kc-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;font-size:var(--t-micro);margin-right:auto}
+.kc-expand{margin-left:0;font-size:11px;padding:2px 8px}
+.key-clause.kc-expanded .kc-row .kc-sev{background:var(--ink-soft)}
 
  * (explicit vs inferred). Pure local; the venue is one of the
  * biggest levers in a contract — most users never think to ask for
