@@ -7043,6 +7043,36 @@ test("analyzer: Cheat-sheet modal generates a printable negotiator summary", () 
   // Iter #109 polish: email-this + filename footer
   assert.match(appSrc, /document\.getElementById\(['"]cheatEmailBtn['"]\)/,
     "cheatEmailBtn must be wired via document.getElementById");
+  // Iter #110 polish: proof-pack / receipt modal — fingerprint + sign row.
+test("analyzer: Receipt modal packages the analysis as a printable signed proof", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="receiptBtn"/,
+    "analyze.html must contain #receiptBtn");
+  assert.match(html, /receipt/i, "receipt string must be referenced");
+
+  assert.match(appSrc, /document\.getElementById\(['"]receiptBtn['"]\)/,
+    "receiptBtn must be wired via document.getElementById");
+  assert.match(appSrc, /sha256Hex|SHA-256|crypto\.subtle\.digest/,
+    "receipt must include a SHA-256 fingerprint via crypto.subtle");
+  assert.match(appSrc, /receipt-modal|Document Review Receipt/,
+    "modal must produce a Document Review Receipt");
+  assert.match(appSrc, /window\.print\(\)/,
+    "receipt must offer a print button");
+  assert.match(appSrc, /Reviewed by \(signature\)|receipt-sign-cap/,
+    "receipt must include a sign row");
+
+  assert.match(cssSrc, /\.receipt-modal\b/,
+    ".receipt-modal style must exist");
+  assert.match(cssSrc, /\.receipt-fingerprint\b/,
+    ".receipt-fingerprint style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

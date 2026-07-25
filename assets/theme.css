@@ -1177,6 +1177,28 @@ button.risk-preview:hover{filter:brightness(.96)}
 .voice-mode-stop-btn{font-size:12px;color:var(--danger)}
 .voice-mode-meter{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;margin-left:6px}
 
+/* Receipt / proof pack (iter #110) — signed-by-you review receipt. */
+.receipt-modal{max-width:680px;width:96vw;max-height:88vh;overflow-y:auto;background:var(--paper);border:2px solid var(--ink);padding:var(--s3);font-family:'Archivo',sans-serif}
+.receipt-stamp{display:flex;align-items:center;gap:14px;padding-bottom:10px;border-bottom:2px solid var(--ink);margin-bottom:14px}
+.receipt-checkmark{font-family:'Archivo Black',sans-serif;font-size:48px;line-height:1;color:var(--green)}
+.receipt-stamp-meta{flex:1}
+.receipt-stamp-meta h2{font-family:'Archivo Black',sans-serif;font-size:20px;margin:0 0 4px}
+.receipt-stamp-meta .receipt-sub{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em}
+.receipt-row{padding:6px 0;border-bottom:1px dashed var(--bd-hair);font-size:var(--t-meta);line-height:1.4;color:var(--ink);display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.receipt-row:last-child{border-bottom:none}
+.receipt-row b{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--ink-soft);text-transform:uppercase;font-size:var(--t-micro);letter-spacing:.04em;white-space:nowrap}
+.receipt-fingerprint{font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--paper2);padding:8px;word-break:break-all;border:var(--bd-hair) solid var(--ink-soft);margin-top:6px;color:var(--ink-soft)}
+.receipt-sign-row{margin-top:14px;padding-top:14px;border-top:2px solid var(--ink);display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.receipt-sign-cell{border-bottom:1px solid var(--ink);padding-bottom:6px;min-height:50px;font-family:'Archivo',sans-serif}
+.receipt-sign-cap{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;margin-top:4px}
+.receipt-actions{display:flex;gap:8px;margin-top:14px;padding-top:10px;border-top:2px solid var(--ink);flex-wrap:wrap}
+@media print{
+  .receipt-modal{max-width:100%;max-height:none;padding:var(--s2)}
+  .receipt-actions,.cheat-actions,.cheat-footer{display:none}
+  body *{visibility:hidden}
+  .receipt-modal,.receipt-modal *{visibility:visible}
+}
+
 /* Cheat-sheet modal (iter #108) — single-page printable. */
 .cheat-sheet-modal{max-width:760px;width:96vw;max-height:88vh;overflow-y:auto;background:var(--paper);border:2px solid var(--ink);padding:var(--s3);font-family:'Archivo',sans-serif}
 .cheat-header{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
