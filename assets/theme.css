@@ -1192,9 +1192,10 @@ button.risk-preview:hover{filter:brightness(.96)}
 .receipt-sign-cell{border-bottom:1px solid var(--ink);padding-bottom:6px;min-height:50px;font-family:'Archivo',sans-serif}
 .receipt-sign-cap{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;margin-top:4px}
 .receipt-actions{display:flex;gap:8px;margin-top:14px;padding-top:10px;border-top:2px solid var(--ink);flex-wrap:wrap}
+.receipt-custody-note{margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em}
 @media print{
   .receipt-modal{max-width:100%;max-height:none;padding:var(--s2)}
-  .receipt-actions,.cheat-actions,.cheat-footer{display:none}
+  .receipt-actions,.receipt-custody-note,.cheat-actions,.cheat-footer{display:none}
   body *{visibility:hidden}
   .receipt-modal,.receipt-modal *{visibility:visible}
 }

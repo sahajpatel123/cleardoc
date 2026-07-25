@@ -7071,6 +7071,14 @@ test("analyzer: Receipt modal packages the analysis as a printable signed proof"
     ".receipt-modal style must exist");
   assert.match(cssSrc, /\.receipt-fingerprint\b/,
     ".receipt-fingerprint style must exist");
+
+  // Iter #111 polish: save-to-log + chain-of-custody counter.
+  assert.match(appSrc, /document\.getElementById\(['"]receiptSaveBtn['"]\)/,
+    "iter #111 must wire receiptSaveBtn via document.getElementById");
+  assert.match(appSrc, /localStorage\.setItem.*cleardoc:receipt-log|setItem\(CUSTODY_KEY|CUSTODY_KEY = ['"]cleardoc:receipt-log['"]/,
+    "iter #111 must persist to localStorage under cleardoc:receipt-log");
+  assert.match(cssSrc, /\.receipt-custody-note\b/,
+    ".receipt-custody-note style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,

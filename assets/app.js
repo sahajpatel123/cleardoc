@@ -5344,7 +5344,11 @@
               '<div class="receipt-actions">' +
                 '<button type="button" class="ghost-btn" id="receiptPrintBtn">🖨 print / save PDF</button>' +
                 '<button type="button" class="ghost-btn" id="receiptCopyBtn">📋 copy fingerprint</button>' +
+                '<button type="button" class="ghost-btn" id="receiptSaveBtn" title="Save this receipt to chain-of-custody log">💾 save to log</button>' +
                 '<button type="button" class="ghost-btn kb-modal-cancel" data-acm="0">close</button>' +
+              '</div>' +
+              '<div class="receipt-custody-note">' +
+                '<b>Chain of custody</b>: <span id="receiptCustodyCount">…</span> receipts saved on this device.' +
               '</div>' +
             '</div>';
           showConfirmModal({
@@ -5356,6 +5360,38 @@
             const printBtn = document.getElementById('receiptPrintBtn');
             const copyBtn = document.getElementById('receiptCopyBtn');
             if(printBtn) printBtn.addEventListener('click', () => { try { window.print(); } catch(_){} });
+            // Iter #111: chain-of-custody log persisted in localStorage.
+            const CUSTODY_KEY = 'cleardoc:receipt-log';
+            let custodyCount = 0;
+            try {
+              const stored = JSON.parse(localStorage.getItem(CUSTODY_KEY) || '[]') || [];
+              custodyCount = Array.isArray(stored) ? stored.length : 0;
+            } catch(_){ custodyCount = 0; }
+            const custodyEl = document.getElementById('receiptCustodyCount');
+            if(custodyEl) custodyEl.textContent = String(custodyCount);
+            const saveBtn = document.getElementById('receiptSaveBtn');
+            if(saveBtn){
+              saveBtn.addEventListener('click', () => {
+                try {
+                  const stored = JSON.parse(localStorage.getItem(CUSTODY_KEY) || '[]') || [];
+                  stored.unshift({
+                    ts: stamp,
+                    fp: fp,
+                    length: docLen,
+                    excerpt: docSnippet.slice(0, 80),
+                  });
+                  // Keep the last 50 to avoid unbounded growth.
+                  while(stored.length > 50) stored.pop();
+                  localStorage.setItem(CUSTODY_KEY, JSON.stringify(stored));
+                  if(custodyEl) custodyEl.textContent = String(stored.length);
+                  if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💾 Saved to chain-of-custody log');
+                  saveBtn.textContent = '✓ saved';
+                  setTimeout(() => { if(saveBtn.isConnected) saveBtn.textContent = '💾 save to log'; }, 2500);
+                } catch(_){
+                  if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t save — localStorage may be full');
+                }
+              });
+            }
             if(copyBtn){
               copyBtn.addEventListener('click', async () => {
                 try {
