@@ -3415,12 +3415,60 @@
         simplifyGoBtn.addEventListener('click', () => {
           const raw = (simplifyInput && simplifyInput.value || '').trim();
           if(!raw){ if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Paste a sentence first'); return; }
-          let plain;
-          try { plain = typeof clarify === 'function' ? clarify(raw).html : esc(raw); }
-          catch(_){ plain = esc(raw); }
+          let plain, found;
+          try {
+            const c = typeof clarify === 'function' ? clarify(raw) : { html: esc(raw), found: 0 };
+            plain = c.html; found = c.found || 0;
+          } catch(_){
+            plain = esc(raw); found = 0;
+          }
           _simplifyLastOriginal = raw;
-          if(simplifyOut) simplifyOut.innerHTML = '<div class="simplify-plain">' + plain + '</div>';
-          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✏ Simplified — click ⇄ to swap into source');
+          // Iter #121: confidence meter — count jargon terms replaced
+          const confidence = found >= 4 ? 'high' : found >= 1 ? 'mid' : 'low';
+          if(simplifyOut) simplifyOut.innerHTML =
+            '<div class="simplify-plain">' + plain + '</div>' +
+            '<div class="simplify-actions">' +
+              '<span class="simplify-confidence conf-' + confidence + '">Rewrite confidence: <b>' + confidence + '</b> (' + found + ' term' + (found === 1 ? '' : 's') + ' translated)</span>' +
+              '<button type="button" class="ghost-btn ghost-btn-sm" id="simplifySpeakBtn" title="Read the simplified version aloud">🔊 read aloud</button>' +
+              '<button type="button" class="ghost-btn ghost-btn-sm" id="simplifyCopyBtn" title="Copy the simplified version">📋 copy</button>' +
+            '</div>';
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✏ Simplified (' + confidence + ' confidence)');
+          // Iter #121: read-aloud
+          const speakBtn = document.getElementById('simplifySpeakBtn');
+          if(speakBtn){
+            speakBtn.addEventListener('click', () => {
+              if(typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+              const text = (simplifyOut.textContent || '').replace(/Rewrite confidence.*$/m, '').trim();
+              if(!text) return;
+              try {
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = 0.95;
+                window.speechSynthesis.speak(u);
+              } catch(_){ /* ignore */ }
+            });
+          }
+          // Iter #121: copy plain version to clipboard
+          const copyBtn = document.getElementById('simplifyCopyBtn');
+          if(copyBtn){
+            copyBtn.addEventListener('click', async () => {
+              const text = (simplifyOut.querySelector('.simplify-plain') ? simplifyOut.querySelector('.simplify-plain').innerText : (simplifyOut.textContent || '').trim());
+              let copied = false;
+              try {
+                if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; }
+              } catch(_){ /* fall through */ }
+              if(!copied){
+                try {
+                  const ta = document.createElement('textarea');
+                  ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                  copied = true;
+                } catch(_){ /* ignore */ }
+              }
+              if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Plain version copied' : '⚠ Couldn’t copy');
+              copyBtn.textContent = copied ? '✓ copied' : '📋 copy';
+              setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 2500);
+            });
+          }
         });
       }
       if(simplifyFillFromSelectionBtn){
@@ -3438,7 +3486,11 @@
       if(simplifySwapBtn){
         simplifySwapBtn.addEventListener('click', () => {
           if(!input || !simplifyInput || !simplifyOut) return;
+          const plainNode = simplifyOut.querySelector('.simplify-plain');
           const original = (simplifyInput.value || '').trim();
+          let plain = plainNode ? plainNode.innerText || plainNode.textContent : (simplifyOut.innerText || simplifyOut.textContent || '').trim();
+          plain = plain.replace(/Rewrite confidence.*/i, '').trim();
+          if(!plain){ if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Run Simplify first'); return; }
           if(!original || !input.value.indexOf){
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No source sentence to swap');
             return;
@@ -3448,9 +3500,6 @@
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Sentence no longer in input');
             return;
           }
-          let plain = simplifyOut.innerText || simplifyOut.textContent || '';
-          plain = plain.trim();
-          if(!plain){ if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Run Simplify first'); return; }
           if(typeof input._undoSnapshot !== 'string') input._undoSnapshot = input.value;
           input.value = input.value.substring(0, idx2) + plain + input.value.substring(idx2 + original.length);
           try { input.dispatchEvent(new Event('input', { bubbles: true })); } catch(_){ /* ignore */ }

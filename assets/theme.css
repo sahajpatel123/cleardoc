@@ -1238,6 +1238,11 @@ button.risk-preview:hover{filter:brightness(.96)}
 .simplify-out{min-height:36px;padding:8px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--green-tint);font-size:var(--t-meta);line-height:1.5;color:var(--ink)}
 .simplify-out:empty::before{content:'Translated plain-English will appear here.';color:var(--ink-soft);font-style:italic}
 .simplify-plain b{font-weight:700;background:var(--paper);padding:0 2px}
+.simplify-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:var(--t-meta);margin-top:6px}
+.simplify-confidence{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em}
+.simplify-confidence.conf-high b{color:var(--green)}
+.simplify-confidence.conf-mid b{color:var(--amber)}
+.simplify-confidence.conf-low b{color:var(--danger)}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

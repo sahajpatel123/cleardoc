@@ -7283,6 +7283,29 @@ test("analyzer: Document simplifier translates one sentence at a time", () => {
   assert.match(cssSrc, /\.simplify-out\b/, ".simplify-out style must exist");
 });
 
+// Iter #121: simplifier polish — confidence meter + read-aloud + copy.
+test("analyzer: Simplifier polished with confidence meter + read-aloud + copy", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Confidence meter
+  assert.match(appSrc, /simplify-confidence|conf-(high|mid|low)/,
+    "iter #121 must render a simplify-confidence chip");
+  // Read-aloud
+  assert.match(appSrc, /simplifySpeakBtn[\s\S]+?SpeechSynthesisUtterance|speechSynthesis\.speak/,
+    "iter #121 must wire read-aloud");
+  // Copy plain-version
+  assert.match(appSrc, /simplifyCopyBtn[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
+    "iter #121 must wire copy button");
+
+  // CSS
+  assert.match(cssSrc, /\.simplify-confidence\b/, ".simplify-confidence style must exist");
+  assert.match(cssSrc, /\.simplify-actions\b/, ".simplify-actions style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,
