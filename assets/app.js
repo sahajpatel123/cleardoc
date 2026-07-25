@@ -2880,14 +2880,53 @@
         const lang = (plainOut && plainOut._detectedLang) || (input && input._detectedLang) || null;
         const sheet = lang ? renderTranslationSheet(raw, lang) : null;
         if(sheet && sheet.items && sheet.items.length){
-          if(transNote) transNote.innerHTML = '<span class="riskNote-lead">Detected: ' + esc(lang.label) + '</span> Top ' + sheet.items.length + ' key terms below — handy when negotiating with someone who reads ' + esc(lang.label) + '.';
+          // Iter #87: introduce per-language greeting line + spoken-audio
+          // toggle. Also tally the total rows so non-native readers know
+          // upfront how many terms they get. Tone hints come from a tiny
+          // local table so we never ask the AI.
+          const TONE_HINTS = {
+            es: 'Use formal “usted” if signing a lease or loan; informal “tú” is fine for casual notes.',
+            fr: 'Use formal “vous” with any authority figure or legal counterparty.',
+            de: 'Contracts strictly use formal “Sie” (capitalized); “du” reads as too casual.',
+            it: 'Use formal “Lei” with institutions; informal “tu” is fine for everyday chat.',
+            pt: 'Use formal “você” in any business / contract setting; “tu” is regional.',
+          };
+          const greeting = (TONE_HINTS[lang.code] || '');
+          if(transNote) transNote.innerHTML =
+            '<span class="riskNote-lead">Detected: ' + esc(lang.label) + ' · ' + sheet.items.length + ' term' + (sheet.items.length === 1 ? '' : 's') + '</span> ' +
+            'Handy when negotiating with someone who reads ' + esc(lang.label) + '.' +
+            (greeting ? ' <span class="trans-tone">Tone: ' + esc(greeting) + '</span>' : '');
           if(transList){
-            transList.innerHTML = sheet.items.map(it => (
-              '<div class="trans-row">' +
+            transList.innerHTML = sheet.items.map((it, i) => (
+              '<div class="trans-row" data-xx="' + esc(it.xx) + '">' +
                 '<div class="trans-en"><span class="trans-tag">EN</span> ' + esc(it.en) + '</div>' +
-                '<div class="trans-other"><span class="trans-tag trans-tag--' + esc(lang.code) + '">' + esc(lang.code.toUpperCase()) + '</span> <b>' + esc(it.xx) + '</b></div>' +
+                '<div class="trans-other"><span class="trans-tag trans-tag--' + esc(lang.code) + '">' + esc(lang.code.toUpperCase()) + '</span> <b>' + esc(it.xx) + '</b>' +
+                  ' <button type="button" class="trans-speak ghost-btn ghost-btn-sm" data-xx="' + esc(it.xx) + '" data-code="' + esc(lang.code) + '" title="Speak this term aloud">' + '🔊' + '</button>' +
+                '</div>' +
               '</div>'
             )).join('');
+            // Iter #87: lazy-wire one speak handler per row. Uses the
+            // existing TTS layer (populateVoicePicker / speakText path)
+            // if available, otherwise falls back to raw speechSynthesis
+            // with the matching BCP-47 lang so the user hears real
+            // pronunciation instead of an English-flat read.
+            if(typeof window !== 'undefined' && 'speechSynthesis' in window){
+              $$('.trans-speak', transList).forEach(btn => {
+                btn.addEventListener('click', (ev) => {
+                  ev.preventDefault();
+                  const word = btn.getAttribute('data-xx') || '';
+                  const code = btn.getAttribute('data-code') || 'en';
+                  if(!word) return;
+                  try {
+                    window.speechSynthesis.cancel();
+                    const u = new SpeechSynthesisUtterance(word);
+                    u.lang = ({es:'es-ES', fr:'fr-FR', de:'de-DE', it:'it-IT', pt:'pt-BR'})[code] || 'en-US';
+                    u.rate = 0.9;
+                    window.speechSynthesis.speak(u);
+                  } catch(_){ /* ignore */ }
+                });
+              });
+            }
           }
           transBlock.hidden = false;
         } else {

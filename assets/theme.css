@@ -1073,7 +1073,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .fc-type{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;background:var(--ink);color:var(--paper);padding:1px 5px;font-weight:700}
 /* Translation cheat sheet (iter #86) — local EN ↔ ES/FR/DE/IT/PT
  * glossary rendered under the analysis result. Pure CSS: stacked
- * EN row + XX row, with a tiny language code tag. */
+ * EN row + XX row, with a tiny language code tag.
+ * Iter #87: tone-hint chip + per-row 🔊 speak button. */
 .trans-list{display:flex;flex-direction:column;gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
 .trans-row{border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);padding:6px 8px;display:flex;flex-direction:column;gap:4px}
 .trans-row .trans-tag{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;background:var(--ink);color:var(--paper);padding:1px 5px;font-weight:700;margin-right:6px}
@@ -1085,6 +1086,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .trans-en{font-size:var(--t-meta);color:var(--ink)}
 .trans-other{font-size:var(--t-meta);color:var(--ink)}
 .trans-other b{font-weight:700}
+.trans-speak{margin-left:6px;font-size:11px;padding:1px 6px;cursor:pointer}
+.trans-tone{display:block;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);text-transform:none;letter-spacing:0}
 
 /* Risk severity legend (iter #84) — onboarding helper for
  * first-time users explaining what TRAP / WATCH / NOTE mean.

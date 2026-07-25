@@ -6231,3 +6231,39 @@ test("analyzer: Translation cheat sheet builds EN ↔ XX rows for foreign-langua
   assert.match(appSrc, /transBlock\.hidden = (true|false)/,
     "transBlock.hidden must be toggled (English / other)");
 });
+
+// Iter #87: translation cheat-sheet polish — tone hint + 🔊 button.
+test("analyzer: Translation cheat sheet polished with tone hint + per-row speak button", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // TONE_HINTS map must exist and cover ES / FR / DE / IT / PT
+  assert.match(appSrc, /TONE_HINTS/,
+    "TONE_HINTS map must exist");
+  for(const code of ["es","fr","de","it","pt"]){
+    const toneBlock = (appSrc.match(/const TONE_HINTS[\s\S]+?\n\s*\};/) || [''])[0];
+    assert.match(toneBlock, new RegExp(code + ":"),
+      "TONE_HINTS must include " + code);
+  }
+
+  // Speak button markup + handler must exist
+  assert.match(appSrc, /trans-speak/,
+    "per-row speak button class must exist");
+  assert.match(appSrc, /SpeechSynthesisUtterance|window\.speechSynthesis\.speak/,
+    "speak handler must call SpeechSynthesisUtterance");
+  assert.match(appSrc, /u\.lang[\s\S]+?es-ES[\s\S]+?fr-FR[\s\S]+?de-DE[\s\S]+?it-IT[\s\S]+?pt-BR/,
+    "speak handler must use lang-specific BCP-47 codes (es-ES, fr-FR, de-DE, it-IT, pt-BR)");
+
+  // Tone-hint chip must be wired into transNote HTML
+  assert.match(appSrc, /class="trans-tone"/,
+    "transNote must render a .trans-tone hint chip");
+
+  // CSS: speak button + tone chip must be styled
+  assert.match(cssSrc, /\.trans-speak\{/,
+    ".trans-speak style must exist");
+  assert.match(cssSrc, /\.trans-tone\{/,
+    ".trans-tone style must exist");
+});
