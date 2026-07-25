@@ -1833,6 +1833,7 @@
           transBlock=$('#transBlock'),transNote=$('#transNote'),transList=$('#transList'),
           actionBlock=$('#actionBlock'),actionNote=$('#actionNote'),actionGrid=$('#actionGrid'),
           gapBlock=$('#gapBlock'),gapNote=$('#gapNote'),gapList=$('#gapList'),
+          toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3220,6 +3221,91 @@
       return { items: items.slice(0, 10), count: items.length };
     }
 
+    // Iter #112: tone analyzer — measures how aggressive /
+    // one-sided / passive-aggressive a contract is across three
+    // axes: trust, pressure, clarity. Pure local; no AI call.
+    const TONE_LEX = {
+      // Trust signals (raise trust score; 0–100)
+      trust: [
+        { weight: 10, re: /\b(?:mutual(?:ly)?|reciproc[al]|jointly|we\s+and\s+you)\b/gi },
+        { weight: 8, re: /\b(?:both\s+parties|each\s+side|on\s+either\s+side)\b/gi },
+        { weight: 6, re: /\b(?:good[\s-]?faith|reasonable[ly]?|fair[\s-]?mind)\b/gi },
+        { weight: 5, re: /\b(?:discuss|negotiate|consult)\b/gi },
+      ],
+      // Pressure signals (lower trust / raise pressure; 0–100)
+      pressure: [
+        { weight: 18, re: /\b(?:immediately|forthwith|without\s+delay|at\s+once|asap|right\s+away|urgently)\b/gi },
+        { weight: 16, re: /\b(?:waive[sd]?|forfeit|irrevocab[ly]+|unconditional[\s\S]{0,30}?consent)\b/gi },
+        { weight: 14, re: /\b(?:penal(?:ty|ties)|fine|forfeit[\s\S]{0,10}?amount)\b/gi },
+        { weight: 12, re: /\b(?:you\s+shall|must|tight\s+deadline|non[\s-]?negotiable|firmly\s+required)\b/gi },
+        { weight: 8, re: /\b(?:sole\s+discretion|solely|exclusively\s+our|unilateral[\s-]?ly)\b/gi },
+      ],
+      // Clarity signals (raise clarity)
+      clarity: [
+        { weight: 8, re: /\b(?:for\s+example|such\s+as|i\.e\.|e\.g\.)\b/gi },
+        { weight: 6, re: /\b(?:defined\s+as|means\s+(?:the|a)|refers\s+to)\b/gi },
+        { weight: 3, re: /\b(?:pursuant\s+to|hereunder|hereto|whereas)\b/gi },
+      ],
+      // Jargon signals (lower clarity)
+      jargon: [
+        { weight: 9, re: /\bnotwithstanding\b/gi },
+        { weight: 7, re: /\b(?:hereto(?:fore|after|under|in)?|hereunder|herein|hereby|hereupon)\b/gi },
+        { weight: 8, re: /\b(?:aforementioned|forthwith|thenceforth|henceforth)\b/gi },
+        { weight: 6, re: /\b(?:indemnif(?:y|ication|ied)|covenant(?:s|ed)?|hold\s+\w+\s+harmless)\b/gi },
+      ],
+    };
+    function analyzeTone(raw){
+      const text = String(raw || '');
+      if(!text) return { trust: 50, pressure: 0, clarity: 50, words: 0, signal: 0 };
+      const lower = text.toLowerCase();
+      const wordCount = (text.match(/\b[\w'-]+\b/g) || []).length;
+      const tally = (lex) => {
+        let total = 0;
+        lex.forEach(o => { const hits = (lower.match(o.re) || []).length; total += hits * o.weight; });
+        return total;
+      };
+      const trustHits = tally(TONE_LEX.trust);
+      const pressureHits = tally(TONE_LEX.pressure);
+      const clarityHits = tally(TONE_LEX.clarity);
+      const jargonHits = tally(TONE_LEX.jargon);
+      // Normalize per 1000 words so short and long docs compare
+      const f = 1000 / Math.max(1, wordCount);
+      // Trust: 50 baseline + bonus, capped 0..100
+      let trust = Math.round(50 + trustHits * f * 1.0);
+      trust = Math.max(0, Math.min(100, trust));
+      // Pressure: 0 baseline + accumulation, capped 0..100
+      let pressure = Math.round(pressureHits * f * 1.2);
+      pressure = Math.max(0, Math.min(100, pressure));
+      // Clarity: 50 baseline + clarity bonus - jargon penalty
+      let clarity = Math.round(50 + clarityHits * f * 1.0 - jargonHits * f * 1.4);
+      clarity = Math.max(0, Math.min(100, clarity));
+      return { trust, pressure, clarity, words: wordCount, signal: trustHits + pressureHits + clarityHits + jargonHits };
+    }
+    function renderToneBlock(tone){
+      if(!toneBlock || !toneGrid || !tone) return;
+      const cell = (key, label, score, hint, glyph) => {
+        const color = score >= 70 ? 'good' : score >= 45 ? 'mid' : 'low';
+        return '<div class="tone-cell tone-' + color + '" title="' + esc(hint) + '">' +
+          '<div class="tone-glyph">' + glyph + '</div>' +
+          '<div class="tone-name">' + esc(label) + '</div>' +
+          '<div class="tone-bar"><div class="tone-fill" style="width:' + score + '%"></div></div>' +
+          '<div class="tone-score">' + score + '/100</div>' +
+          '<div class="tone-hint">' + esc(hint) + '</div>' +
+        '</div>';
+      };
+      toneGrid.innerHTML =
+        cell('trust', 'Trust signals', tone.trust, 'Mutual language, good-faith, fair-mind — higher is healthier.', '🤝') +
+        cell('pressure', 'Pressure signals', tone.pressure, 'Forfeit, waive, must, sole discretion — higher is more aggressive.', '⚡') +
+        cell('clarity', 'Plain-language clarity', tone.clarity, 'Defined terms and "for example" raise it; "notwithstanding" / "hereto" lower it.', '📖');
+      toneBlock.hidden = false;
+      if(toneNote){
+        const sum = (tone.trust + (100 - tone.pressure) + tone.clarity) / 3;
+        const verdict = sum >= 70 ? '👍 gentle + fair' : sum >= 50 ? '😐 mixed' : '⚠ hostile or confusing';
+        toneNote.innerHTML = '<span class="riskNote-lead">' + tone.words.toLocaleString('en-US') + ' words analyzed</span> ' +
+          'Overall tone: <b>' + verdict + '</b> · Three axes measured locally over a hand-tuned legalese lexicon.';
+      }
+    }
+
     // Iter #104: gap detector — surfaces what the document does
     // NOT say. Experienced negotiators look for missing sections
     // (no termination clause / no data retention / no force majeure
@@ -3931,6 +4017,14 @@
         renderGapBlock(gp);
       } else if(gapBlock) {
         gapBlock.hidden = true;
+      }
+      // Iter #112: tone analyzer — three axes (trust / pressure /
+      // clarity) measured by hand-tuned legalese lexicon.
+      if(toneBlock && typeof analyzeTone === 'function'){
+        const tn = analyzeTone(raw);
+        renderToneBlock(tn);
+      } else if(toneBlock) {
+        toneBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

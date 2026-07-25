@@ -1171,6 +1171,19 @@ button.risk-preview:hover{filter:brightness(.96)}
 .gap-count b{font-weight:700}
 .gap-expand{margin-left:0;font-size:11px;padding:2px 8px}
 
+/* Tone analyzer (iter #112) — 3-axis bar cards. */
+.tone-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.tone-cell{border:var(--bd-hair) solid var(--ink-soft);padding:10px 12px;background:var(--paper2);display:flex;flex-direction:column;gap:4px}
+.tone-cell.tone-good{border-color:var(--green);background:var(--green-tint)}
+.tone-cell.tone-mid{border-color:var(--amber);background:var(--amber-tint)}
+.tone-cell.tone-low{border-color:var(--danger);background:var(--danger-tint)}
+.tone-cell .tone-glyph{font-size:24px;line-height:1}
+.tone-cell .tone-name{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;color:var(--ink);font-weight:700}
+.tone-cell .tone-bar{height:8px;background:var(--paper);border:var(--bd-hair) solid var(--ink-soft);position:relative;overflow:hidden;border-radius:1px}
+.tone-cell .tone-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(to right,var(--green),var(--amber) 60%,var(--danger));transition:width .3s ease}
+.tone-cell .tone-score{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--ink)}
+.tone-cell .tone-hint{font-size:var(--t-micro);color:var(--ink-soft);font-style:italic;margin-top:2px}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}

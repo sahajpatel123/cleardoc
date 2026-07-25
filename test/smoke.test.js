@@ -7081,6 +7081,35 @@ test("analyzer: Receipt modal packages the analysis as a printable signed proof"
     ".receipt-custody-note style must exist");
 });
 
+// Iter #112: tone analyzer — three axes (trust / pressure /
+// clarity) measured by a hand-tuned legalese lexicon. Pure local.
+test("analyzer: Tone analyzer measures trust / pressure / clarity across the document", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="toneBlock"/, "analyze.html must contain #toneBlock");
+  assert.match(html, /Tone analyzer/i, "tone block must be titled 'Tone analyzer'");
+  assert.match(appSrc, /function analyzeTone\(/, "analyzeTone must exist");
+  assert.match(appSrc, /function renderToneBlock\(/, "renderToneBlock must exist");
+  assert.match(appSrc, /TONE_LEX/, "TONE_LEX lexicon must exist");
+  // Three axes
+  for(const k of ["trust","pressure","clarity"]) {
+    assert.match(appSrc, new RegExp(k + ":\\s*\\["),
+      "TONE_LEX must include the '" + k + "' axis");
+    assert.match(appSrc, new RegExp("['\"]" + k + "['\"], '"),
+      "render must pass the '" + k + "' score to a cell");
+  }
+  assert.match(appSrc, /toneBlock\.hidden = (true|false)/,
+    "toneBlock.hidden must be toggled");
+  // CSS
+  assert.match(cssSrc, /\.tone-cell\b/, ".tone-cell style must exist");
+  assert.match(cssSrc, /\.tone-fill\b/, ".tone-fill bar style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,
