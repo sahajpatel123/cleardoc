@@ -1192,10 +1192,11 @@ button.risk-preview:hover{filter:brightness(.96)}
 .cheat-li:last-child{border-bottom:none}
 .cheat-tag{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;background:var(--ink);color:var(--paper);padding:1px 5px;font-weight:700;margin-right:6px}
 .cheat-actions{display:flex;gap:8px;margin-top:14px;padding-top:10px;border-top:2px solid var(--ink);flex-wrap:wrap}
+.cheat-footer{margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em}
 .cheat-btn{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);text-transform:uppercase;letter-spacing:.06em}
 @media print{
   .cheat-sheet-modal{max-width:100%;max-height:none;padding:var(--s2)}
-  .cheat-actions{display:none}
+  .cheat-actions,.cheat-footer{display:none}
   body *{visibility:hidden}
   .cheat-sheet-modal,.cheat-sheet-modal *{visibility:visible}
 }

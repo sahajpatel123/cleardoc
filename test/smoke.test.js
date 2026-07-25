@@ -7040,6 +7040,14 @@ test("analyzer: Cheat-sheet modal generates a printable negotiator summary", () 
   assert.match(appSrc, /cheatCopyBtn[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
     "cheat-sheet copy must use clipboard fallback");
 
+  // Iter #109 polish: email-this + filename footer
+  assert.match(appSrc, /document\.getElementById\(['"]cheatEmailBtn['"]\)/,
+    "cheatEmailBtn must be wired via document.getElementById");
+  assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
+    "cheat-sheet must use mailto: for the email action");
+  assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,
+    "cheat-sheet must include a dated filename in the footer");
+
   // CSS: modal + print styles
   assert.match(cssSrc, /\.cheat-sheet-modal\b/,
     ".cheat-sheet-modal style must exist");
