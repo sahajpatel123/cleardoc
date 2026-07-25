@@ -1729,6 +1729,7 @@
           versionHistoryBtn=$('#versionHistoryBtn'),riskTrendBtn=$('#riskTrendBtn'),
           playbookBtn=$('#playbookBtn'),recentStats=$('#recentStats'),
           famousContractBtn=$('#famousContractBtn'),timelineBtn=$('#timelineBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
+          legendBtn=$('#legendBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -5659,6 +5660,28 @@
       });
     }
 
+    // Iter #84: "Risk severity legend" — show what TRAP, WATCH,
+    // and NOTE mean. Onboarding helper for first-time users who
+    // see the color-coded badges in the risk list.
+    if(legendBtn){
+      legendBtn.addEventListener('click', () => {
+        showConfirmModal({
+          title: '📖 Risk severity legend',
+          bodyHtml:
+            '<div class="legend-list">' +
+              '<div class="legend-row legend-trap"><b>TRAP</b> <span class="legend-tag-tag">red</span> ' +
+              'High stakes. Could void a contract, trigger a penalty, or shift a big liability. Always address before signing.</div>' +
+              '<div class="legend-row legend-watch"><b>WATCH</b> <span class="legend-tag-tag">amber</span> ' +
+              'Medium stakes. Could trigger unwanted terms, missed deadlines, or administrative headaches. Worth a follow-up.</div>' +
+              '<div class="legend-row legend-note"><b>NOTE</b> <span class="legend-tag-tag">green</span> ' +
+              'Low stakes. Minor administrative cost — extra paperwork, follow-up calls, or small fees. Informational.</div>' +
+            '</div>' +
+            '<p class="vh-note">Each risk also comes with a counter-clause suggestion and a "why this works" explainer. Use the iter #80 severity filter to focus on what matters most.</p>',
+          confirmLabel: 'Got it',
+        });
+      });
+    }
+
     if(riskTrendBtn){
       riskTrendBtn.addEventListener('click', async () => {
         const trend = (typeof getRiskTrend === 'function') ? getRiskTrend() : [];
@@ -5747,7 +5770,6 @@
           savedVersionSelect.hidden = true;
         }
       }
-    }
     // After any analysis, the clear button reflects whether a
     // saved version exists. Cheap (one localStorage read).
     showClearVersionBtn();

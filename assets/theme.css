@@ -1071,6 +1071,15 @@ button.risk-preview:hover{filter:brightness(.96)}
 .fc-row{padding:8px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
 .fc-name{font-weight:600;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .fc-type{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;background:var(--ink);color:var(--paper);padding:1px 5px;font-weight:700}
+/* Risk severity legend (iter #84) — onboarding helper for
+ * first-time users explaining what TRAP / WATCH / NOTE mean. */
+.legend-list{display:flex;flex-direction:column;gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.5}
+.legend-row{padding:8px 12px;display:flex;flex-direction:column;gap:2px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.legend-row b{font-size:var(--t-meta);font-weight:800;letter-spacing:.06em;text-transform:uppercase;display:inline-block;margin-right:8px}
+.legend-row.legend-trap{border-left:3px solid var(--danger);background:var(--danger-tint)}
+.legend-row.legend-watch{border-left:3px solid var(--amber);background:var(--amber-tint)}
+.legend-row.legend-note{border-left:3px solid var(--green);background:var(--green-tint)}
+.legend-tag-tag{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;background:var(--ink);color:var(--paper);padding:1px 5px;font-weight:700;margin-left:6px}
 /* Recent-documents timeline (iter #83) — vertical dot-line-dash
  * timeline of recent analyses. */
 .tl-list{font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4;position:relative;padding-left:18px}

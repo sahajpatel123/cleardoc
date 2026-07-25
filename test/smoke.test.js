@@ -5074,6 +5074,45 @@ test("analyzer: Recent-documents timeline shows a visual chronology of past anal
     ".tl-latest .tl-dot must use --accent (highlight the latest entry)");
 });
 
+test("analyzer: Risk severity legend explains TRAP / WATCH / NOTE for first-time users", () => {
+  // New feature — onboarding helper. A "📖 legend" button
+  // opens a small modal explaining what each severity means.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: button must exist
+  assert.match(html, /id="legendBtn"/,
+    "analyze.html must contain #legendBtn");
+  assert.match(html, /📖 legend/,
+    "legend button must be labeled '📖 legend'");
+
+  // Must use the existing confirm modal
+  assert.match(appSrc, /legendBtn\.addEventListener[\s\S]+?showConfirmModal/,
+    "legend must use the existing confirm modal");
+  // Must explain all three severities
+  assert.match(appSrc, /legendBtn\.addEventListener[\s\S]+?TRAP/,
+    "legend must mention TRAP");
+  assert.match(appSrc, /legendBtn\.addEventListener[\s\S]+?WATCH/,
+    "legend must mention WATCH");
+  assert.match(appSrc, /legendBtn\.addEventListener[\s\S]+?NOTE/,
+    "legend must mention NOTE");
+  // Must be titled "Risk severity legend"
+  assert.match(appSrc, /legendBtn\.addEventListener[\s\S]+?Risk severity legend/,
+    "legend must be titled 'Risk severity legend'");
+
+  // CSS: each severity class should be color-coded
+  assert.match(cssSrc, /\.legend-row\.legend-trap\{[^}]*var\(--danger/,
+    ".legend-trap must use --danger (red)");
+  assert.match(cssSrc, /\.legend-row\.legend-watch\{[^}]*var\(--amber/,
+    ".legend-watch must use --amber (amber)");
+  assert.match(cssSrc, /\.legend-row\.legend-note\{[^}]*var\(--green/,
+    ".legend-note must use --green (green)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
