@@ -3364,9 +3364,11 @@
       const rows = flagList.slice(0, 10).map((f, idx) => {
         const counter = f.rule.counter || 'A more balanced clause';
         const why = f.rule.why || 'this clause can favor the other party';
-        return '<div class="neg-row" data-neg-idx="' + idx + '" title="Pick a tone + copy a counter-clause you can paste back to the other side">' +
+        const matched = f.s || '';
+        return '<div class="neg-row" data-neg-idx="' + idx + '" data-neg-matched="' + esc(matched.slice(0, 200)) + '" title="Pick a tone + copy or swap the counter-clause">' +
           '<div class="neg-tag">' + esc(f.rule.label) + '</div>' +
           '<div class="neg-why">' + esc(why) + '</div>' +
+          (matched ? '<div class="neg-original"><b>Original:</b> ' + esc(matched.length > 200 ? matched.slice(0, 197) + '…' : matched) + '</div>' : '') +
           '<div class="neg-preview" data-neg-preview="' + esc(counter) + '"><b>Counter:</b> ' + esc(counter) + '</div>' +
           '<div class="neg-toggles">' +
             '<button type="button" class="neg-tone ghost-btn ghost-btn-sm neg-active" data-neg-tone="firm">firm</button>' +
@@ -3374,15 +3376,15 @@
             '<button type="button" class="neg-tone ghost-btn ghost-btn-sm" data-neg-tone="friendly">friendly</button>' +
           '</div>' +
           '<button type="button" class="neg-copy ghost-btn ghost-btn-sm" data-neg-copy="' + idx + '" title="Copy the counter-clause to clipboard">📋 copy</button>' +
+          '<button type="button" class="neg-swap ghost-btn ghost-btn-sm" data-neg-swap="' + idx + '" title="Swap the original clause in the source with the counter (saves a snapshot for undo)">⇄ swap into source</button>' +
         '</div>';
       }).join('');
       negotiateList.innerHTML = rows;
       negotiateBlock.hidden = false;
       if(negotiateNote){
         negotiateNote.innerHTML = '<span class="riskNote-lead">' + flagList.length + ' risk' + (flagList.length === 1 ? '' : 's') + ' have ready-to-send counters</span> ' +
-          'Pick a tone (firm / neutral / friendly), copy the clause, and paste it into your reply email.';
+          'Pick a tone (firm / neutral / friendly), then <b>copy</b> the clause, or <b>⇄ swap into source</b> to replace the matching sentence directly. Use <b>↺ undo</b> in the toolbar to revert.';
       }
-      // Iter #116: tone toggle + copy with selection
       $$('.neg-row', negotiateList).forEach(row => {
         $$('.neg-tone', row).forEach(btn => {
           btn.addEventListener('click', () => {
@@ -3393,12 +3395,15 @@
         const copyBtn = row.querySelector('.neg-copy');
         if(copyBtn){
           copyBtn.addEventListener('click', async () => {
-            const idx = parseInt(copyBtn.getAttribute('data-neg-copy') || '-1', 10);
-            const entry = flagList[idx];
-            if(!entry) return;
-            const activeTone = (row.querySelector('.neg-tone.neg-active') || {}).getAttribute && (row.querySelector('.neg-tone.neg-active') || {}).getAttribute('data-neg-tone') || 'firm';
-            const template = NEG_TONES[activeTone] || NEG_TONES.firm;
-            const text = template.replace('{counter}', entry.rule.counter || 'a balanced replacement').replace('{why}', entry.rule.why || 'this can favor the other party');
+            const text = (function(){
+              const idx = parseInt(copyBtn.getAttribute('data-neg-copy') || '-1', 10);
+              const entry = flagList[idx];
+              if(!entry) return '';
+              const activeTone = (row.querySelector('.neg-tone.neg-active') || {}).getAttribute && (row.querySelector('.neg-tone.neg-active') || {}).getAttribute('data-neg-tone') || 'firm';
+              const template = NEG_TONES[activeTone] || NEG_TONES.firm;
+              return template.replace('{counter}', entry.rule.counter || 'a balanced replacement').replace('{why}', entry.rule.why || 'this can favor the other party');
+            })();
+            if(!text) return;
             let copied = false;
             try {
               if(navigator.clipboard) await navigator.clipboard.writeText(text);
@@ -3411,9 +3416,42 @@
                 copied = true;
               } catch(_){ /* ignore */ }
             }
-            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Counter-clause copied (' + activeTone + ')' : '⚠ Couldn’t copy');
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Counter-clause copied' : '⚠ Couldn’t copy');
             copyBtn.textContent = copied ? '✓ copied' : '📋 copy';
             setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 2500);
+          });
+        }
+        // Iter #117: swap the counter-clause directly into the input
+        // textarea, replacing the matched risky sentence. Saves a
+        // snapshot on the input so the user can click ↺ undo to revert.
+        const swapBtn = row.querySelector('.neg-swap');
+        if(swapBtn){
+          swapBtn.addEventListener('click', () => {
+            const idx = parseInt(swapBtn.getAttribute('data-neg-swap') || '-1', 10);
+            const entry = flagList[idx];
+            if(!entry || !input) return;
+            const matched = row.getAttribute('data-neg-matched') || '';
+            if(!matched || input.value.indexOf(matched) < 0){
+              if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Original clause no longer in input — could not swap');
+              return;
+            }
+            const activeTone = (row.querySelector('.neg-tone.neg-active') || {}).getAttribute && (row.querySelector('.neg-tone.neg-active') || {}).getAttribute('data-neg-tone') || 'firm';
+            const template = NEG_TONES[activeTone] || NEG_TONES.firm;
+            const counter = template.replace('{counter}', entry.rule.counter || 'a balanced replacement').replace('{why}', entry.rule.why || 'this can favor the other party');
+            const ta = input.value;
+            const idx2 = ta.indexOf(matched);
+            if(idx2 < 0) return;
+            // Snapshot for undo
+            if(typeof input._undoSnapshot !== 'string'){
+              input._undoSnapshot = ta;
+            }
+            const newValue = ta.substring(0, idx2) + counter + ta.substring(idx2 + matched.length);
+            input.value = newValue;
+            try { input.dispatchEvent(new Event('input', { bubbles: true })); } catch(_){ /* ignore */ }
+            // Show the undo chip if a similar mechanism exists
+            const undoChip = document.getElementById('applyUndoChip');
+            if(undoChip) undoChip.hidden = false;
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⇄ Swapped into source — click ↺ to undo');
           });
         }
       });

@@ -7184,6 +7184,33 @@ test("analyzer: Negotiate-it builder turns every detected risk into a tone-selec
   assert.match(cssSrc, /\.neg-tone\.neg-active\b/, ".neg-tone.neg-active style must exist");
 });
 
+// Iter #117: negotiate-it polish — "swap into source" replaces the
+// matched risky sentence with the chosen-tone counter-clause; an
+// "Original:" row was also added so users can compare side-by-side.
+test("analyzer: Negotiate-it polished with original-vs-counter compare + swap-into-source action", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Original-vs-counter compare
+  assert.match(appSrc, /data-neg-matched|neg-original/,
+    "iter #117 must render an 'Original:' compare row");
+  // Swap-into-source button
+  assert.match(appSrc, /data-neg-swap=/,
+    "iter #117 must include a swap button");
+  assert.match(appSrc, /data-neg-swap[\s\S]+?input\.value/,
+    "swap handler must rewrite input.value with the counter-clause");
+  assert.match(appSrc, /input\._undoSnapshot/,
+    "swap handler must save undo snapshot on the input");
+  // CSS
+  assert.match(cssSrc, /\.neg-swap\b/,
+    ".neg-swap button style must exist");
+  assert.match(cssSrc, /\.neg-original\b/,
+    ".neg-original compare style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

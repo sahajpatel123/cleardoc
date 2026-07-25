@@ -1214,6 +1214,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .neg-tone{font-size:10px;padding:2px 8px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em}
 .neg-tone.neg-active{background:var(--ink);color:var(--paper)}
 .neg-copy{font-size:11px;padding:2px 10px;cursor:pointer}
+.neg-swap{font-size:11px;padding:2px 10px;cursor:pointer;color:var(--green);border-color:var(--green);margin-left:4px}
+.neg-original{font-size:var(--t-meta);color:var(--ink);background:var(--paper);border:var(--bd-hair) solid var(--ink-soft);padding:6px 8px;margin-bottom:4px;font-family:'JetBrains Mono',monospace}
+.neg-original b{color:var(--ink-soft);font-family:'JetBrains Mono',monospace}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
