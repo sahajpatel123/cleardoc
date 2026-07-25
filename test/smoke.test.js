@@ -6607,9 +6607,9 @@ test("analyzer: Coverage highlights strip lists every surface the analysis produ
   // Wiring — must be called inside render()
   assert.match(appSrc, /renderCoverageStrip\(ctx\)/,
     "render() must call renderCoverageStrip");
-  // "Coverage:" kicker label
-  assert.match(appSrc, /Coverage:/,
-    "render must print a 'Coverage:' kicker label");
+  // "Coverage:" kicker label (iter #97 now says "Coverage (N active):")
+  assert.match(appSrc, /Coverage/,
+    "render must print a 'Coverage' kicker label");
   // Always-on surfaces (draft, share) — they don't depend on detection
   assert.match(appSrc, /key: 'draft'/,
     "render must include the always-on 'draft' pill");
@@ -6623,4 +6623,39 @@ test("analyzer: Coverage highlights strip lists every surface the analysis produ
     "active pill (cov-on) style must exist");
   assert.match(cssSrc, /\.cov-pill\.cov-always\b/,
     "always-on pill (cov-always) style must exist");
+});
+
+// Iter #97: coverage strip polish — clickable pills jump to the
+// matching surface, the kicker counts active items, and a filter
+// chip hides unused surfaces.
+test("analyzer: Coverage strip polished with click-to-jump + active count + only-active filter", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Active-count kicker
+  const covBlock = (appSrc.match(/function renderCoverageStrip\([\s\S]+?\n    \}/) || [''])[0];
+  assert.ok(covBlock, "renderCoverageStrip function body must exist");
+  assert.match(covBlock, /Coverage \(/,
+    "render must include a 'Coverage (' kicker label");
+  assert.match(covBlock, /\+ onCount \+|onCount \+ '/,
+    "render must interpolate onCount in the kicker");
+  // Anchor data attribute on each pill + click handler with scrollIntoView
+  assert.match(appSrc, /data-cov-anchor=/,
+    "pill markup must carry data-cov-anchor attribute");
+  assert.match(appSrc, /data-cov-anchor[\s\S]+?scrollIntoView/,
+    "pill click handler must scrollIntoView the matching target");
+  // Filter chip + only-active class
+  assert.match(appSrc, /covOnlyActiveBtn/,
+    "filter chip must exist");
+  assert.match(appSrc, /cov-only-active-on/,
+    "filter must toggle cov-only-active-on class on the strip");
+  // Hover/cursor affordance on pill
+  assert.match(cssSrc, /\.cov-pill\.cov-anchor/,
+    "clickable pill style must exist");
+  // Filter hides unused surfaces
+  assert.match(cssSrc, /\.cov-only-active-on \.cov-pill\.cov-always/,
+    "filter rule must hide .cov-always pills when active");
 });

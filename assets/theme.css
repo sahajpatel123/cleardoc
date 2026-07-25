@@ -1086,6 +1086,10 @@ button.risk-preview:hover{filter:brightness(.96)}
 .cov-pill.cov-on{border-color:var(--green);background:var(--green-tint)}
 .cov-pill.cov-clean{border-color:var(--ink-soft);background:var(--paper)}
 .cov-pill.cov-always{border-color:var(--ink-soft);background:var(--paper);font-style:italic;color:var(--ink-soft)}
+.cov-pill.cov-anchor{cursor:pointer}
+.coverage-strip.cov-only-active-on .cov-pill.cov-always,
+.coverage-strip.cov-only-active-on .cov-pill.cov-clean{display:none}
+.cov-only-active{margin-left:auto;font-size:11px;padding:2px 8px}
 @media print{ .coverage-strip{display:none} }
 
  * (explicit vs inferred). Pure local; the venue is one of the

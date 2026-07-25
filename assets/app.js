@@ -3006,56 +3006,103 @@
     function renderCoverageStrip(ctx){
       if(!coverageStrip) return;
       const items = [];
+      // Map a `target` DOM id onto each item so click-to-scroll works.
+      // Some surfaces use class-based containers (like #riskList); the
+      // nearest result-block ancestor is the scroll target by convention.
+      const findBlock = (el) => {
+        if(!el) return null;
+        return el.closest ? el.closest('.result-block') : null;
+      };
+      function commonSurface(condition, payload){
+        if(!condition) return null;
+        const id = (payload && payload.id) || (payload && payload.anchor && payload.anchor.id) || null;
+        return payload;
+      }
       // 1) Plain-English rewrite (always shown when analysis ran)
-      if(plainOut && plainOut.textContent && plainOut.textContent.trim()){
-        items.push({ key: 'rewrite', glyph: '✦', label: 'Plain-English rewrite', state: 'on' });
-      }
-      // 2) Risk radar — pull from live riskNote if it mentions flags
-      if(riskNote && /\b\d+\b\s+flagged|trap\b|watch\b/i.test(riskNote.textContent || '')){
-        items.push({ key: 'risk', glyph: '⚠', label: 'Risk radar', state: (flags && flags.length) ? 'on' : 'clean' });
-      }
+      items.push(commonSurface(
+        !!((plainOut && plainOut.textContent && plainOut.textContent.trim())),
+        { key: 'rewrite', glyph: '✦', label: 'Plain-English rewrite', state: 'on', anchor: plainOut }
+      ));
+      // 2) Risk radar
+      items.push(commonSurface(
+        !!(riskNote && /\b\d+\b\s+flagged|trap\b|watch\b/i.test(riskNote.textContent || '')),
+        { key: 'risk', glyph: '⚠', label: 'Risk radar', state: (flags && flags.length) ? 'on' : 'clean', anchor: riskList || riskNote }
+      ));
       // 3) Verdict
-      if(verdictDisplay && verdictDisplay.textContent.trim().length > 0){
-        items.push({ key: 'verdict', glyph: '✧', label: 'AI verdict', state: 'on' });
-      }
+      items.push(commonSurface(
+        !!(verdictDisplay && verdictDisplay.textContent.trim().length > 0),
+        { key: 'verdict', glyph: '✧', label: 'AI verdict', state: 'on', anchor: verdictDisplay }
+      ));
       // 4) Deadlines
-      if(deadlinesList && deadlinesList.children.length > 0){
-        items.push({ key: 'deadlines', glyph: '⏰', label: 'Deadlines extracted', state: 'on' });
-      }
+      items.push(commonSurface(
+        !!(deadlinesList && deadlinesList.children.length > 0),
+        { key: 'deadlines', glyph: '⏰', label: 'Deadlines extracted', state: 'on', anchor: deadlinesList }
+      ));
       // 5) Translation cheat sheet (only on non-English docs)
-      if(transBlock && !transBlock.hidden && transList && transList.children.length){
-        items.push({ key: 'trans', glyph: '🌍', label: 'Translation cheat sheet', state: 'on' });
-      }
+      items.push(commonSurface(
+        !!(transBlock && !transBlock.hidden && transList && transList.children.length),
+        { key: 'trans', glyph: '🌍', label: 'Translation cheat sheet', state: 'on', anchor: transBlock }
+      ));
       // 6) Heat map
-      if(heatBlock && !heatBlock.hidden && heatMap && heatMap.children.length){
-        items.push({ key: 'heat', glyph: '🔥', label: 'Document heat map', state: 'on' });
-      }
+      items.push(commonSurface(
+        !!(heatBlock && !heatBlock.hidden && heatMap && heatMap.children.length),
+        { key: 'heat', glyph: '🔥', label: 'Document heat map', state: 'on', anchor: heatBlock }
+      ));
       // 7) Worst-case exposure
-      if(riskDetail && /\bworst-case exposure\b/i.test(riskDetail.textContent || '')){
-        items.push({ key: 'exposure', glyph: '💰', label: 'Worst-case exposure', state: 'on' });
-      }
+      items.push(commonSurface(
+        !!(riskDetail && /\bworst-case exposure\b/i.test(riskDetail.textContent || '')),
+        { key: 'exposure', glyph: '💰', label: 'Worst-case exposure', state: 'on', anchor: riskDetail }
+      ));
       // 8) Maturity score
-      if(maturityBlock && !maturityBlock.hidden){
-        items.push({ key: 'maturity', glyph: '📊', label: 'Maturity score', state: 'on' });
-      }
+      items.push(commonSurface(
+        !!(maturityBlock && !maturityBlock.hidden),
+        { key: 'maturity', glyph: '📊', label: 'Maturity score', state: 'on', anchor: maturityBlock }
+      ));
       // 9) Jurisdiction
-      if(jurisBlock && !jurisBlock.hidden){
-        items.push({ key: 'juris', glyph: '⚖', label: 'Jurisdiction & venue', state: 'on' });
-      }
+      items.push(commonSurface(
+        !!(jurisBlock && !jurisBlock.hidden),
+        { key: 'juris', glyph: '⚖', label: 'Jurisdiction & venue', state: 'on', anchor: jurisBlock }
+      ));
       // Always-available surfaces that don't depend on detection
-      // — flagged as 'always' so the strip reads as comprehensive
-      // even on a clean doc.
-      items.push({ key: 'draft', glyph: '✍', label: 'Response draft', state: 'always' });
-      items.push({ key: 'share', glyph: '⇆', label: 'Share / .txt / print', state: 'always' });
-      if(!items.length){ coverageStrip.hidden = true; return; }
-      const html = items.map(it => (
-        '<span class="cov-pill cov-' + it.state + '" role="listitem" title="' + esc(it.label) + ' (' + it.state + ')">' +
+      items.push(commonSurface(true, { key: 'draft', glyph: '✍', label: 'Response draft', state: 'always', anchor: document.getElementById('draftOut') }));
+      items.push(commonSurface(true, { key: 'share', glyph: '⇆', label: 'Share / .txt / print', state: 'always', anchor: document.getElementById('saveBtn') }));
+      const active = items.filter(Boolean);
+      if(!active.length){ coverageStrip.hidden = true; return; }
+      // Iter #97: count active "on" pills and prefix the kicker.
+      const onCount = active.filter(a => a.state === 'on').length;
+      const html = active.map(it => {
+        const anchor = it.anchor ? findBlock(it.anchor) : null;
+        const anchorId = anchor ? anchor.id || '' : '';
+        return '<button type="button" class="cov-pill cov-' + it.state + (anchorId ? ' cov-anchor' : '') + '" role="listitem"' +
+          (anchorId ? ' data-cov-anchor="' + esc(anchorId) + '"' : '') +
+          ' title="' + esc(it.label) + ' (' + it.state + ')' + (anchorId ? ' — click to jump' : '') + '">' +
           '<span class="cov-glyph">' + esc(it.glyph) + '</span>' +
           '<span class="cov-label">' + esc(it.label) + '</span>' +
-        '</span>'
-      )).join('');
-      coverageStrip.innerHTML = '<span class="cov-kicker">Coverage:</span>' + html;
+        '</button>';
+      }).join('');
+      coverageStrip.innerHTML =
+        '<span class="cov-kicker">Coverage (' + onCount + ' active):</span>' + html +
+        '<button type="button" class="cov-only-active ghost-btn ghost-btn-sm" id="covOnlyActiveBtn" title="Hide unused surfaces">only active</button>';
       coverageStrip.hidden = false;
+      // Iter #97: wire click-to-scroll on each pill + filter toggle.
+      $$('.cov-anchor', coverageStrip).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const aid = btn.getAttribute('data-cov-anchor') || '';
+          const tgt = aid && document.getElementById(aid);
+          if(tgt && typeof tgt.scrollIntoView === 'function'){
+            try { tgt.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(_){ /* ignore */ }
+          }
+        });
+      });
+      const onlyBtn = document.getElementById('covOnlyActiveBtn');
+      if(onlyBtn){
+        onlyBtn.addEventListener('click', () => {
+          const on = coverageStrip.classList.toggle('cov-only-active-on');
+          onlyBtn.textContent = on ? 'show all' : 'only active';
+          onlyBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+      }
     }
 
     function renderJurisdictionBlock(result){
