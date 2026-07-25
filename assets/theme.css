@@ -1092,6 +1092,18 @@ button.risk-preview:hover{filter:brightness(.96)}
 .cov-only-active{margin-left:auto;font-size:11px;padding:2px 8px}
 @media print{ .coverage-strip{display:none} }
 
+/* Currency & amounts (iter #98) — list view of every detected
+ * monetary amount grouped by currency; subtotal in rough USD. */
+.currency-list{display:flex;flex-direction:column;gap:4px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.cur-row{display:flex;align-items:baseline;gap:8px;padding:4px 8px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);font-size:var(--t-meta)}
+.cur-row.cur-big{border-color:var(--amber);background:var(--amber-tint)}
+.cur-row .cur-sym{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;color:var(--ink)}
+.cur-row .cur-val{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--ink);min-width:8ch;text-align:right}
+.cur-row .cur-code{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;background:var(--ink);color:var(--paper);padding:1px 5px;font-weight:700}
+.cur-row .cur-snippet{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cur-total-pill{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;background:var(--paper);color:var(--ink);padding:1px 6px;border:var(--bd-hair) solid var(--ink-soft);margin-left:4px;font-weight:700}
+.cur-why{margin-left:8px;font-size:11px;padding:2px 8px}
+
  * (explicit vs inferred). Pure local; the venue is one of the
  * biggest levers in a contract — most users never think to ask for
  * their own home state. */

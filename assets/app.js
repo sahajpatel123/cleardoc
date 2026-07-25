@@ -1835,6 +1835,7 @@
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
           jurisBlock=$('#jurisBlock'),jurisNote=$('#jurisNote'),jurisRow=$('#jurisRow'),
+          currencyBlock=$('#currencyBlock'),currencyNote=$('#currencyNote'),currencyList=$('#currencyList'),
           coverageStrip=$('#coverageStrip'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
@@ -3003,6 +3004,101 @@
     // exposure, jurisdiction, translation cheat sheet, heat map.
     // Helps users see "everything this analysis covered" without
     // scrolling. Pure local — built from already-rendered DOM.
+    // Iter #98: currency / amount scanner. Pulls every monetary
+    // amount out of the analyzed text — $50, $50,000, £200, €1,000,
+    // USD 50,000, 50,000 USD — and groups by currency. Sorted by
+    // value (largest first). Pure local — no AI call. Helpful for
+    // cross-border contracts and for sanity-checking the
+    // number-vs-jargon-count sanity check at-a-glance.
+    const CURRENCY_PATTERNS = [
+      // $1,000 or $1,000.50 — USD/CAD/MXN/AUD (symbol-form, $)
+      { code: 'USD', sym: '$', re: /\$\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/g },
+      // £1,000 — GBP
+      { code: 'GBP', sym: '£', re: /£\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/g },
+      // €1,000 — EUR
+      { code: 'EUR', sym: '€', re: /€\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/g },
+      // ¥1,000 — JPY/CNY (ambiguous; we collapse to JPY)
+      { code: 'JPY', sym: '¥', re: /¥\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/g },
+      // ₹1,00,000 — INR (Indian numbering optional)
+      { code: 'INR', sym: '₹', re: /₹\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/g },
+      // $5,000 or 5,000$ — suffix $/£
+      { code: 'USD', sym: '$', re: /([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*\$/g },
+      { code: 'GBP', sym: '£', re: /([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*£/g },
+      // ISO code prefix — "USD 50,000"
+      { code: 'USD', sym: '$', re: /\b(?:USD|US\$|US dollars?)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/gi },
+      { code: 'EUR', sym: '€', re: /\b(?:EUR|euros?)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/gi },
+      { code: 'GBP', sym: '£', re: /\b(?:GBP|pounds?|sterling)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/gi },
+      { code: 'CAD', sym: 'C$', re: /\b(?:CAD|C\$)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/gi },
+      { code: 'AUD', sym: 'A$', re: /\b(?:AUD|A\$)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/gi },
+      // Bare amount context — "USD five thousand" via decimal is rare;
+      // we keep the scope to numeric forms for predictable parsing.
+    ];
+
+    function detectCurrency(raw){
+      const text = String(raw || '');
+      if(!text) return { hits: [], totals: {}, totalUSD: 0, hasAmounts: false };
+      const hits = [];
+      const totals = {};
+      for(const c of CURRENCY_PATTERNS){
+        // Reset regex lastIndex because we declare them globally with /g
+        c.re.lastIndex = 0;
+        let m;
+        while((m = c.re.exec(text))){
+          const numStr = (m[1] || '').replace(/,/g, '');
+          const num = parseFloat(numStr);
+          if(!isFinite(num) || num <= 0) continue;
+          const offset = (m.index || 0) + (m[0].indexOf(m[1]) || 0);
+          hits.push({
+            code: c.code,
+            sym: c.sym,
+            value: num,
+            raw: m[0],
+            start: offset,
+          });
+          totals[c.code] = (totals[c.code] || 0) + num;
+        }
+      }
+      hits.sort((a, b) => b.value - a.value);
+      // Conservative FX conversion (hard-coded; last refreshed by hand).
+      // We DO NOT claim these are accurate — they're a glance estimate,
+      // intended to flag "this document mentions amounts in 3 different
+      // currencies" rather than to settle what they're worth today.
+      const FX = { USD: 1, EUR: 1.08, GBP: 1.27, CAD: 0.74, AUD: 0.66, JPY: 0.0067, INR: 0.012 };
+      let totalUSD = 0;
+      for(const k of Object.keys(totals)){
+        const rate = FX[k] || 0;
+        totalUSD += totals[k] * rate;
+      }
+      return { hits: hits.slice(0, 20), totals, totalUSD, hasAmounts: hits.length > 0 };
+    }
+
+    function renderCurrencyBlock(result){
+      if(!currencyBlock || !currencyList || !result) return;
+      if(!result.hasAmounts){ currencyBlock.hidden = true; return; }
+      const rows = result.hits.map(h => {
+        const isBig = h.value >= 100000;
+        return '<div class="cur-row' + (isBig ? ' cur-big' : '') + '">' +
+          '<span class="cur-sym">' + esc(h.sym) + '</span>' +
+          '<span class="cur-val">' + h.value.toLocaleString('en-US') + '</span>' +
+          '<span class="cur-code">' + esc(h.code) + '</span>' +
+          '<code class="cur-snippet" title="' + esc(h.raw) + '">' + esc(h.raw) + '</code>' +
+        '</div>';
+      }).join('');
+      const breakdown = Object.keys(result.totals).sort((a, b) => result.totals[b] - result.totals[a]).map(c => {
+        return '<span class="cur-total-pill">' + esc(c) + ' ' + result.totals[c].toLocaleString('en-US') + '</span>';
+      }).join(' ');
+      currencyList.innerHTML = rows;
+      currencyBlock.hidden = false;
+      if(currencyNote){
+        currencyNote.innerHTML =
+          '<span class="riskNote-lead">Found ' + result.hits.length + ' amount' + (result.hits.length === 1 ? '' : 's') + ' in ' +
+          Object.keys(result.totals).length + ' currenc' + (Object.keys(result.totals).length === 1 ? 'y' : 'ies') + '</span> ' +
+          'Subtotal (rough FX): <b style="color:var(--ink)">~$' +
+          Math.round(result.totalUSD).toLocaleString('en-US') + ' USD</b> · ' + breakdown +
+          ' <button type="button" class="cur-why ghost-btn ghost-btn-sm" title="Where do these numbers come from?">why?</button>';
+      }
+    }
+
     function renderCoverageStrip(ctx){
       if(!coverageStrip) return;
       const items = [];
@@ -3262,6 +3358,15 @@
       // what their analysis covers.
       if(typeof renderCoverageStrip === 'function'){
         renderCoverageStrip(ctx);
+      }
+
+      // Iter #98: currency & amounts scanner — surface every
+      // monetary amount in the doc grouped by currency. Pure local.
+      if(currencyBlock && typeof detectCurrency === 'function'){
+        const cur = detectCurrency(raw);
+        renderCurrencyBlock(cur);
+      } else if(currencyBlock) {
+        currencyBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
