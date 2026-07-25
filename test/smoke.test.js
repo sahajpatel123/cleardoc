@@ -6405,3 +6405,49 @@ test("analyzer: Worst-case exposure headline polished with band color + share + 
   assert.match(cssSrc, /\.risk-exposure-line\.re-band-high\b/,
     "high band style must exist");
 });
+
+// Iter #92: contract maturity score — A–F grade with 6 dimensions,
+// computed locally. Sits between the verdict and the rewrite.
+test("analyzer: Contract maturity score grades the document across 6 local dimensions", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html
+  assert.match(html, /id="maturityBlock"/,
+    "analyze.html must contain #maturityBlock");
+  assert.match(html, /id="maturityGrid"/,
+    "analyze.html must contain #maturityGrid container");
+  assert.match(html, /Contract maturity score/,
+    "result block must be titled 'Contract maturity score'");
+
+  // app.js: scorer + render must exist
+  assert.match(appSrc, /function computeMaturityScore\(/,
+    "computeMaturityScore must exist");
+  assert.match(appSrc, /function renderMaturityBlock\(/,
+    "renderMaturityBlock must exist");
+  // 6 dimensions
+  for(const dim of ["clarity","fairness","completeness","jargon","exit","rewrite"]){
+    assert.match(appSrc, new RegExp("label: '" + dim + "'\\b|" + dim + "\\b.*score:"),
+      "computeMaturityScore must include dimension '" + dim + "'");
+  }
+  // A–F letter thresholds
+  assert.match(appSrc, /letter = overall >= 90 \? 'A'/,
+    "letter grade must be A at >=90");
+  // Wiring: computeMaturityScore must be called inside render()
+  assert.match(appSrc, /computeMaturityScore\(raw/,
+    "render() must call computeMaturityScore on the raw text");
+
+  // CSS: per-letter card + per-dimension cell
+  assert.match(cssSrc, /\.mat-letter\.mat-letter-A\{/,
+    "A letter style must exist");
+  assert.match(cssSrc, /\.mat-letter\.mat-letter-F\{/,
+    "F letter style must exist");
+  assert.match(cssSrc, /\.mat-cell\.mat-good\b/,
+    "good dimension cell style must exist");
+  assert.match(cssSrc, /\.mat-cell\.mat-low\b/,
+    "low dimension cell style must exist");
+});

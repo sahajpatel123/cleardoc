@@ -1833,6 +1833,7 @@
           transBlock=$('#transBlock'),transNote=$('#transNote'),transList=$('#transList'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
+          maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2765,6 +2766,106 @@
     // colored cell (red = trap, amber = watch, green = note, gray
     // = clear). Lets users scan the entire document in a glance
     // instead of reading the risk list top-to-bottom.
+    // Iter #92: contract maturity score. Gives the analyzed document
+    // an A–F grade across 6 local dimensions: clarity (reading
+    // level), fairness (risk severity distribution), completeness
+    // (deadline coverage), jargon density, exit-terms presence, and
+    // plain-English rewrite availability. Pure local — no extra AI
+    // call. Drives the iter #92 maturity block in the result panel.
+    function computeMaturityScore(raw, ctx){
+      const ai = (ctx && ctx.ai) || null;
+      const flags = (ctx && ctx.flags) || [];
+      const lower = String(raw || '').toLowerCase();
+      const wordCount = (raw.match(/\b[\w'-]+\b/g) || []).length;
+      const gradeScore = (() => {
+        const g = gradeLevel(raw);
+        // 18 = grad school (worst), 8 = 8th grade (best)
+        if (!g) return 50;
+        if (g <= 8) return 100;
+        if (g <= 10) return 85;
+        if (g <= 12) return 70;
+        if (g <= 14) return 55;
+        if (g <= 16) return 40;
+        return 25;
+      })();
+      const fairnessScore = (() => {
+        const cnt = { r: 0, a: 0, g: 0 };
+        flags.forEach(f => { cnt[f.rule.sev] = (cnt[f.rule.sev] || 0) + 1; });
+        // 3 traps = -90, 3 watches = -50, etc.; floor at 30
+        const penalty = cnt.r * 30 + cnt.a * 15 + cnt.g * 6;
+        return Math.max(30, 100 - penalty);
+      })();
+      const completenessScore = (() => {
+        if (ai && Array.isArray(ai.deadlines) && ai.deadlines.length) return 95;
+        if (/\b(renew|termination|notice|expir|deadline|effective date|end date)\b/i.test(lower)) return 75;
+        if (wordCount < 60) return 60;
+        return 50;
+      })();
+      const jargonScore = (() => {
+        const totalJargon = ai && Number.isFinite(ai.jargonFound) ? ai.jargonFound : 0;
+        // >30 jargon terms in a doc is unfriendly; >60 is hostile
+        if (totalJargon <= 5) return 95;
+        if (totalJargon <= 15) return 80;
+        if (totalJargon <= 30) return 65;
+        if (totalJargon <= 60) return 45;
+        return 25;
+      })();
+      const exitScore = (() => {
+        let pts = 0;
+        if (/terminat|rescind|cancel/i.test(lower)) pts += 35;
+        if (/refund|return (your )?money/i.test(lower)) pts += 25;
+        if (/notice.{0,40}(days|month|written|prior)/i.test(lower)) pts += 25;
+        if (/auto(matically)?\s*renew|evergreen/i.test(lower)) pts -= 30;
+        return Math.max(20, Math.min(100, pts + 60));
+      })();
+      const rewriteScore = ai && ai.plainEnglishRewrite ? 100 : 70;
+      const dims = [
+        { key: 'clarity',      label: 'Clarity',         score: gradeScore },
+        { key: 'fairness',     label: 'Fairness',        score: fairnessScore },
+        { key: 'completeness', label: 'Completeness',    score: completenessScore },
+        { key: 'jargon',       label: 'Plain-language',  score: jargonScore },
+        { key: 'exit',         label: 'Exit terms',      score: exitScore },
+        { key: 'rewrite',      label: 'Rewrite covered', score: rewriteScore },
+      ];
+      const overall = Math.round(dims.reduce((s, d) => s + d.score, 0) / dims.length);
+      const letter = overall >= 90 ? 'A'
+                   : overall >= 80 ? 'B'
+                   : overall >= 70 ? 'C'
+                   : overall >= 60 ? 'D'
+                   : 'F';
+      return { dims, overall, letter };
+    }
+
+    function renderMaturityBlock(score){
+      if(!maturityBlock || !maturityGrid || !score) return;
+      const letterClass = score.letter === 'A' ? 'm-A'
+                         : score.letter === 'B' ? 'm-B'
+                         : score.letter === 'C' ? 'm-C'
+                         : score.letter === 'D' ? 'm-D'
+                         : 'm-F';
+      const cells = score.dims.map(d => {
+        const color = d.score >= 85 ? 'good'
+                    : d.score >= 65 ? 'mid'
+                    : 'low';
+        return '<div class="mat-cell mat-' + color + '" title="' + esc(d.label) + ': ' + d.score + '/100">' +
+          '<span class="mat-label">' + esc(d.label) + '</span>' +
+          '<span class="mat-score">' + d.score + '</span>' +
+        '</div>';
+      }).join('');
+      maturityGrid.innerHTML =
+        '<div class="mat-letter mat-letter-' + letterClass + '" title="Overall maturity grade">' +
+          '<span class="mat-letter-glyph">' + score.letter + '</span>' +
+          '<span class="mat-letter-num">' + score.overall + '<span class="mat-letter-of">/100</span></span>' +
+        '</div>' +
+        '<div class="mat-dims">' + cells + '</div>';
+      maturityBlock.hidden = false;
+      if(maturityNote){
+        maturityNote.innerHTML =
+          '<span class="riskNote-lead">Overall maturity: ' + score.letter + ' (' + score.overall + '/100)</span> ' +
+          'Six local signals: clarity, fairness, completeness, plain-language density, exit terms, and whether the rewrite covered the doc.';
+      }
+    }
+
     function buildHeatMapHTML(sentences, flags){
       const flaggedIndex = new Map();
       (flags || []).forEach(f => {
@@ -2866,6 +2967,19 @@
       }
       lastFlags=flags;
       riskList.innerHTML='';
+
+      // Iter #92: contract maturity score — derived locally from
+      // already-computed signals (reading level, risk severity mix,
+      // deadline coverage, jargon density, exit-terms presence,
+      // whether the AI produced a rewrite). Pairs with the existing
+      // verdict block to give the user one numeric headline.
+      if(maturityBlock && typeof computeMaturityScore === 'function'){
+        const score = computeMaturityScore(raw, { ai, flags });
+        renderMaturityBlock(score);
+      } else if(maturityBlock) {
+        maturityBlock.hidden = true;
+      }
+
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
       else {
         const cnt={r:0,a:0,g:0}; flags.forEach(f=>cnt[f.rule.sev]++);

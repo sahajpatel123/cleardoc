@@ -1076,6 +1076,34 @@ button.risk-preview:hover{filter:brightness(.96)}
  * EN row + XX row, with a tiny language code tag.
  * Iter #87: tone-hint chip + per-row 🔊 speak button. */
 
+/* Contract maturity score (iter #92) — A–F grade across 6
+ * dimensions: clarity, fairness, completeness, plain-language,
+ * exit terms, rewrite coverage. Computed locally so it works
+ * offline. */
+.maturity-grid{display:flex;gap:8px;align-items:stretch;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0}
+.mat-letter{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 14px;border:var(--bd-hair) solid var(--ink);min-width:80px;background:var(--paper2)}
+.mat-letter-glyph{font-size:38px;font-weight:900;line-height:1;color:var(--ink)}
+.mat-letter-num{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink-soft);margin-top:4px}
+.mat-letter-of{font-size:9px;color:var(--ink-soft);margin-left:1px}
+.mat-letter.mat-letter-A{background:var(--green-tint);border-color:var(--green)}
+.mat-letter.mat-letter-B{background:var(--green-tint);border-color:var(--ink-soft)}
+.mat-letter.mat-letter-C{background:var(--amber-tint);border-color:var(--amber)}
+.mat-letter.mat-letter-D{background:var(--amber-tint);border-color:var(--danger)}
+.mat-letter.mat-letter-F{background:var(--danger-tint);border-color:var(--danger)}
+.mat-dims{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;flex:1;min-width:0}
+.mat-cell{display:flex;flex-direction:column;gap:2px;padding:6px 8px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.mat-cell .mat-label{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
+.mat-cell .mat-score{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700}
+.mat-cell.mat-good .mat-score{color:var(--green)}
+.mat-cell.mat-mid .mat-score{color:var(--amber)}
+.mat-cell.mat-low .mat-score{color:var(--danger)}
+.mat-cell.mat-good{border-color:var(--green)}
+.mat-cell.mat-mid{border-color:var(--amber)}
+.mat-cell.mat-low{border-color:var(--danger)}
+@media (max-width:720px){
+  .mat-dims{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
 /* Worst-case exposure line (iter #90) — sums the iter #79 per-row
  * dollar estimates and shows one bold headline number so the user
  * sees the absolute ceiling in a single read. Iter #91: magnitude
