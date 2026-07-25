@@ -7119,6 +7119,31 @@ test("analyzer: Tone analyzer measures trust / pressure / clarity across the doc
   assert.match(cssSrc, /\.tone-ex\b/, ".tone-ex style must exist");
 });
 
+// Iter #114: date timeline — surfaces the next 12 upcoming dates
+// extracted from the analyzed document. Pure local regex extraction.
+test("analyzer: Date timeline surfaces the next 12 upcoming deadlines", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="dateBlock"/, "analyze.html must contain #dateBlock");
+  assert.match(html, /id="dateTimeline"/, "analyze.html must contain #dateTimeline");
+  assert.match(appSrc, /function extractDates\(/, "extractDates must exist");
+  assert.match(appSrc, /function renderDateTimeline\(/, "renderDateTimeline must exist");
+  // At least three regex variants
+  assert.match(appSrc, /reMonth|reDayMonth|reIso|reSlash/, "date extractor must cover at least three formats");
+  // Wiring — call inside render()
+  assert.match(appSrc, /extractDates\(raw\)/, "render() must call extractDates on the raw text");
+  assert.match(appSrc, /dateBlock\.hidden = (true|false)/, "dateBlock.hidden must be toggled");
+
+  // CSS
+  assert.match(cssSrc, /\.date-row\b/, ".date-row style must exist");
+  assert.match(cssSrc, /\.date-row\.date-close\b/, ".date-close (urgent) style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

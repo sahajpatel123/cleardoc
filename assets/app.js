@@ -1834,6 +1834,7 @@
           actionBlock=$('#actionBlock'),actionNote=$('#actionNote'),actionGrid=$('#actionGrid'),
           gapBlock=$('#gapBlock'),gapNote=$('#gapNote'),gapList=$('#gapList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
+          dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3299,6 +3300,81 @@
         examples: { trust: trustR.examples, pressure: pressureR.examples, clarity: clarityR.examples },
       };
     }
+    // Iter #114: date timeline — extracts dates from the document
+    // and arranges them on a 12-month ribbon highlighting the next
+    // upcoming ones. Pure local; regex-based date detection.
+    const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    function extractDates(raw){
+      const text = String(raw || '');
+      if(!text) return [];
+      const hits = [];
+      // Patterns: "January 15, 2026", "Jan 15, 2026", "1/15/2026",
+      // "2026-01-15", "15 January 2026". Capture variants with grouped ranges.
+      const reMonth = new RegExp('\\b(' + MONTH_ABBR.join('|') + ')\\s+(\\d{1,2})(?:,\\s*|\\s+)(\\d{4})\\b', 'gi');
+      const reMonthLong = /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:,\s*|\s+)(\d{4})\b/gi;
+      const reSlash = /\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g;
+      const reIso = /\b(\d{4})-(\d{2})-(\d{2})\b/g;
+      const reDayMonth = /\b(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/gi;
+      const monthMap = { january:0,jan:0,february:1,feb:1,march:2,mar:2,april:3,apr:3,may:4,june:5,jun:5,july:6,jul:6,august:7,aug:7,september:8,sep:8,october:9,oct:9,november:10,nov:10,december:11,dec:11 };
+      const tryAdd = (m, off, d, mo, y, raw) => {
+        const dt = new Date(Date.UTC(y, mo, d));
+        if(!isNaN(dt.getTime()) && dt.getUTCFullYear() === y && dt.getUTCMonth() === mo && dt.getUTCDate() === d){
+          hits.push({ ts: dt.getTime(), date: dt, raw, offset: off });
+        }
+      };
+      let m;
+      reMonth.lastIndex = 0;
+      while((m = reMonth.exec(text))){ tryAdd(m, m.index, parseInt(m[2], 10), monthMap[m[1].toLowerCase().slice(0,3)], parseInt(m[3], 10), m[0]); }
+      reMonthLong.lastIndex = 0;
+      while((m = reMonthLong.exec(text))){ tryAdd(m, m.index, parseInt(m[2], 10), monthMap[m[1].toLowerCase()], parseInt(m[3], 10), m[0]); }
+      reSlash.lastIndex = 0;
+      while((m = reSlash.exec(text))){
+        // US-style MM/DD/YYYY; ambiguous vs DD/MM/YYYY — default to MM/DD/YYYY for usability.
+        const mo = parseInt(m[1], 10) - 1;
+        const d = parseInt(m[2], 10);
+        const y = parseInt(m[3], 10);
+        if(mo >= 0 && mo <= 11 && d >= 1 && d <= 31) tryAdd(m, m.index, d, mo, y, m[0]);
+      }
+      reIso.lastIndex = 0;
+      while((m = reIso.exec(text))){
+        const y = parseInt(m[1], 10), mo = parseInt(m[2], 10) - 1, d = parseInt(m[3], 10);
+        if(mo >= 0 && mo <= 11 && d >= 1 && d <= 31) tryAdd(m, m.index, d, mo, y, m[0]);
+      }
+      reDayMonth.lastIndex = 0;
+      while((m = reDayMonth.exec(text))){ tryAdd(m, m.index, parseInt(m[1], 10), monthMap[m[2].toLowerCase()], parseInt(m[3], 10), m[0]); }
+      // Dedup by raw + ts
+      const seen = new Set();
+      return hits.filter(h => { const k = h.ts + ':' + h.raw; if(seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => a.ts - b.ts);
+    }
+    function renderDateTimeline(dates){
+      if(!dateBlock || !dateTimeline) return;
+      if(!dates || !dates.length){ dateBlock.hidden = true; dateTimeline.innerHTML = ''; return; }
+      const now = Date.now();
+      const upcoming = dates.filter(d => d.ts >= now - 86400000).slice(0, 12);
+      const rows = upcoming.map(d => {
+        const monthIdx = d.date.getUTCMonth();
+        const day = d.date.getUTCDate();
+        const year = d.date.getUTCFullYear();
+        const monthsToGo = Math.max(0, Math.round((d.ts - now) / (30 * 86400000)));
+        const daysToGo = Math.max(0, Math.round((d.ts - now) / 86400000));
+        const isClose = daysToGo <= 30;
+        return '<div class="date-row' + (isClose ? ' date-close' : '') + '" data-date-raw="' + esc(d.raw) + '" title="' + esc(d.raw) + '">' +
+          '<div class="date-date">' + MONTH_ABBR[monthIdx] + ' ' + day + '</div>' +
+          '<div class="date-year">' + year + '</div>' +
+          '<div class="date-when">' + (daysToGo <= 0 ? 'today / past' : (daysToGo < 60 ? 'in ' + daysToGo + ' days' : 'in ' + monthsToGo + ' months')) + '</div>' +
+          '<div class="date-raw">' + esc(d.raw) + '</div>' +
+        '</div>';
+      }).join('');
+      dateTimeline.innerHTML = rows;
+      dateBlock.hidden = false;
+      if(dateNote){
+        dateNote.innerHTML = '<span class="riskNote-lead">' + upcoming.length + ' upcoming date' + (upcoming.length === 1 ? '' : 's') + '</span> ' +
+          (upcoming.length && (upcoming[0].date.getTime() - now) < 60 * 86400000 ?
+            '⚠ Some dates are within the next 60 days — pin them to your calendar.' :
+            'Next anniversaries / deadlines at a glance. Pure local; no server.');
+      }
+    }
+
     function renderToneBlock(tone){
       if(!toneBlock || !toneGrid || !tone) return;
       const cell = (key, label, score, hint, glyph, examples) => {
@@ -4078,6 +4154,14 @@
         renderToneBlock(tn);
       } else if(toneBlock) {
         toneBlock.hidden = true;
+      }
+      // Iter #114: date timeline — extracts dates from the document
+      // and surfaces the next 12 upcoming deadlines / anniversaries.
+      if(dateBlock && typeof extractDates === 'function'){
+        const dates = extractDates(raw);
+        renderDateTimeline(dates);
+      } else if(dateBlock) {
+        dateBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

@@ -1187,6 +1187,16 @@ button.risk-preview:hover{filter:brightness(.96)}
 .tone-ex{font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--paper);color:var(--ink);padding:1px 5px;border:var(--bd-hair) solid var(--ink-soft);cursor:pointer;text-transform:lowercase}
 .tone-ex:hover{filter:brightness(.92)}
 
+/* Date timeline (iter #114) — upcoming dates at a glance. */
+.date-timeline{display:flex;flex-wrap:wrap;gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.date-row{border:var(--bd-hair) solid var(--ink-soft);padding:8px 12px;background:var(--paper2);min-width:170px;border-left:3px solid var(--ink-soft)}
+.date-row.date-close{border-left-color:var(--danger);background:var(--danger-tint)}
+.date-date{font-family:'Archivo Black',sans-serif;font-size:18px;color:var(--ink)}
+.date-year{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em}
+.date-when{font-size:var(--t-meta);font-weight:700;color:var(--ink);margin-top:2px}
+.date-row.date-close .date-when{color:var(--danger)}
+.date-raw{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);margin-top:4px;font-style:italic;text-transform:lowercase}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}
