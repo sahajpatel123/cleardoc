@@ -1065,6 +1065,13 @@ button.risk-preview:hover{filter:brightness(.96)}
 .result-actions .saved-version-badge{font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-text);background:var(--accent-glow);border:var(--bd-hair) solid var(--accent);padding:5px 10px;white-space:nowrap;cursor:help}
 .result-actions .saved-version-snippet{font-size:var(--t-micro);color:var(--ink-soft);max-width:480px;padding:4px 0 0 4px;font-style:italic;line-height:1.4}
 .result-actions .recent-stats{font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);background:var(--paper2);border:var(--bd-hair) solid var(--ink-soft);padding:5px 10px;white-space:nowrap}
+/* Famous-contract benchmark modal (iter #82) — list of known
+ * contracts + their match score vs the user's current analysis. */
+.fc-list{display:flex;flex-direction:column;gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.fc-row{padding:8px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.fc-name{font-weight:600;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.fc-type{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;background:var(--ink);color:var(--paper);padding:1px 5px;font-weight:700}
+.fc-meta{font-size:var(--t-meta);color:var(--ink-soft);margin-top:2px}
 /* Version-history modal (iter #76) — list of all saved versions
  * with date, count, and snippet. Active version is highlighted. */
 .vh-list{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow:auto;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}

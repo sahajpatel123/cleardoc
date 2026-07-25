@@ -1727,7 +1727,8 @@
           badgeExplainBtn=$('#badgeExplainBtn'),savedVersionBadge=$('#savedVersionBadge'),
           savedVersionSelect=$('#savedVersionSelect'),savedVersionSnippet=$('#savedVersionSnippet'),
           versionHistoryBtn=$('#versionHistoryBtn'),riskTrendBtn=$('#riskTrendBtn'),
-          playbookBtn=$('#playbookBtn'),recentStats=$('#recentStats'),voicePreviewBtn=$('#voicePreviewBtn'),
+          playbookBtn=$('#playbookBtn'),recentStats=$('#recentStats'),
+          famousContractBtn=$('#famousContractBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -5536,6 +5537,90 @@
         } catch(_) {
           showAnalyzeToast('📋 Pop-up blocked');
         }
+      });
+    }
+
+    // Iter #82: "Compare to a famous contract" — benchmark the
+    // current input against well-known contracts. Users can see
+    // "this is similar to a typical SaaS ToS" — a reference
+    // point for the contract type and risk pattern.
+    if(famousContractBtn){
+      // Database of well-known contract types + their typical
+      // risk patterns. Each entry has a name + a sample snippet
+      // (the part the user pastes) + a list of typical risks.
+      const FAMOUS_CONTRACTS = [
+        {
+          name: 'Typical SaaS Terms of Service',
+          doc: 'You agree to be bound by these Terms. The Service Provider may modify, suspend, or terminate the service at any time, at their sole discretion, without prior notice. Your continued use constitutes acceptance. You grant a worldwide, perpetual, royalty-free license. These Terms are governed by the laws of California. Any dispute shall be resolved by binding arbitration in San Francisco.',
+          docType: 'Terms of Service',
+          typical: ['modification without notice', 'binding arbitration', 'perpetual license', 'sole discretion'],
+        },
+        {
+          name: 'Standard Residential Lease',
+          doc: 'This Lease Agreement is for the residential premises located at the above address. Tenant shall pay rent to the Landlord in advance on the first day of each month. Security deposit is non-refundable. Maintenance charges are at Landlord\'s sole discretion. This lease auto-renews for successive twelve-month terms unless either party provides 60 days written notice.',
+          docType: 'Lease',
+          typical: ['non-refundable deposit', 'auto-renewal', 'sole discretion', 'unilateral maintenance charges'],
+        },
+        {
+          name: 'Generic NDA (Mutual)',
+          doc: 'This Mutual Non-Disclosure Agreement is entered into by both parties. Confidential Information shall be kept confidential for a period of 3 years. Upon termination, all Confidential Information shall be returned. The receiving party shall not disclose any Confidential Information to any third party without prior written consent.',
+          docType: 'NDA',
+          typical: ['time-limited confidentiality', 'return of materials'],
+        },
+        {
+          name: 'Typical SaaS Subscription',
+          doc: 'Your subscription will auto-renew at the then-current rate. You may cancel at any time, but refunds are not provided for partial subscription periods. The service may be modified or discontinued at any time without notice. You authorize us to charge your payment method for all recurring fees.',
+          docType: 'Subscription',
+          typical: ['auto-renewal', 'no refunds', 'modification without notice'],
+        },
+      ];
+      famousContractBtn.addEventListener('click', async () => {
+        if(typeof matchRisks !== 'function' || !input){
+          showAnalyzeToast('📚 Run an analysis first');
+          return;
+        }
+        const userHits = matchRisks(input.value || '');
+        if(userHits.length === 0){
+          showAnalyzeToast('📚 Type a document first to benchmark it');
+          return;
+        }
+        // Build comparison: for each famous contract, run matchRisks
+        // on its snippet and show the similarity. The comparison is
+        // based on which risk patterns are common to both — a
+        // useful "this is similar to a typical SaaS ToS" signal.
+        const rows = [];
+        for(const fc of FAMOUS_CONTRACTS){
+          const fcHits = matchRisks(fc.doc);
+          // Find the overlap (risk labels common to both)
+          const userLabels = new Set(userHits.map(h => h.label || ''));
+          const fcLabels = new Set(fcHits.map(h => h.label || ''));
+          let overlap = 0;
+          for(const l of userLabels){ if(fcLabels.has(l)) overlap++; }
+          const score = Math.round((overlap / Math.max(1, Math.max(userLabels.size, fcLabels.size))) * 100);
+          rows.push({
+            name: fc.name,
+            docType: fc.docType,
+            userCount: userHits.length,
+            fcCount: fcHits.length,
+            overlap: overlap,
+            score: score,
+            typical: fc.typical.join(' / '),
+          });
+        }
+        // Sort by score desc — highest match first
+        rows.sort((a, b) => b.score - a.score);
+        const bodyHtml = '<div class="fc-list">' +
+          rows.map(r => '<div class="fc-row">' +
+            '<div class="fc-name"><b>' + esc(r.name) + '</b> <span class="fc-type">' + esc(r.docType) + '</span></div>' +
+            '<div class="fc-meta">Match: <b>' + r.score + '%</b> (' + r.overlap + ' of your ' + r.userCount + ' risk' + (r.userCount === 1 ? '' : 's') + ' also appear in this type · ' + esc(r.typical) + ')</div>' +
+          '</div>').join('') +
+          '</div>' +
+          '<p class="vh-note">Local comparison — no network calls. Uses the same regex engine as the live analysis, so the match is exactly what ClearDoc would catch in the reference contract.</p>';
+        await showConfirmModal({
+          title: '📚 Compare to a famous contract',
+          bodyHtml: bodyHtml,
+          confirmLabel: 'Close',
+        });
       });
     }
 

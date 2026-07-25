@@ -4992,6 +4992,51 @@ test("analyzer: recent-analyses mini-stats summarize engagement in the result ro
     ".recent-stats must have a background tint (pill style)");
 });
 
+test("analyzer: Compare-to-famous-contract benchmarks the input against known contract types", () => {
+  // New feature — power-user tool. Compares the current input
+  // against well-known contracts (SaaS ToS, residential lease,
+  // generic NDA, SaaS subscription) and shows the match %.
+  // Helps users understand "this is similar to a typical SaaS ToS".
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: button must exist
+  assert.match(html, /id="famousContractBtn"/,
+    "analyze.html must contain #famousContractBtn");
+
+  // Must include the famous contracts database
+  assert.match(appSrc, /FAMOUS_CONTRACTS\s*=/,
+    "must define FAMOUS_CONTRACTS database");
+  // Must include all 4 categories
+  for(const cat of ["SaaS Terms of Service", "Residential Lease", "Non-Disclosure", "Subscription"]){
+    assert.ok(appSrc.includes(cat),
+      "FAMOUS_CONTRACTS must include '" + cat + "'");
+  }
+
+  // Click handler must use matchRisks on each famous contract
+  assert.match(appSrc, /famousContractBtn\.addEventListener[\s\S]+?matchRisks\(fc\.doc\)/,
+    "must run matchRisks on each famous contract's snippet");
+  // Must compute overlap (risk labels common to both)
+  assert.match(appSrc, /famousContractBtn\.addEventListener[\s\S]+?overlap/,
+    "must compute the risk-label overlap between user and famous");
+  // Must sort by score desc
+  assert.match(appSrc, /famousContractBtn\.addEventListener[\s\S]+?sort\(/,
+    "must sort the comparison by match score");
+  // Must use the existing confirm modal
+  assert.match(appSrc, /famousContractBtn\.addEventListener[\s\S]+?showConfirmModal/,
+    "must use the existing confirm modal");
+
+  // CSS
+  assert.match(cssSrc, /\.fc-row\{[^}]*border/,
+    ".fc-row must have a visible border");
+  assert.match(cssSrc, /\.fc-type\{[^}]*var\(--ink\)/,
+    ".fc-type must use --ink (chip style)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
