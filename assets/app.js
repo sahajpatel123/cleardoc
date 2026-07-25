@@ -1728,7 +1728,7 @@
           savedVersionSelect=$('#savedVersionSelect'),savedVersionSnippet=$('#savedVersionSnippet'),
           versionHistoryBtn=$('#versionHistoryBtn'),riskTrendBtn=$('#riskTrendBtn'),
           playbookBtn=$('#playbookBtn'),recentStats=$('#recentStats'),
-          famousContractBtn=$('#famousContractBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
+          famousContractBtn=$('#famousContractBtn'),timelineBtn=$('#timelineBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -5619,6 +5619,41 @@
         await showConfirmModal({
           title: '📚 Compare to a famous contract',
           bodyHtml: bodyHtml,
+          confirmLabel: 'Close',
+        });
+      });
+    }
+
+    // Iter #83: "Recent documents" timeline — show a visual
+    // timeline of when analyses were done. Reads from the same
+    // readHistoryRaw() that the iter #25 history uses (single
+    // source of truth). Renders a vertical dot-line-dash timeline.
+    if(timelineBtn){
+      timelineBtn.addEventListener('click', async () => {
+        if(typeof readHistoryRaw !== 'function') return;
+        const arr = readHistoryRaw();
+        if(arr.length === 0){
+          showAnalyzeToast('📅 No analyses yet');
+          return;
+        }
+        // Most recent first, max 8 entries
+        const items = arr.slice(0, 8);
+        const rows = items.map((h, i) => {
+          const ago = (Date.now() - h.ts) < 60000 ? 'just now' :
+            (typeof formatRelativeTime === 'function' ? formatRelativeTime(h.ts) : 'recently');
+          const snippet = h.snippet || '';
+          return '<div class="tl-row' + (i === 0 ? ' tl-latest' : '') + '">' +
+            '<div class="tl-dot"></div>' +
+            '<div class="tl-body">' +
+              '<div class="tl-time">' + esc(ago) + (i === 0 ? ' (latest)' : '') + '</div>' +
+              '<div class="tl-text">' + esc(snippet.slice(0, 120)) + (snippet.length > 120 ? '…' : '') + '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+        await showConfirmModal({
+          title: '📅 Recent documents (' + arr.length + ')',
+          bodyHtml: '<div class="tl-list">' + rows + '</div>' +
+            '<p class="vh-note">Local timeline — never leaves your device. Most recent first, max 8 shown. Restored docs use the iter #25 history entries.</p>',
           confirmLabel: 'Close',
         });
       });

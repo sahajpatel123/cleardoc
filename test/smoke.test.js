@@ -5037,6 +5037,43 @@ test("analyzer: Compare-to-famous-contract benchmarks the input against known co
     ".fc-type must use --ink (chip style)");
 });
 
+test("analyzer: Recent-documents timeline shows a visual chronology of past analyses", () => {
+  // New feature — a vertical dot-line-dash timeline of the user's
+  // recent analyses. Reads from the same readHistoryRaw() that the
+  // iter #25 history uses (single source of truth).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: button must exist
+  assert.match(html, /id="timelineBtn"/,
+    "analyze.html must contain #timelineBtn");
+  assert.match(html, /📅 timeline/,
+    "timeline button must be labeled '📅 timeline'");
+
+  // Click handler must use the existing readHistoryRaw
+  assert.match(appSrc, /timelineBtn\.addEventListener[\s\S]+?readHistoryRaw/,
+    "timeline must use the existing readHistoryRaw()");
+  // Must use the existing confirm modal
+  assert.match(appSrc, /timelineBtn\.addEventListener[\s\S]+?showConfirmModal/,
+    "timeline must use the existing confirm modal");
+  // Must render the tl-row class for each item
+  assert.match(appSrc, /timelineBtn\.addEventListener[\s\S]+?tl-row/,
+    "timeline must render .tl-row per item");
+  // Must show a message when no history exists
+  assert.match(appSrc, /timelineBtn\.addEventListener[\s\S]+?No analyses yet/,
+    "timeline must show 'No analyses yet' when history is empty");
+
+  // CSS
+  assert.match(cssSrc, /\.tl-dot\{[^}]*border-radius:\s*50/,
+    ".tl-dot must be a circle (border-radius: 50%)");
+  assert.match(cssSrc, /\.tl-latest \.tl-dot\{[^}]*background:\s*var\(--accent/,
+    ".tl-latest .tl-dot must use --accent (highlight the latest entry)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
