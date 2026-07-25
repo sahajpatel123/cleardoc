@@ -5186,6 +5186,9 @@
       // they cook / drive / walk.
       const voiceBtn = document.getElementById('voiceModeBtn');
       const voiceStopBtn = document.getElementById('voiceModeStopBtn');
+      // Iter #108: reveal cheat-sheet button alongside voice mode.
+      const cheatSheetBtn = document.getElementById('cheatSheetBtn');
+      if(cheatSheetBtn) cheatSheetBtn.hidden = false;
       const voiceMeter = document.getElementById('voiceModeMeter');
       const showVoiceBtn = () => { if(voiceBtn) voiceBtn.hidden = false; };
       // Iter #107 polish: hold the playback queue so prev / next /
@@ -5264,6 +5267,121 @@
       }
       const voicePrevBtn = document.getElementById('voiceModePrevBtn');
       const voiceNextBtn = document.getElementById('voiceModeNextBtn');
+
+      // Iter #108: cheat-sheet modal — assemble a printable, single-page
+      // summary of the entire analysis suitable for walking into a meeting
+      // or sending to a lawyer. Pure local; built from already-rendered DOM.
+      const cheatBtn = document.getElementById('cheatSheetBtn');
+      if(cheatBtn){
+        cheatBtn.addEventListener('click', () => {
+          if(typeof showConfirmModal !== 'function') return;
+          // Pull the current analyzer outputs
+          const maturity = (function(){
+            try {
+              const v = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
+              const n = maturityGrid && maturityGrid.querySelector('.mat-letter-num');
+              if(v && n) return v.textContent + ' (' + n.textContent.replace(/[^0-9]/g,'') + '/100)';
+            } catch(_){}
+            return null;
+          })();
+          const exposure = (function(){
+            try {
+              const txt = riskDetail && riskDetail.textContent || '';
+              const m = txt.match(/worst-case exposure[^A-Z]*\$[0-9,]+/i);
+              if(m) return m[0];
+            } catch(_){}
+            return null;
+          })();
+          const jurisdiction = (function(){
+            try {
+              const j = jurisRow && jurisRow.querySelector('.juris-label');
+              if(j) return j.textContent;
+            } catch(_){}
+            return null;
+          })();
+          const tally = (function(){
+            const t = { r: 0, a: 0, g: 0 };
+            (lastFlags || []).forEach(f => { t[f.rule.sev] = (t[f.rule.sev]||0) + 1; });
+            return t;
+          })();
+          const topRisks = (lastFlags || []).slice(0, 5).map(f => '<li class="cheat-li"><span class="cheat-tag">' + esc(f.rule.label) + '</span>' + esc(String(f.rule.why || '').slice(0, 140)) + '</li>').join('') || '<li class="cheat-li"><i>No risk patterns matched.</i></li>';
+          const keyClauses = (function(){
+            const r = document.querySelectorAll('#keyClauseList .kc-row');
+            if(!r || !r.length) return '<li class="cheat-li"><i>Run analyze to populate.</i></li>';
+            return Array.from(r).slice(0, 4).map(row => '<li class="cheat-li">' + esc((row.textContent || '').trim().slice(0, 200)) + '</li>').join('');
+          })();
+          const gaps = (function(){
+            const r = document.querySelectorAll('#gapList .gap-label');
+            if(!r || !r.length) return '<li class="cheat-li"><i>No missing clauses.</i></li>';
+            return Array.from(r).slice(0, 6).map(row => '<li class="cheat-li">' + esc((row.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
+          const checklist = (function(){
+            const r = document.querySelectorAll('#actionGrid .act-item');
+            if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
+            return Array.from(r).slice(0, 8).map(row => '<li class="cheat-li">' + esc((row.textContent || '').trim().slice(0, 160)) + '</li>').join('');
+          })();
+          const html =
+            '<div class="cheat-sheet-modal">' +
+              '<div class="cheat-header">' +
+                '<h2 class="cheat-title">Negotiator Cheat Sheet</h2>' +
+                '<span class="cheat-meta">' + esc(new Date().toLocaleString()) + ' · ClearDoc</span>' +
+              '</div>' +
+              '<div class="cheat-scorecard">' +
+                '<div class="cheat-card"><div class="cheat-card-label">Maturity</div><div class="cheat-card-val">' + esc(maturity || '—') + '</div></div>' +
+                '<div class="cheat-card"><div class="cheat-card-label">Worst case</div><div class="cheat-card-val">' + esc(exposure || '—') + '</div></div>' +
+                '<div class="cheat-card"><div class="cheat-card-label">Venue</div><div class="cheat-card-val">' + esc(jurisdiction || '—') + '</div></div>' +
+                '<div class="cheat-card"><div class="cheat-card-label">Risk tally</div><div class="cheat-card-val">' + (tally.r + 'r/' + tally.a + 'a/' + tally.g + 'g') + '</div></div>' +
+              '</div>' +
+              '<div class="cheat-section"><div class="cheat-section-title">Top risks</div><ul style="padding-left:18px;margin:0">' + topRisks + '</ul></div>' +
+              '<div class="cheat-section"><div class="cheat-section-title">Clauses to read twice</div><ul style="padding-left:18px;margin:0">' + keyClauses + '</ul></div>' +
+              '<div class="cheat-section"><div class="cheat-section-title">What the document is missing</div><ul style="padding-left:18px;margin:0">' + gaps + '</ul></div>' +
+              '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
+              '<div class="cheat-actions">' +
+                '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print</button>' +
+                '<button type="button" class="ghost-btn cheat-btn" id="cheatCopyBtn">📋 copy as text</button>' +
+                '<button type="button" class="ghost-btn cheat-btn kb-modal-cancel" data-acm="0">close</button>' +
+              '</div>' +
+            '</div>';
+          showConfirmModal({
+            title: 'Negotiator cheat sheet',
+            bodyHtml: html,
+            confirmLabel: '✓ got it',
+          });
+          // Wire print + copy after the modal mounts
+          setTimeout(() => {
+            const printBtn = document.getElementById('cheatPrintBtn');
+            const copyBtn = document.getElementById('cheatCopyBtn');
+            if(printBtn){
+              printBtn.addEventListener('click', () => {
+                try { window.print(); } catch(_){ /* ignore */ }
+              });
+            }
+            if(copyBtn){
+              copyBtn.addEventListener('click', async () => {
+                const text = 'NEGOTIATOR CHEAT SHEET — ' + new Date().toLocaleString() + '\n'
+                  + 'Maturity: ' + (maturity || '—') + '\n'
+                  + 'Worst case: ' + (exposure || '—') + '\n'
+                  + 'Venue: ' + (jurisdiction || '—') + '\n'
+                  + 'Risk tally: ' + (tally.r + 'r/' + tally.a + 'a/' + tally.g + 'g') + '\n\n'
+                  + '--- Top risks ---\n' + (lastFlags || []).slice(0,5).map(f => '[' + f.rule.label + '] ' + (f.rule.why || '')).join('\n') + '\n\n'
+                  + 'Generated by ClearDoc (cleardoc.app)';
+                try {
+                  if(navigator.clipboard) await navigator.clipboard.writeText(text);
+                  else throw new Error('no-clip');
+                } catch(_){
+                  try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                  } catch(_){ /* ignore */ }
+                }
+                if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📋 Cheat sheet copied!');
+                copyBtn.textContent = '✓ copied!';
+                setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy as text'; }, 2500);
+              });
+            }
+          }, 50);
+        });
+      }
       const voicePauseBtn = document.getElementById('voiceModePauseBtn');
       if(voicePrevBtn){
         voicePrevBtn.addEventListener('click', () => {

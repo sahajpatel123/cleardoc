@@ -7010,3 +7010,39 @@ test("analyzer: Voice-mode reader plays every analysis block aloud in order", ()
   assert.match(appSrc, /window\.speechSynthesis\.pause[\s\S]+?resume/,
     "iter #107 must use pause/resume for the play/pause toggle");
 });
+
+// Iter #108: cheat-sheet modal — printable single-page summary of
+// the analysis for meetings / lawyer hand-off. Pure local; built
+// from already-rendered DOM.
+test("analyzer: Cheat-sheet modal generates a printable negotiator summary", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html
+  assert.match(html, /id="cheatSheetBtn"/,
+    "analyze.html must contain #cheatSheetBtn");
+  assert.match(html, /cheat-sheet/i, "cheat-sheet string must be referenced");
+
+  // app.js
+  assert.match(appSrc, /document\.getElementById\(['"]cheatSheetBtn['"]\)/,
+    "cheatSheetBtn must be wired via document.getElementById");
+  assert.match(appSrc, /cheat-sheet-modal/,
+    "render must produce a .cheat-sheet-modal container");
+  assert.match(appSrc, /cheat-scorecard|cheat-header|cheat-section-title/,
+    "cheat-sheet must include scorecard / sections");
+  assert.match(appSrc, /window\.print\(\)/,
+    "cheat-sheet must offer a print button");
+  // Copy-as-text path must use clipboard fallback
+  assert.match(appSrc, /cheatCopyBtn[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
+    "cheat-sheet copy must use clipboard fallback");
+
+  // CSS: modal + print styles
+  assert.match(cssSrc, /\.cheat-sheet-modal\b/,
+    ".cheat-sheet-modal style must exist");
+  assert.match(cssSrc, /@media\s+print/,
+    "cheat-sheet must include print-specific styles");
+});

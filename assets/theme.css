@@ -1177,6 +1177,29 @@ button.risk-preview:hover{filter:brightness(.96)}
 .voice-mode-stop-btn{font-size:12px;color:var(--danger)}
 .voice-mode-meter{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;margin-left:6px}
 
+/* Cheat-sheet modal (iter #108) — single-page printable. */
+.cheat-sheet-modal{max-width:760px;width:96vw;max-height:88vh;overflow-y:auto;background:var(--paper);border:2px solid var(--ink);padding:var(--s3);font-family:'Archivo',sans-serif}
+.cheat-header{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
+.cheat-title{font-size:var(--t-h2);font-weight:800;color:var(--ink);margin:0;font-family:'Archivo Black',sans-serif}
+.cheat-meta{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);margin-left:auto}
+.cheat-scorecard{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.cheat-card{border:var(--bd-hair) solid var(--ink);padding:6px 8px;background:var(--paper2)}
+.cheat-card-label{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em}
+.cheat-card-val{font-size:16px;font-weight:800;color:var(--ink);font-family:'JetBrains Mono',monospace}
+.cheat-section{margin-top:14px;padding:8px 0;border-top:1px solid var(--ink-soft)}
+.cheat-section-title{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);text-transform:uppercase;letter-spacing:.06em;color:var(--ink);font-weight:700;margin-bottom:6px}
+.cheat-li{padding:3px 0;font-size:var(--t-meta);line-height:1.4;color:var(--ink);border-bottom:1px dashed var(--bd-hair)}
+.cheat-li:last-child{border-bottom:none}
+.cheat-tag{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;background:var(--ink);color:var(--paper);padding:1px 5px;font-weight:700;margin-right:6px}
+.cheat-actions{display:flex;gap:8px;margin-top:14px;padding-top:10px;border-top:2px solid var(--ink);flex-wrap:wrap}
+.cheat-btn{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);text-transform:uppercase;letter-spacing:.06em}
+@media print{
+  .cheat-sheet-modal{max-width:100%;max-height:none;padding:var(--s2)}
+  .cheat-actions{display:none}
+  body *{visibility:hidden}
+  .cheat-sheet-modal,.cheat-sheet-modal *{visibility:visible}
+}
+
  * (explicit vs inferred). Pure local; the venue is one of the
  * biggest levers in a contract — most users never think to ask for
  * their own home state. */
