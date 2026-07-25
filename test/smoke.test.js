@@ -6703,3 +6703,41 @@ test("analyzer: Currency scanner surfaces every monetary amount in the document"
   assert.match(cssSrc, /\.cur-total-pill\b/,
     ".cur-total-pill style must exist");
 });
+
+// Iter #99: currency polish — click-to-jump row → textarea, only-big
+// filter chip, why-modal explainer. Re-renders don't stack controls.
+test("analyzer: Currency block polished with click-to-jump + only-big + why-modal", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Delegated click handler on currency rows + selectRange
+  assert.match(appSrc, /cur-row[\s\S]+?addEventListener\(['"]click['"]/,
+    "currency rows must be clickable");
+  assert.match(appSrc, /data-cur-raw[\s\S]+?setSelectionRange/,
+    "click handler must use setSelectionRange to highlight the amount");
+
+  // Only-big filter chip + cur-only-big class
+  assert.match(appSrc, /curOnlyBigBtn/,
+    "only-big chip must exist");
+  assert.match(appSrc, /cur-only-big/,
+    "filter must toggle cur-only-big class");
+
+  // Why modal — iter #99 explainer
+  assert.match(appSrc, /curWhyBtn/,
+    "why modal chip must exist");
+  assert.match(appSrc, /curWhyBtn[\s\S]+?showConfirmModal[\s\S]+?Why do these numbers matter/,
+    "why modal must open with 'Why do these numbers matter?'");
+
+  // CSS
+  assert.match(cssSrc, /\.cur-row\b[^}]*cursor:pointer/,
+    ".cur-row must show pointer cursor");
+  assert.match(cssSrc, /\.currency-list\.cur-only-big/,
+    "filter rule must hide non-big rows when cur-only-big is on");
+
+  // clearCurrencyControls helper so re-renders don't stack chips
+  assert.match(appSrc, /function clearCurrencyControls\(/,
+    "clearCurrencyControls must exist");
+});

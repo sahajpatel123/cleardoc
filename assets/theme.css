@@ -1103,6 +1103,13 @@ button.risk-preview:hover{filter:brightness(.96)}
 .cur-row .cur-snippet{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cur-total-pill{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;background:var(--paper);color:var(--ink);padding:1px 6px;border:var(--bd-hair) solid var(--ink-soft);margin-left:4px;font-weight:700}
 .cur-why{margin-left:8px;font-size:11px;padding:2px 8px}
+/* Iter #99 polish — currency row click, hide-small, and controls */
+.cur-row{cursor:pointer;text-align:left;background:var(--paper2);transition:filter .15s ease}
+.cur-row:hover{filter:brightness(.94)}
+.currency-list.cur-only-big .cur-row:not(.cur-big){display:none}
+.cur-controls{margin-top:6px;display:flex;gap:6px;align-items:center;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;font-size:var(--t-meta)}
+.cur-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;font-size:var(--t-micro);margin-right:auto}
+.cur-only-big{margin-left:0}
 
  * (explicit vs inferred). Pure local; the venue is one of the
  * biggest levers in a contract — most users never think to ask for

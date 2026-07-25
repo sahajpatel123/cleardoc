@@ -3075,28 +3075,101 @@
     function renderCurrencyBlock(result){
       if(!currencyBlock || !currencyList || !result) return;
       if(!result.hasAmounts){ currencyBlock.hidden = true; return; }
-      const rows = result.hits.map(h => {
+      const rows = result.hits.map((h, i) => {
         const isBig = h.value >= 100000;
-        return '<div class="cur-row' + (isBig ? ' cur-big' : '') + '">' +
+        return '<button type="button" class="cur-row' + (isBig ? ' cur-big' : '') + '"' +
+          ' data-cur-idx="' + i + '" data-cur-raw="' + esc(h.raw) + '"' +
+          ' title="Click to jump to this amount in the source">' +
           '<span class="cur-sym">' + esc(h.sym) + '</span>' +
           '<span class="cur-val">' + h.value.toLocaleString('en-US') + '</span>' +
           '<span class="cur-code">' + esc(h.code) + '</span>' +
-          '<code class="cur-snippet" title="' + esc(h.raw) + '">' + esc(h.raw) + '</code>' +
-        '</div>';
+          '<code class="cur-snippet">' + esc(h.raw) + '</code>' +
+        '</button>';
       }).join('');
       const breakdown = Object.keys(result.totals).sort((a, b) => result.totals[b] - result.totals[a]).map(c => {
         return '<span class="cur-total-pill">' + esc(c) + ' ' + result.totals[c].toLocaleString('en-US') + '</span>';
       }).join(' ');
       currencyList.innerHTML = rows;
+      // Iter #99: small-amount filter chip + currency count + sort
+      const controls =
+        '<div class="cur-controls">' +
+          '<span class="cur-count">' + result.hits.length + ' of ' + result.hits.length + ' amounts</span>' +
+          '<button type="button" class="cur-only-big ghost-btn ghost-btn-sm" id="curOnlyBigBtn" title="Hide amounts under $100,000">only $100k+</button>' +
+          '<button type="button" class="cur-why ghost-btn ghost-btn-sm" id="curWhyBtn" title="Why do these numbers matter?">why?</button>' +
+        '</div>';
       currencyBlock.hidden = false;
       if(currencyNote){
         currencyNote.innerHTML =
           '<span class="riskNote-lead">Found ' + result.hits.length + ' amount' + (result.hits.length === 1 ? '' : 's') + ' in ' +
           Object.keys(result.totals).length + ' currenc' + (Object.keys(result.totals).length === 1 ? 'y' : 'ies') + '</span> ' +
           'Subtotal (rough FX): <b style="color:var(--ink)">~$' +
-          Math.round(result.totalUSD).toLocaleString('en-US') + ' USD</b> · ' + breakdown +
-          ' <button type="button" class="cur-why ghost-btn ghost-btn-sm" title="Where do these numbers come from?">why?</button>';
+          Math.round(result.totalUSD).toLocaleString('en-US') + ' USD</b> · ' + breakdown;
       }
+      // Append controls below the list so they sit between list and footer.
+      currencyList.insertAdjacentHTML('afterend', controls);
+      // Iter #99: wire row click → jump to source, filter chip, why modal.
+      $$('.cur-row', currencyList).forEach(btn => {
+        btn.addEventListener('click', () => {
+          if(!input) return;
+          const raw = btn.getAttribute('data-cur-raw') || '';
+          if(!raw) return;
+          const idx = input.value.indexOf(raw);
+          if(idx < 0 && raw.length > 6){
+            const idx2 = input.value.indexOf(raw.slice(0, Math.max(6, Math.floor(raw.length / 2))));
+            if(idx2 >= 0){
+              try { input.focus(); input.setSelectionRange(idx2, idx2 + raw.length); } catch(_){ /* ignore */ }
+            } else if(typeof showAnalyzeToast === 'function'){
+              showAnalyzeToast('⚠ Amount no longer in input — the doc was edited');
+            }
+          } else if(idx >= 0){
+            try { input.focus(); input.setSelectionRange(idx, idx + raw.length); } catch(_){ /* ignore */ }
+            if(typeof input.scrollIntoView === 'function'){
+              try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+            }
+          }
+        });
+      });
+      const onlyBtn = document.getElementById('curOnlyBigBtn');
+      if(onlyBtn){
+        onlyBtn.addEventListener('click', () => {
+          const on = currencyList.classList.toggle('cur-only-big');
+          onlyBtn.textContent = on ? 'show all amounts' : 'only $100k+';
+          onlyBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+          // Update the count chip
+          const visible = currencyList.querySelectorAll('.cur-row').length;
+          const total = result.hits.length;
+          const countEl = currencyBlock.querySelector('.cur-count');
+          if(countEl){
+            countEl.textContent = (on ? visible : total) + ' of ' + total + ' amounts';
+          }
+        });
+      }
+      const whyBtn = document.getElementById('curWhyBtn');
+      if(whyBtn){
+        whyBtn.addEventListener('click', () => {
+          if(typeof showConfirmModal === 'function'){
+            showConfirmModal({
+              title: 'Why do these numbers matter?',
+              bodyHtml:
+                '<p>Contracts often mix currencies when parties cross borders (a US startup contracting with an EU client). Getting the totals wrong is a classic source of late-stage renegotiation.</p>' +
+                '<p>Three rules of thumb:</p>' +
+                '<ol style="margin:6px 0 0 18px;padding:0"><li><b>Confirm the contract currency.</b> If amounts are in USD but you live in EUR, check who eats the conversion fee.</li>' +
+                '<li><b>Watch for unit mismatches.</b> "Fifty thousand" may be ¥50,000 (~$330) or $50,000 (€46,000) — Read them aloud.</li>' +
+                '<li><b>Negotiate price re-opener clauses</b> if the FX moves more than 5% in either direction during the term.</li></ol>' +
+                '<p class="apply-confirm-note">FX rates here are hard-coded and roughly current; not a substitute for a finance-grade quote.</p>',
+              confirmLabel: 'Got it',
+            });
+          }
+        });
+      }
+    }
+
+    // Iter #99: cleanup of controls-row duplicates across re-renders so a
+    // second analysis doesn’t end up with two “only $100k+” chips.
+    function clearCurrencyControls(){
+      if(!currencyBlock) return;
+      const old = currencyBlock.querySelector('.cur-controls');
+      if(old) old.remove();
     }
 
     function renderCoverageStrip(ctx){
@@ -3364,8 +3437,10 @@
       // monetary amount in the doc grouped by currency. Pure local.
       if(currencyBlock && typeof detectCurrency === 'function'){
         const cur = detectCurrency(raw);
+        clearCurrencyControls();
         renderCurrencyBlock(cur);
       } else if(currencyBlock) {
+        clearCurrencyControls();
         currencyBlock.hidden = true;
       }
 
