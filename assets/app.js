@@ -3222,6 +3222,11 @@
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
       if(!result.items.length){ actionBlock.hidden = true; return; }
+      // Iter #103: per-item check-state persisted in localStorage so the
+      // checklist survives reloads. Keyed by item.key (e.g. "notarize").
+      const STORAGE_KEY = 'cleardoc:signing-checklist';
+      let completed = {};
+      try { completed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch(_){ completed = {}; }
       // Group by WHO so the user sees 'what YOU need to do first'.
       const grouped = { you: [], lawyer: [], notary: [], counterparty: [] };
       result.items.forEach(it => {
@@ -3230,27 +3235,75 @@
       });
       const order = ['you','counterparty','lawyer','notary'];
       const labels = { you:'👤 You do', counterparty:'🤝 Counterparty does', lawyer:'⚖ Lawyer reviews', notary:'📜 Notary witnesses' };
+      const totalForCounter = result.items.length;
+      const doneCount = result.items.filter(it => completed[it.key]).length;
       const cells = order.filter(k => grouped[k].length).map(k => (
         '<div class="act-group act-' + k + '">' +
           '<div class="act-group-kicker">' + labels[k] + '</div>' +
           '<ul class="act-list">' +
-            grouped[k].map(it => (
-              '<li class="act-item" title="Click to jump to the matching clause">' +
-                '<span class="act-glyph">☑</span>' +
+            grouped[k].map(it => {
+              const checked = completed[it.key] ? ' act-checked' : '';
+              return '<li class="act-item' + checked + '" data-act-key="' + esc(it.key) + '" data-act-matched="' + esc(it.matched) + '" title="Click to toggle done / click body to jump to source">' +
+                '<button type="button" class="act-glyph-btn" data-act-check="' + esc(it.key) + '" aria-label="Toggle done">' + (completed[it.key] ? '✓' : '☑') + '</button>' +
                 '<div class="act-body">' +
                   '<div class="act-label">' + esc(it.label) + '</div>' +
                   '<div class="act-hint">' + esc(it.hint) + '</div>' +
                 '</div>' +
-              '</li>'
-            )).join('') +
+              '</li>';
+            }).join('') +
           '</ul>' +
         '</div>'
       )).join('');
-      actionGrid.innerHTML = cells;
+      // Iter #103: counter + reset chip
+      const controls =
+        '<div class="act-controls">' +
+          '<span class="act-count"><b>' + doneCount + '</b> of ' + totalForCounter + ' done</span>' +
+          '<button type="button" class="act-reset ghost-btn ghost-btn-sm" id="actResetBtn" title="Reset all checkmarks">reset all</button>' +
+        '</div>';
+      actionGrid.innerHTML = cells + controls;
       actionBlock.hidden = false;
       if(actionNote){
         actionNote.innerHTML = '<span class="riskNote-lead">' + result.count + ' task' + (result.count === 1 ? '' : 's') + ' before signing</span> ' +
-          'Inline checklist grouped by who acts. Click an item to jump to the matching clause.';
+          'Click an item to mark done (saved on this device only). Click its label to jump to the matching clause.';
+      }
+      // Iter #103: delegated click handler — toggle vs jump-to-source.
+      $$('.act-item', actionGrid).forEach(li => {
+        li.addEventListener('click', (e) => {
+          const checkBtn = e.target.closest && e.target.closest('[data-act-check]');
+          if(checkBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const key = checkBtn.getAttribute('data-act-check') || '';
+            let done = {};
+            try { done = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch(_){ done = {}; }
+            done[key] = !done[key];
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(done)); } catch(_){ /* quota? */ }
+            renderActionsBlock(result); // re-render with fresh state
+            return;
+          }
+          const matched = li.getAttribute('data-act-matched') || '';
+          if(matched && input){
+            const idx2 = input.value.indexOf(matched);
+            if(idx2 >= 0){
+              try { input.focus(); input.setSelectionRange(idx2, idx2 + matched.length); } catch(_){ /* ignore */ }
+              if(typeof input.scrollIntoView === 'function'){
+                try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+              }
+            } else if(typeof showAnalyzeToast === 'function'){
+              showAnalyzeToast('⚠ Clause no longer in input — the doc was edited');
+            }
+          }
+        });
+      });
+      const resetBtn = document.getElementById('actResetBtn');
+      if(resetBtn){
+        resetBtn.addEventListener('click', () => {
+          try { localStorage.removeItem(STORAGE_KEY); } catch(_){ /* ignore */ }
+          renderActionsBlock(result);
+          if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('🔄 Checklist reset');
+          }
+        });
       }
     }
 

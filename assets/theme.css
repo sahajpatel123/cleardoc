@@ -1145,9 +1145,13 @@ button.risk-preview:hover{filter:brightness(.96)}
 .act-item:last-child{border-bottom:none}
 .act-item:hover{filter:brightness(.95)}
 .act-glyph{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--ink);min-width:18px;flex-shrink:0}
-.act-body{flex:1;min-width:0}
-.act-label{font-size:var(--t-meta);font-weight:700;color:var(--ink)}
-.act-hint{font-size:var(--t-micro);color:var(--ink-soft);font-style:italic}
+.act-glyph-btn{margin:0;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--ink);min-width:18px;flex-shrink:0;background:transparent;border:none;cursor:pointer;font-size:16px;padding:0}
+.act-body{flex:1;min-width:0;cursor:pointer}
+.act-item.act-checked .act-label,.act-item.act-checked .act-hint{text-decoration:line-through;color:var(--ink-soft)}
+.act-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-meta)}
+.act-count{font-family:'JetBrains Mono',monospace;color:var(--ink);text-transform:uppercase;font-size:var(--t-micro);margin-right:auto}
+.act-count b{font-weight:700;color:var(--green)}
+.act-reset{margin-left:0;font-size:11px;padding:2px 8px}
 
  * (explicit vs inferred). Pure local; the venue is one of the
  * biggest levers in a contract — most users never think to ask for

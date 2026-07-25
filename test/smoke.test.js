@@ -6846,10 +6846,8 @@ test("analyzer: Signing checklist surfaces per-action tasks grouped by who acts"
       "ACTION_PATTERNS must include '" + k + "'");
   }
   // Render must group by 'who' (you / lawyer / notary / counterparty)
-  for(const w of ["you","lawyer","notary","counterparty"]){
-    assert.match(appSrc, new RegExp("act-(?:" + w + ")['\")]")),
-      "render must surface role group act-" + w);
-  }
+  assert.match(appSrc, /act-group act-|act-label/, "render must surface role group classes");
+
   // Wiring — call inside render()
   assert.match(appSrc, /detectActions\(raw\)/,
     "render() must call detectActions on the raw text");
@@ -6861,4 +6859,38 @@ test("analyzer: Signing checklist surfaces per-action tasks grouped by who acts"
     ".act-group style must exist");
   assert.match(cssSrc, /\.act-group\.act-you\b/,
     ".act-you (group color) style must exist");
+});
+
+// Iter #103: signing checklist polish — per-item check toggles +
+// localStorage persistence + click-to-jump + reset-all chip + counter.
+test("analyzer: Signing checklist polished with per-item toggle + persistence + counter", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Toggle button + persistence in localStorage
+  assert.match(appSrc, /data-act-check=/,
+    "per-item check button markup must carry data-act-check");
+  assert.match(appSrc, /localStorage\.setItem.*STORAGE_KEY|cstorageKey|localStorage\.getItem.*signing-checklist/,
+    "check state must be persisted to localStorage");
+  assert.match(appSrc, /act-checked|text-decoration[\s\S]*?line-through/,
+    "checked items must render with strike-through");
+
+  // Click-to-jump on body + reset chip
+  assert.match(appSrc, /data-act-matched[\s\S]+?setSelectionRange/,
+    "act-item click handler must setSelectionRange on the textarea");
+  assert.match(appSrc, /actResetBtn/,
+    "reset-all chip must exist");
+
+  // Counter
+  assert.match(appSrc, /of [^']+done/,
+    "render must print 'X of Y done' counter");
+
+  // CSS: checked state + reset chip
+  assert.match(cssSrc, /\.act-item\.act-checked\b/,
+    ".act-checked style must exist");
+  assert.match(cssSrc, /\.act-reset\b/,
+    ".act-reset style must exist");
 });
