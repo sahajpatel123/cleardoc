@@ -1727,7 +1727,7 @@
           badgeExplainBtn=$('#badgeExplainBtn'),savedVersionBadge=$('#savedVersionBadge'),
           savedVersionSelect=$('#savedVersionSelect'),savedVersionSnippet=$('#savedVersionSnippet'),
           versionHistoryBtn=$('#versionHistoryBtn'),riskTrendBtn=$('#riskTrendBtn'),
-          playbookBtn=$('#playbookBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
+          playbookBtn=$('#playbookBtn'),recentStats=$('#recentStats'),voicePreviewBtn=$('#voicePreviewBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2926,6 +2926,28 @@
           if(resetBadgeBtn) resetBadgeBtn.hidden = true;
           if(badgeExplainBtn) badgeExplainBtn.hidden = true;
         }
+      }
+    }
+    // Iter #81: recent-analyses mini-stats — a small inline summary
+    // showing "N analyses · M risks caught" so users can see their
+    // engagement at a glance. Sits next to the risks-avoided badge.
+    // Hidden when both counts are 0 (no point showing zeros).
+    if(recentStats && typeof readHistoryRaw === 'function'){
+      const arr = readHistoryRaw();
+      const total = (arr.length || 0);
+      const caught = (typeof getRisksAvoided === 'function') ? (getRisksAvoided().count || 0) : 0;
+      if(total > 0 || caught > 0){
+        recentStats.hidden = false;
+        recentStats.textContent = '📊 ' + total + ' analyse' + (total === 1 ? 's' : 's') +
+          ' · ' + caught + ' risk' + (caught === 1 ? '' : 's') + ' caught';
+        recentStats.title = 'Across your last ' + total + ' analyse' + (total === 1 ? 's' : 's') +
+          ', ClearDoc caught ' + caught + ' risk' + (caught === 1 ? '' : 's') +
+          ' across all your analyses. ' +
+          (typeof formatRelativeTime === 'function' && arr[0] && arr[0].ts
+            ? 'Most recent: ' + formatRelativeTime(arr[0].ts) + '. '
+            : '');
+      } else {
+        recentStats.hidden = true;
       }
     }
 

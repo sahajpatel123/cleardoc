@@ -1064,6 +1064,7 @@ button.risk-preview:hover{filter:brightness(.96)}
 .result-actions .ghost-btn-sm{font-size:var(--t-meta-sm);font-weight:700;padding:3px 10px}
 .result-actions .saved-version-badge{font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-text);background:var(--accent-glow);border:var(--bd-hair) solid var(--accent);padding:5px 10px;white-space:nowrap;cursor:help}
 .result-actions .saved-version-snippet{font-size:var(--t-micro);color:var(--ink-soft);max-width:480px;padding:4px 0 0 4px;font-style:italic;line-height:1.4}
+.result-actions .recent-stats{font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);background:var(--paper2);border:var(--bd-hair) solid var(--ink-soft);padding:5px 10px;white-space:nowrap}
 /* Version-history modal (iter #76) — list of all saved versions
  * with date, count, and snippet. Active version is highlighted. */
 .vh-list{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow:auto;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}

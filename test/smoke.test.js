@@ -4956,6 +4956,42 @@ test("analyzer: severity filter narrows the risk list to a single severity", () 
     "change handler must update the visible-row count");
 });
 
+test("analyzer: recent-analyses mini-stats summarize engagement in the result row", () => {
+  // New feature — a small inline summary showing
+  // "📊 3 analyses · 14 risks caught" so users see their overall
+  // engagement at a glance. Sits next to the risks-avoided badge.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html: span must exist
+  assert.match(html, /id="recentStats"/,
+    "analyze.html must contain #recentStats");
+
+  // Must use the existing getRisksAvoided + readHistoryRaw helpers
+  assert.match(appSrc, /getRisksAvoided\(\)\.count/,
+    "must use getRisksAvoided to read the caught-risk count");
+  assert.match(appSrc, /readHistoryRaw\(\)/,
+    "must use readHistoryRaw to read the analysis count");
+
+  // Must include "analyses" and "risks caught" in the text
+  assert.match(appSrc, /analyses/,
+    "stats text must include 'analyses'");
+  assert.match(appSrc, /caught/,
+    "stats text must include 'caught'");
+
+  // Hidden when both counts are 0
+  assert.match(appSrc, /recentStats\.hidden\s*=\s*true/,
+    "stats must be hidden when both counts are 0");
+
+  // CSS
+  assert.match(cssSrc, /\.recent-stats\{[^}]*background/,
+    ".recent-stats must have a background tint (pill style)");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
