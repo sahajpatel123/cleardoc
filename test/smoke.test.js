@@ -6931,3 +6931,30 @@ test("analyzer: Gap detector surfaces clauses the document is missing", () => {
   assert.match(cssSrc, /\.gap-row\b/, ".gap-row style must exist");
   assert.match(cssSrc, /\.gap-glyph\b/, ".gap-glyph style must exist");
 });
+
+// Iter #105: gap polish — per-row "ask for this" copy-to-clipboard +
+// category color stripe + risk/financial/procedural tally.
+test("analyzer: Gap detector polished with per-row copy + category tally", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Per-row copy button + clip handler
+  assert.match(appSrc, /data-gap-ask-action=/,
+    "per-row copy button must exist");
+  assert.match(appSrc, /data-gap-ask-action[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
+    "copy handler must use clipboard fallback");
+  // Category tally
+  assert.match(appSrc, /risk'[\s\S]+?'fin'[\s\S]+?'proc'|risk[\s\S]{0,40}fin[\s\S]{0,40}proc/,
+    "tally must cover risk/fin/proc categories");
+
+  // CSS
+  assert.match(cssSrc, /\.gap-row\.gap-cat-risk\b/,
+    ".gap-cat-risk style must exist");
+  assert.match(cssSrc, /\.gap-row\.gap-cat-fin\b/,
+    ".gap-cat-fin style must exist");
+  assert.match(cssSrc, /\.gap-ask\b/,
+    ".gap-ask button style must exist");
+});

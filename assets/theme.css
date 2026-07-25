@@ -1162,6 +1162,14 @@ button.risk-preview:hover{filter:brightness(.96)}
 .gap-label{font-size:var(--t-meta);color:var(--ink)}
 .gap-label b{font-weight:700}
 .gap-hint{font-size:var(--t-micro);color:var(--ink-soft);font-style:italic;margin-top:2px}
+.gap-row.gap-cat-risk{border-left:3px solid var(--danger);background:var(--danger-tint)}
+.gap-row.gap-cat-fin{border-left:3px solid var(--amber);background:var(--amber-tint)}
+.gap-row.gap-cat-proc{border-left:3px solid var(--ink-soft);background:var(--paper)}
+.gap-ask{margin-left:6px;font-size:11px;padding:2px 8px;cursor:pointer;flex-shrink:0;align-self:center}
+.gap-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-meta)}
+.gap-count{font-family:'JetBrains Mono',monospace;color:var(--ink);text-transform:uppercase;font-size:var(--t-micro);margin-right:auto}
+.gap-count b{font-weight:700}
+.gap-expand{margin-left:0;font-size:11px;padding:2px 8px}
 
  * (explicit vs inferred). Pure local; the venue is one of the
  * biggest levers in a contract — most users never think to ask for

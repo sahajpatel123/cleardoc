@@ -3227,40 +3227,40 @@
     // these because absence is invisible. Pure local — pattern-deny
     // detection on the analyzed text.
     const GAP_PATTERNS = [
-      { key: 'termination', label: 'Termination clause',
+      { key: 'termination', cat: 'risk', label: 'Termination clause',
         hint: 'How either party may end the agreement. Without it, you may be locked in.',
         re: /\b(?:term(?:inat(?:e|ion))|end|cancel)\s+this\s+(?:agreement|contract)|may\s+terminat/ },
-      { key: 'refund', label: 'Refund policy',
+      { key: 'refund', cat: 'fin', label: 'Refund policy',
         hint: 'Under what conditions you get money back. Default: usually none. Ask for at least a partial refund window.',
         re: /\b(?:refund|return[\s-]?(?:of|policy|window)|money[\s-]?back)\b/i },
-      { key: 'cancellation', label: 'Cancellation clause',
+      { key: 'cancellation', cat: 'risk', label: 'Cancellation clause',
         hint: 'How to cancel auto-renewals before they auto-charge you again.',
         re: /\bcancel(?:lation)?\b/i },
-      { key: 'dispute', label: 'Dispute resolution',
+      { key: 'dispute', cat: 'proc', label: 'Dispute resolution',
         hint: 'What happens if you and the other side disagree (mediation / arbitration / courts).',
         re: /\b(?:dispute\s+resolution|mediation|arbitration|small[\s-]?claims)\b/i },
-      { key: 'data', label: 'Data retention / privacy',
+      { key: 'data', cat: 'risk', label: 'Data retention / privacy',
         hint: 'How long they keep your data and how they delete it on request.',
         re: /\b(?:data\s+retention|retain[\s\S]*?data|right\s+to\s+(?:delet|eras|be\s+forgotten)|privacy\s+policy|GDPR|CCPA)\b/i },
-      { key: 'force', label: 'Force majeure',
+      { key: 'force', cat: 'proc', label: 'Force majeure',
         hint: 'What happens when an act of God (pandemic, war, hurricane) prevents performance.',
         re: /\bforce\s+majeure\b/i },
-      { key: 'liability', label: 'Liability cap',
+      { key: 'liability', cat: 'fin', label: 'Liability cap',
         hint: 'The maximum they can sue you for. Default: unlimited (bad).',
         re: /\b(?:limit(?:ation)?\s+of\s+liabilit|liability\s+cap|aggregate\s+liabilit)\b/i },
-      { key: 'warranty', label: 'Warranty disclaimer',
+      { key: 'warranty', cat: 'risk', label: 'Warranty disclaimer',
         hint: 'Their warranty for the product/service. Most contracts bury this — look for "AS IS".',
         re: /\b(?:warranty|warranties|guarantee|as[\s-]?is)\b/i },
-      { key: 'auto', label: 'Renewal / evergreen',
+      { key: 'auto', cat: 'risk', label: 'Renewal / evergreen',
         hint: 'How the contract auto-renews. If absent, you have to actively re-sign — usually better for you.',
         re: /\b(?:auto(?:matic(?:ally)?|mat)?\s*renew|evergreen|autorenew)\b/i },
-      { key: 'payment', label: 'Payment schedule',
+      { key: 'payment', cat: 'fin', label: 'Payment schedule',
         hint: 'When payments happen and what happens on late / missed ones.',
         re: /\b(?:payment\s+(?:schedule|terms|due)|invoice[\s\S]*?net\s+\d+|net[\s-]?\d+\s+days)\b/i },
-      { key: 'severability', label: 'Severability clause',
+      { key: 'severability', cat: 'proc', label: 'Severability clause',
         hint: "If one clause is void, the rest still stands. Without this, one bad clause can void the entire deal.",
         re: /\bseverab(?:ility|le)\b/i },
-      { key: 'notice', label: 'How to send notices',
+      { key: 'notice', cat: 'proc', label: 'How to send notices',
         hint: 'The legal address where official notices (termination, breach, etc.) must be sent.',
         re: /\b(?:notice\s+(?:shall|must|will)\s+be\s+(?:sent|delivered|given)|by\s+(?:certified|registered)\s+mail)\b/i },
     ];
@@ -3320,21 +3320,68 @@
     function renderGapBlock(result){
       if(!gapBlock || !gapList || !result) return;
       if(!result.items.length){ gapBlock.hidden = true; return; }
+      // Iter #105: category tally for the kicker + per-row color
+      const tally = { risk: 0, fin: 0, proc: 0 };
+      result.items.forEach(it => { const m = GAP_PATTERNS.find(p => p.key === it.key); if(m) tally[m.cat] = (tally[m.cat] || 0) + 1; });
+      const catLabel = (c) => c === 'risk' ? 'risk' : c === 'fin' ? 'financial' : 'procedural';
       const rows = result.items.map(it => (
-        '<div class="gap-row" title="This clause is NOT in the document">' +
+        '<div class="gap-row gap-cat-' + esc(GAP_PATTERNS.find(p => p.key === it.key)?.cat || 'proc') + '" data-gap-ask="' + esc('Please add a ' + it.label + ' section: ') + '" title="Click to copy a clipboard-ready ask-clause">' +
           '<span class="gap-glyph">○</span>' +
           '<div class="gap-body">' +
             '<div class="gap-label">No <b>' + esc(it.label) + '</b></div>' +
             '<div class="gap-hint">' + esc(it.hint) + '</div>' +
           '</div>' +
+          '<button type="button" class="gap-ask ghost-btn ghost-btn-sm" data-gap-ask-action="' + esc(it.label) + '" title="Copy a &quot;please add this&quot; clause to clipboard">📝 ask for this</button>' +
         '</div>'
       )).join('');
-      gapList.innerHTML = rows;
+      const controls =
+        '<div class="gap-controls">' +
+          '<span class="gap-count">' + result.count + ' missing · ' +
+            (tally.risk ? '<b style="color:var(--danger)">' + tally.risk + ' risk</b> · ' : '') +
+            (tally.fin ? '<b style="color:var(--amber)">' + tally.fin + ' financial</b> · ' : '') +
+            (tally.proc ? '<b>' + tally.proc + ' procedural</b>' : '') +
+          '</span>' +
+          '<button type="button" class="gap-expand ghost-btn ghost-btn-sm" id="gapExpandBtn" title="Show every missing clause">show all ' + result.count + '</button>' +
+        '</div>';
+      gapList.innerHTML = rows + controls;
       gapBlock.hidden = false;
       if(gapNote){
         gapNote.innerHTML = '<span class="riskNote-lead">' + result.count + ' thing' + (result.count === 1 ? '' : 's') + ' missing</span> ' +
-          'Experienced negotiators ask for these explicitly because absence is silent. Click an item to copy a "please add this" snippet.';
+          'Experienced negotiators ask for these explicitly because absence is silent. Click any 📝 to copy a "please add this" starter clause.';
       }
+      // Iter #105: per-row click → copy a clipboard-ready ask clause
+      $$('.gap-ask', gapList).forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const label = btn.getAttribute('data-gap-ask-action') || 'clause';
+          const ask = '[REQUEST: Insert a "' + label + '" clause here. Suggested starting language: please add this section in plain English, citing applicable law and reasonable limits. Refusal to include this clause should be flagged to legal review.]';
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(ask);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = ask; ta.setAttribute('readonly','');
+              ta.style.position='absolute'; ta.style.left='-9999px';
+              document.body.appendChild(ta); ta.select();
+              document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast(copied ? '📝 "Please add this" copied!' : '⚠ Couldn’t copy — try selecting manually');
+          }
+          btn.textContent = copied ? '✓ copied!' : '📝 ask for this';
+          setTimeout(() => {
+            if(btn.isConnected) btn.textContent = '📝 ask for this';
+          }, 2500);
+        });
+      });
     }
 
     function clearKeyClausePreview(){
