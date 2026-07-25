@@ -1869,6 +1869,16 @@
       parts.push(
         '<div class="risk-detail-toolbar">',
           '<span class="rd-count">' + ordered.length + ' pattern' + (ordered.length === 1 ? '' : 's') + '</span>',
+          // Iter #80: severity filter — let users narrow the list
+          // to a single severity (power-user feature for focused
+          // analysis). Default is "all" (no filter). The change
+          // handler re-renders the risk list (iter #80 click handler).
+          '<select class="rd-severity-filter mono" data-rd-severity-filter aria-label="Filter risks by severity" title="Filter risks by severity">',
+            '<option value="">All severities</option>',
+            '<option value="r">🔴 Traps only</option>',
+            '<option value="a">🟡 Watches only</option>',
+            '<option value="g">🟢 Notes only</option>',
+          '</select>',
           '<button type="button" class="rd-apply-all" data-rd-apply-all="1" aria-label="Apply every suggestion in one click">✓ Apply all</button>',
           '<button type="button" class="rd-speak-suggestions" data-rd-speak-suggestions="1" aria-label="Read every suggestion aloud">🔊 Read all</button>',
           '<button type="button" class="rd-speak" data-rd-speak="1" aria-label="Read risks aloud">🔊</button>',
@@ -4653,6 +4663,36 @@
           deadlinesCalBtn._flashTimer = setTimeout(() => {
             deadlinesCalBtn.textContent = orig;
           }, 1400);
+        });
+      }
+
+      // Iter #80: severity filter — delegated change handler on
+      // riskDetail. When the user picks a severity from the <select>,
+      // we hide risk-detail-row + risk-counter pairs whose severity
+      // doesn't match. Cheap (no re-render needed) — just toggles
+      // `display: none` on the existing DOM nodes.
+      if(riskDetail){
+        riskDetail.addEventListener('change', (e) => {
+          const sel = e.target.closest && e.target.closest('[data-rd-severity-filter]');
+          if(!sel) return;
+          const wantSev = sel.value || '';
+          const kids = Array.from(riskDetail.children);
+          for(let i = 0; i < kids.length; i++){
+            const k = kids[i];
+            if(!(k.classList && k.classList.contains('risk-detail-row'))) continue;
+            const rowSev = (k.classList.contains('trap') ? 'r' : (k.classList.contains('watch') ? 'a' : 'g'));
+            const show = !wantSev || rowSev === wantSev;
+            k.style.display = show ? '' : 'none';
+            if(kids[i + 1] && kids[i + 1].classList && kids[i + 1].classList.contains('risk-counter')){
+              kids[i + 1].style.display = show ? '' : 'none';
+              i++;
+            }
+          }
+          const countEl = riskDetail.querySelector('.rd-count');
+          if(countEl){
+            const visibleRows = kids.filter(k => k.classList && k.classList.contains('risk-detail-row') && k.style.display !== 'none').length;
+            countEl.textContent = visibleRows + ' pattern' + (visibleRows === 1 ? '' : 's');
+          }
         });
       }
 

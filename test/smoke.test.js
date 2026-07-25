@@ -4929,6 +4929,33 @@ test("analyzer: each risk row shows a 'What would I save?' $ tooltip", () => {
     "tooltip template must reference the per-severity rate");
 });
 
+test("analyzer: severity filter narrows the risk list to a single severity", () => {
+  // New feature — power-user feature. The <select> in the
+  // risk-detail-toolbar (iter #80) lets users filter to "Traps
+  // only" / "Watches only" / "Notes only" / "All". Toggle via
+  // display:none on the existing DOM nodes (cheap, no re-render).
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // The select must be in the JS-rendered toolbar (rendered dynamically)
+  assert.match(appSrc, /data-rd-severity-filter/,
+    "severity filter select must exist in the JS template");
+  assert.match(appSrc, /Traps only|Watches only|Notes only/,
+    "severity filter must include all three severity options");
+
+  // Must include a "change" event handler
+  assert.match(appSrc, /riskDetail\.addEventListener\(['"]change['"]/,
+    "must include a change event handler on riskDetail");
+  // Must toggle display based on severity
+  assert.match(appSrc, /change[\s\S]+?style\.display/,
+    "change handler must toggle display based on severity");
+  // Must update the count badge
+  assert.match(appSrc, /change[\s\S]+?visibleRows/,
+    "change handler must update the visible-row count");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
