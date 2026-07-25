@@ -1171,6 +1171,11 @@ button.risk-preview:hover{filter:brightness(.96)}
 .gap-count b{font-weight:700}
 .gap-expand{margin-left:0;font-size:11px;padding:2px 8px}
 
+/* Voice-mode reader (iter #106) — play / pause + meter. */
+.voice-mode-btn{font-size:12px}
+.voice-mode-stop-btn{font-size:12px;color:var(--danger)}
+.voice-mode-meter{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;margin-left:6px}
+
  * (explicit vs inferred). Pure local; the venue is one of the
  * biggest levers in a contract — most users never think to ask for
  * their own home state. */

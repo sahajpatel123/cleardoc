@@ -6958,3 +6958,41 @@ test("analyzer: Gap detector polished with per-row copy + category tally", () =>
   assert.match(cssSrc, /\.gap-ask\b/,
     ".gap-ask button style must exist");
 });
+
+// Iter #106: voice-mode reader — plays each block aloud in order.
+// Big audio-UX win; toggles between "voice mode" and "stop" buttons.
+test("analyzer: Voice-mode reader plays every analysis block aloud in order", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html
+  assert.match(html, /id="voiceModeBtn"/,
+    "analyze.html must contain #voiceModeBtn");
+  assert.match(html, /id="voiceModeStopBtn"/,
+    "analyze.html must contain #voiceModeStopBtn");
+  assert.match(html, /id="voiceModeMeter"/,
+    "analyze.html must contain #voiceModeMeter");
+  assert.match(html, /voice\s*mode/i,
+    "result-actions must include a Voice mode button");
+
+  // app.js — wired via document.getElementById
+  assert.match(appSrc, /document\.getElementById\(['"]voiceModeBtn['"]\)/,
+    "voice button must be picked up via document.getElementById");
+  assert.match(appSrc, /SpeechSynthesisUtterance/,
+    "voice reader must use SpeechSynthesisUtterance");
+  assert.match(appSrc, /window\.speechSynthesis\.speak/,
+    "voice reader must call window.speechSynthesis.speak");
+  // The reader must cover the major blocks
+  for(const k of ["plainOut","riskList","verdictDisplay","deadlinesList","maturityGrid","transList","currencyList","jurisRow","actionGrid","gapList"]){
+    assert.match(appSrc, new RegExp("['\"]" + k + "['\"]"),
+      "voice reader must include #" + k);
+  }
+
+  // CSS
+  assert.match(cssSrc, /\.voice-mode-btn\b|\.voice-mode-meter\b/,
+    "voice-mode UI styles must exist");
+});

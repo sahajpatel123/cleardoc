@@ -5180,6 +5180,72 @@
       input.addEventListener('change', updateTextStats);
       updateTextStats(); // initial paint for the preloaded sample
 
+      // Iter #106: voice-mode reader — read every visible analysis
+      // block aloud in order via SpeechSynthesisUtterance. Big
+      // audio-UX win; the user can let the analyzer play while
+      // they cook / drive / walk.
+      const voiceBtn = document.getElementById('voiceModeBtn');
+      const voiceStopBtn = document.getElementById('voiceModeStopBtn');
+      const voiceMeter = document.getElementById('voiceModeMeter');
+      const showVoiceBtn = () => { if(voiceBtn) voiceBtn.hidden = false; };
+      if(voiceBtn){
+        voiceBtn.addEventListener('click', () => {
+          if(typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+          const segs = [];
+          const grabText = (id) => {
+            const el = id ? document.getElementById(id) : null;
+            if(!el) return '';
+            return (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+          };
+          const grabRows = (id, max) => {
+            const el = id ? document.getElementById(id) : null;
+            if(!el) return [];
+            const rows = Array.from(el.querySelectorAll('.rrow, .risk-counter')).slice(0, max || 6);
+            return rows.map(r => (r.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+          };
+          const add = (label, text) => {
+            if(text && text.length > 4) segs.push(label + ': ' + text);
+          };
+          add('rewrite', grabText('plainOut'));
+          grabRows('riskList', 6).forEach((t, i) => add('risk ' + (i + 1), t));
+          add('verdict', grabText('verdictDisplay'));
+          add('deadlines', grabText('deadlinesList'));
+          add('maturity', grabText('maturityGrid'));
+          add('cheat sheet', grabText('transList'));
+          add('amounts', grabText('currencyList'));
+          add('jurisdiction', grabText('jurisRow'));
+          add('checklist', grabText('actionGrid'));
+          add('gaps', grabText('gapList'));
+          if(!segs.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to read yet — analyze first');
+            return;
+          }
+          try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
+          voiceBtn.hidden = true;
+          if(voiceStopBtn) voiceStopBtn.hidden = false;
+          if(voiceMeter) voiceMeter.hidden = false;
+          let i = 0;
+          const total = segs.length;
+          const playNext = () => {
+            if(i >= total){ return; }
+            if(voiceMeter) voiceMeter.textContent = '🎙 ' + (i + 1) + ' / ' + total;
+            const u = new SpeechSynthesisUtterance(segs[i]);
+            u.rate = 0.95;
+            u.onend = u.onerror = () => { i++; playNext(); };
+            window.speechSynthesis.speak(u);
+          };
+          playNext();
+        });
+      }
+      if(voiceStopBtn){
+        voiceStopBtn.addEventListener('click', () => {
+          try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
+          showVoiceBtn();
+          voiceStopBtn.hidden = true;
+          if(voiceMeter){ voiceMeter.hidden = true; voiceMeter.textContent = ''; }
+        });
+      }
+
       // Iter #93: maturity score polish — delegated click handler
       // on the score block. Click any dimension tile for its tip;
       // click the "share" button on the letter card to copy a
