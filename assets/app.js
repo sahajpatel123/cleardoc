@@ -2843,27 +2843,63 @@
                          : score.letter === 'C' ? 'm-C'
                          : score.letter === 'D' ? 'm-D'
                          : 'm-F';
+      // Iter #93: tip text per dimension so clicking the tile opens
+      // a short explainer with what to do about it.
+      const MAT_TIPS = {
+        clarity:      'Reading level beyond 12th grade costs you time. Push back on every "notwithstanding" and "shall be deemed".',
+        fairness:     'Traps + watches penalize you 30 / 15 points each. Score climbs when every "shall" / "may" is paired with a notice period.',
+        completeness: 'A "go-live" / "effective date" / "termination date" is the smallest deadline that earns a 95.',
+        jargon:       'Plain-language rewrite dropped to ~5 jargon? That is the bar. Encourage it by clicking “apply” on the counter-suggestions.',
+        exit:         '30-day prior notice + email-cancel + no penalty unlocks the full 100. Auto-renew silently subtracts 30 points.',
+        rewrite:      'If no rewrite was produced, we fell back to local jargon replacement. Re-run when the network is back for the full read.',
+      };
       const cells = score.dims.map(d => {
         const color = d.score >= 85 ? 'good'
                     : d.score >= 65 ? 'mid'
                     : 'low';
-        return '<div class="mat-cell mat-' + color + '" title="' + esc(d.label) + ': ' + d.score + '/100">' +
+        return '<div class="mat-cell mat-' + color + '" data-mat-key="' + esc(d.key) + '" title="' + esc(d.label) + ': ' + d.score + '/100 (click for what to do about it)">' +
           '<span class="mat-label">' + esc(d.label) + '</span>' +
           '<span class="mat-score">' + d.score + '</span>' +
         '</div>';
       }).join('');
+      // Iter #93: improvement-tip footer + share-the-grade chip.
+      const sorted = score.dims.slice().sort((a, b) => a.score - b.score);
+      const tipsList = sorted.slice(0, 2).map(d => (
+        '<li><b>' + esc(d.label) + ' (' + d.score + ')</b> — ' + esc(MAT_TIPS[d.key] || 'Inspect this dimension.') + '</li>'
+      )).join('');
+      const shareText = 'ClearDoc rated my contract ' + score.letter + ' (' + score.overall + '/100) on maturity. Six local signals: clarity, fairness, completeness, plain-language, exit terms, rewrite coverage. cleardoc.app';
       maturityGrid.innerHTML =
-        '<div class="mat-letter mat-letter-' + letterClass + '" title="Overall maturity grade">' +
+        '<div class="mat-letter mat-letter-' + letterClass + '" title="Overall maturity grade" data-mat-share="' + esc(shareText) + '">' +
           '<span class="mat-letter-glyph">' + score.letter + '</span>' +
           '<span class="mat-letter-num">' + score.overall + '<span class="mat-letter-of">/100</span></span>' +
+          '<button type="button" class="mat-letter-share ghost-btn ghost-btn-sm" title="Copy a one-liner share text">📣 share</button>' +
         '</div>' +
         '<div class="mat-dims">' + cells + '</div>';
+      // Append the improvement-tip footer outside the grid so flex
+      // layout stays clean (it stacks below the scorecard).
+      const footer = '<div class="mat-footer">' +
+        '<div class="mat-tip-head">Top 2 things to improve:</div>' +
+        '<ul class="mat-tip-list">' + tipsList + '</ul>' +
+      '</div>';
+      maturityGrid.insertAdjacentHTML('afterend', footer);
+      // Stash the per-dim tips on the block so the delegated handler
+      // can read them without re-deriving.
+      try { maturityGrid._matTips = MAT_TIPS; maturityGrid._shareText = shareText; } catch(_){ /* non-DOM */ }
       maturityBlock.hidden = false;
       if(maturityNote){
         maturityNote.innerHTML =
           '<span class="riskNote-lead">Overall maturity: ' + score.letter + ' (' + score.overall + '/100)</span> ' +
-          'Six local signals: clarity, fairness, completeness, plain-language density, exit terms, and whether the rewrite covered the doc.';
+          'Six local signals: clarity, fairness, completeness, plain-language density, exit terms, and whether the rewrite covered the doc. ' +
+          'Click any tile for what to do about it.';
       }
+    }
+
+    // Iter #93: cleanup footer duplicates across re-renders so a
+    // second analysis doesn’t end up with two “Top 2 things to improve” lists.
+    function clearMaturityFooter(){
+      if(!maturityBlock) return;
+      const old = maturityBlock.querySelector('.mat-footer');
+      if(old) old.remove();
     }
 
     function buildHeatMapHTML(sentences, flags){
@@ -2975,8 +3011,10 @@
       // verdict block to give the user one numeric headline.
       if(maturityBlock && typeof computeMaturityScore === 'function'){
         const score = computeMaturityScore(raw, { ai, flags });
+        clearMaturityFooter();
         renderMaturityBlock(score);
       } else if(maturityBlock) {
+        clearMaturityFooter();
         maturityBlock.hidden = true;
       }
 
@@ -4226,6 +4264,65 @@
       input.addEventListener('input', updateTextStats);
       input.addEventListener('change', updateTextStats);
       updateTextStats(); // initial paint for the preloaded sample
+
+      // Iter #93: maturity score polish — delegated click handler
+      // on the score block. Click any dimension tile for its tip;
+      // click the "share" button on the letter card to copy a
+      // one-liner. Uses showConfirmModal when available so the tip
+      // matches the rest of the analyzer's modal style.
+      if(maturityBlock){
+        maturityBlock.addEventListener('click', async (e) => {
+          const matLetterShare = e.target.closest && e.target.closest('.mat-letter-share');
+          if(matLetterShare){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = (maturityGrid && maturityGrid._shareText) || matLetterShare.parentElement && matLetterShare.parentElement.getAttribute('data-mat-share') || 'ClearDoc maturity score: B (84/100). cleardoc.app';
+            let copied = false;
+            try {
+              if(navigator.clipboard && navigator.clipboard.writeText){
+                await navigator.clipboard.writeText(text);
+                copied = true;
+              }
+            } catch(_){ /* fall through */ }
+            if(!copied){
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.setAttribute('readonly','');
+                ta.style.position='absolute'; ta.style.left='-9999px';
+                document.body.appendChild(ta); ta.select();
+                document.execCommand('copy'); document.body.removeChild(ta);
+                copied = true;
+              } catch(_){ /* ignore */ }
+            }
+            if(typeof showAnalyzeToast === 'function'){
+              showAnalyzeToast(copied ? '📣 Grade copied!' : '⚠ Couldn’t copy');
+            }
+            matLetterShare.textContent = copied ? '✓ copied!' : '📣 share';
+            setTimeout(() => {
+              if(matLetterShare.isConnected) matLetterShare.textContent = '📣 share';
+            }, 2500);
+            return;
+          }
+          const matCell = e.target.closest && e.target.closest('.mat-cell');
+          if(matCell){
+            const tips = (maturityGrid && maturityGrid._matTips) || {};
+            const key = matCell.getAttribute('data-mat-key') || '';
+            const tipText = tips[key] || 'Click the tile to see why this score matters.';
+            const labelText = (matCell.querySelector('.mat-label') && matCell.querySelector('.mat-label').textContent) || key;
+            const scoreText = (matCell.querySelector('.mat-score') && matCell.querySelector('.mat-score').textContent) || '?';
+            if(typeof showConfirmModal === 'function'){
+              await showConfirmModal({
+                title: labelText + ' — score ' + scoreText + '/100',
+                bodyHtml: '<p>' + esc(tipText) + '</p>' +
+                  '<p class="apply-confirm-note">This dimension is purely local — it doesn’t send anything to the AI.</p>',
+                confirmLabel: 'Got it',
+              });
+            }
+            return;
+          }
+        });
+      }
+
 
       /* History panel — toggles a dropdown of past analyses (saved
        * in localStorage on each successful analysis). Click an

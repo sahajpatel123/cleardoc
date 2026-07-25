@@ -6451,3 +6451,46 @@ test("analyzer: Contract maturity score grades the document across 6 local dimen
   assert.match(cssSrc, /\.mat-cell\.mat-low\b/,
     "low dimension cell style must exist");
 });
+
+// Iter #93: maturity polish — click-to-explain modal on each tile,
+// one-liner share button on the letter card, and the
+// "Top 2 things to improve" footer.
+test("analyzer: Contract maturity score polished with click-to-explain + share + tips footer", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Per-dim tip map must exist + cover all 6 dims
+  assert.match(appSrc, /MAT_TIPS/,
+    "MAT_TIPS map must exist");
+  for(const dim of ["clarity","fairness","completeness","jargon","exit","rewrite"]){
+    assert.match(appSrc, new RegExp(dim + ":\\s*'"),
+      "MAT_TIPS must include '" + dim + "'");
+  }
+
+  // Click handler on the block must use showConfirmModal
+  assert.match(appSrc, /maturityBlock\.addEventListener\(['"]click['"]/,
+    "maturityBlock must be wired to click events");
+  assert.match(appSrc, /await showConfirmModal\(\{[\s\S]+?score|showConfirmModal[\s\S]+?score/s,
+    "click handler must open the dimension modal");
+
+  // Share button must exist on the letter card
+  assert.match(appSrc, /mat-letter-share/,
+    "letter card must expose a share button class");
+  assert.match(appSrc, /mat-letter-share[\s\S]+?clipboard\.writeText|execCommand\('copy'\)/,
+    "share handler must copy to clipboard");
+
+  // Footer
+  assert.match(appSrc, /Top 2 things to improve/,
+    "render must print 'Top 2 things to improve' footer");
+  assert.match(appSrc, /function clearMaturityFooter\(/,
+    "clearMaturityFooter must exist so re-renders don’t stack footers");
+
+  // CSS
+  assert.match(cssSrc, /\.mat-letter-share\{/,
+    "share button style must exist");
+  assert.match(cssSrc, /\.mat-tip-list/,
+    "tip list style must exist");
+});

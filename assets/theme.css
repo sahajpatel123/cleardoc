@@ -1103,6 +1103,15 @@ button.risk-preview:hover{filter:brightness(.96)}
 @media (max-width:720px){
   .mat-dims{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+/* Iter #93 — maturity tile click affordance + share + footer */
+.mat-cell{cursor:pointer;transition:transform .15s ease}
+.mat-cell:hover{transform:translateY(-1px);filter:brightness(.96)}
+.mat-letter-share{margin-top:6px;font-size:11px;padding:2px 8px;cursor:pointer}
+.mat-footer{font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.5;margin-top:8px;padding:8px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.mat-tip-head{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-bottom:4px}
+.mat-tip-list{margin:0;padding-left:18px;font-size:var(--t-meta)}
+.mat-tip-list li{margin-bottom:4px}
+.mat-tip-list b{font-weight:700;color:var(--ink)}
 
 /* Worst-case exposure line (iter #90) — sums the iter #79 per-row
  * dollar estimates and shows one bold headline number so the user
