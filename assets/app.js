@@ -1841,6 +1841,8 @@
           simplifyInput=$('#simplifyInput'),simplifyOut=$('#simplifyOut'),
           simplifyGoBtn=$('#simplifyGoBtn'),simplifyFillFromSelectionBtn=$('#simplifyFillFromSelectionBtn'),
           simplifySwapBtn=$('#simplifySwapBtn'),
+          tldrBlock=$('#tldrBlock'),tldrNote=$('#tldrNote'),tldrCard=$('#tldrCard'),
+          tldrCopyBtn=$('#tldrCopyBtn'),tldrSpeakBtn=$('#tldrSpeakBtn'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3403,6 +3405,88 @@
     // table. Pure local; no AI call. Useful for understanding
     // clauses one at a time without re-running the whole analysis.
     let _simplifyLastOriginal = '';
+    // Iter #122: TL;DR generator — assemble a 3-sentence summary
+    // from the analyzer's existing outputs (risk tally, exposure,
+    // maturity, jurisdiction, top risks). Useful for sharing a
+    // 30-second summary with a spouse, lawyer, or boss.
+    function buildTldr(raw, ctx){
+      const tal = { r: 0, a: 0, g: 0 };
+      (lastFlags || []).forEach(f => { tal[f.rule.sev] = (tal[f.rule.sev] || 0) + 1; });
+      const total = tal.r + tal.a + tal.g;
+      const maturity = (function(){
+        const v = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
+        return v ? v.textContent.trim() : '—';
+      })();
+      const exposure = (function(){
+        const t = riskDetail && riskDetail.textContent || '';
+        const m = t.match(/worst-case exposure[^A-Z]*\$[0-9,]+/i);
+        return m ? m[0].replace(/.*\$/, '$') : null;
+      })();
+      const juris = (function(){
+        const j = jurisRow && jurisRow.querySelector('.juris-label');
+        return j ? j.textContent.trim() : null;
+      })();
+      const wordCount = (raw.match(/\b[\w'-]+\b/g) || []).length;
+      const docType = (function(){
+        try {
+          const el = document.querySelector('#docSummary, .dt-' + (typeof detectDocType === 'function' ? detectDocType(raw).name : ''));
+          const fallback = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
+          return fallback ? fallback.label : null;
+        } catch(_){ return null; }
+      })();
+      const topRisks = (lastFlags || []).slice(0, 2).map(f => f.rule.label.toLowerCase()).join(' and ');
+      const s1 = 'This ' + (docType ? (docType.toLowerCase() + ' ') : '') + 'document is about ' + wordCount.toLocaleString('en-US') + ' words' + (juris ? ', governed by ' + juris + ' law' : '') + '.';
+      const s2 = total
+        ? (' It contains ' + total + ' risk' + (total === 1 ? '' : 's') + ' (' + tal.r + ' trap, ' + tal.a + ' watch, ' + tal.g + ' note)' + (topRisks ? ', including ' + topRisks : '') + '.')'
+        : ' No flagged traps, watches, or notes were detected by the pattern scan.';
+      const s3 = 'Maturity score: ' + maturity + (exposure ? ' · worst-case exposure ' + exposure : '') + '. ' + (maturity === 'F' || maturity === 'D' ? 'Recommend not signing as-is.' : maturity === 'A' ? 'Looks fair — safe to proceed.' : 'Worth a careful read of the highlighted clauses.');
+      return s1 + s2 + ' ' + s3;
+    }
+    function renderTldrBlock(raw, ctx){
+      if(!tldrBlock || !tldrCard || !raw){ return; }
+      const text = buildTldr(raw, ctx);
+      if(!text){ tldrBlock.hidden = true; return; }
+      tldrCard.innerHTML = esc(text);
+      tldrBlock.hidden = false;
+      if(tldrNote){
+        const charCount = (raw.match(/\b[\w'-]+\b/g) || []).length;
+        tldrNote.innerHTML = '<span class="riskNote-lead">' + charCount.toLocaleString('en-US') + '-word document</span> · ' +
+          'Three-sentence summary · 📋 to copy · 🔊 to read aloud.';
+      }
+      if(tldrCopyBtn){
+        tldrCopyBtn.addEventListener('click', async () => {
+          let copied = false;
+          try {
+            if(navigator.clipboard) {
+              await navigator.clipboard.writeText(text);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 TL;DR copied' : '⚠ Couldn’t copy');
+          tldrCopyBtn.textContent = copied ? '✓ copied' : '📋 copy';
+          setTimeout(() => { if(tldrCopyBtn.isConnected) tldrCopyBtn.textContent = '📋 copy'; }, 2500);
+        });
+      }
+      if(tldrSpeakBtn){
+        tldrSpeakBtn.addEventListener('click', () => {
+          if(typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+          try {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 0.95;
+            window.speechSynthesis.speak(u);
+          } catch(_){ /* ignore */ }
+        });
+      }
+    }
+
     function renderSimplifyBlock(){
       if(!simplifyBlock) return;
       simplifyBlock.hidden = false;
@@ -4608,6 +4692,12 @@
       // if no analysis data is available yet.
       if(simplifyBlock && typeof renderSimplifyBlock === 'function'){
         renderSimplifyBlock();
+      }
+      // Iter #122: TL;DR — assemble 3 sentences from existing outputs
+      if(tldrBlock && typeof renderTldrBlock === 'function' && raw){
+        renderTldrBlock(raw, ctx);
+      } else if(tldrBlock && !raw) {
+        tldrBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

@@ -1244,6 +1244,11 @@ button.risk-preview:hover{filter:brightness(.96)}
 .simplify-confidence.conf-mid b{color:var(--amber)}
 .simplify-confidence.conf-low b{color:var(--danger)}
 
+/* TL;DR card (iter #122) — three-sentence summary. */
+.tldr-card{font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;font-size:var(--t-h3);line-height:1.4;padding:12px 14px;border:var(--bd-hair) solid var(--ink);background:var(--paper2);color:var(--ink);font-weight:500}
+.tldr-actions{display:flex;gap:6px;margin-top:8px;font-size:var(--t-micro)}
+.tldr-actions .ghost-btn{padding:2px 8px}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}
