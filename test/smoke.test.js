@@ -4904,6 +4904,31 @@ test("analyzer: Negotiation playbook export opens a printable window with sugges
     "playbook must have a print media query for clean printing");
 });
 
+test("analyzer: each risk row shows a 'What would I save?' $ tooltip", () => {
+  // New feature — hover the risk row to see the per-risk $ cost
+  // it could have caused. Uses the same per-severity rates as
+  // the iter #62/65 badge so the numbers stay consistent.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Must define the per-risk rate (same as the badge)
+  assert.match(appSrc, /SAVINGS_PER\s*=\s*\{\s*r:\s*200/,
+    "must define the per-severity $ rates (200/50/20)");
+  // Must compute the tooltip text
+  assert.match(appSrc, /risk-detail-row[\s\S]+?tooltip\s*=/,
+    "must compute the per-row tooltip text");
+  // Must include the $ amount + the severity name
+  assert.match(appSrc, /risk-detail-row[\s\S]+?rate\s*=\s*SAVINGS_PER\[sev\]/,
+    "tooltip must include the per-severity $ rate");
+  // Must set the title attribute on the row (native browser tooltip)
+  assert.match(appSrc, /risk-detail-row[\s\S]+?title=[\s\S]+?tooltip/,
+    "must set the title attribute referencing the tooltip variable");
+  assert.match(appSrc, /tooltip[\s\S]+?rate/,
+    "tooltip template must reference the per-severity rate");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

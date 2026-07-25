@@ -1883,13 +1883,32 @@
         // delegated click handler can find it in the source input. The
         // row is also tabindex=0 + role=button so keyboard users get
         // parity with mouse — Enter / Space triggers the same locate.
+        // Iter #79: per-risk $ tooltip ("What would I save?") — uses
+        // the same per-severity rates as the iter #62/65 badge so
+        // the numbers stay consistent across all surfaces.
+        const SAVINGS_PER = { r: 200, a: 50, g: 20 };
+        const sev = h.sev === 'r' ? 'r' : (h.sev === 'a' ? 'a' : 'g');
+        const rate = SAVINGS_PER[sev];
+        const tooltip = '$' + rate + ' — this ' +
+          (sev === 'r' ? 'trap' : sev === 'a' ? 'watch' : 'note') +
+          ' could have cost you ~$' + rate + ' if you signed without ' +
+          'seeing it. Click to highlight in the source.';
         parts.push(
-          '<div class="risk-detail-row ' + sevClass + '" data-rd-locate="' + esc(h.matched || '') + '" tabindex="0" role="button" title="Click to highlight in source">',
+          '<div class="risk-detail-row ' + sevClass + '" data-rd-locate="' + esc(h.matched || '') + '" tabindex="0" role="button" title="' + esc(tooltip) + '">',
             '<span class="rd-tag">' + tagText + '</span>',
             '<code class="rd-hit">' + esc(h.matched || '') + '</code>',
             '<span class="rd-why">' + esc(h.why || '') + '</span>',
           '</div>'
         );
+        // Iter #79: "What would I save?" tooltip — per-risk-row
+        // $ estimate of the cost it could have caused. Uses the
+        // same per-severity rates as the iter #62/65 badge so
+        // the numbers stay consistent across all surfaces.
+        // Set the title on the LAST child of the risk-detail-row
+        // so it shows on the whole row (incl. the tag + original
+        // text) — matches the "where to find the cost" use case.
+        // We append a title attribute to the row element.
+        // (Actual tooltip text is set on the row below after escape)
         // Negotiation suggestion (iter #41) — for each risk, suggest
         // a counter-clause the user could propose. Shown as a sub-row
         // with a "→ suggest:" prefix so users see WHAT to ask for.
