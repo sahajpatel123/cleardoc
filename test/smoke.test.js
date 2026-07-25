@@ -5113,6 +5113,44 @@ test("analyzer: Risk severity legend explains TRAP / WATCH / NOTE for first-time
     ".legend-note must use --green (green)");
 });
 
+// Iter #85: legend polish — per-severity examples, copy-all cheat
+// sheet, and a graceful-legacy onRender hook on showConfirmModal.
+test("analyzer: Risk severity legend polish — per-severity examples + copy cheat sheet", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Block must contain three example sentences (one per severity).
+  const legendBlock = appSrc.match(/legendBtn\.addEventListener\(['"]click['"][\s\S]+?\}\);\s*\}\);\s*\n/);
+  assert.ok(legendBlock, "legendBtn click handler must exist");
+  assert.match(legendBlock[0], /We may terminate this agreement at any time without notice/,
+    "TRAP example must be present");
+  assert.match(legendBlock[0], /Either party may modify these terms with 90 days notice/,
+    "WATCH example must be present");
+  assert.match(legendBlock[0], /A \$25 fee applies for paper statements/,
+    "NOTE example must be present");
+
+  // Must wire a copy-all-as-text button.
+  assert.match(legendBlock[0], /legendCopyBtn/,
+    "copy button id must be present in legend markup");
+  assert.match(legendBlock[0], /navigator\.clipboard\.writeText|execCommand\('copy'\)/,
+    "copy button must use clipboard fallback chain");
+
+  // onRender hook must exist on showConfirmModal and be guarded.
+  assert.match(appSrc, /opts\.onRender/,
+    "showConfirmModal must support an optional onRender hook");
+  assert.match(appSrc, /opts\.onRender[\s\S]+?try \{ opts\.onRender\(m\);/,
+    "onRender must be invoked inside a try/catch (caller safety)");
+
+  // CSS: example rows + actions row must be styled.
+  assert.match(cssSrc, /\.legend-ex\{/,
+    ".legend-ex style must exist for example sentences");
+  assert.match(cssSrc, /\.legend-actions\{/,
+    ".legend-actions style must exist for the copy button row");
+});
+
 skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

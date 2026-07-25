@@ -1705,6 +1705,9 @@
         if(e.key === 'Escape') close(false);
         else if(e.key === 'Enter' && document.activeElement && document.activeElement.matches('.acm-confirm')) close(true);
       });
+      if(typeof opts.onRender === 'function'){
+        try { opts.onRender(m); } catch(_){ /* isolate caller bugs */ }
+      }
     });
   }
 
@@ -5663,21 +5666,77 @@
     // Iter #84: "Risk severity legend" — show what TRAP, WATCH,
     // and NOTE mean. Onboarding helper for first-time users who
     // see the color-coded badges in the risk list.
+    // Iter #85: examples + copy-all-as-text. One row per
+    // severity, an example sentence, and a single "copy cheat
+    // sheet" button so users can paste it into their notes.
     if(legendBtn){
       legendBtn.addEventListener('click', () => {
-        showConfirmModal({
-          title: '📖 Risk severity legend',
-          bodyHtml:
+        const cheat = 'Risk severity legend (ClearDoc)\n\n' +
+          'TRAP — high stakes. Could void a contract, trigger a penalty, or shift a big liability. Always address before signing.\n' +
+          '  Example: “We may terminate this agreement at any time without notice.”\n\n' +
+          'WATCH — medium stakes. Could trigger unwanted terms, missed deadlines, or administrative headaches. Worth a follow-up.\n' +
+          '  Example: “Either party may modify these terms with 90 days notice.”\n\n' +
+          'NOTE — low stakes. Minor administrative cost — extra paperwork, follow-up calls, or small fees. Informational.\n' +
+          '  Example: “A $25 fee applies for paper statements.”';
+        const bodyHtml =
             '<div class="legend-list">' +
               '<div class="legend-row legend-trap"><b>TRAP</b> <span class="legend-tag-tag">red</span> ' +
-              'High stakes. Could void a contract, trigger a penalty, or shift a big liability. Always address before signing.</div>' +
+              'High stakes. Could void a contract, trigger a penalty, or shift a big liability. Always address before signing.' +
+              '<div class="legend-ex"><span class="legend-ex-label">e.g.</span> “We may terminate this agreement at any time without notice.”</div>' +
+              '</div>' +
               '<div class="legend-row legend-watch"><b>WATCH</b> <span class="legend-tag-tag">amber</span> ' +
-              'Medium stakes. Could trigger unwanted terms, missed deadlines, or administrative headaches. Worth a follow-up.</div>' +
+              'Medium stakes. Could trigger unwanted terms, missed deadlines, or administrative headaches. Worth a follow-up.' +
+              '<div class="legend-ex"><span class="legend-ex-label">e.g.</span> “Either party may modify these terms with 90 days notice.”</div>' +
+              '</div>' +
               '<div class="legend-row legend-note"><b>NOTE</b> <span class="legend-tag-tag">green</span> ' +
-              'Low stakes. Minor administrative cost — extra paperwork, follow-up calls, or small fees. Informational.</div>' +
+              'Low stakes. Minor administrative cost — extra paperwork, follow-up calls, or small fees. Informational.' +
+              '<div class="legend-ex"><span class="legend-ex-label">e.g.</span> “A $25 fee applies for paper statements.”</div>' +
+              '</div>' +
             '</div>' +
-            '<p class="vh-note">Each risk also comes with a counter-clause suggestion and a "why this works" explainer. Use the iter #80 severity filter to focus on what matters most.</p>',
+            '<div class="legend-actions"><button type="button" class="ghost-btn ghost-btn-sm" id="legendCopyBtn" title="Copy this legend as plain text">📋 copy cheat sheet</button></div>' +
+            '<p class="vh-note">Each risk also comes with a counter-clause suggestion and a "why this works" explainer. Use the iter #80 severity filter to focus on what matters most.</p>';
+        showConfirmModal({
+          title: '📖 Risk severity legend',
+          bodyHtml: bodyHtml,
           confirmLabel: 'Got it',
+          onRender: (rootEl) => {
+            const copyBtn = rootEl && rootEl.querySelector('#legendCopyBtn');
+            if(!copyBtn) return;
+            copyBtn.addEventListener('click', async () => {
+              let copied = false;
+              try {
+                if(navigator.clipboard && navigator.clipboard.writeText){
+                  await navigator.clipboard.writeText(cheat);
+                  copied = true;
+                }
+              } catch(_){ /* fall through */ }
+              if(!copied){
+                try {
+                  const ta = document.createElement('textarea');
+                  ta.value = cheat;
+                  ta.setAttribute('readonly','');
+                  ta.style.position = 'absolute';
+                  ta.style.left = '-9999px';
+                  document.body.appendChild(ta);
+                  ta.select();
+                  document.execCommand('copy');
+                  document.body.removeChild(ta);
+                  copied = true;
+                } catch(_){ /* ignore */ }
+              }
+              if(typeof showAnalyzeToast === 'function'){
+                showAnalyzeToast(copied ? '📋 Legend copied to clipboard' : '⚠ Couldn’t copy — try selecting the text manually');
+              }
+              copyBtn.textContent = copied ? '✓ copied!' : '📋 copy cheat sheet';
+              copyBtn.disabled = copied;
+              setTimeout(() => {
+                if(copyBtn.isConnected){
+                  copyBtn.textContent = '📋 copy cheat sheet';
+                  copyBtn.disabled = false;
+                }
+              }, 2500);
+            });
+          },
         });
       });
     }
