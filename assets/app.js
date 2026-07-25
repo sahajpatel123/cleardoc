@@ -1831,6 +1831,7 @@
           famousContractBtn=$('#famousContractBtn'),timelineBtn=$('#timelineBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
           legendBtn=$('#legendBtn'),
           transBlock=$('#transBlock'),transNote=$('#transNote'),transList=$('#transList'),
+          heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2721,6 +2722,26 @@
       return typed;
     }
 
+    // Iter #88: Document heat map. Renders each sentence as a
+    // colored cell (red = trap, amber = watch, green = note, gray
+    // = clear). Lets users scan the entire document in a glance
+    // instead of reading the risk list top-to-bottom.
+    function buildHeatMapHTML(sentences, flags){
+      const flaggedIndex = new Map();
+      (flags || []).forEach(f => {
+        if(typeof f.i === 'number' && f.i >= 0){
+          flaggedIndex.set(f.i, f.rule.sev);
+        }
+      });
+      const cells = (sentences || []).map((s, i) => {
+        const sev = flaggedIndex.get(i) || 'c'; // c = clear
+        const text = String(s || '').trim().slice(0, 240);
+        if(!text) return '';
+        return '<span class="heat-cell heat-' + sev + '" data-sen-idx="' + i + '" title="' + esc(text) + '">' + esc(text) + '</span>';
+      }).filter(Boolean);
+      return '<div class="heat-map" role="list" aria-label="Document heat map">' + cells.join(' ') + '</div>';
+    }
+
     function analyze(){
       const raw=activeDocumentText().trim();
       if(!raw){ msg.textContent='Paste a document or a clause first — or load a sample below.'; msg.className='analyze-msg err'; input.focus(); return; }
@@ -2818,6 +2839,32 @@
       flags.forEach(f=>{ const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev;
         row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>';
         riskList.appendChild(row); });
+
+      // Iter #88: heat map — color every sentence by its risk
+      // severity so the user can see WHERE the traps cluster.
+      // Sentences without a flag stay gray. Hidden until at least
+      // one sentence gets analyzed so an empty doc isn't noise.
+      if(heatBlock && heatMap){
+        if(sentences && sentences.length){
+          heatMap.innerHTML = buildHeatMapHTML(sentences, flags);
+          heatBlock.hidden = false;
+          if(heatNote){
+            const sevTally = {r:0,a:0,g:0,c:0};
+            heatMap.querySelectorAll('.heat-cell').forEach(el => {
+              const cls = ['heat-r','heat-a','heat-g','heat-c'].find(k => el.classList.contains(k));
+              if(cls) sevTally[cls.slice(5)]++;
+            });
+            heatNote.innerHTML =
+              '<span class="riskNote-lead">' + sentences.length + ' sentence' + (sentences.length === 1 ? '' : 's') + ' · ' +
+              sevTally.r + ' trap · ' + sevTally.a + ' watch · ' + sevTally.g + ' note</span> ' +
+              'Hover any tile to read the original sentence. Red tiles = address before signing.';
+          }
+        } else {
+          heatBlock.hidden = true;
+          heatMap.innerHTML = '';
+          if(heatNote) heatNote.textContent = '';
+        }
+      }
 
       // 4) verdict — AI only
       if(verdictDisplay){

@@ -6267,3 +6267,40 @@ test("analyzer: Translation cheat sheet polished with tone hint + per-row speak 
   assert.match(cssSrc, /\.trans-tone\{/,
     ".trans-tone style must exist");
 });
+
+// Iter #88: document heat map — every sentence rendered as a colored
+// tile so users can see WHERE the traps cluster in one glance.
+test("analyzer: Document heat map color-codes each sentence by risk severity", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html
+  assert.match(html, /id="heatBlock"/,
+    "analyze.html must contain #heatBlock");
+  assert.match(html, /id="heatMap"/,
+    "analyze.html must contain #heatMap");
+  assert.match(html, /Document heat map/,
+    "result block must be titled 'Document heat map'");
+
+  // app.js — renderer + wiring
+  assert.match(appSrc, /function buildHeatMapHTML\(/,
+    "buildHeatMapHTML must exist");
+  assert.match(appSrc, /heatBlock\.hidden = (true|false)/,
+    "heatBlock.hidden must be toggled");
+  assert.match(appSrc, /heat-cell/,
+    "heat-cell class must be referenced");
+
+  // CSS — tile + per-severity classes
+  assert.match(cssSrc, /\.heat-cell\{/,
+    ".heat-cell style must exist");
+  assert.match(cssSrc, /\.heat-cell\.heat-r\b[^}]*--danger/,
+    ".heat-r (trap) must use --danger");
+  assert.match(cssSrc, /\.heat-cell\.heat-a\b[^}]*--amber/,
+    ".heat-a (watch) must use --amber");
+  assert.match(cssSrc, /\.heat-cell\.heat-g\b[^}]*--green/,
+    ".heat-g (note) must use --green");
+});

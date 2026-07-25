@@ -1075,6 +1075,20 @@ button.risk-preview:hover{filter:brightness(.96)}
  * glossary rendered under the analysis result. Pure CSS: stacked
  * EN row + XX row, with a tiny language code tag.
  * Iter #87: tone-hint chip + per-row 🔊 speak button. */
+
+/* Document heat map (iter #88) — each sentence is a tile colored
+ * by its risk severity. Red tiles = trap, amber = watch, green =
+ * note, gray = clear. Lets users see WHERE the traps cluster in
+ * a single glance. */
+.heat-wrap{font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.45}
+.heat-map{display:flex;flex-wrap:wrap;gap:3px}
+.heat-cell{display:inline-block;padding:3px 6px;border-radius:2px;cursor:help;font-size:var(--t-meta);max-width:32ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid transparent}
+.heat-cell.heat-r{background:var(--danger-tint);color:var(--ink);border-color:var(--danger)}
+.heat-cell.heat-a{background:var(--amber-tint);color:var(--ink);border-color:var(--amber)}
+.heat-cell.heat-g{background:var(--green-tint);color:var(--ink);border-color:var(--green)}
+.heat-cell.heat-c{background:var(--paper2);color:var(--ink-soft);border-color:var(--bd-hair)}
+.heat-cell:hover{filter:brightness(.96)}
+
 .trans-list{display:flex;flex-direction:column;gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
 .trans-row{border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);padding:6px 8px;display:flex;flex-direction:column;gap:4px}
 .trans-row .trans-tag{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;background:var(--ink);color:var(--paper);padding:1px 5px;font-weight:700;margin-right:6px}

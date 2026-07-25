@@ -300,6 +300,11 @@
           <p class="analyze-msg" id="riskNote" style="margin-top:0" aria-live="polite"></p>
           <div class="risk-built" id="riskList"></div>
         </div>
+        <div class="result-block" id="heatBlock" hidden>
+          <span class="rh">🔥 Document heat map</span>
+          <p class="analyze-msg" id="heatNote" style="margin-top:0" aria-live="polite"></p>
+          <div class="heat-wrap"><div id="heatMap" aria-label="Each sentence colored by its risk severity"></div></div>
+        </div>
         <div class="result-block" id="deadlinesBlock" hidden>
           <span class="rh">⏰ Deadlines</span>
           <div id="deadlinesList" class="deadlines-list" role="list" aria-label="Extracted deadlines"></div>
