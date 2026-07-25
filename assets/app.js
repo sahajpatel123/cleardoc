@@ -1835,6 +1835,7 @@
           gapBlock=$('#gapBlock'),gapNote=$('#gapNote'),gapList=$('#gapList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
+          negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3348,6 +3349,76 @@
     }
     // Stash the full dates list on the timeline so the "show past"
     // toggle can re-render without re-extracting. Iter #115 polish.
+    // Iter #116: negotiate-it builder — translates detected risk
+    // patterns into ready-to-send counter-clauses (firm / neutral /
+    // friendly tone variants). Pure local; templates only.
+    const NEG_TONES = {
+      firm:     '[INSERT: Counter-proposal — {counter}. Risk: {why}.]',
+      neutral:  '[INSERT: Optional replacement language — {counter}. Note: {why}.]',
+      friendly: '[INSERT: Friendly counter — {counter}. Original language concerned because {why}.]',
+    };
+    function renderNegotiateBlock(flags){
+      if(!negotiateBlock || !negotiateList || !flags) return;
+      const flagList = (flags || []).filter(f => f.rule && f.rule.label && f.rule.why);
+      if(!flagList.length){ negotiateBlock.hidden = true; return; }
+      const rows = flagList.slice(0, 10).map((f, idx) => {
+        const counter = f.rule.counter || 'A more balanced clause';
+        const why = f.rule.why || 'this clause can favor the other party';
+        return '<div class="neg-row" data-neg-idx="' + idx + '" title="Pick a tone + copy a counter-clause you can paste back to the other side">' +
+          '<div class="neg-tag">' + esc(f.rule.label) + '</div>' +
+          '<div class="neg-why">' + esc(why) + '</div>' +
+          '<div class="neg-preview" data-neg-preview="' + esc(counter) + '"><b>Counter:</b> ' + esc(counter) + '</div>' +
+          '<div class="neg-toggles">' +
+            '<button type="button" class="neg-tone ghost-btn ghost-btn-sm neg-active" data-neg-tone="firm">firm</button>' +
+            '<button type="button" class="neg-tone ghost-btn ghost-btn-sm" data-neg-tone="neutral">neutral</button>' +
+            '<button type="button" class="neg-tone ghost-btn ghost-btn-sm" data-neg-tone="friendly">friendly</button>' +
+          '</div>' +
+          '<button type="button" class="neg-copy ghost-btn ghost-btn-sm" data-neg-copy="' + idx + '" title="Copy the counter-clause to clipboard">📋 copy</button>' +
+        '</div>';
+      }).join('');
+      negotiateList.innerHTML = rows;
+      negotiateBlock.hidden = false;
+      if(negotiateNote){
+        negotiateNote.innerHTML = '<span class="riskNote-lead">' + flagList.length + ' risk' + (flagList.length === 1 ? '' : 's') + ' have ready-to-send counters</span> ' +
+          'Pick a tone (firm / neutral / friendly), copy the clause, and paste it into your reply email.';
+      }
+      // Iter #116: tone toggle + copy with selection
+      $$('.neg-row', negotiateList).forEach(row => {
+        $$('.neg-tone', row).forEach(btn => {
+          btn.addEventListener('click', () => {
+            $$('.neg-tone', row).forEach(x => x.classList.remove('neg-active'));
+            btn.classList.add('neg-active');
+          });
+        });
+        const copyBtn = row.querySelector('.neg-copy');
+        if(copyBtn){
+          copyBtn.addEventListener('click', async () => {
+            const idx = parseInt(copyBtn.getAttribute('data-neg-copy') || '-1', 10);
+            const entry = flagList[idx];
+            if(!entry) return;
+            const activeTone = (row.querySelector('.neg-tone.neg-active') || {}).getAttribute && (row.querySelector('.neg-tone.neg-active') || {}).getAttribute('data-neg-tone') || 'firm';
+            const template = NEG_TONES[activeTone] || NEG_TONES.firm;
+            const text = template.replace('{counter}', entry.rule.counter || 'a balanced replacement').replace('{why}', entry.rule.why || 'this can favor the other party');
+            let copied = false;
+            try {
+              if(navigator.clipboard) await navigator.clipboard.writeText(text);
+              else throw new Error('no-clip');
+              copied = true;
+            } catch(_){
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                copied = true;
+              } catch(_){ /* ignore */ }
+            }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Counter-clause copied (' + activeTone + ')' : '⚠ Couldn’t copy');
+            copyBtn.textContent = copied ? '✓ copied' : '📋 copy';
+            setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 2500);
+          });
+        }
+      });
+    }
+
     function renderDateTimeline(dates){
       if(!dateBlock || !dateTimeline) return;
       if(!dates || !dates.length){ dateBlock.hidden = true; dateTimeline.innerHTML = ''; return; }
@@ -4235,6 +4306,13 @@
         renderDateTimeline(dates);
       } else if(dateBlock) {
         dateBlock.hidden = true;
+      }
+      // Iter #116: negotiate-it builder — translate every detected
+      // risk into a tone-selectable counter-clause users can copy.
+      if(negotiateBlock && typeof renderNegotiateBlock === 'function'){
+        renderNegotiateBlock(flags);
+      } else if(negotiateBlock) {
+        negotiateBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

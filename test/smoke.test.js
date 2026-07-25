@@ -7153,6 +7153,37 @@ test("analyzer: Date timeline surfaces the next 12 upcoming deadlines", () => {
   assert.match(cssSrc, /\.date-ics\b/, ".date-ics button style must exist");
 });
 
+// Iter #116: negotiate-it builder — per-risk counter-clauses with
+// a tone picker (firm / neutral / friendly) and one-click copy.
+test("analyzer: Negotiate-it builder turns every detected risk into a tone-selectable counter-clause", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="negotiateBlock"/, "analyze.html must contain #negotiateBlock");
+  assert.match(appSrc, /function renderNegotiateBlock\(/, "renderNegotiateBlock must exist");
+  assert.match(appSrc, /NEG_TONES/, "NEG_TONES must exist");
+  for(const tone of ["firm","neutral","friendly"]){
+    assert.match(appSrc, new RegExp(tone + ":\\s*['\"]"),
+      "NEG_TONES must include '" + tone + "'");
+  }
+  // Tone picker markup
+  assert.match(appSrc, /data-neg-tone=['"](firm|neutral|friendly)['"]/,
+    "render must include a tone button per option");
+  assert.match(appSrc, /data-neg-copy[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
+    "copy handler must use clipboard fallback");
+  // Wiring inside render()
+  assert.match(appSrc, /renderNegotiateBlock\(flags\)/,
+    "render() must call renderNegotiateBlock with flags");
+
+  // CSS
+  assert.match(cssSrc, /\.neg-row\b/, ".neg-row style must exist");
+  assert.match(cssSrc, /\.neg-tone\.neg-active\b/, ".neg-tone.neg-active style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,
