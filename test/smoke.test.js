@@ -6304,3 +6304,38 @@ test("analyzer: Document heat map color-codes each sentence by risk severity", (
   assert.match(cssSrc, /\.heat-cell\.heat-g\b[^}]*--green/,
     ".heat-g (note) must use --green");
 });
+
+// Iter #89: heat-map polish — clickable tiles, "show only flagged",
+// and a tile/list toggle. Plus a graceful toast when the user edits
+// the doc out from under the analysis.
+test("analyzer: Document heat map is interactive (click → jump, filter chips, view toggle)", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Click-to-jump wiring: must listen on heat-cell + use setSelectionRange
+  assert.match(appSrc, /heat-cell[\s\S]+?addEventListener\(['"]click['"]/,
+    "heat-cell must be wired to click events");
+  assert.match(appSrc, /input\.setSelectionRange/,
+    "click handler must select the matching range in the textarea");
+  assert.match(appSrc, /showAnalyzeToast[\s\S]+?doc was edited/,
+    "must toast a graceful message when input diverges from the analyzed text");
+
+  // Filter chip + view-toggle chip must exist
+  assert.match(appSrc, /heatOnlyFlagsBtn/,
+    "heatOnlyFlagsBtn must exist");
+  assert.match(appSrc, /heatModeBtn/,
+    "heatModeBtn must exist");
+  assert.match(appSrc, /heat-only-flags/,
+    "filter-chip must toggle .heat-only-flags class");
+  assert.match(appSrc, /heat-mode-list/,
+    "view-mode chip must toggle .heat-mode-list class");
+
+  // CSS: filter + list-mode styles
+  assert.match(cssSrc, /\.heat-map\.heat-only-flags \.heat-cell\.heat-c\{[^}]*display:none/,
+    ".heat-only-flags must hide .heat-c tiles");
+  assert.match(cssSrc, /\.heat-map\.heat-mode-list/,
+    ".heat-mode-list style must exist");
+});

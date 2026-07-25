@@ -1832,6 +1832,7 @@
           legendBtn=$('#legendBtn'),
           transBlock=$('#transBlock'),transNote=$('#transNote'),transList=$('#transList'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
+          heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2842,12 +2843,15 @@
 
       // Iter #88: heat map — color every sentence by its risk
       // severity so the user can see WHERE the traps cluster.
-      // Sentences without a flag stay gray. Hidden until at least
-      // one sentence gets analyzed so an empty doc isn't noise.
+      // Iter #89: click-to-jump on tiles + a "View only flagged"
+      // filter chip + a "view mode" toggle (tiles ↔ inline list).
       if(heatBlock && heatMap){
         if(sentences && sentences.length){
           heatMap.innerHTML = buildHeatMapHTML(sentences, flags);
           heatBlock.hidden = false;
+          // Stash the joined sentence strings so click handlers can
+          // locate the source position inside the live input.
+          try { heatMap._sentences = sentences; } catch(_){ /* non-DOM */ }
           if(heatNote){
             const sevTally = {r:0,a:0,g:0,c:0};
             heatMap.querySelectorAll('.heat-cell').forEach(el => {
@@ -2857,7 +2861,56 @@
             heatNote.innerHTML =
               '<span class="riskNote-lead">' + sentences.length + ' sentence' + (sentences.length === 1 ? '' : 's') + ' · ' +
               sevTally.r + ' trap · ' + sevTally.a + ' watch · ' + sevTally.g + ' note</span> ' +
-              'Hover any tile to read the original sentence. Red tiles = address before signing.';
+              'Click any tile to jump to the source. Red tiles = address before signing. ' +
+              '<button type="button" class="ghost-btn ghost-btn-sm heat-only-flags" id="heatOnlyFlagsBtn" title="Hide clear (gray) tiles">show only flagged</button> ' +
+              '<button type="button" class="ghost-btn ghost-btn-sm heat-mode" id="heatModeBtn" title="Switch to inline-list view">list view</button>';
+          }
+          // Iter #89 — wire click-to-jump on each tile.
+          $$('.heat-cell', heatMap).forEach((tile, ti) => {
+            tile.addEventListener('click', () => {
+              const idx = parseInt(tile.getAttribute('data-sen-idx') || '-1', 10);
+              if(!input || typeof input.value !== 'string') return;
+              const sentence = (heatMap._sentences && heatMap._sentences[idx]) || tile.textContent || '';
+              if(!sentence) return;
+              // Try to locate the sentence in the live textarea. If
+              // the user has edited the doc since analysis, fall back
+              // to the closest prefix match and offer a toast.
+              const idx2 = input.value.indexOf(sentence);
+              if(idx2 >= 0){
+                try { input.focus(); input.setSelectionRange(idx2, idx2 + sentence.length); } catch(_){ /* ignore */ }
+                if(typeof scrollIntoView === 'function'){
+                  input.scrollIntoView({behavior:'smooth', block:'center'});
+                } else {
+                  input.scrollTop = Math.max(0, input.scrollTop - 60);
+                }
+              } else {
+                // Try a softer match — first 24 chars of the sentence.
+                const probe = sentence.slice(0, 24);
+                const idx3 = probe.length >= 6 ? input.value.indexOf(probe) : -1;
+                if(idx3 >= 0){
+                  try { input.focus(); input.setSelectionRange(idx3, idx3 + probe.length); } catch(_){ /* ignore */ }
+                }
+                if(typeof showAnalyzeToast === 'function'){
+                  showAnalyzeToast(idx3 >= 0 ? '📍 Snapped to closest match' : '⚠ Sentence no longer in input — the doc was edited');
+                }
+              }
+            });
+          });
+          // Iter #89 — "show only flagged" filter chip
+          if(heatOnlyFlagsBtn){
+            heatOnlyFlagsBtn.addEventListener('click', () => {
+              const on = heatMap.classList.toggle('heat-only-flags');
+              heatOnlyFlagsBtn.textContent = on ? 'show all sentences' : 'show only flagged';
+              heatOnlyFlagsBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+          }
+          // Iter #89 — view-mode toggle (tiles ↔ list)
+          if(heatModeBtn){
+            heatModeBtn.addEventListener('click', () => {
+              const isList = heatMap.classList.toggle('heat-mode-list');
+              heatModeBtn.textContent = isList ? 'tile view' : 'list view';
+              heatModeBtn.setAttribute('aria-pressed', isList ? 'true' : 'false');
+            });
           }
         } else {
           heatBlock.hidden = true;

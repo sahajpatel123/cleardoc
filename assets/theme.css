@@ -1079,15 +1079,23 @@ button.risk-preview:hover{filter:brightness(.96)}
 /* Document heat map (iter #88) — each sentence is a tile colored
  * by its risk severity. Red tiles = trap, amber = watch, green =
  * note, gray = clear. Lets users see WHERE the traps cluster in
- * a single glance. */
+ * a single glance. Iter #89: clickable tiles + "only flagged"
+ * filter + tile/list toggle. */
 .heat-wrap{font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.45}
 .heat-map{display:flex;flex-wrap:wrap;gap:3px}
-.heat-cell{display:inline-block;padding:3px 6px;border-radius:2px;cursor:help;font-size:var(--t-meta);max-width:32ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid transparent}
+.heat-cell{display:inline-block;padding:3px 6px;border-radius:2px;cursor:pointer;font-size:var(--t-meta);max-width:32ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid transparent;transition:transform .15s ease}
 .heat-cell.heat-r{background:var(--danger-tint);color:var(--ink);border-color:var(--danger)}
 .heat-cell.heat-a{background:var(--amber-tint);color:var(--ink);border-color:var(--amber)}
 .heat-cell.heat-g{background:var(--green-tint);color:var(--ink);border-color:var(--green)}
 .heat-cell.heat-c{background:var(--paper2);color:var(--ink-soft);border-color:var(--bd-hair)}
-.heat-cell:hover{filter:brightness(.96)}
+.heat-cell:hover{filter:brightness(.92);transform:translateY(-1px)}
+/* Iter #89 — filter: hide clear tiles, keep only flagged rows */
+.heat-map.heat-only-flags .heat-cell.heat-c{display:none}
+/* Iter #89 — list view: one row per sentence, severity stripe on the left */
+.heat-map.heat-mode-list{display:block;columns:1;column-gap:0}
+.heat-map.heat-mode-list .heat-cell{display:block;max-width:none;border-radius:0;border-width:0 0 0 3px;padding:6px 10px;margin:0 0 4px 0;white-space:normal}
+.heat-only-flags{margin-left:6px;font-size:11px;padding:2px 8px}
+.heat-mode{margin-left:6px;font-size:11px;padding:2px 8px}
 
 .trans-list{display:flex;flex-direction:column;gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
 .trans-row{border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);padding:6px 8px;display:flex;flex-direction:column;gap:4px}
