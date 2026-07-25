@@ -1183,6 +1183,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .tone-cell .tone-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(to right,var(--green),var(--amber) 60%,var(--danger));transition:width .3s ease}
 .tone-cell .tone-score{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--ink)}
 .tone-cell .tone-hint{font-size:var(--t-micro);color:var(--ink-soft);font-style:italic;margin-top:2px}
+.tone-ex-list{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+.tone-ex{font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--paper);color:var(--ink);padding:1px 5px;border:var(--bd-hair) solid var(--ink-soft);cursor:pointer;text-transform:lowercase}
+.tone-ex:hover{filter:brightness(.92)}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

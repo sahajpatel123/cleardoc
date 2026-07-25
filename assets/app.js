@@ -3256,53 +3256,106 @@
     };
     function analyzeTone(raw){
       const text = String(raw || '');
-      if(!text) return { trust: 50, pressure: 0, clarity: 50, words: 0, signal: 0 };
+      if(!text) return { trust: 50, pressure: 0, clarity: 50, words: 0, signal: 0,
+        examples: { trust: [], pressure: [], clarity: [] } };
       const lower = text.toLowerCase();
       const wordCount = (text.match(/\b[\w'-]+\b/g) || []).length;
+      // Iter #113: capture matched examples per axis so users can
+      // see exactly which phrases dragged a score up or down.
       const tally = (lex) => {
         let total = 0;
-        lex.forEach(o => { const hits = (lower.match(o.re) || []).length; total += hits * o.weight; });
-        return total;
+        const examples = [];
+        lex.forEach(o => {
+          o.re.lastIndex = 0;
+          let m;
+          let count = 0;
+          while((m = o.re.exec(lower)) && count < 3){
+            if(examples.length < 5) examples.push(m[0]);
+            count++;
+          }
+          total += count * o.weight;
+        });
+        return { total, examples };
       };
-      const trustHits = tally(TONE_LEX.trust);
-      const pressureHits = tally(TONE_LEX.pressure);
-      const clarityHits = tally(TONE_LEX.clarity);
-      const jargonHits = tally(TONE_LEX.jargon);
+      const trustR = tally(TONE_LEX.trust);
+      const pressureR = tally(TONE_LEX.pressure);
+      const clarityR = tally(TONE_LEX.clarity);
+      const jargonR = tally(TONE_LEX.jargon);
       // Normalize per 1000 words so short and long docs compare
       const f = 1000 / Math.max(1, wordCount);
       // Trust: 50 baseline + bonus, capped 0..100
-      let trust = Math.round(50 + trustHits * f * 1.0);
+      let trust = Math.round(50 + trustR.total * f * 1.0);
       trust = Math.max(0, Math.min(100, trust));
       // Pressure: 0 baseline + accumulation, capped 0..100
-      let pressure = Math.round(pressureHits * f * 1.2);
+      let pressure = Math.round(pressureR.total * f * 1.2);
       pressure = Math.max(0, Math.min(100, pressure));
       // Clarity: 50 baseline + clarity bonus - jargon penalty
-      let clarity = Math.round(50 + clarityHits * f * 1.0 - jargonHits * f * 1.4);
+      let clarity = Math.round(50 + clarityR.total * f * 1.0 - jargonR.total * f * 1.4);
       clarity = Math.max(0, Math.min(100, clarity));
-      return { trust, pressure, clarity, words: wordCount, signal: trustHits + pressureHits + clarityHits + jargonHits };
+      return {
+        trust, pressure, clarity,
+        words: wordCount,
+        signal: trustR.total + pressureR.total + clarityR.total + jargonR.total,
+        examples: { trust: trustR.examples, pressure: pressureR.examples, clarity: clarityR.examples },
+      };
     }
     function renderToneBlock(tone){
       if(!toneBlock || !toneGrid || !tone) return;
-      const cell = (key, label, score, hint, glyph) => {
+      const cell = (key, label, score, hint, glyph, examples) => {
         const color = score >= 70 ? 'good' : score >= 45 ? 'mid' : 'low';
+        const exs = (examples || []).slice(0, 3).map(ex => '<button type="button" class="tone-ex" data-tone-idx="' + esc(key + ':' + ex) + '" title="Click to jump to the source">' + esc(ex) + '</button>').join('');
         return '<div class="tone-cell tone-' + color + '" title="' + esc(hint) + '">' +
           '<div class="tone-glyph">' + glyph + '</div>' +
           '<div class="tone-name">' + esc(label) + '</div>' +
           '<div class="tone-bar"><div class="tone-fill" style="width:' + score + '%"></div></div>' +
           '<div class="tone-score">' + score + '/100</div>' +
           '<div class="tone-hint">' + esc(hint) + '</div>' +
+          (exs ? '<div class="tone-ex-list">' + exs + '</div>' : '') +
         '</div>';
       };
       toneGrid.innerHTML =
-        cell('trust', 'Trust signals', tone.trust, 'Mutual language, good-faith, fair-mind — higher is healthier.', '🤝') +
-        cell('pressure', 'Pressure signals', tone.pressure, 'Forfeit, waive, must, sole discretion — higher is more aggressive.', '⚡') +
-        cell('clarity', 'Plain-language clarity', tone.clarity, 'Defined terms and "for example" raise it; "notwithstanding" / "hereto" lower it.', '📖');
+        cell('trust', 'Trust signals', tone.trust, 'Mutual language, good-faith, fair-mind — higher is healthier.', '🤝', tone.examples.trust) +
+        cell('pressure', 'Pressure signals', tone.pressure, 'Forfeit, waive, must, sole discretion — higher is more aggressive.', '⚡', tone.examples.pressure) +
+        cell('clarity', 'Plain-language clarity', tone.clarity, 'Defined terms and "for example" raise it; "notwithstanding" / "hereto" lower it.', '📖', tone.examples.clarity);
       toneBlock.hidden = false;
       if(toneNote){
         const sum = (tone.trust + (100 - tone.pressure) + tone.clarity) / 3;
         const verdict = sum >= 70 ? '👍 gentle + fair' : sum >= 50 ? '😐 mixed' : '⚠ hostile or confusing';
         toneNote.innerHTML = '<span class="riskNote-lead">' + tone.words.toLocaleString('en-US') + ' words analyzed</span> ' +
-          'Overall tone: <b>' + verdict + '</b> · Three axes measured locally over a hand-tuned legalese lexicon.';
+          'Overall tone: <b>' + verdict + '</b> · Three axes measured locally over a hand-tuned legalese lexicon. ' +
+          '<button type="button" class="ghost-btn ghost-btn-sm" id="toneSpeakBtn" title="Speak the verdict aloud">🔊 read verdict</button>';
+      }
+      // Iter #113: click-to-jump on each example + verdict read-aloud
+      $$('.tone-ex', toneGrid).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          if(!input) return;
+          const combined = (btn.getAttribute('data-tone-idx') || '').split(':');
+          const phrase = combined.slice(1).join(':');
+          if(!phrase) return;
+          const idx2 = input.value.toLowerCase().indexOf(phrase.toLowerCase());
+          if(idx2 >= 0){
+            try { input.focus(); input.setSelectionRange(idx2, idx2 + phrase.length); } catch(_){ /* ignore */ }
+            if(typeof input.scrollIntoView === 'function'){
+              try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+            }
+          }
+        });
+      });
+      const speakBtn = document.getElementById('toneSpeakBtn');
+      if(speakBtn){
+        speakBtn.addEventListener('click', () => {
+          if(typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+          const sum = (tone.trust + (100 - tone.pressure) + tone.clarity) / 3;
+          const verdict = sum >= 70 ? 'gentle and fair' : sum >= 50 ? 'mixed' : 'hostile or confusing';
+          const text = 'Tone analysis: trust ' + tone.trust + ', pressure ' + tone.pressure + ', clarity ' + tone.clarity + '. Overall: ' + verdict + '.';
+          try {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 0.95;
+            window.speechSynthesis.speak(u);
+          } catch(_){ /* ignore */ }
+        });
       }
     }
 

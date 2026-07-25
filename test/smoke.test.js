@@ -7108,6 +7108,15 @@ test("analyzer: Tone analyzer measures trust / pressure / clarity across the doc
   // CSS
   assert.match(cssSrc, /\.tone-cell\b/, ".tone-cell style must exist");
   assert.match(cssSrc, /\.tone-fill\b/, ".tone-fill bar style must exist");
+
+  // Iter #113 polish: per-axis examples + click-to-jump + read-verdict.
+  assert.match(appSrc, /tone-ex|data-tone-idx/,
+    "iter #113 must render a tone-ex examples list");
+  assert.match(appSrc, /tone-ex[\s\S]+?addEventListener\(['"]click['"][\s\S]+?setSelectionRange/,
+    "iter #113 must wire click-to-jump on tone examples");
+  assert.match(appSrc, /toneSpeakBtn[\s\S]+?SpeechSynthesisUtterance|speechSynthesis\.speak/,
+    "iter #113 must allow reading the verdict aloud");
+  assert.match(cssSrc, /\.tone-ex\b/, ".tone-ex style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
