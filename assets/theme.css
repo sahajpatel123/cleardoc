@@ -1078,12 +1078,17 @@ button.risk-preview:hover{filter:brightness(.96)}
 
 /* Worst-case exposure line (iter #90) — sums the iter #79 per-row
  * dollar estimates and shows one bold headline number so the user
- * sees the absolute ceiling in a single read. */
-.risk-exposure-line{font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.5;padding:8px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);margin-bottom:8px}
+ * sees the absolute ceiling in a single read. Iter #91: magnitude
+ * band color + share/explainer actions. */
+.risk-exposure-line{font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.5;padding:8px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);margin-bottom:8px;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.risk-exposure-line.re-band-low{border-color:var(--green);background:var(--green-tint)}
+.risk-exposure-line.re-band-mid{border-color:var(--amber);background:var(--amber-tint)}
+.risk-exposure-line.re-band-high{border-color:var(--danger);background:var(--danger-tint)}
 .risk-exposure-line .re-kicker{color:var(--ink-soft);font-size:var(--t-meta);text-transform:uppercase;letter-spacing:.04em}
 .risk-exposure-line .re-total{font-size:24px;font-weight:800;color:var(--ink);margin:0 4px}
-.risk-exposure-line .re-breakdown{font-size:var(--t-meta);color:var(--ink-soft)}
+.risk-exposure-line .re-breakdown{font-size:var(--t-meta);color:var(--ink-soft);flex:1;min-width:160px}
 .risk-exposure-line b{font-weight:700}
+.risk-exposure-line .re-share,.risk-exposure-line .re-explain{margin-left:6px;font-size:11px;padding:2px 8px}
 
 /* Document heat map (iter #88) — each sentence is a tile colored
  * by its risk severity. Red tiles = trap, amber = watch, green =

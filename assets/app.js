@@ -1986,13 +1986,28 @@
         if(exp.r) breakdown.push('<b style="color:var(--danger)">$' + exp.r + ' traps</b>');
         if(exp.a) breakdown.push('<b style="color:var(--amber)">$' + exp.a + ' watches</b>');
         if(exp.g) breakdown.push('<b style="color:var(--green)">$' + exp.g + ' notes</b>');
+        // Iter #91: band color so the headline visually responds to
+        // magnitude, plus a one-click share text that users can copy
+        // straight into a chat or a doc to brag / warn a friend.
+        const band = totalExposure >= 1000 ? 'high'
+                   : totalExposure >= 300 ? 'mid'
+                   : 'low';
+        const shareText = 'Just analyzed a contract with ClearDoc — worst-case exposure ≈ $' +
+          totalExposure + ' if I had signed without checking. (' + breakdown.length + ' severity buckets). ' +
+          'cleardoc.app';
+        const shareEncoded = encodeURIComponent(shareText);
         parts.push(
-          '<div class="risk-exposure-line" role="note" aria-label="Estimated worst-case exposure">',
+          '<div class="risk-exposure-line re-band-' + band + '" role="note" aria-label="Estimated worst-case exposure">',
             '<span class="re-kicker">If you signed today, worst-case exposure ≈</span> ',
             '<span class="re-total">$' + totalExposure + '</span>',
             '<span class="re-breakdown"> (' + breakdown.join(' + ') + ')</span>',
+            '<button type="button" class="re-share ghost-btn ghost-btn-sm" data-re-share="' + esc(shareText) + '" title="Copy a one-liner share text to clipboard">📣 share this</button>',
+            '<button type="button" class="re-explain ghost-btn ghost-btn-sm" data-re-explain="1" title="Where do these numbers come from?">why these numbers?</button>',
           '</div>'
         );
+        // Cache so the explainer can be opened from the global flow
+        // too (badgeExplainBtn can route here if requested later).
+        try { riskDetail._shareText = shareText; } catch(_){ /* non-DOM */ }
       }
       parts.push(
         '<div class="risk-detail-toolbar">',
@@ -5011,6 +5026,59 @@
 
       if(riskDetail){
         riskDetail.addEventListener('click', async (e) => {
+          // Iter #91 — exposure share button: copy the one-liner so
+          // users can paste it into a chat / doc to warn a friend.
+          const shareExposure = e.target.closest && e.target.closest('[data-re-share]');
+          if(shareExposure){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = shareExposure.getAttribute('data-re-share') || '';
+            let copied = false;
+            try {
+              if(navigator.clipboard && navigator.clipboard.writeText){
+                await navigator.clipboard.writeText(text);
+                copied = true;
+              }
+            } catch(_){ /* fall through */ }
+            if(!copied){
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.setAttribute('readonly','');
+                ta.style.position='absolute'; ta.style.left='-9999px';
+                document.body.appendChild(ta); ta.select();
+                document.execCommand('copy'); document.body.removeChild(ta);
+                copied = true;
+              } catch(_){ /* ignore */ }
+            }
+            if(typeof showAnalyzeToast === 'function'){
+              showAnalyzeToast(copied ? '📣 Share text copied!' : '⚠ Couldn’t copy — try selecting manually');
+            }
+            shareExposure.textContent = copied ? '✓ copied!' : '📣 share this';
+            setTimeout(() => {
+              if(shareExposure.isConnected) shareExposure.textContent = '📣 share this';
+            }, 2500);
+            return;
+          }
+          // Iter #91 — explainer chip: reuse the same per-severity
+          // narrative as badgeExplainBtn (which references the
+          // exported share-bundle Numbers card).
+          const explainExposure = e.target.closest && e.target.closest('[data-re-explain]');
+          if(explainExposure){
+            e.preventDefault();
+            e.stopPropagation();
+            if(typeof showConfirmModal === 'function'){
+              await showConfirmModal({
+                title: 'Where do these numbers come from?',
+                bodyHtml: '<p>The exposure headline sums the iter #79 per-severity estimates:</p>' +
+                  '<p><b style="color:var(--danger)">trap  = $200</b><br>High stakes — could void a contract, trigger a penalty, or shift a big liability. Conservative; actual cost can be much higher.</p>' +
+                  '<p><b style="color:var(--amber)">watch = $50</b><br>Medium stakes — could trigger unwanted terms, missed deadlines, or administrative headaches.</p>' +
+                  '<p><b style="color:var(--green)">note  = $20</b><br>Low stakes — minor administrative cost — extra paperwork, follow-up calls, or small fees.</p>' +
+                  '<p class="apply-confirm-note">These are industry-rough conservative estimates. Real costs vary by contract, jurisdiction, and situation. Use the number as a relative gauge, not a literal price tag.</p>',
+                confirmLabel: 'Got it',
+              });
+            }
+            return;
+          }
           // 0a. Undo chip — restore the input to its pre-apply state.
           // Also clears all "applied" badges so the risk rows reset.
           const undoBtn = e.target.closest && e.target.closest('[data-undo-apply]');

@@ -6369,3 +6369,39 @@ test("analyzer: Worst-case exposure headline summarizes the risk panel in one li
   assert.match(cssSrc, /\.risk-exposure-line \.re-total\{/,
     ".re-total (the headline number) must be styled distinctly");
 });
+
+// Iter #91: exposure-line polish — magnitude band color
+// (low / mid / high) + share + explainer chips.
+test("analyzer: Worst-case exposure headline polished with band color + share + explainer", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Magnitude band must switch on $ thresholds (1000+ high, 300+ mid)
+  assert.match(appSrc, /totalExposure >= 1000 \? 'high'[\s\S]+?>= 300 \? 'mid'[\s\S]+?'low'/,
+    "render must pick a band key (high/mid/low) by total exposure");
+  assert.match(appSrc, /re-band-\$\{band\}|re-band-' \+ band|re-band-(?:"|')\s*\+ band|re-band-' \+ band/,
+    "render must apply the band as a class on the line");
+
+  // Share action must be wired (data-re-share) and copy to clipboard
+  assert.match(appSrc, /data-re-share=/,
+    "share button must carry a data-re-share attribute");
+  assert.match(appSrc, /data-re-share[\s\S]+?clipboard\.writeText|execCommand\('copy'\)/,
+    "share button handler must use clipboard fallback chain");
+
+  // Explainer chip must open a showConfirmModal with the rate card
+  assert.match(appSrc, /data-re-explain/,
+    "explainer chip must be wired");
+  assert.match(appSrc, /data-re-explain[\s\S]+?showConfirmModal[\s\S]+?where do these numbers come from/i,
+    "explainer chip must open the rate-source modal");
+
+  // CSS must define each band
+  assert.match(cssSrc, /\.risk-exposure-line\.re-band-low\b/,
+    "low band style must exist");
+  assert.match(cssSrc, /\.risk-exposure-line\.re-band-mid\b/,
+    "mid band style must exist");
+  assert.match(cssSrc, /\.risk-exposure-line\.re-band-high\b/,
+    "high band style must exist");
+});
