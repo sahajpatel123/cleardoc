@@ -1084,7 +1084,7 @@ button.risk-preview:hover{filter:brightness(.96)}
 .juris-flag{font-size:22px;line-height:1}
 .juris-label{font-weight:700;font-size:var(--t-meta);color:var(--ink)}
 .juris-source{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);background:var(--paper);padding:1px 6px;border:var(--bd-hair) solid var(--ink-soft)}
-.juris-why{margin-left:6px;font-size:11px;padding:2px 8px}
+.juris-why,.juris-counter,.juris-speak{margin-left:6px;font-size:11px;padding:2px 8px;cursor:pointer}
 
 /* Contract maturity score (iter #92) — A–F grade across 6
  * dimensions: clarity, fairness, completeness, plain-language,

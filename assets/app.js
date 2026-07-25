@@ -2999,15 +2999,25 @@
     function renderJurisdictionBlock(result){
       if(!jurisBlock || !jurisRow || !result || !result.jurisdiction) return;
       const j = result.jurisdiction;
+      // Iter #95: counter-suggestion chip the user can copy or have
+      // spoken aloud — pushes for "your home state" instead of the
+      // counterparty's home venue. Same UX shape as the iter #41
+      // risk-counter rows so users recognize the affordance.
+      const counter = ('Negotiate venue for the consumer-friendly state. ' +
+        'Suggested clause: "Any dispute arising from this agreement shall be ' +
+        'resolved in the courts of [your home state], and each party ' +
+        'consents to personal jurisdiction therein."').trim();
       jurisRow.innerHTML =
-        '<span class="juris-flag" aria-hidden="true">' + (j.flag || '🌐') + '</span>' +
+        '<span class="juris-flag" aria-hidden="true" title="' + esc(j.label) + '">' + (j.flag || '🌐') + '</span>' +
         '<span class="juris-label">' + esc(j.label) + '</span>' +
-        '<span class="juris-source">(' + (result.explicit ? 'explicit clause' : 'inferred') + ')</span>';
+        '<span class="juris-source">(' + (result.explicit ? 'explicit clause' : 'inferred') + ')</span>' +
+        '<button type="button" class="juris-why ghost-btn ghost-btn-sm" title="Why does the jurisdiction matter?">why?</button>' +
+        '<button type="button" class="juris-counter ghost-btn ghost-btn-sm" title="Copy a counter-clause you can propose" data-juris-counter="' + esc(counter) + '">📝 counter-clause</button>' +
+        '<button type="button" class="juris-speak ghost-btn ghost-btn-sm" title="Speak the counter-clause aloud" data-juris-speak="' + esc(counter) + '">🔊</button>';
       if(jurisNote){
         jurisNote.innerHTML =
           '<span class="riskNote-lead">Governing law: ' + esc(j.label) + '</span> ' +
-          esc(j.hint || '') +
-          ' <button type="button" class="juris-why ghost-btn ghost-btn-sm" title="Why does the jurisdiction matter?">why?</button>';
+          esc(j.hint || '');
       }
       jurisBlock.hidden = false;
     }
@@ -4438,6 +4448,79 @@
                 confirmLabel: 'Got it',
               });
             }
+            return;
+          }
+        });
+      }
+
+      // Iter #95: jurisdiction chip polish — delegated click handler
+      // on the venue block. Three actions: copy counter-clause,
+      // speak it aloud, or open the "why?" explain modal.
+      if(jurisBlock){
+        jurisBlock.addEventListener('click', async (e) => {
+          const whyBtn = e.target.closest && e.target.closest('.juris-why');
+          if(whyBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            if(typeof showConfirmModal === 'function'){
+              await showConfirmModal({
+                title: 'Why does the jurisdiction matter?',
+                bodyHtml: '<p>Every contract names a venue — the court that hears disputes. Most users never think to ask for their own home state, which means they end up paying for a lawyer in the counterparty’s city.</p>' +
+                  '<p>Three practical rules of thumb:</p>' +
+                  '<ol style="margin:6px 0 0 18px;padding:0"><li>Pick <b>your</b> home state — your lawyer is local, your witnesses are local, and you don’t fly for hearings.</li>' +
+                  '<li>If the counterparty insists on their venue, ask for arbitration (often cheaper than court).</li>' +
+                  '<li>Watch for automatic venue changes buried in renewal clauses.</li></ol>' +
+                  '<p class="apply-confirm-note">ClearDoc surfaces the detected jurisdiction locally; nothing is sent to a third party.</p>',
+                confirmLabel: 'Got it',
+              });
+            }
+            return;
+          }
+          const speakBtn = e.target.closest && e.target.closest('[data-juris-speak]');
+          if(speakBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = speakBtn.getAttribute('data-juris-speak') || '';
+            if(!text) return;
+            try {
+              if(typeof window !== 'undefined' && 'speechSynthesis' in window){
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = 0.95;
+                window.speechSynthesis.speak(u);
+              }
+            } catch(_){ /* ignore */ }
+            return;
+          }
+          const copyBtn = e.target.closest && e.target.closest('[data-juris-counter]');
+          if(copyBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = copyBtn.getAttribute('data-juris-counter') || '';
+            let copied = false;
+            try {
+              if(navigator.clipboard && navigator.clipboard.writeText){
+                await navigator.clipboard.writeText(text);
+                copied = true;
+              }
+            } catch(_){ /* fall through */ }
+            if(!copied){
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.setAttribute('readonly','');
+                ta.style.position='absolute'; ta.style.left='-9999px';
+                document.body.appendChild(ta); ta.select();
+                document.execCommand('copy'); document.body.removeChild(ta);
+                copied = true;
+              } catch(_){ /* ignore */ }
+            }
+            if(typeof showAnalyzeToast === 'function'){
+              showAnalyzeToast(copied ? '📝 Counter-clause copied!' : '⚠ Couldn’t copy');
+            }
+            copyBtn.textContent = copied ? '✓ copied!' : '📝 counter-clause';
+            setTimeout(() => {
+              if(copyBtn.isConnected) copyBtn.textContent = '📝 counter-clause';
+            }, 2500);
             return;
           }
         });

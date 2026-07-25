@@ -6544,3 +6544,37 @@ test("analyzer: Jurisdiction & venue detector surfaces the governing-law clause"
   assert.match(cssSrc, /\.juris-source\{/,
     ".juris-source style must exist");
 });
+
+// Iter #95: jurisdiction chip polish — counter-clause + explain
+// modal + speak button. Mirrors the iter #41 risk-counter UX.
+test("analyzer: Jurisdiction chip polished with copy / speak / explain actions", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Delegated click handler must exist on jurisBlock
+  assert.match(appSrc, /jurisBlock\.addEventListener\(['"]click['"]/,
+    "jurisBlock must be wired to click events");
+
+  // Three actions: copy counter, speak, why modal
+  assert.match(appSrc, /data-juris-counter/,
+    "copy-counter button attribute must exist");
+  assert.match(appSrc, /data-juris-counter[\s\S]+?clipboard\.writeText|execCommand\('copy'\)/,
+    "copy-counter handler must use clipboard fallback");
+  assert.match(appSrc, /data-juris-speak[\s\S]+?SpeechSynthesisUtterance/,
+    "speak handler must use SpeechSynthesisUtterance");
+  assert.match(appSrc, /Why does the jurisdiction matter\?/,
+    "explain modal must ask why jurisdiction matters");
+
+  // Counter-clause text must mention home state
+  assert.match(appSrc, /your home state|consumer-friendly state/,
+    "counter-clause text must propose your home state");
+
+  // CSS
+  assert.match(cssSrc, /\.juris-counter\{|\.juris-counter\b/,
+    ".juris-counter style must exist");
+  assert.match(cssSrc, /\.juris-speak\{|\.juris-speak\b/,
+    ".juris-speak style must exist");
+});
