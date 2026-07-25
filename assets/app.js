@@ -1834,6 +1834,7 @@
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
+          jurisBlock=$('#jurisBlock'),jurisNote=$('#jurisNote'),jurisRow=$('#jurisRow'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2902,6 +2903,115 @@
       if(old) old.remove();
     }
 
+    // Iter #94: jurisdiction detector. Scans the first 1000 chars of
+    // the analyzed text for venue/forum/governing-law clauses and
+    // reports the most likely state / region. Used to flag forum-risk:
+    // documents that pick a counterparty's home venue are statistically
+    // worse for the user. Pure local — no AI call.
+    const JURISDICTIONS = [
+      { name: 'us-de',    label: 'Delaware, USA',        flag: '🇺🇸', hint: 'DE is the corporate-law capital — favorable to the side with the better-drafted bylaws.' },
+      { name: 'us-ny',    label: 'New York, USA',        flag: '🇺🇸', hint: 'NY courts are efficient but expensive; opposing counsel is often local.' },
+      { name: 'us-ca',    label: 'California, USA',      flag: '🇺🇸', hint: 'Many consumer-protection clauses (CCPA, class-action limits) are unenforceable here.' },
+      { name: 'us-tx',    label: 'Texas, USA',           flag: '🇺🇸', hint: 'Business-friendly venue; some contracts use TX to bypass stricter CA / NY law.' },
+      { name: 'us-il',    label: 'Illinois, USA',        flag: '🇺🇸', hint: 'Midwestern venue; common in B2B logistics and SaaS contracts.' },
+      { name: 'us-fl',    label: 'Florida, USA',         flag: '🇺🇸', hint: 'Used in tourism / hospitality contracts; consumer-protections are weaker than CA.' },
+      { name: 'us-ma',    label: 'Massachusetts, USA',   flag: '🇺🇸', hint: 'Strict consumer-protection state; used heavily in fintech and insurance.' },
+      { name: 'us-wa',    label: 'Washington, USA',      flag: '🇺🇸', hint: 'Tech-sector venue; common in cloud / SaaS master agreements.' },
+      { name: 'us-other', label: 'U.S. (state unknown)', flag: '🇺🇸', hint: 'A U.S. state court governs — negotiate for your own home state to level the field.' },
+      { name: 'uk',       label: 'United Kingdom',       flag: '🇬🇧', hint: 'UK courts are predictable but slow for cross-border disputes; consider arbitration.' },
+      { name: 'eu',       label: 'European Union',       flag: '🇪🇺', hint: 'GDPR + consumer-rights directives apply — arbitration clauses here are tightly regulated.' },
+      { name: 'de',       label: 'Germany',              flag: '🇩🇪', hint: 'German courts favor the consumer for B2C — a non-refund clause often voids.' },
+      { name: 'fr',       label: 'France',               flag: '🇫🇷', hint: 'French law voids many penalty/late-fee clauses that pass in the US.' },
+      { name: 'es',       label: 'Spain',                flag: '🇪🇸', hint: 'Auto-renewal beyond 12 months requires explicit consent in Spain.' },
+      { name: 'ca',       label: 'Canada',               flag: '🇨🇦', hint: 'Provincial consumer law caps non-refundable fees more tightly than the US.' },
+      { name: 'au',       label: 'Australia',            flag: '🇦🇺', hint: 'Australian Consumer Law voids unfair contract terms — many US-style clauses fail.' },
+      { name: 'nz',       label: 'New Zealand',          flag: '🇳🇿', hint: 'Similar to Australian consumer law — fair-trading mandates apply.' },
+      { name: 'in',       label: 'India',                flag: '🇮🇳', hint: 'Indian arbitration can move fast; dispute-resolution is often pragmatic.' },
+      { name: 'sg',       label: 'Singapore',            flag: '🇸🇬', hint: 'Singapore is the regional default for APAC — efficient but expensive.' },
+      { name: 'jp',       label: 'Japan',                flag: '🇯🇵', hint: 'Japanese contracts lean on relationship; explicit termination clauses matter more.' },
+      { name: 'cn',       label: 'China',                flag: '🇨🇳', hint: 'Enforceability of foreign awards is improving but courts are territorial — clarify the arbitration seat.' },
+      { name: 'global',   label: 'Global / unclear',     flag: '🌐', hint: 'No clear governing-law clause found. Always negotiate venue before signing.' },
+    ];
+
+    function detectJurisdiction(raw){
+      const text = String(raw || '').slice(0, 1500);
+      if(!text) return null;
+      const lower = text.toLowerCase();
+      // Look for explicit governing-law / venue statements first.
+      const governingLaw = text.match(/governed by[\s\S]{0,80}?(laws?|jurisdiction)[\s\S]{0,80}?(of[\s\S]{0,80}?(state of\s+)?([A-Za-z ]{2,30}))/i)
+        || text.match(/pursuant to[\s\S]{0,80}?(laws?|jurisdiction)[\s\S]{0,80}?(of[\s\S]{0,80}?(state of\s+)?([A-Za-z ]{2,30}))/i);
+      let tokens = [];
+      let explicit = '';
+      if(governingLaw){
+        explicit = (governingLaw[3] || governingLaw[4] || '').trim();
+        tokens.push(explicit.toLowerCase().replace(/^state of\s+/, '').trim());
+      }
+      // Token-by-token keywords for jurisdictions without an explicit clause.
+      const KEYWORDS = {
+        'us-de': ['delaware'],
+        'us-ny': ['new york', 'nyc'],
+        'us-ca': ['california'],
+        'us-tx': ['texas'],
+        'us-il': ['illinois'],
+        'us-fl': ['florida'],
+        'us-ma': ['massachusetts'],
+        'us-wa': ['washington'],
+        'uk':      ['england and wales', 'england & wales', 'united kingdom', ' uk ', ' uk;', ' uk)', ' uk.', '(uk)', ' uk,'],
+        'eu':      ['european union', 'eu law', ' gdpr'],
+        'de':      ['germany', ' bundesrepublik', ' germany '],
+        'fr':      ['france', ' francia'],
+        'es':      ['spain', ' españa'],
+        'ca':      ['canada', ' ontario', ' quebec', ' british columbia'],
+        'au':      ['australia'],
+        'nz':      ['new zealand'],
+        'in':      ['india'],
+        'sg':      ['singapore'],
+        'jp':      ['japan'],
+        'cn':      ['china', 'prc'],
+      };
+      const scores = {};
+      for(const k of Object.keys(KEYWORDS)){
+        for(const keyword of KEYWORDS[k]){
+          if(lower.indexOf(keyword) >= 0){
+            scores[k] = (scores[k] || 0) + 1;
+          }
+        }
+      }
+      // Pick the jurisdiction with the highest score.
+      let best = null;
+      for(const k of Object.keys(scores)){
+        if(!best || scores[k] > best.score) best = { name: k, score: scores[k] };
+      }
+      let juris;
+      if(best){
+        juris = JURISDICTIONS.find(j => j.name === best.name) || null;
+      }
+      // If we had an explicit US state that the keyword map didn't
+      // classify, label it as us-other rather than mis-labeling.
+      if(!juris || (juris && juris.name === 'us-other' && !scores['us-other'] && explicit)){
+        juris = { name: 'us-other', label: explicit + ', USA', flag: '🇺🇸',
+          hint: 'A less-common U.S. state venue — confirm you understand the local consumer rules.' };
+      }
+      if(!juris) juris = JURISDICTIONS.find(j => j.name === 'global');
+      return { jurisdiction: juris, explicit: !!explicit, raw: explicit };
+    }
+
+    function renderJurisdictionBlock(result){
+      if(!jurisBlock || !jurisRow || !result || !result.jurisdiction) return;
+      const j = result.jurisdiction;
+      jurisRow.innerHTML =
+        '<span class="juris-flag" aria-hidden="true">' + (j.flag || '🌐') + '</span>' +
+        '<span class="juris-label">' + esc(j.label) + '</span>' +
+        '<span class="juris-source">(' + (result.explicit ? 'explicit clause' : 'inferred') + ')</span>';
+      if(jurisNote){
+        jurisNote.innerHTML =
+          '<span class="riskNote-lead">Governing law: ' + esc(j.label) + '</span> ' +
+          esc(j.hint || '') +
+          ' <button type="button" class="juris-why ghost-btn ghost-btn-sm" title="Why does the jurisdiction matter?">why?</button>';
+      }
+      jurisBlock.hidden = false;
+    }
+
     function buildHeatMapHTML(sentences, flags){
       const flaggedIndex = new Map();
       (flags || []).forEach(f => {
@@ -3016,6 +3126,16 @@
       } else if(maturityBlock) {
         clearMaturityFooter();
         maturityBlock.hidden = true;
+      }
+
+      // Iter #94: jurisdiction & venue detector — surface the
+      // governing-law clause so users see WHERE a dispute would
+      // be heard, before they sign.
+      if(jurisBlock && typeof detectJurisdiction === 'function'){
+        const jr = detectJurisdiction(raw);
+        renderJurisdictionBlock(jr);
+      } else if(jurisBlock) {
+        jurisBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

@@ -1076,6 +1076,16 @@ button.risk-preview:hover{filter:brightness(.96)}
  * EN row + XX row, with a tiny language code tag.
  * Iter #87: tone-hint chip + per-row 🔊 speak button. */
 
+/* Jurisdiction & venue (iter #94) — flag + jurisdiction + source
+ * (explicit vs inferred). Pure local; the venue is one of the
+ * biggest levers in a contract — most users never think to ask for
+ * their own home state. */
+.juris-row{font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.juris-flag{font-size:22px;line-height:1}
+.juris-label{font-weight:700;font-size:var(--t-meta);color:var(--ink)}
+.juris-source{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);background:var(--paper);padding:1px 6px;border:var(--bd-hair) solid var(--ink-soft)}
+.juris-why{margin-left:6px;font-size:11px;padding:2px 8px}
+
 /* Contract maturity score (iter #92) — A–F grade across 6
  * dimensions: clarity, fairness, completeness, plain-language,
  * exit terms, rewrite coverage. Computed locally so it works

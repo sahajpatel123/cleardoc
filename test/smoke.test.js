@@ -6494,3 +6494,53 @@ test("analyzer: Contract maturity score polished with click-to-explain + share +
   assert.match(cssSrc, /\.mat-tip-list/,
     "tip list style must exist");
 });
+
+// Iter #94: jurisdiction & venue detector — surfaces the
+// governing-law clause of the analyzed document with a flag +
+// jurisdiction label + explicit/inferred chip.
+test("analyzer: Jurisdiction & venue detector surfaces the governing-law clause", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html: jurisdiction block must be present
+  assert.match(html, /id="jurisBlock"/,
+    "analyze.html must contain #jurisBlock");
+  assert.match(html, /Jurisdiction/,
+    "result block must be titled with 'Jurisdiction'");
+  assert.match(html, /id="jurisRow"/,
+    "analyze.html must contain #jurisRow container");
+
+  // app.js: detector + render + table
+  assert.match(appSrc, /function detectJurisdiction\(/,
+    "detectJurisdiction must exist");
+  assert.match(appSrc, /function renderJurisdictionBlock\(/,
+    "renderJurisdictionBlock must exist");
+  assert.match(appSrc, /JURISDICTIONS/,
+    "JURISDICTIONS table must exist");
+  // Key jurisdiction labels must be in the table
+  for(const label of ["Delaware", "New York", "California", "United Kingdom", "European Union", "Global \\/ unclear"]){
+    assert.match(appSrc, new RegExp(label),
+      "JURISDICTIONS must include '" + label + "'");
+  }
+  // Governing-law regex must catch explicit clauses
+  assert.match(appSrc, /governed by[\s\S]{0,80}?laws\?/i,
+    "detector must recognize 'governed by ... laws' phrasing");
+  // Render must toggle the block visibility
+  assert.match(appSrc, /jurisBlock\.hidden = (true|false)/,
+    "jurisBlock.hidden must be toggled");
+  // Render must include the explicit/inferred chip
+  assert.match(appSrc, /juris-source[\s\S]+?explicit clause|inferred/,
+    "render must mark the source (explicit vs inferred)");
+
+  // CSS: flag + label + source chip
+  assert.match(cssSrc, /\.juris-flag\{/,
+    ".juris-flag style must exist");
+  assert.match(cssSrc, /\.juris-label\{/,
+    ".juris-label style must exist");
+  assert.match(cssSrc, /\.juris-source\{/,
+    ".juris-source style must exist");
+});
