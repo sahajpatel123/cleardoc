@@ -7238,6 +7238,17 @@ test("analyzer: Freshness stamp surfaces effective-date / revised / version mark
   // CSS: row + old/future bands
   assert.match(cssSrc, /\.fresh-row\b/, ".fresh-row style must exist");
   assert.match(cssSrc, /\.fresh-row\.fresh-old\b/, ".fresh-old band style must exist");
+
+  // Iter #119 polish: click-to-jump + .ics export + freshness verdict header.
+  assert.match(appSrc, /data-fresh-raw[\s\S]+?addEventListener\(['"]click['"][\s\S]+?setSelectionRange/,
+    "iter #119 must wire click-to-jump on freshness rows");
+  assert.match(appSrc, /data-fresh-ics[\s\S]+?BEGIN:VCALENDAR/,
+    "iter #119 must produce a VCALENDAR .ics payload");
+  assert.match(appSrc, /fresh-verdict|headerVerdict/,
+    "iter #119 must render a freshness-verdict header");
+  // CSS
+  assert.match(cssSrc, /\.fresh-verdict\b/, ".fresh-verdict style must exist");
+  assert.match(cssSrc, /\.fresh-ics\b/, ".fresh-ics button style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,

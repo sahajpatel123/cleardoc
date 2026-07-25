@@ -3399,6 +3399,11 @@
       const items = (result.items || []).filter(i => i.date || i.key === 'version');
       if(!items.length){ freshBlock.hidden = true; return; }
       const now = Date.now();
+      // Iter #119: pick the most relevant dated marker (effective or
+      // last revised) as the "official version" for the header verdict.
+      const datedItems = items.filter(i => i.date);
+      const official = datedItems.find(i => i.key === 'effective') || datedItems.find(i => i.key === 'revised') || datedItems.find(i => i.key === 'executed') || datedItems[0] || null;
+      const version = items.find(i => i.key === 'version');
       const rows = items.map(it => {
         let when = '—';
         if(it.key === 'version'){ when = it.raw; }
@@ -3408,20 +3413,78 @@
         }
         const isOld = it.date && (now - it.date.getTime() > 365 * 86400000);
         const isFuture = it.date && (it.date.getTime() > now + 30 * 86400000);
-        return '<div class="fresh-row' + (isOld ? ' fresh-old' : isFuture ? ' fresh-future' : '') + '">' +
-          '<div class="fresh-label">' + esc(it.label) + '</div>' +
+        const cls = 'fresh-row' + (isOld ? ' fresh-old' : isFuture ? ' fresh-future' : '') + (it === official ? ' fresh-official' : '');
+        // Encode the matched raw phrase on the row so click-to-jump
+        // works without us having to re-search.
+        return '<div class="' + cls + '" data-fresh-raw="' + esc(it.raw) + '" data-fresh-iso="' + (it.date ? it.date.toISOString().slice(0, 10) : '') + '" title="' + esc(it.raw) + ' · click to jump">' +
+          '<div class="fresh-label">' + esc(it.label) + (it === official ? ' ✓' : '') + '</div>' +
           '<div class="fresh-when">' + esc(when) + '</div>' +
           '<div class="fresh-raw">' + esc(it.raw) + '</div>' +
+          (it.date ? '<button type="button" class="fresh-ics ghost-btn ghost-btn-sm" data-fresh-ics="' + esc(it.date.toISOString().slice(0, 10)) + '" title="Add this effective date to your calendar">📅 ics</button>' : '') +
         '</div>';
       }).join('');
       const count = items.length;
       const old = items.filter(i => i.date && (now - i.date.getTime() > 365 * 86400000)).length;
-      freshGrid.innerHTML = rows;
+      // Header verdict
+      let headerVerdict = '';
+      if(official){
+        const months = Math.round((now - official.date.getTime()) / (30 * 86400000));
+        if(months < 0) headerVerdict = '🟢 Effective in the future · not yet binding';
+        else if(months < 6) headerVerdict = '👍 Recent · ' + months + ' months ago';
+        else if(months < 18) headerVerdict = '😐 ' + months + ' months old · worth a quick ask';
+        else headerVerdict = '⚠ ' + months + ' months old · likely outdated — confirm';
+      } else if(version){
+        headerVerdict = '📦 Version marker detected: ' + version.raw;
+      }
+      const verdictHtml = headerVerdict ? '<div class="fresh-verdict">' + esc(headerVerdict) + '</div>' : '';
+      freshGrid.innerHTML = verdictHtml + rows;
       freshBlock.hidden = false;
       if(freshNote){
         freshNote.innerHTML = '<span class="riskNote-lead">' + count + ' freshness marker' + (count === 1 ? '' : 's') + '</span> ' +
           (old > 0 ? '⚠ At least one date is >1 year old — confirm you have the latest revision before signing.' : 'Looks current. Always double-check you have the latest revision.');
       }
+      // Iter #119: click-to-jump on each row
+      $$('.fresh-row', freshGrid).forEach(row => {
+        row.addEventListener('click', (e) => {
+          if(e.target.closest && e.target.closest('.fresh-ics')) return; // handled below
+          if(!input) return;
+          const raw = row.getAttribute('data-fresh-raw') || '';
+          if(!raw) return;
+          const idx2 = input.value.indexOf(raw);
+          if(idx2 >= 0){
+            try { input.focus(); input.setSelectionRange(idx2, idx2 + raw.length); } catch(_){ /* ignore */ }
+            try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ Marker no longer in input — the doc was edited');
+          }
+        });
+      });
+      // Iter #119: per-row .ics export for effective date
+      $$('.fresh-ics', freshGrid).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const iso = btn.getAttribute('data-fresh-ics') || '';
+          if(!iso) return;
+          const row = btn.closest('.fresh-row');
+          const label = (row && row.querySelector('.fresh-label') && row.querySelector('.fresh-label').textContent) || 'Document';
+          const dt = new Date(iso + 'T12:00:00Z');
+          if(isNaN(dt.getTime())) return;
+          const stamp = dt.toISOString().replace(/[-:]|\.\d{3}/g, '');
+          const ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//ClearDoc//freshness-stamp//EN\r\nBEGIN:VEVENT\r\nUID:freshness-' + iso + '@cleardoc\r\nDTSTAMP:' + new Date().toISOString().replace(/[-:]|\.\d{3}/g, '') + '\r\nDTSTART:' + stamp + '\r\nSUMMARY:' + label.trim() + ' (' + iso + ')\r\nDESCRIPTION:Document freshness marker detected by ClearDoc.\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n';
+          try {
+            const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-fresh-' + iso + '.ics';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 4000);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📅 Calendar event saved');
+          } catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t generate calendar file');
+          }
+        });
+      });
     }
 
     function renderNegotiateBlock(flags){
