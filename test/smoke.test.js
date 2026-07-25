@@ -6187,3 +6187,47 @@ test("docs/API.md: exists and documents every API endpoint + every response head
     assert.ok(doc.includes(h), `docs/API.md must mention ${h}`);
   }
 });
+
+// Iter #86: translation cheat sheet — local EN ↔ ES/FR/DE/IT/PT
+// glossary shown only when the detected document language is
+// non-English. Pure local, no AI calls.
+test("analyzer: Translation cheat sheet builds EN ↔ XX rows for foreign-language docs", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html: hidden translation block must be present
+  assert.match(html, /id="transBlock"/,
+    "analyze.html must contain the translation block");
+  assert.match(html, /id="transList"/,
+    "analyze.html must contain #transList container");
+  assert.match(html, /Translation cheat sheet/,
+    "result block must be titled 'Translation cheat sheet'");
+
+  // app.js: renderer + glossary must exist
+  assert.match(appSrc, /function renderTranslationSheet\(/,
+    "renderTranslationSheet must exist");
+  assert.match(appSrc, /TRANS_GLOSSARY/,
+    "TRANS_GLOSSARY must exist");
+  // Glossary must cover ES + FR + DE + IT + PT (the supported langs)
+  for(const code of ["es:","fr:","de:","it:","pt:"]){
+    const pat = new RegExp("^\\s+" + code.replace(/:/g, ":\\s*\\{"), "m");
+    assert.match(appSrc, pat,
+      "TRANS_GLOSSARY must include " + code);
+  }
+  // Glossary keys must include legal core terms
+  for(const k of ["agreement","contract","tenant","rent","deposit","notice"]){
+    assert.match(appSrc, new RegExp("'" + k + "':"),
+      "glossary must include '" + k + "'");
+  }
+  // Wiring must hide the block when language is English or missing
+  const rendererBlock = appSrc.match(/function renderTranslationSheet\([^)]+\)\{[\s\S]+?^\s+\}/m);
+  assert.ok(rendererBlock, "renderTranslationSheet body must exist");
+  assert.match(rendererBlock[0], /lang\.code === ['"]en['"][\s\S]+?return null/,
+    "renderer must early-return on English input");
+  assert.match(appSrc, /transBlock\.hidden = (true|false)/,
+    "transBlock.hidden must be toggled (English / other)");
+});

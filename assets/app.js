@@ -149,6 +149,103 @@
   //   formatRelativeTime(yesterday)              → 'yesterday'
   //   formatRelativeTime(Date.now() - 3*86400e3) → '3d ago'
   //   formatRelativeTime(very old)               → '7/15/2025'
+  // Iter #86: translation cheat sheet — 12 universally common
+  // legal/administrative terms, pre-translated for ES / FR / DE / IT
+  // / PT. Zero network, zero AI: just look up the most relevant of
+  // these in the analyzed document and show EN ↔ XX pairs.
+  const TRANS_GLOSSARY = {
+    es: {
+      'agreement':  'acuerdo',
+      'contract':   'contrato',
+      'tenant':     'arrendatario',
+      'landlord':   'arrendador',
+      'rent':       'alquiler',
+      'deposit':    'depósito',
+      'notice':     'aviso',
+      'termination':'rescisión',
+      'penalty':    'penalización',
+      'invoice':    'factura',
+      'payment':    'pago',
+      'insurance':  'seguro',
+    },
+    fr: {
+      'agreement':  'accord',
+      'contract':   'contrat',
+      'tenant':     'locataire',
+      'landlord':   'bailleur',
+      'rent':       'loyer',
+      'deposit':    'dépôt',
+      'notice':     'avis',
+      'termination':'résiliation',
+      'penalty':    'pénalité',
+      'invoice':    'facture',
+      'payment':    'paiement',
+      'insurance':  'assurance',
+    },
+    de: {
+      'agreement':  'Vereinbarung',
+      'contract':   'Vertrag',
+      'tenant':     'Mieter',
+      'landlord':   'Vermieter',
+      'rent':       'Miete',
+      'deposit':    'Kaution',
+      'notice':     'Kündigung',
+      'termination':'Beendigung',
+      'penalty':    'Strafe',
+      'invoice':    'Rechnung',
+      'payment':    'Zahlung',
+      'insurance':  'Versicherung',
+    },
+    it: {
+      'agreement':  'accordo',
+      'contract':   'contratto',
+      'tenant':     'inquilino',
+      'landlord':   'locatore',
+      'rent':       'affitto',
+      'deposit':    'deposito',
+      'notice':     'avviso',
+      'termination':'risoluzione',
+      'penalty':    'penale',
+      'invoice':    'fattura',
+      'payment':    'pagamento',
+      'insurance':  'assicurazione',
+    },
+    pt: {
+      'agreement':  'acordo',
+      'contract':   'contrato',
+      'tenant':     'inquilino',
+      'landlord':   'locador',
+      'rent':       'aluguel',
+      'deposit':    'depósito',
+      'notice':     'aviso',
+      'termination':'rescisão',
+      'penalty':    'multa',
+      'invoice':    'fatura',
+      'payment':    'pagamento',
+      'insurance':  'seguro',
+    },
+  };
+
+  function renderTranslationSheet(text, lang){
+    if(!lang || !lang.code || lang.code === 'en') return null;
+    const map = TRANS_GLOSSARY[lang.code];
+    if(!map) return null;
+    const lower = String(text||'').toLowerCase();
+    const items = [];
+    // Walk the glossary in order so the most distinctive terms
+    // (tenant, landlord, termination) win ties. Also count how many
+    // times each appears so multi-occurrence terms rank higher.
+    const rows = Object.keys(map).map(en => {
+      const re = new RegExp('\\b' + en + '\\b', 'gi');
+      const hits = (lower.match(re) || []).length;
+      return { en, hits };
+    }).filter(r => r.hits > 0)
+      .sort((a, b) => b.hits - a.hits)
+      .slice(0, 10);
+    rows.forEach(r => { items.push({ en: r.en, xx: map[r.en], hits: r.hits }); });
+    return { items, lang };
+  }
+
   function detectLanguage(text){
     const t = String(text||'').toLowerCase();
     if (!t || t.length < 12) return null;
@@ -1733,6 +1830,7 @@
           playbookBtn=$('#playbookBtn'),recentStats=$('#recentStats'),
           famousContractBtn=$('#famousContractBtn'),timelineBtn=$('#timelineBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
           legendBtn=$('#legendBtn'),
+          transBlock=$('#transBlock'),transNote=$('#transNote'),transList=$('#transList'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
           shareBanner=$('#shareBanner'),shareDocName=$('#shareDocName'),
@@ -2770,6 +2868,32 @@
           if(nextStepsBlock) nextStepsBlock.hidden=false;
         } else {
           if(nextStepsBlock) nextStepsBlock.hidden=true;
+        }
+      }
+
+      // 7) translation cheat sheet — only when the source language
+      // isn't English. Uses a local glossary keyed to the most common
+      // legal/administrative terms; never sends anything to the AI.
+      // Hidden entirely when the doc isn't foreign-language, so the
+      // English-only default UI stays the same.
+      if(transBlock && typeof renderTranslationSheet === 'function'){
+        const lang = (plainOut && plainOut._detectedLang) || (input && input._detectedLang) || null;
+        const sheet = lang ? renderTranslationSheet(raw, lang) : null;
+        if(sheet && sheet.items && sheet.items.length){
+          if(transNote) transNote.innerHTML = '<span class="riskNote-lead">Detected: ' + esc(lang.label) + '</span> Top ' + sheet.items.length + ' key terms below — handy when negotiating with someone who reads ' + esc(lang.label) + '.';
+          if(transList){
+            transList.innerHTML = sheet.items.map(it => (
+              '<div class="trans-row">' +
+                '<div class="trans-en"><span class="trans-tag">EN</span> ' + esc(it.en) + '</div>' +
+                '<div class="trans-other"><span class="trans-tag trans-tag--' + esc(lang.code) + '">' + esc(lang.code.toUpperCase()) + '</span> <b>' + esc(it.xx) + '</b></div>' +
+              '</div>'
+            )).join('');
+          }
+          transBlock.hidden = false;
+        } else {
+          transBlock.hidden = true;
+          if(transList) transList.innerHTML = '';
+          if(transNote) transNote.textContent = '';
         }
       }
 
