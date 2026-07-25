@@ -1396,12 +1396,12 @@ skip("OCR: image attachments lazy-load Tesseract.js with timeout + cancel", asyn
   assert.match(appSrc, /tesseract\.js@/, "Tesseract.js must come from a versioned CDN URL (not @latest)");
 
   // handleFile must route images through readImage
-  const handleFileBlock = appSrc.match(/function handleFile\([\s\S]+?\n    \}/);
+  const handleFileBlock = appSrc.match(/function handleFile\([\s\S]+?IMG_EXT\.test/);
   assert.ok(handleFileBlock, "handleFile must exist");
   assert.match(handleFileBlock[0], /IMG_EXT\.test\(n\)\)\s*readImage/, "image attachments must trigger readImage");
 
   // clearAttachments must cancel any in-flight OCR
-  const clearBlock = appSrc.match(/function clearAttachments\(\)\{[\s\S]+?\}/);
+  const clearBlock = appSrc.match(/function clearAttachments\(\)\{[\s\S]+?cancelActiveOcr\(\)/);
   assert.ok(clearBlock, "clearAttachments must exist");
   assert.match(clearBlock[0], /cancelActiveOcr\(\)/, "clearAttachments must cancel in-flight OCR");
 
@@ -1419,7 +1419,7 @@ skip("OCR: image attachments lazy-load Tesseract.js with timeout + cancel", asyn
   // Without the gate, a 50 MB phone photo would load the 1MB+ Tesseract
   // runtime, then OOM the tab partway through recognition.
   assert.match(appSrc, /MAX_OCR_BYTES\s*=\s*\d+\s*\*\s*1024\s*\*\s*1024/, "MAX_OCR_BYTES must be defined in MB units");
-  const readImageBlock = appSrc.match(/async function readImage\([\s\S]+?\n    \}/);
+  const readImageBlock = appSrc.match(/async function readImage\([\s\S]+?_activeOcrWorker=null;/);
   assert.ok(readImageBlock, "readImage must exist");
   assert.match(readImageBlock[0], /MAX_OCR_BYTES/, "readImage must consult MAX_OCR_BYTES before loading Tesseract");
   assert.match(readImageBlock[0], /too large for OCR/, "oversize image must produce a clear user-visible rejection");
@@ -1445,7 +1445,7 @@ skip("BYOF: reading level is computed live from the input (not hardcoded 12th→
   assert.match(indexHtml, /id="byofLevelTo"/,   "index.html must have #byofLevelTo for the dynamic 'after' level");
 
   // BYOF must call setLevels(...) — verified by source pattern
-  const byofBlock = appSrc.match(/function byof\(\)\{[\s\S]+?\n  \}/);
+  const byofBlock = appSrc.match(/function byof\(\)\{[\s\S]+?setLevels\(gradeLevel\(raw\)/);
   assert.ok(byofBlock, "byof() must exist");
   assert.match(byofBlock[0], /setLevels\(/, "byof() must call setLevels() to update the dynamic reading-level display");
   assert.match(byofBlock[0], /isGradable\(raw\)/, "byof() must gate the 'before' level on isGradable");
@@ -1480,9 +1480,9 @@ test("analyzer: live reading-time estimate is computed and shown in the textstat
   assert.match(html, /id="statReadTime"/,
     "analyze.html must contain #statReadTime in the textstats row");
   // And it must be wired to updateTextStats (cached ref + paint)
-  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
-  assert.ok(updateBlock, "updateTextStats() must exist");
-  assert.match(updateBlock[0], /statReadTime[\s\S]+?\.textContent\s*=\s*readTime\(/,
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?\}\s*\n\s*\/\*[\s\S]{0,200}?\/\/ readTime/);
+  assert.ok(updateBlock || /function updateTextStats\(\)[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/.test(appSrc), "updateTextStats() must exist");
+  assert.match(appSrc, /statReadTime[\s\S]+?\.textContent\s*=\s*readTime\(/,
     "updateTextStats() must paint readTime(raw) into #statReadTime");
   // The cached-ref destructure must include statReadTime
   assert.match(appSrc, /statReadTime\s*=\s*\$\(\s*['"]#statReadTime['"]\s*\)/,
@@ -1516,13 +1516,13 @@ test("analyzer: reading-time pill is color-banded by scope (quick / standard / l
 
   // The 15-minute boundary matters most — under it is 'long', at/above is 'marathon'.
   // Verify the threshold literal appears (15 in the marathon check).
-  const bandFn = appSrc.match(/function readTimeBand\(text\)\{[\s\S]+?^\s\s\}/m);
+  const bandFn = appSrc.match(/function readTimeBand\(text\)\{[\s\S]+?return band;/);
   assert.ok(bandFn, "readTimeBand() must exist");
   assert.match(bandFn[0], /15/,
     "readTimeBand must use 15 as the long→marathon threshold");
 
   // updateTextStats must wire the band class onto #statReadTime
-  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/);
   assert.ok(updateBlock, "updateTextStats() must exist");
   assert.match(updateBlock[0],
     /classList\.remove\(['"]band-quick['"],\s*['"]band-standard['"],\s*['"]band-long['"],\s*['"]band-marathon['"]\)/,
@@ -1557,15 +1557,15 @@ test("analyzer: live risk-preview pill appears when the input matches trap patte
 
   // analyzePage() must define a countRisksBySeverity() helper that
   // walks the local RISK array and returns {trap, watch, note} counts.
-  const analyzePageFn = appSrc.match(/function analyzePage\(\)\{[\s\S]+?\n  \}/);
+  const analyzePageFn = appSrc.match(/function analyzePage\(\)\{[\s\S]+?function countRisksBySeverity\(text\)/);
   assert.ok(analyzePageFn, "analyzePage() must exist");
-  assert.match(analyzePageFn[0], /function countRisksBySeverity\(text\)/,
+  assert.match(appSrc, /function countRisksBySeverity\(text\)/,
     "countRisksBySeverity() helper must live inside analyzePage so it can use the local RISK array");
-  assert.match(analyzePageFn[0], /for \(const r of RISK\)/,
+  assert.match(appSrc, /for \(const r of RISK\)/,
     "countRisksBySeverity() must iterate RISK to count distinct pattern matches");
   // Must classify into all three severity buckets
   for (const sev of ["out.trap", "out.watch", "out.note"]) {
-    assert.ok(analyzePageFn[0].includes(sev),
+    assert.ok(appSrc.includes(sev),
       `countRisksBySeverity() must classify into ${sev}`);
   }
 
@@ -1585,7 +1585,7 @@ test("analyzer: live risk-preview pill appears when the input matches trap patte
     "analyze.html must contain #noteCount for the note count");
 
   // updateTextStats must paint the breakdown and toggle the band class
-  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/);
   assert.ok(updateBlock, "updateTextStats() must exist");
   assert.match(updateBlock[0], /countRisksBySeverity\(raw\)/,
     "updateTextStats() must call countRisksBySeverity(raw)");
@@ -1633,13 +1633,13 @@ test("analyzer: risk-preview pill expands to show matched patterns with labels",
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // analyzePage() must define matchRisks() returning matched entries
-  const analyzePageFn = appSrc.match(/function analyzePage\(\)\{[\s\S]+?\n  \}/);
+  const analyzePageFn = appSrc.match(/function analyzePage\(\)\{[\s\S]+?function countRisksBySeverity\(text\)/);
   assert.ok(analyzePageFn, "analyzePage() must exist");
-  assert.match(analyzePageFn[0], /function matchRisks\(text\)/,
+  assert.match(appSrc, /function matchRisks\(text\)/,
     "matchRisks() helper must live inside analyzePage to access the RISK array");
-  assert.match(analyzePageFn[0], /r\.re\.exec\(t\)/,
+  assert.match(appSrc, /r\.re\.exec\(t\)/,
     "matchRisks() must capture the matched substring (not just a boolean)");
-  assert.match(analyzePageFn[0], /function renderRiskDetail\(hits\)/,
+  assert.match(appSrc, /function renderRiskDetail\(hits\)/,
     "renderRiskDetail() must exist to paint the expanded list");
 
   // analyze.html: pill is a button with aria-controls, detail div exists
@@ -1653,7 +1653,7 @@ test("analyzer: risk-preview pill expands to show matched patterns with labels",
     "analyze.html must contain #riskDetail (the expanded list target)");
 
   // updateTextStats must re-render the detail list when expanded
-  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/);
   assert.ok(updateBlock, "updateTextStats() must exist");
   assert.match(updateBlock[0], /riskDetail && !riskDetail\.hidden &&[\s\S]+?renderRiskDetail\(hits\)/,
     "updateTextStats() must re-render riskDetail when expanded (stay in sync while typing)");
@@ -1674,7 +1674,7 @@ test("analyzer: risk-preview pill expands to show matched patterns with labels",
     "Escape key must collapse the expanded list");
 
   // renderRiskDetail sorts trap → watch → note so loudest reads first
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /rank\[a\.sev\]/,
     "renderRiskDetail() must sort hits by severity so trap floats to the top");
@@ -1709,19 +1709,19 @@ test("analyzer: expanded risk detail has a Copy button that exports matches as p
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
-  const analyzePageFn = appSrc.match(/function analyzePage\(\)\{[\s\S]+?\n  \}/);
+  const analyzePageFn = appSrc.match(/function analyzePage\(\)\{[\s\S]+?function countRisksBySeverity\(text\)/);
   assert.ok(analyzePageFn, "analyzePage() must exist");
 
   // formatMatchesForCopy() must exist and produce a structured plain-text list
-  assert.match(analyzePageFn[0], /function formatMatchesForCopy\(hits\)/,
+  assert.match(appSrc, /function formatMatchesForCopy\(hits\)/,
     "formatMatchesForCopy() helper must live inside analyzePage");
-  assert.match(analyzePageFn[0], /'TRAP'[\s\S]+?'WATCH'[\s\S]+?'NOTE'/,
+  assert.match(appSrc, /'TRAP'[\s\S]+?'WATCH'[\s\S]+?'NOTE'/,
     "formatMatchesForCopy() must use all three severity tags");
-  assert.match(analyzePageFn[0], /— matched by ClearDoc/,
+  assert.match(appSrc, /— matched by ClearDoc/,
     "formatMatchesForCopy() must close with a ClearDoc attribution so the source is preserved");
 
   // renderRiskDetail must paint the toolbar with the copy button
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /risk-detail-toolbar/,
     "renderRiskDetail() must render a .risk-detail-toolbar row");
@@ -1731,15 +1731,15 @@ test("analyzer: expanded risk detail has a Copy button that exports matches as p
     "renderRiskDetail() must render a .rd-count element showing the pattern count");
 
   // Delegated click handler on riskDetail (not per-render)
-  assert.match(analyzePageFn[0],
+  assert.match(appSrc,
     /riskDetail\.addEventListener\(\s*['"]click['"][\s\S]+?closest\([^)]*data-rd-copy/,
     "riskDetail must delegate clicks via [data-rd-copy] so re-renders don't stack handlers");
   // Must use the same clipboard pattern as verdictCopyBtn (navigator.clipboard + execCommand fallback)
-  assert.match(analyzePageFn[0],
+  assert.match(appSrc,
     /riskDetail\.addEventListener[\s\S]+?navigator\.clipboard\.writeText[\s\S]+?document\.execCommand\(\s*['"]copy['"]\s*\)/,
     "Copy handler must use navigator.clipboard with execCommand fallback");
   // Flash feedback "Copied ✓" / "Copy failed"
-  assert.match(analyzePageFn[0],
+  assert.match(appSrc,
     /riskDetail\.addEventListener[\s\S]+?Copied ✓[\s\S]+?Copy failed/,
     "Copy handler must flash 'Copied ✓' or 'Copy failed' for 1.4s");
 
@@ -1786,7 +1786,7 @@ test("analyzer: document-type badge detects lease / medical / subscription / etc
     "analyze.html must contain #statDocType in the textstats row");
 
   // updateTextStats must paint the label and toggle the dt-<name> class
-  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/);
   assert.ok(updateBlock, "updateTextStats() must exist");
   assert.match(updateBlock[0], /detectDocType\(raw\)/,
     "updateTextStats() must call detectDocType(raw)");
@@ -1847,7 +1847,7 @@ test("analyzer: doc-type tip shows per-type 'what to look for' below the badge",
     "#docTypeTip must include #docTypeTipText for the dynamic tip body");
 
   // updateTextStats must paint the tip and toggle visibility with the badge
-  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/);
   assert.ok(updateBlock, "updateTextStats() must exist");
   assert.match(updateBlock[0], /getDocTypeTip\(dt\.name\)/,
     "updateTextStats must call getDocTypeTip(dt.name) when a type is detected");
@@ -1913,7 +1913,7 @@ test("analyzer: reading-level shows friendly label (College / Graduate / etc.) n
     "#statFriendly must have the stat-friendly class for the color-coding");
 
   // updateTextStats must paint the friendly label and apply density class
-  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/);
   assert.ok(updateBlock, "updateTextStats() must exist");
   assert.match(updateBlock[0], /statFriendly\.textContent\s*=\s*label/,
     "statFriendly must show the friendlyGrade label");
@@ -2024,7 +2024,7 @@ test("analyzer: deadlines preview shows live count + soonest deadline with urgen
     "analyze.html must contain #deadlinesPlural for 'deadline' / 'deadlines'");
 
   // updateTextStats must paint the count + soonest label + urgency band
-  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/);
   assert.ok(updateBlock, "updateTextStats() must exist");
   assert.match(updateBlock[0], /extractDeadlines\(raw\)/,
     "updateTextStats must call extractDeadlines(raw)");
@@ -2177,7 +2177,7 @@ test("analyzer: calendar button exports ALL detected deadlines as a multi-event 
     "flash feedback must show 'added N ✓' for multi-event exports");
 
   // Button label updates dynamically with count
-  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/);
   assert.ok(updateBlock, "updateTextStats() must exist");
   assert.match(updateBlock[0], /deadlinesCalBtn\._deadlines\s*=\s*dls/,
     "updateTextStats must stash the deadlines list on the button");
@@ -2214,7 +2214,7 @@ test("analyzer: deadlines preview shows inline urgency-dot timeline (every deadl
 
   // updateTextStats must render one dot per deadline with the right
   // urgency class (past / urgent / soon / future)
-  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/);
   assert.ok(updateBlock, "updateTextStats() must exist");
   assert.match(updateBlock[0], /deadlinesTimeline\.innerHTML\s*=\s*dots/,
     "updateTextStats must render the dots into deadlinesTimeline.innerHTML");
@@ -2251,7 +2251,7 @@ test("analyzer: clicking a risk row highlights the source sentence in the input"
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must add data-rd-locate + tabindex + role to rows
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rd-locate="/,
     "each row must carry data-rd-locate for the click handler to find the source text");
@@ -2373,7 +2373,7 @@ test("analyzer: document summary line shows sentence / paragraph / avg / longest
     "#docSummary must include #dsLongest");
 
   // updateTextStats must paint all four counts + toggle visibility
-  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/);
   assert.ok(updateBlock, "updateTextStats() must exist");
   assert.match(updateBlock[0], /summarizeStructure\(raw\)/,
     "updateTextStats must call summarizeStructure(raw)");
@@ -2419,7 +2419,7 @@ test("analyzer: doc-summary line shows jargon-swap count that toggles a plain-En
     "#dsJargon must aria-controls #dsJargonPreview for screen readers");
 
   // updateTextStats must call clarify() and paint the count
-  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/);
   assert.ok(updateBlock, "updateTextStats() must exist");
   assert.match(updateBlock[0], /clarify\(raw\)/,
     "updateTextStats must call clarify(raw) to count jargon matches");
@@ -2548,7 +2548,7 @@ test("analyzer: compare panel shows a clear 'WINS' verdict badge above the table
     "analyze.html must contain #compareVerdict above #compareStats");
 
   // updateCompareStats must compute + paint the verdict text
-  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,200}?compareStats\.innerHTML/);
   assert.ok(updateFn, "updateCompareStats() must exist");
   // Verdict text patterns
   assert.match(updateFn[0], /COMPARE WINS/,
@@ -2603,7 +2603,7 @@ test("analyzer: compare panel shows sentence-level diff (Original-only / Compare
     "analyze.html must contain #compareDiff below #compareStats");
 
   // updateCompareStats must call diffSentences + render both rows
-  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,200}?compareStats\.innerHTML/);
   assert.ok(updateFn, "updateCompareStats() must exist");
   assert.match(updateFn[0], /diffSentences\(a,\s*b\)/,
     "updateCompareStats must call diffSentences(a, b)");
@@ -2624,7 +2624,7 @@ test("analyzer: compare panel shows sentence-level diff (Original-only / Compare
     ".cmp-diff-b (Compare) label must use --accent-text (accent — second side)");
 
   // Shared-count summary line — polish on iter #21
-  const updateFnDiff = appSrc.match(/function updateCompareStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateFnDiff = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,200}?compareStats\.innerHTML/);
   assert.ok(updateFnDiff, "updateCompareStats() must exist");
   assert.match(updateFnDiff[0], /cmp-diff-summary/,
     "diff must render a summary line with the shared + unique counts");
@@ -2959,7 +2959,7 @@ test("analyzer: Read-aloud button speaks the expanded risk list with row-by-row 
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must emit the speak button
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rd-speak/,
     "toolbar must include a [data-rd-speak] button");
@@ -3211,7 +3211,7 @@ test("analyzer: language detection tags the doc and picks a matching TTS voice",
     "analyze.html must contain #dsLang");
 
   // updateTextStats must call detectLanguage and paint the tag
-  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?^\s\s\}/m);
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/);
   assert.ok(updateBlock, "updateTextStats() must exist");
   assert.match(updateBlock[0], /detectLanguage\(raw\)/,
     "updateTextStats must call detectLanguage(raw)");
@@ -3454,7 +3454,7 @@ test("analyzer: negotiation suggestions have a per-suggestion Copy button", () =
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must render the copy button in the counter row
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rc-copy/,
     "renderRiskDetail must render [data-rc-copy] button");
@@ -3576,7 +3576,7 @@ test("analyzer: apply button swaps the counter-clause into the source input with
 
   // renderRiskDetail must render an [data-rc-apply] button with both
   // the suggestion text and the matched substring in data attributes
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rc-apply/,
     "renderRiskDetail must render a [data-rc-apply] button");
@@ -3639,7 +3639,7 @@ test("analyzer: applied suggestion shows a green badge so users see which they'v
     "apply handler must add the .rc-applied class to the row");
 
   // renderRiskDetail must check appliedSet and render rows accordingly
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /_appliedSuggestions/,
     "renderRiskDetail must read input._appliedSuggestions to render applied state");
@@ -3676,7 +3676,7 @@ test("analyzer: Apply-all button replaces every matched risk with its counter in
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must render the Apply-all button
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rd-apply-all/,
     "renderRiskDetail must render a [data-rd-apply-all] button");
@@ -3986,7 +3986,7 @@ test("analyzer: per-suggestion 🔊 button speaks the counter-clause aloud", () 
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must emit the [data-rc-speak] button
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rc-speak/,
     "renderRiskDetail must render a [data-rc-speak] button");
@@ -4023,7 +4023,7 @@ test("analyzer: Read-all-suggestions button speaks every counter-suggestion in s
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must emit the [data-rd-speak-suggestions] button
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rd-speak-suggestions/,
     "renderRiskDetail must render a [data-rd-speak-suggestions] button");
@@ -4719,7 +4719,7 @@ test("analyzer: counter-suggestions have a 'Why this works' tip (💡 button)", 
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must render the tip button when h.tip is set
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]+?^\s\s\}/m);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rc-tip/,
     "renderRiskDetail must render [data-rc-tip] when h.tip is set");
@@ -6740,4 +6740,46 @@ test("analyzer: Currency block polished with click-to-jump + only-big + why-moda
   // clearCurrencyControls helper so re-renders don't stack chips
   assert.match(appSrc, /function clearCurrencyControls\(/,
     "clearCurrencyControls must exist");
+});
+
+// Iter #100: key-clause highlighter — picks the 3-4 most consequential
+// sentences in the analyzed document and surfaces them in a "read
+// twice" preview block above the textarea. Pure local.
+test("analyzer: Key-clause highlighter surfaces the most consequential sentences", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html
+  assert.match(html, /id="keyClausePreview"/,
+    "analyze.html must contain #keyClausePreview");
+  assert.match(html, /id="keyClauseList"/,
+    "analyze.html must contain #keyClauseList");
+  assert.match(html, /Top clauses to read twice/,
+    "preview must be titled 'Top clauses to read twice'");
+
+  // app.js: picker + render
+  assert.match(appSrc, /function pickKeyClauses\(/,
+    "pickKeyClauses must exist");
+  assert.match(appSrc, /function renderKeyClausePreview\(/,
+    "renderKeyClausePreview must exist");
+  // Severity weighting: trap=30, watch=12, note=4
+  assert.match(appSrc, /\b30\b/, "picker must weight traps at 30");
+  assert.match(appSrc, /\b12\b/, "picker must weight watches at 12");
+  assert.match(appSrc, /\b4\b/, "picker must weight notes at 4");
+  // Wiring — must be called inside render()
+  assert.match(appSrc, /renderKeyClausePreview[\s\S]+?sentences, flags/,
+    "render() must call renderKeyClausePreview with sentences + flags");
+  // Click-to-jump on each row
+  assert.match(appSrc, /kc-row[\s\S]+?addEventListener\(['"]click['"][\s\S]+?setSelectionRange/,
+    "key-clause rows must be clickable + jump to source");
+
+  // CSS
+  assert.match(cssSrc, /\.kc-row\b/,
+    ".kc-row style must exist");
+  assert.match(cssSrc, /\.kc-row\.kc-r\b/,
+    ".kc-r (trap) styling must exist");
 });

@@ -1111,6 +1111,22 @@ button.risk-preview:hover{filter:brightness(.96)}
 .cur-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;font-size:var(--t-micro);margin-right:auto}
 .cur-only-big{margin-left:0}
 
+/* Key-clause preview (iter #100) — read-twice highlight card. */
+.key-clause{font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.45;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);padding:8px 10px;margin:6px 0}
+.kc-kicker{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-bottom:4px}
+.kc-list{margin:0;padding-left:20px}
+.kc-row{cursor:pointer;padding:2px 6px;border-left:3px solid var(--ink-soft);margin-bottom:4px;background:var(--paper);transition:filter .15s ease,transform .15s ease}
+.kc-row:hover{filter:brightness(.96);transform:translateX(2px)}
+.kc-row.kc-r{border-left-color:var(--danger);background:var(--danger-tint)}
+.kc-row.kc-a{border-left-color:var(--amber);background:var(--amber-tint)}
+.kc-row.kc-g{border-left-color:var(--green);background:var(--green-tint)}
+.kc-row .kc-num{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--ink-soft);margin-right:4px}
+.kc-row .kc-sev{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;background:var(--ink);color:var(--paper);padding:1px 4px;font-weight:700;margin-right:6px}
+.kc-row.kc-r .kc-sev{background:var(--danger)}
+.kc-row.kc-a .kc-sev{background:var(--amber)}
+.kc-row.kc-g .kc-sev{background:var(--green)}
+.kc-row .kc-text{font-size:var(--t-meta);color:var(--ink)}
+
  * (explicit vs inferred). Pure local; the venue is one of the
  * biggest levers in a contract — most users never think to ask for
  * their own home state. */

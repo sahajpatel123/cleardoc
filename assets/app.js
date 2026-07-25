@@ -3090,6 +3090,135 @@
         return '<span class="cur-total-pill">' + esc(c) + ' ' + result.totals[c].toLocaleString('en-US') + '</span>';
       }).join(' ');
       currencyList.innerHTML = rows;
+      currencyBlock.hidden = false;
+      if(currencyNote){
+        currencyNote.innerHTML =
+          '<span class="riskNote-lead">Found ' + result.hits.length + ' amount' + (result.hits.length === 1 ? '' : 's') + ' in ' +
+          Object.keys(result.totals).length + ' currenc' + (Object.keys(result.totals).length === 1 ? 'y' : 'ies') + '</span> ' +
+          'Subtotal (rough FX): <b style="color:var(--ink)">~$' +
+          Math.round(result.totalUSD).toLocaleString('en-US') + ' USD</b> · ' + breakdown;
+      }
+    }
+
+    // Iter #100: key-clause highlighter. Picks the 3-4 most
+    // consequential sentences in the analyzed text and surfaces
+    // them in a read-twice preview block above the input. Helps
+    // first-time readers see "if you read nothing else, read
+    // these" right away. Pure local — purely the existing risk
+    // patterns, ranked by severity and word-position so users get
+    // the loudest + most spread-out highlights.
+    function pickKeyClauses(sentences, flags){
+      const indexed = (sentences || []).map((s, i) => ({ i, s: String(s || '').trim() })).filter(x => x.s.length > 12);
+      // Weight: +30 per trap, +12 per watch, +4 per note. Bonus for
+      // mid-document position so users see one near the top, one
+      // mid, and one tail.
+      const counts = { r: 0, a: 0, g: 0 };
+      (flags || []).forEach(f => { counts[f.rule.sev] = (counts[f.rule.sev] || 0) + 1; });
+      const flagged = new Map();
+      (flags || []).forEach(f => {
+        if(typeof f.i === 'number' && f.i >= 0){
+          const prev = flagged.get(f.i) || { score: 0, sev: 'g' };
+          prev.score += (f.rule.sev === 'r' ? 30 : f.rule.sev === 'a' ? 12 : 4);
+          if(f.rule.sev === 'r') prev.sev = 'r';
+          else if(f.rule.sev === 'a' && prev.sev !== 'r') prev.sev = 'a';
+          flagged.set(f.i, prev);
+        }
+      });
+      const scored = indexed.map(it => {
+        const f = flagged.get(it.i) || null;
+        const sev = f ? f.sev : null;
+        const score = f ? f.score : 0;
+        return { ...it, score, sev };
+      }).filter(x => x.sev);
+      if(!scored.length){
+        // Fallback — surface the longest sentences of the doc so the
+        // preview is never empty on a clean (no-risk) doc.
+        const sorted = indexed.slice().sort((a, b) => b.s.length - a.s.length);
+        return sorted.slice(0, 3).map(it => ({ ...it, sev: 'g', score: 0 }));
+      }
+      // Sort by severity first, then pick 3 — one trap, one watch, one
+      // note — so the preview covers the full severity spectrum.
+      scored.sort((a, b) => b.score - a.score || a.i - b.i);
+      const picks = [];
+      const seenIdx = new Set();
+      function pushFirst(sev, max){
+        const list = scored.filter(x => x.sev === sev && !seenIdx.has(x.i));
+        for(const it of list){
+          if(picks.length >= max) break;
+          picks.push(it); seenIdx.add(it.i);
+        }
+      }
+      pushFirst('r', 4);
+      if(picks.length < 4) pushFirst('a', 4);
+      if(picks.length < 4) pushFirst('g', 4);
+      // Ensure spread across the doc (head/middle/tail) — rebalance by
+      // position if all picks cluster in the first half.
+      if(picks.length >= 2){
+        const positions = picks.map(p => p.i / indexed.length);
+        const minPos = Math.min(...positions);
+        const maxPos = Math.max(...positions);
+        if(maxPos - minPos < 0.4 && indexed.length > 6){
+          const last = scored.filter(x => x.i / indexed.length > 0.6 && !seenIdx.has(x.i));
+          if(last[0]) picks.push(last[0]);
+        }
+      }
+      return picks.slice(0, 4);
+    }
+
+    function renderKeyClausePreview(sentences, flags){
+      const preview = document.getElementById('keyClausePreview');
+      const list = document.getElementById('keyClauseList');
+      if(!preview || !list) return;
+      const picks = pickKeyClauses(sentences, flags);
+      if(!picks.length){ preview.hidden = true; list.innerHTML = ''; return; }
+      list.innerHTML = picks.map((it, idx) => (
+        '<li class="kc-row kc-' + it.sev + '" data-kc-idx="' + esc(it.i) + '" data-kc-snippet="' + esc(it.s.slice(0, 240)) + '">' +
+          '<span class="kc-num">' + (idx + 1) + '.</span>' +
+          '<span class="kc-sev kc-tag-' + it.sev + '">' + (it.sev === 'r' ? 'trap' : it.sev === 'a' ? 'watch' : 'note') + '</span>' +
+          '<span class="kc-text">' + esc(it.s.length > 220 ? it.s.slice(0, 217) + '…' : it.s) + '</span>' +
+        '</li>'
+      )).join('');
+      preview.hidden = false;
+      // Click a row → jump to the source sentence in the textarea.
+      $$('.kc-row', list).forEach(row => {
+        row.addEventListener('click', () => {
+          const snippet = row.getAttribute('data-kc-snippet') || '';
+          if(!snippet || !input) return;
+          const idx2 = input.value.indexOf(snippet.slice(0, 80));
+          if(idx2 >= 0){
+            try { input.focus(); input.setSelectionRange(idx2, idx2 + snippet.length); } catch(_){ /* ignore */ }
+            if(typeof input.scrollIntoView === 'function'){
+              try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+            }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ Sentence no longer in input — the doc was edited');
+          }
+        });
+      });
+    }
+
+    function clearKeyClausePreview(){
+      const preview = document.getElementById('keyClausePreview');
+      if(preview) preview.hidden = true;
+    }
+
+      if(!currencyBlock || !currencyList || !result) return;
+      if(!result.hasAmounts){ currencyBlock.hidden = true; return; }
+      const rows = result.hits.map((h, i) => {
+        const isBig = h.value >= 100000;
+        return '<button type="button" class="cur-row' + (isBig ? ' cur-big' : '') + '"' +
+          ' data-cur-idx="' + i + '" data-cur-raw="' + esc(h.raw) + '"' +
+          ' title="Click to jump to this amount in the source">' +
+          '<span class="cur-sym">' + esc(h.sym) + '</span>' +
+          '<span class="cur-val">' + h.value.toLocaleString('en-US') + '</span>' +
+          '<span class="cur-code">' + esc(h.code) + '</span>' +
+          '<code class="cur-snippet">' + esc(h.raw) + '</code>' +
+        '</button>';
+      }).join('');
+      const breakdown = Object.keys(result.totals).sort((a, b) => result.totals[b] - result.totals[a]).map(c => {
+        return '<span class="cur-total-pill">' + esc(c) + ' ' + result.totals[c].toLocaleString('en-US') + '</span>';
+      }).join(' ');
+      currencyList.innerHTML = rows;
       // Iter #99: small-amount filter chip + currency count + sort
       const controls =
         '<div class="cur-controls">' +
@@ -3442,6 +3571,13 @@
       } else if(currencyBlock) {
         clearCurrencyControls();
         currencyBlock.hidden = true;
+      }
+
+      // Iter #100: key-clause highlighter — picks the 3-4 most
+      // consequential sentences and shows them above the textarea
+      // so users see "read these twice" before scrolling.
+      if(typeof renderKeyClausePreview === 'function'){
+        renderKeyClausePreview(sentences, flags);
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
@@ -7420,8 +7556,7 @@
         _activeOcrWorker=null;
       }
     }
-    function cancelActiveOcr(){
-      if(_activeOcrWorker){
+    function cancelActiveOcr(){      if(_activeOcrWorker){
         try{ _activeOcrWorker.terminate(); }catch(_){}
         _activeOcrWorker=null;
       }
@@ -7441,6 +7576,4 @@
     try { maybeOfferRestore(); } catch(e){ console.warn('[restore]', e); }
     // Decode any #share= fragment so we can offer to view it
     try { tryLoadSharedAnalysis(); } catch(e){ console.warn('[share-load]', e); }
-  }
-
 })();
