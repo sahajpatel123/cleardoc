@@ -7251,6 +7251,38 @@ test("analyzer: Freshness stamp surfaces effective-date / revised / version mark
   assert.match(cssSrc, /\.fresh-ics\b/, ".fresh-ics button style must exist");
 });
 
+// Iter #120: document simplifier — paste a confusing sentence and
+// we translate it to plain English using the same jargon table that
+// powers the rewrite. Pure local.
+test("analyzer: Document simplifier translates one sentence at a time", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="simplifyBlock"/, "analyze.html must contain #simplifyBlock");
+  assert.match(html, /id="simplifyInput"/, "analyze.html must contain #simplifyInput");
+  assert.match(html, /id="simplifyOut"/, "analyze.html must contain #simplifyOut");
+  assert.match(appSrc, /function renderSimplifyBlock\(/, "renderSimplifyBlock must exist");
+  // The simplifier must reuse the iter #25 clarify() engine
+  assert.match(appSrc, /clarify[\s\S]+?simplifyInput/,
+    "simplify handler must call clarify() on the user's input");
+  // Buttons: simplify / use-selected / swap-into-source
+  assert.match(appSrc, /simplifyGoBtn[\s\S]+?addEventListener/,
+    "Go button must be wired");
+  assert.match(appSrc, /simplifyFillFromSelectionBtn[\s\S]+?selectionStart|selectionEnd/,
+    "Use-selected button must read the textarea selection");
+  assert.match(appSrc, /simplifySwapBtn[\s\S]+?input\.value/,
+    "Swap-into-source button must overwrite the textarea");
+
+  // CSS
+  assert.match(cssSrc, /\.simplify-row\b/, ".simplify-row style must exist");
+  assert.match(cssSrc, /\.simplify-input\b/, ".simplify-input style must exist");
+  assert.match(cssSrc, /\.simplify-out\b/, ".simplify-out style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

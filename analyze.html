@@ -376,6 +376,19 @@
           <p class="analyze-msg" id="freshNote" style="margin-top:0" aria-live="polite"></p>
           <div class="fresh-grid" id="freshGrid"></div>
         </div>
+        <div class="result-block" id="simplifyBlock" hidden>
+          <span class="rh">✏ Simplify a sentence</span>
+          <p class="analyze-msg" id="simplifyNote" style="margin-top:0" aria-live="polite"></p>
+          <div class="simplify-row">
+            <textarea id="simplifyInput" class="simplify-input" maxlength="800" placeholder="Paste a confusing sentence and we'll translate it to plain English…" aria-label="Sentence to simplify"></textarea>
+            <div class="simplify-controls">
+              <button type="button" class="ghost-btn ghost-btn-sm" id="simplifyGoBtn">✏ simplify</button>
+              <button type="button" class="ghost-btn ghost-btn-sm" id="simplifyFillFromSelectionBtn" title="Use the current input selection">use selected</button>
+              <button type="button" class="ghost-btn ghost-btn-sm" id="simplifySwapBtn" title="Replace the simplified version into the source textarea">⇄ swap into source</button>
+            </div>
+            <div class="simplify-out" id="simplifyOut" aria-live="polite"></div>
+          </div>
+        </div>
         <div class="result-block">
           <span class="rh">✍ Written draft</span>
           <p class="analyze-msg" id="draftNote" style="margin-top:0">A ready-to-edit email or letter based on this document.</p>

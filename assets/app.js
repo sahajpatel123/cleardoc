@@ -1837,6 +1837,10 @@
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
           freshBlock=$('#freshBlock'),freshNote=$('#freshNote'),freshGrid=$('#freshGrid'),
+          simplifyBlock=$('#simplifyBlock'),simplifyNote=$('#simplifyNote'),
+          simplifyInput=$('#simplifyInput'),simplifyOut=$('#simplifyOut'),
+          simplifyGoBtn=$('#simplifyGoBtn'),simplifyFillFromSelectionBtn=$('#simplifyFillFromSelectionBtn'),
+          simplifySwapBtn=$('#simplifySwapBtn'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3394,6 +3398,67 @@
       }
       return { items: hits.slice(0, 6) };
     }
+    // Iter #120: document simplifier — translate a confusing
+    // sentence to plain English using the iter #25 JARGON regex
+    // table. Pure local; no AI call. Useful for understanding
+    // clauses one at a time without re-running the whole analysis.
+    let _simplifyLastOriginal = '';
+    function renderSimplifyBlock(){
+      if(!simplifyBlock) return;
+      simplifyBlock.hidden = false;
+      if(simplifyNote){
+        simplifyNote.innerHTML = '<span class="riskNote-lead">Translate any sentence</span> ' +
+          'Paste a clause you don’t understand — we’ll translate it using the same jargon table that powers the Plain-English rewrite. ' +
+          'Hit <b>simplify</b> for translation, <b>use selected</b> to grab a textarea selection, or <b>⇄ swap into source</b> to overwrite.';
+      }
+      if(simplifyGoBtn){
+        simplifyGoBtn.addEventListener('click', () => {
+          const raw = (simplifyInput && simplifyInput.value || '').trim();
+          if(!raw){ if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Paste a sentence first'); return; }
+          let plain;
+          try { plain = typeof clarify === 'function' ? clarify(raw).html : esc(raw); }
+          catch(_){ plain = esc(raw); }
+          _simplifyLastOriginal = raw;
+          if(simplifyOut) simplifyOut.innerHTML = '<div class="simplify-plain">' + plain + '</div>';
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✏ Simplified — click ⇄ to swap into source');
+        });
+      }
+      if(simplifyFillFromSelectionBtn){
+        simplifyFillFromSelectionBtn.addEventListener('click', () => {
+          if(!input) return;
+          const start = input.selectionStart, end = input.selectionEnd;
+          if(typeof start !== 'number' || typeof end !== 'number' || start === end){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Select text in the document textarea first');
+            return;
+          }
+          const picked = (input.value || '').substring(start, end).trim();
+          if(picked && simplifyInput) simplifyInput.value = picked;
+        });
+      }
+      if(simplifySwapBtn){
+        simplifySwapBtn.addEventListener('click', () => {
+          if(!input || !simplifyInput || !simplifyOut) return;
+          const original = (simplifyInput.value || '').trim();
+          if(!original || !input.value.indexOf){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No source sentence to swap');
+            return;
+          }
+          const idx2 = input.value.indexOf(original);
+          if(idx2 < 0){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Sentence no longer in input');
+            return;
+          }
+          let plain = simplifyOut.innerText || simplifyOut.textContent || '';
+          plain = plain.trim();
+          if(!plain){ if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Run Simplify first'); return; }
+          if(typeof input._undoSnapshot !== 'string') input._undoSnapshot = input.value;
+          input.value = input.value.substring(0, idx2) + plain + input.value.substring(idx2 + original.length);
+          try { input.dispatchEvent(new Event('input', { bubbles: true })); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⇄ Swapped into source — click ↺ to undo');
+        });
+      }
+    }
+
     function renderFreshnessBlock(result){
       if(!freshBlock || !freshGrid || !result) return;
       const items = (result.items || []).filter(i => i.date || i.key === 'version');
@@ -4489,6 +4554,11 @@
         renderFreshnessBlock(fr);
       } else if(freshBlock) {
         freshBlock.hidden = true;
+      }
+      // Iter #120: simplifier — always show the input field, even
+      // if no analysis data is available yet.
+      if(simplifyBlock && typeof renderSimplifyBlock === 'function'){
+        renderSimplifyBlock();
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
