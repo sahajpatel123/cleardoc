@@ -6812,3 +6812,53 @@ test("analyzer: Key-clause preview polished with per-row 🔊 + counter badge", 
   assert.match(cssSrc, /\.kc-count\b/,
     ".kc-count style must exist");
 });
+
+// Iter #102: signing checklist — surfaces marker-phrase clauses
+// that need explicit action (notarize / witness / counsel /
+// arbitration / wire / etc.) grouped by who needs to act. Pure
+// local; regex patterns only.
+test("analyzer: Signing checklist surfaces per-action tasks grouped by who acts", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html
+  assert.match(html, /id="actionBlock"/,
+    "analyze.html must contain #actionBlock");
+  assert.match(html, /id="actionGrid"/,
+    "analyze.html must contain #actionGrid");
+  assert.match(html, /Signing checklist/,
+    "result block must be titled 'Signing checklist'");
+
+  // app.js
+  assert.match(appSrc, /function detectActions\(/,
+    "detectActions must exist");
+  assert.match(appSrc, /function renderActionsBlock\(/,
+    "renderActionsBlock must exist");
+  assert.match(appSrc, /ACTION_PATTERNS/,
+    "ACTION_PATTERNS table must exist");
+  // Cover at least the 6 critical actions
+  for(const k of ["notarize","witness","counsel","arbitration","counterparts","warranty"]){
+    assert.match(appSrc, new RegExp("key: '" + k + "'"),
+      "ACTION_PATTERNS must include '" + k + "'");
+  }
+  // Render must group by 'who' (you / lawyer / notary / counterparty)
+  for(const w of ["you","lawyer","notary","counterparty"]){
+    assert.match(appSrc, new RegExp("act-(?:" + w + ")['\")]")),
+      "render must surface role group act-" + w);
+  }
+  // Wiring — call inside render()
+  assert.match(appSrc, /detectActions\(raw\)/,
+    "render() must call detectActions on the raw text");
+  assert.match(appSrc, /actionBlock\.hidden = (true|false)/,
+    "actionBlock.hidden must be toggled");
+
+  // CSS
+  assert.match(cssSrc, /\.act-group\b/,
+    ".act-group style must exist");
+  assert.match(cssSrc, /\.act-group\.act-you\b/,
+    ".act-you (group color) style must exist");
+});

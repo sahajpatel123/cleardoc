@@ -1831,6 +1831,7 @@
           famousContractBtn=$('#famousContractBtn'),timelineBtn=$('#timelineBtn'),voicePreviewBtn=$('#voicePreviewBtn'),
           legendBtn=$('#legendBtn'),
           transBlock=$('#transBlock'),transNote=$('#transNote'),transList=$('#transList'),
+          actionBlock=$('#actionBlock'),actionNote=$('#actionNote'),actionGrid=$('#actionGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3165,10 +3166,97 @@
       return picks.slice(0, 4);
     }
 
+    // Iter #102: signing checklist — surfaces which clauses in the
+    // analyzed doc require explicit action before signing, grouped
+    // by who needs to act (you / counterparty / lawyer / notary).
+    // Pure local — marker-phrase detection on the raw text.
+    const ACTION_PATTERNS = [
+      { key: 'notarize', label: 'Notarize signature', who: 'notary',
+        hint: 'A licensed notary must witness the signature. Find one before signing.',
+        re: /\bnotary\s+public|notarize[ds]?|sworn\s+(?:to|before)\b/i },
+      { key: 'witness', label: 'Witness signature', who: 'you',
+        hint: 'An independent witness (not a family member) must watch you sign and counter-sign.',
+        re: /\b(?:signed\s+)?in\s+the\s+presence\s+of|witness[\s-]?eth\s+by|in\s+presence\s+of\s+(?:two|3|three|\d+)\s+witness/i },
+      { key: 'initial', label: 'Initial every page', who: 'you',
+        hint: 'Both parties must initial the bottom of every page so no clause can be swapped in.',
+        re: /\binitial[s]?\s+(?:each|every|all)|initialed?\s+(?:on|at)\s+(?:the\s+)?bottom/i },
+      { key: 'counterparts', label: 'Counterparts — sign in duplicate', who: 'you',
+        hint: 'Each party gets a fully-signed copy. Sign one for them, one for you.',
+        re: /\bcounterpart[s]?\b/i },
+      { key: 'counsel', label: 'Reviewed by counsel', who: 'lawyer',
+        hint: 'Have a lawyer sign-off before signing. Usually a 30-minute review is enough.',
+        re: /\b(?:reviewed|approved)\s+by\s+(?:counsel|attorney)|counsel[\s-]?approved/i },
+      { key: 'warranty', label: 'Buyer warranty / disclosure', who: 'you',
+        hint: 'You may need to sign and notarize additional disclosures (real-estate / vehicle deals).',
+        re: /\bwarranty\s+deed|warranties\s+and\s+representations/i },
+      { key: 'arbitration', label: 'Arbitration consent', who: 'you',
+        hint: 'You are signing away the right to a jury trial. Consider negotiating this out first.',
+        re: /\bmandatory\s+arbitration|arbitration\s+agreement\s+(?:shall|will)|binding\s+arbitration\b/i },
+      { key: 'funds', label: 'Wire / escrow instructions', who: 'you',
+        hint: 'Confirm wire instructions by phone before transferring funds — phishing is rampant.',
+        re: /\bwire\s+instructions|escrow\s+(?:account|agent)|funds\s+shall\s+be\s+remitted/i },
+      { key: 'recording', label: 'Record at county clerk', who: 'counterparty',
+        hint: 'Some contracts (real-estate, liens) must be recorded with a government office.',
+        re: /\brecord(?:ed)?\s+(?:with|at)\s+(?:the\s+)?county|recording\s+(?:fees?|officer)/i },
+      { key: 'acceptance', label: 'Written acceptance required', who: 'counterparty',
+        hint: 'You must send a written acceptance letter before the contract activates.',
+        re: /\bwritten\s+acceptance|acceptance\s+(?:letter|notice)\s+(?:by|within)|executed\s+by\s+(?:both|all)\s+parties/i },
+    ];
+
+    function detectActions(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], count: 0 };
+      const items = [];
+      for(const a of ACTION_PATTERNS){
+        a.re.lastIndex = 0;
+        const m = a.re.exec(text);
+        if(m){
+          const offset = (m.index || 0) + (m[0].indexOf(m[0]) || 0);
+          items.push({ key: a.key, label: a.label, who: a.who, hint: a.hint, matched: m[0], offset });
+        }
+      }
+      items.sort((a, b) => a.offset - b.offset);
+      return { items: items.slice(0, 10), count: items.length };
+    }
+
+    function renderActionsBlock(result){
+      if(!actionBlock || !actionGrid || !result) return;
+      if(!result.items.length){ actionBlock.hidden = true; return; }
+      // Group by WHO so the user sees 'what YOU need to do first'.
+      const grouped = { you: [], lawyer: [], notary: [], counterparty: [] };
+      result.items.forEach(it => {
+        const key = grouped[it.who] ? it.who : 'counterparty';
+        grouped[key].push(it);
+      });
+      const order = ['you','counterparty','lawyer','notary'];
+      const labels = { you:'👤 You do', counterparty:'🤝 Counterparty does', lawyer:'⚖ Lawyer reviews', notary:'📜 Notary witnesses' };
+      const cells = order.filter(k => grouped[k].length).map(k => (
+        '<div class="act-group act-' + k + '">' +
+          '<div class="act-group-kicker">' + labels[k] + '</div>' +
+          '<ul class="act-list">' +
+            grouped[k].map(it => (
+              '<li class="act-item" title="Click to jump to the matching clause">' +
+                '<span class="act-glyph">☑</span>' +
+                '<div class="act-body">' +
+                  '<div class="act-label">' + esc(it.label) + '</div>' +
+                  '<div class="act-hint">' + esc(it.hint) + '</div>' +
+                '</div>' +
+              '</li>'
+            )).join('') +
+          '</ul>' +
+        '</div>'
+      )).join('');
+      actionGrid.innerHTML = cells;
+      actionBlock.hidden = false;
+      if(actionNote){
+        actionNote.innerHTML = '<span class="riskNote-lead">' + result.count + ' task' + (result.count === 1 ? '' : 's') + ' before signing</span> ' +
+          'Inline checklist grouped by who acts. Click an item to jump to the matching clause.';
+      }
+    }
+
     function renderKeyClausePreview(sentences, flags){
       const preview = document.getElementById('keyClausePreview');
       const list = document.getElementById('keyClauseList');
-      if(!preview || !list) return;
       // Iter #101: stash the raw picks + sentences on the list so the
       // "expand to all sentences" / "show first N only" toggle can
       // re-render without re-running pickKeyClauses. Pure local.
@@ -3607,6 +3695,16 @@
       // so users see "read these twice" before scrolling.
       if(typeof renderKeyClausePreview === 'function'){
         renderKeyClausePreview(sentences, flags);
+      }
+
+      // Iter #102: signing checklist — surfaces marker-phrase clauses
+      // that need explicit action (notarize, witness, counsel,
+      // arbitration, wire, etc.) grouped by who needs to act.
+      if(actionBlock && typeof detectActions === 'function'){
+        const ar = detectActions(raw);
+        renderActionsBlock(ar);
+      } else if(actionBlock) {
+        actionBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
