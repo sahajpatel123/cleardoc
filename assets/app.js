@@ -1845,6 +1845,8 @@
           tldrCopyBtn=$('#tldrCopyBtn'),tldrSpeakBtn=$('#tldrSpeakBtn'),
           emailBlock=$('#emailBlock'),emailNote=$('#emailNote'),emailGrid=$('#emailGrid'),
           emailCopyBtn=$('#emailCopyBtn'),emailOpenBtn=$('#emailOpenBtn'),
+          quesBlock=$('#quesBlock'),quesNote=$('#quesNote'),quesList=$('#quesList'),
+          quesCopyBtn=$('#quesCopyBtn'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3537,6 +3539,115 @@
       const subject = tone === 'firm' ? 'Contract — items I need addressed before signing' : 'Quick questions on the contract you sent';
       return { subject, body, topCounters, opener, tone, meet };
     }
+    // Iter #126: questions-to-ask — synthesizes a numbered list
+    // of questions a non-lawyer should ask the other party before
+    // signing, sourced from the iteration #84 risk patterns, the
+    // #94 gap detector, and the #112 tone analyzer. Pure local.
+    function buildQuestionsList(raw, ctx){
+      const tal = { r: 0, a: 0, g: 0 };
+      (lastFlags || []).forEach(f => { tal[f.rule.sev] = (tal[f.rule.sev] || 0) + 1; });
+      const qs = [];
+      // Per detected risk, one question
+      (lastFlags || []).slice(0, 6).forEach(f => {
+        const key = f.rule.label.toLowerCase();
+        if(key.indexOf('non-refundable') >= 0){
+          qs.push('Why is this fee non-refundable? What conditions would change the refund policy?');
+        } else if(key.indexOf('auto') >= 0){
+          qs.push('What does the cancellation / opt-out window look like? Can I switch to month-to-month?');
+        } else if(key.indexOf('indemn') >= 0){
+          qs.push('Is the indemnification mutual? Can the cap be set at the value of the contract?');
+        } else if(key.indexOf('arbitration') >= 0 || key.indexOf('jury') >= 0){
+          qs.push('Can we keep individual arbitration optional, not mandatory? Where is the venue?');
+        } else if(key.indexOf('class') >= 0){
+          qs.push('Is there a way to keep the right to a class action if this clause is unenforceable in our state?');
+        } else if(key.indexOf('late') >= 0 || key.indexOf('penalty') >= 0){
+          qs.push('Can we cap late fees at 5% of the overdue amount, in line with federal credit-card standards?');
+        } else if(key.indexOf('sole discretion') >= 0){
+          qs.push('Can we add a 30-day notice requirement so changes can\'t ambush us?');
+        } else {
+          qs.push('Can we revise the ' + f.rule.label.toLowerCase() + ' clause to be more balanced? What specifically concerns us is: ' + f.rule.why);
+        }
+      });
+      // Tone-based questions
+      const tone = (typeof analyzeTone === 'function') ? analyzeTone(raw) : null;
+      if(tone && tone.pressure > 60){
+        qs.push('Several clauses feel one-sided — can we tone down the "shall" / "must" / "immediately" language?');
+      }
+      if(tone && tone.clarity < 60){
+        qs.push('Some language is hard to parse — could we add a short "definitions" section?');
+      }
+      // Maturity-score question
+      const ml = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
+      if(ml && (ml.textContent.trim() === 'D' || ml.textContent.trim() === 'F')){
+        qs.push('Maturity is below 65/100 — what\'s the single most important fix we should request before signing?');
+      }
+      // Jurisdiction-based question
+      const jl = jurisRow && jurisRow.querySelector('.juris-label');
+      if(jl && jl.textContent.trim() && jl.textContent.toLowerCase().indexOf('state of') < 0){
+        qs.push('Venue is currently ' + jl.textContent.trim() + ' — can we change it to our home state?');
+      }
+      // Dedupe + cap at 8
+      const seen = new Set();
+      return qs.filter(q => { if(seen.has(q)) return false; seen.add(q); return true; }).slice(0, 8);
+    }
+    function renderQuestionsBlock(raw, ctx){
+      if(!quesBlock || !quesList || !raw){ return; }
+      const qs = buildQuestionsList(raw, ctx);
+      if(!qs.length){ quesBlock.hidden = true; return; }
+      quesList.innerHTML = qs.map((q, i) => (
+        '<div class="ques-row" data-ques-q="' + esc(q) + '">' +
+          '<div class="ques-num">' + (i + 1) + '.</div>' +
+          '<div class="ques-text">' + esc(q) + '</div>' +
+          '<button type="button" class="ques-copy ghost-btn ghost-btn-sm" data-ques-copy="' + esc(q) + '" title="Copy this question">📋</button>' +
+        '</div>'
+      )).join('');
+      quesBlock.hidden = false;
+      if(quesNote){
+        quesNote.innerHTML = '<span class="riskNote-lead">' + qs.length + ' question' + (qs.length === 1 ? '' : 's') + ' to ask</span> ' +
+          'Specific to what we found in your document. Click 📋 per row to copy, or copy the whole list.';
+      }
+      if(quesCopyBtn){
+        quesCopyBtn.addEventListener('click', async () => {
+          const text = qs.map((q, i) => (i + 1) + '. ' + q).join('\n\n');
+          let copied = false;
+          try {
+            if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Question list copied' : '⚠ Couldn’t copy');
+          quesCopyBtn.textContent = copied ? '✓ copied' : '📋 copy list';
+          setTimeout(() => { if(quesCopyBtn.isConnected) quesCopyBtn.textContent = '📋 copy list'; }, 2500);
+        });
+      }
+      // Per-row copy
+      $$('.ques-copy', quesList).forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const q = btn.getAttribute('data-ques-copy') || '';
+          if(!q) return;
+          let copied = false;
+          try {
+            if(navigator.clipboard) { await navigator.clipboard.writeText(q); copied = true; }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = q; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Question copied' : '⚠ Couldn’t copy');
+          btn.textContent = copied ? '✓' : '📋';
+          setTimeout(() => { if(btn.isConnected) btn.textContent = '📋'; }, 1500);
+        });
+      });
+    }
+
     function renderEmailBlock(raw, ctx){
       if(!emailBlock || !emailGrid || !raw){ return; }
       let draft = buildEmailDraft(raw, ctx);
@@ -4870,6 +4981,13 @@
         renderEmailBlock(raw, ctx);
       } else if(emailBlock && !raw) {
         emailBlock.hidden = true;
+      }
+      // Iter #126: questions to ask — synthesize a numbered list
+      // from risk patterns + tone + maturity + jurisdiction.
+      if(quesBlock && typeof renderQuestionsBlock === 'function' && raw){
+        renderQuestionsBlock(raw, ctx);
+      } else if(quesBlock && !raw) {
+        quesBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

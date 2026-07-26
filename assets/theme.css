@@ -1265,6 +1265,14 @@ button.risk-preview:hover{filter:brightness(.96)}
 .email-tone.email-tone-active{background:var(--ink);color:var(--paper)}
 .email-meet{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;margin-left:auto}
 
+/* Questions-to-ask (iter #126) — numbered list of bespoke asks. */
+.ques-list{display:flex;flex-direction:column;gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.45}
+.ques-row{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.ques-num{font-family:'Archivo Black',sans-serif;background:var(--ink);color:var(--paper);padding:1px 8px;min-width:20px;text-align:center;flex-shrink:0;font-size:13px}
+.ques-text{flex:1;font-size:var(--t-meta);color:var(--ink)}
+.ques-copy{font-size:11px;padding:2px 6px;cursor:pointer;flex-shrink:0}
+.ques-actions{display:flex;gap:6px;margin-top:8px;font-size:var(--t-micro)}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}

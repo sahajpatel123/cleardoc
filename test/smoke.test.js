@@ -7407,6 +7407,36 @@ test("analyzer: Email composer assembles a ready-to-send reply with counter-clau
     "iter #125 must toggle email-tone-active class");
 });
 
+// Iter #126: questions-to-ask — synthesize a numbered list of
+// questions specific to the analyzer's risk patterns + tone +
+// maturity + jurisdiction.
+test("analyzer: Questions-to-ask lists bespoke questions specific to detected risks", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="quesBlock"/, "analyze.html must contain #quesBlock");
+  assert.match(appSrc, /function buildQuestionsList\(/, "buildQuestionsList must exist");
+  assert.match(appSrc, /function renderQuestionsBlock\(/, "renderQuestionsBlock must exist");
+  assert.match(appSrc, /quesBlock\.hidden = (true|false)/,
+    "quesBlock.hidden must be toggled");
+  // The question builder must consult the last flags + tone + maturity + jurisdiction
+  assert.match(appSrc, /lastFlags[\s\S]+?non-refundable|lastFlags[\s\S]+?auto-renew/,
+    "buildQuestionsList must include per-risk questions");
+  // Copy buttons
+  assert.match(appSrc, /quesCopyBtn[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
+    "quesCopyBtn must use clipboard fallback");
+  assert.match(appSrc, /data-ques-copy=/,
+    "per-row copy must include data-ques-copy attribute");
+
+  // CSS
+  assert.match(cssSrc, /\.ques-row\b/, ".ques-row style must exist");
+  assert.match(cssSrc, /\.ques-num\b/, ".ques-num style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,
