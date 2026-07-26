@@ -7777,6 +7777,15 @@ test("analyzer: Version comparer surfaces a per-dimension delta against the last
   assert.match(cssSrc, /\.version-cell\b/, ".version-cell style must exist");
   assert.match(cssSrc, /\.version-good\b/, ".version-good (improved) style must exist");
   assert.match(cssSrc, /\.version-bad\b/, ".version-bad (regressed) style must exist");
+
+  // Iter #145 polish: changelog copy + save-as-baseline.
+  assert.match(appSrc, /changelog/,
+    "iter #145 must include a changelog text");
+  assert.match(appSrc, /versionCopyChangelog[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
+    "iter #145 must wire the copy-changelog button");
+  assert.match(appSrc, /versionSaveBaseline/,
+    "iter #145 must wire a save-as-baseline button");
+  assert.match(cssSrc, /\.version-controls\b/, ".version-controls style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
