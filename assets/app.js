@@ -1862,6 +1862,7 @@
           diffBlock=$('#diffBlock'),diffNote=$('#diffNote'),diffCard=$('#diffCard'),
           loiBlock=$('#loiBlock'),loiNote=$('#loiNote'),loiCard=$('#loiCard'),
           loiCopyBtn=$('#loiCopyBtn'),loiPrintBtn=$('#loiPrintBtn'),
+          partyBlock=$('#partyBlock'),partyNote=$('#partyNote'),partyGrid=$('#partyGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -4082,6 +4083,75 @@
       ].join('\n');
       return { body: body, mletter: mletter, total: total, juris: juris };
     }
+    // Iter #154: party audit — extracts parties (names + roles),
+    // signatures, and dates mentioned in the document. Pure local;
+    // regex-based. Helps the user see who's involved and when.
+    function buildPartyAudit(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      // Names: 2-3 capitalized words (Mr./Ms. optional)
+      const nameRe = /\b(?:(?:Mr|Mrs|Ms|Dr|Prof)\.?\s+)?[A-Z][a-z]+(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/g;
+      // Roles: 1-3 capitalized words ending in common titles or after a comma in signature lines
+      const titleRe = /\b(?:CEO|CFO|CTO|COO|VP|Director|Manager|Attorney|Lawyer|Partner|Agent|Officer|Trustee|Trustee|Secretary|Treasurer|General\s+Counsel|Managing\s+Member)\b/gi;
+      // Date patterns (ISO + M/D/Y + long-month)
+      const dateRe = /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4})\b/g;
+      // Signature indicators
+      const sigRe = /\b(?:Signed\s+by|Signature|By:|Authorized\s+by|Executed\s+by)\b/gi;
+      const seen = new Set();
+      const seenDate = new Set();
+      const items = [];
+      // Names — sort by appearance
+      let m;
+      while((m = nameRe.exec(text))){
+        if(seen.has(m[0])) continue;
+        seen.add(m[0]);
+        // Look for a title in the same sentence
+        const start = Math.max(0, m.index - 80);
+        const end = Math.min(text.length, m.index + m[0].length + 80);
+        const ctx2 = text.substring(start, end);
+        const title = ctx2.match(titleRe);
+        items.push({ type: 'name', value: m[0], title: title ? title[0] : null, offset: m.index });
+        if(items.length >= 12) break;
+      }
+      // Dates
+      while((m = dateRe.exec(text))){
+        if(seenDate.has(m[0])) continue;
+        seenDate.add(m[0]);
+        items.push({ type: 'date', value: m[0], offset: m.index });
+        if(items.length >= 16) break;
+      }
+      // Signature indicators
+      let sig = null;
+      while((m = sigRe.exec(text))){
+        sig = m[0];
+        break;
+      }
+      items.sort((a, b) => a.offset - b.offset);
+      return { items: items.slice(0, 12), hasSignature: !!sig, signatureWord: sig };
+    }
+    function renderPartyBlock(raw, ctx){
+      if(!partyBlock || !partyGrid || !raw){ return; }
+      const p = buildPartyAudit(raw, ctx);
+      if(!p){ partyBlock.hidden = true; return; }
+      if(!p.items.length){ partyBlock.hidden = true; return; }
+      const cells = p.items.map(it => {
+        const cls = it.type === 'name' ? 'party-name' : 'party-date';
+        return '<div class="party-cell ' + cls + '">' +
+          '<div class="party-type">' + (it.type === 'name' ? '👤 party' : '📅 date') + '</div>' +
+          '<div class="party-value">' + esc(it.value) + (it.title ? ' · ' + esc(it.title) : '') + '</div>' +
+        '</div>';
+      }).join('');
+      partyGrid.innerHTML = cells +
+        (p.hasSignature ? '<div class="party-cell party-sig"><div class="party-type">✍ signature</div><div class="party-value">' + esc(p.signatureWord) + ' clause found</div></div>' : '');
+      partyBlock.hidden = false;
+      if(partyNote){
+        const nameCount = p.items.filter(i => i.type === 'name').length;
+        const dateCount = p.items.filter(i => i.type === 'date').length;
+        partyNote.innerHTML = '<span class="riskNote-lead">' + nameCount + ' party name' + (nameCount === 1 ? '' : 's') + ' · ' + dateCount + ' date' + (dateCount === 1 ? '' : 's') + (p.hasSignature ? ' · signature clause found' : '') + '</span> ' +
+          'Regex-extracted from the analyzed text. Helpful for sending a counter-letter to the right person at the right time.';
+      }
+    }
+
     function renderLoiBlock(raw, ctx){
       if(!loiBlock || !loiCard || !raw){ return; }
       const params = {};
@@ -6619,6 +6689,12 @@
         renderLoiBlock(raw, ctx);
       } else if(loiBlock && !raw) {
         loiBlock.hidden = true;
+      }
+      // Iter #154: party audit — names, dates, signatures.
+      if(partyBlock && typeof renderPartyBlock === 'function' && raw){
+        renderPartyBlock(raw, ctx);
+      } else if(partyBlock && !raw) {
+        partyBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

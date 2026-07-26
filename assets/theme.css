@@ -1494,6 +1494,15 @@ button.risk-preview:hover{filter:brightness(.96)}
 .loi-field input{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 5px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);color:var(--ink);width:100%}
 .loi-field input:focus{outline:none;border-color:var(--ink)}
 
+/* Party audit (iter #154) — names, dates, signatures. */
+.party-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.party-cell{display:flex;flex-direction:column;gap:2px;padding:6px 8px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.party-cell.party-name{border-left:3px solid var(--ink)}
+.party-cell.party-date{border-left:3px solid var(--amber)}
+.party-cell.party-sig{border-left:3px solid var(--green);background:var(--green-tint);grid-column:1 / -1}
+.party-type{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;font-weight:700}
+.party-value{font-size:var(--t-meta);color:var(--ink);font-family:'JetBrains Mono',monospace}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}
