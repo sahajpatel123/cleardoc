@@ -1866,6 +1866,7 @@
           glossBlock=$('#glossBlock'),glossNote=$('#glossNote'),glossGrid=$('#glossGrid'),
           confBlock=$('#confBlock'),confNote=$('#confNote'),confCard=$('#confCard'),
           covBlock=$('#covBlock'),covNote=$('#covNote'),covGrid=$('#covGrid'),
+          contactBlock=$('#contactBlock'),contactNote=$('#contactNote'),contactGrid=$('#contactGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -4240,6 +4241,121 @@
       const score = Math.round((present / total) * 100);
       return { list: list, present: present, total: total, score: score };
     }
+    // Iter #162: contact extractor — pulls email addresses and
+    // phone numbers from the document. Pure local; regex-based.
+    // Useful for saving the right counterparty contact before
+    // sending the LOI / cheat sheet / email composer.
+    function buildContactExtract(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      const emailRe = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+      const phoneRe = /(?:\+?\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g;
+      const emails = [];
+      const phones = [];
+      const seen = new Set();
+      let m;
+      while((m = emailRe.exec(text))){
+        if(seen.has(m[0])) continue;
+        seen.add(m[0]);
+        emails.push({ value: m[0], offset: m.index });
+        if(emails.length >= 8) break;
+      }
+      seen.clear();
+      while((m = phoneRe.exec(text))){
+        if(seen.has(m[0])) continue;
+        seen.add(m[0]);
+        if(m[0].length < 10) continue;
+        phones.push({ value: m[0], offset: m.index });
+        if(phones.length >= 8) break;
+      }
+      return { emails: emails, phones: phones };
+    }
+    function renderContactBlock(raw, ctx){
+      if(!contactBlock || !contactGrid || !raw){ return; }
+      const c = buildContactExtract(raw, ctx);
+      if(!c || (!c.emails.length && !c.phones.length)){ contactBlock.hidden = true; return; }
+      const rows = [];
+      c.emails.forEach(e => {
+        rows.push('<div class="contact-cell contact-email" data-contact-jump="' + e.offset + '" title="Click to jump to this in the source">' +
+          '<div class="contact-type">✉ email</div>' +
+          '<div class="contact-value">' + esc(e.value) + '</div>' +
+          '<button type="button" class="contact-copy ghost-btn ghost-btn-sm" data-contact-copy="' + esc(e.value) + '" title="Copy this email">📋</button>' +
+        '</div>');
+      });
+      c.phones.forEach(p => {
+        rows.push('<div class="contact-cell contact-phone" data-contact-jump="' + p.offset + '" title="Click to jump to this in the source">' +
+          '<div class="contact-type">📞 phone</div>' +
+          '<div class="contact-value">' + esc(p.value) + '</div>' +
+          '<button type="button" class="contact-copy ghost-btn ghost-btn-sm" data-contact-copy="' + esc(p.value) + '" title="Copy this phone">📋</button>' +
+        '</div>');
+      });
+      const controls = '<div class="contact-controls">' +
+        '<span class="contact-count">' + (c.emails.length + c.phones.length) + ' contact' + ((c.emails.length + c.phones.length === 1) ? '' : 's') + ' found</span>' +
+        '<button type="button" class="contact-copy-all ghost-btn ghost-btn-sm" id="contactCopyAllBtn" title="Copy all contacts as plain text">📋 copy all</button>' +
+      '</div>';
+      contactGrid.innerHTML = rows.join('') + controls;
+      contactBlock.hidden = false;
+      if(contactNote){
+        contactNote.innerHTML = '<span class="riskNote-lead">' + (c.emails.length + c.phones.length) + ' contact' + ((c.emails.length + c.phones.length === 1) ? '' : 's') + ' extracted</span> · ' +
+          'Regex-extracted from the analyzed text. Click 📋 to copy, or click the cell to jump. <b>📋 copy all</b> for the full list.';
+      }
+      // Iter #162 — click-to-jump + per-row copy
+      $$('.contact-cell', contactGrid).forEach(cell => {
+        cell.addEventListener('click', async (e) => {
+          if(e.target.closest && e.target.closest('[data-contact-copy]')) return;
+          if(!input) return;
+          const offset = parseInt(cell.getAttribute('data-contact-jump') || '-1', 10);
+          if(offset < 0) return;
+          const value = cell.querySelector('.contact-value') ? cell.querySelector('.contact-value').textContent : '';
+          const idx2 = input.value.indexOf(value);
+          if(idx2 >= 0){
+            try { input.focus(); input.setSelectionRange(idx2, idx2 + value.length); } catch(_){ /* ignore */ }
+            try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+          }
+        });
+      });
+      $$('[data-contact-copy]', contactGrid).forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const value = btn.getAttribute('data-contact-copy') || '';
+          if(!value) return;
+          let copied = false;
+          try { if(navigator.clipboard) { await navigator.clipboard.writeText(value); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = value; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Copied: ' + value : '⚠ Couldn’t copy');
+          btn.textContent = copied ? '✓' : '📋';
+          setTimeout(() => { if(btn.isConnected) btn.textContent = '📋'; }, 1500);
+        });
+      });
+      // Copy all
+      const copyAllBtn = document.getElementById('contactCopyAllBtn');
+      if(copyAllBtn){
+        copyAllBtn.addEventListener('click', async () => {
+          const all = c.emails.map(e => 'Email: ' + e.value).concat(c.phones.map(p => 'Phone: ' + p.value)).join('\n');
+          let copied = false;
+          try { if(navigator.clipboard) { await navigator.clipboard.writeText(all); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = all; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 All contacts copied' : '⚠ Couldn’t copy');
+          copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
+          setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
+        });
+      }
+    }
+
     function renderCovBlock(raw, ctx){
       if(!covBlock || !covGrid || !raw){ return; }
       const c = buildCoverageIndex(raw, ctx);
@@ -7118,6 +7234,12 @@
         renderCovBlock(raw, ctx);
       } else if(covBlock && !raw) {
         covBlock.hidden = true;
+      }
+      // Iter #162: contact extract — emails + phone numbers.
+      if(contactBlock && typeof renderContactBlock === 'function' && raw){
+        renderContactBlock(raw, ctx);
+      } else if(contactBlock && !raw) {
+        contactBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

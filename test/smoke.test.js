@@ -8071,6 +8071,31 @@ test("analyzer: Coverage index measures presence of standard contract sections",
     "iter #161 must use clipboard fallback for the checklist");
 });
 
+// Iter #162: contact extract — emails + phone numbers.
+test("analyzer: Contact extract pulls emails and phone numbers from the document", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="contactBlock"/, "analyze.html must contain #contactBlock");
+  assert.match(appSrc, /function buildContactExtract\(/, "buildContactExtract must exist");
+  assert.match(appSrc, /function renderContactBlock\(/, "renderContactBlock must exist");
+  // Regex coverage
+  assert.match(appSrc, /[a-zA-Z0-9._%+-]+@\[a-zA-Z0-9\.-\]\+\\.\[a-zA-Z\]\{2,\}/,
+    "iter #162 must include an email regex");
+  assert.match(appSrc, /phoneRe/,
+    "iter #162 must include a phone regex");
+  // Wiring
+  assert.match(appSrc, /renderContactBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderContactBlock");
+  // CSS
+  assert.match(cssSrc, /\.contact-cell\b/, ".contact-cell style must exist");
+  assert.match(cssSrc, /\.contact-email\b/, ".contact-email style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

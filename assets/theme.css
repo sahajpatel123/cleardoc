@@ -1556,6 +1556,19 @@ button.risk-preview:hover{filter:brightness(.96)}
 .cov-cell.cov-present:hover{filter:brightness(.94)}
 .cov-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
 
+/* Contact extract (iter #162) — emails + phone numbers. */
+.contact-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.contact-cell{display:flex;gap:6px;align-items:center;padding:6px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);cursor:pointer;transition:filter .15s ease}
+.contact-cell:hover{filter:brightness(.96)}
+.contact-cell.contact-email{border-left:3px solid var(--green);background:var(--green-tint)}
+.contact-cell.contact-phone{border-left:3px solid var(--amber);background:var(--amber-tint)}
+.contact-type{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;min-width:60px}
+.contact-value{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contact-copy{margin-left:6px;font-size:11px;padding:1px 5px;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
+.contact-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
+.contact-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
+.contact-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}
