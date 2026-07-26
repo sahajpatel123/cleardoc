@@ -1851,6 +1851,7 @@
           predictBlock=$('#predictBlock'),predictNote=$('#predictNote'),predictList=$('#predictList'),
           trendBlock=$('#trendBlock'),trendNote=$('#trendNote'),trendGrid=$('#trendGrid'),
           styleBlock=$('#styleBlock'),styleNote=$('#styleNote'),styleGrid=$('#styleGrid'),
+          indexBlock=$('#indexBlock'),indexNote=$('#indexNote'),clauseIndex=$('#clauseIndex'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3733,6 +3734,82 @@
       else if(g >= 7) verdict = 'Friendly';
       return { totalSent, avgWords, longest, longestTenth, passiveRate, grade: g, verdict, wordCount: words.length };
     }
+    // Iter #136: clause index — extract every numbered or named
+    // clause reference ("Section 4.2(b)", "Article V", "Section 7")
+    // and render as a clickable index. Pure local; regex-based.
+    function extractClauseIndex(raw){
+      const text = String(raw || '');
+      if(!text) return [];
+      const hits = [];
+      // Numbered: "Section 4", "Section 4.2", "4.2(b)", "(c)", "Article V", "Clause 7"
+      const patterns = [
+        // Section / Article / Clause with optional numbers + letter suffix
+        /\b(?:Section|Sections|Article|Articles|Clause|Clauses|Article\s+[IVXLC]+|\d+\.\d+\s*\([a-z]\))\s*([\dIVXLC]+(?:\.[\d]+)?(?:\s*\([a-z]\))?)/gi,
+      ];
+      const seen = new Set();
+      patterns.forEach(re => {
+        re.lastIndex = 0;
+        let m;
+        while((m = re.exec(text))){
+          const raw = m[0];
+          const idx = m.index;
+          if(idx == null || idx < 0) continue;
+          if(seen.has(raw)) continue;
+          seen.add(raw);
+          // Capture a small surrounding context (~80 chars after)
+          const snippet = text.substring(idx, Math.min(text.length, idx + 80)).replace(/\s+/g, ' ').trim();
+          hits.push({ raw: raw, offset: idx, snippet: snippet });
+        }
+      });
+      // Also pick up bare "4.2(b)" patterns in numbered lists
+      const bareRe = /\b(\d+\.\d+(?:\.[\d]+)?\s*\([a-z]\))/g;
+      let bm;
+      while((bm = bareRe.exec(text))){
+        const raw = bm[1];
+        if(seen.has(raw)) continue;
+        seen.add(raw);
+        const idx = bm.index;
+        hits.push({ raw: raw, offset: idx, snippet: text.substring(idx, Math.min(text.length, idx + 80)).replace(/\s+/g, ' ').trim() });
+      }
+      // Sort by document order and cap
+      hits.sort((a, b) => a.offset - b.offset);
+      return hits.slice(0, 30);
+    }
+    function renderClauseIndex(raw, ctx){
+      if(!indexBlock || !clauseIndex || !raw){ return; }
+      const hits = extractClauseIndex(raw);
+      if(!hits.length){ indexBlock.hidden = true; return; }
+      const seen = new Set();
+      const uniq = [];
+      hits.forEach(h => { if(!seen.has(h.raw)){ seen.add(h.raw); uniq.push(h); } });
+      clauseIndex.innerHTML = uniq.map(h => (
+        '<button type="button" class="clause-row" data-clause-offset="' + h.offset + '" data-clause-raw="' + esc(h.raw) + '" title="' + esc(h.snippet) + '">' +
+          '<span class="clause-num">' + esc(h.raw) + '</span>' +
+          '<span class="clause-text">' + esc(h.snippet) + '</span>' +
+        '</button>'
+      )).join('');
+      indexBlock.hidden = false;
+      if(indexNote){
+        indexNote.innerHTML = '<span class="riskNote-lead">' + uniq.length + ' clause' + (uniq.length === 1 ? '' : 's') + ' indexed</span> ' +
+          'Click any row to jump to that clause in the source textarea. Useful for large contracts where you want to revisit a specific section without scrolling.';
+      }
+      // Click-to-jump: find the raw phrase in the input
+      $$('.clause-row', clauseIndex).forEach(row => {
+        row.addEventListener('click', () => {
+          if(!input) return;
+          const raw = row.getAttribute('data-clause-raw') || '';
+          if(!raw) return;
+          const idx2 = input.value.indexOf(raw);
+          if(idx2 >= 0){
+            try { input.focus(); input.setSelectionRange(idx2, idx2 + raw.length); } catch(_){ /* ignore */ }
+            try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ Clause marker no longer in input');
+          }
+        });
+      });
+    }
+
     function renderStyleBlock(raw, ctx){
       if(!styleBlock || !styleGrid || !raw){ return; }
       const p = buildStyleProfile(raw);
@@ -5466,6 +5543,12 @@
         renderStyleBlock(raw, ctx);
       } else if(styleBlock && !raw) {
         styleBlock.hidden = true;
+      }
+      // Iter #136: clause index — extract numbered clauses for jumping.
+      if(indexBlock && typeof renderClauseIndex === 'function' && raw){
+        renderClauseIndex(raw, ctx);
+      } else if(indexBlock && !raw) {
+        indexBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

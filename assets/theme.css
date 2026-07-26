@@ -1345,6 +1345,13 @@ button.risk-preview:hover{filter:brightness(.96)}
 .style-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro)}
 .style-cell{cursor:help}
 
+/* Clause index (iter #136) — numbered clauses, click to jump. */
+.clause-index{display:flex;flex-direction:column;gap:4px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.clause-row{display:flex;gap:10px;align-items:flex-start;padding:6px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);cursor:pointer;text-align:left;transition:filter .15s ease}
+.clause-row:hover{filter:brightness(.94)}
+.clause-num{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--paper);background:var(--ink);padding:2px 6px;font-weight:700;flex-shrink:0;min-width:90px;letter-spacing:.04em}
+.clause-text{font-size:var(--t-meta);color:var(--ink);font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}
