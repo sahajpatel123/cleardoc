@@ -7661,6 +7661,15 @@ test("analyzer: Cost predictor shows expected / 90th / worst-case scenarios", ()
   assert.match(cssSrc, /\.cost-cell\b/, ".cost-cell style must exist");
   assert.match(cssSrc, /\.cost-best\b/, ".cost-best style must exist");
   assert.match(cssSrc, /\.cost-worst\b/, ".cost-worst style must exist");
+
+  // Iter #139 polish: probability sliders + reset to defaults.
+  assert.match(appSrc, /loadCostProbs|COST_PROB_KEY/,
+    "iter #139 must load saved probabilities from localStorage");
+  assert.match(appSrc, /data-cost-prob=/,
+    "iter #139 must render probability sliders");
+  assert.match(appSrc, /costResetProbsBtn/,
+    "iter #139 must render a reset-to-defaults button");
+  assert.match(cssSrc, /\.cost-sliders\b/, ".cost-sliders style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,

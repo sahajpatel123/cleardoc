@@ -3780,7 +3780,8 @@
     // a per-severity probability factor to show "expected" vs
     // "worst-case" cost. Pure local; calibrated from historical
     // contract-dispute rates (rough industry-rough estimate).
-    function buildCostPrediction(raw, ctx){
+    function buildCostPrediction(raw, ctx, probs){
+      probs = probs || { pTrap: 0.35, pWatch: 0.12, pNote: 0.04, pTrapHi: 0.65, pWatchHi: 0.30, pNoteHi: 0.10 };
       const exposureStr = (function(){
         const t = riskDetail && riskDetail.textContent || '';
         const m = t.match(/worst-case exposure[^A-Z]*\$([0-9,]+)/i);
@@ -3789,18 +3790,28 @@
       const tal = { r: 0, a: 0, g: 0 };
       (lastFlags || []).forEach(f => { tal[f.rule.sev] = (tal[f.rule.sev] || 0) + 1; });
       if(!exposureStr && tal.r + tal.a + tal.g === 0) return null;
-      // Iter #84 per-severity probability-of-trigger (industry-rough):
-      // trap ≈ 35% (1 in 3 actually fires), watch ≈ 12%, note ≈ 4%.
-      const expected = (tal.r * 0.35 + tal.a * 0.12 + tal.g * 0.04) * (exposureStr || 0);
-      // 90th percentile (a single trap fires + a few watches = "high-side")
-      const pct90 = (tal.r * 0.65 + tal.a * 0.30 + tal.g * 0.10) * (exposureStr || 0);
-      // Worst-case (all the top risks fire)
+      const expected = (tal.r * probs.pTrap + tal.a * probs.pWatch + tal.g * probs.pNote) * (exposureStr || 0);
+      const pct90 = (tal.r * probs.pTrapHi + tal.a * probs.pWatchHi + tal.g * probs.pNoteHi) * (exposureStr || 0);
       const worst = exposureStr || 0;
-      return { expected, pct90, worst, total: tal.r + tal.a + tal.g, exposure: exposureStr };
+      return { expected, pct90, worst, total: tal.r + tal.a + tal.g, exposure: exposureStr, probs: probs };
+    }
+    // Iter #139 — persisted user-tunable probabilities
+    const COST_PROB_KEY = 'cleardoc:cost-probs';
+    function loadCostProbs(){
+      const defaults = { pTrap: 0.35, pWatch: 0.12, pNote: 0.04, pTrapHi: 0.65, pWatchHi: 0.30, pNoteHi: 0.10 };
+      try {
+        const stored = JSON.parse(localStorage.getItem(COST_PROB_KEY) || 'null');
+        if(stored && typeof stored === 'object') return Object.assign({}, defaults, stored);
+      } catch(_){ /* fall through */ }
+      return defaults;
+    }
+    function saveCostProbs(p){
+      try { localStorage.setItem(COST_PROB_KEY, JSON.stringify(p)); } catch(_){ /* quota */ }
     }
     function renderCostBlock(raw, ctx){
       if(!costBlock || !costGrid || !raw){ return; }
-      const c = buildCostPrediction(raw, ctx);
+      const probs = loadCostProbs();
+      const c = buildCostPrediction(raw, ctx, probs);
       if(!c){ costBlock.hidden = true; return; }
       const fmt = (n) => '$' + Math.round(n).toLocaleString('en-US');
       const cells = [
@@ -3808,21 +3819,73 @@
         '<div class="cost-cell cost-mid"><div class="cost-label">90th percentile</div><div class="cost-value">' + fmt(c.pct90) + '</div><div class="cost-hint">High-side — at least one top risk fires + a few watches</div></div>',
         '<div class="cost-cell cost-worst"><div class="cost-label">Worst case</div><div class="cost-value">' + (c.worst > 0 ? fmt(c.worst) : '—') + '</div><div class="cost-hint">All top risks fire</div></div>',
       ];
-      // Verdict row
       const savings = Math.max(0, c.worst - c.expected);
-      const verdict = savings > 0
-        ? '💡 Walking this checklist carefully (counter the top ' + tal_max + ' traps, ask the questions, swap into source) could save you roughly <b style="color:var(--green)">' + fmt(savings) + '</b> in expected cost over the lifetime of the contract.'
-        : 'No worst-case cost detected — clean document. Skim the maturity + verdict to confirm.';
       const tal_max = (function(){
         const t = (lastFlags || []).filter(f => f.rule.sev === 'r').slice(0, 3).length;
         return t > 0 ? t : 1;
       })();
+      const verdict = savings > 0
+        ? '💡 Walking this checklist could save you roughly <b style="color:var(--green)">' + fmt(savings) + '</b> in expected cost over the lifetime of the contract.'
+        : 'No worst-case cost detected — clean document. Skim the maturity + verdict to confirm.';
       cells.push('<div class="cost-cell cost-verdict"><div class="cost-label">Verdict</div><div class="cost-value">' + verdict + '</div></div>');
-      costGrid.innerHTML = cells.join('');
+      // Iter #139 — probability sliders
+      const pct = (n) => Math.round(n * 100) + '%';
+      const slider = (k, label, val, hiKey) => (
+        '<div class="cost-slider-row">' +
+          '<div class="cost-slider-label">' + label + '</div>' +
+          '<input type="range" class="cost-slider" data-cost-prob="' + k + '" min="0" max="100" step="1" value="' + Math.round(val * 100) + '" />' +
+          '<span class="cost-slider-val" data-cost-prob-label="' + k + '">' + pct(val) + '</span>' +
+          '<span class="cost-slider-hi">↔ 90th: ' +
+            '<input type="range" class="cost-slider cost-slider-hi" data-cost-prob="' + hiKey + '" min="0" max="100" step="1" value="' + Math.round(probs[hiKey] * 100) + '" />' +
+            '<span data-cost-prob-label="' + hiKey + '">' + pct(probs[hiKey]) + '</span>' +
+          '</span>' +
+        '</div>'
+      );
+      const sliders = '<div class="cost-sliders">' +
+        '<div class="cost-sliders-kicker">⚙ Tune the per-severity probability to match your risk tolerance</div>' +
+        slider('pTrap','Trap (high stakes)', probs.pTrap, 'pTrapHi') +
+        slider('pWatch','Watch (medium)', probs.pWatch, 'pWatchHi') +
+        slider('pNote','Note (low stakes)', probs.pNote, 'pNoteHi') +
+        '<div class="cost-sliders-actions">' +
+          '<button type="button" class="ghost-btn ghost-btn-sm" id="costResetProbsBtn" title="Restore default probabilities">↺ defaults</button>' +
+        '</div>' +
+      '</div>';
+      costGrid.innerHTML = cells.join('') + sliders;
       costBlock.hidden = false;
       if(costNote){
         costNote.innerHTML = '<span class="riskNote-lead">' + c.total + ' risk' + (c.total === 1 ? '' : 's') + ' analyzed</span> · ' +
-          'Three cost scenarios · estimate, not a quote. Used to make the abstract "this could hurt" concrete.';
+          'Three cost scenarios · <b>drag the sliders</b> to match your own risk tolerance. ↺ restores defaults.';
+      }
+      // Iter #139 — slider live updates
+      $$('input[data-cost-prob]', costGrid).forEach(inp => {
+        inp.addEventListener('input', () => {
+          const k = inp.getAttribute('data-cost-prob');
+          const v = (parseInt(inp.value, 10) || 0) / 100;
+          const next = Object.assign({}, probs);
+          next[k] = v;
+          saveCostProbs(next);
+          const labelEl = costGrid.querySelector('[data-cost-prob-label="' + k + '"]:not(input)');
+          if(labelEl) labelEl.textContent = pct(v);
+          // Re-render just the three scenario cards (preserves sliders focus)
+          const fresh = buildCostPrediction(raw, ctx, next);
+          if(!fresh) return;
+          const newCells = [
+            '<div class="cost-cell cost-best"><div class="cost-label">Expected cost</div><div class="cost-value">' + fmt(fresh.expected) + '</div><div class="cost-hint">Realistic — based on per-severity probability of trigger</div></div>',
+            '<div class="cost-cell cost-mid"><div class="cost-label">90th percentile</div><div class="cost-value">' + fmt(fresh.pct90) + '</div><div class="cost-hint">High-side — at least one top risk fires + a few watches</div></div>',
+            '<div class="cost-cell cost-worst"><div class="cost-label">Worst case</div><div class="cost-value">' + (fresh.worst > 0 ? fmt(fresh.worst) : '—') + '</div><div class="cost-hint">All top risks fire</div></div>',
+            '<div class="cost-cell cost-verdict"><div class="cost-label">Verdict</div><div class="cost-value">' + (savings > 0 ? '💡 Walking this checklist could save you roughly <b style="color:var(--green)">' + fmt(savings) + '</b> in expected cost over the lifetime of the contract.' : 'No worst-case cost detected.') + '</div></div>',
+          ];
+          // Replace just the first 4 children of the grid
+          const allChildren = Array.from(costGrid.children);
+          for(let i = 0; i < 4; i++){ if(allChildren[i]) allChildren[i].outerHTML = newCells[i]; }
+        });
+      });
+      const resetBtn = document.getElementById('costResetProbsBtn');
+      if(resetBtn){
+        resetBtn.addEventListener('click', () => {
+          try { localStorage.removeItem(COST_PROB_KEY); } catch(_){ /* quota */ }
+          renderCostBlock(raw, ctx);
+        });
       }
     }
 
