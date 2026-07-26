@@ -8004,6 +8004,31 @@ test("analyzer: Glossary quick-reference extracts legal terms with plain-English
   assert.match(cssSrc, /\.gloss-filter-active\b/, ".gloss-filter-active style must exist");
 });
 
+// Iter #172: obligation tracker — extracts action verbs and obligations.
+test("analyzer: Obligation tracker extracts action verbs from the document", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="actionBlock2"/, "analyze.html must contain #actionBlock2");
+  assert.match(appSrc, /function buildActionList\(/, "buildActionList must exist");
+  assert.match(appSrc, /function renderActionBlock\(/, "renderActionBlock must exist");
+  assert.match(appSrc, /renderActionBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderActionBlock");
+  // Cover key action verbs
+  for(const v of ["shall", "must", "will", "undertakes", "warrants", "agrees"]){
+    assert.match(appSrc, new RegExp("'" + v + "'"),
+      "buildActionList must recognize the action verb '" + v + "'");
+  }
+  // Mandatory vs permissive distinction
+  assert.match(appSrc, /action-mandatory/,
+    "iter #172 must distinguish mandatory actions");
+  assert.match(appSrc, /action-permissive/,
+    "iter #172 must distinguish permissive actions");
+});
+
 // Iter #158: analysis confidence — rates how reliable this run is.
 test("analyzer: Analysis confidence rates how reliable the result is", () => {
   if (!HAS_BROWSER) return;

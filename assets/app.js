@@ -1871,6 +1871,7 @@
           boardBlock=$('#boardBlock'),boardNote=$('#boardNote'),boardGrid=$('#boardGrid'),
           prioBlock=$('#prioBlock'),prioNote=$('#prioNote'),prioMatrix=$('#prioMatrix'),
           defBlock=$('#defBlock'),defNote=$('#defNote'),defList=$('#defList'),
+          actionBlock2=$('#actionBlock2'),actionBlock2Note=$('#actionBlock2Note'),actionList=$('#actionList'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -4419,6 +4420,58 @@
       collect(reB, false);
       return defs;
     }
+
+    // Iter #172: obligation tracker — extracts every action verb
+    // (shall, must, will, agrees, may, ... ) plus the surrounding
+    // sentence so users see what they (and the other party) have
+    // committed to. Pure local; regex-based.
+    function buildActionList(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      const sentences = text.split(/(?<=[.!?;])\s+/).map(s => s.trim()).filter(s => s.length > 5 && s.length < 600);
+      const verbs = ['shall', 'must', 'will', 'agrees', 'agree', 'may not', 'is required to', 'are required to', 'undertakes', 'warrants', 'represents', 'covenants', 'is obligated', 'are obligated', 'is responsible', 'are responsible'];
+      const seen = new Set();
+      const items = [];
+      sentences.forEach(s => {
+        const sl = s.toLowerCase();
+        for(const v of verbs){
+          if(sl.indexOf(v) >= 0){
+            const key = v + '|' + s.slice(0, 80);
+            if(seen.has(key)) continue;
+            seen.add(key);
+            items.push({ verb: v, sentence: s });
+            break;
+          }
+        }
+      });
+      return items.slice(0, 12);
+    }
+    function renderActionBlock(raw, ctx){
+      if(!actionBlock2 || !actionList || !raw){ return; }
+      const items = buildActionList(raw, ctx);
+      if(!items || !items.length){ actionBlock2.hidden = true; return; }
+      const rows = items.map(it => {
+        const snip = (it.sentence || '').slice(0, 240);
+        const isMandatory = /^(shall|must|is required|are required|undertakes|warrants|covenants|is obligated|are obligated|is responsible|are responsible)/.test(it.verb);
+        const cls = isMandatory ? 'action-mandatory' : 'action-permissive';
+        const tag = isMandatory ? '⚡ must' : '✓ may';
+        return '<div class="action-row ' + cls + '" title="Action verb detected: ' + esc(it.verb) + '">' +
+          '<div class="action-tag">' + esc(tag) + '</div>' +
+          '<div class="action-sentence">' + esc(snip) + '</div>' +
+        '</div>';
+      }).join('');
+      actionList.innerHTML = rows;
+      actionBlock2.hidden = false;
+      if(actionBlock2Note){
+        const mandatory = items.filter(it => /^(shall|must|is required|are required|undertakes|warrants|covenants|is obligated|are obligated|is responsible|are responsible)/.test(it.verb)).length;
+        const permissive = items.length - mandatory;
+        actionBlock2Note.innerHTML = '<span class="riskNote-lead">' + items.length + ' action verb' + (items.length === 1 ? '' : 's') + '</span> · ' +
+          '<b>' + mandatory + ' mandatory</b> (shall / must / undertakes) · <b>' + permissive + ' permissive</b> (may / agrees). ' +
+          'Useful for tracking what you (and the other party) have committed to.';
+      }
+    }
+
+
     function renderDefBlock(raw, ctx){
       if(!defBlock || !defList || !raw){ return; }
       let defs = buildDefList(raw, ctx);
@@ -4473,6 +4526,8 @@
         sortBtn.addEventListener('click', () => {
           defList._defSortAlpha = !defList._defSortAlpha;
           renderDefBlock(raw, ctx);
+          if(typeof renderActionBlock === 'function' && raw) renderActionBlock(raw, ctx);
+          else if(actionBlock2) actionBlock2.hidden = true;
         });
       }
       // Iter #171 copy-all chip
@@ -7792,12 +7847,6 @@
         renderPrioBlock(raw, ctx);
       } else if(prioBlock && !raw) {
         prioBlock.hidden = true;
-      }
-      // Iter #170: key definitions.
-      if(defBlock && typeof renderDefBlock === 'function' && raw){
-        renderDefBlock(raw, ctx);
-      } else if(defBlock && !raw) {
-        defBlock.hidden = true;
       }
       // Iter #170: key definitions.
       if(defBlock && typeof renderDefBlock === 'function' && raw){
