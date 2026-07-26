@@ -1874,6 +1874,7 @@
           actionBlock2=$('#actionBlock2'),actionBlock2Note=$('#actionBlock2Note'),actionList=$('#actionList'),
           deadlineBlock=$('#deadlineBlock'),deadlineNote=$('#deadlineNote'),deadlineList=$('#deadlineList'),
           focusBlock=$('#focusBlock'),focusNote=$('#focusNote'),focusList=$('#focusList'),
+          crossrefBlock=$('#crossrefBlock'),crossrefNote=$('#crossrefNote'),crossrefList=$('#crossrefList'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -4634,10 +4635,7 @@
             const agoStr = ago === 0 ? 'today' : ago === 1 ? 'yesterday' : ago < 7 ? ago + ' days ago' : Math.round(ago/7) + ' weeks ago';
             return (i+1) + '. ' + (it.term || '?') + ' [' + agoStr + ']: ' + ((it.context || '').slice(0, 120));
           });
-          const text = 'Focus memo for this document (' + m.items.length + ' pinned items):
-
-' + lines.join('
-');
+          const text = 'Focus memo for this document (' + m.items.length + ' pinned items):\n\n' + lines.join('\n');
           let copied = false;
           try { if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; } }
           catch(_){}
@@ -4823,6 +4821,134 @@
             } catch(_){ /* ignore */ }
           }
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Definitions copied (' + defs.length + ')' : '⚠ Couldn’t copy');
+          copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
+          setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
+        });
+      }
+    }
+
+    // Iter #178: cross-reference integrity checker — scans for internal
+    // references (Section 4.2, Clause 7, Article III, paragraph 3) and
+    // attachments (Exhibit A, Schedule B, Appendix 1, Annex C), then
+    // checks whether each referenced target actually appears in the
+    // pasted text. A reference whose target is missing is either a
+    // dangling internal reference (drafting error / hidden term) or an
+    // attachment the reader doesn't actually have in front of them.
+    // Pure local; regex-based, no network.
+    function extractCrossRefs(raw){
+      const text = String(raw || '');
+      if(!text) return [];
+      const reEsc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const types = [
+        { name: 'Section',   re: /\bSections?\s+(\d+(?:\.\d+)*)/gi,        attach: false },
+        { name: 'Clause',    re: /\bClauses?\s+(\d+(?:\.\d+)*)/gi,          attach: false },
+        { name: 'Article',   re: /\bArticles?\s+([IVXLC]{1,6}|\d+)\b/g,     attach: false },
+        { name: 'Paragraph', re: /\bParagraphs?\s+(\d+(?:\.\d+)*)/gi,       attach: false },
+        { name: 'Exhibit',   re: /\bExhibits?\s+([A-Z0-9]{1,3})\b/g,        attach: true  },
+        { name: 'Schedule',  re: /\bSchedules?\s+([A-Z0-9]{1,3})\b/g,       attach: true  },
+        { name: 'Appendix',  re: /\bAppendix\s+([A-Z0-9]{1,3})\b/gi,        attach: true  },
+        { name: 'Annex',     re: /\bAnnex(?:es)?\s+([A-Z0-9]{1,3})\b/gi,    attach: true  }
+      ];
+      const map = new Map();
+      types.forEach(t => {
+        let m;
+        while((m = t.re.exec(text))){
+          const id = (m[1] || '').trim();
+          if(!id) continue;
+          const key = t.name.toLowerCase() + ' ' + id.toLowerCase();
+          if(!map.has(key)){
+            const ctxSnip = text.slice(m.index, m.index + 120).replace(/\s+/g, ' ').trim();
+            map.set(key, { type: t.name, id: id, label: t.name + ' ' + id, count: 0, offset: m.index, attach: t.attach, context: ctxSnip });
+          }
+          map.get(key).count++;
+        }
+      });
+      const items = [];
+      map.forEach(v => {
+        // A "heading" occurrence is the id (optionally prefixed by its type
+        // word) at the start of a line, followed by a delimiter — i.e. the
+        // section is actually laid out in the document, not just referenced.
+        // Guard the id with a lookahead so "Section 4" doesn't resolve to a
+        // "4.2" heading.
+        const headingRe = new RegExp('(^|\\n)[ \\t]*(?:' + reEsc(v.type) + '\\s+)?' + reEsc(v.id) + '(?!\\.?\\d)[\\.\\)\\:\\s]', 'im');
+        const defined = headingRe.test(text);
+        let status;
+        if(defined) status = 'resolved';
+        else if(v.attach) status = 'external';
+        else status = 'dangling';
+        items.push({ type: v.type, id: v.id, label: v.label, count: v.count, offset: v.offset, attach: v.attach, context: v.context, status: status });
+      });
+      const order = { dangling: 0, external: 1, resolved: 2 };
+      items.sort((a, b) => (order[a.status] - order[b.status]) || (a.offset - b.offset));
+      return items.slice(0, 16);
+    }
+
+    function renderCrossrefBlock(raw, ctx){
+      if(!crossrefBlock || !crossrefList || !raw){ return; }
+      const items = extractCrossRefs(raw);
+      if(!items.length){ crossrefBlock.hidden = true; return; }
+      const meta = {
+        resolved: { tag: '✓ in text', cls: 'crossref-resolved', title: 'The referenced target appears in this document.' },
+        external: { tag: '📎 not attached', cls: 'crossref-external', title: 'An attachment referenced here is not included in the pasted text.' },
+        dangling: { tag: '⚠ missing', cls: 'crossref-dangling', title: 'This reference points to a section that does not appear in the document.' }
+      };
+      const rows = items.map(it => {
+        const mt = meta[it.status] || meta.dangling;
+        const times = it.count > 1 ? ' <span class="crossref-times">×' + it.count + '</span>' : '';
+        return '<div class="crossref-row ' + mt.cls + '" data-crossref-label="' + esc(it.label) + '" data-crossref-offset="' + (it.offset || 0) + '" title="' + esc(mt.title) + ' Click to jump to it in the source.">' +
+          '<div class="crossref-tag">' + esc(mt.tag) + '</div>' +
+          '<div class="crossref-label">' + esc(it.label) + times + '</div>' +
+          '<div class="crossref-context">' + esc((it.context || '').slice(0, 160)) + '</div>' +
+        '</div>';
+      }).join('');
+      const dangling = items.filter(it => it.status === 'dangling').length;
+      const external = items.filter(it => it.status === 'external').length;
+      const resolved = items.filter(it => it.status === 'resolved').length;
+      const controls = '<div class="crossref-controls">' +
+        '<span class="crossref-count"><b>' + resolved + '</b> in text · <b>' + external + '</b> not attached · <b>' + dangling + '</b> missing</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="crossrefCopyAllBtn" title="Copy all cross-references as plain text">📋 copy all</button>' +
+      '</div>';
+      crossrefList.innerHTML = rows + controls;
+      crossrefBlock.hidden = false;
+      if(crossrefNote){
+        const problems = dangling + external;
+        const lead = problems
+          ? '<b>' + problems + '</b> reference' + (problems === 1 ? '' : 's') + ' point outside the pasted text'
+          : 'All ' + items.length + ' reference' + (items.length === 1 ? '' : 's') + ' resolve inside this document';
+        crossrefNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
+          '<b>⚠ missing</b> = an internal section/clause that is referenced but never laid out (a hidden or dropped term). ' +
+          '<b>📎 not attached</b> = an exhibit / schedule / appendix you should ask for. Click any row to jump to it in the source; <b>📋 copy all</b> exports the list.';
+      }
+      $$('.crossref-row', crossrefList).forEach(row => {
+        row.addEventListener('click', () => {
+          if(!input) return;
+          const off = parseInt(row.getAttribute('data-crossref-offset') || '-1', 10);
+          const label = row.getAttribute('data-crossref-label') || '';
+          let idx2 = (off >= 0 && off < input.value.length) ? off : input.value.toLowerCase().indexOf(label.toLowerCase());
+          if(idx2 >= 0){
+            try { input.focus(); input.setSelectionRange(idx2, idx2 + label.length); } catch(_){ /* ignore */ }
+            try { input.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ Reference no longer in input');
+          }
+        });
+      });
+      const copyAllBtn = document.getElementById('crossrefCopyAllBtn');
+      if(copyAllBtn){
+        copyAllBtn.addEventListener('click', async () => {
+          const label = { resolved: 'in text', external: 'NOT ATTACHED', dangling: 'MISSING' };
+          const text = items.map(it => it.label + (it.count > 1 ? ' (×' + it.count + ')' : '') + ' — ' + (label[it.status] || it.status)).join('\n');
+          let copied = false;
+          try { if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Cross-references copied (' + items.length + ')' : '⚠ Couldn’t copy');
           copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
           setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
         });
@@ -8131,11 +8257,30 @@
       } else if(defBlock && !raw) {
         defBlock.hidden = true;
       }
+      // Iter #172: obligation tracker (previously only rendered via the
+      // def-sort toggle — now wired into the initial pipeline).
+      if(actionBlock2 && typeof renderActionBlock === 'function' && raw){
+        renderActionBlock(raw, ctx);
+      } else if(actionBlock2 && !raw) {
+        actionBlock2.hidden = true;
+      }
+      // Iter #174: deadline extractor (same fix — now renders on first analysis).
+      if(deadlineBlock && typeof renderDeadlineBlock === 'function' && raw){
+        renderDeadlineBlock(raw, ctx);
+      } else if(deadlineBlock && !raw) {
+        deadlineBlock.hidden = true;
+      }
       // Iter #176: focus memory.
       if(focusBlock && typeof renderFocusBlock === 'function' && raw){
         renderFocusBlock(raw, ctx);
       } else if(focusBlock && !raw) {
         focusBlock.hidden = true;
+      }
+      // Iter #178: cross-reference integrity checker.
+      if(crossrefBlock && typeof renderCrossrefBlock === 'function' && raw){
+        renderCrossrefBlock(raw, ctx);
+      } else if(crossrefBlock && !raw) {
+        crossrefBlock.hidden = true;
       }
 
 
