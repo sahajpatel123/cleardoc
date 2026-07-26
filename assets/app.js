@@ -4042,18 +4042,19 @@
       if(!diffBlock || !diffCard || !raw){ return; }
       const d = buildDifficultyScore(raw, ctx);
       if(!d){ diffBlock.hidden = true; return; }
+      // Iter #151 — per-sub-score weight tooltip + slack-share chip
       const subs = [
-        { key: 'risk', label: 'Risk tally', score: d.riskScore, hint: 'Trap = 25pt, Watch = 6pt, Note = 2pt each' },
-        { key: 'maturity', label: 'Low maturity', score: d.maturityScore, hint: 'Inverse of the iter #92 maturity score' },
-        { key: 'exposure', label: 'Worst-case exposure', score: d.exposureScore, hint: '$/10 — caps at 100' },
-        { key: 'tone', label: 'Tone pressure', score: d.toneScore, hint: 'Share of pressure language' },
-        { key: 'jargon', label: 'Jargon density', score: d.jargonScore, hint: 'Jargon hits per 1000 words' },
-        { key: 'gaps', label: 'Missing clauses', score: d.gapsScore, hint: '12pt per missing clause' },
+        { key: 'risk', label: 'Risk tally', weight: 30, score: d.riskScore, hint: 'Trap = 25pt, Watch = 6pt, Note = 2pt each' },
+        { key: 'maturity', label: 'Low maturity', weight: 20, score: d.maturityScore, hint: 'Inverse of the iter #92 maturity score' },
+        { key: 'exposure', label: 'Worst-case exposure', weight: 15, score: d.exposureScore, hint: '$/10 — caps at 100' },
+        { key: 'tone', label: 'Tone pressure', weight: 15, score: d.toneScore, hint: 'Share of pressure language' },
+        { key: 'jargon', label: 'Jargon density', weight: 10, score: d.jargonScore, hint: 'Jargon hits per 1000 words' },
+        { key: 'gaps', label: 'Missing clauses', weight: 10, score: d.gapsScore, hint: '12pt per missing clause' },
       ];
       const cellCls = (n) => n >= 70 ? 'diff-high' : n >= 40 ? 'diff-mid' : 'diff-low';
       const subRows = subs.map(s => (
-        '<div class="diff-sub ' + cellCls(s.score) + '">' +
-          '<div class="diff-sub-label">' + esc(s.label) + '</div>' +
+        '<div class="diff-sub ' + cellCls(s.score) + '" title="' + esc(s.label) + ' — weight ' + s.weight + '% — ' + esc(s.hint) + '">' +
+          '<div class="diff-sub-label">' + esc(s.label) + ' <span class="diff-sub-weight">' + s.weight + '%</span></div>' +
           '<div class="diff-sub-bar"><div class="diff-sub-fill" style="width:' + s.score + '%"></div></div>' +
           '<div class="diff-sub-score">' + s.score + '</div>' +
           '<div class="diff-sub-hint">' + esc(s.hint) + '</div>' +
@@ -4063,18 +4064,68 @@
                        : d.overall >= 50 ? '😐 Moderate — 1–2 rounds expected'
                        : d.overall >= 25 ? '👍 Doable — likely 1 round'
                        : '⚡ Easy — likely settled in a single exchange';
+      // Iter #151 — slack-share message + chat chip
+      const slackText = '📊 ClearDoc · Negotiation difficulty: ' + d.overall + '/100 — ' + verdict + ' · ' +
+        d.riskScore + ' risk · ' + d.maturityScore + ' maturity gap · ' + d.toneScore + ' tone pressure · @cleardocapp';
+      const controls = '<div class="diff-controls">' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="diffSlackBtn" title="Copy a Slack-ready one-liner">💬 slack message</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="diffCopyBtn" title="Copy the difficulty score as a single line">📋 copy score</button>' +
+      '</div>';
       const mainCard =
         '<div class="diff-main">' +
           '<div class="diff-main-num">' + d.overall + '<span class="diff-main-of">/100</span></div>' +
           '<div class="diff-main-label">Negotiation difficulty</div>' +
           '<div class="diff-main-verdict">' + verdict + '</div>' +
         '</div>' +
-        '<div class="diff-subsub">' + subRows + '</div>';
+        '<div class="diff-subsub">' + subRows + '</div>' +
+        controls;
       diffCard.innerHTML = mainCard;
       diffBlock.hidden = false;
       if(diffNote){
         diffNote.innerHTML = '<span class="riskNote-lead">Difficulty ' + d.overall + '/100</span> · ' +
-          'Composite of risk tally + low maturity + exposure + tone pressure + jargon density + missing clauses. Useful for budgeting time before the call.';
+          'Hover any sub-score to see its weight in the composite. ' +
+          '<b>💬 slack message</b> and <b>📋 copy score</b> for sharing with the team.';
+      }
+      // Iter #151 — slack message copy
+      const slackBtn = document.getElementById('diffSlackBtn');
+      if(slackBtn){
+        slackBtn.addEventListener('click', async () => {
+          let copied = false;
+          try {
+            if(navigator.clipboard) { await navigator.clipboard.writeText(slackText); copied = true; }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = slackText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '💬 Slack message copied' : '⚠ Couldn’t copy');
+          slackBtn.textContent = copied ? '✓ copied' : '💬 slack message';
+          setTimeout(() => { if(slackBtn.isConnected) slackBtn.textContent = '💬 slack message'; }, 2500);
+        });
+      }
+      // Iter #151 — copy score as a one-liner
+      const copyBtn = document.getElementById('diffCopyBtn');
+      if(copyBtn){
+        copyBtn.addEventListener('click', async () => {
+          const oneLiner = 'Negotiation difficulty: ' + d.overall + '/100 — ' + verdict;
+          let copied = false;
+          try {
+            if(navigator.clipboard) { await navigator.clipboard.writeText(oneLiner); copied = true; }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = oneLiner; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Score copied' : '⚠ Couldn’t copy');
+          copyBtn.textContent = copied ? '✓ copied' : '📋 copy score';
+          setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy score'; }, 2500);
+        });
       }
     }
 

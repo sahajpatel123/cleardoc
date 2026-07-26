@@ -7885,6 +7885,16 @@ test("analyzer: Negotiation difficulty score combines risk + maturity + exposure
   assert.match(cssSrc, /\.diff-main\b/, ".diff-main style must exist");
   assert.match(cssSrc, /\.diff-sub\.diff-high/,
     ".diff-sub.diff-high style must exist");
+
+  // Iter #151 polish: per-sub-score weight tooltip + slack message copy.
+  assert.match(appSrc, /weight:\s*30|weight:\s*20|weight:\s*15/,
+    "iter #151 must include sub-score weights");
+  assert.match(appSrc, /diffSlackBtn[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
+    "iter #151 must include a slack-message copy button");
+  assert.match(appSrc, /diffCopyBtn/,
+    "iter #151 must include a copy-score button");
+  assert.match(cssSrc, /\.diff-sub-weight\b/, ".diff-sub-weight style must exist");
+  assert.match(cssSrc, /\.diff-controls\b/, ".diff-controls style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
