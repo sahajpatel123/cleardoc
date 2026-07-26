@@ -1923,3 +1923,21 @@ button.risk-preview:hover{filter:brightness(.96)}
 .crossref-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
 .crossref-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}
 @media(max-width:560px){.crossref-context{white-space:normal}.crossref-row{flex-wrap:wrap}}
+
+/* Bait-and-switch detector (iter #180) */
+.chg-list{display:flex;flex-direction:column;gap:6px;margin-top:var(--s2);font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.chg-row{display:flex;gap:10px;align-items:flex-start;padding:8px 12px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.chg-row.chg-added{border-left:3px solid var(--green);background:var(--green-tint)}
+.chg-row.chg-removed{border-left:3px solid var(--danger);background:var(--danger-tint);text-decoration:line-through;text-decoration-color:var(--ink-soft);text-decoration-thickness:1px}
+.chg-row.chg-modified{border-left:3px solid var(--amber);background:var(--amber-tint)}
+.chg-row.chg-baseline{border-left:3px solid var(--ink);background:var(--paper)}
+.chg-tag{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;flex-shrink:0;padding:2px 6px;background:var(--ink);color:var(--paper);min-width:96px;text-align:center;align-self:flex-start}
+.chg-text{font-size:var(--t-meta);color:var(--ink);flex:1;min-width:0}
+.chg-baseline-text{font-size:var(--t-meta);color:var(--ink);flex:1;min-width:0;line-height:1.5}
+.chg-diff{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}
+.chg-old{font-size:var(--t-meta);color:var(--ink-soft);text-decoration:line-through;text-decoration-thickness:1px}
+.chg-arrow{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-soft);padding:0 4px}
+.chg-new{font-size:var(--t-meta);color:var(--ink);background:var(--paper);padding:4px 6px;border:var(--bd-hair) solid var(--ink-soft)}
+.chg-controls{margin-top:6px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
+.chg-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
+.chg-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}

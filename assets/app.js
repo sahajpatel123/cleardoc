@@ -1875,6 +1875,7 @@
           deadlineBlock=$('#deadlineBlock'),deadlineNote=$('#deadlineNote'),deadlineList=$('#deadlineList'),
           focusBlock=$('#focusBlock'),focusNote=$('#focusNote'),focusList=$('#focusList'),
           crossrefBlock=$('#crossrefBlock'),crossrefNote=$('#crossrefNote'),crossrefList=$('#crossrefList'),
+          chgBlock=$('#chgBlock'),chgNote=$('#chgNote'),chgList=$('#chgList'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -5019,6 +5020,181 @@
           setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
         });
       }
+    }
+
+    // Iter #180: bait-and-switch detector. Keyed by the same SHA-256
+    // fingerprint already used by focus memory, so we know which prior
+    // version of a document a re-analysis corresponds to. On each
+    // analysis we store the sentence list; on the next analysis of the
+    // same document we diff against the stored list and surface
+    // added / removed / modified sentences. This is the most common
+    // real-world trap: counterparty sends a different version between
+    // your review and signature. Pure local; localStorage + subtle.
+    async function buildChangeMemory(raw){
+      const text = String(raw || '');
+      if(!text) return null;
+      let fp = 'nohash';
+      try {
+        if(typeof crypto !== 'undefined' && crypto.subtle){
+          const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+          fp = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0, 16);
+        }
+      } catch(_){ /* fall through */ }
+      const KEY = 'cleardoc:chg-' + fp;
+      const sentences = text.replace(/\s+/g, ' ').trim().split(/(?<=[.!?;])\s+/).map(s => s.trim()).filter(s => s.length > 5 && s.length < 600);
+      const sig = (s) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, '').replace(/\s+/g, ' ').trim();
+      const sigs = sentences.map(sig);
+      let prev = null;
+      try { prev = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch(_){ prev = null; }
+      return { fp: fp, key: KEY, current: sentences, currentSigs: sigs, prev: prev, isFirst: !prev || !prev.sigs || !Array.isArray(prev.sigs) };
+    }
+    function persistChangeMemory(m){
+      if(!m) return;
+      try {
+        localStorage.setItem(m.key, JSON.stringify({
+          ts: Date.now(),
+          sigs: m.currentSigs,
+          sentences: m.current
+        }));
+      } catch(_){ /* quota */ }
+    }
+    // Sentence-level diff via LCS over the signature array. Modified =
+    // removed+added pair where sigs share >50% word overlap.
+    function diffSentenceLists(prev, current){
+      const ps = prev || [], cs = current || [];
+      if(!ps.length && !cs.length) return [];
+      if(!ps.length) return cs.map(s => ({ kind: 'added', sentence: s }));
+      if(!cs.length) return ps.map(s => ({ kind: 'removed', sentence: s }));
+      // Build LCS table over signatures
+      const n = ps.length, m = cs.length;
+      const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+      for(let i = n - 1; i >= 0; i--){
+        for(let j = m - 1; j >= 0; j--){
+          if(ps[i] === cs[j]) dp[i][j] = dp[i+1][j+1] + 1;
+          else dp[i][j] = Math.max(dp[i+1][j], dp[i][j+1]);
+        }
+      }
+      const out = [];
+      let i = 0, j = 0;
+      while(i < n && j < m){
+        if(ps[i] === cs[j]){ i++; j++; continue; }
+        if(dp[i+1][j] >= dp[i][j+1]){
+          // ps[i] is removed; check if a nearby cs[j] is a modification
+          let matched = -1;
+          for(let k = j; k < Math.min(j + 3, m); k++){
+            if(wordOverlap(ps[i], cs[k]) >= 0.5){ matched = k; break; }
+          }
+          if(matched >= 0){
+            out.push({ kind: 'modified', sentence: cs[matched], prev: ps[i] });
+            j = matched + 1;
+          } else {
+            out.push({ kind: 'removed', sentence: ps[i] });
+          }
+          i++;
+        } else {
+          out.push({ kind: 'added', sentence: cs[j] });
+          j++;
+        }
+      }
+      while(i < n) out.push({ kind: 'removed', sentence: ps[i++] });
+      while(j < m) out.push({ kind: 'added', sentence: cs[j++] });
+      return out;
+    }
+    function wordOverlap(a, b){
+      const wa = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+      const wb = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+      if(!wa.size || !wb.size) return 0;
+      let inter = 0;
+      wa.forEach(w => { if(wb.has(w)) inter++; });
+      const union = wa.size + wb.size - inter;
+      return union ? inter / union : 0;
+    }
+    function renderChgBlock(raw, ctx){
+      if(!chgBlock || !chgList || !raw){ return; }
+      buildChangeMemory(raw).then(m => {
+        if(!m){ chgBlock.hidden = true; return; }
+        if(m.isFirst){
+          // First time seeing this document — show a baseline-saved notice.
+          chgList.innerHTML = '<div class="chg-row chg-baseline">' +
+            '<div class="chg-tag">📌 baseline saved</div>' +
+            '<div class="chg-baseline-text"><b>' + m.current.length + '</b> sentence' + (m.current.length === 1 ? '' : 's') + ' remembered on this device. Re-analyze the same document later and any additions, removals, or rewording will show up here.</div>' +
+          '</div>';
+          chgBlock.hidden = false;
+          if(chgNote){
+            chgNote.innerHTML = '<span class="riskNote-lead">First time seeing this document</span> · ' +
+              'Its sentence list was saved locally (keyed by SHA-256, not uploaded). The next time you analyze this same document on this device, the diff will appear here.';
+          }
+          persistChangeMemory(m);
+          return;
+        }
+        const diffs = diffSentenceLists(m.prev.sigs, m.currentSigs, m.prev.sentences, m.current);
+        const added = diffs.filter(d => d.kind === 'added');
+        const removed = diffs.filter(d => d.kind === 'removed');
+        const modified = diffs.filter(d => d.kind === 'modified');
+        if(!added.length && !removed.length && !modified.length){
+          chgBlock.hidden = true;
+          return;
+        }
+        const rowsHtml = [
+          ...modified.map(d => '<div class="chg-row chg-modified">' +
+            '<div class="chg-tag">✎ modified</div>' +
+            '<div class="chg-diff">' +
+              '<div class="chg-old">' + esc(d.prev) + '</div>' +
+              '<div class="chg-arrow" aria-hidden="true">→</div>' +
+              '<div class="chg-new">' + esc(d.sentence) + '</div>' +
+            '</div>' +
+          '</div>'),
+          ...added.map(d => '<div class="chg-row chg-added">' +
+            '<div class="chg-tag">🆕 added</div>' +
+            '<div class="chg-text">' + esc(d.sentence) + '</div>' +
+          '</div>'),
+          ...removed.map(d => '<div class="chg-row chg-removed">' +
+            '<div class="chg-tag">✕ removed</div>' +
+            '<div class="chg-text">' + esc(d.sentence) + '</div>' +
+          '</div>')
+        ].join('');
+        const controls = '<div class="chg-controls">' +
+          '<span class="chg-count"><b>' + added.length + '</b> added · <b>' + modified.length + '</b> modified · <b>' + removed.length + '</b> removed</span>' +
+          '<button type="button" class="ghost-btn ghost-btn-sm" id="chgCopyAllBtn" title="Copy the diff as plain text">📋 copy diff</button>' +
+          '<button type="button" class="ghost-btn ghost-btn-sm" id="chgResetBtn" title="Treat the current version as the new baseline">📌 reset baseline</button>' +
+        '</div>';
+        chgList.innerHTML = rowsHtml + controls;
+        chgBlock.hidden = false;
+        if(chgNote){
+          const total = added.length + modified.length + removed.length;
+          const lastTs = m.prev && m.prev.ts ? new Date(m.prev.ts).toLocaleString() : 'earlier';
+          chgNote.innerHTML = '<span class="riskNote-lead">' + total + ' change' + (total === 1 ? '' : 's') + ' since ' + esc(lastTs) + '</span> · ' +
+            'Catches bait-and-switch: if the counterparty swapped in new language between your review and the signature, those sentences appear here. <b>📌 reset baseline</b> makes the current version the new comparison point.';
+        }
+        const copyBtn = document.getElementById('chgCopyAllBtn');
+        if(copyBtn){
+          copyBtn.addEventListener('click', async () => {
+            const lines = [
+              ...modified.map(d => '✎ MODIFIED\n  - ' + d.prev + '\n  + ' + d.sentence),
+              ...added.map(d    => '🆕 ADDED    + ' + d.sentence),
+              ...removed.map(d  => '✕ REMOVED  - ' + d.sentence)
+            ];
+            const text = lines.join('\n');
+            let copied = false;
+            try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+            catch(_){ /* fall through */ }
+            if(!copied){
+              try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+            }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Diff copied (' + (added.length + modified.length + removed.length) + ' changes)' : '⚠ Couldn’t copy');
+            copyBtn.textContent = copied ? '✓ copied' : '📋 copy diff';
+            setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy diff'; }, 2500);
+          });
+        }
+        const resetBtn = document.getElementById('chgResetBtn');
+        if(resetBtn){
+          resetBtn.addEventListener('click', () => {
+            persistChangeMemory(m);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📌 Baseline reset to current version');
+            renderChgBlock(raw, ctx);
+          });
+        }
+      }).catch(() => { chgBlock.hidden = true; });
     }
 
     function renderPrioBlock(raw, ctx){
@@ -8347,6 +8523,12 @@
         renderCrossrefBlock(raw, ctx);
       } else if(crossrefBlock && !raw) {
         crossrefBlock.hidden = true;
+      }
+      // Iter #180: bait-and-switch detector.
+      if(chgBlock && typeof renderChgBlock === 'function' && raw){
+        renderChgBlock(raw, ctx);
+      } else if(chgBlock && !raw) {
+        chgBlock.hidden = true;
       }
 
 
