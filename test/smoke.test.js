@@ -7748,6 +7748,37 @@ test("analyzer: Quick-summary stamp generates a tweetable one-liner", () => {
   assert.match(cssSrc, /\.stamp-counter\b/, ".stamp-counter style must exist");
 });
 
+// Iter #144: version comparer — surfaces a per-dimension delta
+// against the last saved baseline (iter #110 / iter #132).
+test("analyzer: Version comparer surfaces a per-dimension delta against the last baseline", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="versionBlock"/, "analyze.html must contain #versionBlock");
+  assert.match(appSrc, /function buildVersionDelta\(/, "buildVersionDelta must exist");
+  assert.match(appSrc, /function renderVersionBlock\(/, "renderVersionBlock must exist");
+  // Pulls from iter #110 receipt log
+  assert.match(appSrc, /cleardoc:receipt-log/,
+    "iter #144 must read from the iter #110 receipt log");
+  // Pulls from iter #132 trend history
+  assert.match(appSrc, /TREND_KEY_HIST|cleardoc:trend-history/,
+    "iter #144 must read from the iter #132 trend history");
+  // Per-dimension deltas
+  assert.match(appSrc, /riskDelta|numDelta|exposureDelta/,
+    "iter #144 must compute per-dimension deltas");
+  // Wiring
+  assert.match(appSrc, /renderVersionBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderVersionBlock");
+  // CSS
+  assert.match(cssSrc, /\.version-cell\b/, ".version-cell style must exist");
+  assert.match(cssSrc, /\.version-good\b/, ".version-good (improved) style must exist");
+  assert.match(cssSrc, /\.version-bad\b/, ".version-bad (regressed) style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

@@ -1856,6 +1856,7 @@
           sectionBlock=$('#sectionBlock'),sectionNote=$('#sectionNote'),sectionGrid=$('#sectionGrid'),
           stampBlock=$('#stampBlock'),stampCard=$('#stampCard'),
           stampCopyBtn=$('#stampCopyBtn'),stampTweetBtn=$('#stampTweetBtn'),
+          versionBlock=$('#versionBlock'),versionNote=$('#versionNote'),versionGrid=$('#versionGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3889,6 +3890,106 @@
       const tweet = baseText + ' ' + tags.join(' ');
       return { html: parts.join(' · '), tweet: tweet, tags: tags, baseText: baseText, wordCount: wordCount, tal: tal, gapCount: gapCount, mletter: mletter, exposureLow: exposureLow, exposureHigh: exposureHigh };
     }
+    // Iter #144: version comparer — fetches the last saved
+    // baseline from localStorage[cleardoc:receipt-log] (iter #110)
+    // and surfaces a per-dimension delta: maturity grade, risk
+    // tally, exposure, missing clauses. Pure local.
+    async function buildVersionDelta(raw, ctx){
+      let log = [];
+      try { log = JSON.parse(localStorage.getItem('cleardoc:receipt-log') || '[]') || []; } catch(_){ log = []; }
+      if(!log.length) return null;
+      const last = log[0];
+      const cur = (function(){
+        const ml = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
+        const mn = maturityGrid && maturityGrid.querySelector('.mat-letter-num');
+        const tal = { r: 0, a: 0, g: 0 };
+        (lastFlags || []).forEach(f => { tal[f.rule.sev] = (tal[f.rule.sev] || 0) + 1; });
+        const exposure = (function(){
+          const t = riskDetail && riskDetail.textContent || '';
+          const m = t.match(/worst-case exposure[^A-Z]*\$([0-9,]+)/i);
+          return m ? parseFloat(m[1].replace(/,/g, '')) : null;
+        })();
+        const gaps = (typeof extractGaps === 'function') ? extractGaps(raw).count : 0;
+        return {
+          letter: ml ? ml.textContent.trim() : '—',
+          num: mn ? parseInt(mn.textContent.replace(/[^0-9]/g, ''), 10) : 0,
+          risk: tal.r + tal.a + tal.g,
+          trap: tal.r, watch: tal.a, note: tal.g,
+          exposure: exposure,
+          gaps: gaps,
+          wordCount: (raw.match(/\b[\w'-]+\b/g) || []).length,
+        };
+      })();
+      // last receipt has fp + length + excerpt, not the full analysis
+      // — for richer comparison, also pull iter #132 trend history
+      let trend = [];
+      try { trend = JSON.parse(localStorage.getItem(TREND_KEY_HIST) || '[]') || []; } catch(_){ trend = []; }
+      // Find a previous same-fingerprint trend entry, or the latest different one
+      const sameFP = trend.filter(h => h.fp && h.fp === last.fp)[0];
+      const differentFP = trend.filter(h => h.fp && h.fp !== last.fp)[0];
+      const prev = (function(){
+        if(differentFP){
+          return {
+            letter: differentFP.letter,
+            num: differentFP.num,
+            risk: differentFP.risk,
+            exposure: differentFP.exposure,
+            ts: differentFP.ts,
+            gaps: null,
+            wordCount: null,
+          };
+        }
+        return null;
+      })();
+      if(!prev) return { cur: cur, prev: null, last: last };
+      const d = {};
+      d.letter = cur.letter + ' (' + (letterIndex(cur.letter) < letterIndex(prev.letter) ? '+' : (letterIndex(cur.letter) > letterIndex(prev.letter) ? '-' : '=')) + ' vs ' + prev.letter + ')';
+      d.numDelta = cur.num - prev.num;
+      d.riskDelta = cur.risk - prev.risk;
+      d.trapDelta = cur.trap - 0; // baseline trap count unknown
+      d.exposureDelta = (cur.exposure != null && prev.exposure != null) ? cur.exposure - prev.exposure : null;
+      d.ts = prev.ts;
+      d.cur = cur;
+      d.prev = prev;
+      d.last = last;
+      return d;
+    }
+    function renderVersionBlock(raw, ctx){
+      if(!versionBlock || !versionGrid || !raw){ return; }
+      buildVersionDelta(raw, ctx).then(d => {
+        if(!d){ versionBlock.hidden = true; return; }
+        const cells = [];
+        if(!d.prev){
+          cells.push('<div class="version-cell"><div class="version-label">Last saved receipt</div><div class="version-value">' + new Date(d.last.ts).toLocaleString() + '</div><div class="version-hint">No prior baseline found in iter #132 trend history to compare against. Save more receipts to enable version-over-version comparison.</div></div>');
+        } else {
+          const arrow = (n) => n > 0 ? '↑' : n < 0 ? '↓' : '±';
+          const cls = (n, lowerBetter) => {
+            if(n === 0) return 'version-same';
+            if(lowerBetter) return n < 0 ? 'version-good' : 'version-bad';
+            return n > 0 ? 'version-good' : 'version-bad';
+          };
+          const dRow = (label, cur, prev, lowerBetter) => {
+            const d = cur - prev;
+            return '<div class="version-cell ' + cls(d, lowerBetter) + '"><div class="version-label">' + label + '</div><div class="version-value">' + cur + ' <span class="version-delta">(' + arrow(d) + ' ' + Math.abs(d) + ')</span></div><div class="version-hint">vs ' + prev + ' on ' + new Date(d.ts).toLocaleString() + '</div></div>';
+          };
+          cells.push(dRow('Maturity', d.cur.num, d.prev.num || 0, true));
+          cells.push(dRow('Letter grade', d.cur.letter, d.prev.letter, true));
+          cells.push(dRow('Total risks', d.cur.risk, d.prev.risk || 0, true));
+          if(d.exposureDelta != null){
+            cells.push(dRow('Exposure', '$' + (d.cur.exposure || 0).toLocaleString('en-US'), '$' + (d.prev.exposure || 0).toLocaleString('en-US'), true));
+          }
+        }
+        versionGrid.innerHTML = cells.join('');
+        versionBlock.hidden = false;
+        if(versionNote){
+          const verdict = d.prev
+            ? 'Compared against the last different document fingerprint on this device.'
+            : 'Last saved receipt: ' + new Date(d.last.ts).toLocaleString() + ' · fingerprint ' + d.last.fp.slice(0, 8) + '…';
+          versionNote.innerHTML = '<span class="riskNote-lead">' + (d.prev ? 'Differences vs prior analysis' : 'Receipt log') + '</span> · ' + verdict;
+        }
+      });
+    }
+
     function renderStampBlock(raw, ctx){
       if(!stampBlock || !stampCard || !raw){ return; }
       const s = buildQuickStamp(raw, ctx);
@@ -5934,6 +6035,13 @@
         renderStampBlock(raw, ctx);
       } else if(stampBlock && !raw) {
         stampBlock.hidden = true;
+      }
+      // Iter #144: version comparer — fetch last baseline from
+      // localStorage[cleardoc:receipt-log] + iter #132 trend history.
+      if(versionBlock && typeof renderVersionBlock === 'function' && raw){
+        renderVersionBlock(raw, ctx);
+      } else if(versionBlock && !raw) {
+        versionBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

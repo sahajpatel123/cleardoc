@@ -1405,6 +1405,17 @@ button.risk-preview:hover{filter:brightness(.96)}
 .stamp-counter{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;margin-top:6px}
 .stamp-counter.stamp-over{color:var(--danger);font-weight:700}
 
+/* Version comparer (iter #144) — per-dimension delta cards. */
+.version-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.version-cell{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.version-cell.version-good{border-left:3px solid var(--green);background:var(--green-tint)}
+.version-cell.version-bad{border-left:3px solid var(--danger);background:var(--danger-tint)}
+.version-cell.version-same{border-color:var(--ink-soft)}
+.version-label{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;font-weight:700}
+.version-value{font-size:18px;font-weight:800;color:var(--ink);font-family:'JetBrains Mono',monospace}
+.version-delta{font-size:var(--t-micro);color:var(--ink-soft);font-weight:400;margin-left:6px}
+.version-hint{font-size:var(--t-micro);color:var(--ink-soft);font-style:italic}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}
