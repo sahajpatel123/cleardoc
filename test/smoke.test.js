@@ -7697,6 +7697,15 @@ test("analyzer: Section risk map aggregates risk by clause category", () => {
   assert.match(cssSrc, /\.section-row\b/, ".section-row style must exist");
   assert.match(cssSrc, /\.section-bar\b/, ".section-bar style must exist");
   assert.match(cssSrc, /\.section-bar-r\b/, ".section-bar-r (trap) style must exist");
+
+  // Iter #141 polish: click-to-jump + high-only filter.
+  assert.match(appSrc, /data-section-key=/,
+    "iter #141 must render per-row clickable section bars");
+  assert.match(appSrc, /data-section-key[\s\S]+?setSelectionRange/,
+    "iter #141 must wire click-to-jump");
+  assert.match(appSrc, /sectionFilterBtn|high-only/,
+    "iter #141 must include a high-only filter chip");
+  assert.match(cssSrc, /\.section-controls\b/, ".section-controls style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,

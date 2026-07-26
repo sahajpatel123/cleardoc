@@ -3840,22 +3840,66 @@
       const cats = buildSectionRisk(raw, ctx);
       if(!cats.length){ sectionBlock.hidden = true; return; }
       const max = Math.max.apply(null, cats.map(c => c.sev));
-      const rows = cats.map(c => {
+      // Iter #141 polish — per-cat snippet for click-to-jump
+      const snippetFor = (catKey) => {
+        const m = SECTION_CATEGORIES.find(x => x.key === catKey);
+        if(!m) return null;
+        for(const f of (lastFlags || [])){
+          const text = ((f.s || '') + ' ' + (f.rule.why || '') + ' ' + (f.rule.label || ''));
+          if(m.re.test(text)) return (f.s || '').slice(0, 200);
+        }
+        return null;
+      };
+      // Iter #141 polish — high-only filter state
+      const highOnly = sectionGrid._highOnly === true;
+      const visible = highOnly ? cats.filter(c => c.sev >= 1) : cats;
+      const rows = visible.map(c => {
         const pct = Math.round((c.sev / max) * 100);
         const cls = c.sev >= 3 ? 'section-bar-r' : c.sev >= 1 ? 'section-bar-a' : 'section-bar-g';
-        return '<div class="section-row">' +
+        const snippet = snippetFor(c.key);
+        return '<button type="button" class="section-row" data-section-key="' + esc(c.key) + '" data-section-snippet="' + esc(snippet || '') + '" title="Click to jump to a representative clause in this category">' +
           '<div class="section-label">' + esc(c.label) + '</div>' +
           '<div class="section-track"><div class="section-bar ' + cls + '" style="width:' + pct + '%"></div></div>' +
           '<div class="section-count">' + c.hits + ' hit' + (c.hits === 1 ? '' : 's') + '</div>' +
-        '</div>';
+        '</button>';
       }).join('');
       const total = cats.reduce((s, c) => s + c.hits, 0);
-      sectionGrid.innerHTML = rows;
+      const controls = '<div class="section-controls">' +
+        '<span class="section-count">' + visible.length + ' of ' + cats.length + ' categories</span>' +
+        '<button type="button" class="section-filter ghost-btn ghost-btn-sm" id="sectionFilterBtn">' + (highOnly ? 'show all' : 'high-only') + '</button>' +
+      '</div>';
+      sectionGrid.innerHTML = rows + controls;
       sectionBlock.hidden = false;
       if(sectionNote){
         const top = cats[0];
         sectionNote.innerHTML = '<span class="riskNote-lead">' + cats.length + ' risk categor' + (cats.length === 1 ? 'y' : 'ies') + ' · ' + total + ' hit' + (total === 1 ? '' : 's') + '</span> ' +
-          'Sorted by severity · bar length = weighted risk score · top: <b>' + esc(top.label) + '</b> (' + top.hits + ' hit' + (top.hits === 1 ? '' : 's') + ').';
+          'Click any row to jump to a representative clause. <b>high-only</b> shows categories with traps/watches. Top: <b>' + esc(top.label) + '</b> (' + top.hits + ' hit' + (top.hits === 1 ? '' : 's') + ').';
+      }
+      // Iter #141 polish — click-to-jump
+      $$('.section-row', sectionGrid).forEach(row => {
+        row.addEventListener('click', () => {
+          if(!input) return;
+          const snippet = row.getAttribute('data-section-snippet') || '';
+          if(snippet){
+            const idx2 = input.value.indexOf(snippet);
+            if(idx2 >= 0){
+              try { input.focus(); input.setSelectionRange(idx2, idx2 + snippet.length); } catch(_){ /* ignore */ }
+              try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+            } else if(typeof showAnalyzeToast === 'function'){
+              showAnalyzeToast('⚠ Representative clause no longer in input');
+            }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('No representative clause to jump to for this category');
+          }
+        });
+      });
+      // Iter #141 polish — high-only filter chip
+      const filterBtn = document.getElementById('sectionFilterBtn');
+      if(filterBtn){
+        filterBtn.addEventListener('click', () => {
+          sectionGrid._highOnly = !sectionGrid._highOnly;
+          renderSectionBlock(raw, ctx);
+        });
       }
     }
 
