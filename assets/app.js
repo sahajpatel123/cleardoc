@@ -1863,6 +1863,7 @@
           loiBlock=$('#loiBlock'),loiNote=$('#loiNote'),loiCard=$('#loiCard'),
           loiCopyBtn=$('#loiCopyBtn'),loiPrintBtn=$('#loiPrintBtn'),
           partyBlock=$('#partyBlock'),partyNote=$('#partyNote'),partyGrid=$('#partyGrid'),
+          glossBlock=$('#glossBlock'),glossNote=$('#glossNote'),glossGrid=$('#glossGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -4129,6 +4130,98 @@
       items.sort((a, b) => a.offset - b.offset);
       return { items: items.slice(0, 12), hasSignature: !!sig, signatureWord: sig };
     }
+    // Iter #156: glossary quick-reference — extracts the top
+    // 30 most-frequent legal terms from the iter #25 JARGON
+    // table found in the analyzed text, with plain-English
+    // meanings as hover tooltips. Pure local.
+    const GLOSSARY = {
+      'notwithstanding': 'despite / even though',
+      'hereto': 'to this (document)',
+      'hereunder': 'under this (document)',
+      'herein': 'in this (document)',
+      'hereby': 'by this (document)',
+      'hereafter': 'after this point',
+      'heretofore': 'until now',
+      'aforementioned': 'mentioned before',
+      'forthwith': 'immediately / right now',
+      'henceforth': 'from now on',
+      'thenceforth': 'from that point on',
+      'pursuant to': 'under / following the rules of',
+      'indemnify': 'agree to cover the other party\'s losses',
+      'covenant': 'formal promise to do (or not do) something',
+      'hold harmless': 'agree not to sue the other party',
+      'warrant': 'officially promise that something is true',
+      'liquidated damages': 'pre-agreed penalty for breaking the contract',
+      'indemnification': 'protection from financial loss',
+      'severability': 'if one clause fails, the rest still stands',
+      'arbitration': 'settling a dispute out of court',
+      'mediation': 'third-party-assisted negotiation',
+      'force majeure': 'unforeseeable event (war, disaster)',
+      'non-refundable': 'no money back once paid',
+      'waive': 'give up the right to',
+      'forfeit': 'lose the right to (often money or property)',
+      'class action': 'a lawsuit filed by a group of people',
+      'sole discretion': 'only one party decides',
+      'irrevocable': 'cannot be undone or changed',
+      'indemnitor': 'the party that pays for the loss',
+      'indemnitee': 'the party that\'s protected from the loss',
+      'as-is': 'in its current condition, no guarantees',
+      'governing law': 'which state/country\'s laws apply',
+      'venue': 'which court hears disputes',
+      'jurisdiction': 'which court has authority',
+      'governing law:': 'which state/country\'s laws apply',
+    };
+    function buildGlossary(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      const lower = text.toLowerCase();
+      const tally = [];
+      Object.keys(GLOSSARY).forEach(term => {
+        const re = new RegExp('\\b' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+        const hits = (lower.match(re) || []).length;
+        if(hits) tally.push({ term: term, plain: GLOSSARY[term], hits: hits });
+      });
+      tally.sort((a, b) => b.hits - a.hits);
+      return tally.slice(0, 30);
+    }
+    function renderGlossBlock(raw, ctx){
+      if(!glossBlock || !glossGrid || !raw){ return; }
+      const list = buildGlossary(raw, ctx);
+      if(!list || !list.length){ glossBlock.hidden = true; return; }
+      glossGrid.innerHTML = list.map(g => (
+        '<div class="gloss-row" data-gloss-term="' + esc(g.term) + '" data-gloss-plain="' + esc(g.plain) + '" title="Click to copy the plain-English meaning">' +
+          '<div class="gloss-term">' + esc(g.term) + '</div>' +
+          '<div class="gloss-meaning">' + esc(g.plain) + '</div>' +
+          '<div class="gloss-hits">' + g.hits + ' hit' + (g.hits === 1 ? '' : 's') + '</div>' +
+        '</div>'
+      )).join('');
+      glossBlock.hidden = false;
+      if(glossNote){
+        glossNote.innerHTML = '<span class="riskNote-lead">' + list.length + ' legal term' + (list.length === 1 ? '' : 's') + ' found</span> · ' +
+          'Sorted by frequency. Click any term to copy its plain-English meaning. Use alongside the analyzer to read the document one clause at a time.';
+      }
+      $$('.gloss-row', glossGrid).forEach(row => {
+        row.addEventListener('click', async () => {
+          const term = row.getAttribute('data-gloss-term') || '';
+          const plain = row.getAttribute('data-gloss-plain') || '';
+          let copied = false;
+          try {
+            if(navigator.clipboard) { await navigator.clipboard.writeText(plain); copied = true; }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = plain; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Copied: ' + plain : '⚠ Couldn’t copy');
+          row.querySelector('.gloss-term').textContent = copied ? '✓' : term;
+          setTimeout(() => { if(row.isConnected) row.querySelector('.gloss-term').textContent = term; }, 1500);
+        });
+      });
+    }
+
     function renderPartyBlock(raw, ctx){
       if(!partyBlock || !partyGrid || !raw){ return; }
       const p = buildPartyAudit(raw, ctx);
@@ -6757,6 +6850,12 @@
         renderPartyBlock(raw, ctx);
       } else if(partyBlock && !raw) {
         partyBlock.hidden = true;
+      }
+      // Iter #156: glossary quick-reference.
+      if(glossBlock && typeof renderGlossBlock === 'function' && raw){
+        renderGlossBlock(raw, ctx);
+      } else if(glossBlock && !raw) {
+        glossBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

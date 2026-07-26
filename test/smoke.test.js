@@ -7970,6 +7970,31 @@ test("analyzer: Party audit extracts parties + dates + signatures from the docum
   assert.match(cssSrc, /\.party-ics\b/, ".party-ics button style must exist");
 });
 
+// Iter #156: glossary quick-reference — extracts legal terms + plain-English.
+test("analyzer: Glossary quick-reference extracts legal terms with plain-English meanings", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="glossBlock"/, "analyze.html must contain #glossBlock");
+  assert.match(appSrc, /function buildGlossary\(/, "buildGlossary must exist");
+  assert.match(appSrc, /function renderGlossBlock\(/, "renderGlossBlock must exist");
+  // Cover common legal terms
+  for(const k of ["notwithstanding", "indemnify", "arbitration", "waive", "force majeure"]){
+    assert.match(appSrc, new RegExp("'" + k + "'\\s*:"),
+      "GLOSSARY must include the term '" + k + "'");
+  }
+  // Wiring
+  assert.match(appSrc, /renderGlossBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderGlossBlock");
+  // CSS
+  assert.match(cssSrc, /\.gloss-row\b/, ".gloss-row style must exist");
+  assert.match(cssSrc, /\.gloss-term\b/, ".gloss-term style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

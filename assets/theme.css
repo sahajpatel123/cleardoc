@@ -1506,6 +1506,14 @@ button.risk-preview:hover{filter:brightness(.96)}
 .party-name:hover{filter:brightness(.96)}
 .party-ics{margin-top:4px;font-size:11px;padding:1px 5px;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
 
+/* Glossary quick-reference (iter #156) — legal terms + plain meanings. */
+.gloss-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.gloss-row{display:flex;flex-direction:column;gap:2px;padding:6px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);cursor:pointer;transition:filter .15s ease}
+.gloss-row:hover{filter:brightness(.94);background:var(--paper)}
+.gloss-term{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--ink)}
+.gloss-meaning{font-size:var(--t-micro);color:var(--ink-soft);font-style:italic}
+.gloss-hits{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}
