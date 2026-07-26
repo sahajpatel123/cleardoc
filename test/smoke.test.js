@@ -8105,6 +8105,23 @@ test("analyzer: Deadline extractor pulls dates from action-verb sentences", () =
     "renderDeadlineBlock must render ICS export buttons");
 });
 
+// Iter #175 polish: deadline extractor — countdown + copy-all chip.
+test("analyzer: Deadline extractor polish — countdown + copy-all chip", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /deadline-countdown/,
+    "iter #175 must render a countdown chip per row");
+  assert.match(appSrc, /deadlineCopyAllBtn/,
+    "iter #175 must include a copy-all chip");
+  assert.match(appSrc, /days > 0/,
+    "iter #175 must compute positive-day countdown");
+  assert.match(appSrc, /days < 0/,
+    "iter #175 must compute past-day countdown");
+});
+
   // Iter #159 polish: sub-score tooltips + copy-as-JSON.
   assert.match(appSrc, /'How much text we have to analyze|'How many risk patterns matched|'How far the document/,
     "iter #159 must add sub-score tooltips");

@@ -4555,24 +4555,59 @@
       if(!deadlineBlock || !deadlineList || !raw){ return; }
       const items = extractDeadlines(raw, ctx);
       if(!items.length){ deadlineBlock.hidden = true; return; }
+      // Iter #175 — per-row countdown from today
+      const now = new Date();
+      const countdown = (dateStr) => {
+        if(!dateStr) return '';
+        const dt = new Date(dateStr + 'T00:00:00Z');
+        if(isNaN(dt.getTime())) return '';
+        const days = Math.round((dt.getTime() - now.getTime()) / 86400000);
+        if(days > 0) return ' in ' + days + ' day' + (days === 1 ? '' : 's');
+        if(days < 0) return ' ' + (-days) + ' day' + (-days === 1 ? '' : 's') + ' ago';
+        return ' today';
+      };
       const rows = items.map(it => {
         const isM = /\(obligated\)/.test(it.verb);
         const cls = isM ? 'deadline-mandatory' : 'deadline-optional';
         const tag = isM ? '⚡ obligated' : '📅 scheduled';
         return '<div class="deadline-row ' + cls + '">' +
           '<div class="deadline-tag">' + tag + '</div>' +
-          '<div class="deadline-date">' + esc(it.date) + '</div>' +
+          '<div class="deadline-date">' + esc(it.date) + '<span class="deadline-countdown">' + esc(countdown(it.date)) + '</span></div>' +
           '<div class="deadline-context">' + esc((it.sentence || '').slice(0, 180)) + '</div>' +
           '<button type="button" class="deadline-ics ghost-btn ghost-btn-sm" data-deadline-ics="' + esc(it.date) + '" title="Save to your calendar">📅 ics</button>' +
         '</div>';
       }).join('');
-      deadlineList.innerHTML = rows;
+      const controls = '<div class="deadline-controls">' +
+        '<span class="deadline-count">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + '</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCopyAllBtn" title="Copy all deadlines as plain text">📋 copy all</button>' +
+      '</div>';
+      deadlineList.innerHTML = rows + controls;
       deadlineBlock.hidden = false;
       if(deadlineNote){
         const mandated = items.filter(it => /\(obligated\)/.test(it.verb)).length;
         deadlineNote.innerHTML = '<span class="riskNote-lead">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + ' extracted</span> · ' +
           '<b>' + mandated + ' mandatory</b> (shall deliver by / shall be made by) · rest are scheduled milestones. ' +
-          'Click 📅 on any row to save a calendar event. Use the timeline above for an at-a-glance view.';
+          'Each row shows a countdown (in 7 days / today / 3 days ago). Click 📅 to save a calendar event, or <b>📋 copy all</b> to export the list.';
+      }
+      // Iter #175 — copy-all chip
+      const copyAllBtn = document.getElementById('deadlineCopyAllBtn');
+      if(copyAllBtn){
+        copyAllBtn.addEventListener('click', async () => {
+          const text = items.map(it => it.date + (it.verb === '(obligated)' ? '  (must)' : '  (scheduled)') + '  ' + (it.sentence || '').slice(0, 120)).join('\n');
+          let copied = false;
+          try { if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Deadlines copied (' + items.length + ')' : '⚠ Couldn’t copy');
+          copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
+          setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
+        });
       }
       // ICS export
       $$('.deadline-ics', deadlineList).forEach(btn => {
