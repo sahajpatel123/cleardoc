@@ -3848,10 +3848,31 @@
       (lastFlags || []).forEach(f => { tal[f.rule.sev] = (tal[f.rule.sev] || 0) + 1; });
       const exposureLow = (tal.r * 200 + tal.a * 50 + tal.g * 20) || 0;
       const exposureHigh = (tal.r * 800 + tal.a * 200 + tal.g * 60) || 0;
-      // gaps count from iter #104
       const gapCount = (typeof extractGaps === 'function') ? extractGaps(raw).count : 0;
       const ml = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
       const mletter = ml ? ml.textContent.trim() : '?';
+      // Iter #143 — derive hashtags from doc type + risk profile
+      const tags = [];
+      try {
+        const dt = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
+        if(dt && dt.label){
+          const t = dt.label.toLowerCase();
+          if(t.indexOf('lease') >= 0) tags.push('#LeaseReview');
+          else if(t.indexOf('medical') >= 0) tags.push('#MedicalBill');
+          else if(t.indexOf('subscription') >= 0) tags.push('#Subscription');
+          else if(t.indexOf('employment') >= 0) tags.push('#Employment');
+          else if(t.indexOf('loan') >= 0) tags.push('#Loan');
+          else if(t.indexOf('privacy') >= 0) tags.push('#Privacy');
+          else if(t.indexOf('terms') >= 0) tags.push('#TermsOfService');
+          else if(t.indexOf('insurance') >= 0) tags.push('#Insurance');
+          else if(t.indexOf('debt') >= 0) tags.push('#Debt');
+          else if(t.indexOf('tax') >= 0) tags.push('#Tax');
+        }
+      } catch(_){ /* noop */ }
+      if(tal.r > 0) tags.push('#ContractTraps');
+      if(mletter === 'F' || mletter === 'D') tags.push('#DoNotSign');
+      if(tal.r + tal.a + tal.g === 0) tags.push('#CleanContract');
+      tags.push('#ClearDoc');
       const parts = [];
       parts.push('<b style="color:var(--ink)">' + wordCount.toLocaleString('en-US') + ' words</b>');
       if(tal.r) parts.push('<b style="color:var(--danger)">' + tal.r + ' trap</b>');
@@ -3860,19 +3881,23 @@
       if(exposureLow > 0) parts.push('<b style="color:var(--ink)">$' + exposureLow.toLocaleString('en-US') + '-$' + exposureHigh.toLocaleString('en-US') + ' exposure</b>');
       if(gapCount > 0) parts.push('<b>' + gapCount + ' missing</b>');
       parts.push('<span>maturity ' + mletter + '</span>');
-      // Build the tweet-sized text
-      const tweet = wordCount + ' words · ' +
+      const baseText = wordCount + ' words · ' +
         (tal.r + tal.a + tal.g) + ' risks (' + tal.r + ' trap / ' + tal.a + ' watch / ' + tal.g + ' note) · ' +
         'maturity ' + mletter + ' · ' +
         (exposureLow > 0 ? '$' + exposureLow + '-$' + exposureHigh + ' exposure' : 'no exposure') + ' · ' +
         gapCount + ' missing clauses · @cleardocapp';
-      return { html: parts.join(' · '), tweet: tweet, wordCount: wordCount, tal: tal, gapCount: gapCount, mletter: mletter, exposureLow: exposureLow, exposureHigh: exposureHigh };
+      const tweet = baseText + ' ' + tags.join(' ');
+      return { html: parts.join(' · '), tweet: tweet, tags: tags, baseText: baseText, wordCount: wordCount, tal: tal, gapCount: gapCount, mletter: mletter, exposureLow: exposureLow, exposureHigh: exposureHigh };
     }
     function renderStampBlock(raw, ctx){
       if(!stampBlock || !stampCard || !raw){ return; }
       const s = buildQuickStamp(raw, ctx);
       if(!s){ stampBlock.hidden = true; return; }
-      stampCard.innerHTML = s.html;
+      const tagsHtml = s.tags.map(t => '<span class="stamp-tag">' + esc(t) + '</span>').join(' ');
+      const charLen = s.tweet.length;
+      const overLimit = charLen > 280;
+      stampCard.innerHTML = s.html + '<div class="stamp-tags">' + tagsHtml + '</div>' +
+        '<div class="stamp-counter ' + (overLimit ? 'stamp-over' : '') + '">' + charLen + '/280 chars' + (overLimit ? ' · over Twitter limit, drop a hashtag' : '') + '</div>';
       stampBlock.hidden = false;
       if(stampCopyBtn){
         stampCopyBtn.addEventListener('click', async () => {

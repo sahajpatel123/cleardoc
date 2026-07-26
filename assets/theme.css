@@ -1400,6 +1400,10 @@ button.risk-preview:hover{filter:brightness(.96)}
 .stamp-card{font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.6;color:var(--ink);text-transform:none;letter-spacing:0;padding:10px 14px;border:var(--bd-hair) solid var(--ink);background:var(--paper2);word-break:break-word}
 .stamp-actions{display:flex;gap:6px;margin-top:8px;font-size:var(--t-micro)}
 .stamp-actions .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+.stamp-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.stamp-tag{font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--ink);color:var(--paper);padding:1px 6px}
+.stamp-counter{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;margin-top:6px}
+.stamp-counter.stamp-over{color:var(--danger);font-weight:700}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

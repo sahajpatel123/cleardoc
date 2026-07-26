@@ -7736,6 +7736,16 @@ test("analyzer: Quick-summary stamp generates a tweetable one-liner", () => {
   // CSS
   assert.match(cssSrc, /\.stamp-card\b/, ".stamp-card style must exist");
   assert.match(cssSrc, /\.stamp-actions\b/, ".stamp-actions style must exist");
+
+  // Iter #143 polish: hashtag suggestions + char counter.
+  assert.match(appSrc, /#LeaseReview|#MedicalBill|#Subscription|#ContractTraps|#DoNotSign|#CleanContract|#ClearDoc/,
+    "iter #143 must include hashtags from the doc-type + risk-profile tables");
+  assert.match(appSrc, /s\.tweet\.length/,
+    "iter #143 must compute the tweet length");
+  assert.match(appSrc, /280|overLimit/,
+    "iter #143 must detect a 280-char Twitter limit");
+  assert.match(cssSrc, /\.stamp-tag\b/, ".stamp-tag style must exist");
+  assert.match(cssSrc, /\.stamp-counter\b/, ".stamp-counter style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
