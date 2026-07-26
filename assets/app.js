@@ -3662,20 +3662,66 @@
       if(!playbookBlock || !playbookList || !raw){ return; }
       const steps = buildPlaybook(raw, ctx);
       if(!steps.length){ playbookBlock.hidden = true; return; }
+      // Iter #129 polish: per-step "✓ done" persisted to localStorage.
+      const DONE_KEY = 'cleardoc:playbook-done';
+      let done = {};
+      try { done = JSON.parse(localStorage.getItem(DONE_KEY) || '{}') || {}; } catch(_){ done = {}; }
+      const total = steps.length;
+      const doneCount = steps.filter((s, idx) => done['step-' + idx]).length;
       const eff = (e) => e === 'high' ? '★ high' : (e === 'medium' ? '◆ medium' : '· low');
-      playbookList.innerHTML = steps.map((s, i) => (
-        '<li class="playbook-step playbook-imp-' + esc(s.impact) + '">' +
+      playbookList.innerHTML = steps.map((s, i) => {
+        const isDone = !!done['step-' + i];
+        return '<li class="playbook-step playbook-imp-' + esc(s.impact) + (isDone ? ' playbook-done-step' : '') + '" data-playbook-step="' + i + '">' +
           '<div class="playbook-num">' + (i + 1) + '</div>' +
           '<div class="playbook-body">' +
             '<div class="playbook-title">' + esc(s.step) + ' <span class="playbook-eff">[' + eff(s.effort) + ']</span></div>' +
             '<div class="playbook-detail">' + esc(s.detail) + '</div>' +
           '</div>' +
-        '</li>'
-      )).join('');
+          '<button type="button" class="playbook-toggle ghost-btn ghost-btn-sm" data-playbook-toggle="' + i + '" title="Mark this step as done">' + (isDone ? '✓ done' : '◯ mark done') + '</button>' +
+        '</li>';
+      }).join('');
+      // Iter #129 polish: export-to-markdown button
+      const controls = '<div class="playbook-controls">' +
+        '<span class="playbook-count"><b>' + doneCount + '</b> of ' + total + ' done</span>' +
+        '<button type="button" class="playbook-export ghost-btn ghost-btn-sm" id="playbookExportBtn" title="Export this playbook as a markdown file">📄 export .md</button>' +
+      '</div>';
+      playbookList.insertAdjacentHTML('afterend', controls);
       playbookBlock.hidden = false;
       if(playbookNote){
-        playbookNote.innerHTML = '<span class="riskNote-lead">' + steps.length + ' ordered steps</span> ' +
-          'Sorted by leverage (★ high impact first). Pure local — assembled from the analyzer outputs.';
+        playbookNote.innerHTML = '<span class="riskNote-lead">' + total + ' ordered steps · ' + doneCount + ' done</span> ' +
+          'Sorted by leverage (★ high impact first). Click ◯ to mark done — saved on this device. Use <b>📄 export .md</b> for a printable checklist.';
+      }
+      // Iter #129 polish: per-step done toggle
+      $$('.playbook-toggle', playbookList).forEach(btn => {
+        btn.addEventListener('click', () => {
+          const i = btn.getAttribute('data-playbook-toggle');
+          if(i == null) return;
+          let d = {};
+          try { d = JSON.parse(localStorage.getItem(DONE_KEY) || '{}') || {}; } catch(_){ d = {}; }
+          d['step-' + i] = !d['step-' + i];
+          try { localStorage.setItem(DONE_KEY, JSON.stringify(d)); } catch(_){ /* quota */ }
+          renderPlaybookBlock(raw, ctx);
+        });
+      });
+      // Iter #129 polish: export as markdown
+      const exportBtn = document.getElementById('playbookExportBtn');
+      if(exportBtn){
+        exportBtn.addEventListener('click', () => {
+          const md = '# ClearDoc Negotiation Playbook\n\n' +
+            'Generated locally · ' + new Date().toLocaleString() + '\n\n' +
+            steps.map((s, i) => (i + 1) + '. **' + s.step + '** · ' + eff(s.effort) + '\n   ' + s.detail + '\n' + (done['step-' + i] ? '   - [x] done\n' : '   - [ ] pending\n')).join('\n');
+          try {
+            const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-playbook-' + (new Date().toISOString().slice(0, 10)) + '.md';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 4000);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📄 Playbook exported as markdown');
+          } catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t export');
+          }
+        });
       }
     }
 

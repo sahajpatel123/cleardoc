@@ -7477,6 +7477,16 @@ test("analyzer: Negotiation playbook builds prioritized steps from analyzer outp
   // CSS
   assert.match(cssSrc, /\.playbook-step\b/, ".playbook-step style must exist");
   assert.match(cssSrc, /\.playbook-imp-high\b/, ".playbook-imp-high style must exist");
+
+  // Iter #129 polish: per-step done toggle + markdown export + done counter.
+  assert.match(appSrc, /data-playbook-toggle=/,
+    "iter #129 must render a done toggle per step");
+  assert.match(appSrc, /DONE_KEY\s*=\s*['"]cleardoc:playbook-done['"]|cleardoc:playbook-done/,
+    "iter #129 must persist done state to localStorage");
+  assert.match(appSrc, /playbookExportBtn[\s\S]+?text\/markdown|new Blob\([\s\S]+?text\/markdown/,
+    "iter #129 must export as a markdown blob");
+  assert.match(cssSrc, /\.playbook-done-step\b/, ".playbook-done-step style must exist");
+  assert.match(cssSrc, /\.playbook-controls\b/, ".playbook-controls style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,

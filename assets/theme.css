@@ -1294,6 +1294,13 @@ button.risk-preview:hover{filter:brightness(.96)}
 .playbook-title{font-weight:700;font-size:var(--t-meta);color:var(--ink)}
 .playbook-eff{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;font-weight:400}
 .playbook-detail{font-size:var(--t-meta);color:var(--ink);margin-top:2px;line-height:1.4}
+.playbook-step.playbook-done-step{opacity:.55}
+.playbook-step.playbook-done-step .playbook-title{text-decoration:line-through;color:var(--green)}
+.playbook-toggle{font-size:11px;padding:2px 8px;cursor:pointer;color:var(--green);min-width:84px;flex-shrink:0;align-self:center}
+.playbook-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;font-size:var(--t-micro)}
+.playbook-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;font-size:var(--t-micro);margin-right:auto}
+.playbook-count b{font-weight:700;color:var(--green)}
+.playbook-export{font-size:11px;padding:2px 8px;cursor:pointer}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
