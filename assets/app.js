@@ -4136,9 +4136,13 @@
       if(!p.items.length){ partyBlock.hidden = true; return; }
       const cells = p.items.map(it => {
         const cls = it.type === 'name' ? 'party-name' : 'party-date';
-        return '<div class="party-cell ' + cls + '">' +
+        // Iter #155 polish — click-to-jump + per-date .ics
+        const jumpAttr = ' data-party-jump="' + (it.type === 'date' ? '' : esc(it.value)) + '" data-party-offset="' + (it.offset || 0) + '"';
+        const icsBtn = it.type === 'date' ? '<button type="button" class="party-ics ghost-btn ghost-btn-sm" data-party-ics="' + esc(it.value) + '" title="Save this date to your calendar">📅</button>' : '';
+        return '<div class="party-cell ' + cls + '"' + jumpAttr + ' title="Click to jump to this in the source">' +
           '<div class="party-type">' + (it.type === 'name' ? '👤 party' : '📅 date') + '</div>' +
           '<div class="party-value">' + esc(it.value) + (it.title ? ' · ' + esc(it.title) : '') + '</div>' +
+          icsBtn +
         '</div>';
       }).join('');
       partyGrid.innerHTML = cells +
@@ -4148,8 +4152,66 @@
         const nameCount = p.items.filter(i => i.type === 'name').length;
         const dateCount = p.items.filter(i => i.type === 'date').length;
         partyNote.innerHTML = '<span class="riskNote-lead">' + nameCount + ' party name' + (nameCount === 1 ? '' : 's') + ' · ' + dateCount + ' date' + (dateCount === 1 ? '' : 's') + (p.hasSignature ? ' · signature clause found' : '') + '</span> ' +
-          'Regex-extracted from the analyzed text. Helpful for sending a counter-letter to the right person at the right time.';
+          'Regex-extracted from the analyzed text. Click any row to jump. Use 📅 to save a date to your calendar. Helpful for sending a counter-letter to the right person at the right time.';
       }
+      // Iter #155 polish — click-to-jump for names
+      $$('.party-name', partyGrid).forEach(row => {
+        row.addEventListener('click', () => {
+          if(!input) return;
+          const name = row.getAttribute('data-party-jump') || '';
+          if(!name) return;
+          const idx2 = input.value.indexOf(name);
+          if(idx2 >= 0){
+            try { input.focus(); input.setSelectionRange(idx2, idx2 + name.length); } catch(_){ /* ignore */ }
+            try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ Name no longer in input — the doc was edited');
+          }
+        });
+      });
+      // Iter #155 polish — per-date .ics export
+      $$('.party-ics', partyGrid).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const value = btn.getAttribute('data-party-ics') || '';
+          if(!value) return;
+          // Try multiple date parsers (already-formatted strings, ISO, etc.)
+          const tryParse = (s) => {
+            // ISO YYYY-MM-DD
+            let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+            if(m) return new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+            // M/D/YYYY
+            m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(s);
+            if(m) return new Date(Date.UTC(+m[3] < 100 ? 2000 + +m[3] : +m[3], +m[1]-1, +m[2]));
+            // "January 15, 2026"
+            m = /^(\w+)\s+(\d{1,2}),?\s+(\d{4})$/.exec(s);
+            if(m){
+              const months = { january:0,jan:0,february:1,feb:1,march:2,mar:2,april:3,apr:3,may:4,june:5,jun:5,july:6,jul:6,august:7,aug:7,september:8,sep:8,october:9,oct:9,november:10,nov:10,december:11,dec:11 };
+              const mo = months[m[1].toLowerCase()];
+              if(mo !== undefined) return new Date(Date.UTC(+m[3], mo, +m[2]));
+            }
+            return null;
+          };
+          const dt = tryParse(value);
+          if(!dt || isNaN(dt.getTime())){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t parse that date');
+            return;
+          }
+          const stamp = dt.toISOString().replace(/[-:]|\.\d{3}/g, '');
+          const ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//ClearDoc//party-audit//EN\r\nBEGIN:VEVENT\r\nUID:party-' + stamp + '@cleardoc\r\nDTSTAMP:' + new Date().toISOString().replace(/[-:]|\.\d{3}/g, '') + '\r\nDTSTART:' + stamp + '\r\nSUMMARY:Contract date — ' + value + '\r\nDESCRIPTION:Detected by ClearDoc party-audit.\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n';
+          try {
+            const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-party-date-' + stamp.slice(0, 10) + '.ics';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 4000);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📅 Date saved to calendar');
+          } catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t generate calendar file');
+          }
+        });
+      });
     }
 
     function renderLoiBlock(raw, ctx){

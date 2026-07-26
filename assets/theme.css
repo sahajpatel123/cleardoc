@@ -1502,6 +1502,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .party-cell.party-sig{border-left:3px solid var(--green);background:var(--green-tint);grid-column:1 / -1}
 .party-type{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;font-weight:700}
 .party-value{font-size:var(--t-meta);color:var(--ink);font-family:'JetBrains Mono',monospace}
+.party-name{cursor:pointer}
+.party-name:hover{filter:brightness(.96)}
+.party-ics{margin-top:4px;font-size:11px;padding:1px 5px;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

@@ -7961,6 +7961,13 @@ test("analyzer: Party audit extracts parties + dates + signatures from the docum
   // CSS
   assert.match(cssSrc, /\.party-cell\b/, ".party-cell style must exist");
   assert.match(cssSrc, /\.party-name\b/, ".party-name style must exist");
+
+  // Iter #155 polish: click-to-jump + per-date .ics export.
+  assert.match(appSrc, /data-party-jump=|party-ics/,
+    "iter #155 must render click-to-jump + per-date .ics");
+  assert.match(appSrc, /party-ics[\s\S]+?BEGIN:VCALENDAR/,
+    "iter #155 must generate a VCALENDAR .ics payload");
+  assert.match(cssSrc, /\.party-ics\b/, ".party-ics button style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
