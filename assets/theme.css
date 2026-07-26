@@ -1537,6 +1537,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .conf-sub-hint{grid-column:1 / -1;font-size:var(--t-micro);color:var(--ink-soft);font-style:italic;margin-top:2px}
 .conf-caveats{margin-top:10px;padding:6px 10px;background:var(--amber-tint);border:1px dashed var(--amber);font-size:var(--t-meta);color:var(--ink)}
 .conf-caveats b{font-weight:700;color:var(--ink);margin-right:6px}
+.conf-controls{margin-top:10px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro)}
+.conf-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

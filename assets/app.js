@@ -4214,8 +4214,15 @@
       const verdict = c.overall >= 75 ? '👍 Reliable — take it to the negotiation'
                        : c.overall >= 50 ? '😐 Mixed — re-run on a clearer / fuller paste for sharper results'
                        : '⚠ Low — the input may be too short or too clean. Re-check before relying on it.';
+      // Iter #159 — tooltips explain each sub-score
+      const tooltip = (key) => ({
+        'Document length': 'How much text we have to analyze. <100 words = unreliable, 1000+ = reliable.',
+        'Risk-pattern coverage': 'How many risk patterns matched in the source text. 0 = no signal, ≥3 = strong signal.',
+        'Tone signal strength': 'How far the document\'s tone deviates from the default 50/0/50 baseline.',
+        'AI / fallback usage': 'Whether the AI model was reached (100) or we relied on local detection only (80) or nothing (50).',
+      })[key] || '';
       const subBar = (label, score, hint) => (
-        '<div class="conf-sub">' +
+        '<div class="conf-sub" title="' + esc(tooltip) + '">' +
           '<div class="conf-sub-label">' + esc(label) + ' <span class="conf-sub-val">' + score + '</span></div>' +
           '<div class="conf-sub-bar"><div class="conf-sub-fill" style="width:' + score + '%"></div></div>' +
           '<div class="conf-sub-hint">' + esc(hint) + '</div>' +
@@ -4233,11 +4240,45 @@
           subBar('Tone signal strength', c.toneScore, 'Distance from default tone=50/0/50') +
           subBar('AI / fallback usage', c.aiUsed, 'AI = 100, local-only = 80, none = 50') +
         '</div>' +
-        (c.caveats.length ? '<div class="conf-caveats"><b>Notes:</b> ' + c.caveats.map(esc).join(' · ') + '</div>' : '');
+        (c.caveats.length ? '<div class="conf-caveats"><b>Notes:</b> ' + c.caveats.map(esc).join(' · ') + '</div>' : '') +
+        // Iter #159 polish — copy-as-JSON chip
+        '<div class="conf-controls">' +
+          '<button type="button" class="ghost-btn ghost-btn-sm" id="confCopyJsonBtn" title="Copy the confidence metrics as JSON for programmatic use">📋 copy JSON</button>' +
+        '</div>';
       confBlock.hidden = false;
       if(confNote){
         confNote.innerHTML = '<span class="riskNote-lead">Confidence ' + c.overall + '/100</span> · ' +
-          'Rated from document length + risk coverage + tone signal + AI usage. Below 50 = re-paste the document; above 75 = safe to take to the negotiation.';
+          'Rated from document length + risk coverage + tone signal + AI usage. Hover any sub-score for what it means. <b>📋 copy JSON</b> for programmatic use. Below 50 = re-paste the document; above 75 = safe to take to the negotiation.';
+      }
+      // Iter #159 — copy-as-JSON
+      const copyJsonBtn = document.getElementById('confCopyJsonBtn');
+      if(copyJsonBtn){
+        copyJsonBtn.addEventListener('click', async () => {
+          const json = JSON.stringify({
+            confidence: c.overall,
+            verdict: verdict,
+            subscores: { length: c.lenScore, riskCoverage: c.riskScore, toneSignal: c.toneScore, aiUsage: c.aiUsed },
+            caveats: c.caveats,
+            ts: new Date().toISOString(),
+            fingerprint: (function(){
+              try { return (function(s){const b=new TextEncoder().encode(s);return Array.from(b).slice(0,4).map(x=>x.toString(16).padStart(2,'0')).join('')})(raw).slice(0,16); }
+              catch(_){ return ''; }
+            })(),
+          }, null, 2);
+          let copied = false;
+          try { if(navigator.clipboard) { await navigator.clipboard.writeText(json); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = json; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 JSON copied' : '⚠ Couldn’t copy');
+          copyJsonBtn.textContent = copied ? '✓ copied' : '📋 copy JSON';
+          setTimeout(() => { if(copyJsonBtn.isConnected) copyJsonBtn.textContent = '📋 copy JSON'; }, 2500);
+        });
       }
     }
 

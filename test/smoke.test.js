@@ -8032,6 +8032,13 @@ test("analyzer: Analysis confidence rates how reliable the result is", () => {
   assert.match(cssSrc, /\.conf-main\b/, ".conf-main style must exist");
   assert.match(cssSrc, /\.conf-good\b/, ".conf-good style must exist");
   assert.match(cssSrc, /\.conf-caveats\b/, ".conf-caveats style must exist");
+
+  // Iter #159 polish: sub-score tooltips + copy-as-JSON.
+  assert.match(appSrc, /'How much text we have to analyze|'How many risk patterns matched|'How far the document/,
+    "iter #159 must add sub-score tooltips");
+  assert.match(appSrc, /confCopyJsonBtn[\s\S]+?JSON\.stringify/,
+    "iter #159 must include a copy-as-JSON button");
+  assert.match(cssSrc, /\.conf-controls\b/, ".conf-controls style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
