@@ -1518,6 +1518,26 @@ button.risk-preview:hover{filter:brightness(.96)}
 .gloss-filter.gloss-filter-active{background:var(--ink);color:var(--paper)}
 .gloss-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}
 
+/* Analysis confidence (iter #158) — how reliable is this run. */
+.conf-card{display:flex;gap:14px;align-items:flex-start;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.45;flex-wrap:wrap}
+.conf-main{flex:0 0 auto;background:var(--ink);color:var(--paper);padding:18px 22px;text-align:center;min-width:140px;border:var(--bd-hair) solid var(--ink)}
+.conf-main.conf-good{background:var(--green);color:var(--paper)}
+.conf-main.conf-mid{background:var(--amber);color:var(--paper)}
+.conf-main.conf-low{background:var(--danger);color:var(--paper)}
+.conf-main-num{font-family:'Archivo Black',sans-serif;font-size:48px;line-height:1;font-weight:900}
+.conf-main-of{font-family:'JetBrains Mono',monospace;font-size:14px;opacity:.7;margin-left:4px}
+.conf-main-label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-top:4px;font-weight:700}
+.conf-main-verdict{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:6px;font-weight:700;color:inherit}
+.conf-subsub{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+.conf-sub{display:grid;grid-template-columns:160px 1fr 36px;gap:8px;align-items:center;padding:4px 6px;background:var(--paper2);border:var(--bd-hair) solid var(--ink-soft)}
+.conf-sub-label{font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;color:var(--ink);font-weight:700;letter-spacing:.04em;display:flex;justify-content:space-between;align-items:baseline}
+.conf-sub-val{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-soft);text-transform:lowercase}
+.conf-sub-bar{height:6px;background:var(--paper);border:var(--bd-hair) solid var(--ink-soft);position:relative}
+.conf-sub-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(to right,var(--danger),var(--amber),var(--green))}
+.conf-sub-hint{grid-column:1 / -1;font-size:var(--t-micro);color:var(--ink-soft);font-style:italic;margin-top:2px}
+.conf-caveats{margin-top:10px;padding:6px 10px;background:var(--amber-tint);border:1px dashed var(--amber);font-size:var(--t-meta);color:var(--ink)}
+.conf-caveats b{font-weight:700;color:var(--ink);margin-right:6px}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}

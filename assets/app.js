@@ -1864,6 +1864,7 @@
           loiCopyBtn=$('#loiCopyBtn'),loiPrintBtn=$('#loiPrintBtn'),
           partyBlock=$('#partyBlock'),partyNote=$('#partyNote'),partyGrid=$('#partyGrid'),
           glossBlock=$('#glossBlock'),glossNote=$('#glossNote'),glossGrid=$('#glossGrid'),
+          confBlock=$('#confBlock'),confNote=$('#confNote'),confCard=$('#confCard'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -4184,6 +4185,62 @@
       tally.sort((a, b) => b.hits - a.hits);
       return tally.slice(0, 30);
     }
+    // Iter #158: analysis confidence — rates how confident the
+    // analyzer is in this run. Pure local; factors in document
+    // length, AI fallback, risk-pattern coverage, language-detect
+    // confidence, etc.
+    function buildAnalysisConfidence(raw, ctx){
+      const wordCount = (raw.match(/\b[\w'-]+\b/g) || []).length;
+      const tal = (lastFlags || []).reduce((s, f) => s + ((f.rule.sev === 'r' ? 2 : f.rule.sev === 'a' ? 1 : 0.3)), 0);
+      const tone = (typeof analyzeTone === 'function') ? analyzeTone(raw) : { trust: 50, pressure: 0, clarity: 50 };
+      // Sub-scores (each 0..100, higher = more confident)
+      const lenScore = wordCount >= 1000 ? 100 : wordCount >= 500 ? 85 : wordCount >= 200 ? 70 : wordCount >= 100 ? 50 : 20;
+      const riskScore = tal >= 3 ? 100 : tal >= 1 ? 80 : 50;
+      const toneScore = (Math.abs(tone.trust - 50) + Math.abs(tone.pressure - 0) + Math.abs(tone.clarity - 50)) < 60 ? 60 : 85;
+      const aiUsed = (ctx && ctx.ai) ? 100 : (typeof localStorage !== 'undefined' && lastFlags.length > 0 ? 80 : 50);
+      const overall = Math.round(lenScore * 0.30 + riskScore * 0.30 + toneScore * 0.20 + aiUsed * 0.20);
+      // Quality caveats
+      const caveats = [];
+      if(wordCount < 200) caveats.push('Document is short — patterns are not yet stable.');
+      if(tal === 0) caveats.push('No risk patterns detected — the result may be too clean to be real.');
+      if(ctx && ctx.aiError) caveats.push('AI fallback was used (no live model call).');
+      return { overall, lenScore, riskScore, toneScore, aiUsed, caveats, wordCount: wordCount };
+    }
+    function renderConfBlock(raw, ctx){
+      if(!confBlock || !confCard || !raw){ return; }
+      const c = buildAnalysisConfidence(raw, ctx);
+      if(!c){ confBlock.hidden = true; return; }
+      const cls = c.overall >= 70 ? 'conf-good' : c.overall >= 45 ? 'conf-mid' : 'conf-low';
+      const verdict = c.overall >= 75 ? '👍 Reliable — take it to the negotiation'
+                       : c.overall >= 50 ? '😐 Mixed — re-run on a clearer / fuller paste for sharper results'
+                       : '⚠ Low — the input may be too short or too clean. Re-check before relying on it.';
+      const subBar = (label, score, hint) => (
+        '<div class="conf-sub">' +
+          '<div class="conf-sub-label">' + esc(label) + ' <span class="conf-sub-val">' + score + '</span></div>' +
+          '<div class="conf-sub-bar"><div class="conf-sub-fill" style="width:' + score + '%"></div></div>' +
+          '<div class="conf-sub-hint">' + esc(hint) + '</div>' +
+        '</div>'
+      );
+      confCard.innerHTML =
+        '<div class="conf-main ' + cls + '">' +
+          '<div class="conf-main-num">' + c.overall + '<span class="conf-main-of">/100</span></div>' +
+          '<div class="conf-main-label">Confidence</div>' +
+          '<div class="conf-main-verdict">' + verdict + '</div>' +
+        '</div>' +
+        '<div class="conf-subsub">' +
+          subBar('Document length', c.lenScore, c.wordCount + ' words') +
+          subBar('Risk-pattern coverage', c.riskScore, 'Weighted trap+watch count') +
+          subBar('Tone signal strength', c.toneScore, 'Distance from default tone=50/0/50') +
+          subBar('AI / fallback usage', c.aiUsed, 'AI = 100, local-only = 80, none = 50') +
+        '</div>' +
+        (c.caveats.length ? '<div class="conf-caveats"><b>Notes:</b> ' + c.caveats.map(esc).join(' · ') + '</div>' : '');
+      confBlock.hidden = false;
+      if(confNote){
+        confNote.innerHTML = '<span class="riskNote-lead">Confidence ' + c.overall + '/100</span> · ' +
+          'Rated from document length + risk coverage + tone signal + AI usage. Below 50 = re-paste the document; above 75 = safe to take to the negotiation.';
+      }
+    }
+
     function renderGlossBlock(raw, ctx){
       if(!glossBlock || !glossGrid || !raw){ return; }
       const all = buildGlossary(raw, ctx);
@@ -6907,6 +6964,12 @@
         renderGlossBlock(raw, ctx);
       } else if(glossBlock && !raw) {
         glossBlock.hidden = true;
+      }
+      // Iter #158: analysis confidence score.
+      if(confBlock && typeof renderConfBlock === 'function' && raw){
+        renderConfBlock(raw, ctx);
+      } else if(confBlock && !raw) {
+        confBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

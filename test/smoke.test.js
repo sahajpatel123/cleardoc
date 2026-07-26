@@ -8004,6 +8004,36 @@ test("analyzer: Glossary quick-reference extracts legal terms with plain-English
   assert.match(cssSrc, /\.gloss-filter-active\b/, ".gloss-filter-active style must exist");
 });
 
+// Iter #158: analysis confidence — rates how reliable this run is.
+test("analyzer: Analysis confidence rates how reliable the result is", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="confBlock"/, "analyze.html must contain #confBlock");
+  assert.match(appSrc, /function buildAnalysisConfidence\(/, "buildAnalysisConfidence must exist");
+  assert.match(appSrc, /function renderConfBlock\(/, "renderConfBlock must exist");
+  // Sub-scores
+  assert.match(appSrc, /lenScore[\s\S]+?riskScore[\s\S]+?toneScore[\s\S]+?aiUsed/,
+    "iter #158 must compute all four sub-scores");
+  // Weight keywords
+  assert.match(appSrc, /0\.30[\s\S]+?0\.20/,
+    "iter #158 must use weighted overall");
+  // Verdict phrases
+  assert.match(appSrc, /Reliable|re-paste|Reliable — take it|Mixed/,
+    "iter #158 must include confidence verdict phrases");
+  // Wiring
+  assert.match(appSrc, /renderConfBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderConfBlock");
+  // CSS
+  assert.match(cssSrc, /\.conf-main\b/, ".conf-main style must exist");
+  assert.match(cssSrc, /\.conf-good\b/, ".conf-good style must exist");
+  assert.match(cssSrc, /\.conf-caveats\b/, ".conf-caveats style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,
