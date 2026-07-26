@@ -3782,20 +3782,57 @@
       const seen = new Set();
       const uniq = [];
       hits.forEach(h => { if(!seen.has(h.raw)){ seen.add(h.raw); uniq.push(h); } });
-      clauseIndex.innerHTML = uniq.map(h => (
-        '<button type="button" class="clause-row" data-clause-offset="' + h.offset + '" data-clause-raw="' + esc(h.raw) + '" title="' + esc(h.snippet) + '">' +
+      // Iter #137 polish — annotate each row with whether it overlaps
+      // a detected risk so we can offer a "flagged only" filter.
+      const flaggedKey = new Map();
+      (lastFlags || []).forEach(f => {
+        if(typeof f.i === 'number') flaggedKey.set(f.i, true);
+      });
+      const sentToOffset = [];
+      let cursor = 0;
+      const allSent = raw.split(/(?<=[.!?])\s+/);
+      allSent.forEach((s, i) => {
+        const offs = raw.indexOf(s, cursor);
+        if(offs >= 0) sentToOffset.push({ offs: offs, i: i });
+        cursor = offs + s.length;
+      });
+      const isInRiskedClause = (offset) => {
+        // Find the sentence index whose offset is closest <= offset.
+        for(let k = sentToOffset.length - 1; k >= 0; k--){
+          if(sentToOffset[k].offs <= offset){
+            return flaggedKey.has(sentToOffset[k].i);
+          }
+        }
+        return false;
+      };
+      const total = uniq.length;
+      const flaggedCount = uniq.filter(h => isInRiskedClause(h.offset)).length;
+      const showFlaggedOnly = clauseIndex._showFlagged === true;
+      const visible = showFlaggedOnly ? uniq.filter(h => isInRiskedClause(h.offset)) : uniq;
+      clauseIndex.innerHTML = visible.map(h => {
+        const flagged = isInRiskedClause(h.offset);
+        const cls = 'clause-row' + (flagged ? ' clause-flagged' : '');
+        return '<button type="button" class="' + cls + '" data-clause-offset="' + h.offset + '" data-clause-raw="' + esc(h.raw) + '" data-clause-flagged="' + (flagged ? '1' : '0') + '" title="' + esc(h.snippet) + '">' +
           '<span class="clause-num">' + esc(h.raw) + '</span>' +
           '<span class="clause-text">' + esc(h.snippet) + '</span>' +
-        '</button>'
-      )).join('');
+          '<button type="button" class="clause-copy ghost-btn ghost-btn-sm" data-clause-copy="' + esc(h.raw) + '" title="Copy this citation">📋</button>' +
+        '</button>';
+      }).join('');
+      // Iter #137 polish — counter + flagged-only filter
+      const controls = '<div class="clause-controls">' +
+        '<span class="clause-count">' + visible.length + ' of ' + total + ' clauses</span>' +
+        '<button type="button" class="clause-filter ghost-btn ghost-btn-sm" id="clauseFilterBtn" title="Show only clauses that overlap detected risks">' + (showFlaggedOnly ? 'show all' : 'flagged only') + '</button>' +
+      '</div>';
+      clauseIndex.insertAdjacentHTML('afterend', controls);
       indexBlock.hidden = false;
       if(indexNote){
-        indexNote.innerHTML = '<span class="riskNote-lead">' + uniq.length + ' clause' + (uniq.length === 1 ? '' : 's') + ' indexed</span> ' +
-          'Click any row to jump to that clause in the source textarea. Useful for large contracts where you want to revisit a specific section without scrolling.';
+        indexNote.innerHTML = '<span class="riskNote-lead">' + total + ' numbered clause' + (total === 1 ? '' : 's') + ' indexed · ' + flaggedCount + ' flagged</span> ' +
+          'Click a row to jump. 📋 copies the citation. Toggle to <b>flagged only</b> to focus on the clauses that matter most.';
       }
-      // Click-to-jump: find the raw phrase in the input
+      // Click-to-jump on the row (but NOT on the copy button — handled below).
       $$('.clause-row', clauseIndex).forEach(row => {
-        row.addEventListener('click', () => {
+        row.addEventListener('click', (e) => {
+          if(e.target.closest && e.target.closest('[data-clause-copy]')) return;
           if(!input) return;
           const raw = row.getAttribute('data-clause-raw') || '';
           if(!raw) return;
@@ -3808,6 +3845,36 @@
           }
         });
       });
+      // Iter #137 polish — per-row copy citation
+      $$('[data-clause-copy]', clauseIndex).forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const text = btn.getAttribute('data-clause-copy') || '';
+          if(!text) return;
+          let copied = false;
+          try {
+            if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Citation copied' : '⚠ Couldn’t copy');
+          btn.textContent = copied ? '✓' : '📋';
+          setTimeout(() => { if(btn.isConnected) btn.textContent = '📋'; }, 1500);
+        });
+      });
+      // Iter #137 polish — flagged-only filter chip
+      const filterBtn = document.getElementById('clauseFilterBtn');
+      if(filterBtn){
+        filterBtn.addEventListener('click', () => {
+          clauseIndex._showFlagged = !clauseIndex._showFlagged;
+          renderClauseIndex(raw, ctx);
+        });
+      }
     }
 
     function renderStyleBlock(raw, ctx){

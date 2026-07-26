@@ -7618,6 +7618,16 @@ test("analyzer: Clause index extracts numbered clauses with click-to-jump", () =
   // CSS
   assert.match(cssSrc, /\.clause-row\b/, ".clause-row style must exist");
   assert.match(cssSrc, /\.clause-num\b/, ".clause-num style must exist");
+
+  // Iter #137 polish: per-row copy + flagged-only filter + counter.
+  assert.match(appSrc, /clauseCopyBtn|data-clause-copy=/,
+    "iter #137 must render a per-row copy citation button");
+  assert.match(appSrc, /clauseIndex\._showFlagged|flagged-only|flagged only/,
+    "iter #137 must include a flagged-only filter state");
+  assert.match(appSrc, /lastFlags[\s\S]+?clauseIndex|flaggedKey/,
+    "iter #137 must annotate flagged clauses against lastFlags");
+  assert.match(cssSrc, /\.clause-flagged\b/, ".clause-flagged style must exist");
+  assert.match(cssSrc, /\.clause-controls\b/, ".clause-controls style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
