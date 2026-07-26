@@ -1380,6 +1380,17 @@ button.risk-preview:hover{filter:brightness(.96)}
 .cost-sliders-actions{margin-top:4px;text-align:right}
 .cost-sliders-actions .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
 
+/* Section risk map (iter #140) — horizontal bars by category. */
+.section-grid{display:flex;flex-direction:column;gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.section-row{display:grid;grid-template-columns:160px 1fr 80px;gap:8px;align-items:center;padding:4px 6px}
+.section-label{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink);font-weight:700;letter-spacing:.04em;font-size:11px}
+.section-track{height:18px;background:var(--paper);border:var(--bd-hair) solid var(--ink-soft);position:relative;overflow:hidden}
+.section-bar{position:absolute;left:0;top:0;bottom:0;transition:width .3s ease}
+.section-bar.section-bar-r{background:linear-gradient(to right,var(--danger),var(--danger-tint))}
+.section-bar.section-bar-a{background:linear-gradient(to right,var(--amber),var(--amber-tint))}
+.section-bar.section-bar-g{background:linear-gradient(to right,var(--green),var(--green-tint))}
+.section-count{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);text-align:right}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}

@@ -1853,6 +1853,7 @@
           styleBlock=$('#styleBlock'),styleNote=$('#styleNote'),styleGrid=$('#styleGrid'),
           indexBlock=$('#indexBlock'),indexNote=$('#indexNote'),clauseIndex=$('#clauseIndex'),
           costBlock=$('#costBlock'),costNote=$('#costNote'),costGrid=$('#costGrid'),
+          sectionBlock=$('#sectionBlock'),sectionNote=$('#sectionNote'),sectionGrid=$('#sectionGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3808,6 +3809,56 @@
     function saveCostProbs(p){
       try { localStorage.setItem(COST_PROB_KEY, JSON.stringify(p)); } catch(_){ /* quota */ }
     }
+    // Iter #140: section risk map — aggregates the iter #84 risk
+    // patterns by category (termination, refund, jurisdiction,
+    // etc.) and renders horizontal bar cells sized by frequency.
+    // Pure local; lets the user see "which TYPE of clause is the
+    // riskiest in this contract" at a glance.
+    const SECTION_CATEGORIES = [
+      { key: 'termination', label: 'Termination / cancellation', re: /\b(?:terminat|rescind|cancel|end|renewal|evergreen|autorenew|expir)/i },
+      { key: 'refund', label: 'Refund / payment', re: /\b(?:refund|return|payment|invoice|charge|fee|price|cost|deposit|finance)/i },
+      { key: 'liability', label: 'Liability / indemnity', re: /\b(?:liab|indemn|warranty|hold\s+\w+\s+harmless|as[\s-]?is|warrant)/i },
+      { key: 'arbitration', label: 'Dispute / arbitration', re: /\b(?:arbitr|mediat|class\s+action|jury|small[\s-]?claims|jurisdic|venue|governing\s+law)/i },
+      { key: 'data', label: 'Data / privacy', re: /\b(?:data\s+(?:retention|protection)|privacy|GDPR|CCPA|personal\s+information|cookies|tracking)/i },
+      { key: 'ip', label: 'IP / licensing', re: /\b(?:intellectual\s+property|licens|copyright|trademark|patent|royalty)/i },
+      { key: 'force', label: 'Force majeure', re: /\bforce\s+majeure|act\s+of\s+god|natural\s+disaster/i },
+      { key: 'confidential', label: 'Confidentiality / NDA', re: /\b(?:confidential|non[\s-]?disclosure|NDA|trade\s+secret)/i },
+      { key: 'auto', label: 'Auto-renewal', re: /\bauto(?:matic(?:ally)?|mat)?\s*renew|evergreen|autorenew/i },
+      { key: 'penalty', label: 'Penalties / late fees', re: /\bpenal(?:ty|ties)|late\s+fee|forfeit|liquidated\s+damages/i },
+    ];
+    function buildSectionRisk(raw, ctx){
+      const cats = SECTION_CATEGORIES.map(c => ({ key: c.key, label: c.label, hits: 0, sev: 0 }));
+      (lastFlags || []).forEach(f => {
+        const text = (f.s || '') + ' ' + (f.rule.why || '') + ' ' + (f.rule.label || '');
+        cats.forEach(c => { if(c.re.test(text)){ c.hits++; c.sev += f.rule.sev === 'r' ? 3 : (f.rule.sev === 'a' ? 1 : 0.4); } });
+      });
+      cats.sort((a, b) => b.sev - a.sev);
+      return cats.filter(c => c.hits > 0);
+    }
+    function renderSectionBlock(raw, ctx){
+      if(!sectionBlock || !sectionGrid || !raw){ return; }
+      const cats = buildSectionRisk(raw, ctx);
+      if(!cats.length){ sectionBlock.hidden = true; return; }
+      const max = Math.max.apply(null, cats.map(c => c.sev));
+      const rows = cats.map(c => {
+        const pct = Math.round((c.sev / max) * 100);
+        const cls = c.sev >= 3 ? 'section-bar-r' : c.sev >= 1 ? 'section-bar-a' : 'section-bar-g';
+        return '<div class="section-row">' +
+          '<div class="section-label">' + esc(c.label) + '</div>' +
+          '<div class="section-track"><div class="section-bar ' + cls + '" style="width:' + pct + '%"></div></div>' +
+          '<div class="section-count">' + c.hits + ' hit' + (c.hits === 1 ? '' : 's') + '</div>' +
+        '</div>';
+      }).join('');
+      const total = cats.reduce((s, c) => s + c.hits, 0);
+      sectionGrid.innerHTML = rows;
+      sectionBlock.hidden = false;
+      if(sectionNote){
+        const top = cats[0];
+        sectionNote.innerHTML = '<span class="riskNote-lead">' + cats.length + ' risk categor' + (cats.length === 1 ? 'y' : 'ies') + ' · ' + total + ' hit' + (total === 1 ? '' : 's') + '</span> ' +
+          'Sorted by severity · bar length = weighted risk score · top: <b>' + esc(top.label) + '</b> (' + top.hits + ' hit' + (top.hits === 1 ? '' : 's') + ').';
+      }
+    }
+
     function renderCostBlock(raw, ctx){
       if(!costBlock || !costGrid || !raw){ return; }
       const probs = loadCostProbs();
@@ -5736,6 +5787,12 @@
         renderCostBlock(raw, ctx);
       } else if(costBlock && !raw) {
         costBlock.hidden = true;
+      }
+      // Iter #140: section risk map — categories ranked by weighted score
+      if(sectionBlock && typeof renderSectionBlock === 'function' && raw){
+        renderSectionBlock(raw, ctx);
+      } else if(sectionBlock && !raw) {
+        sectionBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
