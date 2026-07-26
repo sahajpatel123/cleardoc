@@ -8079,6 +8079,32 @@ test("analyzer: Analysis confidence rates how reliable the result is", () => {
   assert.match(cssSrc, /\.conf-good\b/, ".conf-good style must exist");
   assert.match(cssSrc, /\.conf-caveats\b/, ".conf-caveats style must exist");
 
+
+
+// Iter #174: deadline extractor — pulls date mentions from obligations.
+test("analyzer: Deadline extractor pulls dates from action-verb sentences", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="deadlineBlock"/, "analyze.html must contain #deadlineBlock");
+  assert.match(appSrc, /function extractDeadlines\(/, "extractDeadlines must exist");
+  assert.match(appSrc, /function renderDeadlineBlock\(/, "renderDeadlineBlock must exist");
+  assert.match(appSrc, /renderDeadlineBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderDeadlineBlock");
+  // Cover key date patterns
+  assert.match(appSrc, /January.*\\d\{4\}/,
+    "extractDeadlines must support long-month date formats");
+  // Q1-Q4 quarter notation
+  assert.match(appSrc, /\[Qq\]\[1-4\]/,
+    "extractDeadlines must support Q1-Q4 quarter notation");
+  // ICS export button
+  assert.match(appSrc, /deadline-ics/,
+    "renderDeadlineBlock must render ICS export buttons");
+});
+
   // Iter #159 polish: sub-score tooltips + copy-as-JSON.
   assert.match(appSrc, /'How much text we have to analyze|'How many risk patterns matched|'How far the document/,
     "iter #159 must add sub-score tooltips");

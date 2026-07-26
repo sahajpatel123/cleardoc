@@ -1872,6 +1872,7 @@
           prioBlock=$('#prioBlock'),prioNote=$('#prioNote'),prioMatrix=$('#prioMatrix'),
           defBlock=$('#defBlock'),defNote=$('#defNote'),defList=$('#defList'),
           actionBlock2=$('#actionBlock2'),actionBlock2Note=$('#actionBlock2Note'),actionList=$('#actionList'),
+          deadlineBlock=$('#deadlineBlock'),deadlineNote=$('#deadlineNote'),deadlineList=$('#deadlineList'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -4516,6 +4517,86 @@
     }
 
 
+
+
+    // Iter #174: deadline extractor — finds date mentions
+    // attached to obligations ("shall deliver by Q1 2026") so the
+    // user can save them as calendar events. Pure local; regex-based.
+    function extractDeadlines(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return [];
+      const months = { january:0,jan:0,february:1,feb:1,march:2,mar:2,april:3,apr:3,may:4,june:5,jun:5,july:6,jul:6,august:7,aug:7,september:8,sep:8,october:9,oct:9,november:10,nov:10,december:11,dec:11 };
+      const items = [];
+      const seen = new Set();
+      const tryAdd = (verb, dateStr, sentence, offset) => {
+        const key = verb + '|' + dateStr + '|' + (sentence || '').slice(0, 50);
+        if(seen.has(key)) return;
+        seen.add(key);
+        items.push({ verb: verb, date: dateStr, sentence: sentence, offset: offset || 0 });
+      };
+      // Pattern A: "by/in/on DATE within 60 chars of "shall/must/etc"
+      const reA = /((?:shall|must|is required|undertakes|warrants|agrees)[^.]{0,40}?(?:by|in|on|before|no later than)\s+((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,?\s+\d{4})?|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}))/gi;
+      let m;
+      while((m = reA.exec(text))){
+        tryAdd('(obligated)', m[2], m[1], m.index);
+      }
+      // Pattern B: "Q1/Q2/Q3/Q4 2026" alone (fuzzy)
+      const reB = /([Qq][1-4])\s+(\d{4})/g;
+      while((m = reB.exec(text))){
+        const q = m[1].toUpperCase();
+        const y = m[2];
+        const month = q === 'Q1' ? 2 : q === 'Q2' ? 5 : q === 'Q3' ? 8 : 11;
+        const dt = new Date(Date.UTC(parseInt(y, 10), month, 1));
+        if(!isNaN(dt.getTime())) tryAdd('(quarterly)', dt.toISOString().slice(0, 10), m[0], m.index);
+      }
+      return items.slice(0, 10);
+    }
+    function renderDeadlineBlock(raw, ctx){
+      if(!deadlineBlock || !deadlineList || !raw){ return; }
+      const items = extractDeadlines(raw, ctx);
+      if(!items.length){ deadlineBlock.hidden = true; return; }
+      const rows = items.map(it => {
+        const isM = /\(obligated\)/.test(it.verb);
+        const cls = isM ? 'deadline-mandatory' : 'deadline-optional';
+        const tag = isM ? '⚡ obligated' : '📅 scheduled';
+        return '<div class="deadline-row ' + cls + '">' +
+          '<div class="deadline-tag">' + tag + '</div>' +
+          '<div class="deadline-date">' + esc(it.date) + '</div>' +
+          '<div class="deadline-context">' + esc((it.sentence || '').slice(0, 180)) + '</div>' +
+          '<button type="button" class="deadline-ics ghost-btn ghost-btn-sm" data-deadline-ics="' + esc(it.date) + '" title="Save to your calendar">📅 ics</button>' +
+        '</div>';
+      }).join('');
+      deadlineList.innerHTML = rows;
+      deadlineBlock.hidden = false;
+      if(deadlineNote){
+        const mandated = items.filter(it => /\(obligated\)/.test(it.verb)).length;
+        deadlineNote.innerHTML = '<span class="riskNote-lead">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + ' extracted</span> · ' +
+          '<b>' + mandated + ' mandatory</b> (shall deliver by / shall be made by) · rest are scheduled milestones. ' +
+          'Click 📅 on any row to save a calendar event. Use the timeline above for an at-a-glance view.';
+      }
+      // ICS export
+      $$('.deadline-ics', deadlineList).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const dateStr = btn.getAttribute('data-deadline-ics') || '';
+          if(!dateStr) return;
+          const dt = new Date(dateStr + 'T09:00:00Z');
+          if(isNaN(dt.getTime())){ if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t parse that date'); return; }
+          const stamp = dt.toISOString().replace(/[-:]|\.\d{3}/g, '');
+          const ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//ClearDoc//deadline-extractor//EN\r\nBEGIN:VEVENT\r\nUID:deadline-' + stamp + '@cleardoc\r\nDTSTAMP:' + new Date().toISOString().replace(/[-:]|\.\d{3}/g, '') + '\r\nDTSTART:' + stamp + '\r\nSUMMARY:Contract deadline\r\nDESCRIPTION:Detected by ClearDoc deadline-extractor.\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n';
+          try {
+            const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-deadline-' + dateStr + '.ics';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 4000);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📅 Deadline saved to calendar');
+          } catch(_){ if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t generate calendar file'); }
+        });
+      });
+    }
+
     function renderDefBlock(raw, ctx){
       if(!defBlock || !defList || !raw){ return; }
       let defs = buildDefList(raw, ctx);
@@ -4572,6 +4653,9 @@
           renderDefBlock(raw, ctx);
           if(typeof renderActionBlock === 'function' && raw) renderActionBlock(raw, ctx);
           else if(actionBlock2) actionBlock2.hidden = true;
+          // Iter #174: deadline extractor.
+          if(typeof renderDeadlineBlock === 'function' && raw) renderDeadlineBlock(raw, ctx);
+          else if(deadlineBlock) deadlineBlock.hidden = true;
         });
       }
       // Iter #171 copy-all chip
