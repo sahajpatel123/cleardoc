@@ -1307,6 +1307,20 @@ button.risk-preview:hover{filter:brightness(.96)}
 .predict-row{border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);padding:8px 10px;border-left:3px solid var(--ink-soft)}
 .predict-clause{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink);font-weight:700;letter-spacing:.04em;margin-bottom:4px}
 .predict-body{font-size:var(--t-meta);color:var(--ink);font-style:italic}
+.predict-rebut{font-size:var(--t-meta);color:var(--ink);margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd-hair)}
+.predict-rebut b{color:var(--ink-soft);font-weight:700;text-transform:uppercase;font-size:var(--t-micro);letter-spacing:.06em;margin-right:6px}
+.predict-conf-chip{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;padding:1px 5px;background:var(--ink-soft);color:var(--paper);font-weight:700;margin-left:6px;letter-spacing:.06em;display:inline-block}
+.predict-conf-chip.predict-conf-high{background:var(--green);color:var(--paper)}
+.predict-conf-chip.predict-conf-mid{background:var(--amber);color:var(--paper)}
+.predict-conf-chip.predict-conf-low{background:var(--ink-soft);color:var(--paper)}
+.predict-row.predict-conf-high{border-left-color:var(--green)}
+.predict-row.predict-conf-mid{border-left-color:var(--amber)}
+.predict-row.predict-conf-low{border-left-color:var(--ink-soft)}
+.predict-row.predict-got{opacity:.55}
+.predict-row.predict-got .predict-clause{color:var(--green)}
+.predict-done{font-size:11px;padding:2px 8px;cursor:pointer;color:var(--green);min-width:90px;flex-shrink:0;margin-top:4px;align-self:flex-end}
+.predict-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro)}
+.predict-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;font-size:var(--t-micro)}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

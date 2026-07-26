@@ -7514,6 +7514,18 @@ test("analyzer: Counter-party prediction forecasts per-risk objections", () => {
   // CSS
   assert.match(cssSrc, /\.predict-row\b/, ".predict-row style must exist");
   assert.match(cssSrc, /\.predict-clause\b/, ".predict-clause style must exist");
+
+  // Iter #131 polish: confidence meter + rebuttal hint + addressed toggle.
+  assert.match(appSrc, /predict-conf-chip/,
+    "iter #131 must render a confidence chip");
+  assert.match(appSrc, /Your counter:/,
+    "iter #131 must include a 'Your counter' rebuttal line");
+  assert.match(appSrc, /data-predict-done=/,
+    "iter #131 must render a per-row done toggle");
+  assert.match(appSrc, /cleardoc:predict-got/,
+    "iter #131 must persist 'got it' state to localStorage");
+  assert.match(cssSrc, /\.predict-rebut\b/, ".predict-rebut style must exist");
+  assert.match(cssSrc, /\.predict-conf-high\b/, ".predict-conf-high style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,

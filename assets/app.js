@@ -3699,17 +3699,49 @@
       if(!predictBlock || !predictList || !raw){ return; }
       const preds = buildCounterPredictions(raw, ctx);
       if(!preds.length){ predictBlock.hidden = true; return; }
-      predictList.innerHTML = preds.map(p => (
-        '<div class="predict-row" title="Pure-local heuristic — based on clause type + tone">' +
-          '<div class="predict-clause">📌 ' + esc(p.clause) + '</div>' +
+      // Iter #131 — confidence meter per prediction + rebuttal hint.
+      // Persisted per-prediction "got it" toggle in localStorage.
+      const GOT_KEY = 'cleardoc:predict-got';
+      let got = {};
+      try { got = JSON.parse(localStorage.getItem(GOT_KEY) || '{}') || {}; } catch(_){ got = {}; }
+      const c = (typeof analyzeTone === 'function') ? analyzeTone(raw) : { pressure: 0 };
+      const conf = (t) => t > 70 ? 'high' : (t > 40 ? 'mid' : 'low');
+      const confLabel = (c) => c === 'high' ? '🎯 likely' : c === 'mid' ? '↔ maybe' : '🤷 uncertain';
+      const rows = preds.map((p, i) => {
+        const cKey = conf(c.pressure);
+        const isGot = !!got['pred-' + i];
+        const REBUT = {
+          high: 'Have data ready (death-of-business, market-rate comparison). Skip if they push back hard.',
+          mid:  'Open with a compromise ("partial-refund window + 60-day notice"). Leave room to walk away.',
+          low:  'Use only as a starting point. Ask "what would you accept?" and listen.',
+        };
+        return '<div class="predict-row predict-conf-' + cKey + (isGot ? ' predict-got' : '') + '" title="Pure-local heuristic — based on clause type + tone-pressure score">' +
+          '<div class="predict-clause">📌 ' + esc(p.clause) + ' <span class="predict-conf-chip predict-conf-' + cKey + '">' + confLabel(cKey) + '</span></div>' +
           '<div class="predict-body">' + esc(p.prediction) + '</div>' +
-        '</div>'
-      )).join('');
+          '<div class="predict-rebut"><b>Your counter:</b> ' + esc(REBUT[cKey]) + '</div>' +
+          '<button type="button" class="predict-done ghost-btn ghost-btn-sm" data-predict-done="' + i + '" title="Mark this prediction as addressed">' + (isGot ? '✓ got it' : '◯ mark addressed') + '</button>' +
+        '</div>';
+      }).join('');
+      const controls = '<div class="predict-controls">' +
+        '<span class="predict-count">' + preds.length + ' prediction' + (preds.length === 1 ? '' : 's') + '</span>' +
+      '</div>';
+      predictList.innerHTML = rows + controls;
       predictBlock.hidden = false;
       if(predictNote){
         predictNote.innerHTML = '<span class="riskNote-lead">' + preds.length + ' prediction' + (preds.length === 1 ? '' : 's') + '</span> ' +
-          'Heuristic on clause type + tone. Use to anticipate objections in advance — these are guesses, not facts.';
+          'Heuristic on clause type + tone. <b>Your counter</b> is a starting rebuttal. Click ◯ to mark a prediction as addressed.';
       }
+      // Iter #131 — per-row toggle
+      $$('.predict-done', predictList).forEach(btn => {
+        btn.addEventListener('click', () => {
+          const i = btn.getAttribute('predict-done') || btn.getAttribute('data-predict-done') || '';
+          let g = {};
+          try { g = JSON.parse(localStorage.getItem(GOT_KEY) || '{}') || {}; } catch(_){ g = {}; }
+          g['pred-' + i] = !g['pred-' + i];
+          try { localStorage.setItem(GOT_KEY, JSON.stringify(g)); } catch(_){ /* quota */ }
+          renderPredictBlock(raw, ctx);
+        });
+      });
     }
 
     function renderPlaybookBlock(raw, ctx){
