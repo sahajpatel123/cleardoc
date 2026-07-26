@@ -1877,6 +1877,7 @@
           crossrefBlock=$('#crossrefBlock'),crossrefNote=$('#crossrefNote'),crossrefList=$('#crossrefList'),
           chgBlock=$('#chgBlock'),chgNote=$('#chgNote'),chgList=$('#chgList'),
           chgArmed=$('#chgArmed'),chgPreviewWrap=$('#chgPreviewWrap'),chgPreviewCount=$('#chgPreviewCount'),
+          decisionBlock=$('#decisionBlock'),decisionCard=$('#decisionCard'),decisionRationale=$('#decisionRationale'),decisionCopyBtn=$('#decisionCopyBtn'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -5229,6 +5230,95 @@
       chgArmed.hidden = !armed;
     }
 
+    // Iter #182: bottom-line decision card. Distinct from verdictBlock
+    // (which paraphrases what the doc says) — this synthesizes the signals
+    // into one opinionated recommendation: sign / sign-with-asks /
+    // negotiate / get-a-lawyer. Pure local; regex-based.
+    function computeDecision(raw){
+      const text = String(raw || '');
+      if(!text || text.length < 20) return null;
+      const lc = text.toLowerCase();
+      const tally = [];
+      const check = (re, label) => { if(re.test(text)) tally.push(label); };
+      // Tier-1 red flags (each is heavy on its own)
+      check(/(\bindemnif(?:y|ication|ied|ies)\b|\bhold\s+harmless\b)/i, 'broad indemnification');
+      check(/(\bclass\s+(?:action|arbitration)\s+waiv|\bwaiv\w*\b.*\bclass\s+(?:action|arbitration))/i, 'class action waiver');
+      check(/\bwaiv(?:e|es|ed|ing)\b.*\b(?:jury|trial)\b|\b(?:jury|trial)\b.*\bwaiv/i, 'jury waiver');
+      check(/\bnon[- ]?refundable\b/i, 'non-refundable clause');
+      check(/\b(?:liquidated\s+damages|cancellation\s+(?:fee|assessment|charge))\b/i, 'cancellation fees');
+      check(/\b(?:unlimited|all)\s+liabilit(?:y|ies)\b|\bin\s+perpetuity\b/i, 'perpetual liability');
+      check(/\bautomatically?\s+renew/i, 'auto-renewal');
+      check(/\bexclusive\s+remedi(?:es|y)\b/i, 'exclusive remedies');
+      check(/\b(?:assignment\s+of\s+(?:all\s+)?(?:rights|claims))\b|\bassign(?:s)?\s+all\b/i, 'broad assignment');
+      check(/\b(?:non[- ]?compete|non[- ]?solicitation)\b/i, 'non-compete / non-solicit');
+      // Obligation asymmetry
+      const mandatory = (text.match(/\b(?:shall|must|undertakes|warrants|covenants|is\s+required\s+to|are\s+required\s+to|is\s+obligated|are\s+obligated)\b/gi) || []).length;
+      const permissive = (text.match(/\b(?:may|agrees?\s+to|reserves?\s+the\s+right\s+to|is\s+permitted\s+to|are\s+permitted\s+to)\b/gi) || []).length;
+      // Cross-ref dangling
+      const xrefs = extractCrossRefs(text);
+      const dangling = xrefs.filter(x => x.status === 'dangling').length;
+      const external = xrefs.filter(x => x.status === 'external').length;
+      // Risk-phrase count (rough proxy)
+      const riskCount = tally.length + (dangling > 0 ? 1 : 0) + (mandatory > permissive + 3 ? 1 : 0);
+      // Verdict thresholds
+      let verdict, headline, rationale;
+      if(riskCount >= 4 || tally.filter(t => /indemnif|class|jury|perpetuity/.test(t)).length >= 2){
+        verdict = 'lawyer';
+        headline = '⚫ Get a lawyer before signing';
+        rationale = 'Multiple serious red flags detected: ' + tally.slice(0, 3).join(', ') + '. This isn’t a "skim and sign" document — a quick professional read could save you a lot more than the cost of a consultation.';
+      } else if(riskCount >= 2){
+        verdict = 'negotiate';
+        headline = '🔴 Negotiate before signing';
+        rationale = tally.length
+          ? 'Found ' + tally.length + ' concerning clause' + (tally.length === 1 ? '' : 's') + ' (' + tally.slice(0, 3).join(', ') + '). These are common and usually negotiable — push back on at least the strongest one.'
+          : (dangling ? 'Internal cross-references point to sections that don’t appear in this document — ask for the missing pieces before signing.' : 'Several warning signs — at least push back on the strongest one before signing.');
+      } else if(riskCount >= 1 || mandatory > permissive + 2){
+        verdict = 'asks';
+        headline = '🟡 Sign, but ask for 1–2 changes';
+        rationale = tally.length
+          ? 'One soft red flag (' + tally[0] + '). Common enough that a single polite ask usually gets it removed or softened.'
+          : (mandatory > permissive + 2 ? 'The obligations lean heavily one way — ask to soften at least one before you sign.' : 'Nothing obviously wrong, but it doesn’t hurt to ask for one small change as a courtesy.');
+      } else {
+        verdict = 'sign';
+        headline = '🟢 Sign as-is';
+        rationale = 'No significant red flags. The terms look standard and the language is balanced. Read it once more for your own peace of mind, then you’re good to go.';
+      }
+      return { verdict: verdict, headline: headline, rationale: rationale, signals: { tally: tally, riskCount: riskCount, mandatory: mandatory, permissive: permissive, dangling: dangling, external: external } };
+    }
+    function renderDecisionBlock(raw, ctx){
+      if(!decisionBlock || !decisionCard || !raw){ return; }
+      const d = computeDecision(raw);
+      if(!d){ decisionBlock.hidden = true; return; }
+      const meta = {
+        sign:      { cls: 'decision-sign',      k: 'LOW' },
+        asks:      { cls: 'decision-asks',      k: 'GUARDED' },
+        negotiate: { cls: 'decision-negotiate', k: 'CAUTION' },
+        lawyer:    { cls: 'decision-lawyer',    k: 'SERIOUS' }
+      };
+      const m = meta[d.verdict] || meta.sign;
+      decisionCard.className = 'decision-card ' + m.cls;
+      decisionCard.innerHTML =
+        '<div class="decision-tier">' + esc(m.k) + '</div>' +
+        '<div class="decision-headline">' + esc(d.headline) + '</div>';
+      decisionRationale.innerHTML = '<span class="riskNote-lead">' + d.signals.tally.length + ' concern' + (d.signals.tally.length === 1 ? '' : 's') + ' · ' + d.signals.mandatory + ' mandatory / ' + d.signals.permissive + ' permissive obligation' + (d.signals.mandatory + d.signals.permissive === 1 ? '' : 's') + '</span> · ' +
+        esc(d.rationale);
+      decisionBlock.hidden = false;
+      if(decisionCopyBtn){
+        decisionCopyBtn.onclick = async () => {
+          const text = d.headline + '\n\n' + d.rationale + '\n\nSignals: ' + d.signals.tally.length + ' concerns · ' + d.signals.mandatory + ' mandatory / ' + d.signals.permissive + ' permissive · ' + d.signals.dangling + ' dangling cross-ref' + (d.signals.dangling === 1 ? '' : 's');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Recommendation copied' : '⚠ Couldn’t copy');
+          decisionCopyBtn.textContent = copied ? '✓ copied' : '📋 copy';
+          setTimeout(() => { if(decisionCopyBtn.isConnected) decisionCopyBtn.textContent = '📋 copy'; }, 2500);
+        };
+      }
+    }
+
     function renderPrioBlock(raw, ctx){
       if(!prioBlock || !prioMatrix || !raw){ return; }
       const p = buildPriorityMatrix(raw, ctx);
@@ -8561,6 +8651,12 @@
         renderChgBlock(raw, ctx);
       } else if(chgBlock && !raw) {
         chgBlock.hidden = true;
+      }
+      // Iter #182: bottom-line decision card.
+      if(decisionBlock && typeof renderDecisionBlock === 'function' && raw){
+        renderDecisionBlock(raw, ctx);
+      } else if(decisionBlock && !raw) {
+        decisionBlock.hidden = true;
       }
 
 
