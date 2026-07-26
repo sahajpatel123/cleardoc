@@ -3463,7 +3463,9 @@
     // replying to the other party with the analyzer's TL;DR + the
     // top 2 counter-clauses. Pure local; assembled from existing
     // outputs. Useful for sending a counter-proposal in one click.
-    function buildEmailDraft(raw, ctx){
+    function buildEmailDraft(raw, ctx, opts){
+      opts = opts || {};
+      const tone = opts.tone || 'friendly';
       const tal = { r: 0, a: 0, g: 0 };
       (lastFlags || []).forEach(f => { tal[f.rule.sev] = (tal[f.rule.sev] || 0) + 1; });
       const total = tal.r + tal.a + tal.g;
@@ -3482,12 +3484,40 @@
       })();
       const topRisks = (lastFlags || []).slice(0, 2);
       const topCounters = topRisks.map(f => '  • ' + f.rule.label + ' → ' + f.rule.counter).join('\n');
-      const signatures = [
-        'Thanks for sending this over. I\'d like to discuss a few items before signing.',
-        'I\'ve reviewed the contract and have some questions on a couple of clauses.',
-        'Thanks for the draft. I went through it carefully and have a few small asks.',
-      ];
-      const opener = signatures[Math.floor(Math.random() * signatures.length)];
+      // Iter #125 polish — tone picker swaps the opener + meeting line.
+      const OPENERS = {
+        friendly: [
+          'Thanks for sending this over. I\'d like to discuss a few items before signing.',
+          'Thanks for the draft — went through it carefully and have a few small asks.',
+        ],
+        neutral: [
+          'I\'ve reviewed the contract and have some questions on a couple of clauses.',
+        ],
+        firm: [
+          'Before signing, I need the following items addressed.',
+          'There are several items in here I\'ll need adjusted before I can sign.',
+        ],
+      };
+      const MEETING = {
+        friendly: 'Could we schedule 15 minutes this week to walk through these?',
+        neutral:  'Let\'s set up 15 minutes this week to walk through these items.',
+        firm:     'I need 30 minutes on your calendar this week — please share times.',
+      };
+      // Pick a fixed opener per tone so the user gets deterministic output,
+      // but randomize within the tone to keep variety on re-renders.
+      const toneList = OPENERS[tone] || OPENERS.friendly;
+      const opener = toneList[0];
+      // Iter #125 polish — smart meeting pre-fill: next Tuesday or
+      // Wednesday at 2pm in the user's locale, or '+2 days' fallback.
+      const meet = (function(){
+        const now = new Date();
+        const day = now.getDay();
+        const offset = ((2 - day + 7) % 7) || 7;
+        const target = new Date(now.getTime() + offset * 86400000);
+        target.setHours(14, 0, 0, 0);
+        const friendly = target.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+        return friendly;
+      })();
       const body = [
         opener,
         '',
@@ -3499,26 +3529,51 @@
         'Two specific clauses I\'d like to propose alternatives for:',
         topCounters || '  • (None flagged — happy to proceed.)',
         '',
-        'Could we schedule 15 minutes this week to walk through these?',
+        MEETING[tone] + ' I have ' + meet + ' open if that works.',
         '',
         'Thanks,',
         '[Your name]',
       ].filter(Boolean).join('\n');
-      const subject = 'Quick questions on the contract you sent';
-      return { subject, body, topCounters, opener };
+      const subject = tone === 'firm' ? 'Contract — items I need addressed before signing' : 'Quick questions on the contract you sent';
+      return { subject, body, topCounters, opener, tone, meet };
     }
     function renderEmailBlock(raw, ctx){
       if(!emailBlock || !emailGrid || !raw){ return; }
-      const draft = buildEmailDraft(raw, ctx);
+      let draft = buildEmailDraft(raw, ctx);
       if(!draft){ emailBlock.hidden = true; return; }
+      try { emailGrid._draftState = { raw, ctx, lastDraft: draft }; } catch(_){ /* non-DOM */ }
+      // Iter #125 polish — tone picker + dynamic re-render
+      const toneRow = '<div class="email-toggles">' +
+        '<button type="button" class="email-tone ghost-btn ghost-btn-sm email-tone-active" data-email-tone="friendly">friendly</button>' +
+        '<button type="button" class="email-tone ghost-btn ghost-btn-sm" data-email-tone="neutral">neutral</button>' +
+        '<button type="button" class="email-tone ghost-btn ghost-btn-sm" data-email-tone="firm">firm</button>' +
+        '<span class="email-meet">📅 meeting prefilled: ' + esc(draft.meet) + '</span>' +
+      '</div>';
       emailGrid.innerHTML =
         '<div class="email-row"><b>Subject</b><span class="email-subj">' + esc(draft.subject) + '</span></div>' +
-        '<div class="email-row email-row-body"><b>Body</b><pre class="email-body">' + esc(draft.body) + '</pre></div>';
+        '<div class="email-row email-row-body"><b>Body</b><pre class="email-body">' + esc(draft.body) + '</pre></div>' +
+        toneRow;
       emailBlock.hidden = false;
       if(emailNote){
         emailNote.innerHTML = '<span class="riskNote-lead">Ready-to-send counter-proposal</span> ' +
-          'Subject + body assembled from the analyzer outputs. Click <b>copy</b> or <b>open mailto:</b>.';
+          'Subject + body assembled from the analyzer outputs. Click <b>copy</b> or <b>open mailto:</b>. Pick a tone below to rewrite.';
       }
+      // Iter #125 polish — tone toggle
+      $$('.email-tone', emailGrid).forEach(btn => {
+        btn.addEventListener('click', () => {
+          const t = btn.getAttribute('data-email-tone') || 'friendly';
+          $$('.email-tone', emailGrid).forEach(x => x.classList.remove('email-tone-active'));
+          btn.classList.add('email-tone-active');
+          const fresh = buildEmailDraft(raw, ctx, { tone: t });
+          draft = fresh;
+          try { emailGrid._draftState.lastDraft = fresh; } catch(_){ /* non-DOM */ }
+          // Re-render with new body/subject
+          emailGrid.querySelector('.email-subj').textContent = fresh.subject;
+          emailGrid.querySelector('.email-body').textContent = fresh.body;
+          const meetEl = emailGrid.querySelector('.email-meet');
+          if(meetEl) meetEl.textContent = '📅 meeting prefilled: ' + fresh.meet;
+        });
+      });
       if(emailCopyBtn){
         emailCopyBtn.addEventListener('click', async () => {
           const text = 'Subject: ' + draft.subject + '\n\n' + draft.body;
@@ -3533,7 +3588,7 @@
               copied = true;
             } catch(_){ /* ignore */ }
           }
-          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Email draft copied' : '⚠ Couldn’t copy');
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Email draft copied (' + draft.tone + ')' : '⚠ Couldn’t copy');
           emailCopyBtn.textContent = copied ? '✓ copied' : '📋 copy email';
           setTimeout(() => { if(emailCopyBtn.isConnected) emailCopyBtn.textContent = '📋 copy email'; }, 2500);
         });

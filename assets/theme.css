@@ -1260,6 +1260,10 @@ button.risk-preview:hover{filter:brightness(.96)}
 .email-subj{font-family:'JetBrains Mono',monospace;color:var(--ink);font-weight:700}
 .email-body{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);line-height:1.5;color:var(--ink);white-space:pre-wrap;margin:0;background:var(--paper);padding:6px 8px;border:var(--bd-hair) solid var(--ink-soft);max-height:260px;overflow:auto;flex:1}
 .email-actions{display:flex;gap:6px;margin-top:6px;font-size:var(--t-micro)}
+.email-toggles{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--ink-soft);font-size:var(--t-meta)}
+.email-tone{font-size:10px;padding:2px 8px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em}
+.email-tone.email-tone-active{background:var(--ink);color:var(--paper)}
+.email-meet{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;margin-left:auto}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

@@ -7395,6 +7395,16 @@ test("analyzer: Email composer assembles a ready-to-send reply with counter-clau
   assert.match(cssSrc, /\.email-row\b/, ".email-row style must exist");
   assert.match(cssSrc, /\.email-body\b/, ".email-body style must exist");
   assert.match(cssSrc, /\.email-actions\b/, ".email-actions style must exist");
+
+  // Iter #125 polish: tone picker + meeting pre-fill
+  assert.match(appSrc, /OPENERS[\s\S]+?friendly|OPENERS\s*=/,
+    "iter #125 must include OPENERS table");
+  assert.match(appSrc, /meeting prefilled|📅 meeting/,
+    "iter #125 must include a meeting pre-fill label");
+  assert.match(appSrc, /data-email-tone=/,
+    "iter #125 must render a tone picker");
+  assert.match(appSrc, /email-tone-active/,
+    "iter #125 must toggle email-tone-active class");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
