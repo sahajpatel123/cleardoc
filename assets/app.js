@@ -7762,6 +7762,12 @@
       } else if(defBlock && !raw) {
         defBlock.hidden = true;
       }
+      // Iter #170: key definitions.
+      if(defBlock && typeof renderDefBlock === 'function' && raw){
+        renderDefBlock(raw, ctx);
+      } else if(defBlock && !raw) {
+        defBlock.hidden = true;
+      }
 </replace>
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
