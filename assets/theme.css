@@ -1253,6 +1253,14 @@ button.risk-preview:hover{filter:brightness(.96)}
 .tldr-next{margin-top:8px;padding:8px 10px;border:var(--bd-hair) solid var(--ink);background:var(--paper);font-size:var(--t-meta);line-height:1.4}
 .tldr-next b{font-weight:700;color:var(--ink)}
 
+/* Email composer (iter #124) — ready-to-send reply. */
+.email-grid{display:flex;flex-direction:column;gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0}
+.email-row{display:flex;gap:10px;padding:6px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);font-size:var(--t-meta)}
+.email-row b{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;min-width:80px;font-weight:700}
+.email-subj{font-family:'JetBrains Mono',monospace;color:var(--ink);font-weight:700}
+.email-body{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);line-height:1.5;color:var(--ink);white-space:pre-wrap;margin:0;background:var(--paper);padding:6px 8px;border:var(--bd-hair) solid var(--ink-soft);max-height:260px;overflow:auto;flex:1}
+.email-actions{display:flex;gap:6px;margin-top:6px;font-size:var(--t-micro)}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}

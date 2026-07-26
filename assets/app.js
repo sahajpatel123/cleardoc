@@ -1843,6 +1843,8 @@
           simplifySwapBtn=$('#simplifySwapBtn'),
           tldrBlock=$('#tldrBlock'),tldrNote=$('#tldrNote'),tldrCard=$('#tldrCard'),
           tldrCopyBtn=$('#tldrCopyBtn'),tldrSpeakBtn=$('#tldrSpeakBtn'),
+          emailBlock=$('#emailBlock'),emailNote=$('#emailNote'),emailGrid=$('#emailGrid'),
+          emailCopyBtn=$('#emailCopyBtn'),emailOpenBtn=$('#emailOpenBtn'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3457,6 +3459,94 @@
       })();
       return { s1, s2, s3, arrow, maturity, nextStep, full: s1 + s2 + ' ' + s3 + ' ' + nextStep };
     }
+    // Iter #124: email composer — assemble a ready-to-send email
+    // replying to the other party with the analyzer's TL;DR + the
+    // top 2 counter-clauses. Pure local; assembled from existing
+    // outputs. Useful for sending a counter-proposal in one click.
+    function buildEmailDraft(raw, ctx){
+      const tal = { r: 0, a: 0, g: 0 };
+      (lastFlags || []).forEach(f => { tal[f.rule.sev] = (tal[f.rule.sev] || 0) + 1; });
+      const total = tal.r + tal.a + tal.g;
+      const maturity = (function(){
+        const v = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
+        return v ? v.textContent.trim() : '—';
+      })();
+      const exposure = (function(){
+        const t = riskDetail && riskDetail.textContent || '';
+        const m = t.match(/worst-case exposure[^A-Z]*\$[0-9,]+/i);
+        return m ? m[0].replace(/.*\$/, '$') : null;
+      })();
+      const juris = (function(){
+        const j = jurisRow && jurisRow.querySelector('.juris-label');
+        return j ? j.textContent.trim() : null;
+      })();
+      const topRisks = (lastFlags || []).slice(0, 2);
+      const topCounters = topRisks.map(f => '  • ' + f.rule.label + ' → ' + f.rule.counter).join('\n');
+      const signatures = [
+        'Thanks for sending this over. I\'d like to discuss a few items before signing.',
+        'I\'ve reviewed the contract and have some questions on a couple of clauses.',
+        'Thanks for the draft. I went through it carefully and have a few small asks.',
+      ];
+      const opener = signatures[Math.floor(Math.random() * signatures.length)];
+      const body = [
+        opener,
+        '',
+        'Here\'s a quick read on where I see things:',
+        '  • Maturity score: ' + maturity + (exposure ? ' (worst-case exposure ' + exposure + ')' : '') + '.',
+        (juris ? '  • Governing law: ' + juris + ' — I\'d like to talk through venue.' : ''),
+        (total ? '  • Risk tally: ' + tal.r + ' trap, ' + tal.a + ' watch, ' + tal.g + ' note.' : '  • No flagged traps or watches.'),
+        '',
+        'Two specific clauses I\'d like to propose alternatives for:',
+        topCounters || '  • (None flagged — happy to proceed.)',
+        '',
+        'Could we schedule 15 minutes this week to walk through these?',
+        '',
+        'Thanks,',
+        '[Your name]',
+      ].filter(Boolean).join('\n');
+      const subject = 'Quick questions on the contract you sent';
+      return { subject, body, topCounters, opener };
+    }
+    function renderEmailBlock(raw, ctx){
+      if(!emailBlock || !emailGrid || !raw){ return; }
+      const draft = buildEmailDraft(raw, ctx);
+      if(!draft){ emailBlock.hidden = true; return; }
+      emailGrid.innerHTML =
+        '<div class="email-row"><b>Subject</b><span class="email-subj">' + esc(draft.subject) + '</span></div>' +
+        '<div class="email-row email-row-body"><b>Body</b><pre class="email-body">' + esc(draft.body) + '</pre></div>';
+      emailBlock.hidden = false;
+      if(emailNote){
+        emailNote.innerHTML = '<span class="riskNote-lead">Ready-to-send counter-proposal</span> ' +
+          'Subject + body assembled from the analyzer outputs. Click <b>copy</b> or <b>open mailto:</b>.';
+      }
+      if(emailCopyBtn){
+        emailCopyBtn.addEventListener('click', async () => {
+          const text = 'Subject: ' + draft.subject + '\n\n' + draft.body;
+          let copied = false;
+          try {
+            if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Email draft copied' : '⚠ Couldn’t copy');
+          emailCopyBtn.textContent = copied ? '✓ copied' : '📋 copy email';
+          setTimeout(() => { if(emailCopyBtn.isConnected) emailCopyBtn.textContent = '📋 copy email'; }, 2500);
+        });
+      }
+      if(emailOpenBtn){
+        emailOpenBtn.addEventListener('click', () => {
+          const href = 'mailto:?subject=' + encodeURIComponent(draft.subject) + '&body=' + encodeURIComponent(draft.body);
+          try { window.location.href = href; } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉ Opened your mail client');
+        });
+      }
+    }
+
     function renderTldrBlock(raw, ctx){
       if(!tldrBlock || !tldrCard || !raw){ return; }
       const built = buildTldr(raw, ctx);
@@ -4719,6 +4809,12 @@
         renderTldrBlock(raw, ctx);
       } else if(tldrBlock && !raw) {
         tldrBlock.hidden = true;
+      }
+      // Iter #124: email composer — assemble ready-to-send email
+      if(emailBlock && typeof renderEmailBlock === 'function' && raw){
+        renderEmailBlock(raw, ctx);
+      } else if(emailBlock && !raw) {
+        emailBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

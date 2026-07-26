@@ -7363,6 +7363,40 @@ test("analyzer: TL;DR polished with numbered sentences + sentiment arrow + next 
   assert.match(cssSrc, /\.tldr-next\b/, ".tldr-next style must exist");
 });
 
+// Iter #124: email composer — assembles a ready-to-send reply
+// email using the analyzer's TL;DR + top 2 counter-clauses.
+test("analyzer: Email composer assembles a ready-to-send reply with counter-clauses", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="emailBlock"/, "analyze.html must contain #emailBlock");
+  assert.match(html, /id="emailGrid"/, "analyze.html must contain #emailGrid");
+  assert.match(appSrc, /function buildEmailDraft\(/, "buildEmailDraft must exist");
+  assert.match(appSrc, /function renderEmailBlock\(/, "renderEmailBlock must exist");
+  // Includes opener + subject + counter-clauses
+  assert.match(appSrc, /buildEmailDraft[\s\S]+?opener|opener[\s\S]+?buildEmailDraft/,
+    "buildEmailDraft must include an opener line");
+  assert.match(appSrc, /topCounters/,
+    "buildEmailDraft must include top counters");
+  // Wiring
+  assert.match(appSrc, /renderEmailBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderEmailBlock with raw + ctx");
+  // mailto + copy
+  assert.match(appSrc, /emailOpenBtn[\s\S]+?mailto:|location\.href\s*=\s*['"]mailto:/,
+    "emailOpenBtn must use mailto:");
+  assert.match(appSrc, /emailCopyBtn[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
+    "emailCopyBtn must use clipboard fallback");
+
+  // CSS
+  assert.match(cssSrc, /\.email-row\b/, ".email-row style must exist");
+  assert.match(cssSrc, /\.email-body\b/, ".email-body style must exist");
+  assert.match(cssSrc, /\.email-actions\b/, ".email-actions style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,
