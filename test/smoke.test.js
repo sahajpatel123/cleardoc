@@ -8088,6 +8088,23 @@ test("analyzer: Contact extract pulls emails and phone numbers from the document
     "iter #162 must include an email regex");
   assert.match(appSrc, /phoneRe/,
     "iter #162 must include a phone regex");
+
+  // Iter #163 polish: filter chips + CSV export.
+  assert.match(appSrc, /data-contact-filter=/,
+    "iter #163 must render filter chips");
+  assert.match(appSrc, /contactCopyCsvBtn/,
+    "iter #163 must include a copy-CSV button");
+  assert.match(cssSrc, /\.contact-filter-active\b/, ".contact-filter-active style must exist");
+});
+
+// Iter #163 polish: filter chips + CSV export (own test).
+test("analyzer: Contact extract polish — filter chips + CSV export", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
   // Wiring
   assert.match(appSrc, /renderContactBlock\(raw[\s\S]+?ctx\)/,
     "render() must call renderContactBlock");
@@ -8107,3 +8124,7 @@ test("analyzer: Contact extract pulls emails and phone numbers from the document
   assert.match(cssSrc, /@media\s+print/,
     "cheat-sheet must include print-specific styles");
 });
+
+
+
+

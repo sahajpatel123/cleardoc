@@ -4289,10 +4289,22 @@
           '<button type="button" class="contact-copy ghost-btn ghost-btn-sm" data-contact-copy="' + esc(p.value) + '" title="Copy this phone">📋</button>' +
         '</div>');
       });
+      // Iter #163 — filter chips + CSV export
+      const filter = contactGrid._contactFilter || 'all';
+      const filtered = (function(){
+        if(filter === 'emails') return rows.filter((_, i) => i < c.emails.length);
+        if(filter === 'phones') return rows.filter((_, i) => i >= c.emails.length);
+        return rows;
+      })();
       const controls = '<div class="contact-controls">' +
-        '<span class="contact-count">' + (c.emails.length + c.phones.length) + ' contact' + ((c.emails.length + c.phones.length === 1) ? '' : 's') + ' found</span>' +
+        '<span class="contact-count">' + (c.emails.length + c.phones.length) + ' contact' + ((c.emails.length + c.phones.length === 1) ? '' : 's') + '</span>' +
+        '<button type="button" class="contact-filter ghost-btn ghost-btn-sm ' + (filter === 'all' ? 'contact-filter-active' : '') + '" data-contact-filter="all">all</button>' +
+        '<button type="button" class="contact-filter ghost-btn ghost-btn-sm ' + (filter === 'emails' ? 'contact-filter-active' : '') + '" data-contact-filter="emails">emails</button>' +
+        '<button type="button" class="contact-filter ghost-btn ghost-btn-sm ' + (filter === 'phones' ? 'contact-filter-active' : '') + '" data-contact-filter="phones">phones</button>' +
         '<button type="button" class="contact-copy-all ghost-btn ghost-btn-sm" id="contactCopyAllBtn" title="Copy all contacts as plain text">📋 copy all</button>' +
+        '<button type="button" class="contact-copy-csv ghost-btn ghost-btn-sm" id="contactCopyCsvBtn" title="Copy as CSV for spreadsheet import">📊 copy CSV</button>' +
       '</div>';
+      contactGrid.innerHTML = filtered.join('') + controls;
       contactGrid.innerHTML = rows.join('') + controls;
       contactBlock.hidden = false;
       if(contactNote){
@@ -4354,6 +4366,34 @@
           setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
         });
       }
+      // Copy CSV
+      const copyCsvBtn = document.getElementById('contactCopyCsvBtn');
+      if(copyCsvBtn){
+        copyCsvBtn.addEventListener('click', async () => {
+          const csv = 'type,value\n' + c.emails.map(e => 'email,' + e.value).join('\n') + (c.phones.length && c.emails.length ? '\n' : '') + c.phones.map(p => 'phone,' + p.value).join('\n');
+          let copied = false;
+          try { if(navigator.clipboard) { await navigator.clipboard.writeText(csv); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = csv; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📊 CSV copied' : '⚠ Couldn’t copy');
+          copyCsvBtn.textContent = copied ? '✓ copied' : '📊 copy CSV';
+          setTimeout(() => { if(copyCsvBtn.isConnected) copyCsvBtn.textContent = '📊 copy CSV'; }, 2500);
+        });
+      }
+      // Filter chips
+      $$('.contact-filter', contactGrid).forEach(btn => {
+        btn.addEventListener('click', () => {
+          const k = btn.getAttribute('data-contact-filter') || 'all';
+          contactGrid._contactFilter = k;
+          renderContactBlock(raw, ctx);
+        });
+      });
     }
 
     function renderCovBlock(raw, ctx){

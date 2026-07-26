@@ -1568,6 +1568,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .contact-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .contact-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
 .contact-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}
+.contact-filter.ghost-btn{padding:2px 6px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;background:transparent;border:1px solid var(--bd-hair);color:var(--ink-soft);cursor:pointer}
+.contact-filter.contact-filter-active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
