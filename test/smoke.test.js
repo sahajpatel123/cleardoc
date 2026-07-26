@@ -8176,6 +8176,31 @@ test("analyzer: Strategy board tracks counter-clauses across Backlog / Drafted /
     "iter #167 must render a markdown table with three columns");
 });
 
+// Iter #168: risk priority matrix — 2x2 quadrants.
+test("analyzer: Risk priority matrix plots risks by impact vs likelihood", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="prioBlock"/, "analyze.html must contain #prioBlock");
+  assert.match(appSrc, /function buildPriorityMatrix\(/, "buildPriorityMatrix must exist");
+  assert.match(appSrc, /function renderPrioBlock\(/, "renderPrioBlock must exist");
+  // Cover all 9 quadrants
+  for(const k of ["high|high", "high|mid", "high|low", "mid|high", "mid|mid", "mid|low", "low|high", "low|mid", "low|low"]){
+    assert.match(appSrc, new RegExp("'" + k + "'\\s*:"),
+      "GROUPS must include the '" + k + "' quadrant");
+  }
+  // Wiring
+  assert.match(appSrc, /renderPrioBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderPrioBlock");
+  // CSS
+  assert.match(cssSrc, /\.prio-grid\b/, ".prio-grid style must exist");
+  assert.match(cssSrc, /\.prio-cell\.prio-active/, ".prio-cell.prio-active style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

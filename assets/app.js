@@ -1869,6 +1869,7 @@
           contactBlock=$('#contactBlock'),contactNote=$('#contactNote'),contactGrid=$('#contactGrid'),
           histBlock=$('#histBlock'),histNote=$('#histNote'),histCard=$('#histCard'),
           boardBlock=$('#boardBlock'),boardNote=$('#boardNote'),boardGrid=$('#boardGrid'),
+          prioBlock=$('#prioBlock'),prioNote=$('#prioNote'),prioMatrix=$('#prioMatrix'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -4340,6 +4341,81 @@
       try { localStorage.setItem(BOARD_KEY, JSON.stringify(items.map(i => ({ key: i.key, col: i.col })))); }
       catch(_){ /* quota */ }
     }
+    // Iter #168: risk priority matrix — a 2x2 quadrant
+    // (Impact × Likelihood) that maps each detected risk so the
+    // user can see which ones to address first. Pure local;
+    // uses iter #84 severity for impact and iter #120 jargon
+    // density as a rough likelihood proxy.
+    function buildPriorityMatrix(raw, ctx){
+      const tal = (lastFlags || []).filter(f => f.rule && f.rule.label);
+      if(!tal.length) return null;
+      const wc = (raw.match(/\b[\w'-]+\b/g) || []).length || 1;
+      // Quick proxy: likelihood = jargon density (iter #25 hits per 1000 words)
+      let jargonCount = 0;
+      try {
+        if(typeof JARGON !== 'undefined' && Array.isArray(JARGON)){
+          JARGON.forEach(([re]) => { const m = raw.match(re); if(m) jargonCount += m.length; });
+        }
+      } catch(_){ /* fall through */ }
+      const ratio = jargonCount / (wc / 1000);
+      const likelihood = ratio >= 40 ? 'high' : ratio >= 15 ? 'mid' : 'low';
+      const cellOf = (it) => {
+        const impact = it.sev === 'r' ? 'high' : it.sev === 'a' ? 'mid' : 'low';
+        return impact + '|' + likelihood;
+      };
+      const groups = {
+        'high|high': { label: '🔴 Critical', desc: 'High-impact + high-likelihood — address first' },
+        'high|mid':  { label: '🟠 High', desc: 'High-impact + possible' },
+        'high|low':  { label: '🟡 Speculative', desc: 'High-impact but unlikely' },
+        'mid|high':  { label: '🟠 Watch', desc: 'Medium-impact + common' },
+        'mid|mid':   { label: '🟡 Common', desc: 'Medium-impact + occasional' },
+        'mid|low':   { label: '🟢 Low', desc: 'Medium-impact + rare' },
+        'low|high':  { label: '🟡 Curio', desc: 'Low-impact + common' },
+        'low|mid':   { label: '🟢 Niche', desc: 'Low-impact + occasional' },
+        'low|low':   { label: '🟢 Trivial', desc: 'Low-impact + rare' },
+      };
+      const counts = {};
+      Object.keys(groups).forEach(k => { counts[k] = 0; });
+      const lists = {};
+      Object.keys(groups).forEach(k => { lists[k] = []; });
+      tal.forEach(f => {
+        const k = cellOf(f);
+        counts[k] = (counts[k] || 0) + 1;
+        if((lists[k] || (lists[k] = [])).length < 3) lists[k].push(f.rule.label);
+      });
+      return { likelihood: likelihood, counts: counts, lists: lists, groups: groups };
+    }
+    function renderPrioBlock(raw, ctx){
+      if(!prioBlock || !prioMatrix || !raw){ return; }
+      const p = buildPriorityMatrix(raw, ctx);
+      if(!p){ prioBlock.hidden = true; return; }
+      const cells = [
+        { ki: 'high|low', x: 1, y: 0 }, { ki: 'high|mid', x: 1, y: 1 }, { ki: 'high|high', x: 1, y: 2 },
+        { ki: 'mid|low',  x: 0, y: 0 }, { ki: 'mid|mid',  x: 0, y: 1 }, { ki: 'mid|high',  x: 0, y: 2 },
+        { ki: 'low|low',  x: -1, y: 0 }, { ki: 'low|mid', x: -1, y: 1 }, { ki: 'low|high', x: -1, y: 2 },
+      ];
+      const html = cells.map(c => {
+        const meta = p.groups[c.ki] || { label: '?', desc: '' };
+        const count = p.counts[c.ki] || 0;
+        const cls = (count > 0 ? ' prio-active' : '');
+        const top = (p.lists[c.ki] || []).slice(0, 2).join(' · ');
+        return '<div class="prio-cell' + cls + '" style="grid-column:' + (c.x + 2) + ';grid-row:' + (c.y + 1) + '">' +
+          '<div class="prio-cell-label">' + meta.label + '</div>' +
+          '<div class="prio-cell-count">' + count + '</div>' +
+          (top ? '<div class="prio-cell-top">' + esc(top) + '</div>' : '') +
+          '<div class="prio-cell-desc">' + meta.desc + '</div>' +
+        '</div>';
+      }).join('');
+      const header = '<div class="prio-axis-y">impact</div><div class="prio-axis-x">likelihood</div>';
+      const total = Object.values(p.counts).reduce((s, n) => s + n, 0);
+      prioMatrix.innerHTML = header + '<div class="prio-grid">' + html + '</div>';
+      prioBlock.hidden = false;
+      if(prioNote){
+        prioNote.innerHTML = '<span class="riskNote-lead">' + total + ' risk' + (total === 1 ? '' : 's') + ' plotted by impact × likelihood</span> · ' +
+          'Document jargon density (' + (p.likelihood) + ' likelihood) drives the x-axis. <b>Top-left (high impact + likely) = address first.</b>';
+      }
+    }
+
     function renderBoardBlock(raw, ctx){
       if(!boardBlock || !boardGrid || !raw){ return; }
       const items = buildStrategyBoard(raw, ctx);
@@ -7553,6 +7629,12 @@
         renderBoardBlock(raw, ctx);
       } else if(boardBlock && !raw) {
         boardBlock.hidden = true;
+      }
+      // Iter #168: priority matrix.
+      if(prioBlock && typeof renderPrioBlock === 'function' && raw){
+        renderPrioBlock(raw, ctx);
+      } else if(prioBlock && !raw) {
+        prioBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
