@@ -1850,6 +1850,7 @@
           playbookBlock=$('#playbookBlock'),playbookNote=$('#playbookNote'),playbookList=$('#playbookList'),
           predictBlock=$('#predictBlock'),predictNote=$('#predictNote'),predictList=$('#predictList'),
           trendBlock=$('#trendBlock'),trendNote=$('#trendNote'),trendGrid=$('#trendGrid'),
+          styleBlock=$('#styleBlock'),styleNote=$('#styleNote'),styleGrid=$('#styleGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3708,6 +3709,59 @@
         return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0, 16);
       } catch(_){ return 'nohash'; }
     }
+    // Iter #134: document voice / style profile — measures
+    // passive vs active voice, average / longest sentence, and
+    // reading grade. Pure local.
+    function buildStyleProfile(raw){
+      const text = String(raw || '');
+      if(!text) return null;
+      const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 1);
+      const totalSent = sentences.length;
+      const words = (text.match(/\b[\w'-]+\b/g) || []);
+      const avgWords = totalSent ? Math.round((words.length / totalSent) * 10) / 10 : 0;
+      const sortedLens = sentences.map(s => (s.match(/\b[\w'-]+\b/g) || []).length).sort((a, b) => b - a);
+      const longest = sortedLens[0] || 0;
+      const longestTenth = sortedLens[Math.floor(sortedLens.length * 0.1)] || 0;
+      const passiveRe = /\b(?:is|are|was|were|be|been|being|am)\s+(?:[a-z]+ed|given|taken|made|done|seen|known|written|paid|said|brought|found|spoken|chosen|driven)\b/gi;
+      const passiveCount = (text.match(passiveRe) || []).length;
+      const passiveRate = words.length ? Math.round((passiveCount / words.length) * 1000) / 10 : 0;
+      const g = (typeof gradeLevel === 'function') ? gradeLevel(text) : 0;
+      let verdict = 'Plain';
+      if(g >= 16) verdict = 'Academic (graduate)';
+      else if(g >= 13) verdict = 'Difficult';
+      else if(g >= 10) verdict = 'Standard';
+      else if(g >= 7) verdict = 'Friendly';
+      return { totalSent, avgWords, longest, longestTenth, passiveRate, grade: g, verdict, wordCount: words.length };
+    }
+    function renderStyleBlock(raw, ctx){
+      if(!styleBlock || !styleGrid || !raw){ return; }
+      const p = buildStyleProfile(raw);
+      if(!p){ styleBlock.hidden = true; return; }
+      const cells = [
+        '<div class="style-cell"><div class="style-label">Sentences</div><div class="style-value">' + p.totalSent.toLocaleString('en-US') + '</div></div>',
+        '<div class="style-cell"><div class="style-label">Avg words/sentence</div><div class="style-value">' + p.avgWords + '</div></div>',
+        '<div class="style-cell"><div class="style-label">Longest sentence</div><div class="style-value">' + p.longest + ' words</div></div>',
+        '<div class="style-cell"><div class="style-label">Top 10% avg</div><div class="style-value">' + p.longestTenth + ' words</div></div>',
+        '<div class="style-cell"><div class="style-label">Passive voice</div><div class="style-value">' + p.passiveRate + '%</div></div>',
+        '<div class="style-cell"><div class="style-label">Reading grade</div><div class="style-value">' + p.grade + '=' + p.verdict + '</div></div>',
+      ];
+      const v = (function(){
+        const long = p.longest > 50 && p.longestTenth > 30;
+        const passive = p.passiveRate > 3;
+        if(long && passive) return '⚠ Stylistically heavy: long sentences + lots of passive voice. Counter-clauses should be extremely short and direct to avoid being lost in the noise.';
+        if(long) return '😐 Long sentences throughout. Counter-clauses should be ≤25 words each so the other party can\'t bury them in clause walls.';
+        if(passive) return '😐 Heavy passive voice. Ask the counterparty to convert passive obligations to active obligations ("the company shall reimburse" → "the company will reimburse").';
+        return '👍 Plain and active. Easy to negotiate against — your counter-clauses can match this style.';
+      })();
+      cells.push('<div class="style-cell style-verdict"><div class="style-label">Style verdict</div><div class="style-value">' + v + '</div></div>');
+      styleGrid.innerHTML = cells.join('');
+      styleBlock.hidden = false;
+      if(styleNote){
+        styleNote.innerHTML = '<span class="riskNote-lead">' + p.wordCount.toLocaleString('en-US') + '-word style profile</span> ' +
+          'Sentence shape + passive-voice rate + reading grade. Use to shape your counter-clauses to match the other side.';
+      }
+    }
+
     async function renderTrendBlock(raw, ctx){
       if(!trendBlock || !trendGrid || !raw){ return; }
       const ml = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
@@ -5363,6 +5417,12 @@
         renderTrendBlock(raw, ctx);
       } else if(trendBlock && !raw) {
         trendBlock.hidden = true;
+      }
+      // Iter #134: document voice / style profile
+      if(styleBlock && typeof renderStyleBlock === 'function' && raw){
+        renderStyleBlock(raw, ctx);
+      } else if(styleBlock && !raw) {
+        styleBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

@@ -7561,6 +7561,29 @@ test("analyzer: Trend block compares each new analysis against the previous one"
   assert.match(cssSrc, /\.trend-spark-glyph\b/, ".trend-spark-glyph style must exist");
 });
 
+// Iter #134: style profile — measures voice + sentence shape.
+test("analyzer: Style profile measures voice + sentence shape + reading grade", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="styleBlock"/, "analyze.html must contain #styleBlock");
+  assert.match(appSrc, /function buildStyleProfile\(/, "buildStyleProfile must exist");
+  assert.match(appSrc, /function renderStyleBlock\(/, "renderStyleBlock must exist");
+  assert.match(appSrc, /passiveRate|Passive voice/,
+    "iter #134 must compute a passive-voice rate");
+  assert.match(appSrc, /avgWords|sentence/,
+    "iter #134 must measure sentence length stats");
+  assert.match(appSrc, /renderStyleBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderStyleBlock with raw + ctx");
+  // CSS
+  assert.match(cssSrc, /\.style-cell\b/, ".style-cell style must exist");
+  assert.match(cssSrc, /\.style-verdict\b/, ".style-verdict style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,
