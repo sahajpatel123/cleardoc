@@ -3964,7 +3964,6 @@
       const words = (text.match(/\b[\w'-]+\b/g) || []);
       const totalWords = words.length;
       if(!totalWords) return null;
-      // Approximate jargon fraction by walking the JARGON table.
       let jargonHits = 0;
       try {
         if(typeof JARGON !== 'undefined' && Array.isArray(JARGON)){
@@ -3974,9 +3973,6 @@
           });
         }
       } catch(_){ /* fall through */ }
-      // Each jargon phrase usually expands into 2-3 plain-English
-      // words. Estimate savings as: jargon_hits * 1.5 (because the
-      // multi-word legalese averages ~3 words → plain ≈ 2).
       const savingsWords = Math.round(jargonHits * 1.5);
       const savingsPct = Math.round((savingsWords / totalWords) * 100);
       return { totalWords: totalWords, jargonHits: jargonHits, savingsWords: savingsWords, savingsPct: savingsPct };
@@ -3991,12 +3987,64 @@
         '<div class="ink-cell ink-savings"><div class="ink-label">Could save</div><div class="ink-value">~' + s.savingsWords + ' words</div><div class="ink-hint">(' + s.savingsPct + '% of the document)</div></div>',
         '<div class="ink-cell ink-verdict"><div class="ink-label">Verdict</div><div class="ink-value">' + (s.savingsPct >= 10 ? '⚠ The document is dense with legalese — counter-clauses can be cut by ~' + s.savingsPct + '%. Aim for plain English so the other party can actually read your reply.' : s.savingsPct >= 4 ? '😐 Some legalese — counter-clauses can be cut by ~' + s.savingsPct + '%. Watch for verbose language.' : '👍 Document is fairly plain — little to simplify.') + '</div></div>',
       ];
-      inkGrid.innerHTML = cells.join('');
+      // Iter #147 polish — top-5 jargon list with click-to-jump
+      const top5 = (function(){
+        try {
+          if(typeof JARGON === 'undefined' || !Array.isArray(JARGON)) return [];
+          const tally = [];
+          JARGON.forEach(([re, plain]) => {
+            re.lastIndex = 0;
+            const m = text.match(re); // dummy to ensure test for env
+            re.lastIndex = 0;
+            const hits = [];
+            let mm;
+            while((mm = re.exec(text)) && hits.length < 3){
+              hits.push({ raw: mm[0], offset: mm.index });
+              if(mm.index === re.lastIndex) re.lastIndex++; // safety
+            }
+            if(hits.length){
+              tally.push({ phrase: String(re.source).replace(/\\\\\w\+\?/g, '').replace(/\\b\W/g, '').slice(0, 60), count: hits.length, sample: hits[0] });
+            }
+          });
+          tally.sort((a, b) => b.count - a.count);
+          return tally.slice(0, 5);
+        } catch(_){ return []; }
+      })();
+      const jargonList = top5.length ? (
+        '<div class="ink-jargon">' +
+          '<div class="ink-jargon-kicker">📚 Top jargon found (click to jump)</div>' +
+          top5.map(j => (
+            '<button type="button" class="ink-jargon-row" data-ink-offset="' + (j.sample ? j.sample.offset : -1) + '" data-ink-raw="' + esc(j.sample ? j.sample.raw : '') + '" title="Click to jump to this phrase in the source">' +
+              '<span class="ink-jargon-phrase">' + esc(j.sample ? j.sample.raw : '—') + '</span>' +
+              '<span class="ink-jargon-count">' + j.count + ' hit' + (j.count === 1 ? '' : 's') + '</span>' +
+            '</button>'
+          )).join('') +
+        '</div>'
+      ) : '';
+      const controls = '<div class="ink-controls">' +
+        '<span class="ink-count">' + s.totalWords.toLocaleString('en-US') + ' words · ' + s.jargonHits + ' jargon hit' + (s.jargonHits === 1 ? '' : 's') + '</span>' +
+      '</div>';
+      inkGrid.innerHTML = cells.join('') + jargonList + controls;
       inkBlock.hidden = false;
       if(inkNote){
         inkNote.innerHTML = '<span class="riskNote-lead">~' + s.savingsWords + ' word' + (s.savingsWords === 1 ? '' : 's') + ' can be simplified</span> ' +
-          'Counter-clauses that mirror the document\'s style are easier to negotiate against — if you can simplify first, you have more room to push.';
+          'Click any jargon phrase below to jump to its source. Counter-clauses that mirror the document\'s style are easier to negotiate against.';
       }
+      // Iter #147 polish — click-to-jump on jargon rows
+      $$('.ink-jargon-row', inkGrid).forEach(row => {
+        row.addEventListener('click', () => {
+          if(!input) return;
+          const raw = row.getAttribute('data-ink-raw') || '';
+          if(!raw) return;
+          const idx2 = input.value.indexOf(raw);
+          if(idx2 >= 0){
+            try { input.focus(); input.setSelectionRange(idx2, idx2 + raw.length); } catch(_){ /* ignore */ }
+            try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ Jargon no longer in input — the doc was edited');
+          }
+        });
+      });
     }
 
     function renderVersionBlock(raw, ctx){

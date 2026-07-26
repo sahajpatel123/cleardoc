@@ -1427,6 +1427,14 @@ button.risk-preview:hover{filter:brightness(.96)}
 .ink-label{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;font-weight:700}
 .ink-value{font-size:18px;font-weight:800;color:var(--ink);font-family:'JetBrains Mono',monospace}
 .ink-hint{font-size:var(--t-micro);color:var(--ink-soft);font-style:italic}
+.ink-jargon{margin-top:8px;padding:6px 8px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper);display:flex;flex-direction:column;gap:4px}
+.ink-jargon-kicker{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;font-weight:700;margin-bottom:2px}
+.ink-jargon-row{display:flex;gap:8px;align-items:center;padding:3px 6px;background:transparent;border:var(--bd-hair) solid var(--bd-hair);font-size:var(--t-meta);cursor:pointer;text-align:left;transition:filter .15s ease;font-family:inherit}
+.ink-jargon-row:hover{filter:brightness(.94);background:var(--paper2)}
+.ink-jargon-phrase{font-family:'JetBrains Mono',monospace;color:var(--ink);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ink-jargon-count{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0}
+.ink-controls{margin-top:6px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro)}
+.ink-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

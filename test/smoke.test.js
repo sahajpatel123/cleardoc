@@ -7808,6 +7808,14 @@ test("analyzer: Ink saver estimates word savings from jargon reduction", () => {
   // CSS
   assert.match(cssSrc, /\.ink-cell\b/, ".ink-cell style must exist");
   assert.match(cssSrc, /\.ink-savings\b/, ".ink-savings (positive) style must exist");
+
+  // Iter #147 polish: per-phrase jargon list with click-to-jump.
+  assert.match(appSrc, /ink-jargon-row/,
+    "iter #147 must render a per-phrase jargon list");
+  assert.match(appSrc, /data-ink-offset=|ink-jargon-row[\s\S]+?setSelectionRange/,
+    "iter #147 must wire click-to-jump on jargon rows");
+  assert.match(cssSrc, /\.ink-jargon-row\b/, ".ink-jargon-row style must exist");
+  assert.match(cssSrc, /\.ink-jargon-phrase\b/, ".ink-jargon-phrase style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
