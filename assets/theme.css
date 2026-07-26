@@ -1488,6 +1488,11 @@ button.risk-preview:hover{filter:brightness(.96)}
 .loi-pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.55;color:var(--ink);white-space:pre;overflow-wrap:break-word}
 .loi-actions{display:flex;gap:6px;margin-top:8px;font-size:var(--t-micro)}
 .loi-actions .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+.loi-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0}
+.loi-field{display:flex;flex-direction:column;gap:2px;padding:4px 6px;background:var(--paper);border:var(--bd-hair) solid var(--ink-soft)}
+.loi-field span{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700}
+.loi-field input{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 5px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);color:var(--ink);width:100%}
+.loi-field input:focus{outline:none;border-color:var(--ink)}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

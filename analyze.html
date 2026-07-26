@@ -481,6 +481,12 @@
         <div class="result-block" id="loiBlock" hidden>
           <span class="rh">📜 Letter of intent</span>
           <p class="analyze-msg" id="loiNote" style="margin-top:0" aria-live="polite"></p>
+          <div class="loi-fields">
+            <label class="loi-field"><span>To</span><input type="text" id="loiToField" placeholder="Counterparty name" maxlength="120" /></label>
+            <label class="loi-field"><span>From</span><input type="text" id="loiFromField" placeholder="Your name / company" maxlength="120" /></label>
+            <label class="loi-field"><span>Sign</span><input type="text" id="loiSignField" placeholder="Your name" maxlength="80" /></label>
+            <label class="loi-field"><span>Date</span><input type="date" id="loiDateField" /></label>
+          </div>
           <div class="loi-card" id="loiCard" aria-label="Generated letter of intent draft"></div>
           <div class="loi-actions">
             <button type="button" class="ghost-btn ghost-btn-sm" id="loiCopyBtn">📋 copy letter</button>

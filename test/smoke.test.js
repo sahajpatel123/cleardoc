@@ -7925,6 +7925,17 @@ test("analyzer: Letter of intent (LOI) generates a one-paragraph non-binding let
   // CSS
   assert.match(cssSrc, /\.loi-card\b/, ".loi-card style must exist");
   assert.match(cssSrc, /\.loi-actions\b/, ".loi-actions style must exist");
+
+  // Iter #153 polish: custom recipient + sender + sign + date fields.
+  assert.match(html, /id="loiToField"/, "analyze.html must contain #loiToField");
+  assert.match(html, /id="loiFromField"/, "analyze.html must contain #loiFromField");
+  assert.match(html, /id="loiSignField"/, "analyze.html must contain #loiSignField");
+  assert.match(html, /id="loiDateField"/, "analyze.html must contain #loiDateField");
+  assert.match(appSrc, /function buildLoiDraft\(raw, ctx, opts\)/,
+    "iter #153 must accept an opts arg in buildLoiDraft");
+  assert.match(appSrc, /opts\.to|opts\.from|opts\.sign/,
+    "iter #153 must use opts.to/from/sign");
+  assert.match(cssSrc, /\.loi-fields\b/, ".loi-fields style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,

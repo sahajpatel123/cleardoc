@@ -4045,7 +4045,8 @@
     // analyzed document, with maturity + risk tally + redline
     // priority + signature line. Pure local; assembled from
     // existing outputs.
-    function buildLoiDraft(raw, ctx){
+    function buildLoiDraft(raw, ctx, opts){
+      opts = opts || {};
       const mn = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
       const mletter = mn ? mn.textContent.trim() : '?';
       const tal = { r: 0, a: 0, g: 0 };
@@ -4056,14 +4057,17 @@
       const topRisks = (lastFlags || []).slice(0, 3).map(f => f.rule.label.toLowerCase()).join(', ') || 'no flagged risks';
       const jl = jurisRow && jurisRow.querySelector('.juris-label');
       const juris = jl ? jl.textContent.trim() : 'unspecified';
-      const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const date = (opts.date || new Date()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const to = opts.to || '[Counterparty]';
+      const from = opts.from || '[Your name / Company]';
+      const sign = opts.sign || '[Your name]';
       const body = [
         'LETTER OF INTENT',
         '',
         'Date: ' + date,
         '',
-        'To: [Counterparty]',
-        'From: [Your name / Company]',
+        'To: ' + to,
+        'From: ' + from,
         'Re: Proposed negotiation of the agreement currently governed by ' + juris + ' law',
         '',
         'I am writing to confirm my intent to negotiate the above-referenced agreement, dated ' + date + '. After a careful review (maturity grade ' + mletter + '), I would like to flag ' + (trapCount > 0 ? trapCount + ' trap' + (trapCount === 1 ? '' : 's') + ' and ' : '') + watchCount + ' watch' + (watchCount === 1 ? '' : 'es') + ' for revision.',
@@ -4074,13 +4078,25 @@
         '',
         'Counter-signed: __________________________   Date: __________',
         '',
-        '— [Your name]',
+        '— ' + sign,
       ].join('\n');
       return { body: body, mletter: mletter, total: total, juris: juris };
     }
     function renderLoiBlock(raw, ctx){
       if(!loiBlock || !loiCard || !raw){ return; }
-      const loi = buildLoiDraft(raw, ctx);
+      const params = {};
+      const toField = document.getElementById('loiToField');
+      const fromField = document.getElementById('loiFromField');
+      const signField = document.getElementById('loiSignField');
+      const dateField = document.getElementById('loiDateField');
+      if(toField) params.to = toField.value.trim() || '[Counterparty]';
+      if(fromField) params.from = fromField.value.trim() || '[Your name / Company]';
+      if(signField) params.sign = signField.value.trim() || '[Your name]';
+      if(dateField && dateField.value){
+        const d = new Date(dateField.value + 'T12:00:00Z');
+        if(!isNaN(d.getTime())) params.date = d;
+      }
+      const loi = buildLoiDraft(raw, ctx, params);
       if(!loi){ loiBlock.hidden = true; return; }
       loiCard.innerHTML = '<pre class="loi-pre">' + esc(loi.body) + '</pre>';
       loiBlock.hidden = false;
@@ -4112,6 +4128,9 @@
           try { window.print(); } catch(_){ /* ignore */ }
         });
       }
+      [toField, fromField, signField, dateField].forEach(f => {
+        if(f) f.addEventListener('change', () => renderLoiBlock(raw, ctx));
+      });
     }
 
     function renderDiffBlock(raw, ctx){
