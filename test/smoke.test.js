@@ -7788,6 +7788,28 @@ test("analyzer: Version comparer surfaces a per-dimension delta against the last
   assert.match(cssSrc, /\.version-controls\b/, ".version-controls style must exist");
 });
 
+// Iter #146: ink saver — estimates how much of the document is
+// legalese that could be replaced with plain English.
+test("analyzer: Ink saver estimates word savings from jargon reduction", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="inkBlock"/, "analyze.html must contain #inkBlock");
+  assert.match(appSrc, /function buildInkSavings\(/, "buildInkSavings must exist");
+  assert.match(appSrc, /function renderInkBlock\(/, "renderInkBlock must exist");
+  assert.match(appSrc, /savingsWords|savingsPct|jargonHits/,
+    "iter #146 must compute savings metrics");
+  assert.match(appSrc, /renderInkBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderInkBlock");
+  // CSS
+  assert.match(cssSrc, /\.ink-cell\b/, ".ink-cell style must exist");
+  assert.match(cssSrc, /\.ink-savings\b/, ".ink-savings (positive) style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

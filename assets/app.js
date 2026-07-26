@@ -1857,6 +1857,7 @@
           stampBlock=$('#stampBlock'),stampCard=$('#stampCard'),
           stampCopyBtn=$('#stampCopyBtn'),stampTweetBtn=$('#stampTweetBtn'),
           versionBlock=$('#versionBlock'),versionNote=$('#versionNote'),versionGrid=$('#versionGrid'),
+          inkBlock=$('#inkBlock'),inkNote=$('#inkNote'),inkGrid=$('#inkGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3954,6 +3955,50 @@
       d.last = last;
       return d;
     }
+    // Iter #146: ink saver — estimates the word savings if the
+    // user replaced the iter #25 jargon table phrases with plain
+    // English. Pure local; computed from the live JARGON regex.
+    function buildInkSavings(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      const words = (text.match(/\b[\w'-]+\b/g) || []);
+      const totalWords = words.length;
+      if(!totalWords) return null;
+      // Approximate jargon fraction by walking the JARGON table.
+      let jargonHits = 0;
+      try {
+        if(typeof JARGON !== 'undefined' && Array.isArray(JARGON)){
+          JARGON.forEach(([re]) => {
+            const m = text.match(re);
+            if(m) jargonHits += m.length;
+          });
+        }
+      } catch(_){ /* fall through */ }
+      // Each jargon phrase usually expands into 2-3 plain-English
+      // words. Estimate savings as: jargon_hits * 1.5 (because the
+      // multi-word legalese averages ~3 words → plain ≈ 2).
+      const savingsWords = Math.round(jargonHits * 1.5);
+      const savingsPct = Math.round((savingsWords / totalWords) * 100);
+      return { totalWords: totalWords, jargonHits: jargonHits, savingsWords: savingsWords, savingsPct: savingsPct };
+    }
+    function renderInkBlock(raw, ctx){
+      if(!inkBlock || !inkGrid || !raw){ return; }
+      const s = buildInkSavings(raw, ctx);
+      if(!s){ inkBlock.hidden = true; return; }
+      const cells = [
+        '<div class="ink-cell"><div class="ink-label">Total words</div><div class="ink-value">' + s.totalWords.toLocaleString('en-US') + '</div></div>',
+        '<div class="ink-cell"><div class="ink-label">Jargon hits</div><div class="ink-value">' + s.jargonHits + '</div></div>',
+        '<div class="ink-cell ink-savings"><div class="ink-label">Could save</div><div class="ink-value">~' + s.savingsWords + ' words</div><div class="ink-hint">(' + s.savingsPct + '% of the document)</div></div>',
+        '<div class="ink-cell ink-verdict"><div class="ink-label">Verdict</div><div class="ink-value">' + (s.savingsPct >= 10 ? '⚠ The document is dense with legalese — counter-clauses can be cut by ~' + s.savingsPct + '%. Aim for plain English so the other party can actually read your reply.' : s.savingsPct >= 4 ? '😐 Some legalese — counter-clauses can be cut by ~' + s.savingsPct + '%. Watch for verbose language.' : '👍 Document is fairly plain — little to simplify.') + '</div></div>',
+      ];
+      inkGrid.innerHTML = cells.join('');
+      inkBlock.hidden = false;
+      if(inkNote){
+        inkNote.innerHTML = '<span class="riskNote-lead">~' + s.savingsWords + ' word' + (s.savingsWords === 1 ? '' : 's') + ' can be simplified</span> ' +
+          'Counter-clauses that mirror the document\'s style are easier to negotiate against — if you can simplify first, you have more room to push.';
+      }
+    }
+
     function renderVersionBlock(raw, ctx){
       if(!versionBlock || !versionGrid || !raw){ return; }
       buildVersionDelta(raw, ctx).then(d => {
@@ -6099,6 +6144,12 @@
         renderVersionBlock(raw, ctx);
       } else if(versionBlock && !raw) {
         versionBlock.hidden = true;
+      }
+      // Iter #146: ink saver — estimate word savings from jargon reduction.
+      if(inkBlock && typeof renderInkBlock === 'function' && raw){
+        renderInkBlock(raw, ctx);
+      } else if(inkBlock && !raw) {
+        inkBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
