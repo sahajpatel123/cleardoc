@@ -1870,6 +1870,7 @@
           histBlock=$('#histBlock'),histNote=$('#histNote'),histCard=$('#histCard'),
           boardBlock=$('#boardBlock'),boardNote=$('#boardNote'),boardGrid=$('#boardGrid'),
           prioBlock=$('#prioBlock'),prioNote=$('#prioNote'),prioMatrix=$('#prioMatrix'),
+          defBlock=$('#defBlock'),defNote=$('#defNote'),defList=$('#defList'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -4385,6 +4386,80 @@
       });
       return { likelihood: likelihood, counts: counts, lists: lists, groups: groups };
     }
+    // Iter #170: key definitions extractor — pulls defined
+    // terms ("X means ...", '"X" means ...') from the document so
+    // first-time readers can quickly decode contract jargon.
+    // Pure local; regex-based.
+    function buildDefList(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      const defs = [];
+      const seen = new Set();
+      // Pattern A: "TERM" means ...  (quoted definition)
+      const reA = /"([^"]{2,40})"\s*(?:means|shall\s+mean|refers\s+to|is\s+defined\s+as)\s+([^.]{0,250}\.)/gi;
+      // Pattern B: TERM means ...  (capitalized unquoted)
+      const reB = /\b([A-Z][A-Za-z0-9-]{2,40})\s*(?:means|shall\s+mean|refers\s+to|is\s+defined\s+as)\s+([^.]{0,250}\.)/g;
+      // Pattern C: "Term" means: ...  (with colon)
+      const reC = /"([^"]{2,40})"\s*means\s*:?\s+([^.]{0,250}\.)/gi;
+      const collect = (re, quoted) => {
+        let m;
+        while((m = re.exec(text))){
+          const term = (m[1] || '').trim();
+          const def = (m[2] || '').trim();
+          if(!term || !def) continue;
+          const key = term.toLowerCase();
+          if(seen.has(key)) continue;
+          seen.add(key);
+          defs.push({ term: term, def: def, quoted: quoted, offset: m.index });
+          if(defs.length >= 12) break;
+        }
+      };
+      collect(reA, true);
+      collect(reC, true);
+      collect(reB, false);
+      return defs;
+    }
+    function renderDefBlock(raw, ctx){
+      if(!defBlock || !defList || !raw){ return; }
+      const defs = buildDefList(raw, ctx);
+      if(!defs || !defs.length){ defBlock.hidden = true; return; }
+      const rows = defs.map(d => (
+        '<div class="def-row" data-def-term="' + esc(d.term) + '" data-def-offset="' + (d.offset || 0) + '" title="Click to jump to the definition in the source">' +
+          '<div class="def-term">' + esc(d.term) + (d.quoted ? ' <span class="def-quoted">""</span>' : '') + '</div>' +
+          '<div class="def-meaning">' + esc(d.def) + '</div>' +
+        '</div>'
+      )).join('');
+      defList.innerHTML = rows;
+      defBlock.hidden = false;
+      if(defNote){
+        defNote.innerHTML = '<span class="riskNote-lead">' + defs.length + ' defined term' + (defs.length === 1 ? '' : 's') + '</span> · ' +
+          'Regex-extracted from the document. Click any row to jump to the definition in the source. Useful for first-time readers who don\'t know what "Affiliate" or "Confidential Information" means in this contract.';
+      }
+      $$('.def-row', defList).forEach(row => {
+        row.addEventListener('click', () => {
+          if(!input) return;
+          const term = row.getAttribute('data-def-term') || '';
+          if(!term) return;
+          const patterns = [term, '"' + term + '"', term.toLowerCase()];
+          let idx2 = -1;
+          for(const p of patterns){
+            idx2 = input.value.indexOf(p);
+            if(idx2 >= 0) break;
+          }
+          if(idx2 < 0){
+            // Fallback: substring
+            idx2 = input.value.toLowerCase().indexOf(term.toLowerCase());
+          }
+          if(idx2 >= 0){
+            try { input.focus(); input.setSelectionRange(idx2, idx2 + term.length); } catch(_){ /* ignore */ }
+            try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ Term no longer in input');
+          }
+        });
+      });
+    }
+
     function renderPrioBlock(raw, ctx){
       if(!prioBlock || !prioMatrix || !raw){ return; }
       const p = buildPriorityMatrix(raw, ctx);
@@ -7681,6 +7756,13 @@
       } else if(prioBlock && !raw) {
         prioBlock.hidden = true;
       }
+      // Iter #170: key definitions.
+      if(defBlock && typeof renderDefBlock === 'function' && raw){
+        renderDefBlock(raw, ctx);
+      } else if(defBlock && !raw) {
+        defBlock.hidden = true;
+      }
+</replace>
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
       else {
