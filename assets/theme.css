@@ -1617,6 +1617,11 @@ button.risk-preview:hover{filter:brightness(.96)}
 .prio-cell.prio-active .prio-cell-count{color:var(--amber)}
 .prio-cell-top{font-size:var(--t-micro);color:var(--ink-soft);font-style:italic}
 .prio-cell-desc{font-size:var(--t-micro);color:var(--ink-soft);margin-top:2px}
+.prio-cell{cursor:help;transition:filter .15s ease}
+.prio-cell:hover{filter:brightness(.95)}
+.prio-controls{margin-top:10px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);padding:4px 0}
+.prio-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
+.prio-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}
 .prio-axis-y{position:absolute;left:0;top:50%;transform:rotate(-90deg) translateX(-50%);transform-origin:0 0;font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;writing-mode:vertical-rl}
 .prio-axis-x{position:absolute;bottom:0;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em}
 

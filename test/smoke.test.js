@@ -8199,6 +8199,13 @@ test("analyzer: Risk priority matrix plots risks by impact vs likelihood", () =>
   // CSS
   assert.match(cssSrc, /\.prio-grid\b/, ".prio-grid style must exist");
   assert.match(cssSrc, /\.prio-cell\.prio-active/, ".prio-cell.prio-active style must exist");
+
+  // Iter #169 polish: click-to-zoom + copy-as-markdown.
+  assert.match(appSrc, /data-prio-ki=|data-prio-label=|data-prio-full=/,
+    "iter #169 must render per-cell data attributes for click-to-zoom");
+  assert.match(appSrc, /prioCopyMdBtn/,
+    "iter #169 must include a copy-as-markdown button");
+  assert.match(cssSrc, /\.prio-controls\b/, ".prio-controls style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
