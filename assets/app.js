@@ -4869,18 +4869,58 @@
         // word) at the start of a line, followed by a delimiter — i.e. the
         // section is actually laid out in the document, not just referenced.
         // Guard the id with a lookahead so "Section 4" doesn't resolve to a
-        // "4.2" heading.
-        const headingRe = new RegExp('(^|\\n)[ \\t]*(?:' + reEsc(v.type) + '\\s+)?' + reEsc(v.id) + '(?!\\.?\\d)[\\.\\)\\:\\s]', 'im');
-        const defined = headingRe.test(text);
+        // "4.2" heading. Use matchAll so we capture the actual heading-line
+        // occurrence (not the first inline reference, which match() would
+        // return).
+        const headingRe = new RegExp('(^|\\n)[ \\t]*(?:(' + reEsc(v.type) + ')\\s+)?(' + reEsc(v.id) + ')(?!\\.?\\d)[\\.\\)\\:\\s]', 'gim');
+        let defined = false;
+        let headingOffset = 0;
+        let hm;
+        while((hm = headingRe.exec(text))){
+          // Skip the line-start prefix (\n or start-of-string) AND any
+          // optional "Section " word so the offset lands at the id itself,
+          // not at the type word.
+          const linePrefix = (hm[1] || '').length;
+          const typeWord = (hm[2] || '').length;
+          const absStart = hm.index + linePrefix + typeWord;
+          // Skip an occurrence whose id-start sits inside the original
+          // reference (the first match() would land there). Anything past
+          // the original reference offset is a real heading occurrence.
+          if(absStart > v.offset){
+            defined = true;
+            headingOffset = absStart;
+            break;
+          }
+        }
         let status;
         if(defined) status = 'resolved';
         else if(v.attach) status = 'external';
         else status = 'dangling';
-        items.push({ type: v.type, id: v.id, label: v.label, count: v.count, offset: v.offset, attach: v.attach, context: v.context, status: status });
+        items.push({ type: v.type, id: v.id, label: v.label, count: v.count, offset: v.offset, attach: v.attach, context: v.context, status: status, headingOffset: headingOffset });
+      });
+      // Iter #179 polish — drop sub-references whose parent is already in the
+      // list. "Section 4.2" already implies "Section 4", so showing both is
+      // noise. Keep the child only when its parent was cut off by the dedup
+      // ceiling above 16.
+      const idIndex = new Set(items.map(it => it.type.toLowerCase() + ' ' + it.id.toLowerCase()));
+      const filtered = items.filter(it => {
+        const parts = it.id.split('.');
+        if(parts.length <= 1) return true;
+        // Walk up: 4.2.3 → check "4.2", then "4" — if any is in the list and
+        // a heading for it, drop the child as redundant.
+        for(let depth = parts.length - 1; depth > 0; depth--){
+          const parentId = parts.slice(0, depth).join('.');
+          const parentKey = it.type.toLowerCase() + ' ' + parentId.toLowerCase();
+          if(idIndex.has(parentKey)){
+            const sib = items.find(x => (x.type.toLowerCase() + ' ' + x.id.toLowerCase()) === parentKey);
+            if(sib && sib.status === 'resolved') return false;
+          }
+        }
+        return true;
       });
       const order = { dangling: 0, external: 1, resolved: 2 };
-      items.sort((a, b) => (order[a.status] - order[b.status]) || (a.offset - b.offset));
-      return items.slice(0, 16);
+      filtered.sort((a, b) => (order[a.status] - order[b.status]) || (a.offset - b.offset));
+      return filtered.slice(0, 16);
     }
 
     function renderCrossrefBlock(raw, ctx){
@@ -4892,10 +4932,13 @@
         external: { tag: '📎 not attached', cls: 'crossref-external', title: 'An attachment referenced here is not included in the pasted text.' },
         dangling: { tag: '⚠ missing', cls: 'crossref-dangling', title: 'This reference points to a section that does not appear in the document.' }
       };
-      const rows = items.map(it => {
+      // Iter #179 — filter chip toggles "all vs only problems" (dangling+external)
+      const showOnlyProblems = crossrefList._crossrefOnlyProblems === true;
+      const visible = showOnlyProblems ? items.filter(it => it.status !== 'resolved') : items;
+      const rows = visible.map(it => {
         const mt = meta[it.status] || meta.dangling;
         const times = it.count > 1 ? ' <span class="crossref-times">×' + it.count + '</span>' : '';
-        return '<div class="crossref-row ' + mt.cls + '" data-crossref-label="' + esc(it.label) + '" data-crossref-offset="' + (it.offset || 0) + '" title="' + esc(mt.title) + ' Click to jump to it in the source.">' +
+        return '<div class="crossref-row ' + mt.cls + '" data-crossref-label="' + esc(it.label) + '" data-crossref-offset="' + (it.offset || 0) + '" data-crossref-heading="' + (it.headingOffset || 0) + '" title="' + esc(mt.title) + ' Click to jump to it in the source.">' +
           '<div class="crossref-tag">' + esc(mt.tag) + '</div>' +
           '<div class="crossref-label">' + esc(it.label) + times + '</div>' +
           '<div class="crossref-context">' + esc((it.context || '').slice(0, 160)) + '</div>' +
@@ -4904,8 +4947,12 @@
       const dangling = items.filter(it => it.status === 'dangling').length;
       const external = items.filter(it => it.status === 'external').length;
       const resolved = items.filter(it => it.status === 'resolved').length;
+      const filterLabel = showOnlyProblems
+        ? '⚠ only (' + (dangling + external) + ')'
+        : '🌐 all (' + items.length + ')';
       const controls = '<div class="crossref-controls">' +
         '<span class="crossref-count"><b>' + resolved + '</b> in text · <b>' + external + '</b> not attached · <b>' + dangling + '</b> missing</span>' +
+        '<button type="button" class="crossref-filter ghost-btn ghost-btn-sm" id="crossrefFilterBtn" title="Toggle between showing all references and only the unresolved ones">' + filterLabel + '</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="crossrefCopyAllBtn" title="Copy all cross-references as plain text">📋 copy all</button>' +
       '</div>';
       crossrefList.innerHTML = rows + controls;
@@ -4922,9 +4969,15 @@
       $$('.crossref-row', crossrefList).forEach(row => {
         row.addEventListener('click', () => {
           if(!input) return;
-          const off = parseInt(row.getAttribute('data-crossref-offset') || '-1', 10);
           const label = row.getAttribute('data-crossref-label') || '';
-          let idx2 = (off >= 0 && off < input.value.length) ? off : input.value.toLowerCase().indexOf(label.toLowerCase());
+          let jumpTo = parseInt(row.getAttribute('data-crossref-offset') || '-1', 10);
+          // Iter #179 — for resolved refs, prefer landing on the heading itself
+          // (the reader wants to read the section, not the mention of it).
+          const headingOff = parseInt(row.getAttribute('data-crossref-heading') || '0', 10);
+          if(headingOff > 0 && headingOff < input.value.length){
+            jumpTo = headingOff;
+          }
+          let idx2 = (jumpTo >= 0 && jumpTo < input.value.length) ? jumpTo : input.value.toLowerCase().indexOf(label.toLowerCase());
           if(idx2 >= 0){
             try { input.focus(); input.setSelectionRange(idx2, idx2 + label.length); } catch(_){ /* ignore */ }
             try { input.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
@@ -4933,11 +4986,24 @@
           }
         });
       });
+      // Iter #179 — filter chip
+      const filterBtn = document.getElementById('crossrefFilterBtn');
+      if(filterBtn){
+        filterBtn.addEventListener('click', () => {
+          crossrefList._crossrefOnlyProblems = !crossrefList._crossrefOnlyProblems;
+          renderCrossrefBlock(raw, ctx);
+        });
+      }
       const copyAllBtn = document.getElementById('crossrefCopyAllBtn');
       if(copyAllBtn){
         copyAllBtn.addEventListener('click', async () => {
-          const label = { resolved: 'in text', external: 'NOT ATTACHED', dangling: 'MISSING' };
-          const text = items.map(it => it.label + (it.count > 1 ? ' (×' + it.count + ')' : '') + ' — ' + (label[it.status] || it.status)).join('\n');
+          const lbl = { resolved: 'in text', external: 'NOT ATTACHED', dangling: 'MISSING' };
+          // Iter #179 — copy "problems only" by default; user expects the
+          // checklist of things to fix, not a list of everything that resolved.
+          const exportItems = crossrefList._crossrefOnlyProblems
+            ? items.filter(it => it.status !== 'resolved')
+            : items;
+          const text = exportItems.map(it => it.label + (it.count > 1 ? ' (×' + it.count + ')' : '') + ' — ' + (lbl[it.status] || it.status)).join('\n');
           let copied = false;
           try { if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; } }
           catch(_){ /* fall through */ }
