@@ -7337,6 +7337,32 @@ test("analyzer: TL;DR generator assembles a three-sentence summary from analyzer
   assert.match(cssSrc, /\.tldr-actions\b/, ".tldr-actions style must exist");
 });
 
+// Iter #123 polish: TL;DR now has sentiment arrow + numbered
+// sentences + maturity-specific "next step" line.
+test("analyzer: TL;DR polished with numbered sentences + sentiment arrow + next step", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Iter #123 must render 3 numbered sentences + a "next step" line.
+  assert.match(appSrc, /tldr-s tldr-s1[\s\S]+?tldr-s tldr-s2[\s\S]+?tldr-s tldr-s3[\s\S]+?tldr-next/,
+    "iter #123 must render numbered tldr-s1/s2/s3 + tldr-next");
+  assert.match(appSrc, /tldr-num/,
+    "iter #123 must include the tldr-num badge style");
+  assert.match(appSrc, /Next step:/,
+    "iter #123 must include a Next step footer line");
+  // Sentiment arrow
+  assert.match(appSrc, /arrow\s*=\s*maturity\.letter\s*===\s*['"]F['"]\s*\|\|\s*maturity\.letter\s*===\s*['"]D['"]\s*\?\s*['"]📉['"]|📉/,
+    "iter #123 must emit a sentiment arrow (📉 / 📈 / ➡️)");
+
+  // CSS
+  assert.match(cssSrc, /\.tldr-s\b/, ".tldr-s style must exist");
+  assert.match(cssSrc, /\.tldr-num\b/, ".tldr-num style must exist");
+  assert.match(cssSrc, /\.tldr-next\b/, ".tldr-next style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

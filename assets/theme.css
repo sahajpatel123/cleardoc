@@ -1248,6 +1248,10 @@ button.risk-preview:hover{filter:brightness(.96)}
 .tldr-card{font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;font-size:var(--t-h3);line-height:1.4;padding:12px 14px;border:var(--bd-hair) solid var(--ink);background:var(--paper2);color:var(--ink);font-weight:500}
 .tldr-actions{display:flex;gap:6px;margin-top:8px;font-size:var(--t-micro)}
 .tldr-actions .ghost-btn{padding:2px 8px}
+.tldr-s{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;font-size:var(--t-h3);line-height:1.4}
+.tldr-num{font-family:'Archivo Black',sans-serif;background:var(--ink);color:var(--paper);padding:1px 8px;min-width:20px;text-align:center;flex-shrink:0;font-size:13px}
+.tldr-next{margin-top:8px;padding:8px 10px;border:var(--bd-hair) solid var(--ink);background:var(--paper);font-size:var(--t-meta);line-height:1.4}
+.tldr-next b{font-weight:700;color:var(--ink)}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

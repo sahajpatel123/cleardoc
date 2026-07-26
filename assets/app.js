@@ -3415,7 +3415,8 @@
       const total = tal.r + tal.a + tal.g;
       const maturity = (function(){
         const v = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
-        return v ? v.textContent.trim() : '—';
+        const n = maturityGrid && maturityGrid.querySelector('.mat-letter-num');
+        return (v && n) ? { letter: v.textContent.trim(), num: n.textContent.replace(/[^0-9]/g,'') } : { letter: '—', num: '0' };
       })();
       const exposure = (function(){
         const t = riskDetail && riskDetail.textContent || '';
@@ -3429,7 +3430,6 @@
       const wordCount = (raw.match(/\b[\w'-]+\b/g) || []).length;
       const docType = (function(){
         try {
-          const el = document.querySelector('#docSummary, .dt-' + (typeof detectDocType === 'function' ? detectDocType(raw).name : ''));
           const fallback = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
           return fallback ? fallback.label : null;
         } catch(_){ return null; }
@@ -3437,21 +3437,42 @@
       const topRisks = (lastFlags || []).slice(0, 2).map(f => f.rule.label.toLowerCase()).join(' and ');
       const s1 = 'This ' + (docType ? (docType.toLowerCase() + ' ') : '') + 'document is about ' + wordCount.toLocaleString('en-US') + ' words' + (juris ? ', governed by ' + juris + ' law' : '') + '.';
       const s2 = total
-        ? (' It contains ' + total + ' risk' + (total === 1 ? '' : 's') + ' (' + tal.r + ' trap, ' + tal.a + ' watch, ' + tal.g + ' note)' + (topRisks ? ', including ' + topRisks : '') + '.')'
+        ? (' It contains ' + total + ' risk' + (total === 1 ? '' : 's') + ' (' + tal.r + ' trap, ' + tal.a + ' watch, ' + tal.g + ' note)' + (topRisks ? ', including ' + topRisks : '') + '.')
         : ' No flagged traps, watches, or notes were detected by the pattern scan.';
-      const s3 = 'Maturity score: ' + maturity + (exposure ? ' · worst-case exposure ' + exposure : '') + '. ' + (maturity === 'F' || maturity === 'D' ? 'Recommend not signing as-is.' : maturity === 'A' ? 'Looks fair — safe to proceed.' : 'Worth a careful read of the highlighted clauses.');
-      return s1 + s2 + ' ' + s3;
+      // Iter #123 polish: sentiment arrow + maturity-specific next-step line.
+      const arrow = maturity.letter === 'F' || maturity.letter === 'D' ? '📉' : maturity.letter === 'A' ? '📈' : '➡️';
+      const verdictRaw = (maturity.letter === 'F' || maturity.letter === 'D')
+        ? 'Recommend not signing as-is.'
+        : maturity.letter === 'A'
+          ? 'Looks fair — safe to proceed.'
+          : 'Worth a careful read of the highlighted clauses.';
+      const s3 = 'Maturity score: ' + maturity.letter + ' (' + maturity.num + '/100) ' + arrow + (exposure ? ' · worst-case exposure ' + exposure : '') + '. ' + verdictRaw;
+      const nextStep = (function(){
+        if(maturity.letter === 'F') return 'Next step: do NOT sign. Counter every trap and ask the other party to revise; if they refuse, walk away.';
+        if(maturity.letter === 'D') return 'Next step: counter the ' + tal.r + ' trap' + (tal.r === 1 ? '' : 's') + ', ask for venue change to your state, and remove auto-renewal; sign only after edits are accepted in writing.';
+        if(maturity.letter === 'C') return 'Next step: ask the counterparty to address the ' + tal.a + ' watch' + (tal.a === 1 ? '' : 'es') + ' before signing (e.g., mutual indemnity, written notice, refund clause).';
+        if(maturity.letter === 'B') return 'Next step: skim the watch' + (tal.a === 1 ? '' : 'es') + ' + the maturity dim tips in the expand button — sign once you’re comfortable.';
+        if(maturity.letter === 'A') return 'Next step: safe to sign. Save a copy of this analysis for your records.';
+        return 'Next step: review the highlighted clauses (top traps + missing clauses) before signing.';
+      })();
+      return { s1, s2, s3, arrow, maturity, nextStep, full: s1 + s2 + ' ' + s3 + ' ' + nextStep };
     }
     function renderTldrBlock(raw, ctx){
       if(!tldrBlock || !tldrCard || !raw){ return; }
-      const text = buildTldr(raw, ctx);
-      if(!text){ tldrBlock.hidden = true; return; }
-      tldrCard.innerHTML = esc(text);
+      const built = buildTldr(raw, ctx);
+      if(!built || !built.full){ tldrBlock.hidden = true; return; }
+      const text = built.full;
+      // Iter #123 polish: render three numbered sentences + a "Next step" line.
+      tldrCard.innerHTML =
+        '<div class="tldr-s tldr-s1"><span class="tldr-num">1</span> ' + esc(built.s1) + '</div>' +
+        '<div class="tldr-s tldr-s2"><span class="tldr-num">2</span> ' + esc(built.s2) + '</div>' +
+        '<div class="tldr-s tldr-s3"><span class="tldr-num">3</span> ' + esc(built.s3) + '</div>' +
+        '<div class="tldr-next"><b>' + built.arrow + ' Next step:</b> ' + esc(built.nextStep) + '</div>';
       tldrBlock.hidden = false;
       if(tldrNote){
         const charCount = (raw.match(/\b[\w'-]+\b/g) || []).length;
         tldrNote.innerHTML = '<span class="riskNote-lead">' + charCount.toLocaleString('en-US') + '-word document</span> · ' +
-          'Three-sentence summary · 📋 to copy · 🔊 to read aloud.';
+          'Four-line summary (1·2·3 + next step) · 📋 to copy · 🔊 to read aloud.';
       }
       if(tldrCopyBtn){
         tldrCopyBtn.addEventListener('click', async () => {
