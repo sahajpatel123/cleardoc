@@ -1552,6 +1552,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .cov-controls{margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:var(--t-micro)}
 .cov-count{font-family:'JetBrains Mono',monospace;color:var(--ink);text-transform:uppercase;font-weight:700;letter-spacing:.06em}
 .cov-verdict{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);letter-spacing:.04em}
+.cov-cell.cov-present{cursor:pointer}
+.cov-cell.cov-present:hover{filter:brightness(.94)}
+.cov-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

@@ -8061,6 +8061,14 @@ test("analyzer: Coverage index measures presence of standard contract sections",
     "render() must call renderCovBlock");
   assert.match(cssSrc, /\.cov-cell\b/, ".cov-cell style must exist");
   assert.match(cssSrc, /\.cov-present\b/, ".cov-present style must exist");
+
+  // Iter #161 polish: click-to-jump + copy-as-checklist.
+  assert.match(appSrc, /data-cov-jump=/,
+    "iter #161 must render a click-to-jump attribute on present sections");
+  assert.match(appSrc, /covCopyChecklistBtn/,
+    "iter #161 must render a copy-checklist button");
+  assert.match(appSrc, /covCopyChecklistBtn[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
+    "iter #161 must use clipboard fallback for the checklist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,

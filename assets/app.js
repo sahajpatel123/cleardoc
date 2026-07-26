@@ -4246,7 +4246,8 @@
       if(!c){ covBlock.hidden = true; return; }
       const cells = c.list.map(s => {
         const cls = s.present ? 'cov-present' : 'cov-missing';
-        return '<div class="cov-cell ' + cls + '" title="' + (s.present ? 'Section detected: ' + esc(s.snippet) : 'Section not detected — ' + esc(s.label) + ' not found in the document') + '">' +
+        const clickable = s.present ? ' data-cov-jump="' + esc(s.snippet) + '" title="Click to jump to this section in the source"' : ' title="Section not detected — ask the counterparty to add it"';
+        return '<div class="cov-cell ' + cls + '"' + clickable + '>' +
           '<div class="cov-cell-icon">' + (s.present ? '✓' : '○') + '</div>' +
           '<div class="cov-cell-label">' + esc(s.label) + '</div>' +
           '<div class="cov-cell-state">' + (s.present ? 'present' : 'missing') + '</div>' +
@@ -4255,15 +4256,54 @@
       const verdict = c.score >= 80 ? '👍 Comprehensive — most standard sections present'
                        : c.score >= 60 ? '😐 Adequate — a few common sections are missing'
                        : '⚠ Sparse — most standard sections are missing';
+      const missing = c.list.filter(s => !s.present);
+      const checklist = missing.length
+        ? '# Missing sections checklist (from ClearDoc coverage index)\n\n' + missing.map(s => '- [ ] ' + s.label).join('\n')
+        : '';
       const controls = '<div class="cov-controls">' +
         '<span class="cov-count">' + c.present + ' of ' + c.total + ' standard sections · score ' + c.score + '/100</span>' +
         '<span class="cov-verdict">' + verdict + '</span>' +
+        (missing.length ? '<button type="button" class="ghost-btn ghost-btn-sm" id="covCopyChecklistBtn" title="Copy the missing sections as a markdown checklist">📋 copy checklist</button>' : '') +
       '</div>';
       covGrid.innerHTML = cells + controls;
       covBlock.hidden = false;
       if(covNote){
         covNote.innerHTML = '<span class="riskNote-lead">Coverage ' + c.score + '/100</span> · ' +
-          'Iter #160 measures how many of the 15 standard contract sections are present in the document. <b>Green</b> = present, <b>open circle</b> = missing. Useful for first-time readers to know how much of the document is "complete" vs missing sections.';
+          'Iter #160 measures how many of the 15 standard contract sections are present in the document. <b>Green</b> = present, <b>open circle</b> = missing. Click a present row to jump. ' + (missing.length ? '<b>📋 copy checklist</b> for the missing ' + missing.length + ' ones.' : 'All sections present — nothing to add.');
+      }
+      // Iter #161 — click-to-jump for present sections
+      $$('[data-cov-jump]', covGrid).forEach(cell => {
+        cell.addEventListener('click', () => {
+          if(!input) return;
+          const snippet = cell.getAttribute('data-cov-jump') || '';
+          if(!snippet) return;
+          const idx2 = input.value.toLowerCase().indexOf(snippet.toLowerCase());
+          if(idx2 >= 0){
+            try { input.focus(); input.setSelectionRange(idx2, idx2 + snippet.length); } catch(_){ /* ignore */ }
+            try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ Section no longer in input');
+          }
+        });
+      });
+      // Iter #161 — copy missing sections as markdown checklist
+      const copyChecklistBtn = document.getElementById('covCopyChecklistBtn');
+      if(copyChecklistBtn){
+        copyChecklistBtn.addEventListener('click', async () => {
+          let copied = false;
+          try { if(navigator.clipboard) { await navigator.clipboard.writeText(checklist); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = checklist; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Missing sections copied (' + missing.length + ' items)' : '⚠ Couldn’t copy');
+          copyChecklistBtn.textContent = copied ? '✓ copied' : '📋 copy checklist';
+          setTimeout(() => { if(copyChecklistBtn.isConnected) copyChecklistBtn.textContent = '📋 copy checklist'; }, 2500);
+        });
       }
     }
 
