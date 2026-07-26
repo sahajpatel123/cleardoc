@@ -1876,6 +1876,7 @@
           focusBlock=$('#focusBlock'),focusNote=$('#focusNote'),focusList=$('#focusList'),
           crossrefBlock=$('#crossrefBlock'),crossrefNote=$('#crossrefNote'),crossrefList=$('#crossrefList'),
           chgBlock=$('#chgBlock'),chgNote=$('#chgNote'),chgList=$('#chgList'),
+          chgArmed=$('#chgArmed'),chgPreviewWrap=$('#chgPreviewWrap'),chgPreviewCount=$('#chgPreviewCount'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -5112,7 +5113,7 @@
     function renderChgBlock(raw, ctx){
       if(!chgBlock || !chgList || !raw){ return; }
       buildChangeMemory(raw).then(m => {
-        if(!m){ chgBlock.hidden = true; return; }
+        if(!m){ chgBlock.hidden = true; chgBlock._chgLatest = null; updateChgPreview(null); return; }
         if(m.isFirst){
           // First time seeing this document — show a baseline-saved notice.
           chgList.innerHTML = '<div class="chg-row chg-baseline">' +
@@ -5125,6 +5126,9 @@
               'Its sentence list was saved locally (keyed by SHA-256, not uploaded). The next time you analyze this same document on this device, the diff will appear here.';
           }
           persistChangeMemory(m);
+          chgBlock._chgLatest = { kind: 'baseline', count: 0, fp: m.fp };
+          updateChgPreview(null); // baseline means no risk-preview chip
+          updateChgArmed(false);   // already-saved; don't double-tell
           return;
         }
         const diffs = diffSentenceLists(m.prev.sigs, m.currentSigs, m.prev.sentences, m.current);
@@ -5133,6 +5137,9 @@
         const modified = diffs.filter(d => d.kind === 'modified');
         if(!added.length && !removed.length && !modified.length){
           chgBlock.hidden = true;
+          chgBlock._chgLatest = { kind: 'unchanged', count: 0, fp: m.fp };
+          updateChgPreview(null); // no diff — don't show risk-preview chip
+          updateChgArmed(true);   // but baseline is armed for *future* edits
           return;
         }
         const rowsHtml = [
@@ -5166,6 +5173,10 @@
           chgNote.innerHTML = '<span class="riskNote-lead">' + total + ' change' + (total === 1 ? '' : 's') + ' since ' + esc(lastTs) + '</span> · ' +
             'Catches bait-and-switch: if the counterparty swapped in new language between your review and the signature, those sentences appear here. <b>📌 reset baseline</b> makes the current version the new comparison point.';
         }
+        // Iter #181 — stash latest so discoverability chips can read it.
+        chgBlock._chgLatest = { kind: 'diff', count: added.length + modified.length + removed.length, added: added.length, modified: modified.length, removed: removed.length, fp: m.fp };
+        updateChgPreview(chgBlock._chgLatest);
+        updateChgArmed(true);
         const copyBtn = document.getElementById('chgCopyAllBtn');
         if(copyBtn){
           copyBtn.addEventListener('click', async () => {
@@ -5195,6 +5206,27 @@
           });
         }
       }).catch(() => { chgBlock.hidden = true; });
+    }
+
+    // Iter #181 — discoverability helpers for the bait-and-switch block.
+    // updateChgPreview: risk-preview bar chip ("N changed since last time").
+    // updateChgArmed:   input-panel indicator ("baseline armed for next time").
+    // Both read the data already computed by renderChgBlock via the
+    // chgBlock._chgLatest stash, so no recomputation.
+    function updateChgPreview(latest){
+      if(!chgPreviewWrap || !chgPreviewCount) return;
+      if(!latest || !latest.count){
+        chgPreviewWrap.hidden = true;
+        chgPreviewCount.textContent = '0';
+        return;
+      }
+      chgPreviewCount.textContent = String(latest.count);
+      chgPreviewWrap.title = latest.added + ' added · ' + latest.modified + ' modified · ' + latest.removed + ' removed since the previous version of this document';
+      chgPreviewWrap.hidden = false;
+    }
+    function updateChgArmed(armed){
+      if(!chgArmed) return;
+      chgArmed.hidden = !armed;
     }
 
     function renderPrioBlock(raw, ctx){

@@ -1941,3 +1941,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .chg-controls{margin-top:6px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .chg-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
 .chg-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}
+
+/* Iter #181 — discoverability chips for the bait-and-switch detector */
+.rp-seg.rp-chg{color:var(--danger);background:var(--danger-tint);padding:0 4px}
+.rp-seg.rp-chg b{color:var(--danger);font-weight:700}
+.chg-armed{display:inline-block;margin:0 0 6px 0;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);padding:2px 6px;background:var(--paper2);border:var(--bd-hair) solid var(--ink-soft)}

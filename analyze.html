@@ -121,6 +121,7 @@
   <section class="work" aria-label="Document analyzer">
     <div class="col in">
       <label class="lbl" for="docInput">Your document or clause</label>
+      <div class="chg-armed mono" id="chgArmed" hidden aria-live="polite">📌 baseline armed · diff vs this version will appear on next analyze</div>
       <textarea id="docInput" maxlength="40000">This Agreement shall automatically renew for successive twelve-month terms unless either party provides sixty days' written notice. Lessee shall indemnify and hold lessor harmless from any and all liabilities in perpetuity. In the event of early termination, a non-refundable cancellation assessment equal to the remaining charges shall become immediately due. Subscriber hereby waives the right to trial by jury and to participate in any class action.</textarea>
       <div class="doc-summary mono" id="docSummary" hidden aria-live="polite">
         <span class="ds-icon" aria-hidden="true">📄</span>
@@ -175,6 +176,8 @@
           <span class="rp-seg rp-watch" id="watchWrap" hidden><b id="watchCount">0</b> watch<span id="watchS">es</span></span>
           <span class="rp-sep rp-sep-watch" aria-hidden="true">·</span>
           <span class="rp-seg rp-note" id="noteWrap" hidden><b id="noteCount">0</b> note<span id="noteS">s</span></span>
+          <span class="rp-sep" aria-hidden="true">·</span>
+          <span class="rp-seg rp-chg" id="chgPreviewWrap" hidden><b id="chgPreviewCount">0</b> changed since last time</span>
           <span class="rp-suffix">—</span>
           <span class="rp-showall">show all <span class="rp-chev" aria-hidden="true">▾</span></span>
         </button>
