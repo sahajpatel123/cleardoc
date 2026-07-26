@@ -8125,6 +8125,29 @@ test("analyzer: Focus memory tracks clauses pinned across sessions", () => {
     "render() must call renderFocusBlock");
 });
 
+// Iter #177 polish: focus memory — remove + clear-all + copy-as-memo.
+test("analyzer: Focus memory polish — remove + clear-all + copy-as-memo", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  // Per-row remove button
+  assert.match(appSrc, /data-focus-remove=/,
+    "iter #177 must render a remove button per row");
+  assert.match(appSrc, /focusClearBtn/,
+    "iter #177 must render a clear-all button");
+  assert.match(appSrc, /focusCopyMemoBtn/,
+    "iter #177 must render a copy-as-memo button");
+  // Click handler persistence
+  assert.match(appSrc, /m\.items\.splice\(i, 1\);/,
+    "iter #177 must splice the removed item from the array");
+  assert.match(appSrc, /focusClearBtn/,
+    "iter #177 must wire the clear-all button");
+  assert.match(appSrc, /focusCopyMemoBtn/,
+    "iter #177 must wire the copy-as-memo button");
+});
+
+
 
 // Iter #175 polish: deadline extractor — countdown + copy-all chip.
 test("analyzer: Deadline extractor polish — countdown + copy-all chip", () => {

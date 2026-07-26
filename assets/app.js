@@ -4580,7 +4580,7 @@
         if(!m){ focusBlock.hidden = true; return; }
         if(!m.items || !m.items.length){ focusBlock.hidden = true; return; }
         const sorted = m.items.slice().sort((a, b) => b.ts - a.ts);
-        const rows = sorted.slice(0, 10).map(it => {
+        const rows = sorted.slice(0, 10).map((it, i) => {
           const ago = (function(){
             const days = Math.round((Date.now() - it.ts) / 86400000);
             if(days === 0) return 'today';
@@ -4588,19 +4588,71 @@
             if(days < 7) return days + ' days ago';
             return Math.round(days/7) + ' weeks ago';
           })();
-          return '<div class="focus-row">' +
+          return '<div class="focus-row" data-focus-idx="' + i + '">' +
             '<div class="focus-term">' + esc(it.term || '?') + '</div>' +
             '<div class="focus-context">' + esc((it.context || '').slice(0, 180)) + '</div>' +
             '<div class="focus-when">' + ago + '</div>' +
+            '<button type="button" class="focus-remove ghost-btn ghost-btn-sm" data-focus-remove="' + i + '" title="Remove this focus point">✕</button>' +
           '</div>';
         }).join('');
-        focusList.innerHTML = rows;
+        const controls = '<div class="focus-controls">' +
+          '<span class="focus-count">' + sorted.length + ' pinned</span>' +
+          '<button type="button" class="ghost-btn ghost-btn-sm" id="focusCopyMemoBtn" title="Copy all focus points as a memo paragraph">📋 copy as memo</button>' +
+          '<button type="button" class="ghost-btn ghost-btn-sm" id="focusClearBtn" title="Remove all focus points for this document">✕ clear all</button>' +
+        '</div>';
+        focusList.innerHTML = rows + controls;
         focusBlock.hidden = false;
         if(focusNote){
           focusNote.innerHTML = '<span class="riskNote-lead">' + m.items.length + ' focus point' + (m.items.length === 1 ? '' : 's') + ' for this document</span> · ' +
             'Tracked across sessions on this device. Click any clause across the analyzer to remember it for next time. ' +
             'Use the 📌 pin icon (when present) to add directly.';
         }
+
+      // Iter #177 — per-row remove + clear-all + copy-as-memo.
+      $$('.focus-remove', focusList).forEach(btn => {
+        btn.addEventListener('click', () => {
+          const i = parseInt(btn.getAttribute('data-focus-remove') || '-1', 10);
+          m.items.splice(i, 1);
+          try { localStorage.setItem(m.key, JSON.stringify(m.items)); } catch(_){}
+          renderFocusBlock(raw, ctx);
+        });
+      });
+      const clearBtn = document.getElementById('focusClearBtn');
+      if(clearBtn){
+        clearBtn.addEventListener('click', () => {
+          try { localStorage.removeItem(m.key); } catch(_){}
+          focusBlock.hidden = true;
+          focusList.innerHTML = '';
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✕ All focus points cleared');
+        });
+      }
+      const memoBtn = document.getElementById('focusCopyMemoBtn');
+      if(memoBtn){
+        memoBtn.addEventListener('click', async () => {
+          const lines = sorted.map((it, i) => {
+            const ago = Math.round((Date.now() - it.ts) / 86400000);
+            const agoStr = ago === 0 ? 'today' : ago === 1 ? 'yesterday' : ago < 7 ? ago + ' days ago' : Math.round(ago/7) + ' weeks ago';
+            return (i+1) + '. ' + (it.term || '?') + ' [' + agoStr + ']: ' + ((it.context || '').slice(0, 120));
+          });
+          const text = 'Focus memo for this document (' + m.items.length + ' pinned items):
+
+' + lines.join('
+');
+          let copied = false;
+          try { if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){}
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Memo copied (' + m.items.length + ' items)' : '⚠ Couldn’t copy');
+          memoBtn.textContent = copied ? '✓ copied' : '📋 copy as memo';
+          setTimeout(() => { if(memoBtn.isConnected) memoBtn.textContent = '📋 copy as memo'; }, 2500);
+        });
+      }
       }).catch(() => { focusBlock.hidden = true; });
     }
     // Iter #176 — wire `add to focus` to risk-row clicks
