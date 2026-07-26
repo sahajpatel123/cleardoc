@@ -7550,6 +7550,15 @@ test("analyzer: Trend block compares each new analysis against the previous one"
   // CSS
   assert.match(cssSrc, /\.trend-cell\b/, ".trend-cell style must exist");
   assert.match(cssSrc, /\.trend-versus\b/, ".trend-versus style must exist");
+
+  // Iter #133 polish: sparkline + clear-history chip.
+  assert.match(appSrc, /trend-spark-glyph|trend-spark/,
+    "iter #133 must render a sparkline");
+  assert.match(appSrc, /trendClearBtn/,
+    "iter #133 must render a clear-history chip");
+  assert.match(appSrc, /localStorage\.removeItem\(TREND_KEY_HIST\)/,
+    "iter #133 must clear history via localStorage.removeItem");
+  assert.match(cssSrc, /\.trend-spark-glyph\b/, ".trend-spark-glyph style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,

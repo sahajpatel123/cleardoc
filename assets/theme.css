@@ -1332,6 +1332,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .trend-value{font-size:var(--t-meta);color:var(--ink)}
 .trend-mute{color:var(--ink-soft);font-style:italic}
 .trend-when{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);margin-left:8px;text-transform:uppercase}
+.trend-spark-glyph{font-family:'JetBrains Mono',monospace;font-size:18px;letter-spacing:1px;color:var(--ink);line-height:1}
+.trend-spark-nums{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);text-transform:uppercase;margin-left:8px;letter-spacing:.06em}
+.trend-controls-cell{justify-content:flex-end;background:var(--paper)}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

@@ -3764,9 +3764,39 @@
         cells.push('<div class="trend-cell trend-first"><div class="trend-label">Versus last analysis</div><div class="trend-value">📌 This is your first time analyzing this document.</div></div>');
       }
       trendGrid.innerHTML = cells.join('');
+      // Iter #133 polish — ASCII sparkline of the last 10 maturity scores.
+      if(history.length >= 2){
+        const last10 = history.slice(0, 10).reverse();
+        const nums = last10.map(h => h.num || 0);
+        const min = Math.min.apply(null, nums);
+        const max = Math.max.apply(null, nums);
+        const range = Math.max(1, max - min);
+        const spark = nums.map(n => {
+          const t = (n - min) / range;
+          const h = Math.round(t * 5);
+          return '▁▂▃▄▅▆'[h] || '▁';
+        }).join('');
+        const trendLine =
+          '<div class="trend-cell trend-spark"><div class="trend-label">Sparkline</div>' +
+          '<div class="trend-value"><span class="trend-spark-glyph" title="' + nums.join(', ') + '">' + spark + '</span> ' +
+          '<span class="trend-spark-nums">' + min + '–' + max + '/100</span></div></div>';
+        trendGrid.insertAdjacentHTML('beforeend', trendLine);
+      }
+      // Iter #133 polish — clear-history chip (per-document)
+      trendGrid.insertAdjacentHTML('beforeend',
+        '<div class="trend-cell trend-controls-cell">' +
+          '<button type="button" class="ghost-btn ghost-btn-sm" id="trendClearBtn" title="Remove all prior runs from localStorage">🗑 clear history</button>' +
+        '</div>');
+      const clearBtn = document.getElementById('trendClearBtn');
+      if(clearBtn){
+        clearBtn.addEventListener('click', () => {
+          try { localStorage.removeItem(TREND_KEY_HIST); } catch(_){ /* quota */ }
+          renderTrendBlock(raw, ctx);
+        });
+      }
       if(trendNote){
         trendNote.innerHTML = '<span class="riskNote-lead">' + history.length + ' analysis run' + (history.length === 1 ? '' : 's') + ' logged</span> ' +
-          'Fingerprint + score saved locally on this device. Compare your progress over time.';
+          'Fingerprint + score saved locally on this device. Sparkline above (·) shows last 10 scores. Clear if you want a fresh history.';
       }
     }
     function letterIndex(s){
