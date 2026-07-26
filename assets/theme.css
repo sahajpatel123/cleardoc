@@ -1342,6 +1342,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .style-cell.style-verdict{border-color:var(--green);background:var(--green-tint);grid-column:1 / -1}
 .style-label{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;font-weight:700}
 .style-value{font-size:14px;font-weight:700;color:var(--ink);font-family:'JetBrains Mono',monospace}
+.style-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro)}
+.style-cell{cursor:help}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

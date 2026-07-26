@@ -3737,13 +3737,22 @@
       if(!styleBlock || !styleGrid || !raw){ return; }
       const p = buildStyleProfile(raw);
       if(!p){ styleBlock.hidden = true; return; }
+      const TOOLTIP = {
+        Sentences: 'How many distinct sentences the document contains',
+        'Avg words/sentence': 'Average sentence length — >25 is long, <12 is chatty',
+        'Longest sentence': 'The single longest sentence in words — >50 is a wall-of-text',
+        'Top 10% avg': 'Average length of the longest 10% of sentences — flags dense legalese',
+        'Passive voice': 'Share of sentences using "be + past participle" — >3% feels evasive',
+        'Reading grade': 'Flesch-Kincaid grade level — lower is easier to negotiate against',
+      };
+      const tipAttr = (k) => ' title="' + esc(TOOLTIP[k] || '') + '"';
       const cells = [
-        '<div class="style-cell"><div class="style-label">Sentences</div><div class="style-value">' + p.totalSent.toLocaleString('en-US') + '</div></div>',
-        '<div class="style-cell"><div class="style-label">Avg words/sentence</div><div class="style-value">' + p.avgWords + '</div></div>',
-        '<div class="style-cell"><div class="style-label">Longest sentence</div><div class="style-value">' + p.longest + ' words</div></div>',
-        '<div class="style-cell"><div class="style-label">Top 10% avg</div><div class="style-value">' + p.longestTenth + ' words</div></div>',
-        '<div class="style-cell"><div class="style-label">Passive voice</div><div class="style-value">' + p.passiveRate + '%</div></div>',
-        '<div class="style-cell"><div class="style-label">Reading grade</div><div class="style-value">' + p.grade + '=' + p.verdict + '</div></div>',
+        '<div class="style-cell"' + tipAttr('Sentences') + '><div class="style-label">Sentences</div><div class="style-value">' + p.totalSent.toLocaleString('en-US') + '</div></div>',
+        '<div class="style-cell"' + tipAttr('Avg words/sentence') + '><div class="style-label">Avg words/sentence</div><div class="style-value">' + p.avgWords + '</div></div>',
+        '<div class="style-cell"' + tipAttr('Longest sentence') + '><div class="style-label">Longest sentence</div><div class="style-value">' + p.longest + ' words</div></div>',
+        '<div class="style-cell"' + tipAttr('Top 10% avg') + '><div class="style-label">Top 10% avg</div><div class="style-value">' + p.longestTenth + ' words</div></div>',
+        '<div class="style-cell"' + tipAttr('Passive voice') + '><div class="style-label">Passive voice</div><div class="style-value">' + p.passiveRate + '%</div></div>',
+        '<div class="style-cell"' + tipAttr('Reading grade') + '><div class="style-label">Reading grade</div><div class="style-value">' + p.grade + '=' + p.verdict + '</div></div>',
       ];
       const v = (function(){
         const long = p.longest > 50 && p.longestTenth > 30;
@@ -3755,10 +3764,44 @@
       })();
       cells.push('<div class="style-cell style-verdict"><div class="style-label">Style verdict</div><div class="style-value">' + v + '</div></div>');
       styleGrid.innerHTML = cells.join('');
+      // Iter #135 polish — copy-as-bullets chip + a tip footer
+      const controls = '<div class="style-controls">' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="styleCopyBtn" title="Copy profile as bullet points">📋 copy as bullets</button>' +
+      '</div>';
+      styleGrid.insertAdjacentHTML('afterend', controls);
       styleBlock.hidden = false;
       if(styleNote){
-        styleNote.innerHTML = '<span class="riskNote-lead">' + p.wordCount.toLocaleString('en-US') + '-word style profile</span> ' +
-          'Sentence shape + passive-voice rate + reading grade. Use to shape your counter-clauses to match the other side.';
+        styleNote.innerHTML = '<span class="riskNote-lead">' + p.wordCount.toLocaleString('en-US') + '-word style profile</span> · ' +
+          'Hover any stat for what it means · <b>copy as bullets</b> to share the profile. Use the verdict to shape your counter-clauses.';
+      }
+      const copyBtn = document.getElementById('styleCopyBtn');
+      if(copyBtn){
+        copyBtn.addEventListener('click', async () => {
+          const bullets = [
+            'Document style profile — ' + p.wordCount.toLocaleString('en-US') + ' words',
+            '• ' + p.totalSent.toLocaleString('en-US') + ' sentences',
+            '• Avg ' + p.avgWords + ' words/sentence',
+            '• Longest sentence: ' + p.longest + ' words',
+            '• Top-10% avg: ' + p.longestTenth + ' words',
+            '• Passive voice: ' + p.passiveRate + '%',
+            '• Reading grade: ' + p.grade + ' (' + p.verdict + ')',
+            v,
+          ].join('\n');
+          let copied = false;
+          try {
+            if(navigator.clipboard) { await navigator.clipboard.writeText(bullets); copied = true; }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = bullets; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Style profile copied' : '⚠ Couldn’t copy');
+          copyBtn.textContent = copied ? '✓ copied' : '📋 copy as bullets';
+          setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy as bullets'; }, 2500);
+        });
       }
     }
 

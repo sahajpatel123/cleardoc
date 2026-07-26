@@ -7582,6 +7582,13 @@ test("analyzer: Style profile measures voice + sentence shape + reading grade", 
   // CSS
   assert.match(cssSrc, /\.style-cell\b/, ".style-cell style must exist");
   assert.match(cssSrc, /\.style-verdict\b/, ".style-verdict style must exist");
+
+  // Iter #135 polish: tooltips + copy-as-bullets chip.
+  assert.match(appSrc, /TOOLTIP|Style verdict|Sentences|Longest sentence/,
+    "iter #135 must include stat tooltips");
+  assert.match(appSrc, /styleCopyBtn[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
+    "iter #135 must wire the copy-as-bullets button");
+  assert.match(cssSrc, /\.style-controls\b/, ".style-controls style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
