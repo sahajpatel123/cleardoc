@@ -4450,24 +4450,68 @@
       if(!actionBlock2 || !actionList || !raw){ return; }
       const items = buildActionList(raw, ctx);
       if(!items || !items.length){ actionBlock2.hidden = true; return; }
-      const rows = items.map(it => {
+      const DONE_KEY = 'cleardoc:obligations-done';
+      let doneMap = {};
+      try { doneMap = JSON.parse(localStorage.getItem(DONE_KEY) || '{}') || {}; } catch(_){ doneMap = {}; }
+      const rows = items.map((it, idx) => {
         const snip = (it.sentence || '').slice(0, 240);
         const isMandatory = /^(shall|must|is required|are required|undertakes|warrants|covenants|is obligated|are obligated|is responsible|are responsible)/.test(it.verb);
         const cls = isMandatory ? 'action-mandatory' : 'action-permissive';
         const tag = isMandatory ? '⚡ must' : '✓ may';
-        return '<div class="action-row ' + cls + '" title="Action verb detected: ' + esc(it.verb) + '">' +
+        const isDone = !!doneMap['ob-' + idx];
+        const doneCls = isDone ? ' action-done' : '';
+        return '<div class="action-row ' + cls + doneCls + '" data-act-idx="' + idx + '" data-act-verb="' + esc(it.verb) + '" title="Action verb detected: ' + esc(it.verb) + '">' +
+          '<button type="button" class="act-done-btn ghost-btn ghost-btn-sm" data-act-done="' + idx + '" title="Mark as fulfilled">' + (isDone ? '✓' : '◯') + '</button>' +
           '<div class="action-tag">' + esc(tag) + '</div>' +
           '<div class="action-sentence">' + esc(snip) + '</div>' +
         '</div>';
       }).join('');
-      actionList.innerHTML = rows;
+      const mandatory = items.filter(it => /^(shall|must|is required|are required|undertakes|warrants|covenants|is obligated|are obligated|is responsible|are responsible)/.test(it.verb)).length;
+      const permissive = items.length - mandatory;
+      const doneCount = items.filter((_, i) => doneMap['ob-' + i]).length;
+      const controls = '<div class="action-controls">' +
+        '<span class="action-count"><b>' + doneCount + '</b> of ' + items.length + ' done · ' + mandatory + ' must · ' + permissive + ' may</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="actionCopyAllBtn" title="Copy all obligations as plain text">📋 copy all</button>' +
+      '</div>';
+      actionList.innerHTML = rows + controls;
       actionBlock2.hidden = false;
       if(actionBlock2Note){
-        const mandatory = items.filter(it => /^(shall|must|is required|are required|undertakes|warrants|covenants|is obligated|are obligated|is responsible|are responsible)/.test(it.verb)).length;
-        const permissive = items.length - mandatory;
         actionBlock2Note.innerHTML = '<span class="riskNote-lead">' + items.length + ' action verb' + (items.length === 1 ? '' : 's') + '</span> · ' +
           '<b>' + mandatory + ' mandatory</b> (shall / must / undertakes) · <b>' + permissive + ' permissive</b> (may / agrees). ' +
-          'Useful for tracking what you (and the other party) have committed to.';
+          'Click ☐ to mark fulfilled (saved on this device). 📋 copy all exports the whole list.';
+      }
+      $$('.act-done-btn', actionList).forEach(btn => {
+        btn.addEventListener('click', () => {
+          const i = btn.getAttribute('data-act-done');
+          let m = {};
+          try { m = JSON.parse(localStorage.getItem(DONE_KEY) || '{}') || {}; } catch(_){ m = {}; }
+          m['ob-' + i] = !m['ob-' + i];
+          try { localStorage.setItem(DONE_KEY, JSON.stringify(m)); } catch(_){ /* quota */ }
+          renderActionBlock(raw, ctx);
+        });
+      });
+      const copyAllBtn = document.getElementById('actionCopyAllBtn');
+      if(copyAllBtn){
+        copyAllBtn.addEventListener('click', async () => {
+          const text = items.map((it, idx) => {
+            const verb = it.verb;
+            const snip = (it.sentence || '').slice(0, 200);
+            return (doneMap['ob-' + idx] ? '[x]' : '[ ]') + ' (' + verb + ') ' + snip;
+          }).join('\n');
+          let copied = false;
+          try { if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Obligations copied (' + items.length + ')' : '⚠ Couldn’t copy');
+          copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
+          setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
+        });
       }
     }
 
@@ -7854,7 +7898,7 @@
       } else if(defBlock && !raw) {
         defBlock.hidden = true;
       }
-</replace>
+
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
       else {

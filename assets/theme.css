@@ -1893,3 +1893,17 @@ button.risk-preview:hover{filter:brightness(.96)}
   /* 15. Tighter footer URL */
   a{color:#000 !important;text-decoration:underline}
 }
+
+/* Obligation tracker (iter #172) + polish (iter #173) */
+.action-list{display:flex;flex-direction:column;gap:4px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.action-row{display:flex;gap:8px;align-items:flex-start;padding:6px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.action-row.action-mandatory{border-left:3px solid var(--danger);background:var(--danger-tint)}
+.action-row.action-permissive{border-left:3px solid var(--green);background:var(--green-tint)}
+.action-row.action-done{opacity:.5}
+.action-row.action-done .action-sentence{text-decoration:line-through}
+.action-tag{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;flex-shrink:0;padding:2px 4px;background:var(--ink);color:var(--paper);min-width:48px;text-align:center}
+.action-sentence{font-size:var(--t-meta);color:var(--ink);flex:1;min-width:0}
+.act-done-btn{margin-left:6px;flex-shrink:0;font-size:14px;background:transparent;border:1px solid var(--bd-hair);color:var(--green);cursor:pointer;padding:0 6px;min-width:24px}
+.action-controls{margin-top:6px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
+.action-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
+.action-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}

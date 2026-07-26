@@ -8029,6 +8029,27 @@ test("analyzer: Obligation tracker extracts action verbs from the document", () 
     "iter #172 must distinguish permissive actions");
 });
 
+// Iter #173 polish: obligation tracker — done toggle + copy-all.
+test("analyzer: Obligation tracker polish — done toggle + copy-all chip", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Per-row done toggle persisted in localStorage
+  assert.match(appSrc, /cleardoc:obligations-done/,
+    "iter #173 must persist done state to localStorage");
+  assert.match(appSrc, /data-act-done=/,
+    "iter #173 must render a per-row done button");
+  // Copy-all chip
+  assert.match(appSrc, /actionCopyAllBtn/,
+    "iter #173 must include a copy-all chip");
+  // CSS
+  assert.match(cssSrc, /\.act-done-btn\b/, ".act-done-btn style must exist");
+  assert.match(cssSrc, /\.action-controls\b/, ".action-controls style must exist");
+});
+
 // Iter #158: analysis confidence — rates how reliable this run is.
 test("analyzer: Analysis confidence rates how reliable the result is", () => {
   if (!HAS_BROWSER) return;
