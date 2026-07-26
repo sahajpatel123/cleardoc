@@ -7435,6 +7435,16 @@ test("analyzer: Questions-to-ask lists bespoke questions specific to detected ri
   // CSS
   assert.match(cssSrc, /\.ques-row\b/, ".ques-row style must exist");
   assert.match(cssSrc, /\.ques-num\b/, ".ques-num style must exist");
+
+  // Iter #127 polish: priority order + per-row "answered" + counter.
+  assert.match(appSrc, /sort\([\s\S]+?rank[\s\S]+?r: 0|r:\s*0/,
+    "iter #127 must sort questions by severity");
+  assert.match(appSrc, /ANSWERED_KEY\s*=\s*['"]cleardoc:questions-answered['"]|cleardoc:questions-answered/,
+    "iter #127 must persist answered state to localStorage");
+  assert.match(appSrc, /data-ques-done=/,
+    "iter #127 must render a done toggle per question");
+  assert.match(cssSrc, /\.ques-row\.ques-answered\b/, ".ques-answered style must exist");
+  assert.match(cssSrc, /\.ques-done\b/, ".ques-done style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
