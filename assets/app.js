@@ -4421,19 +4421,29 @@
     }
     function renderDefBlock(raw, ctx){
       if(!defBlock || !defList || !raw){ return; }
-      const defs = buildDefList(raw, ctx);
+      let defs = buildDefList(raw, ctx);
       if(!defs || !defs.length){ defBlock.hidden = true; return; }
+      // Iter #171 polish — alphabetize toggle
+      const alpha = defList._defSortAlpha === true;
+      if(alpha) defs = defs.slice().sort((a, b) => a.term.toLowerCase().localeCompare(b.term.toLowerCase()));
       const rows = defs.map(d => (
         '<div class="def-row" data-def-term="' + esc(d.term) + '" data-def-offset="' + (d.offset || 0) + '" title="Click to jump to the definition in the source">' +
           '<div class="def-term">' + esc(d.term) + (d.quoted ? ' <span class="def-quoted">""</span>' : '') + '</div>' +
           '<div class="def-meaning">' + esc(d.def) + '</div>' +
         '</div>'
       )).join('');
-      defList.innerHTML = rows;
+      // Iter #171 copy-all chip
+      const controls = '<div class="def-controls">' +
+        '<span class="def-count">' + defs.length + ' term' + (defs.length === 1 ? '' : 's') + (alpha ? ' (A→Z)' : ' (in file order)') + '</span>' +
+        '<button type="button" class="def-sort ghost-btn ghost-btn-sm" id="defSortBtn" title="Toggle alphabetical sort">' + (alpha ? '↺ file order' : '🔤 A→Z') + '</button>' +
+        '<button type="button" class="def-copy-all ghost-btn ghost-btn-sm" id="defCopyAllBtn" title="Copy all definitions as plain text">📋 copy all</button>' +
+      '</div>';
+      defList.innerHTML = rows + controls;
       defBlock.hidden = false;
       if(defNote){
         defNote.innerHTML = '<span class="riskNote-lead">' + defs.length + ' defined term' + (defs.length === 1 ? '' : 's') + '</span> · ' +
-          'Regex-extracted from the document. Click any row to jump to the definition in the source. Useful for first-time readers who don\'t know what "Affiliate" or "Confidential Information" means in this contract.';
+          'Regex-extracted from the document. Click any row to jump to the definition in the source. ' +
+          '<b>🔤 A→Z</b> toggles alphabetical sort. <b>📋 copy all</b> exports the whole list.';
       }
       $$('.def-row', defList).forEach(row => {
         row.addEventListener('click', () => {
@@ -4447,7 +4457,6 @@
             if(idx2 >= 0) break;
           }
           if(idx2 < 0){
-            // Fallback: substring
             idx2 = input.value.toLowerCase().indexOf(term.toLowerCase());
           }
           if(idx2 >= 0){
@@ -4458,6 +4467,34 @@
           }
         });
       });
+      // Iter #171 sort toggle
+      const sortBtn = document.getElementById('defSortBtn');
+      if(sortBtn){
+        sortBtn.addEventListener('click', () => {
+          defList._defSortAlpha = !defList._defSortAlpha;
+          renderDefBlock(raw, ctx);
+        });
+      }
+      // Iter #171 copy-all chip
+      const copyAllBtn = document.getElementById('defCopyAllBtn');
+      if(copyAllBtn){
+        copyAllBtn.addEventListener('click', async () => {
+          const text = defs.map(d => (d.quoted ? '"' + d.term + '"' : d.term) + ' — ' + d.def).join('\n');
+          let copied = false;
+          try { if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Definitions copied (' + defs.length + ')' : '⚠ Couldn’t copy');
+          copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
+          setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
+        });
+      }
     }
 
     function renderPrioBlock(raw, ctx){
