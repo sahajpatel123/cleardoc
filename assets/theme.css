@@ -1453,6 +1453,14 @@ button.risk-preview:hover{filter:brightness(.96)}
 .walk-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro)}
 .walk-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
 .walk-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}
+.walk-step.walk-done{opacity:.55}
+.walk-step.walk-done .walk-label{text-decoration:line-through;color:var(--green)}
+.walk-done-btn{font-size:14px;padding:2px 6px;cursor:pointer;color:var(--green);min-width:28px;background:transparent;border:1px solid var(--bd-hair);margin-top:2px}
+.walk-filter{font-size:10px;padding:2px 6px;cursor:pointer;text-transform:uppercase;letter-spacing:.04em}
+.walk-filter.walk-filter-active{background:var(--ink);color:var(--paper)}
+.walk-progress{height:6px;background:var(--paper);border:var(--bd-hair) solid var(--ink-soft);position:relative;margin-bottom:8px}
+.walk-progress-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(to right,var(--green),var(--amber));transition:width .3s ease}
+.walk-progress-text{position:absolute;left:6px;top:-2px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em}
 
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */

@@ -3996,14 +3996,20 @@
     }
     function renderWalkBlock(raw, ctx){
       if(!walkBlock || !walkGrid || !raw){ return; }
-      const steps = buildWalkSteps(raw, ctx);
-      if(!steps.length){ walkBlock.hidden = true; return; }
-      const list = steps.map(s => {
+      const allSteps = buildWalkSteps(raw, ctx);
+      if(!allSteps.length){ walkBlock.hidden = true; return; }
+      // Iter #149 — per-row "✓ done" toggle + filter chips
+      const WALK_DONE_KEY = 'cleardoc:walk-done';
+      let done = {};
+      try { done = JSON.parse(localStorage.getItem(WALK_DONE_KEY) || '{}') || {}; } catch(_){ done = {}; }
+      const filter = walkGrid._walkFilter || 'all';
+      const visible = filter === 'all' ? allSteps : allSteps.filter(s => s.sev === filter[0]);
+      const list = visible.map(s => {
         const offset = (function(){
           if(!s.matchText) return -1;
           return (raw || '').indexOf(s.matchText.slice(0, 60));
         })();
-        return '<div class="walk-step walk-step-' + (s.sev === 'r' ? 'trap' : s.sev === 'a' ? 'watch' : 'note') + '" data-walk-step="' + s.step + '" data-walk-offset="' + offset + '" data-walk-raw="' + esc(s.matchText) + '">' +
+        return '<div class="walk-step walk-step-' + (s.sev === 'r' ? 'trap' : s.sev === 'a' ? 'watch' : 'note') + (done['step-' + s.step] ? ' walk-done' : '') + '" data-walk-step="' + s.step + '" data-walk-offset="' + offset + '" data-walk-raw="' + esc(s.matchText) + '">' +
           '<div class="walk-num">' + s.step + '</div>' +
           '<div class="walk-body">' +
             '<div class="walk-label">' + esc(s.label) + '</div>' +
@@ -4013,20 +4019,31 @@
           '<div class="walk-actions">' +
             '<button type="button" class="walk-speak ghost-btn ghost-btn-sm" data-walk-speak="' + s.step + '" title="Speak this risk aloud">🔊</button>' +
             '<button type="button" class="walk-jump ghost-btn ghost-btn-sm" data-walk-jump="' + offset + '" title="Jump to this risk in the source">📍 jump</button>' +
+            '<button type="button" class="walk-done-btn ghost-btn ghost-btn-sm" data-walk-done="' + s.step + '" title="Mark this step as addressed">' + (done['step-' + s.step] ? '✓' : '◯') + '</button>' +
           '</div>' +
         '</div>';
       }).join('');
-      // Iter #148 — play-all + counter
+      // Iter #149 — filter chips + counter + done tally
+      const doneCount = allSteps.filter(s => done['step-' + s.step]).length;
+      const total = allSteps.length;
+      const filterChip = (key, label) => '<button type="button" class="walk-filter ghost-btn ghost-btn-sm ' + (filter === key ? 'walk-filter-active' : '') + '" data-walk-filter="' + key + '">' + label + '</button>';
       const playAll = '<div class="walk-controls">' +
-        '<span class="walk-count">' + steps.length + ' step' + (steps.length === 1 ? '' : 's') + ' · walk-through</span>' +
+        '<span class="walk-count">' + visible.length + ' of ' + total + ' steps · ' + doneCount + ' done</span>' +
+        filterChip('all', 'all') +
+        filterChip('trap', 'traps') +
+        filterChip('watch', 'watches') +
+        filterChip('note', 'notes') +
         '<button type="button" class="walk-play ghost-btn ghost-btn-sm" id="walkPlayBtn" title="Play all steps with voice + jump">▶ play all</button>' +
         '<button type="button" class="walk-stop ghost-btn ghost-btn-sm" id="walkStopBtn" hidden title="Stop playback">◼ stop</button>' +
       '</div>';
-      walkGrid.innerHTML = list + playAll;
+      // Iter #149 — progress bar
+      const progressPct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+      const progressBar = '<div class="walk-progress"><div class="walk-progress-fill" style="width:' + progressPct + '%"></div><span class="walk-progress-text">' + progressPct + '% complete</span></div>';
+      walkGrid.innerHTML = progressBar + list + playAll;
       walkBlock.hidden = false;
       if(walkNote){
         walkNote.innerHTML = '<span class="riskNote-lead">Step-by-step walk-through</span> · ' +
-          'Click 📍 to jump to each risk in the source, or 🔊 to hear it read aloud. <b>▶ play all</b> auto-walks through every step.';
+          'Click 📍 to jump to each risk in the source, or 🔊 to hear it read aloud. <b>▶ play all</b> auto-walks through every step. Filter by severity using the chips below.';
       }
       // Iter #148 — speak handlers
       $$('.walk-speak', walkGrid).forEach(btn => {
@@ -4059,6 +4076,8 @@
       // Iter #148 — play all with sequential playback
       let i = 0;
       let cancelled = false;
+      // Iter #149 — play-all iterates over the filtered visible set
+      const steps = visible;
       const playAllBtn = document.getElementById('walkPlayBtn');
       const stopBtn = document.getElementById('walkStopBtn');
       const playNext = () => {
@@ -4110,6 +4129,25 @@
           if(playAllBtn) playAllBtn.hidden = false;
         });
       }
+      // Iter #149 — per-row done toggle
+      $$('.walk-done-btn', walkGrid).forEach(btn => {
+        btn.addEventListener('click', () => {
+          const step = btn.getAttribute('data-walk-done') || '';
+          let d = {};
+          try { d = JSON.parse(localStorage.getItem(WALK_DONE_KEY) || '{}') || {}; } catch(_){ d = {}; }
+          d['step-' + step] = !d['step-' + step];
+          try { localStorage.setItem(WALK_DONE_KEY, JSON.stringify(d)); } catch(_){ /* quota */ }
+          renderWalkBlock(raw, ctx);
+        });
+      });
+      // Iter #149 — filter chips
+      $$('.walk-filter', walkGrid).forEach(btn => {
+        btn.addEventListener('click', () => {
+          const k = btn.getAttribute('data-walk-filter') || 'all';
+          walkGrid._walkFilter = k;
+          renderWalkBlock(raw, ctx);
+        });
+      });
     }
 
     function renderInkBlock(raw, ctx){

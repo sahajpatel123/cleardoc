@@ -7846,6 +7846,19 @@ test("analyzer: Walk-through renders step-by-step tour with jump + speak + play-
   // CSS
   assert.match(cssSrc, /\.walk-step\b/, ".walk-step style must exist");
   assert.match(cssSrc, /\.walk-step-trap\b/, ".walk-step-trap style must exist");
+
+  // Iter #149 polish: per-row done toggle + filter chips + progress bar.
+  assert.match(appSrc, /data-walk-done=/,
+    "iter #149 must render a per-row done toggle");
+  assert.match(appSrc, /data-walk-filter=/,
+    "iter #149 must render filter chips");
+  assert.match(appSrc, /cleardoc:walk-done/,
+    "iter #149 must persist walk-done state to localStorage");
+  assert.match(appSrc, /walk-progress-fill|progressPct/,
+    "iter #149 must compute a progress percentage");
+  assert.match(cssSrc, /\.walk-done-btn\b/, ".walk-done-btn style must exist");
+  assert.match(cssSrc, /\.walk-filter-active\b/, ".walk-filter-active style must exist");
+  assert.match(cssSrc, /\.walk-progress\b/, ".walk-progress style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
