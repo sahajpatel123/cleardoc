@@ -7861,6 +7861,32 @@ test("analyzer: Walk-through renders step-by-step tour with jump + speak + play-
   assert.match(cssSrc, /\.walk-progress\b/, ".walk-progress style must exist");
 });
 
+// Iter #150: negotiation difficulty score — composite 0..100.
+test("analyzer: Negotiation difficulty score combines risk + maturity + exposure + tone + jargon + gaps", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="diffBlock"/, "analyze.html must contain #diffBlock");
+  assert.match(appSrc, /function buildDifficultyScore\(/, "buildDifficultyScore must exist");
+  assert.match(appSrc, /function renderDiffBlock\(/, "renderDiffBlock must exist");
+  assert.match(appSrc, /riskScore[\s\S]+?maturityScore[\s\S]+?exposureScore[\s\S]+?toneScore[\s\S]+?jargonScore[\s\S]+?gapsScore/,
+    "iter #150 must compute all six sub-scores");
+  // Verdict phrases
+  assert.match(appSrc, /Very hard|3\+ rounds/,
+    "iter #150 must render a difficulty verdict");
+  // Wiring
+  assert.match(appSrc, /renderDiffBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderDiffBlock");
+  // CSS
+  assert.match(cssSrc, /\.diff-main\b/, ".diff-main style must exist");
+  assert.match(cssSrc, /\.diff-sub\.diff-high/,
+    ".diff-sub.diff-high style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

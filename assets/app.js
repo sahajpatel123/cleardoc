@@ -1859,6 +1859,7 @@
           versionBlock=$('#versionBlock'),versionNote=$('#versionNote'),versionGrid=$('#versionGrid'),
           inkBlock=$('#inkBlock'),inkNote=$('#inkNote'),inkGrid=$('#inkGrid'),
           walkBlock=$('#walkBlock'),walkNote=$('#walkNote'),walkGrid=$('#walkGrid'),
+          diffBlock=$('#diffBlock'),diffNote=$('#diffNote'),diffCard=$('#diffCard'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3994,6 +3995,89 @@
         offset: typeof f.i === 'number' ? f.i : 0,
       }));
     }
+    // Iter #150: negotiation difficulty score — combines
+    // maturity, risk count, exposure, tone pressure, jargon
+    // density, and missing-clause count into a single 0–100
+    // score with sub-score breakdown bars.
+    function buildDifficultyScore(raw, ctx){
+      const tal = { r: 0, a: 0, g: 0 };
+      (lastFlags || []).forEach(f => { tal[f.rule.sev] = (tal[f.rule.sev] || 0) + 1; });
+      const mn = maturityGrid && maturityGrid.querySelector('.mat-letter-num');
+      const mnum = mn ? parseInt(mn.textContent.replace(/[^0-9]/g, ''), 10) : 50;
+      const gaps = (typeof extractGaps === 'function') ? extractGaps(raw).count : 0;
+      const t = (typeof analyzeTone === 'function') ? analyzeTone(raw) : { trust: 50, pressure: 0, clarity: 50 };
+      // Sub-scores (each 0..100, higher = more difficult to negotiate against)
+      const riskScore = Math.min(100, tal.r * 25 + tal.a * 6 + tal.g * 2);
+      const maturityScore = Math.max(0, 100 - mnum); // lower maturity = harder
+      const exposureScore = (function(){
+        const ts = riskDetail && riskDetail.textContent || '';
+        const m = ts.match(/worst-case exposure[^A-Z]*\$([0-9,]+)/i);
+        const v = m ? parseFloat(m[1].replace(/,/g, '')) : 0;
+        return Math.min(100, v / 10);
+      })();
+      const toneScore = t.pressure || 0;
+      const jargonScore = (function(){
+        let j = 0;
+        try {
+          if(typeof JARGON !== 'undefined' && Array.isArray(JARGON)){
+            JARGON.forEach(([re]) => { const m = raw.match(re); if(m) j += m.length; });
+          }
+        } catch(_){ /* fall through */ }
+        const wc = (raw.match(/\b[\w'-]+\b/g) || []).length || 1;
+        return Math.min(100, Math.round((j / wc) * 1000));
+      })();
+      const gapsScore = Math.min(100, gaps * 12);
+      // Weighted overall
+      const overall = Math.round(
+        riskScore * 0.30 +
+        maturityScore * 0.20 +
+        exposureScore * 0.15 +
+        toneScore * 0.15 +
+        jargonScore * 0.10 +
+        gapsScore * 0.10
+      );
+      return { overall, riskScore, maturityScore, exposureScore, toneScore, jargonScore, gapsScore };
+    }
+    function renderDiffBlock(raw, ctx){
+      if(!diffBlock || !diffCard || !raw){ return; }
+      const d = buildDifficultyScore(raw, ctx);
+      if(!d){ diffBlock.hidden = true; return; }
+      const subs = [
+        { key: 'risk', label: 'Risk tally', score: d.riskScore, hint: 'Trap = 25pt, Watch = 6pt, Note = 2pt each' },
+        { key: 'maturity', label: 'Low maturity', score: d.maturityScore, hint: 'Inverse of the iter #92 maturity score' },
+        { key: 'exposure', label: 'Worst-case exposure', score: d.exposureScore, hint: '$/10 — caps at 100' },
+        { key: 'tone', label: 'Tone pressure', score: d.toneScore, hint: 'Share of pressure language' },
+        { key: 'jargon', label: 'Jargon density', score: d.jargonScore, hint: 'Jargon hits per 1000 words' },
+        { key: 'gaps', label: 'Missing clauses', score: d.gapsScore, hint: '12pt per missing clause' },
+      ];
+      const cellCls = (n) => n >= 70 ? 'diff-high' : n >= 40 ? 'diff-mid' : 'diff-low';
+      const subRows = subs.map(s => (
+        '<div class="diff-sub ' + cellCls(s.score) + '">' +
+          '<div class="diff-sub-label">' + esc(s.label) + '</div>' +
+          '<div class="diff-sub-bar"><div class="diff-sub-fill" style="width:' + s.score + '%"></div></div>' +
+          '<div class="diff-sub-score">' + s.score + '</div>' +
+          '<div class="diff-sub-hint">' + esc(s.hint) + '</div>' +
+        '</div>'
+      )).join('');
+      const verdict = d.overall >= 70 ? '⚠ Very hard — expect 3+ rounds of negotiation'
+                       : d.overall >= 50 ? '😐 Moderate — 1–2 rounds expected'
+                       : d.overall >= 25 ? '👍 Doable — likely 1 round'
+                       : '⚡ Easy — likely settled in a single exchange';
+      const mainCard =
+        '<div class="diff-main">' +
+          '<div class="diff-main-num">' + d.overall + '<span class="diff-main-of">/100</span></div>' +
+          '<div class="diff-main-label">Negotiation difficulty</div>' +
+          '<div class="diff-main-verdict">' + verdict + '</div>' +
+        '</div>' +
+        '<div class="diff-subsub">' + subRows + '</div>';
+      diffCard.innerHTML = mainCard;
+      diffBlock.hidden = false;
+      if(diffNote){
+        diffNote.innerHTML = '<span class="riskNote-lead">Difficulty ' + d.overall + '/100</span> · ' +
+          'Composite of risk tally + low maturity + exposure + tone pressure + jargon density + missing clauses. Useful for budgeting time before the call.';
+      }
+    }
+
     function renderWalkBlock(raw, ctx){
       if(!walkBlock || !walkGrid || !raw){ return; }
       const allSteps = buildWalkSteps(raw, ctx);
@@ -6377,6 +6461,12 @@
         renderWalkBlock(raw, ctx);
       } else if(walkBlock && !raw) {
         walkBlock.hidden = true;
+      }
+      // Iter #150: negotiation difficulty score.
+      if(diffBlock && typeof renderDiffBlock === 'function' && raw){
+        renderDiffBlock(raw, ctx);
+      } else if(diffBlock && !raw) {
+        diffBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

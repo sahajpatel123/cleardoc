@@ -1462,6 +1462,24 @@ button.risk-preview:hover{filter:brightness(.96)}
 .walk-progress-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(to right,var(--green),var(--amber));transition:width .3s ease}
 .walk-progress-text{position:absolute;left:6px;top:-2px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em}
 
+/* Negotiation difficulty (iter #150) — composite 0..100 score. */
+.diff-card{display:flex;gap:14px;align-items:flex-start;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.45}
+.diff-main{flex:0 0 auto;background:var(--ink);color:var(--paper);padding:18px 22px;text-align:center;min-width:140px;border:var(--bd-hair) solid var(--ink)}
+.diff-main-num{font-family:'Archivo Black',sans-serif;font-size:48px;line-height:1;color:var(--paper);font-weight:900}
+.diff-main-of{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--paper);opacity:.7;margin-left:4px}
+.diff-main-label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--paper);margin-top:4px;font-weight:700}
+.diff-main-verdict{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);margin-top:6px;font-weight:700}
+.diff-subsub{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+.diff-sub{display:grid;grid-template-columns:140px 1fr 36px;gap:8px;align-items:center;padding:4px 6px;background:var(--paper2);border:var(--bd-hair) solid var(--ink-soft)}
+.diff-sub.diff-high{background:var(--danger-tint);border-left:3px solid var(--danger)}
+.diff-sub.diff-mid{background:var(--amber-tint);border-left:3px solid var(--amber)}
+.diff-sub.diff-low{background:var(--green-tint);border-left:3px solid var(--green)}
+.diff-sub-label{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink);font-weight:700;letter-spacing:.04em;font-size:11px}
+.diff-sub-bar{height:8px;background:var(--paper);border:var(--bd-hair) solid var(--ink-soft);position:relative}
+.diff-sub-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(to right,var(--green),var(--amber),var(--danger))}
+.diff-sub-score{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--ink);text-align:right}
+.diff-sub-hint{grid-column:1 / -1;font-size:var(--t-micro);color:var(--ink-soft);font-style:italic;margin-top:2px}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}
