@@ -8041,6 +8041,28 @@ test("analyzer: Analysis confidence rates how reliable the result is", () => {
   assert.match(cssSrc, /\.conf-controls\b/, ".conf-controls style must exist");
 });
 
+// Iter #160: coverage index — measures presence of standard contract sections.
+test("analyzer: Coverage index measures presence of standard contract sections", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="covBlock"/, "analyze.html must contain #covBlock");
+  assert.match(appSrc, /function buildCoverageIndex\(/, "buildCoverageIndex must exist");
+  assert.match(appSrc, /function renderCovBlock\(/, "renderCovBlock must exist");
+  for(const k of ["recitals", "definitions", "services", "termination", "governing"]){
+    assert.match(appSrc, new RegExp("key: '" + k + "'"),
+      "COVERAGE_SECTIONS must include the '" + k + "' section");
+  }
+  assert.match(appSrc, /renderCovBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderCovBlock");
+  assert.match(cssSrc, /\.cov-cell\b/, ".cov-cell style must exist");
+  assert.match(cssSrc, /\.cov-present\b/, ".cov-present style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

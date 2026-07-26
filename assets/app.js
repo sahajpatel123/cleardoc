@@ -1865,6 +1865,7 @@
           partyBlock=$('#partyBlock'),partyNote=$('#partyNote'),partyGrid=$('#partyGrid'),
           glossBlock=$('#glossBlock'),glossNote=$('#glossNote'),glossGrid=$('#glossGrid'),
           confBlock=$('#confBlock'),confNote=$('#confNote'),confCard=$('#confCard'),
+          covBlock=$('#covBlock'),covNote=$('#covNote'),covGrid=$('#covGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -4206,6 +4207,66 @@
       if(ctx && ctx.aiError) caveats.push('AI fallback was used (no live model call).');
       return { overall, lenScore, riskScore, toneScore, aiUsed, caveats, wordCount: wordCount };
     }
+    // Iter #160: coverage index — measures how many of the
+    // 15 standard contract sections (recitals, definitions,
+    // services, payment, term, termination, warranty, etc.) are
+    // present. Pure local; regex-based.
+    const COVERAGE_SECTIONS = [
+      { key: 'recitals', label: 'Recitals / Background', re: /\b(?:whereas|recital|background|preamble)\b/i },
+      { key: 'definitions', label: 'Definitions', re: /\b(?:definitions?|defined\s+terms?|meaning\s+of)\b/i },
+      { key: 'services', label: 'Services / Scope', re: /\b(?:scope\s+of\s+(?:services|work)|services\s+to\s+be|statement\s+of\s+work)\b/i },
+      { key: 'payment', label: 'Payment / Fees', re: /\b(?:payment|fees|consideration|compensation|invoice)\b/i },
+      { key: 'term', label: 'Term / Duration', re: /\b(?:term\s+of\s+(?:this\s+)?agreement|effective\s+date|duration)\b/i },
+      { key: 'termination', label: 'Termination', re: /\b(?:terminat(?:e|ion)|cancel(?:lation)?|rescind)\b/i },
+      { key: 'warranty', label: 'Warranty / Disclaimer', re: /\b(?:warranty|warranties|warrant|as[\s-]?is|disclaim)\b/i },
+      { key: 'indemnification', label: 'Indemnification', re: /\b(?:indemnif(?:y|ication|ied)|hold\s+\w+\s+harmless)\b/i },
+      { key: 'limitation', label: 'Limitation of liability', re: /\b(?:limitation\s+of\s+liabilit|liability\s+cap|aggregate\s+liabilit)\b/i },
+      { key: 'confidentiality', label: 'Confidentiality / NDA', re: /\b(?:confidentialit|non[\s-]?disclosure|NDA|trade\s+secret)\b/i },
+      { key: 'ip', label: 'Intellectual property', re: /\b(?:intellectual\s+property|copyright|trademark|patent|royalty)\b/i },
+      { key: 'force', label: 'Force majeure', re: /\bforce\s+majeure\b/i },
+      { key: 'dispute', label: 'Dispute resolution', re: /\b(?:dispute\s+resolution|mediation|arbitration|small[\s-]?claims)\b/i },
+      { key: 'governing', label: 'Governing law', re: /\b(?:governing\s+law|jurisdic|venue)\b/i },
+      { key: 'notice', label: 'Notices', re: /\b(?:notice\s+(?:shall|must|will)|certified\s+mail|registered\s+mail)\b/i },
+    ];
+    function buildCoverageIndex(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      const list = COVERAGE_SECTIONS.map(s => {
+        const m = text.match(s.re);
+        return { key: s.key, label: s.label, present: !!m, snippet: m ? m[0].slice(0, 60) : null };
+      });
+      const present = list.filter(l => l.present).length;
+      const total = list.length;
+      const score = Math.round((present / total) * 100);
+      return { list: list, present: present, total: total, score: score };
+    }
+    function renderCovBlock(raw, ctx){
+      if(!covBlock || !covGrid || !raw){ return; }
+      const c = buildCoverageIndex(raw, ctx);
+      if(!c){ covBlock.hidden = true; return; }
+      const cells = c.list.map(s => {
+        const cls = s.present ? 'cov-present' : 'cov-missing';
+        return '<div class="cov-cell ' + cls + '" title="' + (s.present ? 'Section detected: ' + esc(s.snippet) : 'Section not detected — ' + esc(s.label) + ' not found in the document') + '">' +
+          '<div class="cov-cell-icon">' + (s.present ? '✓' : '○') + '</div>' +
+          '<div class="cov-cell-label">' + esc(s.label) + '</div>' +
+          '<div class="cov-cell-state">' + (s.present ? 'present' : 'missing') + '</div>' +
+        '</div>';
+      }).join('');
+      const verdict = c.score >= 80 ? '👍 Comprehensive — most standard sections present'
+                       : c.score >= 60 ? '😐 Adequate — a few common sections are missing'
+                       : '⚠ Sparse — most standard sections are missing';
+      const controls = '<div class="cov-controls">' +
+        '<span class="cov-count">' + c.present + ' of ' + c.total + ' standard sections · score ' + c.score + '/100</span>' +
+        '<span class="cov-verdict">' + verdict + '</span>' +
+      '</div>';
+      covGrid.innerHTML = cells + controls;
+      covBlock.hidden = false;
+      if(covNote){
+        covNote.innerHTML = '<span class="riskNote-lead">Coverage ' + c.score + '/100</span> · ' +
+          'Iter #160 measures how many of the 15 standard contract sections are present in the document. <b>Green</b> = present, <b>open circle</b> = missing. Useful for first-time readers to know how much of the document is "complete" vs missing sections.';
+      }
+    }
+
     function renderConfBlock(raw, ctx){
       if(!confBlock || !confCard || !raw){ return; }
       const c = buildAnalysisConfidence(raw, ctx);
@@ -7011,6 +7072,12 @@
         renderConfBlock(raw, ctx);
       } else if(confBlock && !raw) {
         confBlock.hidden = true;
+      }
+      // Iter #160: coverage index — how many standard sections present.
+      if(covBlock && typeof renderCovBlock === 'function' && raw){
+        renderCovBlock(raw, ctx);
+      } else if(covBlock && !raw) {
+        covBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

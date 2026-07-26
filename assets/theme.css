@@ -1540,6 +1540,19 @@ button.risk-preview:hover{filter:brightness(.96)}
 .conf-controls{margin-top:10px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro)}
 .conf-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
 
+/* Coverage index (iter #160) — which standard sections are present. */
+.cov-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.cov-cell{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);cursor:help}
+.cov-cell.cov-present{border-left:3px solid var(--green);background:var(--green-tint)}
+.cov-cell.cov-missing{border-left:3px solid var(--ink-soft);background:var(--paper);opacity:.7}
+.cov-cell-icon{font-family:'Archivo Black',sans-serif;font-size:18px;color:var(--ink);line-height:1}
+.cov-cell.cov-present .cov-cell-icon{color:var(--green)}
+.cov-cell-label{font-size:var(--t-micro);text-transform:uppercase;font-weight:700;color:var(--ink);letter-spacing:.04em}
+.cov-cell-state{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
+.cov-controls{margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:var(--t-micro)}
+.cov-count{font-family:'JetBrains Mono',monospace;color:var(--ink);text-transform:uppercase;font-weight:700;letter-spacing:.06em}
+.cov-verdict{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);letter-spacing:.04em}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}
