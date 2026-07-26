@@ -7708,6 +7708,36 @@ test("analyzer: Section risk map aggregates risk by clause category", () => {
   assert.match(cssSrc, /\.section-controls\b/, ".section-controls style must exist");
 });
 
+// Iter #142: quick-summary stamp — one-line social-card with
+// word count + risks + exposure + maturity + missing.
+test("analyzer: Quick-summary stamp generates a tweetable one-liner", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="stampBlock"/, "analyze.html must contain #stampBlock");
+  assert.match(appSrc, /function buildQuickStamp\(/, "buildQuickStamp must exist");
+  assert.match(appSrc, /function renderStampBlock\(/, "renderStampBlock must exist");
+  // Twitter intent URL
+  assert.match(appSrc, /twitter\.com\/intent\/tweet/,
+    "iter #142 must include a tweet intent URL");
+  // Copy button
+  assert.match(appSrc, /stampCopyBtn[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
+    "stampCopyBtn must use clipboard fallback");
+  // Includes word count + risks + maturity
+  assert.match(appSrc, /wordCount[\s\S]+?tal[\s\S]+?mletter/,
+    "buildQuickStamp must aggregate word count + risk tally + maturity");
+  // Wiring
+  assert.match(appSrc, /renderStampBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderStampBlock");
+  // CSS
+  assert.match(cssSrc, /\.stamp-card\b/, ".stamp-card style must exist");
+  assert.match(cssSrc, /\.stamp-actions\b/, ".stamp-actions style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

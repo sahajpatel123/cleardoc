@@ -1396,6 +1396,11 @@ button.risk-preview:hover{filter:brightness(.96)}
 .section-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
 .section-controls .section-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}
 
+/* Quick-summary stamp (iter #142) — social-card style one-liner. */
+.stamp-card{font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.6;color:var(--ink);text-transform:none;letter-spacing:0;padding:10px 14px;border:var(--bd-hair) solid var(--ink);background:var(--paper2);word-break:break-word}
+.stamp-actions{display:flex;gap:6px;margin-top:8px;font-size:var(--t-micro)}
+.stamp-actions .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}

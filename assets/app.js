@@ -1854,6 +1854,8 @@
           indexBlock=$('#indexBlock'),indexNote=$('#indexNote'),clauseIndex=$('#clauseIndex'),
           costBlock=$('#costBlock'),costNote=$('#costNote'),costGrid=$('#costGrid'),
           sectionBlock=$('#sectionBlock'),sectionNote=$('#sectionNote'),sectionGrid=$('#sectionGrid'),
+          stampBlock=$('#stampBlock'),stampCard=$('#stampCard'),
+          stampCopyBtn=$('#stampCopyBtn'),stampTweetBtn=$('#stampTweetBtn'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3835,6 +3837,70 @@
       cats.sort((a, b) => b.sev - a.sev);
       return cats.filter(c => c.hits > 0);
     }
+    // Iter #142: quick-summary stamp — one-line social-card style
+    // summary at the very top of the result panel that reads like
+    // a tweet: "1,247 words · 2 trap · 5 watch · 1 note · $200-$1,200
+    // exposure · 4 clauses missing". Useful for screenshots and
+    // for posting about the analysis.
+    function buildQuickStamp(raw, ctx){
+      const wordCount = (raw.match(/\b[\w'-]+\b/g) || []).length;
+      const tal = { r: 0, a: 0, g: 0 };
+      (lastFlags || []).forEach(f => { tal[f.rule.sev] = (tal[f.rule.sev] || 0) + 1; });
+      const exposureLow = (tal.r * 200 + tal.a * 50 + tal.g * 20) || 0;
+      const exposureHigh = (tal.r * 800 + tal.a * 200 + tal.g * 60) || 0;
+      // gaps count from iter #104
+      const gapCount = (typeof extractGaps === 'function') ? extractGaps(raw).count : 0;
+      const ml = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
+      const mletter = ml ? ml.textContent.trim() : '?';
+      const parts = [];
+      parts.push('<b style="color:var(--ink)">' + wordCount.toLocaleString('en-US') + ' words</b>');
+      if(tal.r) parts.push('<b style="color:var(--danger)">' + tal.r + ' trap</b>');
+      if(tal.a) parts.push('<b style="color:var(--amber)">' + tal.a + ' watch</b>');
+      if(tal.g) parts.push('<b style="color:var(--green)">' + tal.g + ' note</b>');
+      if(exposureLow > 0) parts.push('<b style="color:var(--ink)">$' + exposureLow.toLocaleString('en-US') + '-$' + exposureHigh.toLocaleString('en-US') + ' exposure</b>');
+      if(gapCount > 0) parts.push('<b>' + gapCount + ' missing</b>');
+      parts.push('<span>maturity ' + mletter + '</span>');
+      // Build the tweet-sized text
+      const tweet = wordCount + ' words · ' +
+        (tal.r + tal.a + tal.g) + ' risks (' + tal.r + ' trap / ' + tal.a + ' watch / ' + tal.g + ' note) · ' +
+        'maturity ' + mletter + ' · ' +
+        (exposureLow > 0 ? '$' + exposureLow + '-$' + exposureHigh + ' exposure' : 'no exposure') + ' · ' +
+        gapCount + ' missing clauses · @cleardocapp';
+      return { html: parts.join(' · '), tweet: tweet, wordCount: wordCount, tal: tal, gapCount: gapCount, mletter: mletter, exposureLow: exposureLow, exposureHigh: exposureHigh };
+    }
+    function renderStampBlock(raw, ctx){
+      if(!stampBlock || !stampCard || !raw){ return; }
+      const s = buildQuickStamp(raw, ctx);
+      if(!s){ stampBlock.hidden = true; return; }
+      stampCard.innerHTML = s.html;
+      stampBlock.hidden = false;
+      if(stampCopyBtn){
+        stampCopyBtn.addEventListener('click', async () => {
+          let copied = false;
+          try {
+            if(navigator.clipboard) { await navigator.clipboard.writeText(s.tweet); copied = true; }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = s.tweet; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Quick summary copied' : '⚠ Couldn’t copy');
+          stampCopyBtn.textContent = copied ? '✓ copied' : '📋 copy';
+          setTimeout(() => { if(stampCopyBtn.isConnected) stampCopyBtn.textContent = '📋 copy'; }, 2500);
+        });
+      }
+      if(stampTweetBtn){
+        stampTweetBtn.addEventListener('click', () => {
+          const href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(s.tweet);
+          try { window.open(href, '_blank'); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('𝕏 Opened tweet composer');
+        });
+      }
+    }
+
     function renderSectionBlock(raw, ctx){
       if(!sectionBlock || !sectionGrid || !raw){ return; }
       const cats = buildSectionRisk(raw, ctx);
@@ -5837,6 +5903,12 @@
         renderSectionBlock(raw, ctx);
       } else if(sectionBlock && !raw) {
         sectionBlock.hidden = true;
+      }
+      // Iter #142: quick-summary stamp — one-line social-card.
+      if(stampBlock && typeof renderStampBlock === 'function' && raw){
+        renderStampBlock(raw, ctx);
+      } else if(stampBlock && !raw) {
+        stampBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
