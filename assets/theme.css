@@ -1587,6 +1587,26 @@ button.risk-preview:hover{filter:brightness(.96)}
 .hist-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
 .hist-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}
 
+/* Strategy board (iter #166) — Kanban-style 3 columns. */
+.board-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.board-col{border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);display:flex;flex-direction:column;min-height:160px}
+.board-col-head{padding:6px 10px;background:var(--ink);color:var(--paper);font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;display:flex;flex-direction:column;gap:2px}
+.board-col-count{font-size:18px;font-weight:800;line-height:1;font-family:'Archivo Black',sans-serif}
+.board-col-desc{font-size:9px;text-transform:lowercase;letter-spacing:0;opacity:.7;font-weight:400}
+.board-col-list{flex:1;display:flex;flex-direction:column;gap:4px;padding:6px}
+.board-col-list:empty::before{content:'drop or click to advance';font-size:10px;color:var(--ink-soft);font-style:italic;display:block;text-align:center;padding:8px}
+.board-col-backlog .board-col-head{background:var(--ink-soft);color:var(--paper)}
+.board-col-drafted .board-col-head{background:var(--amber);color:var(--paper)}
+.board-col-sent .board-col-head{background:var(--green);color:var(--paper)}
+.board-card{background:var(--paper);border:var(--bd-hair) solid var(--ink-soft);padding:6px 8px;cursor:pointer;display:flex;flex-direction:column;gap:2px;transition:filter .15s ease}
+.board-card:hover{filter:brightness(.94)}
+.board-card-label{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:.04em}
+.board-card-sample{font-size:10px;color:var(--ink-soft);font-style:italic;margin:2px 0}
+.board-card-counter{font-size:10px;color:var(--green);margin-top:2px}
+.board-controls{margin-top:8px;grid-column:1 / -1;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);background:var(--paper);padding:4px 8px;border:var(--bd-hair) solid var(--ink-soft)}
+.board-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
+.board-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}

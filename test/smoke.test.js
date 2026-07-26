@@ -8144,6 +8144,30 @@ test("analyzer: Document history map shows past runs and a delta since the first
   assert.match(cssSrc, /\.hist-sparkline\b/, ".hist-sparkline style must exist");
 });
 
+// Iter #166: strategy board — Kanban-style 3 columns.
+test("analyzer: Strategy board tracks counter-clauses across Backlog / Drafted / Sent", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="boardBlock"/, "analyze.html must contain #boardBlock");
+  assert.match(appSrc, /function buildStrategyBoard\(/, "buildStrategyBoard must exist");
+  assert.match(appSrc, /function renderBoardBlock\(/, "renderBoardBlock must exist");
+  for(const k of ["backlog", "drafted", "sent"]){
+    assert.match(appSrc, new RegExp("key: '" + k + "'"),
+      "COLUMNS must include '" + k + "'");
+  }
+  assert.match(appSrc, /cleardoc:strategy-board/,
+    "iter #166 must persist state to localStorage");
+  assert.match(appSrc, /renderBoardBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderBoardBlock");
+  assert.match(cssSrc, /\.board-col\b/, ".board-col style must exist");
+  assert.match(cssSrc, /\.board-card\b/, ".board-card style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

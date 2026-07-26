@@ -1868,6 +1868,7 @@
           covBlock=$('#covBlock'),covNote=$('#covNote'),covGrid=$('#covGrid'),
           contactBlock=$('#contactBlock'),contactNote=$('#contactNote'),contactGrid=$('#contactGrid'),
           histBlock=$('#histBlock'),histNote=$('#histNote'),histCard=$('#histCard'),
+          boardBlock=$('#boardBlock'),boardNote=$('#boardNote'),boardGrid=$('#boardGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -4307,6 +4308,104 @@
       try { log = JSON.parse(localStorage.getItem('cleardoc:receipt-log') || '[]') || []; } catch(_){ log = []; }
       return { live: live, trend: trend, log: log };
     }
+    // Iter #166: negotiation strategy board — Kanban-style
+    // 3-column board (Backlog / Drafted / Sent) for the iter #116
+    // counter-clauses. Pure local; localStorage-persisted.
+    const BOARD_KEY = 'cleardoc:strategy-board';
+    const COLUMNS = [
+      { key: 'backlog', label: 'Backlog', desc: 'Next call' },
+      { key: 'drafted', label: 'Drafted', desc: 'In-progress' },
+      { key: 'sent', label: 'Sent', desc: 'Received response' },
+    ];
+    function buildStrategyBoard(raw, ctx){
+      const tal = (lastFlags || []).filter(f => f.rule && f.rule.counter);
+      if(!tal.length) return null;
+      // Load persisted state
+      let stored = [];
+      try { stored = JSON.parse(localStorage.getItem(BOARD_KEY) || '[]') || []; } catch(_){ stored = []; }
+      // Build default state (all in backlog) + merge with stored
+      const items = tal.slice(0, 8).map(f => {
+        const prior = stored.find(s => s.key === (f.rule.label + '|' + (f.s || '').slice(0, 60)));
+        return {
+          key: f.rule.label + '|' + (f.s || '').slice(0, 60),
+          label: f.rule.label,
+          sample: (f.s || '').slice(0, 100),
+          counter: f.rule.counter,
+          col: prior ? prior.col : 'backlog',
+        };
+      });
+      return items;
+    }
+    function persistBoard(items){
+      try { localStorage.setItem(BOARD_KEY, JSON.stringify(items.map(i => ({ key: i.key, col: i.col })))); }
+      catch(_){ /* quota */ }
+    }
+    function renderBoardBlock(raw, ctx){
+      if(!boardBlock || !boardGrid || !raw){ return; }
+      const items = buildStrategyBoard(raw, ctx);
+      if(!items){ boardBlock.hidden = true; return; }
+      const cols = COLUMNS.map(col => {
+        const colItems = items.filter(i => i.col === col.key);
+        return '<div class="board-col board-col-' + col.key + '" data-board-col="' + col.key + '">' +
+          '<div class="board-col-head"><b>' + col.label + '</b> <span class="board-col-count">' + colItems.length + '</span><div class="board-col-desc">' + col.desc + '</div></div>' +
+          '<div class="board-col-list">' +
+            colItems.map(it => (
+              '<div class="board-card" data-board-key="' + esc(it.key) + '">' +
+                '<div class="board-card-label">' + esc(it.label) + '</div>' +
+                '<div class="board-card-sample">' + esc(it.sample) + '</div>' +
+                '<div class="board-card-counter">→ ' + esc(it.counter) + '</div>' +
+              '</div>'
+            )).join('') +
+          '</div>' +
+        '</div>';
+      }).join('');
+      const controls = '<div class="board-controls">' +
+        '<span class="board-count">' + items.length + ' counter-clauses</span>' +
+        '<button type="button" class="board-reset ghost-btn ghost-btn-sm" id="boardResetBtn" title="Reset all to backlog">↺ reset to backlog</button>' +
+        '<button type="button" class="board-save ghost-btn ghost-btn-sm" id="boardSaveBtn" title="Persist state">💾 save</button>' +
+      '</div>';
+      boardGrid.innerHTML = cols + controls;
+      boardBlock.hidden = false;
+      if(boardNote){
+        const sent = items.filter(i => i.col === 'sent').length;
+        const drafted = items.filter(i => i.col === 'drafted').length;
+        const backlog = items.filter(i => i.col === 'backlog').length;
+        boardNote.innerHTML = '<span class="riskNote-lead">Strategy board</span> · ' +
+          '<b>Backlog ' + backlog + '</b> · <b>Drafted ' + drafted + '</b> · <b>Sent ' + sent + '</b>. ' +
+          'Click a card to move it to the next column. <b>💾 save</b> persists the state. Useful for tracking which counter-clauses you\'ve actually negotiated vs which you\'re still preparing.';
+      }
+      // Iter #166 — click-to-advance
+      $$('.board-card', boardGrid).forEach(card => {
+        card.addEventListener('click', () => {
+          const key = card.getAttribute('data-board-key');
+          if(!key) return;
+          const order = ['backlog', 'drafted', 'sent'];
+          const it = items.find(i => i.key === key);
+          if(!it) return;
+          const idx = order.indexOf(it.col);
+          it.col = order[Math.min(idx + 1, order.length - 1)];
+          renderBoardBlock(raw, ctx);
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('→ ' + it.col);
+        });
+      });
+      // Iter #166 — reset button
+      const resetBtn = document.getElementById('boardResetBtn');
+      if(resetBtn){
+        resetBtn.addEventListener('click', () => {
+          try { localStorage.removeItem(BOARD_KEY); } catch(_){ /* ignore */ }
+          renderBoardBlock(raw, ctx);
+        });
+      }
+      // Iter #166 — save button
+      const saveBtn = document.getElementById('boardSaveBtn');
+      if(saveBtn){
+        saveBtn.addEventListener('click', () => {
+          persistBoard(items);
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💾 Board saved');
+        });
+      }
+    }
+
     function renderHistBlock(raw, ctx){
       if(!histBlock || !histCard || !raw){ return; }
       const h = buildHistoryMap(raw, ctx);
@@ -7409,6 +7508,12 @@
         renderHistBlock(raw, ctx);
       } else if(histBlock && !raw) {
         histBlock.hidden = true;
+      }
+      // Iter #166: strategy board.
+      if(boardBlock && typeof renderBoardBlock === 'function' && raw){
+        renderBoardBlock(raw, ctx);
+      } else if(boardBlock && !raw) {
+        boardBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
