@@ -1858,6 +1858,7 @@
           stampCopyBtn=$('#stampCopyBtn'),stampTweetBtn=$('#stampTweetBtn'),
           versionBlock=$('#versionBlock'),versionNote=$('#versionNote'),versionGrid=$('#versionGrid'),
           inkBlock=$('#inkBlock'),inkNote=$('#inkNote'),inkGrid=$('#inkGrid'),
+          walkBlock=$('#walkBlock'),walkNote=$('#walkNote'),walkGrid=$('#walkGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3977,6 +3978,140 @@
       const savingsPct = Math.round((savingsWords / totalWords) * 100);
       return { totalWords: totalWords, jargonHits: jargonHits, savingsWords: savingsWords, savingsPct: savingsPct };
     }
+    // Iter #148: walk-through — a guided step-by-step tour of every
+    // detected risk in document order. Each step: jump to the source
+    // sentence + speak the risk aloud + read the counter-clause.
+    // Pure local; uses iter #84 + iter #113 SpeechSynthesis.
+    function buildWalkSteps(raw, ctx){
+      const list = (lastFlags || []).slice(0, 10);
+      return list.map((f, i) => ({
+        step: i + 1,
+        sev: f.rule.sev,
+        label: f.rule.label,
+        why: f.rule.why,
+        counter: f.rule.counter || '',
+        matchText: (f.s || '').slice(0, 240),
+        offset: typeof f.i === 'number' ? f.i : 0,
+      }));
+    }
+    function renderWalkBlock(raw, ctx){
+      if(!walkBlock || !walkGrid || !raw){ return; }
+      const steps = buildWalkSteps(raw, ctx);
+      if(!steps.length){ walkBlock.hidden = true; return; }
+      const list = steps.map(s => {
+        const offset = (function(){
+          if(!s.matchText) return -1;
+          return (raw || '').indexOf(s.matchText.slice(0, 60));
+        })();
+        return '<div class="walk-step walk-step-' + (s.sev === 'r' ? 'trap' : s.sev === 'a' ? 'watch' : 'note') + '" data-walk-step="' + s.step + '" data-walk-offset="' + offset + '" data-walk-raw="' + esc(s.matchText) + '">' +
+          '<div class="walk-num">' + s.step + '</div>' +
+          '<div class="walk-body">' +
+            '<div class="walk-label">' + esc(s.label) + '</div>' +
+            '<div class="walk-why">' + esc(s.why) + '</div>' +
+            (s.counter ? '<div class="walk-counter"><b>Counter:</b> ' + esc(s.counter) + '</div>' : '') +
+          '</div>' +
+          '<div class="walk-actions">' +
+            '<button type="button" class="walk-speak ghost-btn ghost-btn-sm" data-walk-speak="' + s.step + '" title="Speak this risk aloud">🔊</button>' +
+            '<button type="button" class="walk-jump ghost-btn ghost-btn-sm" data-walk-jump="' + offset + '" title="Jump to this risk in the source">📍 jump</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      // Iter #148 — play-all + counter
+      const playAll = '<div class="walk-controls">' +
+        '<span class="walk-count">' + steps.length + ' step' + (steps.length === 1 ? '' : 's') + ' · walk-through</span>' +
+        '<button type="button" class="walk-play ghost-btn ghost-btn-sm" id="walkPlayBtn" title="Play all steps with voice + jump">▶ play all</button>' +
+        '<button type="button" class="walk-stop ghost-btn ghost-btn-sm" id="walkStopBtn" hidden title="Stop playback">◼ stop</button>' +
+      '</div>';
+      walkGrid.innerHTML = list + playAll;
+      walkBlock.hidden = false;
+      if(walkNote){
+        walkNote.innerHTML = '<span class="riskNote-lead">Step-by-step walk-through</span> · ' +
+          'Click 📍 to jump to each risk in the source, or 🔊 to hear it read aloud. <b>▶ play all</b> auto-walks through every step.';
+      }
+      // Iter #148 — speak handlers
+      $$('.walk-speak', walkGrid).forEach(btn => {
+        btn.addEventListener('click', () => {
+          const step = steps[parseInt(btn.getAttribute('data-walk-speak') || '-1', 10) - 1];
+          if(!step || !('speechSynthesis' in window)) return;
+          const text = (step.label || '') + '. ' + (step.why || '') + (step.counter ? ' Counter: ' + step.counter : '');
+          try {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 0.95;
+            window.speechSynthesis.speak(u);
+          } catch(_){ /* ignore */ }
+        });
+      });
+      $$('.walk-jump', walkGrid).forEach(btn => {
+        btn.addEventListener('click', () => {
+          if(!input) return;
+          const raw2 = btn.closest('.walk-step').getAttribute('data-walk-raw') || '';
+          if(!raw2) return;
+          const idx2 = input.value.indexOf(raw2.slice(0, 80));
+          if(idx2 >= 0){
+            try { input.focus(); input.setSelectionRange(idx2, idx2 + raw2.length); } catch(_){ /* ignore */ }
+            try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ Clause no longer in input — the doc was edited');
+          }
+        });
+      });
+      // Iter #148 — play all with sequential playback
+      let i = 0;
+      let cancelled = false;
+      const playAllBtn = document.getElementById('walkPlayBtn');
+      const stopBtn = document.getElementById('walkStopBtn');
+      const playNext = () => {
+        if(cancelled || i >= steps.length){
+          if(stopBtn) stopBtn.hidden = true;
+          if(playAllBtn) playAllBtn.hidden = false;
+          return;
+        }
+        const s = steps[i];
+        // Jump
+        if(input){
+          const idx2 = (raw || '').indexOf(s.matchText.slice(0, 60));
+          if(idx2 >= 0){
+            try { input.focus(); input.setSelectionRange(idx2, idx2 + s.matchText.length); } catch(_){ /* ignore */ }
+            try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+          }
+        }
+        // Speak
+        if(typeof window !== 'undefined' && 'speechSynthesis' in window){
+          try {
+            window.speechSynthesis.cancel();
+            const text = 'Step ' + s.step + ' of ' + steps.length + '. ' + (s.label || '') + '. ' + (s.why || '') + (s.counter ? ' Counter: ' + s.counter : '');
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 0.95;
+            u.onend = u.onerror = () => { i++; setTimeout(playNext, 600); };
+            window.speechSynthesis.speak(u);
+          } catch(_){
+            i++; setTimeout(playNext, 600);
+          }
+        } else {
+          i++; setTimeout(playNext, 600);
+        }
+      };
+      if(playAllBtn){
+        playAllBtn.addEventListener('click', () => {
+          if(typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+          cancelled = false;
+          i = 0;
+          playAllBtn.hidden = true;
+          if(stopBtn) stopBtn.hidden = false;
+          playNext();
+        });
+      }
+      if(stopBtn){
+        stopBtn.addEventListener('click', () => {
+          cancelled = true;
+          try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
+          if(stopBtn) stopBtn.hidden = true;
+          if(playAllBtn) playAllBtn.hidden = false;
+        });
+      }
+    }
+
     function renderInkBlock(raw, ctx){
       if(!inkBlock || !inkGrid || !raw){ return; }
       const s = buildInkSavings(raw, ctx);
@@ -6198,6 +6333,12 @@
         renderInkBlock(raw, ctx);
       } else if(inkBlock && !raw) {
         inkBlock.hidden = true;
+      }
+      // Iter #148: walk-through — guided step-by-step tour.
+      if(walkBlock && typeof renderWalkBlock === 'function' && raw){
+        renderWalkBlock(raw, ctx);
+      } else if(walkBlock && !raw) {
+        walkBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

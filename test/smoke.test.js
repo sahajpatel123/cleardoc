@@ -7818,6 +7818,36 @@ test("analyzer: Ink saver estimates word savings from jargon reduction", () => {
   assert.match(cssSrc, /\.ink-jargon-phrase\b/, ".ink-jargon-phrase style must exist");
 });
 
+// Iter #148: walk-through — guided step-by-step tour of every
+// detected risk with jump + speak + auto-play-all.
+test("analyzer: Walk-through renders step-by-step tour with jump + speak + play-all", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="walkBlock"/, "analyze.html must contain #walkBlock");
+  assert.match(appSrc, /function buildWalkSteps\(/, "buildWalkSteps must exist");
+  assert.match(appSrc, /function renderWalkBlock\(/, "renderWalkBlock must exist");
+  // Speak handler
+  assert.match(appSrc, /data-walk-speak[\s\S]+?SpeechSynthesisUtterance/,
+    "iter #148 must wire speak button to SpeechSynthesisUtterance");
+  // Jump handler
+  assert.match(appSrc, /data-walk-jump[\s\S]+?setSelectionRange/,
+    "iter #148 must wire jump button to setSelectionRange");
+  // Play-all
+  assert.match(appSrc, /walkPlayBtn[\s\S]+?playNext/,
+    "iter #148 must include a play-all button that walks through steps");
+  // Wiring
+  assert.match(appSrc, /renderWalkBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderWalkBlock");
+  // CSS
+  assert.match(cssSrc, /\.walk-step\b/, ".walk-step style must exist");
+  assert.match(cssSrc, /\.walk-step-trap\b/, ".walk-step-trap style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

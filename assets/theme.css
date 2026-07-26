@@ -1436,6 +1436,24 @@ button.risk-preview:hover{filter:brightness(.96)}
 .ink-controls{margin-top:6px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro)}
 .ink-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase}
 
+/* Walk-through (iter #148) — guided step-by-step tour. */
+.walk-grid{display:flex;flex-direction:column;gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.walk-step{display:flex;gap:8px;padding:8px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);align-items:flex-start}
+.walk-step.walk-step-trap{border-left:3px solid var(--danger);background:var(--danger-tint)}
+.walk-step.walk-step-watch{border-left:3px solid var(--amber);background:var(--amber-tint)}
+.walk-step.walk-step-note{border-color:var(--ink-soft)}
+.walk-num{font-family:'Archivo Black',sans-serif;background:var(--ink);color:var(--paper);padding:1px 8px;min-width:22px;text-align:center;flex-shrink:0;font-size:13px}
+.walk-body{flex:1;min-width:0}
+.walk-label{font-weight:700;font-size:var(--t-meta);color:var(--ink)}
+.walk-why{font-size:var(--t-meta);color:var(--ink);font-style:italic;margin-top:2px}
+.walk-counter{font-size:var(--t-meta);color:var(--green);margin-top:4px}
+.walk-counter b{color:var(--ink);font-weight:700;margin-right:4px}
+.walk-actions{display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-self:flex-start}
+.walk-actions .ghost-btn{padding:2px 6px;font-size:10px;cursor:pointer}
+.walk-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro)}
+.walk-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+.walk-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}
