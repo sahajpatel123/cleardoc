@@ -8105,6 +8105,27 @@ test("analyzer: Deadline extractor pulls dates from action-verb sentences", () =
     "renderDeadlineBlock must render ICS export buttons");
 });
 
+// Iter #176: focus memory — tracks clauses the user pinned across sessions.
+test("analyzer: Focus memory tracks clauses pinned across sessions", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="focusBlock"/, "analyze.html must contain #focusBlock");
+  assert.match(appSrc, /function buildFocusMemory/, "buildFocusMemory must exist");
+  assert.match(appSrc, /function renderFocusBlock/, "renderFocusBlock must exist");
+  assert.match(appSrc, /cleardoc:focus-/, "iter #176 must persist focus points to localStorage with a focus- prefix");
+  assert.match(appSrc, /function trackFocus/, "trackFocus must exist");
+  assert.match(appSrc, /data-rc-pin/, "iter #176 must render a 📌 pin button on each risk counter row");
+  assert.match(appSrc, /trackFocus\(raw, ctx, term, ctx\)/, "trackFocus must be wired into the rc-pin click handler");
+  // Wiring
+  assert.match(appSrc, /renderFocusBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderFocusBlock");
+});
+
+
 // Iter #175 polish: deadline extractor — countdown + copy-all chip.
 test("analyzer: Deadline extractor polish — countdown + copy-all chip", () => {
   if (!HAS_BROWSER) return;

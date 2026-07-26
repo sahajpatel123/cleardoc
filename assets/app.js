@@ -1873,6 +1873,7 @@
           defBlock=$('#defBlock'),defNote=$('#defNote'),defList=$('#defList'),
           actionBlock2=$('#actionBlock2'),actionBlock2Note=$('#actionBlock2Note'),actionList=$('#actionList'),
           deadlineBlock=$('#deadlineBlock'),deadlineNote=$('#deadlineNote'),deadlineList=$('#deadlineList'),
+          focusBlock=$('#focusBlock'),focusNote=$('#focusNote'),focusList=$('#focusList'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -2136,6 +2137,7 @@
               '<button type="button" class="rc-apply" data-rc-apply="' + esc(h.counter) + '" data-rc-match="' + esc(h.matched || '') + '" aria-label="Apply this suggestion to the source"' + applyDisabled + '>' + applyLabel + '</button>',
               '<button type="button" class="rc-copy" data-rc-copy="' + esc(h.counter) + '" aria-label="Copy suggestion to clipboard">copy</button>',
               '<button type="button" class="rc-speak" data-rc-speak="' + esc(h.counter) + '" aria-label="Read suggestion aloud">🔊</button>',
+              '<button type="button" class="rc-pin ghost-btn ghost-btn-sm" data-rc-pin="' + esc(h.label) + '" data-rc-pin-ctx="' + esc(h.matched || '') + '" title="Pin this risk to focus memory">📌</button>',
               tip,
             '</div>'
           );
@@ -4550,6 +4552,66 @@
         if(!isNaN(dt.getTime())) tryAdd('(quarterly)', dt.toISOString().slice(0, 10), m[0], m.index);
       }
       return items.slice(0, 10);
+    }
+
+
+    // Iter #176: focus memory — tracks clauses the user has
+    // clicked across sessions, keyed by the document's SHA-256
+    // fingerprint. Pure local; uses crypto.subtle for the
+    // fingerprint and localStorage for persistence.
+    async function buildFocusMemory(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      let fp = 'nohash';
+      try {
+        if(typeof crypto !== 'undefined' && crypto.subtle){
+          const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+          fp = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0, 16);
+        }
+      } catch(_){ /* fall through */ }
+      const KEY = 'cleardoc:focus-' + fp;
+      let items = [];
+      try { items = JSON.parse(localStorage.getItem(KEY) || '[]') || []; } catch(_){ items = []; }
+      return { fp: fp, items: items, key: KEY };
+    }
+    function renderFocusBlock(raw, ctx){
+      if(!focusBlock || !focusList || !raw){ return; }
+      buildFocusMemory(raw, ctx).then(m => {
+        if(!m){ focusBlock.hidden = true; return; }
+        if(!m.items || !m.items.length){ focusBlock.hidden = true; return; }
+        const sorted = m.items.slice().sort((a, b) => b.ts - a.ts);
+        const rows = sorted.slice(0, 10).map(it => {
+          const ago = (function(){
+            const days = Math.round((Date.now() - it.ts) / 86400000);
+            if(days === 0) return 'today';
+            if(days === 1) return 'yesterday';
+            if(days < 7) return days + ' days ago';
+            return Math.round(days/7) + ' weeks ago';
+          })();
+          return '<div class="focus-row">' +
+            '<div class="focus-term">' + esc(it.term || '?') + '</div>' +
+            '<div class="focus-context">' + esc((it.context || '').slice(0, 180)) + '</div>' +
+            '<div class="focus-when">' + ago + '</div>' +
+          '</div>';
+        }).join('');
+        focusList.innerHTML = rows;
+        focusBlock.hidden = false;
+        if(focusNote){
+          focusNote.innerHTML = '<span class="riskNote-lead">' + m.items.length + ' focus point' + (m.items.length === 1 ? '' : 's') + ' for this document</span> · ' +
+            'Tracked across sessions on this device. Click any clause across the analyzer to remember it for next time. ' +
+            'Use the 📌 pin icon (when present) to add directly.';
+        }
+      }).catch(() => { focusBlock.hidden = true; });
+    }
+    // Iter #176 — wire `add to focus` to risk-row clicks
+    function trackFocus(raw, ctx, term, context){
+      buildFocusMemory(raw, ctx).then(m => {
+        if(!m) return;
+        m.items.push({ ts: Date.now(), term: term, context: context });
+        while(m.items.length > 30) m.items.shift();
+        try { localStorage.setItem(m.key, JSON.stringify(m.items)); } catch(_){ /* quota */ }
+        renderFocusBlock(raw, ctx);
+      });
     }
     function renderDeadlineBlock(raw, ctx){
       if(!deadlineBlock || !deadlineList || !raw){ return; }
@@ -8017,6 +8079,12 @@
       } else if(defBlock && !raw) {
         defBlock.hidden = true;
       }
+      // Iter #176: focus memory.
+      if(focusBlock && typeof renderFocusBlock === 'function' && raw){
+        renderFocusBlock(raw, ctx);
+      } else if(focusBlock && !raw) {
+        focusBlock.hidden = true;
+      }
 
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
@@ -10835,6 +10903,17 @@
               bodyHtml: '<p style="font-family:Archivo,sans-serif;text-transform:none;letter-spacing:0;line-height:1.5">' + esc(text) + '</p>',
               confirmLabel: 'Got it',
             });
+            return;
+          }
+          // Iter #176: pin a risk to focus memory.
+          const rcPin = e.target.closest && e.target.closest('[data-rc-pin]');
+          if(rcPin){
+            e.preventDefault();
+            e.stopPropagation();
+            const term = rcPin.getAttribute('data-rc-pin') || '';
+            const ctx = rcPin.getAttribute('data-rc-pin-ctx') || '';
+            if(typeof trackFocus === 'function' && raw) trackFocus(raw, ctx, term, ctx);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📌 Pinned to focus memory');
             return;
           }
           // 0b. Per-suggestion copy button — copies the counter-clause
