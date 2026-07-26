@@ -7993,6 +7993,15 @@ test("analyzer: Glossary quick-reference extracts legal terms with plain-English
   // CSS
   assert.match(cssSrc, /\.gloss-row\b/, ".gloss-row style must exist");
   assert.match(cssSrc, /\.gloss-term\b/, ".gloss-term style must exist");
+
+  // Iter #157 polish: shift-click to jump + copy-all + filter chips.
+  assert.match(appSrc, /e\.shiftKey[\s\S]+?indexOf|shiftKey[\s\S]+?input\.value\.indexOf/,
+    "iter #157 must support shift-click to jump");
+  assert.match(appSrc, /glossCopyAllBtn/,
+    "iter #157 must include a copy-all button");
+  assert.match(appSrc, /gloss-filter|glossFilter/,
+    "iter #157 must include filter chips");
+  assert.match(cssSrc, /\.gloss-filter-active\b/, ".gloss-filter-active style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,

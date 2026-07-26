@@ -4186,24 +4186,46 @@
     }
     function renderGlossBlock(raw, ctx){
       if(!glossBlock || !glossGrid || !raw){ return; }
-      const list = buildGlossary(raw, ctx);
-      if(!list || !list.length){ glossBlock.hidden = true; return; }
-      glossGrid.innerHTML = list.map(g => (
-        '<div class="gloss-row" data-gloss-term="' + esc(g.term) + '" data-gloss-plain="' + esc(g.plain) + '" title="Click to copy the plain-English meaning">' +
+      const all = buildGlossary(raw, ctx);
+      if(!all || !all.length){ glossBlock.hidden = true; return; }
+      // Iter #157 — filter chip (all vs > 1 hit) + copy-all
+      const filter = glossGrid._glossFilter || 'all';
+      const visible = filter === 'multi' ? all.filter(g => g.hits > 1) : all;
+      const controls =
+        '<div class="gloss-controls">' +
+          '<span class="gloss-count">' + visible.length + ' of ' + all.length + ' terms</span>' +
+          '<button type="button" class="gloss-filter ghost-btn ghost-btn-sm ' + (filter === 'multi' ? 'gloss-filter-active' : '') + '" data-gloss-filter="multi">multi-hit only</button>' +
+          '<button type="button" class="gloss-filter ghost-btn ghost-btn-sm ' + (filter === 'all' ? 'gloss-filter-active' : '') + '" data-gloss-filter="all">all</button>' +
+          '<button type="button" class="gloss-copy-all ghost-btn ghost-btn-sm" id="glossCopyAllBtn" title="Copy the entire glossary as plain text">📋 copy all</button>' +
+        '</div>';
+      glossGrid.innerHTML = visible.map(g => (
+        '<div class="gloss-row" data-gloss-term="' + esc(g.term) + '" data-gloss-plain="' + esc(g.plain) + '" title="Click to copy the plain-English meaning. Shift-click to jump to the source.">' +
           '<div class="gloss-term">' + esc(g.term) + '</div>' +
           '<div class="gloss-meaning">' + esc(g.plain) + '</div>' +
           '<div class="gloss-hits">' + g.hits + ' hit' + (g.hits === 1 ? '' : 's') + '</div>' +
         '</div>'
-      )).join('');
+      )).join('') + controls;
       glossBlock.hidden = false;
       if(glossNote){
-        glossNote.innerHTML = '<span class="riskNote-lead">' + list.length + ' legal term' + (list.length === 1 ? '' : 's') + ' found</span> · ' +
-          'Sorted by frequency. Click any term to copy its plain-English meaning. Use alongside the analyzer to read the document one clause at a time.';
+        glossNote.innerHTML = '<span class="riskNote-lead">' + all.length + ' legal term' + (all.length === 1 ? '' : 's') + ' found</span> · ' +
+          'Sorted by frequency. Click to copy the meaning, or use <b>📋 copy all</b> to grab the whole list.';
       }
+      // Iter #157 — click-to-copy + shift-click to jump
       $$('.gloss-row', glossGrid).forEach(row => {
-        row.addEventListener('click', async () => {
+        row.addEventListener('click', async (e) => {
           const term = row.getAttribute('data-gloss-term') || '';
           const plain = row.getAttribute('data-gloss-plain') || '';
+          // Iter #157 — shift-click jumps to the source
+          if(e.shiftKey && input && term){
+            const idx2 = input.value.toLowerCase().indexOf(term.toLowerCase());
+            if(idx2 >= 0){
+              try { input.focus(); input.setSelectionRange(idx2, idx2 + term.length); } catch(_){ /* ignore */ }
+              try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+              return;
+            }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Term no longer in input — the doc was edited');
+            return;
+          }
           let copied = false;
           try {
             if(navigator.clipboard) { await navigator.clipboard.writeText(plain); copied = true; }
@@ -4220,6 +4242,35 @@
           setTimeout(() => { if(row.isConnected) row.querySelector('.gloss-term').textContent = term; }, 1500);
         });
       });
+      // Iter #157 — filter chips
+      $$('.gloss-filter', glossGrid).forEach(btn => {
+        btn.addEventListener('click', () => {
+          const k = btn.getAttribute('data-gloss-filter') || 'all';
+          glossGrid._glossFilter = k;
+          renderGlossBlock(raw, ctx);
+        });
+      });
+      // Iter #157 — copy all
+      const copyAllBtn = document.getElementById('glossCopyAllBtn');
+      if(copyAllBtn){
+        copyAllBtn.addEventListener('click', async () => {
+          const text = all.map(g => g.term + ' — ' + g.plain + ' (' + g.hits + '×)').join('\n');
+          let copied = false;
+          try {
+            if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Glossary copied (' + all.length + ' terms)' : '⚠ Couldn’t copy');
+          copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
+          setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
+        });
+      }
     }
 
     function renderPartyBlock(raw, ctx){
