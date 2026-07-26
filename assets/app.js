@@ -5234,23 +5234,43 @@
     // (which paraphrases what the doc says) — this synthesizes the signals
     // into one opinionated recommendation: sign / sign-with-asks /
     // negotiate / get-a-lawyer. Pure local; regex-based.
+    // Iter #183 — track per-pattern offsets so the rationale can render
+    // clickable concern chips, and expose a full hit/miss audit for the
+    // "why this tier?" panel.
+    const DECISION_PATTERNS = [
+      { id: 'indemnif',     label: 'broad indemnification',     heavy: true,  re: /(\bindemnif(?:y|ication|ied|ies)\b|\bhold\s+harmless\b)/i },
+      { id: 'class',        label: 'class action waiver',       heavy: true,  re: /(\bclass\s+(?:action|arbitration)\s+waiv|\bwaiv\w*\b.*\bclass\s+(?:action|arbitration))/i },
+      { id: 'jury',         label: 'jury waiver',               heavy: true,  re: /\bwaiv(?:e|es|ed|ing)\b.*\b(?:jury|trial)\b|\b(?:jury|trial)\b.*\bwaiv/i },
+      { id: 'nonrefund',    label: 'non-refundable clause',     heavy: false, re: /\bnon[- ]?refundable\b/i },
+      { id: 'cancel',       label: 'cancellation fees',         heavy: false, re: /\b(?:liquidated\s+damages|cancellation\s+(?:fee|assessment|charge))\b/i },
+      { id: 'perpetuity',   label: 'perpetual liability',       heavy: true,  re: /\b(?:unlimited|all)\s+liabilit(?:y|ies)\b|\bin\s+perpetuity\b/i },
+      { id: 'autorenew',    label: 'auto-renewal',              heavy: false, re: /\bautomatically?\s+renew/i },
+      { id: 'exclusive',    label: 'exclusive remedies',        heavy: false, re: /\bexclusive\s+remedi(?:es|y)\b/i },
+      { id: 'assignment',   label: 'broad assignment',          heavy: false, re: /\b(?:assignment\s+of\s+(?:all\s+)?(?:rights|claims))\b|\bassign(?:s)?\s+all\b/i },
+      { id: 'noncompete',   label: 'non-compete / non-solicit', heavy: false, re: /\b(?:non[- ]?compete|non[- ]?solicitation)\b/i }
+    ];
     function computeDecision(raw){
       const text = String(raw || '');
       if(!text || text.length < 20) return null;
-      const lc = text.toLowerCase();
-      const tally = [];
-      const check = (re, label) => { if(re.test(text)) tally.push(label); };
-      // Tier-1 red flags (each is heavy on its own)
-      check(/(\bindemnif(?:y|ication|ied|ies)\b|\bhold\s+harmless\b)/i, 'broad indemnification');
-      check(/(\bclass\s+(?:action|arbitration)\s+waiv|\bwaiv\w*\b.*\bclass\s+(?:action|arbitration))/i, 'class action waiver');
-      check(/\bwaiv(?:e|es|ed|ing)\b.*\b(?:jury|trial)\b|\b(?:jury|trial)\b.*\bwaiv/i, 'jury waiver');
-      check(/\bnon[- ]?refundable\b/i, 'non-refundable clause');
-      check(/\b(?:liquidated\s+damages|cancellation\s+(?:fee|assessment|charge))\b/i, 'cancellation fees');
-      check(/\b(?:unlimited|all)\s+liabilit(?:y|ies)\b|\bin\s+perpetuity\b/i, 'perpetual liability');
-      check(/\bautomatically?\s+renew/i, 'auto-renewal');
-      check(/\bexclusive\s+remedi(?:es|y)\b/i, 'exclusive remedies');
-      check(/\b(?:assignment\s+of\s+(?:all\s+)?(?:rights|claims))\b|\bassign(?:s)?\s+all\b/i, 'broad assignment');
-      check(/\b(?:non[- ]?compete|non[- ]?solicitation)\b/i, 'non-compete / non-solicit');
+      const hits = [];
+      const misses = [];
+      for(const p of DECISION_PATTERNS){
+        const m = text.match(p.re);
+        if(m && m.index !== undefined){
+          hits.push({ id: p.id, label: p.label, heavy: p.heavy, offset: m.index });
+        } else {
+          misses.push({ id: p.id, label: p.label, heavy: p.heavy });
+        }
+      }
+      // Deduplicate hits by label (some patterns can overlap in detection)
+      const seen = new Set();
+      const uniqueHits = hits.filter(h => {
+        const k = h.label.toLowerCase();
+        if(seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      const tally = uniqueHits.map(h => h.label);
       // Obligation asymmetry
       const mandatory = (text.match(/\b(?:shall|must|undertakes|warrants|covenants|is\s+required\s+to|are\s+required\s+to|is\s+obligated|are\s+obligated)\b/gi) || []).length;
       const permissive = (text.match(/\b(?:may|agrees?\s+to|reserves?\s+the\s+right\s+to|is\s+permitted\s+to|are\s+permitted\s+to)\b/gi) || []).length;
@@ -5258,32 +5278,33 @@
       const xrefs = extractCrossRefs(text);
       const dangling = xrefs.filter(x => x.status === 'dangling').length;
       const external = xrefs.filter(x => x.status === 'external').length;
-      // Risk-phrase count (rough proxy)
-      const riskCount = tally.length + (dangling > 0 ? 1 : 0) + (mandatory > permissive + 3 ? 1 : 0);
+      const riskCount = uniqueHits.length + (dangling > 0 ? 1 : 0) + (mandatory > permissive + 3 ? 1 : 0);
       // Verdict thresholds
       let verdict, headline, rationale;
-      if(riskCount >= 4 || tally.filter(t => /indemnif|class|jury|perpetuity/.test(t)).length >= 2){
+      const heavyCount = uniqueHits.filter(h => h.heavy).length;
+      if(riskCount >= 4 || heavyCount >= 2){
         verdict = 'lawyer';
+        const names = uniqueHits.filter(h => h.heavy).map(h => h.label).slice(0, 3).join(', ');
         headline = '⚫ Get a lawyer before signing';
-        rationale = 'Multiple serious red flags detected: ' + tally.slice(0, 3).join(', ') + '. This isn’t a "skim and sign" document — a quick professional read could save you a lot more than the cost of a consultation.';
+        rationale = 'Multiple serious red flags detected: ' + names + '. This isn’t a "skim and sign" document — a quick professional read could save you a lot more than the cost of a consultation.';
       } else if(riskCount >= 2){
         verdict = 'negotiate';
         headline = '🔴 Negotiate before signing';
-        rationale = tally.length
-          ? 'Found ' + tally.length + ' concerning clause' + (tally.length === 1 ? '' : 's') + ' (' + tally.slice(0, 3).join(', ') + '). These are common and usually negotiable — push back on at least the strongest one.'
+        rationale = uniqueHits.length
+          ? 'Found ' + uniqueHits.length + ' concerning clause' + (uniqueHits.length === 1 ? '' : 's') + '. These are common and usually negotiable — push back on at least the strongest one.'
           : (dangling ? 'Internal cross-references point to sections that don’t appear in this document — ask for the missing pieces before signing.' : 'Several warning signs — at least push back on the strongest one before signing.');
       } else if(riskCount >= 1 || mandatory > permissive + 2){
         verdict = 'asks';
         headline = '🟡 Sign, but ask for 1–2 changes';
-        rationale = tally.length
-          ? 'One soft red flag (' + tally[0] + '). Common enough that a single polite ask usually gets it removed or softened.'
+        rationale = uniqueHits.length
+          ? 'One soft red flag. Common enough that a single polite ask usually gets it removed or softened.'
           : (mandatory > permissive + 2 ? 'The obligations lean heavily one way — ask to soften at least one before you sign.' : 'Nothing obviously wrong, but it doesn’t hurt to ask for one small change as a courtesy.');
       } else {
         verdict = 'sign';
         headline = '🟢 Sign as-is';
         rationale = 'No significant red flags. The terms look standard and the language is balanced. Read it once more for your own peace of mind, then you’re good to go.';
       }
-      return { verdict: verdict, headline: headline, rationale: rationale, signals: { tally: tally, riskCount: riskCount, mandatory: mandatory, permissive: permissive, dangling: dangling, external: external } };
+      return { verdict: verdict, headline: headline, rationale: rationale, signals: { tally: tally, hits: uniqueHits, misses: misses, riskCount: riskCount, mandatory: mandatory, permissive: permissive, dangling: dangling, external: external } };
     }
     function renderDecisionBlock(raw, ctx){
       if(!decisionBlock || !decisionCard || !raw){ return; }
@@ -5300,12 +5321,77 @@
       decisionCard.innerHTML =
         '<div class="decision-tier">' + esc(m.k) + '</div>' +
         '<div class="decision-headline">' + esc(d.headline) + '</div>';
-      decisionRationale.innerHTML = '<span class="riskNote-lead">' + d.signals.tally.length + ' concern' + (d.signals.tally.length === 1 ? '' : 's') + ' · ' + d.signals.mandatory + ' mandatory / ' + d.signals.permissive + ' permissive obligation' + (d.signals.mandatory + d.signals.permissive === 1 ? '' : 's') + '</span> · ' +
-        esc(d.rationale);
+      // Iter #183 — render concerns as clickable chips that jump to the
+      // source offset where the pattern hit.
+      const chipHtml = d.signals.hits.length
+        ? '<div class="decision-chips">' + d.signals.hits.map(h =>
+            '<button type="button" class="decision-chip' + (h.heavy ? ' decision-chip-heavy' : '') + '" data-decision-offset="' + (h.offset || 0) + '" title="Jump to ' + esc(h.label) + ' in source">' + esc(h.label) + '</button>'
+          ).join('') + '</div>'
+        : '';
+      decisionRationale.innerHTML =
+        '<span class="riskNote-lead">' + d.signals.tally.length + ' concern' + (d.signals.tally.length === 1 ? '' : 's') + ' · ' + d.signals.mandatory + ' mandatory / ' + d.signals.permissive + ' permissive obligation' + (d.signals.mandatory + d.signals.permissive === 1 ? '' : 's') + '</span> · ' +
+        esc(d.rationale) +
+        chipHtml;
+      // Iter #183 — expandable audit panel ("why this tier?")
+      const auditId = 'decisionAudit_' + Math.random().toString(36).slice(2, 8);
+      const totalPatterns = d.signals.hits.length + d.signals.misses.length;
+      const hitsRows = d.signals.hits.length
+        ? '<div class="da-list">' + d.signals.hits.map(h =>
+            '<div class="da-hit"><span class="da-tag da-tag-' + (h.heavy ? 'heavy' : 'soft') + '">' + (h.heavy ? '⚑ heavy' : '◦ soft') + '</span><span class="da-label">' + esc(h.label) + '</span></div>'
+          ).join('') + '</div>'
+        : '';
+      const missesRow = d.signals.misses.length
+        ? '<div class="da-row da-row-misses"><b>clean:</b> ' + d.signals.misses.map(x => x.label).join(' · ') + '</div>'
+        : '';
+      const auditHtml = '<div class="decision-audit-wrap">' +
+        '<button type="button" class="decision-why-btn ghost-btn ghost-btn-sm" id="decisionWhyBtn" aria-expanded="false" aria-controls="' + auditId + '">🔍 why this tier?</button>' +
+        '<div class="decision-audit mono" id="' + auditId + '" hidden>' +
+          '<div class="da-row"><b>patterns:</b> ' + d.signals.hits.length + ' of ' + totalPatterns + ' matched</div>' +
+          hitsRows +
+          missesRow +
+          '<div class="da-row"><b>obligations:</b> ' + d.signals.mandatory + ' mandatory (shall/must/undertakes) · ' + d.signals.permissive + ' permissive (may/reserves)</div>' +
+          '<div class="da-row"><b>cross-refs:</b> ' + d.signals.dangling + ' dangling · ' + d.signals.external + ' unattached</div>' +
+        '</div>' +
+      '</div>';
+      let auditContainer = document.getElementById('decisionAuditWrapHost');
+      if(!auditContainer){
+        auditContainer = document.createElement('div');
+        auditContainer.id = 'decisionAuditWrapHost';
+        decisionRationale.parentNode.insertBefore(auditContainer, decisionRationale.nextSibling);
+      }
+      auditContainer.innerHTML = auditHtml;
       decisionBlock.hidden = false;
+      // Why-toggle
+      const whyBtn = document.getElementById('decisionWhyBtn');
+      const auditEl = document.getElementById(auditId);
+      if(whyBtn && auditEl){
+        whyBtn.addEventListener('click', () => {
+          const open = !auditEl.hidden;
+          auditEl.hidden = open;
+          whyBtn.setAttribute('aria-expanded', open ? 'false' : 'true');
+          whyBtn.textContent = open ? '🔍 why this tier?' : '🔼 hide audit';
+        });
+      }
+      // Iter #183 — concern-chip click handlers: jump to source offset.
+      $$('.decision-chip', decisionRationale).forEach(btn => {
+        btn.addEventListener('click', () => {
+          if(!input) return;
+          const off = parseInt(btn.getAttribute('data-decision-offset') || '-1', 10);
+          if(off >= 0 && off < input.value.length){
+            try { input.focus(); input.setSelectionRange(off, Math.min(off + 40, input.value.length)); } catch(_){ /* ignore */ }
+            try { input.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ Concern no longer in input');
+          }
+        });
+      });
       if(decisionCopyBtn){
         decisionCopyBtn.onclick = async () => {
-          const text = d.headline + '\n\n' + d.rationale + '\n\nSignals: ' + d.signals.tally.length + ' concerns · ' + d.signals.mandatory + ' mandatory / ' + d.signals.permissive + ' permissive · ' + d.signals.dangling + ' dangling cross-ref' + (d.signals.dangling === 1 ? '' : 's');
+          const lines = [d.headline, '', d.rationale, '', 'Signals:'];
+          if(d.signals.hits.length) lines.push('  • ' + d.signals.hits.map(h => h.label + (h.heavy ? ' (heavy)' : '')).join('\n  • '));
+          lines.push('  • ' + d.signals.mandatory + ' mandatory / ' + d.signals.permissive + ' permissive obligation' + (d.signals.mandatory + d.signals.permissive === 1 ? '' : 's'));
+          if(d.signals.dangling) lines.push('  • ' + d.signals.dangling + ' dangling cross-ref' + (d.signals.dangling === 1 ? '' : 's'));
+          const text = lines.join('\n');
           let copied = false;
           try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
           catch(_){ /* fall through */ }

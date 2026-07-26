@@ -1958,3 +1958,23 @@ button.risk-preview:hover{filter:brightness(.96)}
 .decision-rationale{font-family:'Archivo',sans-serif;font-size:var(--t-meta);line-height:1.5;color:var(--ink);margin-top:var(--s1);text-transform:none;letter-spacing:0}
 .decision-actions{margin-top:var(--s2);display:flex;gap:6px;justify-content:flex-end}
 .decision-actions .ghost-btn{padding:4px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
+
+/* Iter #183 — clickable concern chips + expandable audit panel */
+.decision-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.decision-chip{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:600;padding:3px 8px;background:var(--paper);border:1px solid var(--ink);color:var(--ink);cursor:pointer;transition:transform .12s ease,background .12s ease}
+.decision-chip:hover{background:var(--ink);color:var(--paper);transform:translateY(-1px)}
+.decision-chip-heavy{border-color:var(--danger);background:var(--danger-tint);color:var(--danger)}
+.decision-chip-heavy:hover{background:var(--danger);color:var(--paper)}
+.decision-audit-wrap{margin-top:8px}
+.decision-why-btn{padding:3px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink-soft)}
+.decision-audit{margin-top:6px;padding:8px 12px;background:var(--paper2);border:var(--bd-hair) solid var(--ink-soft);font-size:var(--t-micro);text-transform:none;letter-spacing:0;line-height:1.5}
+.decision-audit .da-row{padding:2px 0;border-bottom:1px dashed var(--ink-soft)}
+.decision-audit .da-row:last-child{border-bottom:none}
+.decision-audit .da-row b{color:var(--ink);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.04em;font-size:10px;margin-right:6px}
+.decision-audit .da-list{display:flex;flex-direction:column;gap:3px;padding:4px 0}
+.decision-audit .da-hit{display:flex;gap:8px;align-items:baseline}
+.decision-audit .da-tag{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;padding:1px 4px;flex-shrink:0;min-width:60px;text-align:center}
+.decision-audit .da-tag-heavy{background:var(--danger);color:var(--paper)}
+.decision-audit .da-tag-soft{background:var(--ink-soft);color:var(--paper)}
+.decision-audit .da-label{color:var(--ink);font-size:var(--t-meta)}
+.decision-audit .da-row-misses{color:var(--green);opacity:.85}
