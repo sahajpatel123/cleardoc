@@ -8135,6 +8135,13 @@ test("analyzer: Document history map shows past runs and a delta since the first
   // CSS
   assert.match(cssSrc, /\.hist-row\b/, ".hist-row style must exist");
   assert.match(cssSrc, /\.hist-latest\b/, ".hist-latest style must exist");
+
+  // Iter #165 polish: maturity sparkline + copy-as-JSON.
+  assert.match(appSrc, /hist-sparkline|hist-spark-glyph/,
+    "iter #165 must render a sparkline");
+  assert.match(appSrc, /histCopyJsonBtn/,
+    "iter #165 must include a copy-JSON button");
+  assert.match(cssSrc, /\.hist-sparkline\b/, ".hist-sparkline style must exist");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,

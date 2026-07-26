@@ -4340,13 +4340,56 @@
           deltaHtml = '<div class="hist-delta">Δ since first run: ' + parts.join(' · ') + '</div>';
         }
       }
+      // Iter #165 — sparkline of maturity across runs (oldest → newest)
+      let sparklineHtml = '';
+      if(sorted.length >= 2){
+        const nums = sorted.map(s => s.num || 0);
+        const min = Math.min.apply(null, nums);
+        const max = Math.max.apply(null, nums);
+        const range = Math.max(1, max - min);
+        const spark = nums.map(n => {
+          const t = (n - min) / range;
+          const h = Math.round(t * 5);
+          return '▁▂▃▄▅▆'[h] || '▁';
+        }).join('');
+        sparklineHtml = '<div class="hist-sparkline" title="' + nums.join(', ') + '">📈 Maturity across runs: <span class="hist-spark-glyph">' + spark + '</span> <span class="hist-spark-nums">' + min + '–' + max + '/100</span></div>';
+      }
+      // Iter #165 — copy-as-JSON chip
       const allCount = (h.log ? h.log.length : 0) + h.trend.length;
-      histCard.innerHTML = deltaHtml + '<div class="hist-list">' + list + '</div>';
+      const json = JSON.stringify({
+        document: h.live ? { wc: h.live.wc, maturity_letter: h.live.letter, maturity_num: h.live.mnum, risks: h.live.risk } : null,
+        runs: sorted.map(s => ({ ts: new Date(s.ts).toISOString(), letter: s.letter, num: s.num, risks: s.risk })),
+        receipts: h.log ? h.log.length : 0,
+        delta_since_first: delta,
+      }, null, 2);
+      const controls = '<div class="hist-controls">' +
+        '<span class="hist-count">' + sorted.length + ' run' + (sorted.length === 1 ? '' : 's') + '</span>' +
+        '<button type="button" class="hist-copy-json ghost-btn ghost-btn-sm" id="histCopyJsonBtn" title="Copy history as JSON for programmatic use">📋 copy JSON</button>' +
+      '</div>';
+      histCard.innerHTML = sparklineHtml + deltaHtml + '<div class="hist-list">' + list + '</div>' + controls;
       histBlock.hidden = false;
       if(histNote){
         histNote.innerHTML = '<span class="riskNote-lead">Document analysis history</span> · ' +
           (h.trend.length > 0 ? (h.trend.length + ' previous run' + (h.trend.length === 1 ? '' : 's')) : 'First time analyzing this document') + '. ' +
           (h.log && h.log.length > 0 ? (' + ' + h.log.length + ' saved receipt' + (h.log.length === 1 ? '' : 's') + '.') : '');
+      }
+      const copyJsonBtn = document.getElementById('histCopyJsonBtn');
+      if(copyJsonBtn){
+        copyJsonBtn.addEventListener('click', async () => {
+          let copied = false;
+          try { if(navigator.clipboard) { await navigator.clipboard.writeText(json); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = json; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 History JSON copied' : '⚠ Couldn’t copy');
+          copyJsonBtn.textContent = copied ? '✓ copied' : '📋 copy JSON';
+          setTimeout(() => { if(copyJsonBtn.isConnected) copyJsonBtn.textContent = '📋 copy JSON'; }, 2500);
+        });
       }
     }
 
