@@ -1847,6 +1847,7 @@
           emailCopyBtn=$('#emailCopyBtn'),emailOpenBtn=$('#emailOpenBtn'),
           quesBlock=$('#quesBlock'),quesNote=$('#quesNote'),quesList=$('#quesList'),
           quesCopyBtn=$('#quesCopyBtn'),
+          playbookBlock=$('#playbookBlock'),playbookNote=$('#playbookNote'),playbookList=$('#playbookList'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3601,6 +3602,83 @@
       });
       return dedup.slice(0, 8);
     }
+    // Iter #128: negotiation playbook builder — synthesizes a
+    // numbered list of 5-7 actionable steps the user can take to
+    // improve the maturity score, with impact levels + effort
+    // estimates. Pure local; ordered by leverage.
+    function buildPlaybook(raw, ctx){
+      const c = (typeof analyzeTone === 'function') ? analyzeTone(raw) : { trust: 50, pressure: 0, clarity: 50 };
+      const ml = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
+      const mletter = ml && ml.textContent.trim();
+      const tal = { r: 0, a: 0, g: 0 };
+      (lastFlags || []).forEach(f => { tal[f.rule.sev] = (tal[f.rule.sev] || 0) + 1; });
+      const steps = [];
+      // Step 1: counter the most weighted trap
+      if(tal.r > 0){
+        const top = (lastFlags || []).filter(f => f.rule.sev === 'r')[0];
+        const label = top ? top.rule.label : 'first trap';
+        steps.push({ step: 'Counter the top trap', detail: 'Address the ' + label + ' first — every trap removed lifts the maturity score by ~12 points.', impact: 'high', effort: 'medium' });
+      }
+      // Step 2: tighten venue
+      const jl = jurisRow && jurisRow.querySelector('.juris-label');
+      if(jl && jl.textContent.trim() && jl.textContent.toLowerCase().indexOf('state of') < 0){
+        steps.push({ step: 'Move venue to your home state', detail: 'Currently ' + jl.textContent.trim() + ' — change to your own state to save $50K+ in dispute costs.', impact: 'high', effort: 'low' });
+      }
+      // Step 3: add what's missing
+      const gapList = document.querySelectorAll('#gapList .gap-row');
+      if(gapList.length > 0){
+        steps.push({ step: 'Add the missing clauses', detail: 'Add a ' + gapList.length + ' missing clauses (termination, refund, dispute, etc.) — see the "What\'s missing" section above.', impact: 'high', effort: 'medium' });
+      }
+      // Step 4: tone check
+      if(c.pressure > 60){
+        steps.push({ step: 'Soften the pressure language', detail: 'Replace "shall" / "must" / "immediately" / "sole discretion" with "may" / "agrees to" / "with 30 days notice" — pressure score is in the "unhealthy" range.', impact: 'medium', effort: 'low' });
+      }
+      // Step 5: counter-clause asks
+      if(tal.a > 0){
+        steps.push({ step: 'Take the watch counter-asks', detail: 'Copy the ' + tal.a + ' watch counter-clauses from the negotiate-it block above. They are reasonable and easy to accept.', impact: 'medium', effort: 'low' });
+      }
+      // Step 6: send the email draft
+      steps.push({ step: 'Send the email composer draft', detail: 'Use the ✉ Email composer block above as the starting point for your reply. Tone-pick: friendly usually gets accepted first.', impact: 'medium', effort: 'low' });
+      // Step 7: ask the questions
+      if(typeof buildQuestionsList === 'function'){
+        const qs = buildQuestionsList(raw, ctx);
+        if(qs.length){
+          steps.push({ step: 'Ask the questions, mark as answered', detail: 'Walk through the ❓ Questions to ask list. Mark each ◯ when the other party answers.', impact: 'medium', effort: 'medium' });
+        }
+      }
+      // Step 8: maturity push
+      if(mletter === 'D' || mletter === 'F'){
+        steps.push({ step: 'Push the maturity past 70', detail: 'Goal: walk away with a maturity of B or higher. If you can\'t get there, do not sign this contract.', impact: 'high', effort: 'high' });
+      }
+      // Step 9: schedule a counter-meeting
+      steps.push({ step: 'Schedule a 15-minute counter-meeting', detail: 'The email composer already prefilled a next-Tuesday 2 PM slot. Use it.', impact: 'medium', effort: 'low' });
+      // Step 10: keep receipts
+      steps.push({ step: 'Save a signed receipt', detail: 'After each meeting, click the 📜 receipt button to log a SHA-256 fingerprint + signature for every reviewed version.', impact: 'low', effort: 'low' });
+      // Sort by impact (high → medium → low)
+      const rank = { high: 0, medium: 1, low: 2 };
+      return steps.slice(0, 7).sort((a, b) => (rank[a.impact] || 9) - (rank[b.impact] || 9));
+    }
+    function renderPlaybookBlock(raw, ctx){
+      if(!playbookBlock || !playbookList || !raw){ return; }
+      const steps = buildPlaybook(raw, ctx);
+      if(!steps.length){ playbookBlock.hidden = true; return; }
+      const eff = (e) => e === 'high' ? '★ high' : (e === 'medium' ? '◆ medium' : '· low');
+      playbookList.innerHTML = steps.map((s, i) => (
+        '<li class="playbook-step playbook-imp-' + esc(s.impact) + '">' +
+          '<div class="playbook-num">' + (i + 1) + '</div>' +
+          '<div class="playbook-body">' +
+            '<div class="playbook-title">' + esc(s.step) + ' <span class="playbook-eff">[' + eff(s.effort) + ']</span></div>' +
+            '<div class="playbook-detail">' + esc(s.detail) + '</div>' +
+          '</div>' +
+        '</li>'
+      )).join('');
+      playbookBlock.hidden = false;
+      if(playbookNote){
+        playbookNote.innerHTML = '<span class="riskNote-lead">' + steps.length + ' ordered steps</span> ' +
+          'Sorted by leverage (★ high impact first). Pure local — assembled from the analyzer outputs.';
+      }
+    }
+
     function renderQuestionsBlock(raw, ctx){
       if(!quesBlock || !quesList || !raw){ return; }
       const qs = buildQuestionsList(raw, ctx);
@@ -5021,6 +5099,12 @@
         renderQuestionsBlock(raw, ctx);
       } else if(quesBlock && !raw) {
         quesBlock.hidden = true;
+      }
+      // Iter #128: negotiation playbook — ordered steps + impact + effort
+      if(playbookBlock && typeof renderPlaybookBlock === 'function' && raw){
+        renderPlaybookBlock(raw, ctx);
+      } else if(playbookBlock && !raw) {
+        playbookBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

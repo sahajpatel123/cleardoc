@@ -7447,6 +7447,38 @@ test("analyzer: Questions-to-ask lists bespoke questions specific to detected ri
   assert.match(cssSrc, /\.ques-done\b/, ".ques-done style must exist");
 });
 
+// Iter #128: negotiation playbook — ordered steps with impact +
+// effort, sorted by leverage.
+test("analyzer: Negotiation playbook builds prioritized steps from analyzer outputs", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="playbookBlock"/, "analyze.html must contain #playbookBlock");
+  assert.match(appSrc, /function buildPlaybook\(/, "buildPlaybook must exist");
+  assert.match(appSrc, /function renderPlaybookBlock\(/, "renderPlaybookBlock must exist");
+  // Steps must include impact + effort
+  assert.match(appSrc, /impact[\s\S]+?'high',\s*'medium',\s*'low'|impact:.+'high'/,
+    "buildPlaybook must rank steps by impact (high / medium / low)");
+  assert.match(appSrc, /effort[\s\S]+?'high',\s*'medium',\s*'low'|effort:/,
+    "buildPlaybook must compute effort (high / medium / low)");
+  // Wiring
+  assert.match(appSrc, /renderPlaybookBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderPlaybookBlock with raw + ctx");
+  // At least 5 distinct step types
+  for(const k of ["counter", "venue", "missing", "pressure", "counter-asks", "meeting"]){
+    assert.match(appSrc, new RegExp(k, 'i'),
+      "playbook should mention '" + k + "'");
+  }
+
+  // CSS
+  assert.match(cssSrc, /\.playbook-step\b/, ".playbook-step style must exist");
+  assert.match(cssSrc, /\.playbook-imp-high\b/, ".playbook-imp-high style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

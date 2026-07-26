@@ -1283,6 +1283,18 @@ button.risk-preview:hover{filter:brightness(.96)}
 .qp-note{background:var(--ink-soft)}
 .ques-done{font-size:14px;padding:2px 8px;cursor:pointer;color:var(--green);min-width:28px}
 
+/* Negotiation playbook (iter #128) — ordered action steps. */
+.playbook-list{display:flex;flex-direction:column;gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.45;list-style:none;margin:0;padding:0}
+.playbook-step{display:flex;gap:10px;padding:8px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);align-items:flex-start}
+.playbook-step.playbook-imp-high{border-left:3px solid var(--danger);background:var(--danger-tint)}
+.playbook-step.playbook-imp-medium{border-left:3px solid var(--amber)}
+.playbook-step.playbook-imp-low{border-left:3px solid var(--ink-soft)}
+.playbook-num{font-family:'Archivo Black',sans-serif;background:var(--ink);color:var(--paper);padding:1px 8px;min-width:22px;text-align:center;flex-shrink:0;font-size:13px}
+.playbook-body{flex:1;min-width:0}
+.playbook-title{font-weight:700;font-size:var(--t-meta);color:var(--ink)}
+.playbook-eff{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;font-weight:400}
+.playbook-detail{font-size:var(--t-meta);color:var(--ink);margin-top:2px;line-height:1.4}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}
