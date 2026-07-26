@@ -1322,6 +1322,17 @@ button.risk-preview:hover{filter:brightness(.96)}
 .predict-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro)}
 .predict-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;font-size:var(--t-micro)}
 
+/* Trend (iter #132) — compared-to-last cards. */
+.trend-grid{display:flex;flex-direction:column;gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.45}
+.trend-cell{display:flex;gap:14px;padding:10px 12px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);align-items:baseline}
+.trend-cell.trend-versus{border-left:3px solid var(--green);background:var(--green-tint)}
+.trend-cell.trend-same{border-left:3px solid var(--ink-soft);background:var(--paper)}
+.trend-cell.trend-first{border-left:3px solid var(--amber);background:var(--amber-tint)}
+.trend-label{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;min-width:140px;font-weight:700}
+.trend-value{font-size:var(--t-meta);color:var(--ink)}
+.trend-mute{color:var(--ink-soft);font-style:italic}
+.trend-when{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);margin-left:8px;text-transform:uppercase}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}

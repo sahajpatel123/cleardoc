@@ -1849,6 +1849,7 @@
           quesCopyBtn=$('#quesCopyBtn'),
           playbookBlock=$('#playbookBlock'),playbookNote=$('#playbookNote'),playbookList=$('#playbookList'),
           predictBlock=$('#predictBlock'),predictNote=$('#predictNote'),predictList=$('#predictList'),
+          trendBlock=$('#trendBlock'),trendNote=$('#trendNote'),trendGrid=$('#trendGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3695,6 +3696,88 @@
       });
       return out;
     }
+    // Iter #132: document risk trend — compares each new analysis
+    // against the previously-saved analysis (by SHA-256 fingerprint),
+    // and surfaces a one-line "compared to last time" verdict.
+    // Pure local; uses the same fingerprint routine as iter #110.
+    const TREND_KEY_HIST = 'cleardoc:trend-history';
+    async function trendFingerprint(str){
+      try {
+        if(typeof crypto === 'undefined' || !crypto.subtle) return 'nohash';
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0, 16);
+      } catch(_){ return 'nohash'; }
+    }
+    async function renderTrendBlock(raw, ctx){
+      if(!trendBlock || !trendGrid || !raw){ return; }
+      const ml = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
+      const mn = maturityGrid && maturityGrid.querySelector('.mat-letter-num');
+      const mletter = ml ? ml.textContent.trim() : '—';
+      const mnum = mn ? parseInt(mn.textContent.replace(/[^0-9]/g, ''), 10) : 0;
+      const tal = { r: 0, a: 0, g: 0 };
+      (lastFlags || []).forEach(f => { tal[f.rule.sev] = (tal[f.rule.sev] || 0) + 1; });
+      const total = tal.r + tal.a + tal.g;
+      const exposure = (function(){
+        const t = riskDetail && riskDetail.textContent || '';
+        const m = t.match(/worst-case exposure[^A-Z]*\$[0-9,]+/i);
+        return m ? m[0].replace(/.*\$/, '$') : null;
+      })();
+      const fp = await trendFingerprint(raw);
+      // Pull the previous analysis (if any) — different fp OR same fp.
+      let history = [];
+      try { history = JSON.parse(localStorage.getItem(TREND_KEY_HIST) || '[]') || []; } catch(_){ history = []; }
+      const prev = history.filter(h => h.fp && h.fp !== fp).slice(-1)[0] || null;
+      const sameDoc = history.filter(h => h.fp === fp).slice(-1)[0] || null;
+      trendBlock.hidden = false;
+      // Capture THIS run at the head of the history
+      history.unshift({ fp: fp, ts: Date.now(), letter: mletter, num: mnum, risk: total, exposure: exposure });
+      while(history.length > 30) history.pop();
+      try { localStorage.setItem(TREND_KEY_HIST, JSON.stringify(history)); } catch(_){ /* quota */ }
+      const cells = [];
+      cells.push('<div class="trend-cell"><div class="trend-label">Maturity</div><div class="trend-value">' + esc(mletter) + ' (' + (mnum || 0) + '/100)</div></div>');
+      cells.push('<div class="trend-cell"><div class="trend-label">Risks</div><div class="trend-value">' + total + ' <span class="trend-mute">(' + tal.r + ' trap / ' + tal.a + ' watch / ' + tal.g + ' note)</span></div></div>');
+      if(exposure) cells.push('<div class="trend-cell"><div class="trend-label">Exposure</div><div class="trend-value">' + esc(exposure) + '</div></div>');
+      if(sameDoc){
+        cells.push('<div class="trend-cell trend-same"><div class="trend-label">Versus last analysis</div><div class="trend-value">Same document — already saved a receipt on ' + new Date(sameDoc.ts).toLocaleString() + '.</div></div>');
+      } else if(prev){
+        const dLetter = letterIndex(mletter) - letterIndex(prev.letter);
+        const dRisk = (total - (prev.risk || 0));
+        const dExposure = (() => {
+          if(!exposure && !prev.exposure) return null;
+          const a = parseExposure(exposure), b = parseExposure(prev.exposure);
+          if(!isFinite(a) || !isFinite(b)) return null;
+          return a - b;
+        })();
+        const dParts = [];
+        if(dLetter !== 0){
+          dParts.push('<b style="color:var(--' + (dLetter < 0 ? 'green' : 'danger') + ')">maturity ' + (dLetter < 0 ? 'improved' : 'declined') + ' by ' + Math.abs(dLetter) + ' grade' + (Math.abs(dLetter) === 1 ? '' : 's') + '</b>');
+        }
+        if(dRisk !== 0){
+          dParts.push('<b style="color:var(--' + (dRisk < 0 ? 'green' : 'danger') + ')">' + Math.abs(dRisk) + ' ' + (dRisk < 0 ? 'fewer' : 'more') + ' risks</b>');
+        }
+        if(dExposure != null && dExposure !== 0){
+          dParts.push('<b style="color:var(--' + (dExposure < 0 ? 'green' : 'danger') + ')">' + (dExposure < 0 ? '-' : '+') + '$' + Math.abs(Math.round(dExposure)).toLocaleString('en-US') + ' exposure</b>');
+        }
+        const verdict = dParts.length ? dParts.join(' · ') : 'No material change since last analysis.';
+        cells.push('<div class="trend-cell trend-versus"><div class="trend-label">Versus last analysis</div><div class="trend-value">' + verdict + ' <span class="trend-when">' + new Date(prev.ts).toLocaleString() + '</span></div></div>');
+      } else {
+        cells.push('<div class="trend-cell trend-first"><div class="trend-label">Versus last analysis</div><div class="trend-value">📌 This is your first time analyzing this document.</div></div>');
+      }
+      trendGrid.innerHTML = cells.join('');
+      if(trendNote){
+        trendNote.innerHTML = '<span class="riskNote-lead">' + history.length + ' analysis run' + (history.length === 1 ? '' : 's') + ' logged</span> ' +
+          'Fingerprint + score saved locally on this device. Compare your progress over time.';
+      }
+    }
+    function letterIndex(s){
+      return ({ A:0, B:1, C:2, D:3, F:4 }[s] || 0);
+    }
+    function parseExposure(s){
+      if(!s) return NaN;
+      const m = String(s).replace(/[^0-9.\-]/g, '');
+      return parseFloat(m);
+    }
+
     function renderPredictBlock(raw, ctx){
       if(!predictBlock || !predictList || !raw){ return; }
       const preds = buildCounterPredictions(raw, ctx);
@@ -5243,6 +5326,13 @@
         renderPredictBlock(raw, ctx);
       } else if(predictBlock && !raw) {
         predictBlock.hidden = true;
+      }
+      // Iter #132: trend — compare current analysis to the previous
+      // one (fingerprinted by SHA-256 of the analyzer output).
+      if(trendBlock && typeof renderTrendBlock === 'function' && raw){
+        renderTrendBlock(raw, ctx);
+      } else if(trendBlock && !raw) {
+        trendBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
