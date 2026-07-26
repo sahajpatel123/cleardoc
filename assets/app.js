@@ -1860,6 +1860,8 @@
           inkBlock=$('#inkBlock'),inkNote=$('#inkNote'),inkGrid=$('#inkGrid'),
           walkBlock=$('#walkBlock'),walkNote=$('#walkNote'),walkGrid=$('#walkGrid'),
           diffBlock=$('#diffBlock'),diffNote=$('#diffNote'),diffCard=$('#diffCard'),
+          loiBlock=$('#loiBlock'),loiNote=$('#loiNote'),loiCard=$('#loiCard'),
+          loiCopyBtn=$('#loiCopyBtn'),loiPrintBtn=$('#loiPrintBtn'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -4038,6 +4040,80 @@
       );
       return { overall, riskScore, maturityScore, exposureScore, toneScore, jargonScore, gapsScore };
     }
+    // Iter #152: letter of intent (LOI) — generates a one-paragraph
+    // letter summarizing the user's intent to negotiate the
+    // analyzed document, with maturity + risk tally + redline
+    // priority + signature line. Pure local; assembled from
+    // existing outputs.
+    function buildLoiDraft(raw, ctx){
+      const mn = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
+      const mletter = mn ? mn.textContent.trim() : '?';
+      const tal = { r: 0, a: 0, g: 0 };
+      (lastFlags || []).forEach(f => { tal[f.rule.sev] = (tal[f.rule.sev] || 0) + 1; });
+      const trapCount = tal.r;
+      const watchCount = tal.a + tal.g;
+      const total = trapCount + watchCount;
+      const topRisks = (lastFlags || []).slice(0, 3).map(f => f.rule.label.toLowerCase()).join(', ') || 'no flagged risks';
+      const jl = jurisRow && jurisRow.querySelector('.juris-label');
+      const juris = jl ? jl.textContent.trim() : 'unspecified';
+      const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const body = [
+        'LETTER OF INTENT',
+        '',
+        'Date: ' + date,
+        '',
+        'To: [Counterparty]',
+        'From: [Your name / Company]',
+        'Re: Proposed negotiation of the agreement currently governed by ' + juris + ' law',
+        '',
+        'I am writing to confirm my intent to negotiate the above-referenced agreement, dated ' + date + '. After a careful review (maturity grade ' + mletter + '), I would like to flag ' + (trapCount > 0 ? trapCount + ' trap' + (trapCount === 1 ? '' : 's') + ' and ' : '') + watchCount + ' watch' + (watchCount === 1 ? '' : 'es') + ' for revision.',
+        '',
+        'My principal concerns are: ' + topRisks + '. I propose a working session within the next 14 days to walk through these items with the goal of closing on a fair and balanced version within 30 days.',
+        '',
+        'This letter of intent is non-binding except for the agreement to negotiate in good faith within the time frame stated. Please counter-sign below to confirm our shared interest in advancing this discussion.',
+        '',
+        'Counter-signed: __________________________   Date: __________',
+        '',
+        '— [Your name]',
+      ].join('\n');
+      return { body: body, mletter: mletter, total: total, juris: juris };
+    }
+    function renderLoiBlock(raw, ctx){
+      if(!loiBlock || !loiCard || !raw){ return; }
+      const loi = buildLoiDraft(raw, ctx);
+      if(!loi){ loiBlock.hidden = true; return; }
+      loiCard.innerHTML = '<pre class="loi-pre">' + esc(loi.body) + '</pre>';
+      loiBlock.hidden = false;
+      if(loiNote){
+        loiNote.innerHTML = '<span class="riskNote-lead">Non-binding letter of intent</span> · ' +
+          'Generated from the analyzer outputs (maturity ' + loi.mletter + ' · ' + loi.total + ' risks). ' +
+          '<b>📋 copy letter</b> to send via email or <b>🖨 print</b> for an in-person exchange.';
+      }
+      if(loiCopyBtn){
+        loiCopyBtn.addEventListener('click', async () => {
+          let copied = false;
+          try {
+            if(navigator.clipboard) { await navigator.clipboard.writeText(loi.body); copied = true; }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = loi.body; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Letter copied' : '⚠ Couldn’t copy');
+          loiCopyBtn.textContent = copied ? '✓ copied' : '📋 copy letter';
+          setTimeout(() => { if(loiCopyBtn.isConnected) loiCopyBtn.textContent = '📋 copy letter'; }, 2500);
+        });
+      }
+      if(loiPrintBtn){
+        loiPrintBtn.addEventListener('click', () => {
+          try { window.print(); } catch(_){ /* ignore */ }
+        });
+      }
+    }
+
     function renderDiffBlock(raw, ctx){
       if(!diffBlock || !diffCard || !raw){ return; }
       const d = buildDifficultyScore(raw, ctx);
@@ -6518,6 +6594,12 @@
         renderDiffBlock(raw, ctx);
       } else if(diffBlock && !raw) {
         diffBlock.hidden = true;
+      }
+      // Iter #152: letter of intent (LOI) draft.
+      if(loiBlock && typeof renderLoiBlock === 'function' && raw){
+        renderLoiBlock(raw, ctx);
+      } else if(loiBlock && !raw) {
+        loiBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

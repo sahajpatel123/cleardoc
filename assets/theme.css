@@ -1483,6 +1483,12 @@ button.risk-preview:hover{filter:brightness(.96)}
 .diff-controls{margin-top:10px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .diff-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
 
+/* Letter of intent (iter #152) — generated LOI draft. */
+.loi-card{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);line-height:1.5;padding:14px 18px;border:var(--bd-hair) solid var(--ink);background:var(--paper2);color:var(--ink);white-space:pre-wrap;max-height:380px;overflow:auto;white-space:pre}
+.loi-pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.55;color:var(--ink);white-space:pre;overflow-wrap:break-word}
+.loi-actions{display:flex;gap:6px;margin-top:8px;font-size:var(--t-micro)}
+.loi-actions .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}

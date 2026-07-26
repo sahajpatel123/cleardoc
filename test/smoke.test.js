@@ -7897,6 +7897,36 @@ test("analyzer: Negotiation difficulty score combines risk + maturity + exposure
   assert.match(cssSrc, /\.diff-controls\b/, ".diff-controls style must exist");
 });
 
+// Iter #152: letter of intent (LOI) — non-binding letter draft.
+test("analyzer: Letter of intent (LOI) generates a one-paragraph non-binding letter", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="loiBlock"/, "analyze.html must contain #loiBlock");
+  assert.match(appSrc, /function buildLoiDraft\(/, "buildLoiDraft must exist");
+  assert.match(appSrc, /function renderLoiBlock\(/, "renderLoiBlock must exist");
+  // The letter must mention "letter of intent", maturity, risks, jurisdiction
+  assert.match(appSrc, /LETTER OF INTENT/i,
+    "LOI must include the LETTER OF INTENT title");
+  assert.match(appSrc, /propose a working session|counter-sign/i,
+    "LOI must include a 14-day working-session ask + counter-sign line");
+  // Wiring
+  assert.match(appSrc, /renderLoiBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderLoiBlock");
+  // Copy + print
+  assert.match(appSrc, /loiCopyBtn[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
+    "loiCopyBtn must use clipboard fallback");
+  assert.match(appSrc, /loiPrintBtn[\s\S]+?window\.print\(\)/,
+    "loiPrintBtn must use window.print");
+  // CSS
+  assert.match(cssSrc, /\.loi-card\b/, ".loi-card style must exist");
+  assert.match(cssSrc, /\.loi-actions\b/, ".loi-actions style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,
