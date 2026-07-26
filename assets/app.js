@@ -1848,6 +1848,7 @@
           quesBlock=$('#quesBlock'),quesNote=$('#quesNote'),quesList=$('#quesList'),
           quesCopyBtn=$('#quesCopyBtn'),
           playbookBlock=$('#playbookBlock'),playbookNote=$('#playbookNote'),playbookList=$('#playbookList'),
+          predictBlock=$('#predictBlock'),predictNote=$('#predictNote'),predictList=$('#predictList'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3658,6 +3659,59 @@
       const rank = { high: 0, medium: 1, low: 2 };
       return steps.slice(0, 7).sort((a, b) => (rank[a.impact] || 9) - (rank[b.impact] || 9));
     }
+    // Iter #130: counter-party prediction — for each top risk,
+    // predict the most likely response ("they'll accept",
+    // "they'll counter with X", "they'll push back hard").
+    // Pure local; heuristic on clause type + tone.
+    function buildCounterPredictions(raw, ctx){
+      const out = [];
+      const c = (typeof analyzeTone === 'function') ? analyzeTone(raw) : { trust: 50, pressure: 0, clarity: 50 };
+      const highPressure = c.pressure > 60;
+      (lastFlags || []).slice(0, 6).forEach(f => {
+        const key = f.rule.label.toLowerCase();
+        let p = '';
+        if(key.indexOf('non-refundable') >= 0){
+          p = highPressure
+            ? 'They\'ll likely refuse outright ("this is industry-standard"). Counter with a partial-refund window if they go more than 90 days inactive.'
+            : 'Likely open to a partial-refund window (50% after 30 days, 100% after 60) — they have weak ground.';
+        } else if(key.indexOf('auto') >= 0){
+          p = 'Likely to accept a 30-day prior-notice cancellation clause. They may try to keep auto-renew intact for ≥2 years.';
+        } else if(key.indexOf('indemn') >= 0){
+          p = 'Most likely to push back. Counter with "mutual indemnification, capped at the value of the contract, excluding gross negligence."';
+        } else if(key.indexOf('arbitration') >= 0 || key.indexOf('jury') >= 0){
+          p = highPressure
+            ? 'They\'ll likely keep the clause and just reword "binding" → "non-confidential." Counter: opt-out by either party within 30 days.'
+            : 'May accept keeping the right to small-claims court + 30-day opt-out.';
+        } else if(key.indexOf('class') >= 0){
+          p = 'Likely firm on this one. Counter: carve out employment-related claims and product-liability claims from the waiver.';
+        } else if(key.indexOf('late') >= 0 || key.indexOf('penalty') >= 0){
+          p = 'Probable compromise: cap at 1.5% per month (usury-compliant) plus a 15-day grace period.';
+        } else if(key.indexOf('sole discretion') >= 0){
+          p = 'Rare to give up unilaterally. Counter: 30-day prior written notice and "reasonable" instead of "sole."';
+        } else {
+          p = 'Default behavior: defend the original wording. Lead with the "what changes?" test — make it cost-free for both sides.';
+        }
+        out.push({ clause: f.rule.label, prediction: p });
+      });
+      return out;
+    }
+    function renderPredictBlock(raw, ctx){
+      if(!predictBlock || !predictList || !raw){ return; }
+      const preds = buildCounterPredictions(raw, ctx);
+      if(!preds.length){ predictBlock.hidden = true; return; }
+      predictList.innerHTML = preds.map(p => (
+        '<div class="predict-row" title="Pure-local heuristic — based on clause type + tone">' +
+          '<div class="predict-clause">📌 ' + esc(p.clause) + '</div>' +
+          '<div class="predict-body">' + esc(p.prediction) + '</div>' +
+        '</div>'
+      )).join('');
+      predictBlock.hidden = false;
+      if(predictNote){
+        predictNote.innerHTML = '<span class="riskNote-lead">' + preds.length + ' prediction' + (preds.length === 1 ? '' : 's') + '</span> ' +
+          'Heuristic on clause type + tone. Use to anticipate objections in advance — these are guesses, not facts.';
+      }
+    }
+
     function renderPlaybookBlock(raw, ctx){
       if(!playbookBlock || !playbookList || !raw){ return; }
       const steps = buildPlaybook(raw, ctx);
@@ -5151,6 +5205,12 @@
         renderPlaybookBlock(raw, ctx);
       } else if(playbookBlock && !raw) {
         playbookBlock.hidden = true;
+      }
+      // Iter #130: counter-party prediction — per-top-risk forecast.
+      if(predictBlock && typeof renderPredictBlock === 'function' && raw){
+        renderPredictBlock(raw, ctx);
+      } else if(predictBlock && !raw) {
+        predictBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

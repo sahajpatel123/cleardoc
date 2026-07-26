@@ -7489,6 +7489,33 @@ test("analyzer: Negotiation playbook builds prioritized steps from analyzer outp
   assert.match(cssSrc, /\.playbook-controls\b/, ".playbook-controls style must exist");
 });
 
+// Iter #130: counter-party prediction — per-risk forecast using
+// heuristic on clause type + tone.
+test("analyzer: Counter-party prediction forecasts per-risk objections", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="predictBlock"/, "analyze.html must contain #predictBlock");
+  assert.match(appSrc, /function buildCounterPredictions\(/,
+    "buildCounterPredictions must exist");
+  assert.match(appSrc, /function renderPredictBlock\(/,
+    "renderPredictBlock must exist");
+  assert.match(appSrc, /predictBlock\.hidden = (true|false)/,
+    "predictBlock.hidden must be toggled");
+  // Cover at least 4 clause categories
+  for(const k of ["non-refundable", "auto-renew", "indemn", "arbitration"]){
+    assert.match(appSrc, new RegExp(k),
+      "buildCounterPredictions must mention '" + k + "'");
+  }
+  // CSS
+  assert.match(cssSrc, /\.predict-row\b/, ".predict-row style must exist");
+  assert.match(cssSrc, /\.predict-clause\b/, ".predict-clause style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,
