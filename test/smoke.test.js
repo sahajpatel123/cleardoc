@@ -8166,6 +8166,14 @@ test("analyzer: Strategy board tracks counter-clauses across Backlog / Drafted /
     "render() must call renderBoardBlock");
   assert.match(cssSrc, /\.board-col\b/, ".board-col style must exist");
   assert.match(cssSrc, /\.board-card\b/, ".board-card style must exist");
+
+  // Iter #167 polish: shift-click to move back + markdown export.
+  assert.match(appSrc, /e\.shiftKey[\s\S]+?order/,
+    "iter #167 must support shift-click to move a card back");
+  assert.match(appSrc, /boardCopyMdBtn/,
+    "iter #167 must include a copy-as-markdown button");
+  assert.match(appSrc, /boardCopyMdBtn[\s\S]+?\\|.*\\|.*\\|/,
+    "iter #167 must render a markdown table with three columns");
 });
 
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
