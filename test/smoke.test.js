@@ -7630,6 +7630,39 @@ test("analyzer: Clause index extracts numbered clauses with click-to-jump", () =
   assert.match(cssSrc, /\.clause-controls\b/, ".clause-controls style must exist");
 });
 
+// Iter #138: cost predictor — expected vs 90th-percentile vs worst.
+test("analyzer: Cost predictor shows expected / 90th / worst-case scenarios", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="costBlock"/, "analyze.html must contain #costBlock");
+  assert.match(appSrc, /function buildCostPrediction\(/, "buildCostPrediction must exist");
+  assert.match(appSrc, /function renderCostBlock\(/, "renderCostBlock must exist");
+  // Per-severity probabilities
+  assert.match(appSrc, /0\.35/,
+    "iter #138 must apply a 35% probability of trigger for traps");
+  assert.match(appSrc, /0\.12/,
+    "iter #138 must apply a 12% probability for watches");
+  // Three scenarios
+  assert.match(appSrc, /Expected cost/,
+    "iter #138 must surface an 'Expected cost' scenario");
+  assert.match(appSrc, /90th percentile/,
+    "iter #138 must surface a 90th-percentile scenario");
+  assert.match(appSrc, /Worst case/,
+    "iter #138 must surface a 'Worst case' scenario");
+  // Wiring
+  assert.match(appSrc, /renderCostBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderCostBlock with raw + ctx");
+  // CSS
+  assert.match(cssSrc, /\.cost-cell\b/, ".cost-cell style must exist");
+  assert.match(cssSrc, /\.cost-best\b/, ".cost-best style must exist");
+  assert.match(cssSrc, /\.cost-worst\b/, ".cost-worst style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

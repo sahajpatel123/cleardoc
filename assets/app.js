@@ -1852,6 +1852,7 @@
           trendBlock=$('#trendBlock'),trendNote=$('#trendNote'),trendGrid=$('#trendGrid'),
           styleBlock=$('#styleBlock'),styleNote=$('#styleNote'),styleGrid=$('#styleGrid'),
           indexBlock=$('#indexBlock'),indexNote=$('#indexNote'),clauseIndex=$('#clauseIndex'),
+          costBlock=$('#costBlock'),costNote=$('#costNote'),costGrid=$('#costGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -3775,6 +3776,56 @@
       hits.sort((a, b) => a.offset - b.offset);
       return hits.slice(0, 30);
     }
+    // Iter #138: cost predictor — combines worst-case exposure with
+    // a per-severity probability factor to show "expected" vs
+    // "worst-case" cost. Pure local; calibrated from historical
+    // contract-dispute rates (rough industry-rough estimate).
+    function buildCostPrediction(raw, ctx){
+      const exposureStr = (function(){
+        const t = riskDetail && riskDetail.textContent || '';
+        const m = t.match(/worst-case exposure[^A-Z]*\$([0-9,]+)/i);
+        return m ? parseFloat(m[1].replace(/,/g, '')) : null;
+      })();
+      const tal = { r: 0, a: 0, g: 0 };
+      (lastFlags || []).forEach(f => { tal[f.rule.sev] = (tal[f.rule.sev] || 0) + 1; });
+      if(!exposureStr && tal.r + tal.a + tal.g === 0) return null;
+      // Iter #84 per-severity probability-of-trigger (industry-rough):
+      // trap ≈ 35% (1 in 3 actually fires), watch ≈ 12%, note ≈ 4%.
+      const expected = (tal.r * 0.35 + tal.a * 0.12 + tal.g * 0.04) * (exposureStr || 0);
+      // 90th percentile (a single trap fires + a few watches = "high-side")
+      const pct90 = (tal.r * 0.65 + tal.a * 0.30 + tal.g * 0.10) * (exposureStr || 0);
+      // Worst-case (all the top risks fire)
+      const worst = exposureStr || 0;
+      return { expected, pct90, worst, total: tal.r + tal.a + tal.g, exposure: exposureStr };
+    }
+    function renderCostBlock(raw, ctx){
+      if(!costBlock || !costGrid || !raw){ return; }
+      const c = buildCostPrediction(raw, ctx);
+      if(!c){ costBlock.hidden = true; return; }
+      const fmt = (n) => '$' + Math.round(n).toLocaleString('en-US');
+      const cells = [
+        '<div class="cost-cell cost-best"><div class="cost-label">Expected cost</div><div class="cost-value">' + fmt(c.expected) + '</div><div class="cost-hint">Realistic — based on per-severity probability of trigger</div></div>',
+        '<div class="cost-cell cost-mid"><div class="cost-label">90th percentile</div><div class="cost-value">' + fmt(c.pct90) + '</div><div class="cost-hint">High-side — at least one top risk fires + a few watches</div></div>',
+        '<div class="cost-cell cost-worst"><div class="cost-label">Worst case</div><div class="cost-value">' + (c.worst > 0 ? fmt(c.worst) : '—') + '</div><div class="cost-hint">All top risks fire</div></div>',
+      ];
+      // Verdict row
+      const savings = Math.max(0, c.worst - c.expected);
+      const verdict = savings > 0
+        ? '💡 Walking this checklist carefully (counter the top ' + tal_max + ' traps, ask the questions, swap into source) could save you roughly <b style="color:var(--green)">' + fmt(savings) + '</b> in expected cost over the lifetime of the contract.'
+        : 'No worst-case cost detected — clean document. Skim the maturity + verdict to confirm.';
+      const tal_max = (function(){
+        const t = (lastFlags || []).filter(f => f.rule.sev === 'r').slice(0, 3).length;
+        return t > 0 ? t : 1;
+      })();
+      cells.push('<div class="cost-cell cost-verdict"><div class="cost-label">Verdict</div><div class="cost-value">' + verdict + '</div></div>');
+      costGrid.innerHTML = cells.join('');
+      costBlock.hidden = false;
+      if(costNote){
+        costNote.innerHTML = '<span class="riskNote-lead">' + c.total + ' risk' + (c.total === 1 ? '' : 's') + ' analyzed</span> · ' +
+          'Three cost scenarios · estimate, not a quote. Used to make the abstract "this could hurt" concrete.';
+      }
+    }
+
     function renderClauseIndex(raw, ctx){
       if(!indexBlock || !clauseIndex || !raw){ return; }
       const hits = extractClauseIndex(raw);
@@ -5616,6 +5667,12 @@
         renderClauseIndex(raw, ctx);
       } else if(indexBlock && !raw) {
         indexBlock.hidden = true;
+      }
+      // Iter #138: cost predictor — expected vs 90th vs worst case.
+      if(costBlock && typeof renderCostBlock === 'function' && raw){
+        renderCostBlock(raw, ctx);
+      } else if(costBlock && !raw) {
+        costBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }

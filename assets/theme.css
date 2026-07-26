@@ -1357,6 +1357,19 @@ button.risk-preview:hover{filter:brightness(.96)}
 .clause-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;font-size:var(--t-micro);margin-right:auto}
 .clause-filter{font-size:11px;padding:2px 8px;cursor:pointer}
 
+/* Cost predictor (iter #138) — three scenarios. */
+.cost-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.cost-cell{display:flex;flex-direction:column;gap:4px;padding:10px 14px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.cost-cell.cost-best{border-color:var(--green);background:var(--green-tint)}
+.cost-cell.cost-mid{border-color:var(--amber);background:var(--amber-tint)}
+.cost-cell.cost-worst{border-color:var(--danger);background:var(--danger-tint)}
+.cost-cell.cost-verdict{border-color:var(--ink);background:var(--paper);grid-column:1 / -1}
+.cost-label{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;font-weight:700}
+.cost-value{font-size:20px;font-weight:800;color:var(--ink);font-family:'JetBrains Mono',monospace}
+.cost-cell.cost-best .cost-value{color:var(--green)}
+.cost-cell.cost-worst .cost-value{color:var(--danger)}
+.cost-hint{font-size:var(--t-micro);color:var(--ink-soft);font-style:italic}
+
 /* Voice-mode reader (iter #106) — play / pause + meter. Iter #107
  * polish: ◀ prev / next ▶ / pause. */
 .voice-mode-btn,.voice-mode-prev-btn,.voice-mode-next-btn,.voice-mode-pause-btn{font-size:12px}
