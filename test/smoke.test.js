@@ -8113,6 +8113,30 @@ test("analyzer: Contact extract polish — filter chips + CSV export", () => {
   assert.match(cssSrc, /\.contact-email\b/, ".contact-email style must exist");
 });
 
+// Iter #164: document history map — past runs of the same document.
+test("analyzer: Document history map shows past runs and a delta since the first run", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(html, /id="histBlock"/, "analyze.html must contain #histBlock");
+  assert.match(appSrc, /function buildHistoryMap\(/, "buildHistoryMap must exist");
+  assert.match(appSrc, /function renderHistBlock\(/, "renderHistBlock must exist");
+  assert.match(appSrc, /cleardoc:receipt-log/,
+    "iter #164 must read from the iter #110 receipt log");
+  assert.match(appSrc, /TREND_KEY_HIST|cleardoc:trend-history/,
+    "iter #164 must read from the iter #132 trend history");
+  // Wiring
+  assert.match(appSrc, /renderHistBlock\(raw[\s\S]+?ctx\)/,
+    "render() must call renderHistBlock");
+  // CSS
+  assert.match(cssSrc, /\.hist-row\b/, ".hist-row style must exist");
+  assert.match(cssSrc, /\.hist-latest\b/, ".hist-latest style must exist");
+});
+
   assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
     "cheat-sheet must use mailto: for the email action");
   assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,

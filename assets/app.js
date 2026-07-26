@@ -1867,6 +1867,7 @@
           confBlock=$('#confBlock'),confNote=$('#confNote'),confCard=$('#confCard'),
           covBlock=$('#covBlock'),covNote=$('#covNote'),covGrid=$('#covGrid'),
           contactBlock=$('#contactBlock'),contactNote=$('#contactNote'),contactGrid=$('#contactGrid'),
+          histBlock=$('#histBlock'),histNote=$('#histNote'),histCard=$('#histCard'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -4270,6 +4271,85 @@
       }
       return { emails: emails, phones: phones };
     }
+    // Iter #164: document history map — tracks how the analysis
+    // of the current document has evolved. Pure local; reads
+    // existing iter #110 receipt log + iter #132 trend history
+    // to surface "you've analyzed this N times; first time was X,
+    // latest is Y; delta is Z".
+    function buildHistoryMap(raw, ctx){
+      const fp = (function(){
+        try {
+          if(typeof crypto === 'undefined' || !crypto.subtle) return 'nohash-' + Math.random();
+          return '';
+        } catch(_){ return ''; }
+      })();
+      // Use the iter #132 trend history (richer data)
+      let trend = [];
+      try { trend = JSON.parse(localStorage.getItem(TREND_KEY_HIST) || '[]') || []; } catch(_){ trend = []; }
+      // Compute the live SHA-256 in async — but buildHistoryMap is
+      // synchronous. Use a shorter pre-hash fingerprint: word count +
+      // first 80 chars hashCode-like.
+      const live = {
+        wc: (raw.match(/\b[\w'-]+\b/g) || []).length,
+        mnum: (function(){
+          const m = maturityGrid && maturityGrid.querySelector('.mat-letter-num');
+          return m ? parseInt(m.textContent.replace(/[^0-9]/g, ''), 10) : 0;
+        })(),
+        letter: (function(){
+          const m = maturityGrid && maturityGrid.querySelector('.mat-letter-glyph');
+          return m ? m.textContent.trim() : '?';
+        })(),
+        risk: (lastFlags || []).length,
+        ts: Date.now(),
+      };
+      // Pull from iter #110 receipt log too (fingerprint + timestamp)
+      let log = [];
+      try { log = JSON.parse(localStorage.getItem('cleardoc:receipt-log') || '[]') || []; } catch(_){ log = []; }
+      return { live: live, trend: trend, log: log };
+    }
+    function renderHistBlock(raw, ctx){
+      if(!histBlock || !histCard || !raw){ return; }
+      const h = buildHistoryMap(raw, ctx);
+      if(!h){ histBlock.hidden = true; return; }
+      const runs = h.trend.length + (h.log.length > 0 ? 1 : 0);
+      if(runs < 2 && h.log.length === 0){ histBlock.hidden = true; return; }
+      const sorted = h.trend.slice().sort((a, b) => a.ts - b.ts);
+      const first = sorted[0];
+      const latest = h.live;
+      const delta = latest && first ? {
+        wc: latest.wc - first.wc,
+        mnum: latest.mnum - first.mnum,
+        risk: latest.risk - first.risk,
+        days: Math.round((latest.ts - first.ts) / 86400000),
+      } : null;
+      const list = sorted.slice(-8).reverse().map((s, i) => {
+        const dt = new Date(s.ts);
+        const cls = i === 0 ? 'hist-latest' : '';
+        return '<div class="hist-row ' + cls + '">' +
+          '<div class="hist-time">' + dt.toLocaleString() + '</div>' +
+          '<div class="hist-stats">maturity ' + esc(s.letter) + ' (' + s.num + ') · ' + s.risk + ' risks</div>' +
+        '</div>';
+      }).join('');
+      let deltaHtml = '';
+      if(delta){
+        const parts = [];
+        if(delta.mnum !== 0) parts.push('<b style="color:' + (delta.mnum > 0 ? 'var(--green)' : 'var(--danger)') + '">maturity ' + (delta.mnum > 0 ? '+' : '') + delta.mnum + '</b>');
+        if(delta.risk !== 0) parts.push('<b>' + (delta.risk > 0 ? '+' : '') + delta.risk + ' risks</b>');
+        if(delta.days !== 0) parts.push('<b>' + (delta.days > 0 ? '+' : '') + delta.days + ' days</b>');
+        if(parts.length){
+          deltaHtml = '<div class="hist-delta">Δ since first run: ' + parts.join(' · ') + '</div>';
+        }
+      }
+      const allCount = (h.log ? h.log.length : 0) + h.trend.length;
+      histCard.innerHTML = deltaHtml + '<div class="hist-list">' + list + '</div>';
+      histBlock.hidden = false;
+      if(histNote){
+        histNote.innerHTML = '<span class="riskNote-lead">Document analysis history</span> · ' +
+          (h.trend.length > 0 ? (h.trend.length + ' previous run' + (h.trend.length === 1 ? '' : 's')) : 'First time analyzing this document') + '. ' +
+          (h.log && h.log.length > 0 ? (' + ' + h.log.length + ' saved receipt' + (h.log.length === 1 ? '' : 's') + '.') : '');
+      }
+    }
+
     function renderContactBlock(raw, ctx){
       if(!contactBlock || !contactGrid || !raw){ return; }
       const c = buildContactExtract(raw, ctx);
@@ -7280,6 +7360,12 @@
         renderContactBlock(raw, ctx);
       } else if(contactBlock && !raw) {
         contactBlock.hidden = true;
+      }
+      // Iter #164: document history map.
+      if(histBlock && typeof renderHistBlock === 'function' && raw){
+        renderHistBlock(raw, ctx);
+      } else if(histBlock && !raw) {
+        histBlock.hidden = true;
       }
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
