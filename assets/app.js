@@ -986,6 +986,21 @@
     const t = e.target;
     if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || (t.isContentEditable === true))) return;
     if(e.key !== 'a' && e.key !== 'A') return;
+    if(e.key === 'e' || e.key === 'E'){
+      const erow = t && t.closest ? t.closest('.rrow') : null;
+      if(erow && erow.querySelector('.rrow-counter')){
+        e.preventDefault();
+        const counter = erow.querySelector('.rrow-counter');
+        const expanded = erow.classList.toggle('rrow-expanded');
+        counter.hidden = !expanded;
+        const btn = erow.querySelector('.rrow-expand');
+        if(btn){
+          btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+          btn.textContent = expanded ? '▴' : '▾';
+        }
+        return;
+      }
+    }
     const row = t && t.closest ? t.closest('.rrow') : null;
     if(!row) return;
     const ask = row.querySelector && row.querySelector('.rrow-ask');
@@ -12055,7 +12070,7 @@
         // `counter` field; AI risks may not — gate the expand UI on
         // its presence so we don't show a broken toggle.
         const counterHtml = counter
-          ? '<div class="rrow-counter" hidden><span class="rrow-counter-lbl">Counter-suggestion · ask for this instead</span><span class="rrow-counter-text">'+esc(counter)+'</span></div>'
+          ? '<div class="rrow-counter no-print" hidden><span class="rrow-counter-lbl">Counter-suggestion · ask for this instead</span><span class="rrow-counter-text">'+esc(counter)+'</span></div>'
           : '';
         row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>'+counterHtml+
           (counter ? '<button type="button" class="rrow-expand" aria-expanded="false" title="Show counter-suggestion">▾</button>' : '');
@@ -12585,7 +12600,7 @@
           const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev;
           const counter = f && f.rule && f.rule.counter;
           const counterHtml = counter
-            ? '<div class="rrow-counter" hidden><span class="rrow-counter-lbl">Counter-suggestion · ask for this instead</span><span class="rrow-counter-text">'+esc(counter)+'</span></div>'
+            ? '<div class="rrow-counter no-print" hidden><span class="rrow-counter-lbl">Counter-suggestion · ask for this instead</span><span class="rrow-counter-text">'+esc(counter)+'</span></div>'
             : '';
           row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>'+counterHtml+
             (counter ? '<button type="button" class="rrow-expand" aria-expanded="false" title="Show counter-suggestion">▾</button>' : '');
@@ -13072,6 +13087,14 @@
           md.push('   > '+trunc(f.s, 200).replace(/\s+/g,' ').trim());
           md.push('   > ');
           md.push('   > _Why:_ '+f.rule.why);
+          // iter #207 v2: include the counter-suggestion (when the
+          // rule has one) so the .md export carries the same
+          // "what to ask for instead" line the inline expand panel
+          // shows. AI risks without a `counter` field are skipped.
+          if(f && f.rule && f.rule.counter){
+            md.push('   > ');
+            md.push('   > _Counter-suggestion (ask for this instead):_ '+f.rule.counter);
+          }
           md.push('');
         });
       }
