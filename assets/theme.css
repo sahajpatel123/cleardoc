@@ -920,6 +920,18 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-built.risk-filter-r .rrow:not([data-risk="r"]){display:none}
 .risk-built.risk-filter-a .rrow:not([data-risk="a"]){display:none}
 .risk-built.risk-filter-g .rrow:not([data-risk="g"]){display:none}
+/* iter #203: top-concern callout — single highlighted box that
+   surfaces the highest-severity risk so users get an immediate
+   "if you only read one thing, read this" signal. Tint follows
+   severity: danger for trap, amber for watch, green for note. */
+.top-concern{margin:var(--s2) 0;padding:12px 16px;border-left:6px solid var(--danger);background:var(--danger-tint);font-family:'JetBrains Mono';font-size:var(--t-meta);letter-spacing:.02em}
+.top-concern .tc-kicker{display:block;font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.08em;color:var(--danger);margin-bottom:6px;font-weight:700}
+.top-concern .tc-quote{font-style:italic;color:var(--ink);margin-bottom:6px;display:block;line-height:1.4}
+.top-concern .tc-why{color:var(--ink-soft);display:block}
+.top-concern[data-sev="a"]{border-left-color:var(--amber);background:var(--amber-tint)}
+.top-concern[data-sev="a"] .tc-kicker{color:var(--amber)}
+.top-concern[data-sev="g"]{border-left-color:var(--green);background:var(--green-tint)}
+.top-concern[data-sev="g"] .tc-kicker{color:var(--green)}
 /* iter #201 v2: "showing X of Y" pill that appears at the right of the
    filter strip whenever a non-'all' filter is active. Aligns with the
    baseline of the buttons, mono font, muted color. */

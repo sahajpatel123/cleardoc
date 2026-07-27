@@ -859,6 +859,35 @@
       }
     }
   }
+  // iter #203: top-concern callout — pick the single highest-severity
+  // risk from the flags array (trap > watch > note) and surface it as
+  // an at-a-glance callout above the radar so users get an immediate
+  // "if you only read one thing, read this" signal. Hidden when there
+  // are no flags (matches the risk summary footer behavior).
+  function paintTopConcern(flags){
+    const el = document.getElementById('topConcern');
+    if(!el) return;
+    if(!flags || flags.length === 0){ el.hidden = true; el.innerHTML = ''; return; }
+    // Pick the first trap; if none, the first watch; if none, the first note.
+    const order = { r:0, a:1, g:2 };
+    const sorted = flags.slice().sort((x, y) => {
+      const ox = order[(x && x.rule && x.rule.sev)] ?? 3;
+      const oy = order[(y && y.rule && y.rule.sev)] ?? 3;
+      return ox - oy;
+    });
+    const top = sorted[0];
+    if(!top || !top.rule){ el.hidden = true; return; }
+    const sev = top.rule.sev;
+    const sevLabel = top.rule.label || (sev === 'r' ? 'Trap' : sev === 'a' ? 'Watch' : 'Note');
+    const sevGlyph = sev === 'r' ? '🔴' : sev === 'a' ? '🟡' : '⚪';
+    const quote = trunc(top.s || '(no clause text)', 240).replace(/\s+/g, ' ').trim();
+    el.dataset.sev = sev;
+    el.innerHTML =
+      '<span class="tc-kicker">' + sevGlyph + ' Top concern · ' + esc(sevLabel) + '</span>' +
+      '<span class="tc-quote">“' + esc(quote) + '”</span>' +
+      '<span class="tc-why"><b>Why it matters:</b> ' + esc(top.rule.why || '') + '</span>';
+    el.hidden = false;
+  }
   function wireRiskFilter(){
     ['riskFilterAllBtn','riskFilterTrapBtn','riskFilterWatchBtn','riskFilterNoteBtn'].forEach(id => {
       const b = document.getElementById(id);
@@ -11656,6 +11685,7 @@
         row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>';
         riskList.appendChild(row); });
       paintRiskFilter(flags);
+      paintTopConcern(flags);
 
       // Iter #88: heat map — color every sentence by its risk
       // severity so the user can see WHERE the traps cluster.
@@ -12177,6 +12207,7 @@
           riskList.appendChild(row);
         });
         paintRiskFilter(lastFlags);
+        paintTopConcern(lastFlags);
       }
 
       // Verdict
