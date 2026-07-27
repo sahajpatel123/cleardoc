@@ -962,6 +962,11 @@ button.risk-preview:hover{filter:brightness(.96)}
 .section-nav a{color:var(--ink);text-decoration:none;padding:3px 8px;border:1px solid var(--ink);background:transparent}
 .section-nav a:hover{background:var(--ink);color:var(--paper)}
 .section-nav a .sn-count{color:var(--ink-soft);margin-left:4px}
+/* iter #206 v2: the active section (topmost visible one) gets a
+   filled-background treatment so users see where they are as they
+   scroll. Hover stays the inverted style for non-active links. */
+.section-nav a.sn-active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.section-nav a.sn-active .sn-count{color:var(--paper)}
 /* iter #201 v2: "showing X of Y" pill that appears at the right of the
    filter strip whenever a non-'all' filter is active. Aligns with the
    baseline of the buttons, mono font, muted color. */

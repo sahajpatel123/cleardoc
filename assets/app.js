@@ -1134,6 +1134,50 @@
         try { target.scrollIntoView(); } catch(__) {}
       }
     });
+    // iter #206 v2: highlight the active section as the user scrolls.
+    // IntersectionObserver picks the topmost visible section and marks
+    // its nav link with .sn-active. Falls back to a no-op if the
+    // browser doesn't expose IntersectionObserver (very old engines).
+    if(typeof IntersectionObserver === 'undefined') return;
+    if(wireSectionNav._io) return; // wire once
+    const linkFor = (id) => nav.querySelector('a[data-sn-target="' + id + '"]');
+    const setActive = (id) => {
+      nav.querySelectorAll('a[data-sn-target]').forEach(a => {
+        a.classList.toggle('sn-active', a.dataset.snTarget === id);
+      });
+    };
+    const io = new IntersectionObserver((entries) => {
+      // Pick the entry with the smallest top (closest to the top of
+      // the viewport that's actually intersecting). entries come in
+      // batches per scroll, so we sort.
+      const on = entries
+        .filter(e => e.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if(!on) return;
+      const id = on.target.id;
+      if(id) setActive(id);
+    }, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+    // Observe the anchor targets (the actual elements the nav points
+    // to). Re-collected on each paint via paintSectionNav, so the
+    // observer needs to (re-)bind. Simpler: observe any of the IDs in
+    // _SECTIONS that exist in the DOM.
+    const observeAll = () => {
+      for(const s of _SECTIONS){
+        const id = s.anchorId || s.id;
+        const el = document.getElementById(id);
+        if(el && !el._snObserved){ el._snObserved = true; io.observe(el); }
+      }
+    };
+    // First pass + re-run after every nav paint (new sections may
+    // appear, e.g. scenarios only render when AI produced them).
+    observeAll();
+    // Hook into paintSectionNav by overriding it (preserves call sites).
+    const _orig = paintSectionNav;
+    window.paintSectionNav = function(){
+      _orig();
+      observeAll();
+    };
+    wireSectionNav._io = io;
   }
   function wireFindInAnalysis(){
     const bar = document.getElementById('findBar');
