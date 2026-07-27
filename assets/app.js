@@ -903,11 +903,11 @@
   // iter #204: per-risk "Ask about this" button — bridges the risk radar
   // to the existing ask-chat panel so users can investigate a flagged
   // clause without retyping the question. Each rrow gets a 💬 button
-  // that pre-fills the input with "Why is '<clause>' flagged as
-  // <severity>?" and focuses it. Click handler is wired once per render
-  // (re-runs on every re-analysis, idempotent because we replace the
-  // rows each time). Falls back to a no-op when the chat panel isn't
-  // present (e.g. some embedded views).
+  // that pre-fills the input with a concise question + the why-text as
+  // follow-up context, and focuses it. Click handler is wired once per
+  // render (re-runs on every re-analysis, idempotent because we replace
+  // the rows each time). Falls back to a no-op when the chat panel
+  // isn't present (e.g. some embedded views).
   function wireAskPerRisk(){
     const askInput = document.getElementById('askInput');
     const askBtn   = document.getElementById('askBtn');
@@ -917,20 +917,28 @@
       // Avoid double-wiring if rows persist across renders
       if(row.querySelector('.rrow-ask')) return;
       const flag = (typeof lastFlags !== 'undefined' && lastFlags && lastFlags[idx]) || null;
-      const clause = flag && flag.s ? trunc(String(flag.s), 120).replace(/\s+/g,' ').trim() : (row.textContent || '').slice(0, 120);
+      const clause = flag && flag.s ? trunc(String(flag.s), 100).replace(/\s+/g,' ').trim() : (row.textContent || '').slice(0, 100);
       const sev = (row.dataset && row.dataset.risk) || (flag && flag.rule && flag.rule.sev) || 'g';
-      const sevLabel = sev === 'r' ? 'trap' : sev === 'a' ? 'watch' : 'note';
+      const sevWord = sev === 'r' ? 'trap' : sev === 'a' ? 'watch' : 'note';
+      const why = flag && flag.rule && flag.rule.why ? String(flag.rule.why).slice(0, 160).trim() : '';
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'rrow-ask ghost-btn ghost-btn-sm';
-      btn.setAttribute('aria-label', 'Ask about this ' + sevLabel);
-      btn.title = 'Ask about this ' + sevLabel;
+      btn.setAttribute('aria-label', 'Ask about this ' + sevWord);
+      btn.title = 'Ask about this ' + sevWord + ' (shortcut: a)';
       btn.textContent = '💬';
       btn.dataset.askClause = clause;
       btn.dataset.askSev = sev;
+      btn.dataset.askWhy = why;
       btn.addEventListener('click', e => {
         e.stopPropagation();
-        const q = 'Why is "' + btn.dataset.askClause + '" flagged as a ' + btn.dataset.askSev + '?';
+        // iter #204 v2: tighter question — the why-text is included
+        // as follow-up context (a separate line) so the chat starts
+        // with a focused question and immediately has the analyzer's
+        // own reasoning as the second sentence, which the chat can
+        // build on instead of rediscover.
+        const q = 'Why is "' + btn.dataset.askClause + '" a ' + btn.dataset.askSev + '?' +
+          (btn.dataset.askWhy ? '\n(Analyzer says: ' + btn.dataset.askWhy + ')' : '');
         askInput.value = q;
         askInput.disabled = false;
         if(askBtn) askBtn.disabled = false;
@@ -940,6 +948,23 @@
       row.appendChild(btn);
     });
   }
+  // iter #204 v2: keyboard shortcut 'a' on a focused risk row → ask.
+  // Delegated handler on riskList so we wire once and never re-bind.
+  // Same typing-target + modifier-key guards as the existing
+  // keyboard-shortcut handler so we don't hijack the keystroke while
+  // the user is typing in the chat input or composing a comment.
+  document.addEventListener('keydown', e => {
+    if(e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || (t.isContentEditable === true))) return;
+    if(e.key !== 'a' && e.key !== 'A') return;
+    const row = t && t.closest ? t.closest('.rrow') : null;
+    if(!row) return;
+    const ask = row.querySelector && row.querySelector('.rrow-ask');
+    if(!ask) return;
+    e.preventDefault();
+    ask.click();
+  }, { passive:false });
   function wireRiskFilter(){
     ['riskFilterAllBtn','riskFilterTrapBtn','riskFilterWatchBtn','riskFilterNoteBtn'].forEach(id => {
       const b = document.getElementById(id);
