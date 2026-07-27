@@ -1692,6 +1692,23 @@ button.risk-preview:hover{filter:brightness(.96)}
 .smoking-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .smoking-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
 .smoking-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto;font-weight:700;letter-spacing:.06em}
+/* Iter #191 — smoking-gun severity tally strip + filter chips. */
+.smoking-tally{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;padding:6px 10px;background:var(--paper2);border:var(--bd-hair) solid var(--ink-soft)}
+.smoking-tally-pill{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border:1px solid var(--bd-hair);background:#fff;color:var(--ink-soft);font-weight:700}
+.smoking-tally-pill b{color:var(--ink)}
+.smoking-tally-pill.smoking-tally-r{border-left:3px solid var(--danger);color:var(--danger)}
+.smoking-tally-pill.smoking-tally-r b{color:var(--danger)}
+.smoking-tally-pill.smoking-tally-a{border-left:3px solid var(--amber);color:var(--amber)}
+.smoking-tally-pill.smoking-tally-a b{color:var(--amber)}
+.smoking-tally-pill.smoking-tally-g{border-left:3px solid var(--ink-soft)}
+.smoking-filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.smoking-filter{padding:4px 10px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink-soft);font-weight:700}
+.smoking-filter:hover{color:var(--ink)}
+.smoking-filter.smoking-filter-active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.smoking-filter.smoking-filter-active-r{background:var(--danger);color:#fff;border-color:var(--danger)}
+.smoking-filter.smoking-filter-active-a{background:var(--amber);color:var(--ink);border-color:var(--amber)}
+.smoking-filter.smoking-filter-active-g{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+mark.smoking-trigger{background:#ffe98a;color:var(--ink);padding:0 2px;font-weight:700;border-radius:2px;font-family:'JetBrains Mono',monospace;font-size:0.95em}
 .money-context{font-size:var(--t-micro);color:var(--ink);flex:1;min-width:0;line-height:1.4}
 .money-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .money-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}

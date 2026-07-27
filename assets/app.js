@@ -2012,7 +2012,7 @@
     //       </div>
     function renderRiskDetail(hits){
       if(!riskDetail) return;
-      const tipHtml=(t)=>t?'<button class="rc-tip" data-rc-tip="'+esc(t)+'">💡</button>':'';
+      const tipHtml=tip=>tip?'<button class="rc-tip" data-rc-tip="'+esc(h.tip)+'">💡</button>':'';
       if(!hits||!hits.length){riskDetail.innerHTML='<div class="risk-detail-empty">No patterns matched.</div>';return;}
       // Severity rank so trap floats to the top of the list.
       const rank = { r: 0, a: 1, g: 2 };
@@ -2020,9 +2020,6 @@
       // esc() lives in this same scope (analyzePage), defense-in-depth
       // so a matched substring can never inject HTML.
       const parts = [];
-      if(isEmpty){
-        parts.push('<div class="risk-detail-empty">No patterns matched.</div>');
-      }
       // Copy button — exports the matched patterns as plain text so
       // users can paste into an email / doc without screenshotting.
       // Delegated to riskDetail (not bound per-render) so re-renders
@@ -6527,6 +6524,10 @@
         let off = text.indexOf(t.sentence, t.idx ? text.indexOf(t.sentence, 0) : 0);
         if(off < 0) off = text.indexOf(t.sentence);
         t.offset = off >= 0 ? off : 0;
+        // Iter #191 — original rank so the displayed # stays stable when
+        // the user later applies a severity filter (otherwise #1 may
+        // become #1 in the filtered list and confuse the reader).
+        t.__origIdx = idx;
       });
       return { items: tops };
     }
@@ -6537,38 +6538,76 @@
       if(!r || !r.items.length){ smokingBlock.hidden = true; return; }
       const sevRank = { r: 0, a: 1, g: 2 };
       const sevLabel = { r: 'TRAP', a: 'WATCH', g: 'NOTE' };
-      const cards = r.items.map((it, idx) => {
-        const rank = idx + 1;
+      const sevFilter = smokingGrid._smokingSevFilter || 'all';
+      const visible = sevFilter === 'all' ? r.items : r.items.filter(it => (it.pattern && it.pattern.sev) === sevFilter);
+      // Iter #191 — pre-compute the matched trigger substring for each
+      // item so we can bold it inside the quote (built once on the
+      // unfiltered list so the same match string is preserved when the
+      // user later toggles a filter).
+      const triggerMatch = (sentence, pattern) => {
+        if(!pattern || !pattern.re) return null;
+        const re = new RegExp(pattern.re.source, 'i');
+        const m = re.exec(sentence);
+        return m ? m[0] : null;
+      };
+      const highlightQuote = (sentence, pattern) => {
+        const trig = triggerMatch(sentence, pattern);
+        if(!trig) return esc(sentence);
+        const idx2 = sentence.toLowerCase().indexOf(trig.toLowerCase());
+        if(idx2 < 0) return esc(sentence);
+        return esc(sentence.slice(0, idx2)) +
+          '<mark class="smoking-trigger">' + esc(sentence.slice(idx2, idx2 + trig.length)) + '</mark>' +
+          esc(sentence.slice(idx2 + trig.length));
+      };
+      const cards = visible.map((it, idx) => {
+        const rank = (it.__origIdx !== undefined ? it.__origIdx : idx) + 1;
         const sev = it.pattern ? it.pattern.sev : 'g';
         const whyHtml = it.pattern ? '<b>' + esc(it.pattern.label) + '.</b> ' + esc(it.pattern.why) : '';
         const counterHtml = (it.pattern && it.pattern.counter) ? '<div class="smoking-counter">' + esc(it.pattern.counter) + '</div>' : '';
         const sevTag = '<span class="smoking-tag smoking-tag-' + sev + '">' + sevLabel[sev] + '</span>';
-        // Word count + sentence index gives the user a precise reference
-        // for following up ("the 12th sentence of section 3").
         const wc = it.sentence.trim().split(/\s+/).length;
-        return '<div class="smoking-card smoking-rank-' + rank + '" data-smoking-offset="' + it.offset + '" data-smoking-len="' + it.sentence.length + '" title="Click to jump to the sentence in the source">' +
+        return '<div class="smoking-card smoking-rank-' + Math.min(rank, 7) + '" data-smoking-offset="' + it.offset + '" data-smoking-len="' + it.sentence.length + '" title="Click to jump to the sentence in the source">' +
           '<div class="smoking-card-head">' +
             '<span class="smoking-rank">#' + rank + '</span>' +
             sevTag +
             '<span class="smoking-meta">sentence ' + (it.idx + 1) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + ' · risk score ' + it.score.toFixed(1) + '</span>' +
           '</div>' +
-          '<div class="smoking-quote">"' + esc(it.sentence) + '"</div>' +
+          '<div class="smoking-quote">"' + highlightQuote(it.sentence, it.pattern) + '"</div>' +
           '<div class="smoking-why">' + whyHtml + '</div>' +
           counterHtml +
         '</div>';
       }).join('');
-      const controls = '<div class="smoking-controls">' +
-        '<span class="smoking-count">' + r.items.length + ' smoking gun' + (r.items.length === 1 ? '' : 's') + ' surfaced · tap any to jump</span>' +
-        '<button type="button" class="ghost-btn ghost-btn-sm" id="smokingCopyBtn" title="Copy the smoking guns as a shareable plain-text block (great for forwarding to a friend or lawyer)">📋 copy share-card</button>' +
-        '<button type="button" class="ghost-btn ghost-btn-sm" id="smokingCopyMdBtn" title="Copy as markdown with bullet list">📋 markdown</button>' +
+      // Iter #191 — severity tally strip at the top so users can see at a
+      // glance how many traps / watches / notes surfaced.
+      const totalCounts = { r: 0, a: 0, g: 0 };
+      r.items.forEach(it => { const s = it.pattern ? it.pattern.sev : 'g'; totalCounts[s] = (totalCounts[s] || 0) + 1; });
+      const tally = '<div class="smoking-tally" title="Severity breakdown of all surfaced sentences">' +
+        '<span class="smoking-tally-pill smoking-tally-r"><b>' + totalCounts.r + '</b> trap' + (totalCounts.r === 1 ? '' : 's') + '</span>' +
+        '<span class="smoking-tally-pill smoking-tally-a"><b>' + totalCounts.a + '</b> watch' + (totalCounts.a === 1 ? '' : 'es') + '</span>' +
+        '<span class="smoking-tally-pill smoking-tally-g"><b>' + totalCounts.g + '</b> note' + (totalCounts.g === 1 ? '' : 's') + '</span>' +
       '</div>';
-      smokingGrid.innerHTML = cards + controls;
+      // Iter #191 — severity filter chips. Active chip gets a tinted
+      // background matching its severity color.
+      const filterChips = '<div class="smoking-filter-row">' +
+        '<button type="button" class="smoking-filter ghost-btn' + (sevFilter === 'all' ? ' smoking-filter-active' : '') + '" id="smokingFilterAllBtn" data-smoking-filter="all" title="Show every smoking gun regardless of severity">🌐 all</button>' +
+        '<button type="button" class="smoking-filter ghost-btn' + (sevFilter === 'r' ? ' smoking-filter-active smoking-filter-active-r' : '') + '" id="smokingFilterTrapBtn" data-smoking-filter="r" title="Show only traps (most serious)">🔴 traps only</button>' +
+        '<button type="button" class="smoking-filter ghost-btn' + (sevFilter === 'a' ? ' smoking-filter-active smoking-filter-active-a' : '') + '" id="smokingFilterWatchBtn" data-smoking-filter="a" title="Show only watches">🟡 watches</button>' +
+        '<button type="button" class="smoking-filter ghost-btn' + (sevFilter === 'g' ? ' smoking-filter-active smoking-filter-active-g' : '') + '" id="smokingFilterNoteBtn" data-smoking-filter="g" title="Show only notes">⚪ notes</button>' +
+      '</div>';
+      const controls = '<div class="smoking-controls">' +
+        '<span class="smoking-count">' + visible.length + ' / ' + r.items.length + ' shown · tap any to jump</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="smokingTxtBtn" title="Download the smoking-gun list as a .txt file">💾 .txt</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="smokingCopyMdBtn" title="Copy as markdown with bullet list">📋 markdown</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="smokingCopyBtn" title="Copy the smoking guns as a shareable plain-text block (great for forwarding to a friend or lawyer)">📋 copy share-card</button>' +
+      '</div>';
+      smokingGrid.innerHTML = tally + filterChips + cards + controls;
       smokingBlock.hidden = false;
       if(smokingNote){
         const lead = r.items.length + ' smoking gun' + (r.items.length === 1 ? '' : 's');
+        const filterNote = sevFilter !== 'all' ? ' Showing only <b>' + sevLabel[sevFilter] + '</b> — switch to <b>🌐 all</b> to see the rest.' : '';
         smokingNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
-          'Top concerns ranked. Each card quotes the sentence verbatim with the reason it was flagged, and a counter-redline suggestion where one applies. ' +
-          'Tap any card to jump. <b>📋 copy share-card</b> exports a plain-text block you can forward without exposing the rest of the document.';
+          'Top concerns ranked. Each card quotes the sentence verbatim with the <mark class="smoking-trigger">trigger term</mark> highlighted, the reason it was flagged, and a counter-redline suggestion where one applies. ' +
+          'Tap any card to jump. <b>💾 .txt</b> downloads the share-card as a file. <b>📋 copy share-card</b> exports a plain-text block you can forward without exposing the rest of the document.' + filterNote;
       }
       // Click-to-jump.
       $$('.smoking-card', smokingGrid).forEach(card => {
@@ -6584,12 +6623,28 @@
           }
         });
       });
+      // Iter #191 — severity filter. Re-render with the chosen filter.
+      const setSevFilter = (next) => {
+        smokingGrid._smokingSevFilter = smokingGrid._smokingSevFilter === next ? 'all' : next;
+        renderSmokingBlock(raw, ctx);
+      };
+      const fAll = document.getElementById('smokingFilterAllBtn');
+      const fTrap = document.getElementById('smokingFilterTrapBtn');
+      const fWatch = document.getElementById('smokingFilterWatchBtn');
+      const fNote = document.getElementById('smokingFilterNoteBtn');
+      if(fAll) fAll.addEventListener('click', () => { smokingGrid._smokingSevFilter = 'all'; renderSmokingBlock(raw, ctx); });
+      if(fTrap) fTrap.addEventListener('click', () => setSevFilter('r'));
+      if(fWatch) fWatch.addEventListener('click', () => setSevFilter('a'));
+      if(fNote) fNote.addEventListener('click', () => setSevFilter('g'));
       const renderShare = (fmt) => {
+        // Use the FILTERED list for share so the export respects what
+        // the user is currently looking at.
+        const list = visible;
         const lines = [];
         if(fmt === 'md'){
           lines.push('# 🚩 Smoking-gun clauses — ClearDoc', '');
-          lines.push('_Top ' + r.items.length + ' concerns from the document, ranked. Forward this to a lawyer, friend, or family member without exposing the rest of the doc._', '');
-          r.items.forEach((it, i) => {
+          lines.push('_Top ' + list.length + ' concerns from the document, ranked. Forward this to a lawyer, friend, or family member without exposing the rest of the doc._', '');
+          list.forEach((it, i) => {
             lines.push('## ' + (i + 1) + '. ' + (it.pattern ? it.pattern.label : 'Note') + (it.pattern ? ' — ' + it.pattern.why : ''));
             lines.push('', '> ' + it.sentence, '');
             if(it.pattern && it.pattern.counter) lines.push('**Counter:** ' + it.pattern.counter, '');
@@ -6597,10 +6652,10 @@
         } else {
           lines.push('🚩 Smoking-gun clauses (ClearDoc)');
           lines.push('-'.repeat(40));
-          lines.push('Top ' + r.items.length + ' concerns from the document, ranked.');
+          lines.push('Top ' + list.length + ' concerns from the document, ranked.');
           lines.push('Forward to a lawyer, friend, or family member without exposing the rest of the doc.');
           lines.push('');
-          r.items.forEach((it, i) => {
+          list.forEach((it, i) => {
             const sev = it.pattern ? it.pattern.label.toUpperCase() : 'NOTE';
             lines.push((i + 1) + '. [' + sev + '] ' + (it.pattern ? it.pattern.why : 'flagged'));
             lines.push('   "' + it.sentence + '"');
@@ -6620,7 +6675,7 @@
           if(!copied){
             try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
           }
-          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '🚩 Share-card copied (' + r.items.length + ' items)' : '⚠ Couldn’t copy');
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '🚩 Share-card copied (' + visible.length + ' items)' : '⚠ Couldn’t copy');
           copyBtn.textContent = copied ? '✓ copied' : '📋 copy share-card';
           setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy share-card'; }, 2500);
         });
@@ -6638,6 +6693,36 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '🚩 Markdown copied' : '⚠ Couldn’t copy');
           copyMdBtn.textContent = copied ? '✓ copied' : '📋 markdown';
           setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '📋 markdown'; }, 2500);
+        });
+      }
+      // Iter #191 — .txt download. Uses Blob URL with a data-URL fallback.
+      const txtBtn = document.getElementById('smokingTxtBtn');
+      if(txtBtn){
+        txtBtn.addEventListener('click', () => {
+          const text = renderShare('plain');
+          const filename = 'cleardoc-smoking-guns-' + new Date().toISOString().slice(0, 10) + '.txt';
+          let exported = false;
+          try {
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            exported = true;
+          } catch(_){ /* fall through */ }
+          if(!exported){
+            try {
+              const a = document.createElement('a');
+              a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(text);
+              a.download = filename;
+              document.body.appendChild(a); a.click(); document.body.removeChild(a);
+              exported = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(exported ? '💾 Saved ' + filename : '⚠ Couldn’t save');
+          txtBtn.textContent = exported ? '✓ saved' : '💾 .txt';
+          setTimeout(() => { if(txtBtn.isConnected) txtBtn.textContent = '💾 .txt'; }, 2500);
         });
       }
     }
