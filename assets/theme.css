@@ -991,6 +991,11 @@ button.risk-preview:hover{filter:brightness(.96)}
 .analyzed-ago{margin-left:8px;font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:400;padding:3px 8px;border:1px solid var(--ink-soft);cursor:help;display:inline-block}
 .analyzed-ago[data-stale="1"]{color:var(--amber);border-color:var(--amber)}
 .analyzed-ago[data-stale="2"]{color:var(--danger);border-color:var(--danger)}
+/* iter #211: document fingerprint chip — short SHA-256 prefix shown
+   next to the verdict title. Click to copy the full 64-char hash. */
+.doc-fp{margin-left:8px;font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:400;padding:3px 8px;border:1px solid var(--ink-soft);cursor:pointer;background:transparent}
+.doc-fp:hover{background:var(--ink);color:var(--paper)}
+.doc-fp.copied{background:var(--green-tint);color:var(--green);border-color:var(--green)}
 /* iter #208 v2: brief pulse animation when the timestamp is updated
    on a fresh analysis — reassures users the badge is alive and tied
    to the just-completed analyze run, not a stale leftover. */

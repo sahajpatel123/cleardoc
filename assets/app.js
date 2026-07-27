@@ -724,7 +724,7 @@
   /* ================= INIT ================= */
   function initAll(){
     const page=(document.body.dataset.page)||'home';
-    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo];
+    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo,wireDocFingerprint];
     const byPage={
       home:[heroClarifier,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,faq],
@@ -1198,6 +1198,75 @@
   function wireAnalyzedAgo(){
     if(_analyzedState.timer) clearInterval(_analyzedState.timer);
     _analyzedState.timer = setInterval(paintAnalyzedAgo, 30000);
+  }
+  // iter #211: document fingerprint — short SHA-256 hash of the
+  // analyzed text shown next to the verdict. Uses SubtleCrypto when
+  // available (all evergreen browsers); falls back to a small custom
+  // FNV-1a-style hash so the chip never silently disappears.
+  const _fpState = { full: '', short: '' };
+  async function computeDocFingerprint(text){
+    const t = String(text || '');
+    if(!t) return null;
+    if(typeof crypto !== 'undefined' && crypto.subtle && typeof crypto.subtle.digest === 'function'){
+      try {
+        const enc = new TextEncoder().encode(t);
+        const buf = await crypto.subtle.digest('SHA-256', enc);
+        const arr = Array.from(new Uint8Array(buf));
+        const hex = arr.map(b => b.toString(16).padStart(2, '0')).join('');
+        return { full: hex, short: hex.slice(0, 8) };
+      } catch(_) { /* fall through */ }
+    }
+    // Fallback hash — not cryptographic, but stable and short.
+    // 32-bit FNV-1a, hex-padded to 8 chars. Same purpose: a stable
+    // identifier users can recognize on re-analysis.
+    let h = 2166136261 >>> 0;
+    for(let i = 0; i < t.length; i++){
+      h ^= t.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    const hex = ('00000000' + h.toString(16)).slice(-8);
+    return { full: 'fnv1a:' + hex, short: hex };
+  }
+  async function paintDocFingerprint(){
+    const btn = document.getElementById('docFpBtn');
+    if(!btn || !lastRaw) return;
+    const fp = await computeDocFingerprint(lastRaw);
+    if(!fp){ btn.hidden = true; return; }
+    _fpState.full = fp.full;
+    _fpState.short = fp.short;
+    btn.textContent = '#' + fp.short;
+    btn.title = 'SHA-256: ' + fp.full + ' — click to copy';
+    btn.hidden = false;
+  }
+  function wireDocFingerprint(){
+    const btn = document.getElementById('docFpBtn');
+    if(!btn || btn._wired) return;
+    btn._wired = true;
+    btn.addEventListener('click', async () => {
+      if(!_fpState.full) return;
+      let ok=false;
+      try {
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(_fpState.full);
+          ok=true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = _fpState.full;
+          ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok = document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      } catch(_) {}
+      if(ok){
+        btn.classList.add('copied');
+        btn.textContent = '✓ copied';
+        clearTimeout(btn._fpTimer);
+        btn._fpTimer = setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.textContent = '#' + _fpState.short;
+        }, 1500);
+      }
+    });
   }
   function wireSectionNav(){
     const nav = document.getElementById('sectionNav');
@@ -12151,6 +12220,7 @@
       wireAskPerRisk();
       paintSectionNav();
       setAnalyzedTimestamp(Date.now());
+      paintDocFingerprint();
       // severity so the user can see WHERE the traps cluster.
       // Iter #89: click-to-jump on tiles + a "View only flagged"
       // filter chip + a "view mode" toggle (tiles ↔ inline list).
@@ -12705,6 +12775,7 @@
         wireAskPerRisk();
         paintSectionNav();
         setAnalyzedTimestamp(Date.now());
+        paintDocFingerprint();
       }
 
       // Verdict
