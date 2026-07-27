@@ -903,6 +903,23 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-summary .rs-watch b{color:var(--amber)}
 .risk-summary .rs-note b{color:var(--green)}
 .risk-summary .rs-empty{opacity:.35}
+/* iter #201 risk radar severity filter — four toggle buttons above the
+   radar that flip between "all / traps / watches / notes". The active
+   button gets a per-severity tint matching the radar rows; disabled
+   buckets (0 hits) get greyed so users can't dead-end on a filter
+   that has nothing to show. CSS attribute selectors on .rrow do the
+   actual hiding so render code stays unchanged. */
+.risk-filter{display:flex;gap:var(--s2);flex-wrap:wrap;margin:var(--s2) 0;font-family:'JetBrains Mono'}
+.risk-filter .rf-btn{background:transparent;border:1px solid var(--ink);color:var(--ink);font-family:inherit;font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;line-height:1}
+.risk-filter .rf-btn:hover:not(:disabled){background:var(--ink);color:var(--paper)}
+.risk-filter .rf-btn:disabled{opacity:.25;cursor:not-allowed}
+.risk-filter .rf-btn.rf-active[data-risk-filter="all"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.risk-filter .rf-btn.rf-active[data-risk-filter="r"]{background:var(--danger-tint);color:var(--danger);border-color:var(--danger)}
+.risk-filter .rf-btn.rf-active[data-risk-filter="a"]{background:var(--amber-tint);color:var(--amber);border-color:var(--amber)}
+.risk-filter .rf-btn.rf-active[data-risk-filter="g"]{background:var(--green-tint);color:var(--green);border-color:var(--green)}
+.risk-built.risk-filter-r .rrow:not([data-risk="r"]){display:none}
+.risk-built.risk-filter-a .rrow:not([data-risk="a"]){display:none}
+.risk-built.risk-filter-g .rrow:not([data-risk="g"]){display:none}
 .risk-built{display:flex;flex-direction:column;gap:12px;border:none;margin-top:var(--s3)}
 .risk-built .rrow{border:var(--bd) solid var(--ink);box-shadow:var(--shadow-sm)}
 .risk-built .rrow:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink)}

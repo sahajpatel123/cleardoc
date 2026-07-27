@@ -724,7 +724,7 @@
   /* ================= INIT ================= */
   function initAll(){
     const page=(document.body.dataset.page)||'home';
-    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop];
+    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter];
     const byPage={
       home:[heroClarifier,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,faq],
@@ -788,6 +788,70 @@
       }
     });
     update();
+  }
+
+  // iter #201: risk radar severity filter — four toggle buttons above the
+  // radar (all / traps / watches / notes) that filter visible rows via
+  // CSS attribute selectors. Counts and disabled-state update on every
+  // render; the active selection snaps back to "all" if the user re-
+  // analyzes into a document where the current filter has zero hits
+  // (so they never get stuck staring at an empty list).
+  function paintRiskFilter(flags){
+    const wrap = document.getElementById('riskFilter');
+    if(!wrap) return;
+    if(!flags || flags.length === 0){ wrap.hidden = true; applyRiskFilter('all'); return; }
+    let tCount=0,aCount=0,nCount=0;
+    for(const f of flags){
+      const sv = f && f.rule && f.rule.sev;
+      if(sv==='r') tCount++;
+      else if(sv==='a') aCount++;
+      else nCount++;
+    }
+    const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = String(val); };
+    set('rfAllCount', flags.length);
+    set('rfRCount',   tCount);
+    set('rfACount',   aCount);
+    set('rfGCount',   nCount);
+    const rB  = document.getElementById('riskFilterTrapBtn');
+    const aB  = document.getElementById('riskFilterWatchBtn');
+    const gB  = document.getElementById('riskFilterNoteBtn');
+    if(rB) rB.disabled = tCount === 0;
+    if(aB) aB.disabled = aCount === 0;
+    if(gB) gB.disabled = nCount === 0;
+    wrap.hidden = false;
+    const list = document.getElementById('riskList');
+    const cur = list && list.dataset ? (list.dataset.riskFilter || 'all') : 'all';
+    if((cur === 'r' && tCount === 0) || (cur === 'a' && aCount === 0) || (cur === 'g' && nCount === 0)){
+      applyRiskFilter('all');
+    }
+  }
+  function applyRiskFilter(which){
+    const list = document.getElementById('riskList');
+    if(list){
+      list.classList.remove('risk-filter-r','risk-filter-a','risk-filter-g');
+      if(which && which !== 'all') list.classList.add('risk-filter-' + which);
+      try { list.dataset.riskFilter = which || 'all'; } catch(_) {}
+    }
+    const map = [
+      ['all', 'riskFilterAllBtn'],
+      ['r',   'riskFilterTrapBtn'],
+      ['a',   'riskFilterWatchBtn'],
+      ['g',   'riskFilterNoteBtn'],
+    ];
+    for(const [k, id] of map){
+      const b = document.getElementById(id);
+      if(!b) continue;
+      const active = b.dataset.riskFilter === which;
+      b.classList.toggle('rf-active', active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
+    }
+  }
+  function wireRiskFilter(){
+    ['riskFilterAllBtn','riskFilterTrapBtn','riskFilterWatchBtn','riskFilterNoteBtn'].forEach(id => {
+      const b = document.getElementById(id);
+      if(!b) return;
+      b.addEventListener('click', () => applyRiskFilter(b.dataset.riskFilter || 'all'));
+    });
   }
 
   function wireForgetMe(){
@@ -11551,6 +11615,7 @@
       flags.forEach(f=>{ const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev;
         row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>';
         riskList.appendChild(row); });
+      paintRiskFilter(flags);
 
       // Iter #88: heat map — color every sentence by its risk
       // severity so the user can see WHERE the traps cluster.
@@ -12071,6 +12136,7 @@
           row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>';
           riskList.appendChild(row);
         });
+        paintRiskFilter(lastFlags);
       }
 
       // Verdict
