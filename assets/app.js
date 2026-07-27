@@ -724,7 +724,7 @@
   /* ================= INIT ================= */
   function initAll(){
     const page=(document.body.dataset.page)||'home';
-    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter];
+    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis];
     const byPage={
       home:[heroClarifier,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,faq],
@@ -965,6 +965,110 @@
     e.preventDefault();
     ask.click();
   }, { passive:false });
+  // iter #205: in-analysis find — single search input above the result
+  // panel that highlights matches across every rendered block (rewrite,
+  // risk radar, deadlines, scenarios, bearer, verdict, etc.). Walks all
+  // text nodes on each input event, wraps matches in <mark>, updates a
+  // live count. Wires the clear button and Cmd/Ctrl+F focus shortcut.
+  // Re-renders wipe the marks (rows are replaced) so no cleanup is
+  // needed across renders — the next find just re-walks fresh DOM.
+  const _findState = { marks: [], active: false };
+  function clearFindMarks(){
+    for(const m of _findState.marks){
+      const parent = m && m.parentNode;
+      if(!parent) continue;
+      while(m.firstChild) parent.insertBefore(m.firstChild, m);
+      parent.removeChild(m);
+      parent.normalize && parent.normalize();
+    }
+    _findState.marks = [];
+    _findState.active = false;
+  }
+  function runFind(term){
+    clearFindMarks();
+    const countEl = document.getElementById('findCount');
+    const panel = document.getElementById('resultPanel');
+    if(!panel || panel.hidden){ if(countEl) countEl.textContent=''; return; }
+    const t = (term || '').trim();
+    if(t.length < 2){ if(countEl) countEl.textContent = ''; return; }
+    let total = 0;
+    const lower = t.toLowerCase();
+    // Walk text nodes inside the panel but exclude the find bar
+    // itself (no point highlighting matches inside the search box).
+    const walker = document.createTreeWalker(panel, NodeFilter.SHOW_TEXT, {
+      acceptNode(node){
+        if(!node || !node.nodeValue) return NodeFilter.FILTER_REJECT;
+        if(!node.nodeValue.toLowerCase().includes(lower)) return NodeFilter.FILTER_REJECT;
+        let p = node.parentNode;
+        while(p && p !== panel){
+          if(p.classList && (p.classList.contains('find-bar') || p.classList.contains('find-input'))) return NodeFilter.FILTER_REJECT;
+          if(p.tagName === 'SCRIPT' || p.tagName === 'STYLE') return NodeFilter.FILTER_REJECT;
+          p = p.parentNode;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    const targets = [];
+    let n;
+    while((n = walker.nextNode())) targets.push(n);
+    for(const node of targets){
+      const text = node.nodeValue;
+      const lowerText = text.toLowerCase();
+      let idx = 0;
+      const frag = document.createDocumentFragment();
+      let cursor = 0;
+      while((idx = lowerText.indexOf(lower, cursor)) !== -1){
+        if(idx > cursor){
+          frag.appendChild(document.createTextNode(text.slice(cursor, idx)));
+        }
+        const mk = document.createElement('mark');
+        mk.textContent = text.slice(idx, idx + t.length);
+        frag.appendChild(mk);
+        _findState.marks.push(mk);
+        cursor = idx + t.length;
+        total++;
+      }
+      if(cursor < text.length){
+        frag.appendChild(document.createTextNode(text.slice(cursor)));
+      }
+      node.parentNode.replaceChild(frag, node);
+    }
+    if(countEl) countEl.textContent = total + ' match' + (total === 1 ? '' : 'es');
+    _findState.active = total > 0;
+  }
+  function wireFindInAnalysis(){
+    const bar = document.getElementById('findBar');
+    const input = document.getElementById('findInput');
+    const clear = document.getElementById('findClearBtn');
+    if(!bar || !input) return;
+    // Show the find bar whenever the result panel becomes visible.
+    const panel = document.getElementById('resultPanel');
+    if(panel && !panel.hidden) bar.hidden = false;
+    let timer = null;
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      const v = input.value;
+      timer = setTimeout(() => runFind(v), 80);
+    });
+    if(clear) clear.addEventListener('click', () => {
+      input.value = '';
+      clearFindMarks();
+      const countEl = document.getElementById('findCount');
+      if(countEl) countEl.textContent = '';
+      input.focus();
+    });
+    // Cmd/Ctrl+F focuses the find input (only when result panel is
+    // visible — otherwise the browser's default page-find is fine).
+    document.addEventListener('keydown', e => {
+      if(!(e.ctrlKey || e.metaKey)) return;
+      if(e.key !== 'f' && e.key !== 'F') return;
+      const p = document.getElementById('resultPanel');
+      if(!p || p.hidden) return;
+      e.preventDefault();
+      input.focus();
+      input.select();
+    }, { passive:false });
+  }
   function wireRiskFilter(){
     ['riskFilterAllBtn','riskFilterTrapBtn','riskFilterWatchBtn','riskFilterNoteBtn'].forEach(id => {
       const b = document.getElementById(id);
@@ -11990,6 +12094,7 @@
       if(!noMotion && window.gsap) gsap.from('#riskList .rrow',{opacity:0,y:12,stagger:.07,duration:DUR.base,ease:EASE.enter});
       // reveal results
       if(emptyEl) emptyEl.hidden=true; panel.hidden=false; if(askOut) askOut.innerHTML='';
+      const _findBar = document.getElementById('findBar'); if(_findBar) _findBar.hidden = false;
       // Show the read-aloud button only when SpeechSynthesis is available
       // AND there's a rewrite to speak (avoids a broken button when the
       // local fallback produced no rewrite text).
@@ -12351,6 +12456,7 @@
       if(askOut) askOut.innerHTML='';
       if(askInput) askInput.disabled=false;
       if(askBtn) askBtn.disabled=false;
+      const _findBar2 = document.getElementById('findBar'); if(_findBar2) _findBar2.hidden = false;
 
       // Status: surface that this is a restore, not a fresh analysis
       if(msg){
