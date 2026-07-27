@@ -1235,7 +1235,14 @@
       b.dataset.jargonTip = '1';
       b.title = tip;
       b.setAttribute('aria-label', tip);
+      // iter #212 v2: make the term focusable so keyboard users
+      // can Tab to it and read the tooltip without a mouse.
+      b.setAttribute('tabindex', '0');
       b.style.cursor = 'help';
+      // iter #212 v2: subtle dotted underline signals "this has a
+      // glossary entry" without changing the rest of the visual
+      // treatment (the existing rewrite b{color;background} stays).
+      b.style.borderBottom = '1px dotted currentColor';
     });
   }
   function wireAnalyzedAgo(){
