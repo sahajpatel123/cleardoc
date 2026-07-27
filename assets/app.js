@@ -11057,10 +11057,16 @@
       const after=ai && ai.readingLevel && ai.readingLevel.after ? ai.readingLevel.after : Math.max(5,Math.min(before-2,gradeLevel(plainOut.textContent)));
       if(levelFrom) levelFrom.textContent=before+'th'; if(levelTo) levelTo.textContent=after+'th';
 
-      // iter #199: rewrite stats — sentence count + estimated read time.
+      // iter #199 v2: rewrite stats — sentence count + estimated read time.
       // Pairs with the existing `metaline` (reading level + jargon count)
       // so users see "how long will this take me" right under the rewrite.
       // Hidden when there's no rewrite (e.g. pre-analysis empty state).
+      // - Reuses the global splitSentences() so abbreviation handling,
+      //   whitespace collapsing, and the length filter all stay consistent
+      //   with every other sentence-counting feature (risk radar, key
+      //   clauses, scenarios, exposure).
+      // - Sub-1-min reads render as "< 1" instead of rounding up.
+      // - aria-live="polite" on the wrapper announces updates to assistive tech.
       const rsSent=document.getElementById('rewriteSentences');
       const rsMins=document.getElementById('rewriteMins');
       const rsS=document.getElementById('rewriteSentenceS');
@@ -11068,12 +11074,15 @@
       if(rsSent && rsMins && rsWrap){
         const rw=(plainOut.textContent||'').trim();
         const words = rw ? rw.split(/\s+/).filter(Boolean).length : 0;
-        const sCount = rw ? Math.max(1, (rw.split(/[.!?]+/).filter(s=>s.trim()).length)) : 0;
-        const mins = words > 0 ? Math.max(1, Math.round(words/200)) : 0; // 200 wpm legalese floor
         if(words > 0){
+          let sCount = 0;
+          try { sCount = splitSentences(rw).length; } catch(_) { sCount = 0; }
+          if(!sCount) sCount = 1; // unterminated single paragraph = 1 sentence
+          const rawMins = words / 200;                            // 200 wpm legalese floor
+          const mins = rawMins >= 1 ? Math.round(rawMins) : null; // null ⇒ "< 1"
           rsSent.textContent = String(sCount);
           rsS.textContent = sCount === 1 ? '' : 's';
-          rsMins.textContent = String(mins);
+          rsMins.textContent = mins === null ? '< 1' : String(mins);
           rsWrap.hidden = false;
         } else {
           rsWrap.hidden = true;
