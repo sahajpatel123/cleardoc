@@ -724,7 +724,7 @@
   /* ================= INIT ================= */
   function initAll(){
     const page=(document.body.dataset.page)||'home';
-    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis];
+    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav];
     const byPage={
       home:[heroClarifier,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,faq],
@@ -1066,6 +1066,74 @@
     highlightCurrentMatch();
     const countEl = document.getElementById('findCount');
     if(countEl) countEl.textContent = (_findState.idx + 1) + '/' + n + ' matches';
+  }
+  // iter #206: section quick-jump nav — small horizontal anchor strip
+  // at the top of the result panel. Iterates the set of well-known
+  // result blocks, emits an anchor link for each one that is currently
+  // visible (hidden=false), and appends a count when the block has a
+  // natural "N items" tally (risks, deadlines, scenarios, bearer).
+  // Click is intercepted to smooth-scroll instead of jumping; the URL
+  // hash is still updated so users can share a deep-link to a section.
+  const _SECTIONS = [
+    { id: 'verdictBlock',    label: 'Verdict' },
+    { id: 'decisionBlock',   label: 'Decision' },
+    { id: 'rewriteBlock',    label: 'Rewrite', anchorId: 'plainOut' },
+    { id: 'riskList',        label: 'Risks',    count: () => (typeof lastFlags !== 'undefined' && lastFlags) ? lastFlags.length : 0 },
+    { id: 'deadlinesBlock',  label: 'Deadlines', count: () => { const d=document.getElementById('deadlinesList'); return d ? d.querySelectorAll('.deadline-row').length : 0; } },
+    { id: 'scenarioBlock',   label: 'Scenarios' },
+    { id: 'bearerBlock',     label: 'Bearer' },
+    { id: 'exposureBlock',   label: 'Exposure' },
+    { id: 'maturityBlock',   label: 'Maturity' },
+    { id: 'jurisBlock',      label: 'Jurisdiction' },
+    { id: 'currencyBlock',   label: 'Currency' },
+    { id: 'actionBlock',     label: 'Actions' },
+  ];
+  function paintSectionNav(){
+    const nav = document.getElementById('sectionNav');
+    if(!nav) return;
+    const visible = [];
+    for(const s of _SECTIONS){
+      // Look up the element — first by id, then by anchorId hint.
+      let el = document.getElementById(s.id);
+      if(!el && s.anchorId) el = document.getElementById(s.anchorId);
+      if(!el) continue;
+      // For blocks where the element IS the container, check !hidden.
+      // For riskList / deadlinesList (the inner container), check the
+      // nearest result-block ancestor's hidden state.
+      const checkEl = (s.id === 'riskList' || s.id === 'plainOut') ? el.closest('.result-block') || el : el;
+      if(checkEl.hidden) continue;
+      const c = s.count ? (s.count() || 0) : 0;
+      visible.push({ ...s, count: c });
+    }
+    if(visible.length === 0){ nav.hidden = true; nav.innerHTML = ''; return; }
+    nav.hidden = false;
+    nav.innerHTML = '<span class="sn-lbl">Jump to:</span>' + visible.map(s => {
+      const targetId = s.anchorId || s.id;
+      const c = s.count > 0 ? ' <span class="sn-count">' + s.count + '</span>' : '';
+      return '<a href="#' + esc(targetId) + '" data-sn-target="' + esc(targetId) + '">' + esc(s.label) + c + '</a>';
+    }).join('');
+  }
+  function wireSectionNav(){
+    const nav = document.getElementById('sectionNav');
+    if(!nav) return;
+    nav.addEventListener('click', e => {
+      const a = e.target.closest && e.target.closest('a[data-sn-target]');
+      if(!a) return;
+      const id = a.dataset.snTarget;
+      const target = document.getElementById(id);
+      if(!target) return;
+      e.preventDefault();
+      try {
+        target.scrollIntoView({behavior:'smooth', block:'start'});
+        // Update URL hash so the link is shareable, without triggering
+        // page jump (we just scrolled).
+        if(history && history.replaceState){
+          history.replaceState(null, '', '#' + id);
+        }
+      } catch(_) {
+        try { target.scrollIntoView(); } catch(__) {}
+      }
+    });
   }
   function wireFindInAnalysis(){
     const bar = document.getElementById('findBar');
@@ -11914,6 +11982,7 @@
       paintRiskFilter(flags);
       paintTopConcern(flags);
       wireAskPerRisk();
+      paintSectionNav();
 
       // Iter #88: heat map — color every sentence by its risk
       // severity so the user can see WHERE the traps cluster.
@@ -12438,6 +12507,7 @@
         paintRiskFilter(lastFlags);
         paintTopConcern(lastFlags);
         wireAskPerRisk();
+        paintSectionNav();
       }
 
       // Verdict

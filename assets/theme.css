@@ -953,6 +953,15 @@ button.risk-preview:hover{filter:brightness(.96)}
 /* iter #205 v2: stronger tint on the current match so users can see
    which one Enter / Shift+Enter will jump to next. */
 .find-bar mark.mark-current{background:var(--accent);color:var(--paper)}
+/* iter #206: section quick-jump nav — small horizontal anchor strip
+   at the top of the result panel with links to each visible block
+   (verdict, risks, deadlines, scenarios, bearer, etc.). Stays subdued
+   so it doesn't fight the main content for attention. */
+.section-nav{display:flex;gap:var(--s2);flex-wrap:wrap;padding:10px 14px;margin:var(--s2) 0;background:var(--paper);border:1px solid var(--ink);box-shadow:4px 4px 0 var(--ink);font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em}
+.section-nav .sn-lbl{color:var(--ink);font-weight:700;margin-right:6px}
+.section-nav a{color:var(--ink);text-decoration:none;padding:3px 8px;border:1px solid var(--ink);background:transparent}
+.section-nav a:hover{background:var(--ink);color:var(--paper)}
+.section-nav a .sn-count{color:var(--ink-soft);margin-left:4px}
 /* iter #201 v2: "showing X of Y" pill that appears at the right of the
    filter strip whenever a non-'all' filter is active. Aligns with the
    baseline of the buttons, mono font, muted color. */
