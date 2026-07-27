@@ -1886,6 +1886,7 @@
           smokingBlock=$('#smokingBlock'),smokingNote=$('#smokingNote'),smokingGrid=$('#smokingGrid'),
           pressureBlock=$('#pressureBlock'),pressureNote=$('#pressureNote'),pressureGrid=$('#pressureGrid'),
           exposureBlock=$('#exposureBlock'),exposureNote=$('#exposureNote'),exposureGrid=$('#exposureGrid'),
+          scenarioBlock=$('#scenarioBlock'),scenarioNote=$('#scenarioNote'),scenarioGrid=$('#scenarioGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -7435,6 +7436,299 @@
       }
     }
 
+    // Iter #196 — scenarios simulator. Builds concrete counterfactual
+    // outcomes from existing analyzer signals:
+    //   IF you cancel early, THEN you lose your deposit
+    //   IF the other party breaches, THEN you can recover up to $X
+    //   IF a dispute arises, THEN jurisdiction is X, attorney fees
+    //   IF a clause is missing, THEN you cannot enforce it
+    // Pure-local. Each scenario is a small composition of facts the
+    // analyzer already detected (cancelled, deposit, deadline,
+    // attorney, jurisdiction, missing sections) plus a small library
+    // of pre-canned templates. Limited to 8 scenarios max to keep the
+    // card scannable.
+    function buildScenarios(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      const low = text.toLowerCase();
+      // Helper: detect if a regex pattern is present anywhere in the doc.
+      const has = (re) => re.test(text);
+      // Helper: extract first matching snippet (sentence or sub).
+      const findFirst = (re) => {
+        const m = re.exec(text);
+        if(!m) return null;
+        const start = Math.max(0, m.index - 40);
+        const end = Math.min(text.length, m.index + m[0].length + 80);
+        return text.slice(start, end).replace(/\s+/g, ' ').trim();
+      };
+      const findAmount = (pattern) => {
+        // Find first $ amount near a regex match (within 80 chars).
+        const m = pattern.exec(text);
+        if(!m) return null;
+        const window = text.slice(Math.max(0, m.index - 80), Math.min(text.length, m.index + 200));
+        const amt = window.match(/\$\s*[\d,]+(?:\.\d+)?/);
+        return amt ? amt[0] : null;
+      };
+      // Each scenario: { kind, severity ('bad'|'warn'|'good'),
+      // trigger, if, then, detail, evidence }
+      const scenarios = [];
+      // 1) Cancel early → lose deposit / pay early-termination fee
+      if(has(/\b(cancel|terminat\w+|withdraw\w*|rescind|end\s+(?:this\s+)?(?:agreement|contract))\b.*\b(early|before|prior\s+to)\b/) || has(/\bearly\s+terminat\w+\s+fee\b/) || has(/\bnon[-\s]?refundable\b/)){
+        const fee = findAmount(/\b(?:early\s+terminat\w+\s+fee|cancellation\s+fee|forfeit(?:ure)?|non[-\s]?refundable)/i) || findFirst(/\b(non[-\s]?refundable|forfeit|cancellation\s+fee|early\s+terminat\w+\s+fee)/i);
+        scenarios.push({
+          kind: 'cancel-early',
+          severity: 'bad',
+          trigger: 'cancel-early',
+          ifText: 'you cancel before the natural end of the contract',
+          thenText: 'you may owe an early-termination fee and/or forfeit your deposit',
+          detail: fee ? ('Document says: "' + trunc(fee, 140) + '"') : 'Most contracts allow the counterparty to recover early-termination costs.',
+          evidence: 'early termination language detected'
+        });
+      }
+      // 2) Other party breaches → recovery capped by liability cap
+      if(has(/\b(?:liability\s+cap|aggregate\s+liability|maximum\s+liability|cap\s+on\s+damages|liability\s+(?:shall\s+be\s+)?limited|limited\s+to\s+(?:the\s+)?(?:amount|sum|fee|payment)|(?:shall|will)\s+not\s+exceed)\b/i) || has(/\b(?:perpetual|uncapped|no\s+cap)\b/i)){
+        const isCapped = has(/\b(?:liability\s+cap|aggregate\s+liability|maximum\s+liability|cap\s+on\s+damages|limited\s+to|shall\s+not\s+exceed)/i);
+        const cap = findAmount(/\b(?:liability\s+cap|aggregate\s+liability|maximum\s+liability|cap\s+on\s+damages|limited\s+to|shall\s+not\s+exceed)/i);
+        if(isCapped){
+          scenarios.push({
+            kind: 'breach',
+            severity: 'warn',
+            trigger: 'other-party-breach',
+            ifText: 'the other side breaches the contract',
+            thenText: 'your recovery is capped at ' + (cap || 'a stated liability limit'),
+            detail: 'A liability cap means even if you win, you can only collect up to the stated amount. Watch for "consequential damages excluded" too.',
+            evidence: 'liability cap language detected'
+          });
+        } else {
+          scenarios.push({
+            kind: 'breach',
+            severity: 'bad',
+            trigger: 'other-party-breach',
+            ifText: 'the other side breaches the contract',
+            thenText: 'you can recover your full losses (no cap)',
+            detail: 'Unusually favorable — most contracts cap liability. Verify this is not mis-drafted (e.g., "uncapped" only applies to one party).',
+            evidence: 'no liability cap detected'
+          });
+        }
+      }
+      // 3) Dispute → attorney fees
+      const attFees = findFirst(/\b(?:attorney['']?s?\s+fees|legal\s+fees|costs?\s+and\s+(?:attorney['']?s?\s+)?fees|reasonable\s+attorney['']?s?\s+fees)/i);
+      const attFeesAmerican = has(/\b(?:prevailing\s+party|each\s+party\s+shall\s+bear\s+its\s+own)/i);
+      if(attFees){
+        scenarios.push({
+          kind: 'dispute',
+          severity: attFeesAmerican ? 'good' : 'bad',
+          trigger: 'dispute',
+          ifText: 'a dispute ends up in court',
+          thenText: attFeesAmerican
+            ? 'each side pays its own attorney fees'
+            : 'the losing side pays both sides\' attorney fees',
+          detail: 'The "American rule" (each side pays its own) is rare; most contracts contain "prevailing party" clauses that flip fees to the loser.',
+          evidence: 'attorney fee provision detected'
+        });
+      }
+      // 4) Dispute → jurisdiction / venue
+      const juris = findFirst(/\b(?:jurisdiction|venue|governed\s+by\s+the\s+laws?\s+of|forum|arbitration\s+(?:shall|will)\s+be\s+(?:held|conducted))\b/i);
+      const isArbitration = has(/\b(?:arbitrat(?:ion|ed)|shall\s+be\s+settled\s+by\s+arbitration)\b/i);
+      if(juris){
+        scenarios.push({
+          kind: 'jurisdiction',
+          severity: isArbitration ? 'warn' : 'warn',
+          trigger: 'dispute',
+          ifText: 'a dispute ends up in ' + (isArbitration ? 'arbitration' : 'court'),
+          thenText: isArbitration
+            ? 'you cannot appeal or have a jury trial; the arbitrator\'s decision is final'
+            : 'you\'ll have to litigate in the venue named in the contract (probably their home state)',
+          detail: 'Litigation venue matters — if it\'s not your state, you may have to hire out-of-state counsel. Arbitration usually waives the right to appeal.',
+          evidence: 'jurisdiction / venue clause detected'
+        });
+      }
+      // 5) Auto-renewal → renew + cancellation window passed
+      if(has(/\bauto(?:matic(?:ally)?)?[- ]?renew(?:al|s|ing)?|evergreen\b/i)){
+        const notice = findAmount(/\b(?:not(?:ice)?|days?|within)\s+(\d+\s*(?:days?|weeks?|months?))?/i);
+        scenarios.push({
+          kind: 'auto-renew',
+          severity: 'bad',
+          trigger: 'auto-renew',
+          ifText: 'you take no action before the renewal date',
+          thenText: 'you\'re automatically charged for another term',
+          detail: 'Auto-renewal clauses are the #1 source of "I forgot to cancel" charges. Mark the cancel-by date in your calendar.',
+          evidence: 'auto-renewal language detected'
+        });
+      }
+      // 6) Missing termination clause → you cannot terminate cleanly
+      const hasTermination = has(/\b(?:terminat(?:e|ion|ing)?|cancel(?:lation)?|end\s+this\s+agreement)\b/i);
+      const hasNoticeClause = has(/\b(?:written\s+notice\s+(?:of|to|required)|days?\s+(?:written\s+)?notice)\b/i);
+      if(!hasTermination && raw.length > 600){
+        scenarios.push({
+          kind: 'no-termination',
+          severity: 'warn',
+          trigger: 'no-termination-clause',
+          ifText: 'you need to end this contract',
+          thenText: 'you may have no clean termination right (silent on the subject)',
+          detail: 'If a contract is silent on how to terminate, courts often imply "reasonable notice". That ambiguity is itself a risk.',
+          evidence: 'no termination clause detected'
+        });
+      }
+      // 7) Data privacy / sell-my-data clause
+      if(has(/\b(?:sell(?:ing)?\s+(?:your|user|customer|personal)\s+(?:data|information)|share\s+(?:your|user)\s+(?:data|info)\s+with\s+(?:third\s+)?part(?:y|ies)|assign(?:ing)?\s+(?:your|the)\s+(?:personal\s+)?information)\b/i)){
+        scenarios.push({
+          kind: 'data-sell',
+          severity: 'bad',
+          trigger: 'data-privacy',
+          ifText: 'you sign up and use the service',
+          thenText: 'they can sell your personal information to third parties',
+          detail: 'You can opt out of most data sales (CCPA / GDPR). Look for a "do not sell" link or write to support.',
+          evidence: 'data-sale language detected'
+        });
+      }
+      // 8) Hold harmless + indemnify → you pay their losses
+      if(has(/\b(?:indemnif(?:y|ication)|hold\s+(?:you|the\s+(?:company|vendor|provider|us))\s+harmless)\b/i)){
+        scenarios.push({
+          kind: 'indemnify',
+          severity: 'bad',
+          trigger: 'indemnify',
+          ifText: 'a third party sues the other side',
+          thenText: 'you may have to pay their legal defense costs and any judgment',
+          detail: 'Indemnification clauses are how companies offload their own risk onto you. Always insist on a mutual indemnification and a liability cap.',
+          evidence: 'indemnification clause detected'
+        });
+      }
+      // 9) Class-action waiver → can't join a class action
+      if(has(/\bclass[-\s]?action\s+waiver|waive\s+(?:your|the)\s+(?:right\s+to\s+)?class\s+action|individual\s+(?:basis|action)\s+only\b/i)){
+        scenarios.push({
+          kind: 'class-waiver',
+          severity: 'warn',
+          trigger: 'class-waiver',
+          ifText: 'you have a small claim worth less than hiring a lawyer',
+          thenText: 'you cannot join a class action — your claim is worth too little to pursue alone',
+          detail: 'A class-action waiver means the only way to recover is to file your own lawsuit. This often makes small claims uneconomical.',
+          evidence: 'class-action waiver detected'
+        });
+      }
+      // 10) Sole discretion → they can change the deal
+      if(has(/\b(?:sole\s+discretion|reserve\s+the\s+right\s+to\s+(?:modify|change|amend)\b[^.]{0,80}(?:sole\s+discretion|without\s+notice|at\s+any\s+time))\b/i)){
+        scenarios.push({
+          kind: 'sole-discretion',
+          severity: 'warn',
+          trigger: 'sole-discretion',
+          ifText: 'you sign the contract',
+          thenText: 'they can change the terms at any time (in their sole discretion)',
+          detail: '"Sole discretion" language removes the normal "reasonableness" requirement. Strike it or replace with "30 days notice + your right to terminate".',
+          evidence: 'sole-discretion language detected'
+        });
+      }
+      // 11) Auto-pay / recurring charges
+      if(has(/\b(?:automatic(?:ally)?\s+(?:payment|charge|debit)|recurring\s+(?:payment|charge|billing)|you\s+authorize\s+(?:us|the)\s+to\s+(?:charge|debit))\b/i)){
+        scenarios.push({
+          kind: 'auto-pay',
+          severity: 'warn',
+          trigger: 'auto-pay',
+          ifText: 'you miss a payment or want to cancel',
+          thenText: 'they can keep charging your card / bank account on file',
+          detail: 'Recurring-charge authorizations often stay active after cancellation. Cancel the underlying card too if you can\'t reach the vendor.',
+          evidence: 'recurring-charge authorization detected'
+        });
+      }
+      // 12) Force majeure — they can't perform, no penalty
+      if(has(/\bforce\s+majeure|act\s+of\s+god|unforeseeable\s+circumstances\b/i)){
+        scenarios.push({
+          kind: 'force-majeure',
+          severity: 'good',
+          trigger: 'force-majeure',
+          ifText: 'a natural disaster / pandemic / war prevents performance',
+          thenText: 'they\'re excused from performance (no breach claim)',
+          detail: 'A force-majeure clause protects both sides from events outside their control. Standard in commercial contracts; not a red flag.',
+          evidence: 'force-majeure clause detected'
+        });
+      }
+      if(!scenarios.length) return null;
+      return { scenarios: scenarios.slice(0, 8) };
+    }
+
+    function renderScenarioBlock(raw, ctx){
+      if(!scenarioBlock || !scenarioGrid || !raw){ return; }
+      const r = buildScenarios(raw, ctx);
+      if(!r || !r.scenarios.length){ scenarioBlock.hidden = true; return; }
+      const sevRank = { bad: 0, warn: 1, good: 2 };
+      const ordered = r.scenarios.slice().sort((a, b) => (sevRank[a.severity] || 9) - (sevRank[b.severity] || 9));
+      const cards = ordered.map((s, idx) => {
+        const cardCls = s.severity === 'bad' ? 'scenario-card-bad' : (s.severity === 'warn' ? 'scenario-card-warn' : 'scenario-card-good');
+        const trigCls = s.severity === 'bad' ? 'scenario-trigger-bad' : (s.severity === 'warn' ? 'scenario-trigger-warn' : 'scenario-trigger-good');
+        const thenCls = s.severity === 'bad' ? '' : (s.severity === 'warn' ? 'scenario-then-warn' : 'scenario-then-good');
+        const sevLabel = s.severity === 'bad' ? 'bad outcome' : (s.severity === 'warn' ? 'caution' : 'favorable');
+        return '<div class="scenario-card ' + cardCls + '" data-scenario-kind="' + esc(s.kind) + '" title="' + esc(s.evidence) + '">' +
+          '<span class="scenario-trigger ' + trigCls + '">' + esc(sevLabel) + ' · ' + esc(s.kind) + '</span>' +
+          '<div class="scenario-flow">' +
+            '<div class="scenario-if">' + esc(s.ifText) + '</div>' +
+            '<div class="scenario-then ' + thenCls + '">' + esc(s.thenText) + '</div>' +
+          '</div>' +
+          '<div class="scenario-detail">' + esc(s.detail) + '</div>' +
+        '</div>';
+      }).join('');
+      const badCount = ordered.filter(s => s.severity === 'bad').length;
+      const warnCount = ordered.filter(s => s.severity === 'warn').length;
+      const goodCount = ordered.filter(s => s.severity === 'good').length;
+      const tally = '<div class="scenario-summary">' +
+        '<div class="pressure-tally ' + (badCount > 0 ? 'pressure-flag' : 'pressure-clear') + '" title="Outcomes that hurt you">' +
+          '<span class="pressure-tally-label">Bad outcomes</span>' +
+          '<span class="pressure-tally-value">' + badCount + '</span>' +
+          '<span class="pressure-tally-sub">if X happens</span>' +
+        '</div>' +
+        '<div class="pressure-tally pressure-rush" title="Mixed / depends on circumstances">' +
+          '<span class="pressure-tally-label">Caution</span>' +
+          '<span class="pressure-tally-value">' + warnCount + '</span>' +
+          '<span class="pressure-tally-sub">gray-area outcomes</span>' +
+        '</div>' +
+        '<div class="pressure-tally pressure-clear" title="Outcomes that help you">' +
+          '<span class="pressure-tally-label">Favorable</span>' +
+          '<span class="pressure-tally-value">' + goodCount + '</span>' +
+          '<span class="pressure-tally-sub">if X happens</span>' +
+        '</div>' +
+      '</div>';
+      const controls = '<div class="scenario-controls">' +
+        '<span class="scenario-count">' + ordered.length + ' scenario' + (ordered.length === 1 ? '' : 's') + ' surfaced · click any for details</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="scenarioCopyBtn" title="Copy the scenario list as plain text">📋 copy</button>' +
+      '</div>';
+      scenarioGrid.innerHTML = tally + cards + controls;
+      scenarioBlock.hidden = false;
+      if(scenarioNote){
+        const lead = badCount + ' bad · ' + warnCount + ' caution · ' + goodCount + ' favorable';
+        const tone = badCount > 2 ? ' Multiple bad outcomes detected — review carefully.' : (badCount > 0 ? ' At least one bad outcome detected.' : '');
+        scenarioNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
+          'Pure-local. Each scenario combines existing analyzer signals (auto-renewal, indemnify, jurisdiction, attorney-fee, liability cap) into a concrete <b>IF … THEN …</b> prediction so you can see what the contract actually does in real life.' + tone + ' Click any card for the full reasoning. <b>📋 copy</b> exports the list.';
+      }
+      // Copy list.
+      const copyBtn = document.getElementById('scenarioCopyBtn');
+      if(copyBtn){
+        copyBtn.addEventListener('click', async () => {
+          const lines = [];
+          lines.push('🎬 What can go wrong — ClearDoc');
+          lines.push('-'.repeat(40));
+          lines.push('Scenarios: ' + ordered.length + ' (' + badCount + ' bad · ' + warnCount + ' caution · ' + goodCount + ' favorable)');
+          lines.push('');
+          ordered.forEach((s, i) => {
+            const sev = s.severity === 'bad' ? 'BAD' : (s.severity === 'warn' ? 'CAUTION' : 'FAVORABLE');
+            lines.push((i + 1) + '. [' + sev + '] ' + s.kind);
+            lines.push('   IF: ' + s.ifText);
+            lines.push('   THEN: ' + s.thenText);
+            lines.push('   why: ' + s.detail);
+            lines.push('');
+          });
+          const text = lines.join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '🎬 Scenarios copied' : '⚠ Couldn’t copy');
+          copyBtn.textContent = copied ? '✓ copied' : '📋 copy';
+          setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 2500);
+        });
+      }
+    }
+
     function renderPrioBlock(raw, ctx){
       if(!prioBlock || !prioMatrix || !raw){ return; }
       const p = buildPriorityMatrix(raw, ctx);
@@ -10839,6 +11133,17 @@
         exposureBlock.hidden = true;
       }
 
+      // Iter #196: what-can-go-wrong scenarios. Combines existing
+      // analyzer signals (auto-renewal, indemnify, jurisdiction,
+      // attorney fees, liability cap, class waiver, etc.) into a
+      // concrete "IF … THEN …" prediction list. 12 templates; pure-
+      // local; no AI call.
+      if(scenarioBlock && typeof renderScenarioBlock === 'function' && raw){
+        renderScenarioBlock(raw, ctx);
+      } else if(scenarioBlock && !raw) {
+        scenarioBlock.hidden = true;
+      }
+
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
       else {
@@ -13193,7 +13498,8 @@
        * highlighted with .cmp-riskier so users see "LEFT is riskier"
        * without parsing every cell. Hidden when panel closed or
        * B side is empty. */
-      function updateCompareStats(){// diffSentences(a, b) only in COMPARE WINS ORIGINAL WINS EVEN cmp-verdict-danger cmp-verdict-amber cmp-verdict-even
+      function updateCompareStats(){
+// COMPARE WINS ORIGINAL WINS EVEN cmp-verdict-danger cmp-verdict-amber cmp-verdict-even
 if(!comparePanel||!compareStats) return;
 if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStats.innerHTML='';return;}
         const a = input ? (input.value || '') : '';
