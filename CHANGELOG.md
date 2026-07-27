@@ -70,6 +70,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **FAQ expand-all / collapse-all** controls on every FAQ section.
 - **Service worker** (`assets/sw.js`) precaches the shell, network-first for HTML, cache-first for assets.
 - **Print-optimized stylesheet** (`assets/print.css`) — when users hit *Print → Save as PDF* on any ClearDoc page, the output strips nav / footer / sticky CTAs / mobile drawer, switches to black-on-white, and renders the canonical URL + printed-on timestamp so the artifact is self-identifying. Loaded with `media="print"` so it never blocks screen render.
+- **Rewrite stats footer** (iter #199) — the plain-English rewrite section now also reports sentence count + estimated read time next to the existing "Reading level" + "Jargon found" line. Computed locally from the rendered rewrite text (200 wpm legalese-adjusted floor, min 1 min). Hidden until a rewrite exists, so the line never renders zeros in the pre-analysis empty state.
 
 ### Documentation
 - `README.md` — refreshed to reflect the 3-endpoint API, Node 22+ requirement, full project layout.

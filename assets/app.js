@@ -11057,6 +11057,29 @@
       const after=ai && ai.readingLevel && ai.readingLevel.after ? ai.readingLevel.after : Math.max(5,Math.min(before-2,gradeLevel(plainOut.textContent)));
       if(levelFrom) levelFrom.textContent=before+'th'; if(levelTo) levelTo.textContent=after+'th';
 
+      // iter #199: rewrite stats — sentence count + estimated read time.
+      // Pairs with the existing `metaline` (reading level + jargon count)
+      // so users see "how long will this take me" right under the rewrite.
+      // Hidden when there's no rewrite (e.g. pre-analysis empty state).
+      const rsSent=document.getElementById('rewriteSentences');
+      const rsMins=document.getElementById('rewriteMins');
+      const rsS=document.getElementById('rewriteSentenceS');
+      const rsWrap=document.getElementById('rewriteStats');
+      if(rsSent && rsMins && rsWrap){
+        const rw=(plainOut.textContent||'').trim();
+        const words = rw ? rw.split(/\s+/).filter(Boolean).length : 0;
+        const sCount = rw ? Math.max(1, (rw.split(/[.!?]+/).filter(s=>s.trim()).length)) : 0;
+        const mins = words > 0 ? Math.max(1, Math.round(words/200)) : 0; // 200 wpm legalese floor
+        if(words > 0){
+          rsSent.textContent = String(sCount);
+          rsS.textContent = sCount === 1 ? '' : 's';
+          rsMins.textContent = String(mins);
+          rsWrap.hidden = false;
+        } else {
+          rsWrap.hidden = true;
+        }
+      }
+
       // 3) risk radar — prefer AI risks, fall back to local regex flags
       let flags=[];
       if(ai && Array.isArray(ai.risks) && ai.risks.length){
