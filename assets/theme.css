@@ -1793,6 +1793,21 @@ mark.smoking-trigger{background:#ffe98a;color:var(--ink);padding:0 2px;font-weig
 .exposure-filter{padding:4px 10px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink-soft);font-weight:700}
 .exposure-filter:hover{color:var(--ink)}
 .exposure-filter.exposure-filter-active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+/* Iter #195 — probability slider + expected row + bar overlay. */
+.exposure-bar-expected{position:absolute;left:0;top:0;height:100%;background:rgba(0,0,0,.55);transition:width .2s ease;pointer-events:none}
+.exposure-prob-row{display:flex;align-items:center;gap:8px;margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em}
+.exposure-prob-label{flex-shrink:0;font-weight:700}
+.exposure-prob{flex:1;min-width:80px;cursor:pointer;-webkit-appearance:none;appearance:none;height:6px;background:var(--paper2);border:1px solid var(--ink-soft);border-radius:3px}
+.exposure-prob::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;background:var(--ink);border-radius:50%;cursor:pointer;border:1px solid var(--ink)}
+.exposure-prob::-moz-range-thumb{width:14px;height:14px;background:var(--ink);border-radius:50%;cursor:pointer;border:1px solid var(--ink)}
+.exposure-prob-value{flex-shrink:0;font-weight:700;color:var(--ink);min-width:32px;text-align:right}
+.exposure-expected-row{display:flex;align-items:center;gap:8px;padding:4px 8px;margin-top:2px;background:var(--green-tint);border-left:3px solid var(--green);font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink)}
+.exposure-expected-label{font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.04em}
+.exposure-expected-value{font-weight:700;color:var(--ink)}
+.exposure-preset-label{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);font-weight:700;padding-left:6px}
+.exposure-preset{padding:2px 6px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink-soft);font-weight:700}
+.exposure-preset:hover{color:var(--ink)}
 .money-context{font-size:var(--t-micro);color:var(--ink);flex:1;min-width:0;line-height:1.4}
 .money-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .money-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}

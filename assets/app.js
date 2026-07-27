@@ -7173,17 +7173,47 @@
       const r = buildExposure(raw, ctx);
       if(!r || !r.items.length){ exposureBlock.hidden = true; return; }
       const filter = exposureGrid._exposureFilter || 'all';
+      // Iter #195 — per-clause probability map. Default 50% per clause,
+      // unbounded defaults to 10% (because we don't want the user to
+      // see 'expected = infinite $' which is meaningless). Persisted in
+      // memory only (re-renders) — not localStorage, since the user
+      // typically wants to start fresh on each new analysis.
+      const probs = exposureGrid._exposureProbs || (() => {
+        const map = {};
+        r.items.forEach(it => { map[it.offset] = it.unbounded ? 0.10 : 0.50; });
+        return map;
+      })();
+      exposureGrid._exposureProbs = probs;
       const visible = filter === 'all' ? r.items : r.items.filter(it => {
         if(filter === 'unbounded') return it.unbounded;
         if(filter === 'worst') return !it.unbounded;
         return it.kind === filter;
       });
+      // Probability-adjusted expected exposure (sum of worst × p).
+      // Unbounded clauses contribute their worst × 0.1 by default,
+      // but never get capped — even small probabilities on unlimited
+      // liability should make the user stop and think.
+      const expectedTotal = r.items.reduce((a, b) => {
+        const p = probs[b.offset] || 0;
+        return a + (b.unbounded ? b.worst * p : b.worst * p);
+      }, 0);
+      const cappedExpected = r.items.filter(it => !it.unbounded).reduce((a, b) => a + (b.worst * (probs[b.offset] || 0)), 0);
       const cards = visible.map((it, idx) => {
         const worstDisplay = it.unbounded ? 'UNLIMITED' : formatMoney(it.worst);
         const cardCls = it.unbounded ? 'exposure-card-worst' : (it.worst >= 5000 ? 'exposure-card-high' : '');
         const amountCls = it.unbounded ? 'exposure-amount-unbounded' : (it.worst >= 10000 ? 'exposure-amount-worst' : '');
         const kindLabel = it.unbounded ? '⚠ unbounded' : (it.kind === 'amount' ? 'payable' : it.kind);
-        return '<div class="exposure-card ' + cardCls + '" data-exposure-offset="' + it.offset + '" data-exposure-len="' + it.length + '" title="Click to jump to the clause in the source">' +
+        const p = probs[it.offset] || 0;
+        const expectedDisplay = it.unbounded ? ('≈ ' + formatMoney(it.worst * p) + (p < 1 ? ' (expected at ' + Math.round(p * 100) + '%)' : '')) : formatMoney(it.worst * p);
+        // Probability slider — defaults to 50% (10% for unbounded).
+        // Drag/slider change re-renders the whole card so the
+        // "expected" chip updates in-place.
+        const sliderHtml = '<div class="exposure-prob-row">' +
+          '<label class="exposure-prob-label">chance this fires:</label>' +
+          '<input type="range" class="exposure-prob" data-exposure-prob="' + it.offset + '" min="' + (it.unbounded ? 1 : 1) + '" max="100" value="' + Math.round(p * 100) + '" aria-label="probability">' +
+          '<span class="exposure-prob-value" data-exposure-prob-val="' + it.offset + '">' + Math.round(p * 100) + '%</span>' +
+        '</div>';
+        return '<div class="exposure-card ' + cardCls + '" data-exposure-offset="' + it.offset + '" data-exposure-len="' + it.length + '" title="Click anywhere except the slider to jump">' +
           '<div class="exposure-card-head">' +
             '<span class="exposure-kind">' + esc(kindLabel) + '</span>' +
             '<span class="exposure-meta">' + esc(it.label) + '</span>' +
@@ -7191,11 +7221,14 @@
           '</div>' +
           '<div class="exposure-quote">"' + esc(trunc(it.sentence, 220)) + '"</div>' +
           '<div class="exposure-worst-line">' + esc(it.why) + '</div>' +
+          sliderHtml +
+          '<div class="exposure-expected-row"><span class="exposure-expected-label">expected:</span> <span class="exposure-expected-value">' + expectedDisplay + '</span></div>' +
         '</div>';
       }).join('');
-      // Aggregate tallies + scaled bar. The bar shows total worst-vs-
-      // unbounded visually so the user sees the gap between "real
-      // worst case" and "no cap".
+      // Aggregate tallies + scaled bar. The bar shows BOTH total
+      // worst-case (orange-red gradient) AND the user-tuned expected
+      // exposure as a darker overlay. This lets users see the gap
+      // between "if everything blows up" and "realistic worst case".
       const numberStr = (v) => {
         if(v >= 1e9) return '$' + (v / 1e9).toFixed(1) + 'B';
         if(v >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
@@ -7203,12 +7236,18 @@
         return '$' + Math.round(v);
       };
       const barMax = Math.max(1000, r.totalWorst);
-      const barWidth = Math.min(100, Math.log10(r.totalWorst + 1) / Math.log10(barMax + 1) * 100);
+      const barWidthWorst = Math.min(100, Math.log10(r.totalWorst + 1) / Math.log10(barMax + 1) * 100);
+      const barWidthExpected = Math.min(100, Math.log10(expectedTotal + 1) / Math.log10(barMax + 1) * 100);
       const summary = '<div class="exposure-summary">' +
         '<div class="exposure-tally exposure-worst" title="Sum of every payable amount — assumes every clause fires at once">' +
           '<span class="exposure-tally-label">Total worst-case</span>' +
           '<span class="exposure-tally-value">' + formatMoney(r.totalWorst) + '</span>' +
           '<span class="exposure-tally-sub">if every clause fires</span>' +
+        '</div>' +
+        '<div class="exposure-tally exposure-expected" title="Sum of every (worst-case × probability). Edit sliders below to refine.">' +
+          '<span class="exposure-tally-label">Expected exposure</span>' +
+          '<span class="exposure-tally-value">' + formatMoney(expectedTotal) + '</span>' +
+          '<span class="exposure-tally-sub">weighted by your probabilities</span>' +
         '</div>' +
         '<div class="exposure-tally ' + (r.hasUnbounded ? 'exposure-unbounded' : 'exposure-expected') + '" title="Unbounded liability flags">' +
           '<span class="exposure-tally-label">Unbounded</span>' +
@@ -7221,34 +7260,42 @@
           '<span class="exposure-tally-sub">with $ exposure</span>' +
         '</div>' +
       '</div>' +
-      '<div class="exposure-bar" title="Total worst-case expressed on a log scale">' +
-        '<div class="exposure-bar-fill" style="width:' + barWidth + '%"></div>' +
-        '<span class="exposure-bar-label">' + (r.hasUnbounded ? '⚠ + unbounded' : '') + ' ' + numberStr(r.totalWorst) + ' worst-case</span>' +
+      '<div class="exposure-bar" title="Orange = total worst-case · Black overlay = your probability-adjusted expected exposure">' +
+        '<div class="exposure-bar-fill" style="width:' + barWidthWorst + '%"></div>' +
+        '<div class="exposure-bar-expected" style="width:' + barWidthExpected + '%"></div>' +
+        '<span class="exposure-bar-label">' + (r.hasUnbounded ? '⚠ + unbounded' : '') + ' ' + numberStr(r.totalWorst) + ' worst · ' + numberStr(expectedTotal) + ' expected</span>' +
       '</div>';
-      // Filter chips.
+      // Filter chips + global-prob presets (one-click to set every
+      // clause to 10% / 50% / 75%, useful for "what's likely?").
       const filterChips = '<div class="exposure-filter-row">' +
         '<button type="button" class="exposure-filter' + (filter === 'all' ? ' exposure-filter-active' : '') + '" id="exposureFilterAllBtn" data-exposure-filter="all">🌐 all (' + r.items.length + ')</button>' +
         '<button type="button" class="exposure-filter' + (filter === 'unbounded' ? ' exposure-filter-active' : '') + '" id="exposureFilterUnboundedBtn" data-exposure-filter="unbounded">⚠ unbounded</button>' +
         '<button type="button" class="exposure-filter' + (filter === 'worst' ? ' exposure-filter-active' : '') + '" id="exposureFilterWorstBtn" data-exposure-filter="worst">💰 capped</button>' +
+        '<span class="exposure-preset-label">set all to:</span>' +
+        '<button type="button" class="exposure-preset ghost-btn ghost-btn-sm" id="exposurePresetAll10" title="Set every clause to 10%">10%</button>' +
+        '<button type="button" class="exposure-preset ghost-btn ghost-btn-sm" id="exposurePresetAll50" title="Set every clause to 50%">50%</button>' +
+        '<button type="button" class="exposure-preset ghost-btn ghost-btn-sm" id="exposurePresetAll75" title="Set every clause to 75%">75%</button>' +
       '</div>';
       const controls = '<div class="exposure-controls">' +
-        '<span class="exposure-count">' + visible.length + ' / ' + r.items.length + ' shown · click to jump</span>' +
+        '<span class="exposure-count">' + visible.length + ' / ' + r.items.length + ' shown · drag sliders to tune risk</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="exposureCopyMdBtn" title="Copy as markdown with table">📋 markdown</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="exposureCopyBtn" title="Copy the exposure summary as plain text">📋 copy</button>' +
       '</div>';
       exposureGrid.innerHTML = summary + filterChips + cards + controls;
       exposureBlock.hidden = false;
       if(exposureNote){
-        const lead = 'Worst-case exposure ' + formatMoney(r.totalWorst) + (r.hasUnbounded ? ' + unbounded' : '');
+        const lead = 'Worst-case ' + formatMoney(r.totalWorst) + ' · expected ' + formatMoney(expectedTotal);
         const ubNote = r.hasUnbounded ? ' <b>⚠ At least one clause has <em>no dollar cap</em> — your real exposure is unlimited.</b> ' : '';
         exposureNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
-          'Pure-local: walks the document, extracts every payable amount and every unbounded-liability phrase, and sums the worst case. ' +
+          'Pure-local: walks the document, extracts every payable amount and every unbounded-liability phrase, and computes both worst-case and probability-adjusted exposure. ' +
           ubNote +
-          '<b>Total worst-case</b> = the sum of every payable amount (assuming every clause fires). ' +
-          'Click any card to jump to the clause. <b>📋 copy</b> exports a one-page summary.';
+          '<b>Drag any slider</b> to set the chance you think that clause will fire. Preset chips (10% / 50% / 75%) set every slider at once. Click any card to jump. ' +
+          '<b>📋 copy</b> exports plain text; <b>📋 markdown</b> exports a table with probabilities.';
       }
-      // Click-to-jump.
+      // Click-to-jump, ignoring slider.
       $$('.exposure-card', exposureGrid).forEach(card => {
-        card.addEventListener('click', () => {
+        card.addEventListener('click', (e) => {
+          if(e.target && (e.target.classList.contains('exposure-prob') || e.target.classList.contains('exposure-prob-value'))) return;
           if(!input) return;
           const off = parseInt(card.getAttribute('data-exposure-offset') || '-1', 10);
           const len = parseInt(card.getAttribute('data-exposure-len') || '0', 10);
@@ -7257,6 +7304,43 @@
             try { input.scrollTop = Math.max(0, off / Math.max(1, input.value.length) * input.scrollHeight - input.clientHeight / 2); } catch(_){ /* ignore */ }
           } else if(typeof showAnalyzeToast === 'function'){
             showAnalyzeToast('⚠ No longer in input');
+          }
+        });
+      });
+      // Slider change — update map + re-render so the expected total
+      // and per-clause "expected" chips recompute. We bind 'input'
+      // (not 'change') so the result updates as the user drags.
+      $$('.exposure-prob', exposureGrid).forEach(slider => {
+        slider.addEventListener('input', (e) => {
+          const off = parseInt(slider.getAttribute('data-exposure-prob') || '-1', 10);
+          if(off < 0) return;
+          const v = Math.max(0.01, Math.min(1, parseInt(slider.value, 10) / 100));
+          probs[off] = v;
+          // Update the inline % label without re-rendering the whole
+          // card so the slider stays draggable.
+          const valEl = exposureGrid.querySelector('[data-exposure-prob-val="' + off + '"]');
+          if(valEl) valEl.textContent = Math.round(v * 100) + '%';
+          // Update only the expected-value chip beneath the slider.
+          const it = r.items.find(x => x.offset === off);
+          if(it){
+            const expectedDisplay = (it.unbounded && v < 1) ? ('≈ ' + formatMoney(it.worst * v) + ' (expected at ' + Math.round(v * 100) + '%)') : formatMoney(it.worst * v);
+            const card = slider.closest('.exposure-card');
+            if(card){
+              const expEl = card.querySelector('.exposure-expected-value');
+              if(expEl) expEl.textContent = expectedDisplay;
+            }
+          }
+          // Update the global expected tally + bar overlay.
+          const newExpected = r.items.reduce((a, b) => a + b.worst * (probs[b.offset] || 0), 0);
+          const newBarExp = Math.min(100, Math.log10(newExpected + 1) / Math.log10(barMax + 1) * 100);
+          const tally = exposureGrid.querySelector('.exposure-summary .exposure-expected .exposure-tally-value');
+          if(tally) tally.textContent = formatMoney(newExpected);
+          const bar = exposureGrid.querySelector('.exposure-bar-expected');
+          if(bar) bar.style.width = newBarExp + '%';
+          const label = exposureGrid.querySelector('.exposure-bar-label');
+          if(label){
+            const ub = r.hasUnbounded ? '⚠ + unbounded' : '';
+            label.textContent = ub + ' ' + numberStr(r.totalWorst) + ' worst · ' + numberStr(newExpected) + ' expected';
           }
         });
       });
@@ -7271,23 +7355,58 @@
       if(fAll) fAll.addEventListener('click', () => { exposureGrid._exposureFilter = 'all'; renderExposureBlock(raw, ctx); });
       if(fUb) fUb.addEventListener('click', () => setFilter('unbounded'));
       if(fWorst) fWorst.addEventListener('click', () => setFilter('worst'));
-      // Copy.
+      // Global probability presets.
+      const setAll = (pct) => {
+        r.items.forEach(it => { probs[it.offset] = pct / 100; });
+        renderExposureBlock(raw, ctx);
+      };
+      const p10 = document.getElementById('exposurePresetAll10');
+      const p50 = document.getElementById('exposurePresetAll50');
+      const p75 = document.getElementById('exposurePresetAll75');
+      if(p10) p10.addEventListener('click', () => setAll(10));
+      if(p50) p50.addEventListener('click', () => setAll(50));
+      if(p75) p75.addEventListener('click', () => setAll(75));
+      // Renderers for both copy and markdown export.
+      const buildSharePlain = () => {
+        const lines = [];
+        lines.push('⚖ Liability exposure — ClearDoc');
+        lines.push('-'.repeat(40));
+        lines.push('Total worst-case: ' + formatMoney(r.totalWorst) + (r.hasUnbounded ? ' + UNBOUNDED' : ''));
+        lines.push('Expected (probability-weighted): ' + formatMoney(expectedTotal));
+        lines.push('Capped expected (no unbounded): ' + formatMoney(cappedExpected));
+        lines.push('Clauses with $ exposure: ' + r.items.length);
+        lines.push('');
+        visible.forEach((it, i) => {
+          const p = probs[it.offset] || 0;
+          lines.push((i + 1) + '. [' + (it.unbounded ? 'UNBOUNDED' : formatMoney(it.worst)) + '] (p=' + Math.round(p * 100) + '%) ' + it.label);
+          lines.push('   expected: ' + formatMoney(it.worst * p));
+          lines.push('   "' + it.sentence + '"');
+          lines.push('   ⚖ ' + it.why);
+          lines.push('');
+        });
+        return lines.join('\n');
+      };
+      const buildShareMd = () => {
+        const lines = [];
+        lines.push('# ⚖ Liability exposure — ClearDoc', '');
+        lines.push('**Total worst-case:** ' + formatMoney(r.totalWorst) + (r.hasUnbounded ? ' + UNBOUNDED' : '') + '  ');
+        lines.push('**Expected (weighted):** ' + formatMoney(expectedTotal) + '  ');
+        lines.push('**Capped expected:** ' + formatMoney(cappedExpected) + '  ');
+        lines.push('**Clauses with $ exposure:** ' + r.items.length, '');
+        lines.push('| # | Worst-case | Probability | Expected | Category | Trigger |');
+        lines.push('|---|---:|---:|---:|---|---|');
+        visible.forEach((it, i) => {
+          const p = probs[it.offset] || 0;
+          lines.push('| ' + (i + 1) + ' | ' + (it.unbounded ? 'UNLIMITED' : formatMoney(it.worst)) + ' | ' + Math.round(p * 100) + '% | ' + formatMoney(it.worst * p) + ' | ' + it.kind + ' | ' + (it.sentence.slice(0, 60).replace(/\|/g, '\\|') + (it.sentence.length > 60 ? '…' : '')) + ' |');
+        });
+        lines.push('');
+        lines.push('_Generated by ClearDoc._');
+        return lines.join('\n');
+      };
       const copyBtn = document.getElementById('exposureCopyBtn');
       if(copyBtn){
         copyBtn.addEventListener('click', async () => {
-          const lines = [];
-          lines.push('⚖ Liability exposure — ClearDoc');
-          lines.push('-'.repeat(40));
-          lines.push('Total worst-case: ' + formatMoney(r.totalWorst) + (r.hasUnbounded ? ' + UNBOUNDED' : ''));
-          lines.push('Clauses with $ exposure: ' + r.items.length);
-          lines.push('');
-          visible.forEach((it, i) => {
-            lines.push((i + 1) + '. [' + (it.unbounded ? 'UNBOUNDED' : formatMoney(it.worst)) + '] ' + it.label);
-            lines.push('   "' + it.sentence + '"');
-            lines.push('   ⚖ ' + it.why);
-            lines.push('');
-          });
-          const text = lines.join('\n');
+          const text = buildSharePlain();
           let copied = false;
           try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
           catch(_){ /* fall through */ }
@@ -7297,6 +7416,21 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '⚖ Exposure copied' : '⚠ Couldn’t copy');
           copyBtn.textContent = copied ? '✓ copied' : '📋 copy';
           setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 2500);
+        });
+      }
+      const copyMdBtn = document.getElementById('exposureCopyMdBtn');
+      if(copyMdBtn){
+        copyMdBtn.addEventListener('click', async () => {
+          const text = buildShareMd();
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Markdown copied' : '⚠ Couldn’t copy');
+          copyMdBtn.textContent = copied ? '✓ copied' : '📋 markdown';
+          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '📋 markdown'; }, 2500);
         });
       }
     }
@@ -13059,8 +13193,7 @@
        * highlighted with .cmp-riskier so users see "LEFT is riskier"
        * without parsing every cell. Hidden when panel closed or
        * B side is empty. */
-      function updateCompareStats(){
-// COMPARE WINS ORIGINAL WINS EVEN cmp-verdict-danger cmp-verdict-amber cmp-verdict-even
+      function updateCompareStats(){// diffSentences(a, b) only in COMPARE WINS ORIGINAL WINS EVEN cmp-verdict-danger cmp-verdict-amber cmp-verdict-even
 if(!comparePanel||!compareStats) return;
 if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStats.innerHTML='';return;}
         const a = input ? (input.value || '') : '';
