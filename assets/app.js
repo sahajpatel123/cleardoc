@@ -1195,6 +1195,49 @@
     if(_analyzedState.timer) clearInterval(_analyzedState.timer);
     _analyzedState.timer = setInterval(paintAnalyzedAgo, 30000);
   }
+  // iter #212: jargon glossary tooltips — when the rewrite contains
+  // <b> tags wrapping a JARGON-derived plain-English substitute,
+  // add a tooltip showing the likely ORIGINAL term that was
+  // simplified. Built from the existing JARGON list by reverse-
+  // mapping each entry's plain substitute to the regex's source
+  // pattern (approximate — some patterns map 1:many).
+  function annotateRewriteJargon(){
+    const plainOut = document.getElementById('plainOut');
+    if(!plainOut) return;
+    const bs = plainOut.querySelectorAll('b');
+    if(!bs || bs.length === 0) return;
+    const plainToOriginals = new Map();
+    if(typeof JARGON !== 'undefined' && Array.isArray(JARGON)){
+      JARGON.forEach(entry => {
+        if(!entry || !entry[1]) return;
+        const plain = String(entry[1]).toLowerCase();
+        let orig = String(entry[0] && entry[0].source || '').toLowerCase();
+        orig = orig.replace(/\\b/g, '').replace(/[\\^$*+?.()|[\]{}]/g, ' ').replace(/\s+/g, ' ').trim();
+        if(!orig) return;
+        if(!plainToOriginals.has(plain)) plainToOriginals.set(plain, []);
+        plainToOriginals.get(plain).push(orig);
+      });
+    }
+    bs.forEach(b => {
+      if(b.dataset.jargonTip) return;
+      const txt = (b.textContent || '').trim().toLowerCase();
+      if(!txt) return;
+      const originals = plainToOriginals.get(txt);
+      if(!originals || originals.length === 0) return;
+      const seen = new Set();
+      const uniq = [];
+      for(const o of originals){
+        if(seen.has(o)) continue;
+        seen.add(o); uniq.push(o);
+        if(uniq.length >= 3) break;
+      }
+      const tip = 'Plain English for: ' + uniq.join(' / ');
+      b.dataset.jargonTip = '1';
+      b.title = tip;
+      b.setAttribute('aria-label', tip);
+      b.style.cursor = 'help';
+    });
+  }
   function wireAnalyzedAgo(){
     if(_analyzedState.timer) clearInterval(_analyzedState.timer);
     _analyzedState.timer = setInterval(paintAnalyzedAgo, 30000);
@@ -11677,6 +11720,7 @@
         sentences.forEach(s=>{ const r=clarify(s); totalJargon+=r.found; html+='<p>'+(r.changed?r.html:esc(s))+'</p>'; });
       }
       plainOut.innerHTML=html || '<p>'+esc(raw)+'</p>';
+      annotateRewriteJargon();
       if(jargonCount) jargonCount.textContent = ai && Number.isFinite(ai.jargonFound) ? ai.jargonFound : totalJargon;
 
       // 2) reading level — prefer AI, fall back to local gradeLevel
