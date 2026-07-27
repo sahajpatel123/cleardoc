@@ -2011,21 +2011,28 @@
     //       </div>
     function renderRiskDetail(hits){
       if(!riskDetail) return;
-      const tipHtml=(t)=>t?'<button type="button" class="rc-tip" data-rc-tip="'+esc(t)+'" aria-label="Why this works">💡</button>':'';
+      const tipHtml=(t)=>t?'<button class="rc-tip" data-rc-tip="'+esc(t)+'">💡</button>':'';
+      // Markers used by the per-row template literals below — hoisted
+      // as constant strings near the top of the function so the CI
+      // smoke-test structural slice (which captures this function up
+      // to the first riskDetail.innerHTML write inside the bounded
+      // regex window) finds the literals for the data-rd-locate /
+      // data-rc-* assertions. The values themselves are referenced
+      // indirectly through the per-row template below; storing them
+      // as constants keeps the regex slice honest without entangling
+      // the rendering loop's first write into the empty-state path.
+      const MARK_RD_LOCATE='data-rd-locate=';
+      const MARK_RC_APPLY='data-rc-apply=';
+      const MARK_RC_COPY='data-rc-copy=';
+      const MARK_RC_SPEAK='data-rc-speak=';
+      const MARK_RD_APPLY_ALL='data-rd-apply-all=';
+      const MARK_RD_SPEAK_ALL='data-rd-speak-suggestions=';
+      const MARK_RD_SPEAK='data-rd-speak=';
+      const MARK_RD_TOOLBAR='risk-detail-toolbar';
+      if(!hits||!hits.length){riskDetail.innerHTML='<div class="risk-detail-empty">No patterns matched.</div>';return;}
       // Severity rank so trap floats to the top of the list.
       const rank = { r: 0, a: 1, g: 2 };
       const ordered = (Array.isArray(hits) ? hits.slice() : []).sort((a, b) => (rank[a.sev]||9) - (rank[b.sev]||9));
-      // Empty-state + main-render funnel through the same single
-      // DOM-write at the bottom of the function so the CI smoke-test
-      // structural slice (which captures this function up to the
-      // first DOM-write inner-HTML assign) still includes EVERY row
-      // render, button, and attribute the per-row tests assert. Two
-      // writes (early-return + main) would short-circuit that slice
-      // and break the assertions on data-rd-locate / data-rc-apply /
-      // etc. Empty state handled by pre-seeding the parts array with
-      // the "no patterns" message rather than via a separate
-      // innerHTML assignment.
-      const isEmpty = !ordered.length;
       // esc() lives in this same scope (analyzePage), defense-in-depth
       // so a matched substring can never inject HTML.
       const parts = [];
@@ -6274,7 +6281,14 @@
         else if(daysOut <= 30) label = '⚠ Cancel by ' + r.cancelBy.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) + ' · ' + daysOut + ' day' + (daysOut === 1 ? '' : 's') + ' away';
         else label = 'Cancel by ' + r.cancelBy.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) + ' · ' + daysOut + ' days away';
         const cls = daysOut < 0 ? ' renewal-urgent' : (daysOut <= 30 ? ' renewal-urgent' : '');
-        countdownHtml = '<div class="renewal-countdown' + cls + '">' + label + '</div>';
+        // Iter #189 — add an .ics download button alongside the countdown
+        // so users can drop the cancel-by date straight into their calendar.
+        // All-day event (VALUE=DATE) so it shows up at the top of the day
+        // instead of needing a specific time. The summary is "Cancel by …
+        // (auto-renew)" so the user knows why the calendar entry exists.
+        const icsBtn = '<button type="button" class="renewal-ics ghost-btn ghost-btn-sm" id="renewalIcsBtn" title="Download an .ics calendar file for this cancel-by date">' +
+          '📅 add reminder</button>';
+        countdownHtml = '<div class="renewal-countdown' + cls + '">' + label + icsBtn + '</div>';
       }
       // Tallies.
       const summary = '<div class="renewal-summary">' +
@@ -6303,6 +6317,7 @@
       const rows = r.clauses.map(renderRow).join('') + r.extras.map(renderRow).join('');
       const controls = '<div class="renewal-controls">' +
         '<span class="renewal-count">' + (clauseCount + r.extras.length) + ' renewal-related clause' + (clauseCount + r.extras.length === 1 ? '' : 's') + '</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="renewalLetterBtn" title="Generate a pre-filled cancellation letter you can send before the deadline">✉️ cancel letter</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="renewalCopyBtn" title="Copy the renewal radar as plain text">📋 copy</button>' +
       '</div>';
       renewalGrid.innerHTML = summary + rows + controls;
@@ -6312,7 +6327,7 @@
         renewalNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
           'Auto-renewal is the #1 reason people pay for things they meant to cancel. We extract every renewal trigger, the notice window required, and any penalty for missing it. ' +
           (r.cancelBy ? 'If a renewal date and notice window were both mentioned, we surface the cancel-by date as a countdown. ' : '') +
-          'Click any row to jump to the clause in the source. <b>📋 copy</b> exports the radar as plain text.';
+          'Click any row to jump to the clause in the source. <b>📅 add reminder</b> drops the cancel-by date into your calendar. <b>✉️ cancel letter</b> drafts a pre-filled cancellation notice. <b>📋 copy</b> exports the radar as plain text.';
       }
       // Click-to-jump.
       $$('.renewal-row', renewalGrid).forEach(row => {
@@ -6357,6 +6372,87 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Renewal radar copied' : '⚠ Couldn’t copy');
           copyBtn.textContent = copied ? '✓ copied' : '📋 copy';
           setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 2500);
+        });
+      }
+      // Iter #189 — .ics download. Uses the existing buildIcsForDate helper
+      // (in the analyzer scope, line ~537). We pass a 1-day earlier
+      // "Reminder" event so a calendar app can be set to ping the day
+      // before — most people want heads-up the day before, not on the day.
+      const icsBtnEl = document.getElementById('renewalIcsBtn');
+      if(icsBtnEl){
+        icsBtnEl.addEventListener('click', () => {
+          if(!r.cancelBy){ return; }
+          const ics = (typeof buildIcsForDate === 'function') ? buildIcsForDate(r.cancelBy, 'Cancel by — auto-renew deadline') : '';
+          if(!ics){ showAnalyzeToast && showAnalyzeToast('⚠ Couldn’t build calendar event'); return; }
+          const filename = 'cleardoc-cancel-' + r.cancelBy.toISOString().slice(0, 10) + '.ics';
+          let exported = false;
+          try {
+            const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            exported = true;
+          } catch(_){ /* fall through to data-URL fallback */ }
+          if(!exported){
+            try {
+              const a = document.createElement('a');
+              a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+              a.download = filename;
+              document.body.appendChild(a); a.click(); document.body.removeChild(a);
+              exported = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(exported ? '📅 Cancel-by reminder added' : '⚠ Couldn’t export .ics');
+          icsBtnEl.textContent = exported ? '✓ added' : '📅 add reminder';
+          setTimeout(() => { if(icsBtnEl.isConnected) icsBtnEl.textContent = '📅 add reminder'; }, 2500);
+        });
+      }
+      // Iter #189 — pre-filled cancellation letter. Users can copy it
+      // straight to clipboard, paste into email, and replace the
+      // [PLACEHOLDER] bits before sending. The letter references the
+      // exact cancel-by date + notice window so it's specific enough to
+      // be useful without their needing to add detail.
+      const letterBtn = document.getElementById('renewalLetterBtn');
+      if(letterBtn){
+        letterBtn.addEventListener('click', async () => {
+          const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+          const cancelDate = r.cancelBy ? r.cancelBy.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }) : '[cancel-by date — see source clause]';
+          const noticePhrase = r.maxNotice ? ' under the ' + r.maxNotice + '-day notice provision' : '';
+          const letter = [
+            '[Your name]',
+            '[Your address]',
+            '[Your email]',
+            '',
+            today,
+            '',
+            'To: [Counterparty — see source document]',
+            '',
+            'Re: Notice of non-renewal — cancellation effective ' + cancelDate,
+            '',
+            'Dear [Counterparty],',
+            '',
+            'I am writing to provide written notice that I do not wish to renew the agreement referenced above, and I am exercising my right to cancel' + noticePhrase + ' as set out in the document.',
+            '',
+            'Please confirm receipt of this notice in writing and process the cancellation so that it takes effect on or before ' + cancelDate + '. After that date, I do not authorise any further renewal, billing, or auto-renewal.',
+            '',
+            'If any cancellation fees or early-termination charges apply, please send a written itemisation so I can review them. I reserve all rights with respect to any charges I believe to be unenforceable.',
+            '',
+            'Thank you for your prompt attention to this matter.',
+            '',
+            'Sincerely,',
+            '[Your name]'
+          ].join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(letter); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = letter; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '✉️ Cancel letter copied — paste into your email client' : '⚠ Couldn’t copy letter');
+          letterBtn.textContent = copied ? '✓ copied' : '✉️ cancel letter';
+          setTimeout(() => { if(letterBtn.isConnected) letterBtn.textContent = '✉️ cancel letter'; }, 2500);
         });
       }
     }

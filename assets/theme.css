@@ -1665,7 +1665,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .renewal-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .renewal-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
 .renewal-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto;font-weight:700;letter-spacing:.06em}
-.renewal-countdown{display:inline-block;padding:6px 14px;background:var(--danger);color:#fff;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin:6px 0 2px;border:var(--bd-hair) solid var(--ink)}
+.renewal-countdown{display:flex;align-items:center;gap:10px;padding:6px 14px;background:var(--danger);color:#fff;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin:6px 0 2px;border:var(--bd-hair) solid var(--ink)}
+.renewal-countdown .renewal-ics{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;cursor:pointer;margin-left:auto}
+.renewal-countdown .renewal-ics:hover{background:rgba(255,255,255,.25)}
 .money-context{font-size:var(--t-micro);color:var(--ink);flex:1;min-width:0;line-height:1.4}
 .money-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .money-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
