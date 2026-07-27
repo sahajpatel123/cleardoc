@@ -1262,9 +1262,19 @@
       if(raw) prev = JSON.parse(raw);
     } catch(_) {}
     if(!prev || !Array.isArray(prev.sentences) || prev.sentences.length === 0){
-      // First time we've seen this fingerprint — nothing to compare
-      // against. Hide the banner; we'll write the baseline below.
-      el.hidden = true;
+      // iter #213 v2: distinguish "no baseline yet" from "baseline
+      // was empty (document had no risks)". The banner can stay
+      // hidden either way — there's nothing meaningful to compare
+      // — but if the current analysis ALSO has no risks, we
+      // explicitly show a neutral "no risks either time" line so
+      // re-analyzing a clean document doesn't look like a no-op.
+      if(lastFlags.length === 0){
+        el.textContent = '✓ Same document, no risks detected in either analysis';
+        el.dataset.deltaKind = 'same';
+        el.hidden = false;
+      } else {
+        el.hidden = true;
+      }
       // Persist current state so the next re-analysis has a baseline.
       try {
         const sentences = lastFlags.map(f => trunc(String(f.s || ''), 200).replace(/\s+/g,' ').trim());
@@ -1298,6 +1308,12 @@
       el.textContent = '🔄 Re-analysis: +' + newCount + ' new / -' + fixedCount + ' fixed';
       el.dataset.deltaKind = 'new';
       el.hidden = false;
+    }
+    // iter #213 v2: append "since last analysis <ago>" so the user
+    // sees how stale the comparison baseline is. Uses the same
+    // formatRelativeTime helper the on-page analyzed-ago badge uses.
+    if(typeof prev === 'object' && prev && typeof prev.ts === 'number' && typeof formatRelativeTime === 'function'){
+      el.textContent += ' — since last analysis ' + formatRelativeTime(prev.ts);
     }
     // Persist the new baseline so the next re-analysis has it.
     try {
@@ -13302,10 +13318,18 @@
       // iter #211 v2: also include the short document fingerprint
       // (and the full hash on hover via the on-page chip) so the
       // .md is self-identifying about WHICH document was analyzed.
+      // iter #213 v2: include the re-analysis delta when present, so
+      // the .md export carries the same "what changed since last
+      // analysis" banner the on-page shows (when re-analyzing the
+      // same document).
       const _mdTs = (_analyzedState && _analyzedState.ts) ? _analyzedState.ts : Date.now();
       md.push('_Analyzed: '+ new Date(_mdTs).toLocaleString() +'_');
       if(_fpState && _fpState.short){
         md.push('_Document fingerprint: #'+ _fpState.short +'_');
+      }
+      const _mdDeltaEl = document.getElementById('reanalysisDelta');
+      if(_mdDeltaEl && !_mdDeltaEl.hidden && _mdDeltaEl.textContent){
+        md.push('_Re-analysis delta: '+ _mdDeltaEl.textContent +'_');
       }
       if(attachedFile && attachedFile.name) md.push('_Source file: '+attachedFile.name+'_');
       md.push('');
