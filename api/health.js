@@ -439,7 +439,24 @@ function setHealthOkHeaders(res) {
 function sendOkCached(res, payload) {
   if (res.headersSent) return;
   res.statusCode = 200;
+  // setHealthOkHeaders sets Content-Type + Cache-Control + build-sha +
+  // per-request X-Request-Id + X-Request-Latency-Total-Ms. The CDN
+  // edge caches the full response including the per-request headers
+  // — which would leak one user's request id + latency to the next
+  // user on the same edge node. Strip those two per-request headers
+  // before the edge stores the response. setHealthOkHeaders is reused
+  // unchanged because the non-cached 200 path (probe successes) wants
+  // them; the cache only exists for the sendOkCached path which is
+  // the only place we clear them here.
   setHealthOkHeaders(res);
+  // After setHealthOkHeaders, the per-request headers may have been
+  // set. Remove them so the cached payload + headers don't carry
+  // cross-user identifiers. setHeader('header', '') doesn't unset
+  // cleanly across all runtimes — use removeHeader instead.
+  if (typeof res.removeHeader === "function") {
+    res.removeHeader("X-Request-Id");
+    res.removeHeader("X-Request-Latency-Total-Ms");
+  }
   if (res.__currentEtag) res.setHeader("ETag", res.__currentEtag);
   if (res.__lastModified) res.setHeader("Last-Modified", res.__lastModified);
   res.end(JSON.stringify(payload));
