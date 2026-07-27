@@ -7469,9 +7469,16 @@
         const amt = window.match(/\$\s*[\d,]+(?:\.\d+)?/);
         return amt ? amt[0] : null;
       };
-      // Each scenario: { kind, severity ('bad'|'warn'|'good'),
-      // trigger, if, then, detail, evidence }
+          // Each scenario: { kind, severity ('bad'|'warn'|'good'),
+      // trigger, if, then, detail, evidence, suggestion, sourceOffset }
       const scenarios = [];
+      // Helper: capture the source offset of a regex hit so the card
+      // can be click-to-jumped to the underlying clause.
+      const captureOffset = (pattern) => {
+        const re = new RegExp(pattern.source, pattern.flags || 'i');
+        const m = re.exec(text);
+        return m ? m.index : -1;
+      };
       // 1) Cancel early → lose deposit / pay early-termination fee
       if(has(/\b(cancel|terminat\w+|withdraw\w*|rescind|end\s+(?:this\s+)?(?:agreement|contract))\b.*\b(early|before|prior\s+to)\b/) || has(/\bearly\s+terminat\w+\s+fee\b/) || has(/\bnon[-\s]?refundable\b/)){
         const fee = findAmount(/\b(?:early\s+terminat\w+\s+fee|cancellation\s+fee|forfeit(?:ure)?|non[-\s]?refundable)/i) || findFirst(/\b(non[-\s]?refundable|forfeit|cancellation\s+fee|early\s+terminat\w+\s+fee)/i);
@@ -7482,7 +7489,9 @@
           ifText: 'you cancel before the natural end of the contract',
           thenText: 'you may owe an early-termination fee and/or forfeit your deposit',
           detail: fee ? ('Document says: "' + trunc(fee, 140) + '"') : 'Most contracts allow the counterparty to recover early-termination costs.',
-          evidence: 'early termination language detected'
+          suggestion: 'Strike or cap the early-termination fee at the lesser of 3 months of fees or your actual damages. Refund any unused portion.',
+          evidence: 'early termination language detected',
+          sourceOffset: captureOffset(/\b(?:early\s+terminat\w+\s+fee|cancellation\s+fee|non[-\s]?refundable|forfeit(?:ure)?)/i)
         });
       }
       // 2) Other party breaches → recovery capped by liability cap
@@ -7497,17 +7506,21 @@
             ifText: 'the other side breaches the contract',
             thenText: 'your recovery is capped at ' + (cap || 'a stated liability limit'),
             detail: 'A liability cap means even if you win, you can only collect up to the stated amount. Watch for "consequential damages excluded" too.',
-            evidence: 'liability cap language detected'
+            suggestion: 'Lift the cap for willful misconduct / IP infringement / data breach. Insist on mutual application (both sides capped same).',
+            evidence: 'liability cap language detected',
+            sourceOffset: captureOffset(/\b(?:liability\s+cap|aggregate\s+liability|maximum\s+liability|cap\s+on\s+damages|limited\s+to|shall\s+not\s+exceed)/i)
           });
         } else {
           scenarios.push({
             kind: 'breach',
-            severity: 'bad',
+            severity: 'good',
             trigger: 'other-party-breach',
             ifText: 'the other side breaches the contract',
             thenText: 'you can recover your full losses (no cap)',
             detail: 'Unusually favorable — most contracts cap liability. Verify this is not mis-drafted (e.g., "uncapped" only applies to one party).',
-            evidence: 'no liability cap detected'
+            suggestion: 'Verify in writing that the uncapped liability applies to both sides — not just to your benefit.',
+            evidence: 'no liability cap detected',
+            sourceOffset: captureOffset(/\b(?:perpetual|uncapped|no\s+cap)/i)
           });
         }
       }
@@ -7524,7 +7537,9 @@
             ? 'each side pays its own attorney fees'
             : 'the losing side pays both sides\' attorney fees',
           detail: 'The "American rule" (each side pays its own) is rare; most contracts contain "prevailing party" clauses that flip fees to the loser.',
-          evidence: 'attorney fee provision detected'
+          suggestion: attFeesAmerican ? 'This is favorable — try to keep it.' : 'Ask for a "mutual prevailing-party" clause (only the loser pays, and only reasonable fees — not paralegal-billed hours at $400/hr).',
+          evidence: 'attorney fee provision detected',
+          sourceOffset: captureOffset(/\b(?:attorney['']?s?\s+fees|legal\s+fees|costs?\s+and\s+(?:attorney['']?s?\s+)?fees|reasonable\s+attorney['']?s?\s+fees)/i)
         });
       }
       // 4) Dispute → jurisdiction / venue
@@ -7540,7 +7555,9 @@
             ? 'you cannot appeal or have a jury trial; the arbitrator\'s decision is final'
             : 'you\'ll have to litigate in the venue named in the contract (probably their home state)',
           detail: 'Litigation venue matters — if it\'s not your state, you may have to hire out-of-state counsel. Arbitration usually waives the right to appeal.',
-          evidence: 'jurisdiction / venue clause detected'
+          suggestion: isArbitration ? 'Opt for "administered arbitration in your home county" + right to small-claims court for claims under $5k.' : 'Negotiate venue to your home county — saves you out-of-state counsel costs.',
+          evidence: 'jurisdiction / venue clause detected',
+          sourceOffset: captureOffset(/\b(?:jurisdiction|venue|governed\s+by\s+the\s+laws?\s+of|forum|arbitration\s+(?:shall|will)\s+be\s+(?:held|conducted))/i)
         });
       }
       // 5) Auto-renewal → renew + cancellation window passed
@@ -7553,7 +7570,9 @@
           ifText: 'you take no action before the renewal date',
           thenText: 'you\'re automatically charged for another term',
           detail: 'Auto-renewal clauses are the #1 source of "I forgot to cancel" charges. Mark the cancel-by date in your calendar.',
-          evidence: 'auto-renewal language detected'
+          suggestion: 'Strike automatic renewal; require affirmative consent before each renewal cycle. At minimum, require the vendor to send you a 30-day notice.',
+          evidence: 'auto-renewal language detected',
+          sourceOffset: captureOffset(/\bauto(?:matic(?:ally)?)?[- ]?renew(?:al|s|ing)?|evergreen\b/i)
         });
       }
       // 6) Missing termination clause → you cannot terminate cleanly
@@ -7567,7 +7586,9 @@
           ifText: 'you need to end this contract',
           thenText: 'you may have no clean termination right (silent on the subject)',
           detail: 'If a contract is silent on how to terminate, courts often imply "reasonable notice". That ambiguity is itself a risk.',
-          evidence: 'no termination clause detected'
+          suggestion: 'Add an explicit termination clause: "Either party may terminate this agreement with 30 days written notice."',
+          evidence: 'no termination clause detected',
+          sourceOffset: -1
         });
       }
       // 7) Data privacy / sell-my-data clause
@@ -7579,7 +7600,9 @@
           ifText: 'you sign up and use the service',
           thenText: 'they can sell your personal information to third parties',
           detail: 'You can opt out of most data sales (CCPA / GDPR). Look for a "do not sell" link or write to support.',
-          evidence: 'data-sale language detected'
+          suggestion: 'Opt out before signing (CCPA / GDPR give you this right) — or write "we do not consent to the sale of our personal information" in any signing email.',
+          evidence: 'data-sale language detected',
+          sourceOffset: captureOffset(/\b(?:sell(?:ing)?\s+(?:your|user|customer|personal)\s+(?:data|information)|share\s+(?:your|user)\s+(?:data|info)\s+with\s+(?:third\s+)?part(?:y|ies))/i)
         });
       }
       // 8) Hold harmless + indemnify → you pay their losses
@@ -7591,7 +7614,9 @@
           ifText: 'a third party sues the other side',
           thenText: 'you may have to pay their legal defense costs and any judgment',
           detail: 'Indemnification clauses are how companies offload their own risk onto you. Always insist on a mutual indemnification and a liability cap.',
-          evidence: 'indemnification clause detected'
+          suggestion: 'Make indemnification MUTUAL (both sides indemnify each other for their own actions) and subject to the same liability cap.',
+          evidence: 'indemnification clause detected',
+          sourceOffset: captureOffset(/\b(?:indemnif(?:y|ication)|hold\s+(?:you|the\s+(?:company|vendor|provider|us))\s+harmless)/i)
         });
       }
       // 9) Class-action waiver → can't join a class action
@@ -7603,7 +7628,9 @@
           ifText: 'you have a small claim worth less than hiring a lawyer',
           thenText: 'you cannot join a class action — your claim is worth too little to pursue alone',
           detail: 'A class-action waiver means the only way to recover is to file your own lawsuit. This often makes small claims uneconomical.',
-          evidence: 'class-action waiver detected'
+          suggestion: 'You cannot negotiate a class waiver out (most companies refuse). Just be aware you\'re giving up the right to band together with other affected users.',
+          evidence: 'class-action waiver detected',
+          sourceOffset: captureOffset(/\bclass[-\s]?action\s+waiver|waive\s+(?:your|the)\s+(?:right\s+to\s+)?class\s+action|individual\s+(?:basis|action)\s+only\b/i)
         });
       }
       // 10) Sole discretion → they can change the deal
@@ -7615,7 +7642,9 @@
           ifText: 'you sign the contract',
           thenText: 'they can change the terms at any time (in their sole discretion)',
           detail: '"Sole discretion" language removes the normal "reasonableness" requirement. Strike it or replace with "30 days notice + your right to terminate".',
-          evidence: 'sole-discretion language detected'
+          suggestion: 'Replace "sole discretion" with "30 days written notice, after which you may terminate without penalty if you do not accept the change".',
+          evidence: 'sole-discretion language detected',
+          sourceOffset: captureOffset(/\b(?:sole\s+discretion|reserve\s+the\s+right\s+to\s+(?:modify|change|amend)\b[^.]{0,80}(?:sole\s+discretion|without\s+notice|at\s+any\s+time))/i)
         });
       }
       // 11) Auto-pay / recurring charges
@@ -7627,7 +7656,9 @@
           ifText: 'you miss a payment or want to cancel',
           thenText: 'they can keep charging your card / bank account on file',
           detail: 'Recurring-charge authorizations often stay active after cancellation. Cancel the underlying card too if you can\'t reach the vendor.',
-          evidence: 'recurring-charge authorization detected'
+          suggestion: 'Limit the auto-pay authorization to a specific dollar amount per month, and require 30 days notice before the first charge after cancellation.',
+          evidence: 'recurring-charge authorization detected',
+          sourceOffset: captureOffset(/\b(?:automatic(?:ally)?\s+(?:payment|charge|debit)|recurring\s+(?:payment|charge|billing)|you\s+authorize\s+(?:us|the)\s+to\s+(?:charge|debit))/i)
         });
       }
       // 12) Force majeure — they can't perform, no penalty
@@ -7639,7 +7670,9 @@
           ifText: 'a natural disaster / pandemic / war prevents performance',
           thenText: 'they\'re excused from performance (no breach claim)',
           detail: 'A force-majeure clause protects both sides from events outside their control. Standard in commercial contracts; not a red flag.',
-          evidence: 'force-majeure clause detected'
+          suggestion: 'This is favorable — no change needed. Optional: ask that the clause also require notice within 7 days so you know when to expect non-performance.',
+          evidence: 'force-majeure clause detected',
+          sourceOffset: captureOffset(/\bforce\s+majeure|act\s+of\s+god|unforeseeable\s+circumstances\b/i)
         });
       }
       if(!scenarios.length) return null;
@@ -7652,18 +7685,29 @@
       if(!r || !r.scenarios.length){ scenarioBlock.hidden = true; return; }
       const sevRank = { bad: 0, warn: 1, good: 2 };
       const ordered = r.scenarios.slice().sort((a, b) => (sevRank[a.severity] || 9) - (sevRank[b.severity] || 9));
-      const cards = ordered.map((s, idx) => {
+      // Iter #197 — severity filter chip, persisted to memory only.
+      const sevFilter = scenarioGrid._scenarioSevFilter || 'all';
+      const visible = sevFilter === 'all' ? ordered : ordered.filter(s => s.severity === sevFilter);
+      const cards = visible.map((s) => {
         const cardCls = s.severity === 'bad' ? 'scenario-card-bad' : (s.severity === 'warn' ? 'scenario-card-warn' : 'scenario-card-good');
         const trigCls = s.severity === 'bad' ? 'scenario-trigger-bad' : (s.severity === 'warn' ? 'scenario-trigger-warn' : 'scenario-trigger-good');
         const thenCls = s.severity === 'bad' ? '' : (s.severity === 'warn' ? 'scenario-then-warn' : 'scenario-then-good');
         const sevLabel = s.severity === 'bad' ? 'bad outcome' : (s.severity === 'warn' ? 'caution' : 'favorable');
-        return '<div class="scenario-card ' + cardCls + '" data-scenario-kind="' + esc(s.kind) + '" title="' + esc(s.evidence) + '">' +
+        // Iter #197 — counter-suggestion block. Sits below the
+        // detail paragraph; clicking it (or jumping to source) lets
+        // users see WHAT TO NEGOTIATE for each scenario.
+        const suggestionHtml = s.suggestion ? '<div class="scenario-suggestion"><span class="scenario-suggestion-label">counter:</span> ' + esc(s.suggestion) + '</div>' : '';
+        const offset = s.sourceOffset >= 0 ? s.sourceOffset : -1;
+        const offsetAttr = offset >= 0 ? ' data-scenario-offset="' + offset + '"' : '';
+        const jumpHint = offset >= 0 ? ' · click card to jump to source' : '';
+        return '<div class="scenario-card ' + cardCls + '" data-scenario-kind="' + esc(s.kind) + '"' + offsetAttr + ' title="' + esc(s.evidence) + jumpHint + '">' +
           '<span class="scenario-trigger ' + trigCls + '">' + esc(sevLabel) + ' · ' + esc(s.kind) + '</span>' +
           '<div class="scenario-flow">' +
             '<div class="scenario-if">' + esc(s.ifText) + '</div>' +
             '<div class="scenario-then ' + thenCls + '">' + esc(s.thenText) + '</div>' +
           '</div>' +
           '<div class="scenario-detail">' + esc(s.detail) + '</div>' +
+          suggestionHtml +
         '</div>';
       }).join('');
       const badCount = ordered.filter(s => s.severity === 'bad').length;
@@ -7686,36 +7730,101 @@
           '<span class="pressure-tally-sub">if X happens</span>' +
         '</div>' +
       '</div>';
+      // Iter #197 — severity filter chips. Default 'all' shows every
+      // scenario; clicking a chip narrows to that severity. Click the
+      // active chip again to clear back to all.
+      const filterChips = '<div class="scenario-filter-row">' +
+        '<button type="button" class="scenario-filter ghost-btn' + (sevFilter === 'all' ? ' scenario-filter-active' : '') + '" id="scenarioFilterAllBtn" data-scenario-filter="all" title="Show every scenario">🌐 all (' + ordered.length + ')</button>' +
+        '<button type="button" class="scenario-filter ghost-btn' + (sevFilter === 'bad' ? ' scenario-filter-active' : '') + '" id="scenarioFilterBadBtn" data-scenario-filter="bad" title="Show only bad outcomes">🔴 bad only (' + badCount + ')</button>' +
+        '<button type="button" class="scenario-filter ghost-btn' + (sevFilter === 'warn' ? ' scenario-filter-active' : '') + '" id="scenarioFilterWarnBtn" data-scenario-filter="warn" title="Show only caution outcomes">🟡 caution (' + warnCount + ')</button>' +
+        '<button type="button" class="scenario-filter ghost-btn' + (sevFilter === 'good' ? ' scenario-filter-active' : '') + '" id="scenarioFilterGoodBtn" data-scenario-filter="good" title="Show only favorable outcomes">🟢 favorable (' + goodCount + ')</button>' +
+      '</div>';
       const controls = '<div class="scenario-controls">' +
-        '<span class="scenario-count">' + ordered.length + ' scenario' + (ordered.length === 1 ? '' : 's') + ' surfaced · click any for details</span>' +
+        '<span class="scenario-count">' + visible.length + ' / ' + ordered.length + ' shown · click a card to jump to source</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="scenarioCopyMdBtn" title="Copy as a markdown checklist">📋 markdown</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="scenarioCopyBtn" title="Copy the scenario list as plain text">📋 copy</button>' +
       '</div>';
-      scenarioGrid.innerHTML = tally + cards + controls;
+      scenarioGrid.innerHTML = tally + filterChips + cards + controls;
       scenarioBlock.hidden = false;
       if(scenarioNote){
         const lead = badCount + ' bad · ' + warnCount + ' caution · ' + goodCount + ' favorable';
         const tone = badCount > 2 ? ' Multiple bad outcomes detected — review carefully.' : (badCount > 0 ? ' At least one bad outcome detected.' : '');
+        const filterNote = sevFilter !== 'all' ? ' Showing only <b>' + (sevFilter === 'bad' ? '🔴 bad' : sevFilter === 'warn' ? '🟡 caution' : '🟢 favorable') + '</b>.' : '';
         scenarioNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
-          'Pure-local. Each scenario combines existing analyzer signals (auto-renewal, indemnify, jurisdiction, attorney-fee, liability cap) into a concrete <b>IF … THEN …</b> prediction so you can see what the contract actually does in real life.' + tone + ' Click any card for the full reasoning. <b>📋 copy</b> exports the list.';
+          'Pure-local. Each scenario composes existing analyzer signals into a concrete <b>IF … THEN …</b> prediction, plus a counter-suggestion showing what to negotiate. ' + tone + ' Click any card to jump to the source clause. <b>📋 markdown</b> exports a checklist you can bring to a lawyer.' + filterNote;
       }
-      // Copy list.
+      // Iter #197 — click-to-jump on each card using the captured
+      // source offset.
+      $$('.scenario-card', scenarioGrid).forEach(card => {
+        card.addEventListener('click', () => {
+          if(!input) return;
+          const off = parseInt(card.getAttribute('data-scenario-offset') || '-1', 10);
+          if(off >= 0 && off < input.value.length){
+            try { input.focus(); input.setSelectionRange(off, off); } catch(_){ /* ignore */ }
+            try { input.scrollTop = Math.max(0, off / Math.max(1, input.value.length) * input.scrollHeight - input.clientHeight / 2); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ No specific clause to jump to');
+          }
+        });
+      });
+      // Iter #197 — severity filter chips.
+      ['All', 'Bad', 'Warn', 'Good'].forEach(k => {
+        const fid = 'scenarioFilter' + k + 'Btn';
+        const f = document.getElementById(fid);
+        if(!f) return;
+        f.addEventListener('click', () => {
+          const next = f.getAttribute('data-scenario-filter');
+          scenarioGrid._scenarioSevFilter = scenarioGrid._scenarioSevFilter === next ? 'all' : next;
+          renderScenarioBlock(raw, ctx);
+        });
+      });
+      // Builder for both copy and markdown exports.
+      const buildSharePlain = () => {
+        const lines = [];
+        lines.push('🎬 What can go wrong — ClearDoc');
+        lines.push('-'.repeat(40));
+        lines.push('Scenarios: ' + ordered.length + ' (' + badCount + ' bad · ' + warnCount + ' caution · ' + goodCount + ' favorable)');
+        lines.push('');
+        visible.forEach((s, i) => {
+          const sev = s.severity === 'bad' ? 'BAD' : (s.severity === 'warn' ? 'CAUTION' : 'FAVORABLE');
+          lines.push((i + 1) + '. [' + sev + '] ' + s.kind);
+          lines.push('   IF: ' + s.ifText);
+          lines.push('   THEN: ' + s.thenText);
+          lines.push('   why: ' + s.detail);
+          if(s.suggestion) lines.push('   💡 counter: ' + s.suggestion);
+          lines.push('');
+        });
+        return lines.join('\n');
+      };
+      const buildShareMd = (() => {
+        const lines = [];
+        lines.push('# 🎬 What can go wrong — ClearDoc', '');
+        lines.push('_' + ordered.length + ' scenarios (' + badCount + ' bad · ' + warnCount + ' caution · ' + goodCount + ' favorable). Pure-local._', '');
+        lines.push('| # | Severity | Scenario | IF … | THEN … | Counter-suggestion |');
+        lines.push('|---|---|---|---|---|---|');
+        visible.forEach((s, i) => {
+          const sev = s.severity === 'bad' ? '🔴 BAD' : (s.severity === 'warn' ? '🟡 CAUTION' : '🟢 FAVORABLE');
+          lines.push('| ' + (i + 1) + ' | ' + sev + ' | ' + s.kind + ' | ' + s.ifText.replace(/\|/g, '\\|') + ' | ' + s.thenText.replace(/\|/g, '\\|') + ' | ' + (s.suggestion || '_no suggested fix_').replace(/\|/g, '\\|') + ' |');
+        });
+        lines.push('');
+        lines.push('## What to ask the other side');
+        const asks = visible.filter(s => s.severity !== 'good' && s.suggestion);
+        if(asks.length){
+          lines.push('');
+          asks.forEach((s, i) => lines.push('- **' + s.kind + '**: ' + s.suggestion));
+        } else {
+          lines.push('');
+          lines.push('_No negotiation items — every scenario is favorable._');
+        }
+        lines.push('');
+        lines.push('_Generated by ClearDoc. Bring this list to a lawyer if you want them to redline the contract._');
+        return lines.join('\n');
+      })();
+      // Plain copy.
       const copyBtn = document.getElementById('scenarioCopyBtn');
       if(copyBtn){
         copyBtn.addEventListener('click', async () => {
-          const lines = [];
-          lines.push('🎬 What can go wrong — ClearDoc');
-          lines.push('-'.repeat(40));
-          lines.push('Scenarios: ' + ordered.length + ' (' + badCount + ' bad · ' + warnCount + ' caution · ' + goodCount + ' favorable)');
-          lines.push('');
-          ordered.forEach((s, i) => {
-            const sev = s.severity === 'bad' ? 'BAD' : (s.severity === 'warn' ? 'CAUTION' : 'FAVORABLE');
-            lines.push((i + 1) + '. [' + sev + '] ' + s.kind);
-            lines.push('   IF: ' + s.ifText);
-            lines.push('   THEN: ' + s.thenText);
-            lines.push('   why: ' + s.detail);
-            lines.push('');
-          });
-          const text = lines.join('\n');
+          const text = buildSharePlain();
           let copied = false;
           try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
           catch(_){ /* fall through */ }
@@ -7725,6 +7834,22 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '🎬 Scenarios copied' : '⚠ Couldn’t copy');
           copyBtn.textContent = copied ? '✓ copied' : '📋 copy';
           setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 2500);
+        });
+      }
+      // Markdown copy.
+      const copyMdBtn = document.getElementById('scenarioCopyMdBtn');
+      if(copyMdBtn){
+        copyMdBtn.addEventListener('click', async () => {
+          const text = buildShareMd;
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Markdown copied' : '⚠ Couldn’t copy');
+          copyMdBtn.textContent = copied ? '✓ copied' : '📋 markdown';
+          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '📋 markdown'; }, 2500);
         });
       }
     }
