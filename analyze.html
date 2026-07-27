@@ -314,6 +314,11 @@
             <button type="button" class="ghost-btn ghost-btn-sm" id="decisionCopyBtn" title="Copy the recommendation to the clipboard">📋 copy</button>
           </div>
         </div>
+        <div class="result-block" id="moneyBlock" hidden>
+          <span class="rh">💰 Money trail</span>
+          <p class="analyze-msg" id="moneyNote" style="margin-top:0" aria-live="polite"></p>
+          <div class="money-grid" id="moneyGrid" aria-label="Every monetary amount found in the document, grouped by who pays / who receives"></div>
+        </div>
         <div class="result-block" id="maturityBlock" hidden>
           <span class="rh">📊 Contract maturity score</span>
           <p class="analyze-msg" id="maturityNote" style="margin-top:0" aria-live="polite"></p>

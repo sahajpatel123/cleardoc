@@ -420,3 +420,33 @@ test("parseJsonFromText: returns null for unparseable input", () => {
   assert.deepEqual(parseJsonFromText("[]"), [],
     "valid JSON array → returned as-is (not null)");
 });
+
+// ── prompt-injection defense (iter #186) ───────────────────────
+
+test("buildAnalysisPrompt: wraps the document in <document> delimiters and labels it as untrusted data", () => {
+  // Source-pattern check: the full-mode prompt must wrap the user-
+  // supplied document in explicit delimiters and carry an anti-
+  // injection directive in the system prompt. Without these, a
+  // hostile document could trick the model into abandoning the
+  // JSON-only contract (returning prose, leaking the system prompt,
+  // refusing legitimate input).
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/analyze.js"), "utf8");
+  // The full-mode builder uses DOC_DELIM(document) somewhere in its
+  // template literal so the document ends up wrapped in <document> tags.
+  assert.match(src, /function\s+buildAnalysisPrompt\([\s\S]*?DOC_DELIM\(document\)[\s\S]*?\n\}/,
+    "buildAnalysisPrompt must wrap its document arg via DOC_DELIM()");
+  assert.match(src, /function\s+buildAnalysisPrompt\([\s\S]*?UNTRUSTED USER DATA/i,
+    "buildAnalysisPrompt must declare the document as untrusted user data");
+  assert.match(src, /function\s+buildAnalysisPrompt\([\s\S]*?ignore previous instructions/i,
+    "buildAnalysisPrompt must call out the canonical injection phrase");
+});
+
+test("buildCompactPrompt: wraps the document in <document> delimiters and labels it as untrusted data", () => {
+  // Compact (verdict-only) mode shares the same injection-risk
+  // surface — same defense must be present.
+  const src = fs.readFileSync(path.resolve(__dirname, "../api/analyze.js"), "utf8");
+  assert.match(src, /function\s+buildCompactPrompt\([\s\S]*?DOC_DELIM\(document\)[\s\S]*?\n\}/,
+    "buildCompactPrompt must wrap its document arg via DOC_DELIM()");
+  assert.match(src, /function\s+buildCompactPrompt\([\s\S]*?UNTRUSTED USER DATA/i,
+    "buildCompactPrompt must declare the document as untrusted user data");
+});

@@ -78,7 +78,9 @@
   .deadline-row,
   .next-step,
   .verdict-block,
-  .ask-bubble {
+  .ask-bubble,
+  .money-row,
+  .money-tally {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
     border: 1px solid #ddd !important;

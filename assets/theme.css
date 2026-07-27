@@ -1571,6 +1571,30 @@ button.risk-preview:hover{filter:brightness(.96)}
 .contact-filter.ghost-btn{padding:2px 6px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;background:transparent;border:1px solid var(--bd-hair);color:var(--ink-soft);cursor:pointer}
 .contact-filter.contact-filter-active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 
+/* Money trail (iter #184) — every $ amount with category + pay/receive tally. */
+.money-grid{display:flex;flex-direction:column;gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.money-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.money-tally{flex:1 1 140px;display:flex;flex-direction:column;gap:2px;padding:8px 12px;border:var(--bd-hair) solid var(--ink);background:var(--paper2)}
+.money-tally-label{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700}
+.money-tally-value{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--ink);line-height:1.1}
+.money-tally-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-soft);letter-spacing:.04em}
+.money-tally.money-pay{border-left:4px solid var(--danger);background:var(--danger-tint)}
+.money-tally.money-receive{border-left:4px solid var(--green);background:var(--green-tint)}
+.money-tally.money-total{border-left:4px solid var(--ink)}
+.money-row{display:flex;gap:10px;align-items:flex-start;padding:6px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);cursor:pointer;transition:filter .15s ease}
+.money-row:hover{filter:brightness(.96)}
+.money-row.money-pay{border-left:3px solid var(--danger);background:var(--danger-tint)}
+.money-row.money-receive{border-left:3px solid var(--green);background:var(--green-tint)}
+.money-row.money-neutral{border-left:3px solid var(--ink-soft)}
+.money-amount{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--ink);min-width:80px;flex-shrink:0}
+.money-tag{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;padding:2px 5px;border:1px solid var(--bd-hair);background:#fff;align-self:flex-start;flex-shrink:0}
+.money-context{font-size:var(--t-micro);color:var(--ink);flex:1;min-width:0;line-height:1.4}
+.money-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
+.money-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
+.money-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto;font-weight:700;letter-spacing:.06em}
+.money-filter.ghost-btn{padding:2px 6px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;background:transparent;border:1px solid var(--bd-hair);color:var(--ink-soft);cursor:pointer}
+.money-filter.money-filter-active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
 /* Document history map (iter #164) — past runs of this document. */
 .hist-card{font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
 .hist-delta{padding:6px 10px;background:var(--amber-tint);border:var(--bd-hair) solid var(--amber);font-size:var(--t-meta);color:var(--ink);margin-bottom:8px}

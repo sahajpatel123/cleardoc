@@ -1878,6 +1878,7 @@
           chgBlock=$('#chgBlock'),chgNote=$('#chgNote'),chgList=$('#chgList'),
           chgArmed=$('#chgArmed'),chgPreviewWrap=$('#chgPreviewWrap'),chgPreviewCount=$('#chgPreviewCount'),
           decisionBlock=$('#decisionBlock'),decisionCard=$('#decisionCard'),decisionRationale=$('#decisionRationale'),decisionCopyBtn=$('#decisionCopyBtn'),
+          moneyBlock=$('#moneyBlock'),moneyNote=$('#moneyNote'),moneyGrid=$('#moneyGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -5405,6 +5406,242 @@
       }
     }
 
+    // Iter #184 — money trail. Pulls every dollar amount in the document,
+    // tags each as "pay" (you hand money over) / "receive" (they pay you) /
+    // neutral (unclear / informational), and shows a running total for each
+    // side. Users desperately want to know "how much is this going to cost
+    // me total" — the existing currencyBlock only renders when the API
+    // returns amounts, so this is a pure-local fallback that always works.
+    // Examples:
+    //   "$1,000 non-refundable deposit"    → pay · deposit
+    //   "We will refund $250 to you"      → receive · refund
+    //   "monthly rent of $2,500"          → pay · rent
+    //   "Court may award up to $50,000"   → receive · judgment
+    function buildMoneyTrail(raw){
+      const text = String(raw || '');
+      if(!text) return [];
+      // Match: $1,234.56 | $1234 | USD 100 | 100 dollars | 1.5k | 1.5M
+      // Single regex with capture groups so we can pick the right number.
+      // The optional "k"/"m" suffix multiplies the value.
+      const re = /(?:\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)\s*([kKmM])?)|(?:(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)\s*(?:dollars?|usd|gbp|eur|pesos?)\b)|(?:(\d+(?:\.\d+)?)\s*([kKmM])\s*(?:dollars?|usd|gbp|eur)?)/g;
+      const out = [];
+      const seen = new Set();
+      let m;
+      let safety = 0;
+      while((m = re.exec(text)) !== null && safety++ < 500){
+        let raw = m[1] || m[3] || m[4];
+        let suffix = m[2] || m[5];
+        if(!raw) continue;
+        const num = parseFloat(String(raw).replace(/,/g, ''));
+        if(!isFinite(num) || num <= 0) continue;
+        let value = num;
+        if(suffix){
+          const s = String(suffix).toLowerCase();
+          if(s === 'k') value = num * 1000;
+          else if(s === 'm') value = num * 1000000;
+        }
+        // Reject obviously-non-amount numbers (years, dates, percentages)
+        // by looking at the surrounding 12 chars on each side.
+        const start = Math.max(0, m.index - 12);
+        const end = Math.min(text.length, m.index + m[0].length + 12);
+        const ctx = text.slice(start, end);
+        // Skip if preceded by a year range "2020-" or followed by "%"
+        // or surrounded by like "20%-30%" or "Q1 2024".
+        if(/(?:19|20)\d{2}[\s\-–—]*$/.test(text.slice(Math.max(0, m.index - 8), m.index)) && !/[.,]/.test(text.slice(m.index, m.index + 8))) continue;
+        if(/%/.test(text.slice(m.index + m[0].length, m.index + m[0].length + 3))) continue;
+        if(/^\s*%\s/.test(text.slice(Math.max(0, m.index - 3), m.index))) continue;
+        // Dedup by exact text + offset to avoid repeat hits on the same token.
+        const key = m.index + ':' + m[0];
+        if(seen.has(key)) continue;
+        seen.add(key);
+        // Trim context to the nearest sentence boundary so the preview
+        // is short enough to fit on one line.
+        const ctxStart = Math.max(0, m.index - 60);
+        const ctxEnd = Math.min(text.length, m.index + m[0].length + 80);
+        let ctxSnippet = text.slice(ctxStart, ctxEnd).replace(/\s+/g, ' ').trim();
+        // Snip to the sentence containing the match.
+        const beforeSnippet = text.slice(0, m.index);
+        const lastStop = Math.max(beforeSnippet.lastIndexOf('. '), beforeSnippet.lastIndexOf('.\n'), beforeSnippet.lastIndexOf('? '), beforeSnippet.lastIndexOf('! '));
+        const nextStop = (() => {
+          const after = text.slice(m.index + m[0].length);
+          const ps = after.search(/[.!?]\s/);
+          const pn = after.indexOf('\n');
+          let best = ps >= 0 ? ps + 1 : -1;
+          if(pn >= 0 && (best < 0 || pn < best)) best = pn;
+          return best;
+        })();
+        const sentStart = lastStop >= 0 ? lastStop + 1 : ctxStart;
+        const sentEnd = nextStop >= 0 ? m.index + m[0].length + nextStop : ctxEnd;
+        const sentence = text.slice(sentStart, sentEnd).replace(/\s+/g, ' ').trim();
+        // Classify: pay / receive / neutral. Heuristic looks at the sentence
+        // around the amount for verbal cues; defaults to neutral.
+        const sent = sentence.toLowerCase();
+        const ctxLower = ctx.toLowerCase();
+        // PAY: signs that the user is paying
+        const payHits = (sent.match(/\b(pay|payment|payable|owe|owed|due|charge|charged|charged|fee|fees|cost|costs|rent|rent|price|priced|amount of|total of|liability|cover|billing|billed|invoice|invoiced|purchase|buy|subscription|non-?refundable|deposit|cap|excess|deductible|deduction|interest|finance|asset|balance of|owe|owe|owe|default interest|monthly|annual|annually|per (year|month|week|day|hour|visit|claim|use|user|seat|license|project|location|square foot|sf|ml|kg|item|unit|line|occurrence|incident|visit|encounter)|%|additionally|further|plus|and a|with a|setoff|set-?off|reimbursement|reimburse|late fee|penalty|penalize|forfeit|forfeiture|tax|taxes|levy|levied|assessment|assessed|interest|outstanding|out-of-pocket|co-?pay|co-?insurance|deductible|coinsurance|amount due|amount owed|amount payable|amount required|amount of \$|amount of up|owe|must pay|shall pay|will pay|required to pay|agree to pay|responsible for|shall be liable|liable for|responsible to pay|responsible for)/g) || []).length;
+        const receiveHits = (sent.match(/\b(refund|refunded|reimburse|reimbursed|paid to you|paid back|repaid|return|returned|owe you|you are owed|you receive|you will receive|you may receive|you get back|you shall receive|we (will|shall|may|agree to) (pay|refund|reimburse|cover|reimburse|return)|we owe|we will pay|credit|credited|recompense|compensation|indemnify|indemnified|indemnification|hold you harmless|hold (us|we) harmless|we (will|shall) (pay|reimburse|cover|compensate|indemnify|hold you harmless)|award(ed)?|entitled to|eligible for|eligible to receive|up to|maximum of|paid (to you|out)|payment to you|return to you|return of|loan|lent|lend|returned|return\b|rebate|rebated|rebatement|tax refund|tax credit|tax rebate|tax return|recovery|recovered|recoup|recouped|withholding|withheld|holdback|holdback)/g) || []).length;
+        let direction = 'neutral';
+        if(payHits > receiveHits) direction = 'pay';
+        else if(receiveHits > payHits) direction = 'receive';
+        // Category — pick first label from a small taxonomy.
+        const cat = (() => {
+          if(/\b(rent|lease|landlord|lessor|lessee|tenant)/.test(sent)) return 'rent';
+          if(/\b(deposit|security deposit|escrow)/.test(sent)) return 'deposit';
+          if(/\b(penalty|late fee|default interest|forfeit|forfeiture|liquidated damages)/.test(sent)) return 'penalty';
+          if(/\b(refund|rebate|return)/.test(sent)) return 'refund';
+          if(/\b(salary|wage|payroll|compensation|bonus|hourly)/.test(sent)) return 'salary';
+          if(/\b(tax|taxes|levy|irs|withholding)/.test(sent)) return 'tax';
+          if(/\b(insurance|deductible|co-?pay|co-?insurance|premium|out-?of-?pocket)/.test(sent)) return 'insurance';
+          if(/\b(fee|charge|cost|expense|billing|invoice|service charge|facility fee|convenience fee|processing fee|admin fee|admin|administrative|maintenance|management|transaction|convenience)/.test(sent)) return 'fee';
+          if(/\b(discount|rebate|reduction|credit|write-?off)/.test(sent)) return 'discount';
+          if(/\b(award|judgment|damages|settlement|compensation|indemnif|recompense|restitution)/.test(sent)) return 'judgment';
+          if(/\b(interest|apr|finance|finance charge)/.test(sent)) return 'interest';
+          if(/\b(loan|borrowed|borrowing|principal|mortgage)/.test(sent)) return 'loan';
+          if(/\b(subscription|recurring|monthly|annual|per year|per month|per user|per seat|per license|per visit|per occurrence|per sf|per square)/.test(sent)) return 'recurring';
+          if(/\b(retail|price|purchase|buy|sale|sold|item|unit|product)/.test(sent)) return 'purchase';
+          return 'amount';
+        })();
+        out.push({
+          value: value,
+          display: formatMoney(value),
+          text: m[0],
+          offset: m.index,
+          sentence: sentence,
+          direction: direction,
+          category: cat
+        });
+      }
+      // Sort: largest first, then by file order (stable).
+      out.sort((a, b) => b.value - a.value);
+      return out;
+    }
+
+    // Local "render as $1,234.56" helper. Pulled out so we can use the same
+    // formatting everywhere (cells, tally, copy-all). Avoids Intl.NumberFormat
+    // for .toLocaleString() to keep the script small and consistent with the
+    // rest of the codebase that uses plain Number#toLocaleString.
+    function formatMoney(value){
+      try {
+        const n = Number(value);
+        if(!isFinite(n)) return '$' + String(value);
+        // $1,234   ; $1,234.56   ; $1.2M (>=1M)   ; $1.2k (>=10k)
+        if(Math.abs(n) >= 1000000) return '$' + (n / 1000000).toFixed(n >= 10000000 ? 0 : 1) + 'M';
+        if(Math.abs(n) >= 10000) return '$' + (n / 1000).toFixed(n >= 100000 ? 0 : 1) + 'k';
+        return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+      } catch(_){ return '$' + String(value); }
+    }
+
+    function renderMoneyBlock(raw, ctx){
+      if(!moneyBlock || !moneyGrid || !raw){ return; }
+      const items = buildMoneyTrail(raw);
+      if(!items.length){ moneyBlock.hidden = true; return; }
+      const filter = moneyGrid._moneyFilter || 'all';
+      const visible = filter === 'all' ? items : items.filter(it => it.direction === filter);
+      // Tallies: pay total, receive total, largest single amount.
+      const payTotal = items.filter(it => it.direction === 'pay').reduce((a, b) => a + b.value, 0);
+      const receiveTotal = items.filter(it => it.direction === 'receive').reduce((a, b) => a + b.value, 0);
+      const largest = items[0]; // sorted desc
+      const summary = '<div class="money-summary">' +
+        '<div class="money-tally money-pay" title="Total $ you may pay under this document">' +
+          '<span class="money-tally-label">You may pay</span>' +
+          '<span class="money-tally-value">' + formatMoney(payTotal) + '</span>' +
+          '<span class="money-tally-sub">' + items.filter(it => it.direction === 'pay').length + ' amount' + (items.filter(it => it.direction === 'pay').length === 1 ? '' : 's') + '</span>' +
+        '</div>' +
+        '<div class="money-tally money-receive" title="Total $ the other side may pay you">' +
+          '<span class="money-tally-label">They may pay you</span>' +
+          '<span class="money-tally-value">' + formatMoney(receiveTotal) + '</span>' +
+          '<span class="money-tally-sub">' + items.filter(it => it.direction === 'receive').length + ' amount' + (items.filter(it => it.direction === 'receive').length === 1 ? '' : 's') + '</span>' +
+        '</div>' +
+        '<div class="money-tally money-total" title="Largest single amount mentioned">' +
+          '<span class="money-tally-label">Largest single</span>' +
+          '<span class="money-tally-value">' + (largest ? formatMoney(largest.value) : '—') + '</span>' +
+          '<span class="money-tally-sub">' + (largest ? esc(largest.category) : 'no amount detected') + '</span>' +
+        '</div>' +
+      '</div>';
+      const rows = visible.map(it => (
+        '<div class="money-row money-' + it.direction + '" data-money-offset="' + it.offset + '" data-money-text="' + esc(it.text) + '" title="Click to jump to the amount in the source">' +
+          '<div class="money-amount">' + esc(it.display) + '</div>' +
+          '<div class="money-tag">' + esc(it.direction === 'pay' ? 'you pay' : it.direction === 'receive' ? 'you receive' : 'amount') + ' · ' + esc(it.category) + '</div>' +
+          '<div class="money-context">' + esc(trunc(it.sentence, 220)) + '</div>' +
+        '</div>'
+      )).join('');
+      const filterLabel = (() => {
+        const all = '🌐 all (' + items.length + ')';
+        const pay = '🔻 pay only (' + items.filter(it => it.direction === 'pay').length + ')';
+        const recv = '🟢 receive only (' + items.filter(it => it.direction === 'receive').length + ')';
+        if(filter === 'pay') return recv; else if(filter === 'receive') return pay; else return all;
+      })();
+      const controls = '<div class="money-controls">' +
+        '<span class="money-count">' + items.length + ' amount' + (items.length === 1 ? '' : 's') + ' found</span>' +
+        '<button type="button" class="money-filter ghost-btn" id="moneyFilterPayBtn" title="Show only amounts you pay">🔻 pay only</button>' +
+        '<button type="button" class="money-filter ghost-btn" id="moneyFilterRecvBtn" title="Show only amounts the other side pays you">🟢 receive only</button>' +
+        '<button type="button" class="money-filter ghost-btn" id="moneyFilterAllBtn" title="Show every amount found">🌐 all</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="moneyCopyAllBtn" title="Copy the money trail as plain text">📋 copy all</button>' +
+      '</div>';
+      moneyGrid.innerHTML = summary + rows + controls;
+      moneyBlock.hidden = false;
+      if(moneyNote){
+        const cats = Array.from(new Set(items.map(it => it.category))).slice(0, 6).map(c => '<b>' + esc(c) + '</b>').join(', ');
+        const lead = items.length + ' dollar amount' + (items.length === 1 ? '' : 's') + ' detected';
+        moneyNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
+          'Pure-local extraction (no AI). Tallies split by direction: <b>you pay</b> (you hand money over) vs <b>you receive</b> (refund, compensation, award). ' +
+          'Categories: ' + (cats || 'general') + '. Click any row to jump to the amount in the source. <b>📋 copy all</b> exports the whole list.';
+      }
+      // Click-to-jump.
+      $$('.money-row', moneyGrid).forEach(row => {
+        row.addEventListener('click', () => {
+          if(!input) return;
+          const off = parseInt(row.getAttribute('data-money-offset') || '-1', 10);
+          const txt = row.getAttribute('data-money-text') || '';
+          if(off >= 0 && off < input.value.length){
+            try { input.focus(); input.setSelectionRange(off, off + txt.length); } catch(_){ /* ignore */ }
+            try { input.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          } else if(txt){
+            const idx2 = input.value.indexOf(txt);
+            if(idx2 >= 0){
+              try { input.focus(); input.setSelectionRange(idx2, idx2 + txt.length); } catch(_){ /* ignore */ }
+              try { input.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+            } else if(typeof showAnalyzeToast === 'function'){
+              showAnalyzeToast('⚠ No longer in input');
+            }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ No longer in input');
+          }
+        });
+      });
+      // Filter chips.
+      const setFilter = (next) => {
+        moneyGrid._moneyFilter = moneyGrid._moneyFilter === next ? 'all' : next;
+        renderMoneyBlock(raw, ctx);
+      };
+      const fPay = document.getElementById('moneyFilterPayBtn');
+      const fRecv = document.getElementById('moneyFilterRecvBtn');
+      const fAll = document.getElementById('moneyFilterAllBtn');
+      if(fPay) fPay.addEventListener('click', () => { moneyGrid._moneyFilter = 'pay'; renderMoneyBlock(raw, ctx); });
+      if(fRecv) fRecv.addEventListener('click', () => { moneyGrid._moneyFilter = 'receive'; renderMoneyBlock(raw, ctx); });
+      if(fAll) fAll.addEventListener('click', () => { moneyGrid._moneyFilter = 'all'; renderMoneyBlock(raw, ctx); });
+      // Highlight the active filter.
+      if(moneyGrid._moneyFilter === 'pay' && fPay) fPay.classList.add('money-filter-active');
+      else if(moneyGrid._moneyFilter === 'receive' && fRecv) fRecv.classList.add('money-filter-active');
+      else if(fAll) fAll.classList.add('money-filter-active');
+      // Copy all.
+      const copyAllBtn = document.getElementById('moneyCopyAllBtn');
+      if(copyAllBtn){
+        copyAllBtn.addEventListener('click', async () => {
+          const text = items.map(it => it.display + ' · ' + (it.direction === 'pay' ? 'YOU PAY' : it.direction === 'receive' ? 'YOU RECEIVE' : 'AMOUNT') + ' · ' + it.category + ' — ' + it.sentence).join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Money trail copied (' + items.length + ')' : '⚠ Couldn’t copy');
+          copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
+          setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
+        });
+      }
+    }
+
     function renderPrioBlock(raw, ctx){
       if(!prioBlock || !prioMatrix || !raw){ return; }
       const p = buildPriorityMatrix(raw, ctx);
@@ -8743,6 +8980,15 @@
         renderDecisionBlock(raw, ctx);
       } else if(decisionBlock && !raw) {
         decisionBlock.hidden = true;
+      }
+
+      // Iter #184: money trail. Pure-local extractor so it works even when
+      // the AI provider couldn't return amounts. Always cheaper than the AI
+      // path and gives a deterministic view of every $ figure in the doc.
+      if(moneyBlock && typeof renderMoneyBlock === 'function' && raw){
+        renderMoneyBlock(raw, ctx);
+      } else if(moneyBlock && !raw) {
+        moneyBlock.hidden = true;
       }
 
 
