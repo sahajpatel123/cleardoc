@@ -900,6 +900,46 @@
       '<span class="tc-why"><b>Why it matters:</b> ' + esc(top.rule.why || '') + '</span>';
     el.hidden = false;
   }
+  // iter #204: per-risk "Ask about this" button — bridges the risk radar
+  // to the existing ask-chat panel so users can investigate a flagged
+  // clause without retyping the question. Each rrow gets a 💬 button
+  // that pre-fills the input with "Why is '<clause>' flagged as
+  // <severity>?" and focuses it. Click handler is wired once per render
+  // (re-runs on every re-analysis, idempotent because we replace the
+  // rows each time). Falls back to a no-op when the chat panel isn't
+  // present (e.g. some embedded views).
+  function wireAskPerRisk(){
+    const askInput = document.getElementById('askInput');
+    const askBtn   = document.getElementById('askBtn');
+    const list     = document.getElementById('riskList');
+    if(!list || !askInput) return;
+    list.querySelectorAll('.rrow').forEach((row, idx) => {
+      // Avoid double-wiring if rows persist across renders
+      if(row.querySelector('.rrow-ask')) return;
+      const flag = (typeof lastFlags !== 'undefined' && lastFlags && lastFlags[idx]) || null;
+      const clause = flag && flag.s ? trunc(String(flag.s), 120).replace(/\s+/g,' ').trim() : (row.textContent || '').slice(0, 120);
+      const sev = (row.dataset && row.dataset.risk) || (flag && flag.rule && flag.rule.sev) || 'g';
+      const sevLabel = sev === 'r' ? 'trap' : sev === 'a' ? 'watch' : 'note';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'rrow-ask ghost-btn ghost-btn-sm';
+      btn.setAttribute('aria-label', 'Ask about this ' + sevLabel);
+      btn.title = 'Ask about this ' + sevLabel;
+      btn.textContent = '💬';
+      btn.dataset.askClause = clause;
+      btn.dataset.askSev = sev;
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const q = 'Why is "' + btn.dataset.askClause + '" flagged as a ' + btn.dataset.askSev + '?';
+        askInput.value = q;
+        askInput.disabled = false;
+        if(askBtn) askBtn.disabled = false;
+        try { askInput.focus({preventScroll:false}); } catch(_) { askInput.focus(); }
+        try { askInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_) {}
+      });
+      row.appendChild(btn);
+    });
+  }
   function wireRiskFilter(){
     ['riskFilterAllBtn','riskFilterTrapBtn','riskFilterWatchBtn','riskFilterNoteBtn'].forEach(id => {
       const b = document.getElementById(id);
@@ -11698,6 +11738,7 @@
         riskList.appendChild(row); });
       paintRiskFilter(flags);
       paintTopConcern(flags);
+      wireAskPerRisk();
 
       // Iter #88: heat map — color every sentence by its risk
       // severity so the user can see WHERE the traps cluster.
@@ -12220,6 +12261,7 @@
         });
         paintRiskFilter(lastFlags);
         paintTopConcern(lastFlags);
+        wireAskPerRisk();
       }
 
       // Verdict

@@ -932,6 +932,12 @@ button.risk-preview:hover{filter:brightness(.96)}
 .top-concern[data-sev="a"] .tc-kicker{color:var(--amber)}
 .top-concern[data-sev="g"]{border-left-color:var(--green);background:var(--green-tint)}
 .top-concern[data-sev="g"] .tc-kicker{color:var(--green)}
+/* iter #204: per-risk "Ask about this" button — sits at the right of
+   each risk row, copies a pre-filled chat question on click. Stays
+   subdued so it doesn't fight the risk text for attention. */
+.risk-built .rrow{position:relative}
+.risk-built .rrow .rrow-ask{position:absolute;right:8px;top:8px;padding:3px 8px;font-size:11px;opacity:.7}
+.risk-built .rrow:hover .rrow-ask{opacity:1}
 /* iter #201 v2: "showing X of Y" pill that appears at the right of the
    filter strip whenever a non-'all' filter is active. Aligns with the
    baseline of the buttons, mono font, muted color. */
