@@ -13154,19 +13154,33 @@
       // risk summary footer so the markdown export has the same
       // "Found N · X trap · Y watch · Z note" headline the user just
       // saw, even when no per-risk detail follows.
+      // iter #209 v2: appends cluster count when at least one
+      // multi-flag sentence exists (same data the on-page badge shows).
       if(lastFlags && lastFlags.length){
         let tCount=0,aCount=0,nCount=0;
+        let clusterCount=0;
+        const _tallyClusterMap = new Map();
         lastFlags.forEach(f=>{
           const sv = f && f.rule && f.rule.sev;
           if(sv==='r') tCount++;
           else if(sv==='a') aCount++;
           else nCount++;
+          if(typeof f.i === 'number' && f.i >= 0){
+            _tallyClusterMap.set(f.i, (_tallyClusterMap.get(f.i) || 0) + 1);
+          }
         });
+        for(const c of _tallyClusterMap.values()){
+          if(c >= 2) clusterCount++;
+        }
         const tWord = tCount === 1 ? 'trap'  : 'traps';
         const wWord = aCount === 1 ? 'watch' : 'watches';
         const nWord = nCount === 1 ? 'note'  : 'notes';
-        md.push('> Found **'+lastFlags.length+' risk'+(lastFlags.length===1?'':'s')+'** · '+
-                '**'+tCount+'** '+tWord+' · **'+aCount+'** '+wWord+' · **'+nCount+'** '+nWord);
+        let headline = '> Found **'+lastFlags.length+' risk'+(lastFlags.length===1?'':'s')+'** · '+
+                '**'+tCount+'** '+tWord+' · **'+aCount+'** '+wWord+' · **'+nCount+'** '+nWord;
+        if(clusterCount > 0){
+          headline += ' · **'+clusterCount+'** cluster'+(clusterCount===1?'':'s')+' (multi-flag sentences)';
+        }
+        md.push(headline);
         md.push('');
       }
       // Plain-English rewrite
@@ -13181,6 +13195,15 @@
       }
       // Risk radar
       if(lastFlags && lastFlags.length){
+        // iter #209 v2: pre-compute cluster map so we can tag each
+        // per-risk entry with its cluster membership — same data
+        // as the on-page "🔗 N in same sentence" badge.
+        const _mdClusterMap = new Map();
+        lastFlags.forEach(f => {
+          if(typeof f.i === 'number' && f.i >= 0){
+            _mdClusterMap.set(f.i, (_mdClusterMap.get(f.i) || 0) + 1);
+          }
+        });
         md.push('## Risk Radar ('+lastFlags.length+' flagged)');
         md.push('');
         lastFlags.forEach((f,i)=>{
@@ -13195,6 +13218,14 @@
           if(f && f.rule && f.rule.counter){
             md.push('   > ');
             md.push('   > _Counter-suggestion (ask for this instead):_ '+f.rule.counter);
+          }
+          // iter #209 v2: tag cluster membership in the .md so the
+          // export carries the same "this sentence is dense legalese"
+          // signal the on-page badge shows.
+          const _mdC = (typeof f.i === 'number' && f.i >= 0) ? _mdClusterMap.get(f.i) : 0;
+          if(_mdC && _mdC >= 2){
+            md.push('   > ');
+            md.push('   > _Cluster:_ part of a **'+_mdC+'-risk cluster** in the same sentence (dense legalese — read carefully).');
           }
           md.push('');
         });
