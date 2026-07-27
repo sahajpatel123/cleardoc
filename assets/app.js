@@ -845,6 +845,19 @@
       b.classList.toggle('rf-active', active);
       b.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
+    // iter #201 v2: "showing X of Y" pill — only when a non-'all'
+    // filter is active, so the all-severities view stays uncluttered.
+    const countEl = document.getElementById('riskFilterCount');
+    if(countEl){
+      const visibleCount = list ? list.querySelectorAll('.rrow:not([style*="display: none"])').length : 0;
+      const totalCount = list ? list.querySelectorAll('.rrow').length : 0;
+      if(which && which !== 'all' && totalCount > 0){
+        countEl.textContent = 'showing ' + visibleCount + ' of ' + totalCount;
+        countEl.hidden = false;
+      } else {
+        countEl.hidden = true;
+      }
+    }
   }
   function wireRiskFilter(){
     ['riskFilterAllBtn','riskFilterTrapBtn','riskFilterWatchBtn','riskFilterNoteBtn'].forEach(id => {
@@ -852,6 +865,32 @@
       if(!b) return;
       b.addEventListener('click', () => applyRiskFilter(b.dataset.riskFilter || 'all'));
     });
+    // iter #201 v2: keyboard shortcuts for the filter — 1/2/3/4 map
+    // to the four buttons. Only fire when the strip is visible
+    // (so the keys don't get hijacked on other pages or when there's
+    // nothing to filter). The disabled-state check on the button
+    // itself is the source of truth (paintRiskFilter disables empty
+    // buckets), so we never invoke applyRiskFilter() for a zero-bucket.
+    // Inlines the typing-target check (isTypingTarget lives inside
+    // wireKeyboardShortcuts so we can't share the helper across scopes).
+    document.addEventListener('keydown', e => {
+      const t = e.target;
+      if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || (t.isContentEditable === true))) return;
+      if(e.ctrlKey || e.metaKey || e.altKey) return;
+      const wrap = document.getElementById('riskFilter');
+      if(!wrap || wrap.hidden) return;
+      const map = { '1':'all', '2':'r', '3':'a', '4':'g' };
+      const want = map[e.key];
+      if(!want) return;
+      const id = want === 'all' ? 'riskFilterAllBtn'
+              : want === 'r'   ? 'riskFilterTrapBtn'
+              : want === 'a'   ? 'riskFilterWatchBtn'
+              :                  'riskFilterNoteBtn';
+      const btn = document.getElementById(id);
+      if(!btn || btn.disabled) return;
+      e.preventDefault();
+      applyRiskFilter(want);
+    }, { passive:false });
   }
 
   function wireForgetMe(){
@@ -996,6 +1035,7 @@
             <div class="kb-row"><kbd>g</kbd><kbd>a</kbd><span>Open the analyzer</span></div>
             <div class="kb-row"><kbd>g</kbd><kbd>p</kbd><span>See pricing</span></div>
             <div class="kb-row"><kbd>/</kbd><span>Focus the document input</span></div>
+            <div class="kb-row"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><span>Risk radar filter (all / traps / watches / notes)</span></div>
             <div class="kb-row"><kbd>?</kbd><span>Show this help</span></div>
             <div class="kb-row"><kbd>Esc</kbd><span>Close any modal / banner</span></div>
           </div>
