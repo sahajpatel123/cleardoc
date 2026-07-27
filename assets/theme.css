@@ -1643,6 +1643,29 @@ button.risk-preview:hover{filter:brightness(.96)}
 .reading-sig.reading-sig-active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .reading-signal-chip{margin:8px 0;padding:6px 10px;background:var(--paper2);border:var(--bd-hair) solid var(--ink-soft);font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);display:flex;align-items:center;gap:8px}
 .reading-signal-chip b{color:var(--ink)}
+
+/* Auto-renewal radar (iter #188) — auto-renew, notice period, cancel-by date, penalty. */
+.renewal-grid{display:flex;flex-direction:column;gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.renewal-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.renewal-tally{flex:1 1 160px;display:flex;flex-direction:column;gap:2px;padding:8px 12px;border:var(--bd-hair) solid var(--ink);background:var(--paper2)}
+.renewal-tally-label{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700}
+.renewal-tally-value{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--ink);line-height:1.1}
+.renewal-tally-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-soft);letter-spacing:.04em}
+.renewal-tally.renewal-detect{border-left:4px solid var(--danger);background:var(--danger-tint)}
+.renewal-tally.renewal-clear{border-left:4px solid var(--green);background:var(--green-tint)}
+.renewal-tally.renewal-notice{border-left:4px solid var(--ink)}
+.renewal-tally.renewal-urgent{border-left:4px solid var(--danger);background:#ffe6e6;animation:renewal-pulse 1.5s ease-in-out infinite}
+@keyframes renewal-pulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 3px var(--danger-tint)}}
+.renewal-row{display:flex;gap:10px;align-items:flex-start;padding:6px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);cursor:pointer;transition:filter .15s ease}
+.renewal-row:hover{filter:brightness(.96)}
+.renewal-row.renewal-row-flag{border-left:3px solid var(--danger);background:var(--danger-tint)}
+.renewal-row.renewal-row-info{border-left:3px solid var(--ink-soft)}
+.renewal-tag{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;padding:2px 5px;border:1px solid var(--bd-hair);background:#fff;align-self:flex-start;flex-shrink:0;min-width:120px;text-align:center}
+.renewal-context{font-size:var(--t-micro);color:var(--ink);flex:1;min-width:0;line-height:1.4}
+.renewal-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
+.renewal-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
+.renewal-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto;font-weight:700;letter-spacing:.06em}
+.renewal-countdown{display:inline-block;padding:6px 14px;background:var(--danger);color:#fff;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin:6px 0 2px;border:var(--bd-hair) solid var(--ink)}
 .money-context{font-size:var(--t-micro);color:var(--ink);flex:1;min-width:0;line-height:1.4}
 .money-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .money-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}

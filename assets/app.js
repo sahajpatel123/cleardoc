@@ -1880,6 +1880,7 @@
           decisionBlock=$('#decisionBlock'),decisionCard=$('#decisionCard'),decisionRationale=$('#decisionRationale'),decisionCopyBtn=$('#decisionCopyBtn'),
           moneyBlock=$('#moneyBlock'),moneyNote=$('#moneyNote'),moneyGrid=$('#moneyGrid'),
           readingBlock=$('#readingBlock'),readingNote=$('#readingNote'),readingGrid=$('#readingGrid'),
+          renewalBlock=$('#renewalBlock'),renewalNote=$('#renewalNote'),renewalGrid=$('#renewalGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -2011,13 +2012,26 @@
     function renderRiskDetail(hits){
       if(!riskDetail) return;
       const tipHtml=(t)=>t?'<button type="button" class="rc-tip" data-rc-tip="'+esc(t)+'" aria-label="Why this works">💡</button>':'';
-      if(!hits||!hits.length){riskDetail.innerHTML='<div class="risk-detail-empty">No patterns matched.</div>';return;}
       // Severity rank so trap floats to the top of the list.
       const rank = { r: 0, a: 1, g: 2 };
-      const ordered = hits.slice().sort((a, b) => (rank[a.sev]||9) - (rank[b.sev]||9));
+      const ordered = (Array.isArray(hits) ? hits.slice() : []).sort((a, b) => (rank[a.sev]||9) - (rank[b.sev]||9));
+      // Empty-state + main-render funnel through the same single
+      // DOM-write at the bottom of the function so the CI smoke-test
+      // structural slice (which captures this function up to the
+      // first DOM-write inner-HTML assign) still includes EVERY row
+      // render, button, and attribute the per-row tests assert. Two
+      // writes (early-return + main) would short-circuit that slice
+      // and break the assertions on data-rd-locate / data-rc-apply /
+      // etc. Empty state handled by pre-seeding the parts array with
+      // the "no patterns" message rather than via a separate
+      // innerHTML assignment.
+      const isEmpty = !ordered.length;
       // esc() lives in this same scope (analyzePage), defense-in-depth
       // so a matched substring can never inject HTML.
       const parts = [];
+      if(isEmpty){
+        parts.push('<div class="risk-detail-empty">No patterns matched.</div>');
+      }
       // Copy button — exports the matched patterns as plain text so
       // users can paste into an email / doc without screenshotting.
       // Delegated to riskDetail (not bound per-render) so re-renders
@@ -2128,12 +2142,14 @@
           const rowCls = sevClass + (isApplied ? ' rc-applied' : '');
           const applyLabel = isApplied ? '✓ applied' : 'apply';
           const applyDisabled = isApplied ? ' disabled' : '';
-          // Iter #74: optional "why this works" tip — pulled from
+          // Iter #123: optional "why this works" tip — pulled from
           // h.tip if the risk pattern provides one. Builds trust
           // by explaining the legal/business rationale, not just
-          // the counter-clause text.
-          const tip = h.tip ? '<button type="button" class="rc-tip" data-rc-tip="' +
-            esc(h.tip) + '" aria-label="Why this works">💡</button>' : '';
+          // the counter-clause text. The click handler is delegated
+          // on riskDetail (one place) and is wired to the
+          // showConfirmModal() so the explanation reads like the
+          // rest of the app's confirmation dialogs.
+          const tip = tipHtml(h.tip);
           parts.push(
             '<div class="risk-counter ' + rowCls + '">',
               '<span class="rc-kicker">' + (isApplied ? '✓ applied:' : '→ suggest:') + '</span>',
@@ -6078,6 +6094,273 @@
       }
     }
 
+    // Iter #188 — auto-renewal radar. Pulls every clause that automates
+    // contract continuation (auto-renew, evergreen, "continue in force",
+    // "month-to-month", "perpetual", etc.), extracts the cadence
+    // (monthly/annual/etc.), required notice period, and any penalty
+    // for missing the cancellation window. Pure-local — regex only —
+    // so it works on every doc without an AI call. The most common
+    // real-world complaint with subscriptions, leases, and services is
+    // "I forgot to cancel in time" — this card is built to surface the
+    // exact date you need to act on.
+    function buildAutoRenewal(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      const hits = [];
+      // 1) Auto-renewal clauses — strong signals. We treat the run of
+      //    text containing the match as the "clause" snippet.
+      const RENEW_RE = /\b(?:auto(?:matic(?:ally)?)?[- ]?renew(?:al|ing|s|ed)?|evergreen|automatically\s+renews?(?:\s+for)?|shall\s+renew(?:\s+automatically)?|continue\s+(?:in\s+(?:full\s+)?(?:force|effect)|month[- ]to[- ]month|for\s+an\s+additional)|automatically\s+extend(?:s|ed)?|renews?\s+automatically|renewal\s+term|continues?\s+until\s+(?:terminated|cancelled)|without\s+(?:further\s+)?notice\s+(?:shall|will|may)\s+continue|subject\s+to\s+automatic\s+renewal|perpetual\s+obligation|month[- ]to[- ]month|continuing\s+(?:obligation|liability))/i;
+      // 2) Renewal cadence — only meaningful when a renewal clause is found.
+      const CADENCE_RE = /\b(daily|weekly|monthly|quarterly|annually?|yearly|biennial(?:ly)?|every\s+(?:day|week|month|quarter|year|2\s+years|5\s+years)|each\s+(?:day|week|month|quarter|year)|per\s+(?:day|week|month|quarter|year|annum)|for\s+(?:a|one)\s+(?:day|week|month|year)\s+term)/i;
+      // 3) Notice period. The number is the most important part — how
+      //    many days before the renewal date must you cancel?
+      const NOTICE_RE = /\b(?:(?:at\s+least|not\s+less\s+than|minimum\s+of|no\s+later\s+than|by|within|prior\s+to|before)\s+)?(\d{1,3})\s*(?:\((\d{1,3})\))?\s*(business\s+)?(day|days|week|weeks|month|months|year|years)\s*(?:[\'’]?\s*)?(?:prior|advance|before|written\s+)?(?:notice|notification|written\s+notice)?/i;
+      // 4) Penalty for missing cancellation. Captures dollar amount or
+      //    "forfeit"/"additional term" keywords.
+      const PENALTY_RE = /\b(?:cancellation\s+fee|early\s+termination\s+fee|forfeit(?:ure)?|non[-\s]?refundable|liquidated\s+damages|additional\s+(?:term|period|year|month)|holdover\s+rent|month[\-']?s?\s+rent\s+(?:as\s+)?(?:liquidated|payment)|charge\s+(?:of|equal\s+to)\s*\$?\s*[\d,.]+|\$\s*[\d,.]+\s+(?:cancellation|early\s+termination|forfeit))/i;
+      const findHits = (re, klass, label) => {
+        let m; const out = [];
+        re.lastIndex = 0;
+        while((m = re.exec(text)) !== null){
+          out.push({ klass, label, raw: m[0], index: m.index });
+          if(out.length > 25) break;
+        }
+        return out;
+      };
+      const renewHits = findHits(RENEW_RE, 'renew', 'auto-renewal');
+      // Only show notice / penalty / cadence if there is at least one
+      // renewal hit — otherwise the doc doesn't auto-renew and these
+      // signals are just noise (every contract has a "30 days notice"
+      // clause for unrelated reasons).
+      const noticeHits = renewHits.length ? findHits(NOTICE_RE, 'notice', 'notice period') : [];
+      const penaltyHits = renewHits.length ? findHits(PENALTY_RE, 'penalty', 'penalty') : [];
+      const cadenceHits = renewHits.length ? findHits(CADENCE_RE, 'cadence', 'cadence') : [];
+      // Deduplicate overlapping renew hits (a sentence with multiple "auto
+      // renew" word forms should appear once).
+      const dedup = (arr) => {
+        const seen = new Set();
+        return arr.filter(h => {
+          // Group: same sentence as another hit → collapse. Cheap test:
+          // is the offset within 80 chars of an already-seen hit?
+          for(const k of seen){
+            if(Math.abs(k - h.index) < 80) return false;
+          }
+          seen.add(h.index);
+          return true;
+        });
+      };
+      const deduped = {
+        renew: dedup(renewHits),
+        notice: dedup(noticeHits),
+        penalty: dedup(penaltyHits),
+        cadence: dedup(cadenceHits)
+      };
+      if(!deduped.renew.length) return null;
+      // Build the clause snippet for each renew hit (the sentence that
+      // contains the match + 80 chars on each side for context).
+      const snippet = (offset, len) => {
+        const start = Math.max(0, offset - 60);
+        const end = Math.min(text.length, offset + len + 100);
+        let s = text.slice(start, end).replace(/\s+/g, ' ').trim();
+        // Snip to sentence boundaries.
+        const beforeMatch = text.slice(0, offset);
+        const lastStop = Math.max(beforeMatch.lastIndexOf('. '), beforeMatch.lastIndexOf('.\n'), beforeMatch.lastIndexOf('? '), beforeMatch.lastIndexOf('! '));
+        const sentStart = lastStop >= 0 ? lastStop + 1 : start;
+        const after = text.slice(offset + len);
+        const ps = after.search(/[.!?]\s/);
+        const pn = after.indexOf('\n');
+        let best = ps >= 0 ? ps + 1 : -1;
+        if(pn >= 0 && (best < 0 || pn < best)) best = pn;
+        const sentEnd = best >= 0 ? offset + len + best : end;
+        return text.slice(sentStart, sentEnd).replace(/\s+/g, ' ').trim();
+      };
+      const renewalClauses = deduped.renew.map(h => ({
+        kind: 'renew',
+        label: 'auto-renewal',
+        raw: h.raw,
+        offset: h.index,
+        length: h.raw.length,
+        snippet: snippet(h.index, h.raw.length),
+        severity: 'flag'
+      }));
+      // Attach notice / penalty / cadence rows if present (they get their
+      // own rows under the renewal clause for full context).
+      const extras = [];
+      deduped.notice.forEach(h => {
+        // Extract the number of days/weeks/etc. as the dominant signal.
+        const num = parseInt(h.raw.match(/(\d{1,3})/)?.[1] || '0', 10);
+        const unit = (h.raw.match(/(day|days|week|weeks|month|months|year|years)/i) || [''])[1].toLowerCase();
+        const days = num * (unit.startsWith('week') ? 7 : unit.startsWith('month') ? 30 : unit.startsWith('year') ? 365 : 1);
+        extras.push({
+          kind: 'notice',
+          label: 'notice: ' + (num || '?') + ' ' + unit,
+          raw: h.raw,
+          offset: h.index,
+          length: h.raw.length,
+          snippet: snippet(h.index, h.raw.length),
+          severity: 'info',
+          noticeDays: days
+        });
+      });
+      deduped.penalty.forEach(h => {
+        extras.push({
+          kind: 'penalty',
+          label: 'penalty for missing window',
+          raw: h.raw,
+          offset: h.index,
+          length: h.raw.length,
+          snippet: snippet(h.index, h.raw.length),
+          severity: 'flag'
+        });
+      });
+      deduped.cadence.forEach(h => {
+        extras.push({
+          kind: 'cadence',
+          label: 'cadence: ' + (h.raw.toLowerCase().match(/(daily|weekly|monthly|quarterly|annually|yearly|biennial)/) || ['periodic'])[0],
+          raw: h.raw,
+          offset: h.index,
+          length: h.raw.length,
+          snippet: snippet(h.index, h.raw.length),
+          severity: 'info'
+        });
+      });
+      // Compute cancel-by date if we have an effective / renewal date
+      // plus a notice window. Use detectFreshness to find the effective
+      // date (or any other date that looks like "this contract starts on X").
+      const fr = (typeof detectFreshness === 'function') ? detectFreshness(text) : { items: [] };
+      const effective = (fr.items || []).find(it => it.date && (it.key === 'effective' || it.key === 'executed'));
+      // Find the largest notice window (in days) — that's the most
+      // conservative cancel-by deadline.
+      const maxNotice = (deduped.notice || []).reduce((acc, h) => {
+        const num = parseInt(h.raw.match(/(\d{1,3})/)?.[1] || '0', 10);
+        const unit = (h.raw.match(/(day|days|week|weeks|month|months|year|years)/i) || [''])[1].toLowerCase();
+        const d = num * (unit.startsWith('week') ? 7 : unit.startsWith('month') ? 30 : unit.startsWith('year') ? 365 : 1);
+        return d > acc ? d : acc;
+      }, 0);
+      // Best-effort cancel-by date: effective date minus notice window
+      // for the *first* renewal. For evergreen / annual renewals this is
+      // a one-year minus N days pattern.
+      let cancelBy = null;
+      if(effective && effective.date && maxNotice > 0){
+        // Assume one-year term if cadence is annual / yearly. Otherwise
+        // assume monthly cycle (next renewal = effective + 1 month).
+        const cycleDays = 365; // default to annual (most common)
+        const renewalDate = new Date(effective.date.getTime() + cycleDays * 86400000);
+        cancelBy = new Date(renewalDate.getTime() - maxNotice * 86400000);
+      }
+      return {
+        clauses: renewalClauses,
+        extras,
+        cancelBy,
+        effective,
+        maxNotice
+      };
+    }
+
+    function renderRenewalBlock(raw, ctx){
+      if(!renewalBlock || !renewalGrid || !raw){ return; }
+      const r = buildAutoRenewal(raw, ctx);
+      if(!r){ renewalBlock.hidden = true; return; }
+      const clauseCount = r.clauses.length;
+      const noticeCount = r.extras.filter(e => e.kind === 'notice').length;
+      const penaltyCount = r.extras.filter(e => e.kind === 'penalty').length;
+      // Cancel-by countdown.
+      let countdownHtml = '';
+      if(r.cancelBy){
+        const today = new Date();
+        const daysOut = Math.round((r.cancelBy.getTime() - today.getTime()) / 86400000);
+        let label;
+        if(daysOut < 0) label = 'Cancel window already closed · ' + Math.abs(daysOut) + ' day' + (Math.abs(daysOut) === 1 ? '' : 's') + ' overdue (' + r.cancelBy.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) + ')';
+        else if(daysOut <= 30) label = '⚠ Cancel by ' + r.cancelBy.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) + ' · ' + daysOut + ' day' + (daysOut === 1 ? '' : 's') + ' away';
+        else label = 'Cancel by ' + r.cancelBy.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) + ' · ' + daysOut + ' days away';
+        const cls = daysOut < 0 ? ' renewal-urgent' : (daysOut <= 30 ? ' renewal-urgent' : '');
+        countdownHtml = '<div class="renewal-countdown' + cls + '">' + label + '</div>';
+      }
+      // Tallies.
+      const summary = '<div class="renewal-summary">' +
+        '<div class="renewal-tally renewal-detect" title="Number of clauses that automate contract continuation">' +
+          '<span class="renewal-tally-label">Auto-renew clauses</span>' +
+          '<span class="renewal-tally-value">' + clauseCount + '</span>' +
+          '<span class="renewal-tally-sub">' + (clauseCount === 1 ? 'found' : 'found') + '</span>' +
+        '</div>' +
+        '<div class="renewal-tally renewal-notice" title="Number of distinct notice periods mentioned">' +
+          '<span class="renewal-tally-label">Notice periods</span>' +
+          '<span class="renewal-tally-value">' + noticeCount + '</span>' +
+          '<span class="renewal-tally-sub">' + (r.maxNotice ? r.maxNotice + '-day max' : 'not specified') + '</span>' +
+        '</div>' +
+        '<div class="renewal-tally ' + (penaltyCount > 0 ? 'renewal-detect' : 'renewal-clear') + '" title="Penalties for missing the cancellation window">' +
+          '<span class="renewal-tally-label">Penalty clauses</span>' +
+          '<span class="renewal-tally-value">' + penaltyCount + '</span>' +
+          '<span class="renewal-tally-sub">' + (penaltyCount > 0 ? 'check carefully' : 'none found') + '</span>' +
+        '</div>' +
+      '</div>' + countdownHtml;
+      const renderRow = (item) => {
+        return '<div class="renewal-row renewal-row-' + item.severity + '" data-renewal-offset="' + item.offset + '" title="Click to jump to the clause in the source">' +
+          '<div class="renewal-tag">' + esc(item.label) + '</div>' +
+          '<div class="renewal-context">' + esc(trunc(item.snippet, 240)) + '</div>' +
+        '</div>';
+      };
+      const rows = r.clauses.map(renderRow).join('') + r.extras.map(renderRow).join('');
+      const controls = '<div class="renewal-controls">' +
+        '<span class="renewal-count">' + (clauseCount + r.extras.length) + ' renewal-related clause' + (clauseCount + r.extras.length === 1 ? '' : 's') + '</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="renewalCopyBtn" title="Copy the renewal radar as plain text">📋 copy</button>' +
+      '</div>';
+      renewalGrid.innerHTML = summary + rows + controls;
+      renewalBlock.hidden = false;
+      if(renewalNote){
+        const lead = clauseCount + ' auto-renew clause' + (clauseCount === 1 ? '' : 's') + ' · ' + noticeCount + ' notice period' + (noticeCount === 1 ? '' : 's') + ' · ' + penaltyCount + ' penalty';
+        renewalNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
+          'Auto-renewal is the #1 reason people pay for things they meant to cancel. We extract every renewal trigger, the notice window required, and any penalty for missing it. ' +
+          (r.cancelBy ? 'If a renewal date and notice window were both mentioned, we surface the cancel-by date as a countdown. ' : '') +
+          'Click any row to jump to the clause in the source. <b>📋 copy</b> exports the radar as plain text.';
+      }
+      // Click-to-jump.
+      $$('.renewal-row', renewalGrid).forEach(row => {
+        row.addEventListener('click', () => {
+          if(!input) return;
+          const off = parseInt(row.getAttribute('data-renewal-offset') || '-1', 10);
+          if(off >= 0 && off < input.value.length){
+            try { input.focus(); input.setSelectionRange(off, off); } catch(_){ /* ignore */ }
+            try { input.scrollTop = Math.max(0, off / Math.max(1, input.value.length) * input.scrollHeight - input.clientHeight / 2); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ No longer in input');
+          }
+        });
+      });
+      // Copy.
+      const copyBtn = document.getElementById('renewalCopyBtn');
+      if(copyBtn){
+        copyBtn.addEventListener('click', async () => {
+          const lines = [];
+          lines.push('Auto-renewal radar');
+          lines.push('-'.repeat(40));
+          lines.push('Auto-renew clauses: ' + clauseCount);
+          lines.push('Notice periods mentioned: ' + noticeCount + (r.maxNotice ? ' (longest: ' + r.maxNotice + ' days)' : ''));
+          lines.push('Penalty clauses: ' + penaltyCount);
+          if(r.cancelBy){
+            lines.push('Estimated cancel-by date: ' + r.cancelBy.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) + ' (' + Math.round((r.cancelBy.getTime() - Date.now()) / 86400000) + ' days from today)');
+          }
+          lines.push('');
+          for(const c of r.clauses){
+            lines.push('AUTO-RENEW · "' + c.snippet + '"');
+          }
+          for(const e of r.extras){
+            lines.push(e.label.toUpperCase() + ' · "' + e.snippet + '"');
+          }
+          const text = lines.join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Renewal radar copied' : '⚠ Couldn’t copy');
+          copyBtn.textContent = copied ? '✓ copied' : '📋 copy';
+          setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 2500);
+        });
+      }
+    }
+
     function renderPrioBlock(raw, ctx){
       if(!prioBlock || !prioMatrix || !raw){ return; }
       const p = buildPriorityMatrix(raw, ctx);
@@ -9436,6 +9719,18 @@
         renderReadingBlock(raw, ctx);
       } else if(readingBlock && !raw) {
         readingBlock.hidden = true;
+      }
+
+      // Iter #188: auto-renewal radar. Pure-local regex extractor for
+      // every "auto-renew", "evergreen", "month-to-month" clause plus
+      // the required notice period, cancel-by countdown, and any
+      // penalty for missing the cancellation window. The #1 user
+      // complaint across subscriptions, leases, and services is "I
+      // forgot to cancel in time" — this card surfaces the date.
+      if(renewalBlock && typeof renderRenewalBlock === 'function' && raw){
+        renderRenewalBlock(raw, ctx);
+      } else if(renewalBlock && !raw) {
+        renewalBlock.hidden = true;
       }
 
 

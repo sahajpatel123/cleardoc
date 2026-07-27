@@ -82,7 +82,9 @@
   .money-row,
   .money-tally,
   .reading-bucket,
-  .reading-row {
+  .reading-row,
+  .renewal-row,
+  .renewal-tally {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
     border: 1px solid #ddd !important;
