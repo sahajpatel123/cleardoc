@@ -9229,7 +9229,10 @@
       if(stampTweetBtn){
         stampTweetBtn.addEventListener('click', () => {
           const href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(s.tweet);
-          try { window.open(href, '_blank'); } catch(_){ /* ignore */ }
+          // noopener,noreferrer: window.open() returns null + sets
+          // opener=null so the opened page can't reach back into our
+          // tab via window.opener.* (reverse-tabnabbing protection).
+          try { window.open(href, '_blank', 'noopener,noreferrer'); } catch(_){ /* ignore */ }
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('𝕏 Opened tweet composer');
         });
       }
@@ -15003,7 +15006,7 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
         try {
           const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
           const url = URL.createObjectURL(blob);
-          const w = window.open(url, '_blank');
+          const w = window.open(url, '_blank', 'noopener,noreferrer');
           if(!w) showAnalyzeToast('📋 Pop-up blocked — try the URL bar');
           setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 30000);
         } catch(_) {
