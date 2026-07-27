@@ -955,6 +955,15 @@ button.risk-preview:hover{filter:brightness(.96)}
    warning reads as "this is dense legalese, read carefully" rather
    than alarming. */
 .risk-built .rrow .rrow-cluster{display:inline-block;margin-top:8px;font-family:'JetBrains Mono';font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--green);background:var(--green-tint);border:1px solid var(--green);padding:3px 8px;cursor:help}
+/* iter #213: re-analysis delta banner — shown above the radar when
+   the user re-analyzes the same document (matched by SHA-256 prefix
+   from iter #211). Splits into "N new traps", "N fixed", or a
+   neutral "same since last analysis" message. Green for unchanged /
+   fixed, amber for new findings. */
+.reanalysis-delta{margin:var(--s2) 0;padding:10px 14px;border:1px solid var(--ink);background:var(--paper);box-shadow:4px 4px 0 var(--ink);font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em}
+.reanalysis-delta[data-delta-kind="new"]{border-color:var(--amber);background:var(--amber-tint);color:var(--amber)}
+.reanalysis-delta[data-delta-kind="fixed"]{border-color:var(--green);background:var(--green-tint);color:var(--green)}
+.reanalysis-delta[data-delta-kind="same"]{color:var(--ink-soft)}
 /* iter #205: in-analysis find bar — small search input pinned above
    the result panel that highlights matches across all rendered blocks
    (rewrite, risks, deadlines, scenarios, bearer). Uses CSS custom

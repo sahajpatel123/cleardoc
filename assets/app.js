@@ -1245,6 +1245,68 @@
       b.style.borderBottom = '1px dotted currentColor';
     });
   }
+  // iter #213: re-analysis delta — when the user re-analyzes the
+  // same document (matched by SHA-256 fingerprint from iter #211),
+  // show a banner above the risk radar with what changed since the
+  // previous analysis. Compares risk s-strings (the offending clause
+  // text) — appearing in the new set = "new", missing from it =
+  // "fixed". Persisted to localStorage under a per-fingerprint key.
+  const _deltaKey = (fp) => 'cleardoc:lastFlags:' + fp;
+  function paintReanalysisDelta(){
+    const el = document.getElementById('reanalysisDelta');
+    if(!el || !_fpState.short || !lastFlags) return;
+    const fp = _fpState.short;
+    let prev = null;
+    try {
+      const raw = localStorage.getItem(_deltaKey(fp));
+      if(raw) prev = JSON.parse(raw);
+    } catch(_) {}
+    if(!prev || !Array.isArray(prev.sentences) || prev.sentences.length === 0){
+      // First time we've seen this fingerprint — nothing to compare
+      // against. Hide the banner; we'll write the baseline below.
+      el.hidden = true;
+      // Persist current state so the next re-analysis has a baseline.
+      try {
+        const sentences = lastFlags.map(f => trunc(String(f.s || ''), 200).replace(/\s+/g,' ').trim());
+        localStorage.setItem(_deltaKey(fp), JSON.stringify({
+          ts: Date.now(),
+          sentences: sentences
+        }));
+      } catch(_) {}
+      return;
+    }
+    const curSentences = lastFlags.map(f => trunc(String(f.s || ''), 200).replace(/\s+/g,' ').trim());
+    const prevSet = new Set(prev.sentences);
+    const curSet = new Set(curSentences);
+    let newCount = 0;
+    curSentences.forEach(s => { if(!prevSet.has(s)) newCount++; });
+    let fixedCount = 0;
+    prev.sentences.forEach(s => { if(!curSet.has(s)) fixedCount++; });
+    if(newCount === 0 && fixedCount === 0){
+      el.textContent = '✓ Same document, same risks as last analysis';
+      el.dataset.deltaKind = 'same';
+      el.hidden = false;
+    } else if(newCount > 0 && fixedCount === 0){
+      el.textContent = '🔄 Re-analysis of same document: +' + newCount + ' new risk' + (newCount === 1 ? '' : 's');
+      el.dataset.deltaKind = 'new';
+      el.hidden = false;
+    } else if(newCount === 0 && fixedCount > 0){
+      el.textContent = '✓ Re-analysis of same document: -' + fixedCount + ' fixed risk' + (fixedCount === 1 ? '' : 's');
+      el.dataset.deltaKind = 'fixed';
+      el.hidden = false;
+    } else {
+      el.textContent = '🔄 Re-analysis: +' + newCount + ' new / -' + fixedCount + ' fixed';
+      el.dataset.deltaKind = 'new';
+      el.hidden = false;
+    }
+    // Persist the new baseline so the next re-analysis has it.
+    try {
+      localStorage.setItem(_deltaKey(fp), JSON.stringify({
+        ts: Date.now(),
+        sentences: curSentences
+      }));
+    } catch(_) {}
+  }
   function wireAnalyzedAgo(){
     if(_analyzedState.timer) clearInterval(_analyzedState.timer);
     _analyzedState.timer = setInterval(paintAnalyzedAgo, 30000);
@@ -12272,6 +12334,7 @@
       paintSectionNav();
       setAnalyzedTimestamp(Date.now());
       paintDocFingerprint();
+      paintReanalysisDelta();
       // severity so the user can see WHERE the traps cluster.
       // Iter #89: click-to-jump on tiles + a "View only flagged"
       // filter chip + a "view mode" toggle (tiles ↔ inline list).
@@ -12827,6 +12890,7 @@
         paintSectionNav();
         setAnalyzedTimestamp(Date.now());
         paintDocFingerprint();
+        paintReanalysisDelta();
       }
 
       // Verdict
