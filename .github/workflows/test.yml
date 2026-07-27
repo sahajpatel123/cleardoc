@@ -6,17 +6,35 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel any in-flight runs for the same ref when a new commit lands.
+# Saves CI minutes on rapid-fire pushes (the analyzer iterates daily).
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Unit + smoke tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Minimal permissions — this job only reads the repo and runs
+    # tests. No write access, no package publishing, no secrets other
+    # than what GITHUB_TOKEN implicitly grants. Prevents a malicious
+    # action from escalating privileges if a future action's supply
+    # chain is compromised.
+    permissions:
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      # SHA-pinned for supply-chain integrity — moving major-version
+      # tags can silently change behavior or pull in compromised
+      # revisions. The `comment:` field documents the version so a
+      # human reviewing the diff can confirm the pinned SHA matches
+      # the expected upstream release.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: '22'
           # No `cache: npm` — this repo has package.json but no lockfile
