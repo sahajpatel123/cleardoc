@@ -13707,6 +13707,62 @@
       }
       if(btn) flashButton(btn, ok ? 'Copied ✓' : 'Copy failed', ok ? 1400 : 1800);
     }
+    // iter #215: build a short, chat-friendly share line. Format:
+    //   "Just analyzed a <doc-type> with ClearDoc — verdict: <label>.
+    //    N risks (X traps · Y watches · Z notes). cleardoc.app"
+    // Lets users paste into Slack/Discord/iMessage without the
+    // longer email body; mirrors the iter #79 exposure shareText
+    // pattern so the two feel related.
+    function buildChatShare(){
+      const order = { r:0, a:1, g:2 };
+      const dt = (typeof detectDocType === 'function') ? detectDocType(lastRaw) : null;
+      const dtWord = (dt && dt.label) ? ('a ' + dt.label.toLowerCase()) : 'a document';
+      let tCount=0, wCount=0, nCount=0;
+      (lastFlags || []).forEach(f => {
+        const sv = f && f.rule && f.rule.sev;
+        if(sv==='r') tCount++;
+        else if(sv==='a') wCount++;
+        else nCount++;
+      });
+      const total = (lastFlags || []).length;
+      const vLabelEl = verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-label');
+      const verdict = (vLabelEl && vLabelEl.textContent.trim()) || 'review';
+      let line = 'Just analyzed ' + dtWord + ' with ClearDoc — verdict: ' + verdict + '.';
+      if(total > 0){
+        const tWord = tCount === 1 ? 'trap'  : 'traps';
+        const wWord = wCount === 1 ? 'watch' : 'watches';
+        const nWord = nCount === 1 ? 'note'  : 'notes';
+        line += ' ' + total + ' risks (' + tCount + ' ' + tWord + ' · ' + wCount + ' ' + wWord + ' · ' + nCount + ' ' + nWord + ').';
+      } else {
+        line += ' No risks detected.';
+      }
+      line += ' cleardoc.app';
+      return line;
+    }
+    async function copyChatShare(){
+      if(!lastRaw){
+        if(msg){msg.textContent='Analyze a document first, then share to chat.'; msg.className='analyze-msg';}
+        return;
+      }
+      const text = buildChatShare();
+      const btn = document.getElementById('chatShareBtn');
+      let ok=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok=true;
+        } else {
+          const ta=document.createElement('textarea');
+          ta.value=text;
+          ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok=document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      }catch(e){
+        console.warn('[chat-share] clipboard failed',e);
+      }
+      if(btn) flashButton(btn, ok ? '✓ copied' : 'Copy failed', ok ? 1400 : 1800);
+    }
     async function copyAnalysis(){
       if(!lastRaw){
         if(msg){msg.textContent='Analyze a document first, then copy the summary.'; msg.className='analyze-msg';}
@@ -16720,6 +16776,12 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     if(emailSummaryBtn) emailSummaryBtn.addEventListener('click', openEmailSummary);
     const copyEmailBtn = document.getElementById('copyEmailBtn');
     if(copyEmailBtn) copyEmailBtn.addEventListener('click', copyEmailSummary);
+    // iter #215: chat-format share — copies a short, chat-friendly
+    // summary to the clipboard for pasting into Slack/Discord/
+    // iMessage/etc. Format mirrors the existing exposure "share
+    // this" shareText pattern (iter #79) so the two feel related.
+    const chatShareBtn = document.getElementById('chatShareBtn');
+    if(chatShareBtn) chatShareBtn.addEventListener('click', copyChatShare);
     // Iter #63: Share-button handler — copies the share one-liner
     // to the clipboard with the standard navigator.clipboard
     // + execCommand fallback pattern (same as the existing
