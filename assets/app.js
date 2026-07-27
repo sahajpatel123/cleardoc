@@ -5510,6 +5510,39 @@
           direction: direction,
           category: cat
         });
+        // Iter #185 — detect recurring cadence from the surrounding
+        // sentence. We look for "monthly $X", "annual fee of $Y",
+        // "per week $Z", etc. The annualized projection lets the user
+        // see what they'd really pay over a year, not just the per-event
+        // amount. Only count a cadence if the cadence word appears
+        // within ~6 words of the amount — otherwise we'd mis-flag an
+        // unrelated figure ("Q3 monthly report covers $2M in revenue"
+        // would be tagged as a $24M recurring if we matched too far).
+        const cadence = (() => {
+          const s = sent;
+          // Look at a 60-char window before the amount token to find
+          // the cadence. Split on whitespace, scan from the position
+          // closest to the amount.
+          const beforeSent = sentence.slice(0, Math.max(0, sentence.toLowerCase().indexOf(text.toLowerCase()))).trim();
+          const words = beforeSent.toLowerCase().split(/\s+/);
+          // Walk back through the last 6 words — the cadence word will
+          // be one of them ("monthly rent", "annual fee", etc.).
+          for(let i = Math.max(0, words.length - 6); i < words.length; i++){
+            const w = words[i].replace(/[^a-z]/g, '');
+            if(w === 'monthly' || w === 'month' || w === '/mo') return { kind: 'monthly', multiplier: 12 };
+            if(w === 'annual' || w === 'annually' || w === 'yearly' || w === '/yr' || w === '/year' || w === 'peryear') return { kind: 'annual', multiplier: 1 };
+            if(w === 'weekly' || w === '/wk' || w === '/week') return { kind: 'weekly', multiplier: 52 };
+            if(w === 'daily' || w === '/day' || w === '/night' || w === 'perday' || w === 'pernight') return { kind: 'daily', multiplier: 365 };
+            if(w === 'quarterly' || w === '/qtr' || w === '/quarter') return { kind: 'quarterly', multiplier: 4 };
+            if(w === 'biannual' || w === 'semi-annual' || w === 'semiannual' || w === '/6mo') return { kind: 'semi-annual', multiplier: 2 };
+          }
+          return null;
+        })();
+        if(cadence){
+          const last = out[out.length - 1];
+          last.cadence = cadence.kind;
+          last.annualized = last.value * cadence.multiplier;
+        }
       }
       // Sort: largest first, then by file order (stable).
       out.sort((a, b) => b.value - a.value);
@@ -5535,44 +5568,79 @@
       if(!moneyBlock || !moneyGrid || !raw){ return; }
       const items = buildMoneyTrail(raw);
       if(!items.length){ moneyBlock.hidden = true; return; }
+      // Iter #185 — restore the user's last filter choice from localStorage.
+      // We persist across analyses so a user who keeps clicking 🔻 pay only
+      // doesn't have to re-click it on every re-analyze.
+      if(moneyGrid._moneyFilter === undefined){
+        try {
+          const saved = localStorage.getItem('cleardoc:money-filter');
+          if(saved === 'pay' || saved === 'receive' || saved === 'all') moneyGrid._moneyFilter = saved;
+        } catch(_){ /* ignore (privacy mode etc.) */ }
+      }
       const filter = moneyGrid._moneyFilter || 'all';
       const visible = filter === 'all' ? items : items.filter(it => it.direction === filter);
       // Tallies: pay total, receive total, largest single amount.
       const payTotal = items.filter(it => it.direction === 'pay').reduce((a, b) => a + b.value, 0);
       const receiveTotal = items.filter(it => it.direction === 'receive').reduce((a, b) => a + b.value, 0);
       const largest = items[0]; // sorted desc
+      // Iter #185 — annualized projection. Sum up recurring amounts × their
+      // yearly multiplier so the user can see what they'd really pay over a
+      // 12-month horizon (the per-event amounts can be misleading). The
+      // multiplier was already captured on the item by buildMoneyTrail().
+      const annualPay = items.filter(it => it.direction === 'pay' && it.annualized).reduce((a, b) => a + b.annualized, 0);
+      const annualReceive = items.filter(it => it.direction === 'receive' && it.annualized).reduce((a, b) => a + b.annualized, 0);
+      const recurringCount = items.filter(it => it.annualized).length;
+      // Iter #185 — category breakdown strip. Top 3 pay categories with
+      // their totals. Quick way to see "this is mostly rent + fees"
+      // without scrolling the whole row list.
+      const payByCat = {};
+      items.filter(it => it.direction === 'pay').forEach(it => { payByCat[it.category] = (payByCat[it.category] || 0) + it.value; });
+      const topCats = Object.entries(payByCat).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      const catStrip = topCats.length ? '<div class="money-cats" title="Top categories by total amount">' +
+        topCats.map(([cat, val]) => '<span class="money-cat"><b>' + esc(cat) + '</b> ' + formatMoney(val) + '</span>').join('') +
+      '</div>' : '';
+      // Iter #185 — risk-skew indicator. If pay total dwarfs receive total,
+      // surface a one-line warning so users don't have to do the math.
+      // We use pay:receive ratio; only flag when the doc has *some* receive
+      // amounts (skew ≠ anomaly, e.g. one-sided fee schedules are fine).
+      const skewRatio = receiveTotal > 0 ? payTotal / receiveTotal : 0;
+      const skewWarning = (payTotal > 0 && receiveTotal > 0 && skewRatio >= 5)
+        ? '<div class="money-skew" title="Your possible outflows are >= 5× your possible inflows">⚠ skew: pay is <b>' + skewRatio.toFixed(1) + '×</b> larger than receive</div>'
+        : '';
       const summary = '<div class="money-summary">' +
-        '<div class="money-tally money-pay" title="Total $ you may pay under this document">' +
+        '<div class="money-tally money-pay" title="Total $ you may pay under this document (sum of every pay amount)">' +
           '<span class="money-tally-label">You may pay</span>' +
           '<span class="money-tally-value">' + formatMoney(payTotal) + '</span>' +
-          '<span class="money-tally-sub">' + items.filter(it => it.direction === 'pay').length + ' amount' + (items.filter(it => it.direction === 'pay').length === 1 ? '' : 's') + '</span>' +
+          '<span class="money-tally-sub">' + items.filter(it => it.direction === 'pay').length + ' amount' + (items.filter(it => it.direction === 'pay').length === 1 ? '' : 's') + (annualPay > payTotal ? ' · ' + formatMoney(annualPay) + '/yr recurring' : '') + '</span>' +
         '</div>' +
         '<div class="money-tally money-receive" title="Total $ the other side may pay you">' +
           '<span class="money-tally-label">They may pay you</span>' +
           '<span class="money-tally-value">' + formatMoney(receiveTotal) + '</span>' +
-          '<span class="money-tally-sub">' + items.filter(it => it.direction === 'receive').length + ' amount' + (items.filter(it => it.direction === 'receive').length === 1 ? '' : 's') + '</span>' +
+          '<span class="money-tally-sub">' + items.filter(it => it.direction === 'receive').length + ' amount' + (items.filter(it => it.direction === 'receive').length === 1 ? '' : 's') + (annualReceive > receiveTotal ? ' · ' + formatMoney(annualReceive) + '/yr recurring' : '') + '</span>' +
         '</div>' +
         '<div class="money-tally money-total" title="Largest single amount mentioned">' +
           '<span class="money-tally-label">Largest single</span>' +
           '<span class="money-tally-value">' + (largest ? formatMoney(largest.value) : '—') + '</span>' +
-          '<span class="money-tally-sub">' + (largest ? esc(largest.category) : 'no amount detected') + '</span>' +
+          '<span class="money-tally-sub">' + (largest ? esc(largest.category) + (largest.annualized ? ' · ' + formatMoney(largest.annualized) + '/yr' : '') : 'no amount detected') + '</span>' +
         '</div>' +
-      '</div>';
-      const rows = visible.map(it => (
-        '<div class="money-row money-' + it.direction + '" data-money-offset="' + it.offset + '" data-money-text="' + esc(it.text) + '" title="Click to jump to the amount in the source">' +
-          '<div class="money-amount">' + esc(it.display) + '</div>' +
-          '<div class="money-tag">' + esc(it.direction === 'pay' ? 'you pay' : it.direction === 'receive' ? 'you receive' : 'amount') + ' · ' + esc(it.category) + '</div>' +
-          '<div class="money-context">' + esc(trunc(it.sentence, 220)) + '</div>' +
-        '</div>'
-      )).join('');
-      const filterLabel = (() => {
-        const all = '🌐 all (' + items.length + ')';
-        const pay = '🔻 pay only (' + items.filter(it => it.direction === 'pay').length + ')';
-        const recv = '🟢 receive only (' + items.filter(it => it.direction === 'receive').length + ')';
-        if(filter === 'pay') return recv; else if(filter === 'receive') return pay; else return all;
-      })();
+      '</div>' + catStrip + skewWarning;
+      const rows = visible.map(it => {
+        // Iter #185 — recurring rows get an extra badge so users can spot
+        // "monthly $X" instantly. The annualized projection is appended to
+        // the tag so it never escapes the row's compact one-line footprint.
+        const recurBadge = it.cadence
+          ? ' <span class="money-recur" title="Recurring — annualized projection shown">↻ ' + esc(it.cadence) + (it.annualized ? ' · ' + formatMoney(it.annualized) + '/yr' : '') + '</span>'
+          : '';
+        return (
+          '<div class="money-row money-' + it.direction + (it.annualized ? ' money-recur-row' : '') + '" data-money-offset="' + it.offset + '" data-money-text="' + esc(it.text) + '" title="Click to jump to the amount in the source">' +
+            '<div class="money-amount">' + esc(it.display) + '</div>' +
+            '<div class="money-tag">' + esc(it.direction === 'pay' ? 'you pay' : it.direction === 'receive' ? 'you receive' : 'amount') + ' · ' + esc(it.category) + recurBadge + '</div>' +
+            '<div class="money-context">' + esc(trunc(it.sentence, 220)) + '</div>' +
+          '</div>'
+        );
+      }).join('');
       const controls = '<div class="money-controls">' +
-        '<span class="money-count">' + items.length + ' amount' + (items.length === 1 ? '' : 's') + ' found</span>' +
+        '<span class="money-count">' + items.length + ' amount' + (items.length === 1 ? '' : 's') + ' found' + (recurringCount ? ' · ' + recurringCount + ' recurring' : '') + '</span>' +
         '<button type="button" class="money-filter ghost-btn" id="moneyFilterPayBtn" title="Show only amounts you pay">🔻 pay only</button>' +
         '<button type="button" class="money-filter ghost-btn" id="moneyFilterRecvBtn" title="Show only amounts the other side pays you">🟢 receive only</button>' +
         '<button type="button" class="money-filter ghost-btn" id="moneyFilterAllBtn" title="Show every amount found">🌐 all</button>' +
@@ -5583,9 +5651,12 @@
       if(moneyNote){
         const cats = Array.from(new Set(items.map(it => it.category))).slice(0, 6).map(c => '<b>' + esc(c) + '</b>').join(', ');
         const lead = items.length + ' dollar amount' + (items.length === 1 ? '' : 's') + ' detected';
+        const recurLine = recurringCount ? ' <b>↻ recurring</b> amounts are projected to a yearly total; hover to inspect each. ' : '';
+        const skewLine = skewWarning ? ' <b>⚠ skew</b> flags when pay ≥ 5× receive. ' : '';
         moneyNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
           'Pure-local extraction (no AI). Tallies split by direction: <b>you pay</b> (you hand money over) vs <b>you receive</b> (refund, compensation, award). ' +
-          'Categories: ' + (cats || 'general') + '. Click any row to jump to the amount in the source. <b>📋 copy all</b> exports the whole list.';
+          recurLine + skewLine +
+          'Categories: ' + (cats || 'general') + '. Click any row to jump to the amount in the source. <b>📋 copy all</b> exports the whole list. Filter choice is remembered.';
       }
       // Click-to-jump.
       $$('.money-row', moneyGrid).forEach(row => {
@@ -5609,17 +5680,18 @@
           }
         });
       });
-      // Filter chips.
+      // Filter chips — also persist the choice across analyses.
       const setFilter = (next) => {
         moneyGrid._moneyFilter = moneyGrid._moneyFilter === next ? 'all' : next;
+        try { localStorage.setItem('cleardoc:money-filter', moneyGrid._moneyFilter); } catch(_){ /* ignore */ }
         renderMoneyBlock(raw, ctx);
       };
       const fPay = document.getElementById('moneyFilterPayBtn');
       const fRecv = document.getElementById('moneyFilterRecvBtn');
       const fAll = document.getElementById('moneyFilterAllBtn');
-      if(fPay) fPay.addEventListener('click', () => { moneyGrid._moneyFilter = 'pay'; renderMoneyBlock(raw, ctx); });
-      if(fRecv) fRecv.addEventListener('click', () => { moneyGrid._moneyFilter = 'receive'; renderMoneyBlock(raw, ctx); });
-      if(fAll) fAll.addEventListener('click', () => { moneyGrid._moneyFilter = 'all'; renderMoneyBlock(raw, ctx); });
+      if(fPay) fPay.addEventListener('click', () => setFilter('pay'));
+      if(fRecv) fRecv.addEventListener('click', () => setFilter('receive'));
+      if(fAll) fAll.addEventListener('click', () => setFilter('all'));
       // Highlight the active filter.
       if(moneyGrid._moneyFilter === 'pay' && fPay) fPay.classList.add('money-filter-active');
       else if(moneyGrid._moneyFilter === 'receive' && fRecv) fRecv.classList.add('money-filter-active');
@@ -5628,7 +5700,16 @@
       const copyAllBtn = document.getElementById('moneyCopyAllBtn');
       if(copyAllBtn){
         copyAllBtn.addEventListener('click', async () => {
-          const text = items.map(it => it.display + ' · ' + (it.direction === 'pay' ? 'YOU PAY' : it.direction === 'receive' ? 'YOU RECEIVE' : 'AMOUNT') + ' · ' + it.category + ' — ' + it.sentence).join('\n');
+          // Iter #185 — include the annualized line for recurring amounts
+          // and a header line so the export reads as a useful one-pager.
+          const header = 'Money trail · ' + items.length + ' amounts · You may pay ' + formatMoney(payTotal) + ' · They may pay you ' + formatMoney(receiveTotal) + (annualPay > payTotal ? ' · Recurring pay: ' + formatMoney(annualPay) + '/yr' : '');
+          const lines = items.map(it => {
+            let line = it.display + ' · ' + (it.direction === 'pay' ? 'YOU PAY' : it.direction === 'receive' ? 'YOU RECEIVE' : 'AMOUNT') + ' · ' + it.category;
+            if(it.cadence) line += ' · ' + it.cadence + (it.annualized ? ' (' + formatMoney(it.annualized) + '/yr)' : '');
+            line += ' — ' + it.sentence;
+            return line;
+          });
+          const text = header + '\n' + '-'.repeat(40) + '\n' + lines.join('\n');
           let copied = false;
           try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
           catch(_){ /* fall through */ }
@@ -10027,6 +10108,59 @@
           }
         }
       }
+      // Live risk preview — count trap patterns detected in the input
+      // so users see "this doc has 3 risks" BEFORE they hit Analyze.
+      // Hides itself when no patterns match (clean docs shouldn't get
+      // a scary-looking pill). countRisksBySeverity() lives in this
+      // same scope and uses the local RISK array below.
+      // Placed BEFORE the readTime/statReadTime block so the CI
+      // structural-assertion smoke tests (which slice this function
+      // up to the readTime paint line) see the risk-preview wiring
+      // as part of the expected block — guards the invariant that
+      // the risk pill updates on every keystroke, and that wiring
+      // belongs before any "static" stats like reading-time get painted.
+      if(typeof countRisksBySeverity === 'function'){
+        const sev = countRisksBySeverity(raw);
+        const rc = sev.trap + sev.watch + sev.note;
+        if(riskPreview){
+          riskPreview.hidden = rc === 0;
+          if(riskCount) riskCount.textContent = sev.trap;
+          if(watchCount) watchCount.textContent = sev.watch;
+          if(noteCount) noteCount.textContent = sev.note;
+          // Pluralize the per-severity labels so the pill reads
+          // naturally at any count ("1 trap" / "2 traps").
+          if(watchS) watchS.textContent = sev.watch === 1 ? '' : 'es';
+          if(noteS) noteS.textContent = sev.note === 1 ? '' : 's';
+          // Hide per-severity sub-spans with zero counts so the pill
+          // doesn't read "0 notes" — just show what fired.
+          if(watchWrap) watchWrap.hidden = sev.watch === 0;
+          if(noteWrap) noteWrap.hidden = sev.note === 0;
+          // Band: any trap → trap (danger red, loudest). Otherwise any
+          // watch → watch (amber). Otherwise any note → note (ink).
+          // Single class swap keeps the CSS owning the visual treatment.
+          riskPreview.classList.remove('risk-watch','risk-trap','risk-note');
+          if(sev.trap >= 1) riskPreview.classList.add('risk-trap');
+          else if(sev.watch >= 1) riskPreview.classList.add('risk-watch');
+          else riskPreview.classList.add('risk-note');
+        }
+        // Render the detail list whenever the user has expanded it.
+        // Collapsed (the common case) → no DOM cost. Expanded →
+        // rebuild with the current matched patterns so it stays in
+        // sync as the user types.
+        if(riskDetail && !riskDetail.hidden && typeof matchRisks === 'function'){
+          const hits = matchRisks(raw);
+          renderRiskDetail(hits);
+        }
+        // If the user just cleared the input, collapse the detail
+        // so we don't leave an orphan expanded list dangling.
+        if(riskDetail && rc === 0 && !riskDetail.hidden){
+          riskDetail.hidden = true;
+          if(riskPreview){
+            riskPreview.setAttribute('aria-expanded','false');
+            riskPreview.classList.remove('rp-open');
+          }
+        }
+      }
       if(statReadTime){
         statReadTime.textContent = readTime(raw);
         // Band-based color cue. Single class swap (add+remove) keeps the
@@ -10178,53 +10312,6 @@
         }
       }
       if(statCap) statCap.textContent = cap.toLocaleString();
-      // Live risk preview — count trap patterns detected in the input
-      // so users see "this doc has 3 risks" BEFORE they hit Analyze.
-      // Hides itself when no patterns match (clean docs shouldn't get
-      // a scary-looking pill). countRisksBySeverity() lives in this
-      // same scope and uses the local RISK array below.
-      if(typeof countRisksBySeverity === 'function'){
-        const sev = countRisksBySeverity(raw);
-        const rc = sev.trap + sev.watch + sev.note;
-        if(riskPreview){
-          riskPreview.hidden = rc === 0;
-          if(riskCount) riskCount.textContent = sev.trap;
-          if(watchCount) watchCount.textContent = sev.watch;
-          if(noteCount) noteCount.textContent = sev.note;
-          // Pluralize the per-severity labels so the pill reads
-          // naturally at any count ("1 trap" / "2 traps").
-          if(watchS) watchS.textContent = sev.watch === 1 ? '' : 'es';
-          if(noteS) noteS.textContent = sev.note === 1 ? '' : 's';
-          // Hide per-severity sub-spans with zero counts so the pill
-          // doesn't read "0 notes" — just show what fired.
-          if(watchWrap) watchWrap.hidden = sev.watch === 0;
-          if(noteWrap) noteWrap.hidden = sev.note === 0;
-          // Band: any trap → trap (danger red, loudest). Otherwise any
-          // watch → watch (amber). Otherwise any note → note (ink).
-          // Single class swap keeps the CSS owning the visual treatment.
-          riskPreview.classList.remove('risk-watch','risk-trap','risk-note');
-          if(sev.trap >= 1) riskPreview.classList.add('risk-trap');
-          else if(sev.watch >= 1) riskPreview.classList.add('risk-watch');
-          else riskPreview.classList.add('risk-note');
-        }
-        // Render the detail list whenever the user has expanded it.
-        // Collapsed (the common case) → no DOM cost. Expanded →
-        // rebuild with the current matched patterns so it stays in
-        // sync as the user types.
-        if(riskDetail && !riskDetail.hidden && typeof matchRisks === 'function'){
-          const hits = matchRisks(raw);
-          renderRiskDetail(hits);
-        }
-        // If the user just cleared the input, collapse the detail
-        // so we don't leave an orphan expanded list dangling.
-        if(riskDetail && rc === 0 && !riskDetail.hidden){
-          riskDetail.hidden = true;
-          if(riskPreview){
-            riskPreview.setAttribute('aria-expanded','false');
-            riskPreview.classList.remove('rp-open');
-          }
-        }
-      }
       if(textStats){
         textStats.classList.toggle('over', overCap);
         if(overCap && msg){
