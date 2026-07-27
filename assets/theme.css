@@ -949,6 +949,12 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-built .rrow .rrow-expand{position:absolute;right:8px;top:30px;background:transparent;border:1px solid var(--ink);padding:2px 7px;font-size:11px;cursor:pointer;opacity:.7}
 .risk-built .rrow:hover .rrow-expand{opacity:1}
 .risk-built .rrow.rrow-expanded{box-shadow:6px 6px 0 var(--ink);transform:translate(-2px,-2px)}
+/* iter #209: multi-flag sentence indicator — small "🔗 N in same
+   sentence" pill on rows whose sentence triggered 2+ local RISK
+   patterns. Sits below the row text in a green-tinted box so the
+   warning reads as "this is dense legalese, read carefully" rather
+   than alarming. */
+.risk-built .rrow .rrow-cluster{display:inline-block;margin-top:8px;font-family:'JetBrains Mono';font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--green);background:var(--green-tint);border:1px solid var(--green);padding:3px 8px;cursor:help}
 /* iter #205: in-analysis find bar — small search input pinned above
    the result panel that highlights matches across all rendered blocks
    (rewrite, risks, deadlines, scenarios, bearer). Uses CSS custom

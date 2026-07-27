@@ -12118,6 +12118,33 @@
         row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>'+counterHtml+
           (counter ? '<button type="button" class="rrow-expand" aria-expanded="false" title="Show counter-suggestion">▾</button>' : '');
         riskList.appendChild(row); });
+      // iter #209: multi-flag sentence indicator — sentences that
+      // triggered 2+ local RISK patterns get a small "🔗 N in same
+      // sentence" badge on each affected row so users can spot dense
+      // legalese clusters. AI-only risks (i = -1) are skipped because
+      // we don't have a sentence index for them.
+      try {
+        const counts = new Map();
+        flags.forEach(f => {
+          if(typeof f.i === 'number' && f.i >= 0){
+            counts.set(f.i, (counts.get(f.i) || 0) + 1);
+          }
+        });
+        const rows = riskList.querySelectorAll('.rrow');
+        flags.forEach((f, idx) => {
+          if(typeof f.i !== 'number' || f.i < 0) return;
+          const c = counts.get(f.i);
+          if(!c || c < 2) return;
+          const row = rows[idx];
+          if(!row) return;
+          const badge = document.createElement('span');
+          badge.className = 'rrow-cluster mono no-print';
+          badge.setAttribute('aria-label', c + ' risks in the same sentence');
+          badge.title = c + ' risks in the same sentence — this is dense legalese, read carefully';
+          badge.textContent = '🔗 ' + c + ' in same sentence';
+          row.appendChild(badge);
+        });
+      } catch(_) { /* non-fatal */ }
       wireRiskRowExpand();
       paintRiskFilter(flags);
       paintTopConcern(flags);
@@ -12648,6 +12675,30 @@
             (counter ? '<button type="button" class="rrow-expand" aria-expanded="false" title="Show counter-suggestion">▾</button>' : '');
           riskList.appendChild(row);
         });
+        // iter #209: multi-flag sentence indicator — same logic as the
+        // local-render path above.
+        try {
+          const counts = new Map();
+          lastFlags.forEach(f => {
+            if(typeof f.i === 'number' && f.i >= 0){
+              counts.set(f.i, (counts.get(f.i) || 0) + 1);
+            }
+          });
+          const rows = riskList.querySelectorAll('.rrow');
+          lastFlags.forEach((f, idx) => {
+            if(typeof f.i !== 'number' || f.i < 0) return;
+            const c = counts.get(f.i);
+            if(!c || c < 2) return;
+            const row = rows[idx];
+            if(!row) return;
+            const badge = document.createElement('span');
+            badge.className = 'rrow-cluster mono no-print';
+            badge.setAttribute('aria-label', c + ' risks in the same sentence');
+            badge.title = c + ' risks in the same sentence — this is dense legalese, read carefully';
+            badge.textContent = '🔗 ' + c + ' in same sentence';
+            row.appendChild(badge);
+          });
+        } catch(_) { /* non-fatal */ }
         wireRiskRowExpand();
         paintRiskFilter(lastFlags);
         paintTopConcern(lastFlags);
