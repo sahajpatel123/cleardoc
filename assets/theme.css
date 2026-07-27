@@ -950,6 +950,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .find-bar .find-count{font-size:var(--t-meta-sm);color:var(--ink-soft);min-width:80px}
 .find-bar .find-clear{padding:4px 10px;font-size:var(--t-meta-sm)}
 .find-bar mark{background:var(--accent-glow);color:inherit;padding:0 2px;border-radius:2px}
+/* iter #205 v2: stronger tint on the current match so users can see
+   which one Enter / Shift+Enter will jump to next. */
+.find-bar mark.mark-current{background:var(--accent);color:var(--paper)}
 /* iter #201 v2: "showing X of Y" pill that appears at the right of the
    filter strip whenever a non-'all' filter is active. Aligns with the
    baseline of the buttons, mono font, muted color. */

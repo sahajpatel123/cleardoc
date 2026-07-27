@@ -972,7 +972,9 @@
   // live count. Wires the clear button and Cmd/Ctrl+F focus shortcut.
   // Re-renders wipe the marks (rows are replaced) so no cleanup is
   // needed across renders — the next find just re-walks fresh DOM.
-  const _findState = { marks: [], active: false };
+  // v2: Enter / Shift+Enter jump between matches; counter shows
+  // 'N/M' position; active match gets a stronger tint.
+  const _findState = { marks: [], active: false, idx: -1 };
   function clearFindMarks(){
     for(const m of _findState.marks){
       const parent = m && m.parentNode;
@@ -983,6 +985,18 @@
     }
     _findState.marks = [];
     _findState.active = false;
+    _findState.idx = -1;
+  }
+  function highlightCurrentMatch(){
+    // Drop the strong class from every mark, then add it to the
+    // current one. Idempotent; safe to call when marks is empty.
+    for(let i = 0; i < _findState.marks.length; i++){
+      _findState.marks[i].classList.toggle('mark-current', i === _findState.idx);
+    }
+    const cur = _findState.marks[_findState.idx];
+    if(cur && typeof cur.scrollIntoView === 'function'){
+      try { cur.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_) { /* ignore */ }
+    }
   }
   function runFind(term){
     clearFindMarks();
@@ -1033,8 +1047,25 @@
       }
       node.parentNode.replaceChild(frag, node);
     }
-    if(countEl) countEl.textContent = total + ' match' + (total === 1 ? '' : 'es');
-    _findState.active = total > 0;
+    if(total > 0){
+      _findState.idx = 0;
+      _findState.active = true;
+      highlightCurrentMatch();
+    }
+    if(countEl){
+      const total_ = _findState.marks.length;
+      countEl.textContent = total_ > 0
+        ? ((_findState.idx + 1) + '/' + total_ + ' matches')
+        : '0 matches';
+    }
+  }
+  function moveFind(dir){
+    const n = _findState.marks.length;
+    if(n === 0) return;
+    _findState.idx = ((_findState.idx + dir) % n + n) % n; // safe modulo for negative
+    highlightCurrentMatch();
+    const countEl = document.getElementById('findCount');
+    if(countEl) countEl.textContent = (_findState.idx + 1) + '/' + n + ' matches';
   }
   function wireFindInAnalysis(){
     const bar = document.getElementById('findBar');
@@ -1049,6 +1080,21 @@
       clearTimeout(timer);
       const v = input.value;
       timer = setTimeout(() => runFind(v), 80);
+    });
+    // iter #205 v2: Enter / Shift+Enter navigation between matches
+    input.addEventListener('keydown', e => {
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        moveFind(e.shiftKey ? -1 : 1);
+      } else if(e.key === 'Escape'){
+        if(input.value){
+          e.preventDefault();
+          input.value = '';
+          clearFindMarks();
+          const countEl = document.getElementById('findCount');
+          if(countEl) countEl.textContent = '';
+        }
+      }
     });
     if(clear) clear.addEventListener('click', () => {
       input.value = '';
