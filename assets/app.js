@@ -864,6 +864,34 @@
   // an at-a-glance callout above the radar so users get an immediate
   // "if you only read one thing, read this" signal. Hidden when there
   // are no flags (matches the risk summary footer behavior).
+  // iter #214: top counter-suggestions panel — picks the 3 most-
+  // actionable counter-suggestions (severity-priority: traps first,
+  // then watches) and shows them above the risk radar. Lets users
+  // see "what to negotiate" at a glance without scrolling through
+  // every risk row + expand toggle. Hidden when no rule has a
+  // counter-suggestion (e.g. AI-only docs).
+  function paintCounterSummary(){
+    const wrap = document.getElementById('counterSummary');
+    const list = document.getElementById('counterSummaryList');
+    if(!wrap || !list) return;
+    const order = { r:0, a:1, g:2 };
+    const sortable = (lastFlags || []).filter(f => f && f.rule && f.rule.counter && typeof f.rule.counter === 'string' && f.rule.counter.trim().length > 0);
+    if(sortable.length === 0){ wrap.hidden = true; list.innerHTML = ''; return; }
+    sortable.sort((x, y) => {
+      const ox = order[(x && x.rule && x.rule.sev)] ?? 3;
+      const oy = order[(y && y.rule && y.rule.sev)] ?? 3;
+      if(ox !== oy) return ox - oy;
+      return 0;
+    });
+    const top = sortable.slice(0, 3);
+    list.innerHTML = top.map((f) => {
+      const sev = f.rule.sev;
+      const sevClass = sev === 'r' ? 'cs-trap' : sev === 'a' ? 'cs-watch' : 'cs-note';
+      const sevWord = sev === 'r' ? 'TRAP' : sev === 'a' ? 'WATCH' : 'NOTE';
+      return '<li><span class="cs-sev ' + sevClass + '">' + sevWord + '</span>' + esc(f.rule.counter) + '</li>';
+    }).join('');
+    wrap.hidden = false;
+  }
   function paintTopConcern(flags){
     const el = document.getElementById('topConcern');
     if(!el) return;
@@ -12351,6 +12379,7 @@
       setAnalyzedTimestamp(Date.now());
       paintDocFingerprint();
       paintReanalysisDelta();
+      paintCounterSummary();
       // severity so the user can see WHERE the traps cluster.
       // Iter #89: click-to-jump on tiles + a "View only flagged"
       // filter chip + a "view mode" toggle (tiles ↔ inline list).
@@ -12907,6 +12936,7 @@
         setAnalyzedTimestamp(Date.now());
         paintDocFingerprint();
         paintReanalysisDelta();
+        paintCounterSummary();
       }
 
       // Verdict
