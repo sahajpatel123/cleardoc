@@ -13402,7 +13402,23 @@
       // saw, even when no per-risk detail follows.
       // iter #209 v2: appends cluster count when at least one
       // multi-flag sentence exists (same data the on-page badge shows).
+      // iter #214 v2: prepends the top counter-suggestions (the panel
+      // shows the top 3 — what to negotiate at a glance) so the
+      // .md export carries the same actionable content the panel
+      // shows, even when no per-risk detail follows.
       if(lastFlags && lastFlags.length){
+        const order = { r:0, a:1, g:2 };
+        const _csSortable = lastFlags.filter(f => f && f.rule && f.rule.counter && typeof f.rule.counter === 'string' && f.rule.counter.trim().length > 0);
+        if(_csSortable.length > 0){
+          _csSortable.sort((x, y) => (order[(x&&x.rule&&x.rule.sev)]??3) - (order[(y&&y.rule&&y.rule.sev)]??3));
+          const _csTop = _csSortable.slice(0, 3);
+          md.push('> **📋 Top counter-suggestions (what to negotiate):**');
+          _csTop.forEach(f => {
+            const sevWord = f.rule.sev === 'r' ? 'TRAP' : f.rule.sev === 'a' ? 'WATCH' : 'NOTE';
+            md.push('> - **[' + sevWord + ']** ' + f.rule.counter);
+          });
+          md.push('');
+        }
         let tCount=0,aCount=0,nCount=0;
         let clusterCount=0;
         const _tallyClusterMap = new Map();
@@ -13597,6 +13613,19 @@
         lines.push('"' + q + '"');
         if(top.rule.why) lines.push('Why: ' + top.rule.why);
         if(top.rule.counter) lines.push('Counter-suggestion: ' + top.rule.counter);
+        lines.push('');
+      }
+      // iter #214 v2: top counter-suggestions panel — same data the
+      // on-page panel shows, in the same severity-priority order.
+      const _emOrder = { r:0, a:1, g:2 };
+      const _emSortable = (lastFlags || []).filter(f => f && f.rule && f.rule.counter && typeof f.rule.counter === 'string' && f.rule.counter.trim().length > 0);
+      if(_emSortable.length > 0){
+        _emSortable.sort((x, y) => (_emOrder[(x&&x.rule&&x.rule.sev)]??3) - (_emOrder[(y&&y.rule&&y.rule.sev)]??3));
+        lines.push('TOP COUNTER-SUGGESTIONS (what to negotiate)');
+        _emSortable.slice(0, 3).forEach(f => {
+          const sevWord = f.rule.sev === 'r' ? 'TRAP' : f.rule.sev === 'a' ? 'WATCH' : 'NOTE';
+          lines.push('  - [' + sevWord + '] ' + f.rule.counter);
+        });
         lines.push('');
       }
       lines.push('TOP RISKS (up to 3)');
