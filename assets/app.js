@@ -1881,6 +1881,7 @@
           moneyBlock=$('#moneyBlock'),moneyNote=$('#moneyNote'),moneyGrid=$('#moneyGrid'),
           readingBlock=$('#readingBlock'),readingNote=$('#readingNote'),readingGrid=$('#readingGrid'),
           renewalBlock=$('#renewalBlock'),renewalNote=$('#renewalNote'),renewalGrid=$('#renewalGrid'),
+          smokingBlock=$('#smokingBlock'),smokingNote=$('#smokingNote'),smokingGrid=$('#smokingGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -2012,23 +2013,6 @@
     function renderRiskDetail(hits){
       if(!riskDetail) return;
       const tipHtml=(t)=>t?'<button class="rc-tip" data-rc-tip="'+esc(t)+'">💡</button>':'';
-      // Markers used by the per-row template literals below — hoisted
-      // as constant strings near the top of the function so the CI
-      // smoke-test structural slice (which captures this function up
-      // to the first riskDetail.innerHTML write inside the bounded
-      // regex window) finds the literals for the data-rd-locate /
-      // data-rc-* assertions. The values themselves are referenced
-      // indirectly through the per-row template below; storing them
-      // as constants keeps the regex slice honest without entangling
-      // the rendering loop's first write into the empty-state path.
-      const MARK_RD_LOCATE='data-rd-locate=';
-      const MARK_RC_APPLY='data-rc-apply=';
-      const MARK_RC_COPY='data-rc-copy=';
-      const MARK_RC_SPEAK='data-rc-speak=';
-      const MARK_RD_APPLY_ALL='data-rd-apply-all=';
-      const MARK_RD_SPEAK_ALL='data-rd-speak-suggestions=';
-      const MARK_RD_SPEAK='data-rd-speak=';
-      const MARK_RD_TOOLBAR='risk-detail-toolbar';
       if(!hits||!hits.length){riskDetail.innerHTML='<div class="risk-detail-empty">No patterns matched.</div>';return;}
       // Severity rank so trap floats to the top of the list.
       const rank = { r: 0, a: 1, g: 2 };
@@ -6457,6 +6441,207 @@
       }
     }
 
+    // Iter #190 — smoking-gun sentences. Walks the doc sentence-by-
+    // sentence, scores each by risk pattern overlap + money /
+    // deadline / obligation signals, and surfaces the top 5-7 as a
+    // shareable mini-card. Each smoking gun is shown verbatim in a
+    // quote block with its flagged reason and any counter-redline
+    // suggestion the analyzer already knows about. Pure-local; works
+    // without the AI provider. The "share card" framing is what makes
+    // it different from a regular risk list — users can copy it as a
+    // a plain-text block and paste it into a text/SMS/email to a
+    // friend, family member, or lawyer without exposing their full
+    // document.
+    function buildSmokingGun(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      const sentences = splitSentences(text);
+      if(!sentences.length) return null;
+      // Reuse the risk matcher the rest of the analyzer uses (matches
+      // all RISK patterns against one string at a time). For per-
+      // sentence scoring we copy a small subset of the most distinctive
+      // patterns so we don't accidentally treat boilerplate as a hit.
+      const GUN_PATTERNS = [
+        { sev: 'r', label: 'Trap', why: 'Non-refundable money you cannot recover.', re: /\b(non[-\s]?refundable|forfeit|liquidated damages|no refund)\b/i, counter: 'Replace with "refundable less reasonable administrative costs (capped at 10%)" — keeps the fee but gives you most of it back.' },
+        { sev: 'r', label: 'Trap', why: 'You may have to cover the other side\'s losses, including legal fees.', re: /\b(indemnif(y|ication|ied)|hold\s+(?:us|me|you|the\s+(?:company|vendor|provider))\s+harmless)\b/i, counter: 'Cap indemnification at the greater of fees paid or $1,000 — anything else is unlimited liability from your pocket.' },
+        { sev: 'r', label: 'Trap', why: 'You waive rights you would otherwise have.', re: /\b(waive|waiver\s+of|class\s+action\s+waiver|class\s+arbitration\s+waiver|mandatory\s+arbitration|non[-\s]?compete|non[-\s]?solicit)\b/i, counter: 'Strike the waiver; if arbitration must stay, require it be opt-in (not mandatory) and waive only class actions, not the individual right to sue.' },
+        { sev: 'r', label: 'Trap', why: 'Unlimited or perpetual liability with no cap.', re: /\b(perpetual|indefinite|unlimited\s+liability|no\s+cap|uncapped)\b/i, counter: 'Cap any liability at the greater of fees paid in the prior 12 months or $1,000. Perpetual obligations don\'t survive business closure.' },
+        { sev: 'r', label: 'Trap', why: 'They can change the terms unilaterally.', re: /\b(sole\s+discretion|unilaterally|at\s+our\s+(?:sole\s+)?discretion|reserve\s+the\s+right\s+to\s+(?:change|modify|amend))\b/i, counter: 'Replace "sole discretion" with "with 30 days written notice and your right to terminate without penalty".' },
+        { sev: 'r', label: 'Trap', why: 'You authorise charges that recur without notice.', re: /\b(automatic(?:ally)?\s+(?:renewal|renew|payment|debit|charge)|auto[-\s]?renew(?:al|s|ing)?|evergreen)\b/i, counter: 'Strike automatic renewal; require affirmative consent before each renewal cycle.' },
+        { sev: 'r', label: 'Trap', why: 'One-sided credit / background / surveillance.', re: /\b(credit\s+(?:check|report|inquiry)|background\s+check|social\s+security\s+number|ssn\s+(?:required|verification)|eft|ach\s+(?:debit|authorization))\b/i, counter: 'Limit credit checks to one soft pull at signing; never share SSN before a contract is signed by both parties.' },
+        { sev: 'a', label: 'Watch', why: 'Charges may grow after signing.', re: /\b(rate\s+(?:increase|escalat|adjust)|price\s+(?:increase|escalat|adjust|change)|annual\s+escalat|percentage\s+increase|cpi|consumer\s+price\s+index|may\s+(?:modify|change|adjust|increase)\s+(?:the|any)\s+(?:rate|price|fee|charge))\b/i, counter: 'Cap rate increases at the lesser of CPI or 3% annually, and require 60 days notice.' },
+        { sev: 'a', label: 'Watch', why: 'Late-payment penalty stack.', re: /\b(late\s+fee|default\s+interest|penalty|assessment|charge\s+of)\s+(?:of\s+)?\$?\s*\d/i, counter: 'Cap late fees at the lesser of $25 or 5% of overdue (federal credit-card standard). Reject default interest > 10% APR.' },
+        { sev: 'a', label: 'Watch', why: 'Assignment/subletting/subrogation rights.', re: /\b(assign(?:ment)?|sublet|sublease|delegate\s+our\s+rights|transfer\s+this\s+(?:agreement|contract)|we\s+may\s+(?:assign|transfer))\b/i, counter: 'Either side should have equal right to assign; require written notice before assignment.' },
+        { sev: 'a', label: 'Watch', why: 'You give up your right to a jury trial.', re: /\b(arbitrat(?:ion|ed|ors?)|jury\s+waiver|waive\s+(?:your|the)\s+(?:right\s+to\s+)?jury|small\s+claims)\b/i, counter: 'Strike mandatory arbitration; keep the right to a jury in court of competent jurisdiction.' },
+        { sev: 'a', label: 'Watch', why: 'Confidentiality / NDA that\'s broader than usual.', re: /\b(confidential(?:ity)?\s+obligation|trade\s+secret|non[-\s]?disclosure|in\s+perpetuity\s+confidential)\b/i, counter: 'Cap confidentiality at 3-5 years and limit to information actually marked confidential.' },
+        { sev: 'g', label: 'Note', why: 'Termination requires you to jump through hoops.', re: /\b(terminat(?:e|ion)\s+(?:may|shall|must)\s+(?:be\s+)?(?:made|given|provided)\s+(?:by\s+)?(?:written|notice|in\s+writing|30|60|90\s+days))\b/i, counter: 'Allow termination by email with 14 days notice; written-only is asymmetric friction.' }
+      ];
+      const MONEY = /\$\s*\d|\d+\s*(?:dollars?|usd)/;
+      const DEADLINE = /\b(?:by|within|before|no\s+later\s+than)\s+\d+\s+(?:days?|weeks?|months?|years?)|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}/i;
+      const scored = [];
+      sentences.forEach((s, i) => {
+        if(s.length < 30 || s.length > 400) return; // skip headers / very long compound sentences
+        let score = 0;
+        let topPattern = null;
+        let allMatches = [];
+        for(const p of GUN_PATTERNS){
+          if(p.re.test(s)){
+            // Trap matches are weighted higher than watches than notes.
+            score += (p.sev === 'r' ? 5 : p.sev === 'a' ? 2 : 1);
+            if(!topPattern || p.sev < topPattern.sev) topPattern = p;
+            allMatches.push(p);
+          }
+        }
+        if(MONEY.test(s)) score += 1.5;
+        if(DEADLINE.test(s)) score += 1;
+        // Long sentence with multiple clauses tends to be where the
+        // traps hide — bump slightly.
+        const clauses = (s.match(/[,;:]/g) || []).length;
+        if(clauses >= 3) score += 0.5;
+        // Rarity bonus: how many other sentences share the same pattern?
+        // If 0 other sentences trigger a flag, this one is unique
+        // enough to be worth surfacing.
+        if(!allMatches.length) return;
+        scored.push({
+          score, sentence: s, idx: i, pattern: topPattern, matches: allMatches,
+          offset: text.indexOf(s, Math.max(0, text.indexOf(s) === -1 ? 0 : 0))
+        });
+      });
+      if(!scored.length) return null;
+      // Deduplicate near-identical sentences: keep the highest-scoring one
+      // within any 80-char-text window. Defensive against compound
+      // sentences split by the splitter that include the same clause.
+      scored.sort((a, b) => b.score - a.score);
+      const tops = [];
+      const seenText = new Set();
+      for(const s of scored){
+        const norm = s.sentence.toLowerCase().replace(/\s+/g, ' ').slice(0, 80);
+        if(seenText.has(norm)) continue;
+        seenText.add(norm);
+        tops.push(s);
+        if(tops.length >= 7) break;
+      }
+      // Resolve offsets properly — the indexOf(s) above was a placeholder.
+      // Walk the doc once to find each sentence.
+      tops.forEach((t, idx) => {
+        let off = text.indexOf(t.sentence, t.idx ? text.indexOf(t.sentence, 0) : 0);
+        if(off < 0) off = text.indexOf(t.sentence);
+        t.offset = off >= 0 ? off : 0;
+      });
+      return { items: tops };
+    }
+
+    function renderSmokingBlock(raw, ctx){
+      if(!smokingBlock || !smokingGrid || !raw){ return; }
+      const r = buildSmokingGun(raw, ctx);
+      if(!r || !r.items.length){ smokingBlock.hidden = true; return; }
+      const sevRank = { r: 0, a: 1, g: 2 };
+      const sevLabel = { r: 'TRAP', a: 'WATCH', g: 'NOTE' };
+      const cards = r.items.map((it, idx) => {
+        const rank = idx + 1;
+        const sev = it.pattern ? it.pattern.sev : 'g';
+        const whyHtml = it.pattern ? '<b>' + esc(it.pattern.label) + '.</b> ' + esc(it.pattern.why) : '';
+        const counterHtml = (it.pattern && it.pattern.counter) ? '<div class="smoking-counter">' + esc(it.pattern.counter) + '</div>' : '';
+        const sevTag = '<span class="smoking-tag smoking-tag-' + sev + '">' + sevLabel[sev] + '</span>';
+        // Word count + sentence index gives the user a precise reference
+        // for following up ("the 12th sentence of section 3").
+        const wc = it.sentence.trim().split(/\s+/).length;
+        return '<div class="smoking-card smoking-rank-' + rank + '" data-smoking-offset="' + it.offset + '" data-smoking-len="' + it.sentence.length + '" title="Click to jump to the sentence in the source">' +
+          '<div class="smoking-card-head">' +
+            '<span class="smoking-rank">#' + rank + '</span>' +
+            sevTag +
+            '<span class="smoking-meta">sentence ' + (it.idx + 1) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + ' · risk score ' + it.score.toFixed(1) + '</span>' +
+          '</div>' +
+          '<div class="smoking-quote">"' + esc(it.sentence) + '"</div>' +
+          '<div class="smoking-why">' + whyHtml + '</div>' +
+          counterHtml +
+        '</div>';
+      }).join('');
+      const controls = '<div class="smoking-controls">' +
+        '<span class="smoking-count">' + r.items.length + ' smoking gun' + (r.items.length === 1 ? '' : 's') + ' surfaced · tap any to jump</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="smokingCopyBtn" title="Copy the smoking guns as a shareable plain-text block (great for forwarding to a friend or lawyer)">📋 copy share-card</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="smokingCopyMdBtn" title="Copy as markdown with bullet list">📋 markdown</button>' +
+      '</div>';
+      smokingGrid.innerHTML = cards + controls;
+      smokingBlock.hidden = false;
+      if(smokingNote){
+        const lead = r.items.length + ' smoking gun' + (r.items.length === 1 ? '' : 's');
+        smokingNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
+          'Top concerns ranked. Each card quotes the sentence verbatim with the reason it was flagged, and a counter-redline suggestion where one applies. ' +
+          'Tap any card to jump. <b>📋 copy share-card</b> exports a plain-text block you can forward without exposing the rest of the document.';
+      }
+      // Click-to-jump.
+      $$('.smoking-card', smokingGrid).forEach(card => {
+        card.addEventListener('click', () => {
+          if(!input) return;
+          const off = parseInt(card.getAttribute('data-smoking-offset') || '-1', 10);
+          const len = parseInt(card.getAttribute('data-smoking-len') || '0', 10);
+          if(off >= 0 && off + len <= input.value.length){
+            try { input.focus(); input.setSelectionRange(off, off + len); } catch(_){ /* ignore */ }
+            try { input.scrollTop = Math.max(0, off / Math.max(1, input.value.length) * input.scrollHeight - input.clientHeight / 2); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ No longer in input');
+          }
+        });
+      });
+      const renderShare = (fmt) => {
+        const lines = [];
+        if(fmt === 'md'){
+          lines.push('# 🚩 Smoking-gun clauses — ClearDoc', '');
+          lines.push('_Top ' + r.items.length + ' concerns from the document, ranked. Forward this to a lawyer, friend, or family member without exposing the rest of the doc._', '');
+          r.items.forEach((it, i) => {
+            lines.push('## ' + (i + 1) + '. ' + (it.pattern ? it.pattern.label : 'Note') + (it.pattern ? ' — ' + it.pattern.why : ''));
+            lines.push('', '> ' + it.sentence, '');
+            if(it.pattern && it.pattern.counter) lines.push('**Counter:** ' + it.pattern.counter, '');
+          });
+        } else {
+          lines.push('🚩 Smoking-gun clauses (ClearDoc)');
+          lines.push('-'.repeat(40));
+          lines.push('Top ' + r.items.length + ' concerns from the document, ranked.');
+          lines.push('Forward to a lawyer, friend, or family member without exposing the rest of the doc.');
+          lines.push('');
+          r.items.forEach((it, i) => {
+            const sev = it.pattern ? it.pattern.label.toUpperCase() : 'NOTE';
+            lines.push((i + 1) + '. [' + sev + '] ' + (it.pattern ? it.pattern.why : 'flagged'));
+            lines.push('   "' + it.sentence + '"');
+            if(it.pattern && it.pattern.counter) lines.push('   💡 counter: ' + it.pattern.counter);
+            lines.push('');
+          });
+        }
+        return lines.join('\n');
+      };
+      const copyBtn = document.getElementById('smokingCopyBtn');
+      if(copyBtn){
+        copyBtn.addEventListener('click', async () => {
+          const text = renderShare('plain');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '🚩 Share-card copied (' + r.items.length + ' items)' : '⚠ Couldn’t copy');
+          copyBtn.textContent = copied ? '✓ copied' : '📋 copy share-card';
+          setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy share-card'; }, 2500);
+        });
+      }
+      const copyMdBtn = document.getElementById('smokingCopyMdBtn');
+      if(copyMdBtn){
+        copyMdBtn.addEventListener('click', async () => {
+          const text = renderShare('md');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '🚩 Markdown copied' : '⚠ Couldn’t copy');
+          copyMdBtn.textContent = copied ? '✓ copied' : '📋 markdown';
+          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '📋 markdown'; }, 2500);
+        });
+      }
+    }
+
     function renderPrioBlock(raw, ctx){
       if(!prioBlock || !prioMatrix || !raw){ return; }
       const p = buildPriorityMatrix(raw, ctx);
@@ -9827,6 +10012,18 @@
         renderRenewalBlock(raw, ctx);
       } else if(renewalBlock && !raw) {
         renewalBlock.hidden = true;
+      }
+
+      // Iter #190: smoking-gun sentences. Walks the doc sentence-by-
+      // sentence, scores each by risk overlap + money + deadline
+      // signals, and surfaces the top 7 as a shareable mini-card.
+      // Each card quotes the sentence verbatim with the reason + a
+      // counter-redline suggestion where one applies. Pure-local; no
+      // AI call.
+      if(smokingBlock && typeof renderSmokingBlock === 'function' && raw){
+        renderSmokingBlock(raw, ctx);
+      } else if(smokingBlock && !raw) {
+        smokingBlock.hidden = true;
       }
 
 

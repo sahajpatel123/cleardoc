@@ -1668,6 +1668,30 @@ button.risk-preview:hover{filter:brightness(.96)}
 .renewal-countdown{display:flex;align-items:center;gap:10px;padding:6px 14px;background:var(--danger);color:#fff;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin:6px 0 2px;border:var(--bd-hair) solid var(--ink)}
 .renewal-countdown .renewal-ics{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;cursor:pointer;margin-left:auto}
 .renewal-countdown .renewal-ics:hover{background:rgba(255,255,255,.25)}
+
+/* Smoking-gun sentences (iter #190) — top-N most concerning sentences as a shareable mini-card. */
+.smoking-grid{display:flex;flex-direction:column;gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.smoking-card{display:flex;flex-direction:column;gap:4px;padding:10px 14px;border:var(--bd-hair) solid var(--ink);background:#fff;cursor:pointer;transition:filter .15s ease;position:relative}
+.smoking-card:hover{filter:brightness(.96)}
+.smoking-card.smoking-rank-1{border-left:6px solid var(--danger);background:var(--danger-tint)}
+.smoking-card.smoking-rank-2,.smoking-card.smoking-rank-3{border-left:4px solid var(--danger)}
+.smoking-card.smoking-rank-4,.smoking-card.smoking-rank-5{border-left:3px solid var(--amber)}
+.smoking-card-head{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700}
+.smoking-rank{font-family:'Archivo Black',sans-serif;font-size:14px;color:var(--ink);background:var(--paper2);border:1px solid var(--ink-soft);padding:2px 8px;line-height:1}
+.smoking-rank-1 .smoking-rank{background:var(--danger);color:#fff;border-color:var(--danger)}
+.smoking-tag{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;padding:2px 5px;border:1px solid var(--bd-hair);background:#fff}
+.smoking-tag.smoking-tag-r{color:var(--danger);border-color:var(--danger)}
+.smoking-tag.smoking-tag-a{color:var(--amber);border-color:var(--amber);background:#fff8e6}
+.smoking-tag.smoking-tag-g{color:var(--ink-soft)}
+.smoking-quote{font-size:var(--t-card);color:var(--ink);font-style:italic;line-height:1.4;padding:4px 0;border-left:2px solid var(--ink-soft);padding-left:10px;margin:2px 0}
+.smoking-why{font-size:var(--t-micro);color:var(--ink-soft);line-height:1.4}
+.smoking-why b{color:var(--ink)}
+.smoking-counter{font-size:var(--t-micro);color:var(--ink);padding:6px 10px;background:var(--green-tint);border-left:3px solid var(--green);line-height:1.4}
+.smoking-counter:before{content:"💡 counter: ";font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--green);font-weight:700}
+.smoking-meta{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);margin-top:2px}
+.smoking-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
+.smoking-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
+.smoking-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto;font-weight:700;letter-spacing:.06em}
 .money-context{font-size:var(--t-micro);color:var(--ink);flex:1;min-width:0;line-height:1.4}
 .money-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .money-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
