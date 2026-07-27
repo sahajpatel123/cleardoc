@@ -938,6 +938,17 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-built .rrow{position:relative}
 .risk-built .rrow .rrow-ask{position:absolute;right:8px;top:8px;padding:3px 8px;font-size:11px;opacity:.7}
 .risk-built .rrow:hover .rrow-ask{opacity:1}
+/* iter #207: inline counter-suggestion panel — collapses by default,
+   expands when the row gets .rrow-expanded (set by wireRiskRowExpand).
+   Sits below the row content with a green tint to signal "this is
+   what to ask for instead". The expand ▾ button sits to the right
+   of the existing 💬 ask button. */
+.risk-built .rrow .rrow-counter{margin-top:10px;padding:10px 12px;background:var(--green-tint);border-left:4px solid var(--green);font-family:'JetBrains Mono';font-size:var(--t-meta-sm);color:var(--ink);line-height:1.5}
+.risk-built .rrow .rrow-counter-lbl{display:block;text-transform:uppercase;letter-spacing:.06em;color:var(--green);font-weight:700;margin-bottom:4px;font-size:11px}
+.risk-built .rrow .rrow-counter-text{color:var(--ink)}
+.risk-built .rrow .rrow-expand{position:absolute;right:8px;top:30px;background:transparent;border:1px solid var(--ink);padding:2px 7px;font-size:11px;cursor:pointer;opacity:.7}
+.risk-built .rrow:hover .rrow-expand{opacity:1}
+.risk-built .rrow.rrow-expanded{box-shadow:6px 6px 0 var(--ink);transform:translate(-2px,-2px)}
 /* iter #205: in-analysis find bar — small search input pinned above
    the result panel that highlights matches across all rendered blocks
    (rewrite, risks, deadlines, scenarios, bearer). Uses CSS custom

@@ -948,6 +948,34 @@
       row.appendChild(btn);
     });
   }
+  // iter #207: click-to-expand risk row — toggles the inline counter-
+  // suggestion panel. Delegated click handler on riskList (so re-
+  // renders don't double-bind). Ignores clicks that originate on the
+  // existing 💬 (rrow-ask) button or the ▾ toggle (rrow-expand) so the
+  // affordances don't fight each other. AI risks that lack a counter
+  // field don't get an expand button, so this handler is a no-op for
+  // those rows.
+  function wireRiskRowExpand(){
+    const list = document.getElementById('riskList');
+    if(!list || list._expandWired) return;
+    list._expandWired = true;
+    list.addEventListener('click', e => {
+      // Don't toggle when clicking the existing 💬 ask button or the
+      // expand ▾ toggle (those have their own handlers).
+      if(e.target.closest && (e.target.closest('.rrow-ask') || e.target.closest('.rrow-expand'))) return;
+      const row = e.target.closest && e.target.closest('.rrow');
+      if(!row) return;
+      const counter = row.querySelector('.rrow-counter');
+      if(!counter) return; // no counter-suggestion → nothing to expand
+      const expanded = row.classList.toggle('rrow-expanded');
+      counter.hidden = !expanded;
+      const btn = row.querySelector('.rrow-expand');
+      if(btn){
+        btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        btn.textContent = expanded ? '▴' : '▾';
+      }
+    });
+  }
   // iter #204 v2: keyboard shortcut 'a' on a focused risk row → ask.
   // Delegated handler on riskList so we wire once and never re-bind.
   // Same typing-target + modifier-key guards as the existing
@@ -12021,8 +12049,18 @@
         riskNote.innerHTML='<span class="riskNote-lead">'+flags.length+' flagged</span> '+tally.join('');
       }
       flags.forEach(f=>{ const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev;
-        row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>';
+        const counter = f && f.rule && f.rule.counter;
+        // iter #207: inline counter-suggestion panel — collapses by
+        // default, expands on row click. Local RISK rules ship with a
+        // `counter` field; AI risks may not — gate the expand UI on
+        // its presence so we don't show a broken toggle.
+        const counterHtml = counter
+          ? '<div class="rrow-counter" hidden><span class="rrow-counter-lbl">Counter-suggestion · ask for this instead</span><span class="rrow-counter-text">'+esc(counter)+'</span></div>'
+          : '';
+        row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>'+counterHtml+
+          (counter ? '<button type="button" class="rrow-expand" aria-expanded="false" title="Show counter-suggestion">▾</button>' : '');
         riskList.appendChild(row); });
+      wireRiskRowExpand();
       paintRiskFilter(flags);
       paintTopConcern(flags);
       wireAskPerRisk();
@@ -12545,9 +12583,15 @@
         riskList.innerHTML='';
         lastFlags.forEach(f=>{
           const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev;
-          row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>';
+          const counter = f && f.rule && f.rule.counter;
+          const counterHtml = counter
+            ? '<div class="rrow-counter" hidden><span class="rrow-counter-lbl">Counter-suggestion · ask for this instead</span><span class="rrow-counter-text">'+esc(counter)+'</span></div>'
+            : '';
+          row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>'+counterHtml+
+            (counter ? '<button type="button" class="rrow-expand" aria-expanded="false" title="Show counter-suggestion">▾</button>' : '');
           riskList.appendChild(row);
         });
+        wireRiskRowExpand();
         paintRiskFilter(lastFlags);
         paintTopConcern(lastFlags);
         wireAskPerRisk();
