@@ -1161,6 +1161,15 @@ module.exports = async function handler(req, res) {
     if (typeof incomingTag === "string" && incomingTag === etag) {
       res.statusCode = 304;
       setHealthOkHeaders(res);
+      // Strip per-request headers from the 304 path too — some CDN
+      // configurations heuristically cache 304 responses, and even
+      // without caching the body-less 304 is still served back to
+      // the same client across retries, where X-Request-Id would be
+      // confusingly stale. Mirror the sendOkCached sanitization.
+      if (typeof res.removeHeader === "function") {
+        res.removeHeader("X-Request-Id");
+        res.removeHeader("X-Request-Latency-Total-Ms");
+      }
       res.setHeader("ETag", etag);
       res.setHeader("Last-Modified", httpDate(START_TS));
       return res.end();
@@ -1177,6 +1186,11 @@ module.exports = async function handler(req, res) {
         // Client has a fresh-enough copy; return 304 without body.
         res.statusCode = 304;
         setHealthOkHeaders(res);
+        // Same per-request header strip as the If-None-Match 304 path.
+        if (typeof res.removeHeader === "function") {
+          res.removeHeader("X-Request-Id");
+          res.removeHeader("X-Request-Latency-Total-Ms");
+        }
         res.setHeader("ETag", etag);
         res.setHeader("Last-Modified", httpDate(START_TS));
         return res.end();
