@@ -67,6 +67,15 @@ function applyCspReportHeaders(res) {
       res.setHeader("X-Request-Latency-Total-Ms", String(Math.round(elapsed)));
     }
   }
+  // Defense-in-depth: a 204 response carries no body so some CDNs may
+  // heuristically cache it. The endpoint writes to an in-process counter
+  // (recordCspReport) keyed on the client's report contents; a cached
+  // 204 served to a different client on a later request would break
+  // the counter's idempotency assumption + let an attacker cause
+  // double-counting by replaying captured responses. Pin to no-store
+  // to prevent any caching layer (CDN, browser, intermediate proxy)
+  // from retaining the 204.
+  res.setHeader("Cache-Control", "no-store");
   applyBuildShaHeader(res);
 }
 
