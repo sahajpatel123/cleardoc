@@ -13737,6 +13737,13 @@
         line += ' No risks detected.';
       }
       line += ' cleardoc.app';
+      // iter #215 v2: append the short document fingerprint so the
+      // recipient can verify "yes this is the same document" by
+      // comparing the # short prefix against the on-page chip
+      // (or the .md / email .Document fingerprint line).
+      if(_fpState && _fpState.short){
+        line += ' (#' + _fpState.short + ')';
+      }
       return line;
     }
     async function copyChatShare(){
