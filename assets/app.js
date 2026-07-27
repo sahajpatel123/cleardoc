@@ -1180,6 +1180,18 @@
   function setAnalyzedTimestamp(ts){
     _analyzedState.ts = ts || Date.now();
     paintAnalyzedAgo();
+    // iter #208 v2: pulse the badge briefly when a fresh analysis
+    // lands so users see the badge is alive + tied to the new run
+    // (not a stale leftover from a previous session). Re-triggering
+    // the animation requires removing + re-adding the class on the
+    // next frame, since CSS animations don't restart on the same
+    // element/class combo.
+    const el = document.getElementById('analyzedAgo');
+    if(el){
+      el.classList.remove('is-fresh');
+      void el.offsetWidth; // force reflow so the animation restarts
+      el.classList.add('is-fresh');
+    }
     if(_analyzedState.timer) clearInterval(_analyzedState.timer);
     _analyzedState.timer = setInterval(paintAnalyzedAgo, 30000);
   }
@@ -13045,6 +13057,13 @@
       md.push('# ClearDoc Analysis');
       md.push('');
       md.push('_Generated: '+new Date().toLocaleString()+'_');
+      // iter #208 v2: include the analysis timestamp in the .md export
+      // so the file is self-identifying about WHEN the analysis ran,
+      // not just when it was exported. If the badge state was
+      // tracking an older timestamp we honor it; otherwise we use
+      // "just now" so the header doesn't lie about staleness.
+      const _mdTs = (_analyzedState && _analyzedState.ts) ? _analyzedState.ts : Date.now();
+      md.push('_Analyzed: '+ new Date(_mdTs).toLocaleString() +'_');
       if(attachedFile && attachedFile.name) md.push('_Source file: '+attachedFile.name+'_');
       md.push('');
       // iter #203 v2: surface the top concern in the markdown export
