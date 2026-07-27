@@ -11106,6 +11106,35 @@
       lastFlags=flags;
       riskList.innerHTML='';
 
+      // iter #200: risk summary footer — one-line tally under the radar
+      // (Found N · X trap · Y watch · Z note) so users see the
+      // distribution at a glance without counting the cards. Hidden
+      // when there are no flags so it never shows "Found 0 risks"
+      // in the pre-analysis empty state.
+      const rsTotal=document.getElementById('rsTotal');
+      const rsTrap=document.getElementById('rsTrap');
+      const rsWatch=document.getElementById('rsWatch');
+      const rsNote=document.getElementById('rsNote');
+      const riskSumWrap=document.getElementById('riskSummary');
+      if(rsTotal && rsTrap && rsWatch && rsNote && riskSumWrap){
+        let tCount=0,wCount=0,nCount=0;
+        for(const f of flags){
+          const sv = f && f.rule && f.rule.sev;
+          if(sv==='r') tCount++;
+          else if(sv==='a') wCount++;
+          else nCount++;
+        }
+        if(flags.length > 0){
+          rsTotal.textContent = String(flags.length);
+          rsTrap.textContent = String(tCount);
+          rsWatch.textContent = String(wCount);
+          rsNote.textContent = String(nCount);
+          riskSumWrap.hidden = false;
+        } else {
+          riskSumWrap.hidden = true;
+        }
+      }
+
       // Iter #92: contract maturity score — derived locally from
       // already-computed signals (reading level, risk severity mix,
       // deadline coverage, jargon density, exit-terms presence,
