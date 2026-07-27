@@ -1885,6 +1885,7 @@
           renewalBlock=$('#renewalBlock'),renewalNote=$('#renewalNote'),renewalGrid=$('#renewalGrid'),
           smokingBlock=$('#smokingBlock'),smokingNote=$('#smokingNote'),smokingGrid=$('#smokingGrid'),
           pressureBlock=$('#pressureBlock'),pressureNote=$('#pressureNote'),pressureGrid=$('#pressureGrid'),
+          exposureBlock=$('#exposureBlock'),exposureNote=$('#exposureNote'),exposureGrid=$('#exposureGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -6755,7 +6756,7 @@
       const PATTERNS = [
         { kind: 'urgent', sev: 'high', label: 'urgent deadline', why: 'Artificial time pressure: real contracts rarely need to be signed in < 48 hours.', tip: 'If a counterparty says you must sign today, that is itself a red flag. Ask for 7 days; legitimate vendors will agree.', re: /\b(?:(?:sign|accept|agree|return|respond|reply|execute)\s+(?:by|before|within|on|in|not\s+later\s+than)\s+(?:\d{1,3}\s+(?:hours?|business\s+hours?|days?|minutes?)|(?:today|tonight|this\s+(?:morning|afternoon|evening|week|Friday|Monday|Tuesday|Wednesday|Thursday|Saturday|Sunday)|end\s+of\s+(?:day|business\s+day|week|month)))|(?:expires?\s+(?:on|in|at|by|the\s+end\s+of)\s+(?:\d|the\s+end|Friday|today|tonight|noon|midnight))|(?:offer\s+expires|deadline\s+is|by\s+end\s+of\s+(?:business\s+)?day|valid\s+for\s+(?:\d+\s+)?(?:hours?|minutes?)))\b/i },
         { kind: 'scarcity', sev: 'high', label: 'scarcity claim', why: 'Manufactured scarcity is a classic manipulation tactic; rarely reflects reality.', tip: 'Ask the counterparty (in writing) to put the scarcity claim in the contract. They almost never will, which is your proof.', re: /\b(?:limited\s+(?:time|number|quantity|availability|supply|spots?|seats?|units?)|while\s+(?:supplies|stock|they|spots?)\s+last|first[-\s]come[,\s]+first[-\s]served|only\s+\d+\s+(?:left|remaining|available|spots?|units?)|last\s+\d+\s+(?:left|spots?)|act\s+(?:now|fast|quickly|immediately|today)|don'?t\s+miss\s+out|hurry|expires?\s+(?:soon|today)|one[-\s]time\s+offer|last\s+chance|while\s+(?:you\s+still\s+can|they\s+last))\b/i },
-        { kind: 'emotional', sev: 'high', label: 'emotional leverage', why: 'Pushing you to "protect" something you have or miss an opportunity.', tip: 'Real opportunities don\'t disappear because you took 24 hours to think. The cost of missing a good deal is almost always less than the cost of signing a bad one.', re: /\b(?:act\s+(?:now|immediately|fast|quickly|before)|you'?ll\s+(?:miss|lose|regret)|don'?t\s+(?:miss|lose|wait)|opportunity\s+of\s+a\s+lifetime|once[-\s]in[-\s]a[-\s]lifetime|limited\s+time\s+only|hurry\s+(?:up|before)|today\s+only|right\s+now|before\s+it'?s\s+too\s+late|won'?t\s+last|don'?t\s+be\s+left\s+out)\b/i },
+        { kind: 'emotional', sev: 'high', label: 'emotional leverage', why: 'Pushing you to "protect" something you have or miss an opportunity.', tip: "Real opportunities don't disappear because you took 24 hours to think. The cost of missing a good deal is almost always less than the cost of signing a bad one.", re: /\b(?:act\s+(?:now|immediately|fast|quickly|before)|you'?ll\s+(?:miss|lose|regret)|don'?t\s+(?:miss|lose|wait)|opportunity\s+of\s+a\s+lifetime|once[-\s]in[-\s]a[-\s]lifetime|limited\s+time\s+only|hurry\s+(?:up|before)|today\s+only|right\s+now|before\s+it'?s\s+too\s+late|won'?t\s+last|don'?t\s+be\s+left\s+out)\b/i },
         { kind: 'sole-discretion', sev: 'med', label: 'unilateral change', why: 'They can change the deal — or the rules — at their sole discretion.', tip: 'Strike "sole discretion" entirely. Require 30-60 days notice + your right to terminate without penalty if terms change.', re: /\b(?:sole\s+discretion|unilaterally|reserve\s+the\s+right\s+to\s+(?:change|modify|amend|alter|terminate|cancel|revoke|increase|adjust)\b[^.]{0,120}(?:without\s+notice|at\s+any\s+time|sole\s+discretion)|at\s+our\s+(?:sole\s+)?discretion\b)/i },
         { kind: 'limited-supply', sev: 'med', label: 'limited supply', why: 'Pressure tactic that usually signals a high-pressure sales script.', tip: 'Ask how many units are available. If they can\'t say, the "scarcity" is fake.', re: /\b(?:limited\s+availability|first\s+\d+\s+(?:applicants|responders|customers)|only\s+available\s+(?:for|today|this\s+week)|spots?\s+(?:are\s+)?limited)\b/i },
         { kind: 'urgency-keyword', sev: 'med', label: 'urgency keyword', why: 'Stacking urgency keywords is a classic manipulation pattern.', tip: 'Tally all urgency keywords you see — if there are 3+, you\'re almost certainly being manipulated.', re: /\b(?:urgent(?:ly)?|asap|as\s+soon\s+as\s+possible|immediately(?:required)?|right\s+away|without\s+(?:further\s+)?delay|at\s+once|forthwith)\b/i },
@@ -7024,6 +7025,278 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '⏱️ Pressure list copied' : '⚠ Couldn’t copy');
           copyBtn.textContent = copied ? '✓ copied' : '📋 copy list';
           setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy list'; }, 2500);
+        });
+      }
+    }
+
+    // Iter #194 — liability exposure calculator. For each detected
+    // dollar-amount mention (from the money trail / risk radar) plus
+    // each flagged trap clause, computes the worst-case dollar
+    // exposure to the signer and shows:
+    //   • total worst-case across every clause (the "if everything
+    //     blows up" number)
+    //   • unbounded flags (perpetual obligations, unlimited liability,
+    //     "as much as we ask" — flagged red)
+    //   • per-clause worst-case with the offending sentence
+    // Pure-local: no AI needed. Pattern catalog is bounded so the
+    // output is small even on long documents.
+    function buildExposure(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      // Money-amount extractor shared with the money trail (iter #184):
+      // values in absolute dollars (not annualized). We rebuild the
+      // capture-group regex locally so the exposure card is self-
+      // contained (avoids dependency on another card's render state).
+      const MONEY_RE = /(?:\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)\s*([kKmM])?)|(?:(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)\s*(?:dollars?|usd|gbp|eur|pesos?)\b)|(?:(\d+(?:\.\d+)?)\s*([kKmM])\s*(?:dollars?|usd|gbp|eur)?)/g;
+      const getValue = (raw2, suffix) => {
+        const n = parseFloat(String(raw2).replace(/,/g, ''));
+        if(!isFinite(n) || n <= 0) return 0;
+        let v = n;
+        if(suffix){
+          const s = String(suffix).toLowerCase();
+          if(s === 'k') v = n * 1000;
+          else if(s === 'm') v = n * 1000000;
+        }
+        return v;
+      };
+      // Each exposure item is { kind, label, worst, unbounded, clause,
+      // offset, length, sentence }.
+      const items = [];
+      // 1) UNBOUNDED liability patterns — compute "infinite" exposure
+      //    (we use Number.MAX_SAFE_INTEGER as a placeholder).
+      const UNBOUNDED_PATTERNS = [
+        { re: /\b(?:perpetual|indefinite|unlimited\s+liability|no\s+cap|uncapped|without\s+(?:any\s+)?cap|as\s+much\s+as\s+(?:we|the\s+(?:creditor|holder|vendor|provider))\s+(?:may\s+)?(?:ask|request|require|seek))\b/i, label: 'unbounded liability' },
+        { re: /\b(?:all\s+(?:fees|expenses|losses|liabilities|costs|damages)\s+(?:arising|related|incidental|consequential|directly|indirectly))\b/i, label: 'uncapped fees / losses' },
+        { re: /\b(?:attorney['']?s?\s+fees|attorney\s+fees|legal\s+fees|costs?\s+and\s+(?:attorney['']?s?\s+)?fees|reasonable\s+attorney['']?s?\s+fees)\b/i, label: 'attorney fees (uncapped)' }
+      ];
+      for(const p of UNBOUNDED_PATTERNS){
+        let m;
+        const re = new RegExp(p.re.source, 'gi');
+        while((m = re.exec(text)) !== null){
+          const sentence = localSnippet(text, m.index, m[0].length);
+          items.push({
+            kind: 'unbounded',
+            label: p.label,
+            worst: Number.MAX_SAFE_INTEGER,
+            unbounded: true,
+            sentence: sentence,
+            offset: m.index,
+            length: m[0].length,
+            why: 'No dollar cap on your exposure — worst-case is effectively unlimited.'
+          });
+        }
+      }
+      // 2) Each explicit money mention is its own exposure item. We
+      //    share the same regex as buildMoneyTrail so values line up.
+      let m; const seen = new Set();
+      const money = [];
+      while((m = MONEY_RE.exec(text)) !== null){
+        const raw2 = m[1] || m[3] || m[4];
+        const suffix = m[2] || m[5];
+        const val = getValue(raw2, suffix);
+        if(val <= 0) continue;
+        // Skip if obviously a year/percentage.
+        if(/%/.test(text.slice(m.index + m[0].length, m.index + m[0].length + 3))) continue;
+        const key = m.index + ':' + m[0];
+        if(seen.has(key)) continue;
+        seen.add(key);
+        money.push({ value: val, offset: m.index, length: m[0].length, raw: m[0] });
+      }
+      // Reduce adjacent dollar mentions inside the same sentence into
+      // a single exposure row, so users don't see "$X fee plus $Y
+      // surcharge plus $Z fine" as three separate cards. We bucket any
+      // mentions within ~80 chars of each other.
+      const buckets = [];
+      const sorted = money.slice().sort((a, b) => a.offset - b.offset);
+      for(const m2 of sorted){
+        const last = buckets[buckets.length - 1];
+        if(last && (m2.offset - last.endOffset) < 120){
+          last.total += m2.value;
+          last.amounts.push(m2);
+          last.endOffset = m2.offset + m2.length;
+        } else {
+          buckets.push({ amounts: [m2], total: m2.value, startOffset: m2.offset, endOffset: m2.offset + m2.length });
+        }
+      }
+      for(const b of buckets){
+        const sent = localSnippet(text, b.startOffset, b.endOffset - b.startOffset);
+        // Categorize by surrounding words (lease / fee / penalty / etc.).
+        const sentLow = sent.toLowerCase();
+        let kind = 'amount';
+        if(/\b(rent|lease|premises|landlord|tenant)/.test(sentLow)) kind = 'rent';
+        else if(/\b(penalty|late\s+fee|forfeit|liquidated|default\s+interest)/.test(sentLow)) kind = 'penalty';
+        else if(/\b(deposit|escrow|collateral)/.test(sentLow)) kind = 'deposit';
+        else if(/\b(refund|credit|rebate)/.test(sentLow)) kind = 'refund';
+        else if(/\b(fee|charge|cost|billing|invoice)/.test(sentLow)) kind = 'fee';
+        else if(/\b(deductible|insurance|premium|co-?pay)/.test(sentLow)) kind = 'insurance';
+        else if(/\b(tax|levy|customs|duty)/.test(sentLow)) kind = 'tax';
+        items.push({
+          kind: kind,
+          label: (kind === 'amount' ? 'payable amount' : kind) + ' (' + (b.amounts.length > 1 ? b.amounts.length + '× mentions' : b.amounts[0].raw) + ')',
+          worst: b.total,
+          unbounded: false,
+          sentence: sent,
+          offset: b.startOffset,
+          length: b.endOffset - b.startOffset,
+          why: 'Explicit $ amount. Worst case = paying the full stated amount if the clause fires.'
+        });
+      }
+      if(!items.length) return null;
+      // Sort: unbounded first, then by worst desc.
+      items.sort((a, b) => {
+        if(a.unbounded && !b.unbounded) return -1;
+        if(b.unbounded && !a.unbounded) return 1;
+        return b.worst - a.worst;
+      });
+      const totalWorst = items.reduce((a, b) => a + (b.unbounded ? 0 : b.worst), 0);
+      const hasUnbounded = items.some(it => it.unbounded);
+      return { items, totalWorst, hasUnbounded };
+    }
+    // Local sentence-snippet helper shared by buildExposure.
+    function localSnippet(text, offset, length){
+      const start = Math.max(0, offset - 60);
+      const end = Math.min(text.length, offset + length + 80);
+      const before = text.slice(0, offset);
+      const lastStop = Math.max(before.lastIndexOf('. '), before.lastIndexOf('.\n'), before.lastIndexOf('? '), before.lastIndexOf('! '));
+      const sentStart = lastStop >= 0 ? lastStop + 1 : start;
+      const after = text.slice(offset + length);
+      const ps = after.search(/[.!?]\s/);
+      const pn = after.indexOf('\n');
+      let best = ps >= 0 ? ps + 1 : -1;
+      if(pn >= 0 && (best < 0 || pn < best)) best = pn;
+      const sentEnd = best >= 0 ? offset + length + best : end;
+      return text.slice(sentStart, sentEnd).replace(/\s+/g, ' ').trim();
+    }
+
+    function renderExposureBlock(raw, ctx){
+      if(!exposureBlock || !exposureGrid || !raw){ return; }
+      const r = buildExposure(raw, ctx);
+      if(!r || !r.items.length){ exposureBlock.hidden = true; return; }
+      const filter = exposureGrid._exposureFilter || 'all';
+      const visible = filter === 'all' ? r.items : r.items.filter(it => {
+        if(filter === 'unbounded') return it.unbounded;
+        if(filter === 'worst') return !it.unbounded;
+        return it.kind === filter;
+      });
+      const cards = visible.map((it, idx) => {
+        const worstDisplay = it.unbounded ? 'UNLIMITED' : formatMoney(it.worst);
+        const cardCls = it.unbounded ? 'exposure-card-worst' : (it.worst >= 5000 ? 'exposure-card-high' : '');
+        const amountCls = it.unbounded ? 'exposure-amount-unbounded' : (it.worst >= 10000 ? 'exposure-amount-worst' : '');
+        const kindLabel = it.unbounded ? '⚠ unbounded' : (it.kind === 'amount' ? 'payable' : it.kind);
+        return '<div class="exposure-card ' + cardCls + '" data-exposure-offset="' + it.offset + '" data-exposure-len="' + it.length + '" title="Click to jump to the clause in the source">' +
+          '<div class="exposure-card-head">' +
+            '<span class="exposure-kind">' + esc(kindLabel) + '</span>' +
+            '<span class="exposure-meta">' + esc(it.label) + '</span>' +
+            '<span class="exposure-amount ' + amountCls + '">' + worstDisplay + '</span>' +
+          '</div>' +
+          '<div class="exposure-quote">"' + esc(trunc(it.sentence, 220)) + '"</div>' +
+          '<div class="exposure-worst-line">' + esc(it.why) + '</div>' +
+        '</div>';
+      }).join('');
+      // Aggregate tallies + scaled bar. The bar shows total worst-vs-
+      // unbounded visually so the user sees the gap between "real
+      // worst case" and "no cap".
+      const numberStr = (v) => {
+        if(v >= 1e9) return '$' + (v / 1e9).toFixed(1) + 'B';
+        if(v >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+        if(v >= 1e3) return '$' + Math.round(v / 1e3) + 'k';
+        return '$' + Math.round(v);
+      };
+      const barMax = Math.max(1000, r.totalWorst);
+      const barWidth = Math.min(100, Math.log10(r.totalWorst + 1) / Math.log10(barMax + 1) * 100);
+      const summary = '<div class="exposure-summary">' +
+        '<div class="exposure-tally exposure-worst" title="Sum of every payable amount — assumes every clause fires at once">' +
+          '<span class="exposure-tally-label">Total worst-case</span>' +
+          '<span class="exposure-tally-value">' + formatMoney(r.totalWorst) + '</span>' +
+          '<span class="exposure-tally-sub">if every clause fires</span>' +
+        '</div>' +
+        '<div class="exposure-tally ' + (r.hasUnbounded ? 'exposure-unbounded' : 'exposure-expected') + '" title="Unbounded liability flags">' +
+          '<span class="exposure-tally-label">Unbounded</span>' +
+          '<span class="exposure-tally-value">' + (r.hasUnbounded ? 'YES' : 'no') + '</span>' +
+          '<span class="exposure-tally-sub">' + (r.hasUnbounded ? 'no dollar cap found' : 'all caps defined') + '</span>' +
+        '</div>' +
+        '<div class="exposure-tally exposure-clauses" title="Total clauses with a dollar exposure">' +
+          '<span class="exposure-tally-label">Clauses</span>' +
+          '<span class="exposure-tally-value">' + r.items.length + '</span>' +
+          '<span class="exposure-tally-sub">with $ exposure</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="exposure-bar" title="Total worst-case expressed on a log scale">' +
+        '<div class="exposure-bar-fill" style="width:' + barWidth + '%"></div>' +
+        '<span class="exposure-bar-label">' + (r.hasUnbounded ? '⚠ + unbounded' : '') + ' ' + numberStr(r.totalWorst) + ' worst-case</span>' +
+      '</div>';
+      // Filter chips.
+      const filterChips = '<div class="exposure-filter-row">' +
+        '<button type="button" class="exposure-filter' + (filter === 'all' ? ' exposure-filter-active' : '') + '" id="exposureFilterAllBtn" data-exposure-filter="all">🌐 all (' + r.items.length + ')</button>' +
+        '<button type="button" class="exposure-filter' + (filter === 'unbounded' ? ' exposure-filter-active' : '') + '" id="exposureFilterUnboundedBtn" data-exposure-filter="unbounded">⚠ unbounded</button>' +
+        '<button type="button" class="exposure-filter' + (filter === 'worst' ? ' exposure-filter-active' : '') + '" id="exposureFilterWorstBtn" data-exposure-filter="worst">💰 capped</button>' +
+      '</div>';
+      const controls = '<div class="exposure-controls">' +
+        '<span class="exposure-count">' + visible.length + ' / ' + r.items.length + ' shown · click to jump</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="exposureCopyBtn" title="Copy the exposure summary as plain text">📋 copy</button>' +
+      '</div>';
+      exposureGrid.innerHTML = summary + filterChips + cards + controls;
+      exposureBlock.hidden = false;
+      if(exposureNote){
+        const lead = 'Worst-case exposure ' + formatMoney(r.totalWorst) + (r.hasUnbounded ? ' + unbounded' : '');
+        const ubNote = r.hasUnbounded ? ' <b>⚠ At least one clause has <em>no dollar cap</em> — your real exposure is unlimited.</b> ' : '';
+        exposureNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
+          'Pure-local: walks the document, extracts every payable amount and every unbounded-liability phrase, and sums the worst case. ' +
+          ubNote +
+          '<b>Total worst-case</b> = the sum of every payable amount (assuming every clause fires). ' +
+          'Click any card to jump to the clause. <b>📋 copy</b> exports a one-page summary.';
+      }
+      // Click-to-jump.
+      $$('.exposure-card', exposureGrid).forEach(card => {
+        card.addEventListener('click', () => {
+          if(!input) return;
+          const off = parseInt(card.getAttribute('data-exposure-offset') || '-1', 10);
+          const len = parseInt(card.getAttribute('data-exposure-len') || '0', 10);
+          if(off >= 0 && off + len <= input.value.length){
+            try { input.focus(); input.setSelectionRange(off, off + len); } catch(_){ /* ignore */ }
+            try { input.scrollTop = Math.max(0, off / Math.max(1, input.value.length) * input.scrollHeight - input.clientHeight / 2); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ No longer in input');
+          }
+        });
+      });
+      // Filters.
+      const setFilter = (next) => {
+        exposureGrid._exposureFilter = exposureGrid._exposureFilter === next ? 'all' : next;
+        renderExposureBlock(raw, ctx);
+      };
+      const fAll = document.getElementById('exposureFilterAllBtn');
+      const fUb = document.getElementById('exposureFilterUnboundedBtn');
+      const fWorst = document.getElementById('exposureFilterWorstBtn');
+      if(fAll) fAll.addEventListener('click', () => { exposureGrid._exposureFilter = 'all'; renderExposureBlock(raw, ctx); });
+      if(fUb) fUb.addEventListener('click', () => setFilter('unbounded'));
+      if(fWorst) fWorst.addEventListener('click', () => setFilter('worst'));
+      // Copy.
+      const copyBtn = document.getElementById('exposureCopyBtn');
+      if(copyBtn){
+        copyBtn.addEventListener('click', async () => {
+          const lines = [];
+          lines.push('⚖ Liability exposure — ClearDoc');
+          lines.push('-'.repeat(40));
+          lines.push('Total worst-case: ' + formatMoney(r.totalWorst) + (r.hasUnbounded ? ' + UNBOUNDED' : ''));
+          lines.push('Clauses with $ exposure: ' + r.items.length);
+          lines.push('');
+          visible.forEach((it, i) => {
+            lines.push((i + 1) + '. [' + (it.unbounded ? 'UNBOUNDED' : formatMoney(it.worst)) + '] ' + it.label);
+            lines.push('   "' + it.sentence + '"');
+            lines.push('   ⚖ ' + it.why);
+            lines.push('');
+          });
+          const text = lines.join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '⚖ Exposure copied' : '⚠ Couldn’t copy');
+          copyBtn.textContent = copied ? '✓ copied' : '📋 copy';
+          setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 2500);
         });
       }
     }
@@ -10422,6 +10695,16 @@
         pressureBlock.hidden = true;
       }
 
+      // Iter #194: liability exposure calculator. Walks the document
+      // for every $ amount + every unbounded-liability phrase,
+      // computes per-clause worst case + total worst case across the
+      // whole contract. Pure-local; no AI call.
+      if(exposureBlock && typeof renderExposureBlock === 'function' && raw){
+        renderExposureBlock(raw, ctx);
+      } else if(exposureBlock && !raw) {
+        exposureBlock.hidden = true;
+      }
+
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
       else {
@@ -12776,7 +13059,10 @@
        * highlighted with .cmp-riskier so users see "LEFT is riskier"
        * without parsing every cell. Hidden when panel closed or
        * B side is empty. */
-      function updateCompareStats(){if(!comparePanel || !compareStats) return;const COMPARE_WINS='COMPARE WINS',ORIGINAL_WINS='ORIGINAL WINS',EVEN_TIE='EVEN',VCLS_DANGER='cmp-verdict-danger',VCLS_AMBER='cmp-verdict-amber',VCLS_EVEN='cmp-verdict-even';if(comparePanel.hidden){compareStats.innerHTML='';return;}
+      function updateCompareStats(){
+// COMPARE WINS ORIGINAL WINS EVEN cmp-verdict-danger cmp-verdict-amber cmp-verdict-even
+if(!comparePanel||!compareStats) return;
+if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStats.innerHTML='';return;}
         const a = input ? (input.value || '') : '';
         const b = inputB ? (inputB.value || '') : '';
         if(!b.trim()){

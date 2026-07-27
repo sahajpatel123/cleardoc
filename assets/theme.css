@@ -1757,6 +1757,42 @@ mark.smoking-trigger{background:#ffe98a;color:var(--ink);padding:0 2px;font-weig
 .pressure-cooldown b{color:var(--ink);text-decoration:underline}
 .pressure-cooldown-btn{background:rgba(255,255,255,.4);color:var(--ink);border:1px solid var(--ink);font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;cursor:pointer}
 .pressure-cooldown-btn:hover{background:rgba(255,255,255,.7)}
+
+/* Liability exposure calculator (iter #194) — worst-case dollar exposure per clause. */
+.exposure-grid{display:flex;flex-direction:column;gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.exposure-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.exposure-tally{flex:1 1 160px;display:flex;flex-direction:column;gap:2px;padding:8px 12px;border:var(--bd-hair) solid var(--ink);background:var(--paper2)}
+.exposure-tally-label{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700}
+.exposure-tally-value{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--ink);line-height:1.1}
+.exposure-tally-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-soft);letter-spacing:.04em}
+.exposure-tally.exposure-worst{border-left:5px solid var(--danger);background:var(--danger-tint)}
+.exposure-tally.exposure-expected{border-left:5px solid var(--amber)}
+.exposure-tally.exposure-clauses{border-left:5px solid var(--ink)}
+.exposure-tally.exposure-unbounded{border-left:5px solid var(--danger);background:var(--danger-tint);animation:exposure-pulse 1.5s ease-in-out infinite}
+@keyframes exposure-pulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 3px var(--danger-tint)}}
+.exposure-bar{position:relative;height:18px;background:var(--paper2);border:var(--bd-hair) solid var(--ink);margin-bottom:8px;overflow:hidden}
+.exposure-bar-fill{position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,var(--amber),var(--danger));transition:width .3s ease}
+.exposure-bar-label{position:absolute;left:6px;top:0;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink);font-weight:700;line-height:18px}
+.exposure-card{display:flex;flex-direction:column;gap:4px;padding:10px 14px;border:var(--bd-hair) solid var(--ink);background:#fff;cursor:pointer;transition:filter .15s ease}
+.exposure-card:hover{filter:brightness(.96)}
+.exposure-card.exposure-card-worst{border-left:5px solid var(--danger);background:var(--danger-tint)}
+.exposure-card.exposure-card-high{border-left:4px solid var(--amber);background:#fff8e6}
+.exposure-card-head{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;flex-wrap:wrap}
+.exposure-amount{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--ink);margin-left:auto;padding:2px 8px;border:1px solid var(--ink-soft);background:#fff}
+.exposure-amount.exposure-amount-unbounded{color:var(--danger);border-color:var(--danger);background:#fff8e6}
+.exposure-amount.exposure-amount-worst{color:var(--danger);background:#fff;border-color:var(--danger)}
+.exposure-kind{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink);padding:2px 6px;border:1px solid var(--ink);background:#fff;font-weight:700}
+.exposure-quote{font-size:var(--t-card);color:var(--ink);font-style:italic;line-height:1.4;padding:6px 0 4px 12px;border-left:3px solid var(--ink-soft);margin:2px 0}
+.exposure-worst-line{font-size:var(--t-micro);color:var(--ink);padding:6px 10px;background:var(--danger-tint);border-left:3px solid var(--danger);line-height:1.4;font-weight:700}
+.exposure-worst-line:before{content:"⚖ worst case: ";font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--danger);font-weight:700}
+.exposure-meta{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);margin-top:2px}
+.exposure-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
+.exposure-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
+.exposure-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto;font-weight:700;letter-spacing:.06em}
+.exposure-filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.exposure-filter{padding:4px 10px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink-soft);font-weight:700}
+.exposure-filter:hover{color:var(--ink)}
+.exposure-filter.exposure-filter-active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .money-context{font-size:var(--t-micro);color:var(--ink);flex:1;min-width:0;line-height:1.4}
 .money-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .money-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
