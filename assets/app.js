@@ -881,9 +881,21 @@
     const sevLabel = top.rule.label || (sev === 'r' ? 'Trap' : sev === 'a' ? 'Watch' : 'Note');
     const sevGlyph = sev === 'r' ? '🔴' : sev === 'a' ? '🟡' : '⚪';
     const quote = trunc(top.s || '(no clause text)', 240).replace(/\s+/g, ' ').trim();
+    // iter #203 v2: "1 of N traps" ordinal in the kicker when the
+    // active bucket has multiple hits — tells the user there's more
+    // where this came from so the callout isn't mistaken for the
+    // whole risk picture.
+    let ordinal = '';
+    if(sev === 'r' || sev === 'a' || sev === 'g'){
+      const bucket = sorted.filter(f => f && f.rule && f.rule.sev === sev);
+      const idxInBucket = bucket.indexOf(top);
+      if(bucket.length > 1 && idxInBucket >= 0){
+        ordinal = ' · ' + (idxInBucket + 1) + ' of ' + bucket.length + ' ' + sevLabel.toLowerCase() + (bucket.length === 1 ? '' : 's');
+      }
+    }
     el.dataset.sev = sev;
     el.innerHTML =
-      '<span class="tc-kicker">' + sevGlyph + ' Top concern · ' + esc(sevLabel) + '</span>' +
+      '<span class="tc-kicker">' + sevGlyph + ' Top concern · ' + esc(sevLabel) + esc(ordinal) + '</span>' +
       '<span class="tc-quote">“' + esc(quote) + '”</span>' +
       '<span class="tc-why"><b>Why it matters:</b> ' + esc(top.rule.why || '') + '</span>';
     el.hidden = false;
@@ -12612,6 +12624,29 @@
       md.push('_Generated: '+new Date().toLocaleString()+'_');
       if(attachedFile && attachedFile.name) md.push('_Source file: '+attachedFile.name+'_');
       md.push('');
+      // iter #203 v2: surface the top concern in the markdown export
+      // too, so anyone opening the .md file gets the same "if you only
+      // read one thing, read this" headline that the on-page callout
+      // shows. Pick via the same severity order so the headline
+      // matches what's on the page.
+      if(lastFlags && lastFlags.length){
+        const order = { r:0, a:1, g:2 };
+        const sorted = lastFlags.slice().sort((x, y) => {
+          const ox = order[(x && x.rule && x.rule.sev)] ?? 3;
+          const oy = order[(y && y.rule && y.rule.sev)] ?? 3;
+          return ox - oy;
+        });
+        const top = sorted[0];
+        if(top && top.rule){
+          const sevGlyph = top.rule.sev === 'r' ? '🔴' : top.rule.sev === 'a' ? '🟡' : '⚪';
+          const sevLabel = top.rule.label || (top.rule.sev === 'r' ? 'Trap' : top.rule.sev === 'a' ? 'Watch' : 'Note');
+          md.push('> **' + sevGlyph + ' Top concern · ' + sevLabel + '**');
+          md.push('> > "' + trunc(top.s || '', 240).replace(/\s+/g,' ').trim() + '"');
+          md.push('> >');
+          md.push('> > _Why:_ ' + (top.rule.why || ''));
+          md.push('');
+        }
+      }
       // Verdict
       const vLabel = verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-label');
       const vSummary = verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-summary');
