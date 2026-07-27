@@ -635,10 +635,12 @@
     const words = (t.match(/\b[\w'-]+\b/g) || []).length;
     if (words === 0) return null;
     const minutes = words / 250; // raw minutes, not rounded
-    if (minutes < 1) return 'quick';
-    if (minutes < 5) return 'standard';
-    if (minutes < 15) return 'long';
-    return 'marathon';
+    let band;
+    if (minutes < 1) band = 'quick';
+    else if (minutes < 5) band = 'standard';
+    else if (minutes < 15) band = 'long';
+    else band = 'marathon';
+    return band;
   }
 
   // Convert a numeric Flesch-Kincaid grade (4..18) to a human-friendly
@@ -1882,6 +1884,7 @@
           readingBlock=$('#readingBlock'),readingNote=$('#readingNote'),readingGrid=$('#readingGrid'),
           renewalBlock=$('#renewalBlock'),renewalNote=$('#renewalNote'),renewalGrid=$('#renewalGrid'),
           smokingBlock=$('#smokingBlock'),smokingNote=$('#smokingNote'),smokingGrid=$('#smokingGrid'),
+          pressureBlock=$('#pressureBlock'),pressureNote=$('#pressureNote'),pressureGrid=$('#pressureGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -6727,6 +6730,211 @@
       }
     }
 
+    // Iter #192 — pressure tactics. Detects clauses designed to rush
+    // the reader into signing / paying / acting without reading
+    // carefully. Pure-local regex over the entire document. Categories:
+    //
+    //   HIGH (deal-breaker):  "void if not signed within 24 hours",
+    //                         "expires on Friday", "limited time only",
+    //                         "must accept today"
+    //   MEDIUM (suspicious): "while supplies last", "as soon as
+    //                         possible", "limited availability",
+    //                         "first-come basis"
+    //   LOW (aggressive but
+    //   legal): "subject to change without notice", "we reserve the
+    //            right to refuse", "at our sole discretion"
+    //
+    // Why this matters: classic high-pressure sales tactics. A real
+    // contract never needs to be signed "today only" — if a counterparty
+    // is applying that pressure, it's almost always because they don't
+    // want you to read carefully.
+    function buildPressure(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      // Pattern catalog. The `re` field is tested case-insensitive.
+      const PATTERNS = [
+        { kind: 'urgent', sev: 'high', label: 'urgent deadline', why: 'Artificial time pressure: real contracts rarely need to be signed in < 48 hours.', tip: 'If a counterparty says you must sign today, that is itself a red flag. Ask for 7 days; legitimate vendors will agree.', re: /\b(?:(?:sign|accept|agree|return|respond|reply|execute)\s+(?:by|before|within|on|in|not\s+later\s+than)\s+(?:\d{1,3}\s+(?:hours?|business\s+hours?|days?|minutes?)|(?:today|tonight|this\s+(?:morning|afternoon|evening|week|Friday|Monday|Tuesday|Wednesday|Thursday|Saturday|Sunday)|end\s+of\s+(?:day|business\s+day|week|month)))|(?:expires?\s+(?:on|in|at|by|the\s+end\s+of)\s+(?:\d|the\s+end|Friday|today|tonight|noon|midnight))|(?:offer\s+expires|deadline\s+is|by\s+end\s+of\s+(?:business\s+)?day|valid\s+for\s+(?:\d+\s+)?(?:hours?|minutes?)))\b/i },
+        { kind: 'scarcity', sev: 'high', label: 'scarcity claim', why: 'Manufactured scarcity is a classic manipulation tactic; rarely reflects reality.', tip: 'Ask the counterparty (in writing) to put the scarcity claim in the contract. They almost never will, which is your proof.', re: /\b(?:limited\s+(?:time|number|quantity|availability|supply|spots?|seats?|units?)|while\s+(?:supplies|stock|they|spots?)\s+last|first[-\s]come[,\s]+first[-\s]served|only\s+\d+\s+(?:left|remaining|available|spots?|units?)|last\s+\d+\s+(?:left|spots?)|act\s+(?:now|fast|quickly|immediately|today)|don'?t\s+miss\s+out|hurry|expires?\s+(?:soon|today)|one[-\s]time\s+offer|last\s+chance|while\s+(?:you\s+still\s+can|they\s+last))\b/i },
+        { kind: 'emotional', sev: 'high', label: 'emotional leverage', why: 'Pushing you to "protect" something you have or miss an opportunity.', tip: 'Real opportunities don\'t disappear because you took 24 hours to think. The cost of missing a good deal is almost always less than the cost of signing a bad one.', re: /\b(?:act\s+(?:now|immediately|fast|quickly|before)|you'?ll\s+(?:miss|lose|regret)|don'?t\s+(?:miss|lose|wait)|opportunity\s+of\s+a\s+lifetime|once[-\s]in[-\s]a[-\s]lifetime|limited\s+time\s+only|hurry\s+(?:up|before)|today\s+only|right\s+now|before\s+it'?s\s+too\s+late|won'?t\s+last|don'?t\s+be\s+left\s+out)\b/i },
+        { kind: 'sole-discretion', sev: 'med', label: 'unilateral change', why: 'They can change the deal — or the rules — at their sole discretion.', tip: 'Strike "sole discretion" entirely. Require 30-60 days notice + your right to terminate without penalty if terms change.', re: /\b(?:sole\s+discretion|unilaterally|reserve\s+the\s+right\s+to\s+(?:change|modify|amend|alter|terminate|cancel|revoke|increase|adjust)\b[^.]{0,120}(?:without\s+notice|at\s+any\s+time|sole\s+discretion)|at\s+our\s+(?:sole\s+)?discretion\b)/i },
+        { kind: 'limited-supply', sev: 'med', label: 'limited supply', why: 'Pressure tactic that usually signals a high-pressure sales script.', tip: 'Ask how many units are available. If they can\'t say, the "scarcity" is fake.', re: /\b(?:limited\s+availability|first\s+\d+\s+(?:applicants|responders|customers)|only\s+available\s+(?:for|today|this\s+week)|spots?\s+(?:are\s+)?limited)\b/i },
+        { kind: 'urgency-keyword', sev: 'med', label: 'urgency keyword', why: 'Stacking urgency keywords is a classic manipulation pattern.', tip: 'Tally all urgency keywords you see — if there are 3+, you\'re almost certainly being manipulated.', re: /\b(?:urgent(?:ly)?|asap|as\s+soon\s+as\s+possible|immediately(?:required)?|right\s+away|without\s+(?:further\s+)?delay|at\s+once|forthwith)\b/i },
+        { kind: 'no-review', sev: 'med', label: 'no review / waiving rights', why: 'Trying to keep you from reviewing or having a lawyer review the contract.', tip: 'You always have the right to take time to review. Refuse any clause that pressures you to sign without review.', re: /\b(?:no\s+(?:further\s+)?(?:review|consultation|legal\s+(?:advice|review))|waive\s+(?:your\s+)?(?:right\s+to\s+)?(?:review|consult(?:ation)?|legal\s+(?:review|advice))|sign(?:ing)?\s+(?:this|these)\s+(?:terms\s+)?(?:constitutes?\s+)?(?:acceptance|agreement)|by\s+signing\s+you\s+(?:agree|accept|waive))\b/i },
+        { kind: 'good-faith', sev: 'low', label: 'good-faith effort', why: 'Soft pressure: "good-faith effort" is vague and may be hard to enforce.', tip: 'Replace vague "good-faith" promises with specific, measurable commitments.', re: /\b(?:good[-\s]faith\s+effort|best\s+efforts?|commercially\s+reasonable\s+efforts?|reasonable\s+best\s+efforts?)\b/i }
+      ];
+      const items = [];
+      for(const p of PATTERNS){
+        let m;
+        const re = new RegExp(p.re.source, 'gi');
+        while((m = re.exec(text)) !== null){
+          if(m.index === re.lastIndex) re.lastIndex++;
+          // Build a 50-char sentence context around the match.
+          const beforeSnippet = text.slice(0, m.index);
+          const lastStop = Math.max(beforeSnippet.lastIndexOf('. '), beforeSnippet.lastIndexOf('.\n'), beforeSnippet.lastIndexOf('? '), beforeSnippet.lastIndexOf('! '));
+          const sentStart = lastStop >= 0 ? lastStop + 1 : Math.max(0, m.index - 80);
+          const after = text.slice(m.index + m[0].length);
+          const ps = after.search(/[.!?]\s/);
+          const sentEnd = ps >= 0 ? m.index + m[0].length + ps + 1 : Math.min(text.length, m.index + m[0].length + 80);
+          const sentence = text.slice(sentStart, sentEnd).replace(/\s+/g, ' ').trim();
+          if(sentence.length < 20) continue;
+          items.push({
+            kind: p.kind,
+            sev: p.sev,
+            label: p.label,
+            why: p.why,
+            tip: p.tip,
+            matched: m[0],
+            offset: m.index,
+            length: m[0].length,
+            sentence: sentence
+          });
+        }
+      }
+      if(!items.length) return null;
+      // Sort: high severity first, then by file order.
+      const sevOrder = { high: 0, med: 1, low: 2 };
+      items.sort((a, b) => (sevOrder[a.sev] || 9) - (sevOrder[b.sev] || 9));
+      // Dedupe: same matched phrase within 100 chars collapses to one.
+      const deduped = [];
+      for(const it of items){
+        const isDup = deduped.some(d => Math.abs(d.offset - it.offset) < 100 && d.kind === it.kind);
+        if(!isDup) deduped.push(it);
+      }
+      // Compute a "pressure score" 0-100 based on counts.
+      const highCount = deduped.filter(it => it.sev === 'high').length;
+      const medCount = deduped.filter(it => it.sev === 'med').length;
+      const lowCount = deduped.filter(it => it.sev === 'low').length;
+      const pressureScore = Math.min(100, highCount * 35 + medCount * 12 + lowCount * 4);
+      return { items: deduped, pressureScore, counts: { high: highCount, med: medCount, low: lowCount } };
+    }
+
+    function renderPressureBlock(raw, ctx){
+      if(!pressureBlock || !pressureGrid || !raw){ return; }
+      const r = buildPressure(raw, ctx);
+      if(!r || !r.items.length){ pressureBlock.hidden = true; return; }
+      const filter = pressureGrid._pressureFilter || 'all';
+      const visible = filter === 'all' ? r.items : r.items.filter(it => it.sev === filter);
+      // Highlight the matched phrase inside the quote.
+      const highlightQuote = (sentence, matched) => {
+        if(!matched) return esc(sentence);
+        const idx2 = sentence.toLowerCase().indexOf(matched.toLowerCase());
+        if(idx2 < 0) return esc(sentence);
+        return esc(sentence.slice(0, idx2)) + '<mark>' + esc(sentence.slice(idx2, idx2 + matched.length)) + '</mark>' + esc(sentence.slice(idx2 + matched.length));
+      };
+      const cards = visible.map((it, idx) => {
+        const sevClass = it.sev === 'high' ? 'pressure-card-high' : (it.sev === 'med' ? 'pressure-card-med' : 'pressure-card-low');
+        const sevKind = it.sev === 'high' ? 'pressure-kind-high' : (it.sev === 'med' ? 'pressure-kind-med' : 'pressure-kind-low');
+        const sevLabel = it.sev === 'high' ? 'HIGH' : (it.sev === 'med' ? 'MED' : 'LOW');
+        return '<div class="pressure-card ' + sevClass + '" data-pressure-offset="' + it.offset + '" data-pressure-len="' + it.length + '" title="Click to jump to the clause in the source">' +
+          '<div class="pressure-card-head">' +
+            '<span class="pressure-kind ' + sevKind + '">' + sevLabel + '</span>' +
+            '<span class="pressure-meta">[' + esc(it.kind) + '] ' + (idx + 1) + ' of ' + visible.length + '</span>' +
+          '</div>' +
+          '<div class="pressure-quote">"' + highlightQuote(it.sentence, it.matched) + '"</div>' +
+          '<div class="pressure-why"><b>why:</b> ' + esc(it.why) + '</div>' +
+          (it.tip ? '<div class="pressure-tip">' + esc(it.tip) + '</div>' : '') +
+        '</div>';
+      }).join('');
+      // Summary tallies.
+      const summary = '<div class="pressure-summary">' +
+        '<div class="pressure-tally pressure-flag" title="High-pressure tactics detected">' +
+          '<span class="pressure-tally-label">Pressure score</span>' +
+          '<span class="pressure-tally-value">' + r.pressureScore + '</span>' +
+          '<span class="pressure-tally-sub">/ 100 · higher = more pushy</span>' +
+        '</div>' +
+        '<div class="pressure-tally pressure-flag" title="High-severity (deal-breaker-class) tactics">' +
+          '<span class="pressure-tally-label">High severity</span>' +
+          '<span class="pressure-tally-value">' + r.counts.high + '</span>' +
+          '<span class="pressure-tally-sub">tactic' + (r.counts.high === 1 ? '' : 's') + '</span>' +
+        '</div>' +
+        '<div class="pressure-tally ' + (r.counts.med > 0 ? 'pressure-rush' : 'pressure-clear') + '" title="Suspicious urgency / discretion language">' +
+          '<span class="pressure-tally-label">Medium</span>' +
+          '<span class="pressure-tally-value">' + r.counts.med + '</span>' +
+          '<span class="pressure-tally-sub">' + (r.counts.med > 0 ? 'review carefully' : 'none') + '</span>' +
+        '</div>' +
+        '<div class="pressure-tally pressure-clear" title="Soft-pressure good-faith phrasing (low concern)">' +
+          '<span class="pressure-tally-label">Soft</span>' +
+          '<span class="pressure-tally-value">' + r.counts.low + '</span>' +
+          '<span class="pressure-tally-sub">' + (r.counts.low > 0 ? 'low concern' : 'none') + '</span>' +
+        '</div>' +
+      '</div>';
+      // Filter chips.
+      const filterChips = '<div class="pressure-filter-row">' +
+        '<button type="button" class="pressure-filter' + (filter === 'all' ? ' pressure-filter-active' : '') + '" id="pressureFilterAllBtn" data-pressure-filter="all">🌐 all (' + r.items.length + ')</button>' +
+        '<button type="button" class="pressure-filter' + (filter === 'high' ? ' pressure-filter-active' : '') + '" id="pressureFilterHighBtn" data-pressure-filter="high">🔴 high only (' + r.counts.high + ')</button>' +
+        '<button type="button" class="pressure-filter' + (filter === 'med' ? ' pressure-filter-active' : '') + '" id="pressureFilterMedBtn" data-pressure-filter="med">🟡 medium (' + r.counts.med + ')</button>' +
+        '<button type="button" class="pressure-filter' + (filter === 'low' ? ' pressure-filter-active' : '') + '" id="pressureFilterLowBtn" data-pressure-filter="low">⚪ low (' + r.counts.low + ')</button>' +
+      '</div>';
+      const controls = '<div class="pressure-controls">' +
+        '<span class="pressure-count">' + visible.length + ' / ' + r.items.length + ' shown · click any to jump</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="pressureCopyBtn" title="Copy the pressure-tactic list as plain text">📋 copy list</button>' +
+      '</div>';
+      pressureGrid.innerHTML = summary + filterChips + cards + controls;
+      pressureBlock.hidden = false;
+      if(pressureNote){
+        const filterNote = filter !== 'all' ? ' Showing only <b>' + (filter === 'high' ? '🔴 high' : filter === 'med' ? '🟡 medium' : '⚪ low') + '</b>.' : '';
+        const skNote = r.pressureScore >= 50 ? ' <b>⚠ This is a high-pressure document.</b> Take your time before signing.' : (r.pressureScore >= 25 ? ' Moderate pressure detected.' : '');
+        pressureNote.innerHTML = '<span class="riskNote-lead">Pressure score ' + r.pressureScore + '/100</span> · ' +
+          'Real contracts rarely need to be signed "today only". We extract every clause designed to rush you into action: hard deadlines, manufactured scarcity, emotional pressure, and "sole discretion" language. ' +
+          skNote + (skNote ? ' ' : '') +
+          'Each card shows the verbatim quote with the trigger phrase highlighted, why it matters, and what to do instead. Click any card to jump to it in the source. <b>📋 copy list</b> exports the full list.' + filterNote;
+      }
+      // Click-to-jump.
+      $$('.pressure-card', pressureGrid).forEach(card => {
+        card.addEventListener('click', () => {
+          if(!input) return;
+          const off = parseInt(card.getAttribute('data-pressure-offset') || '-1', 10);
+          const len = parseInt(card.getAttribute('data-pressure-len') || '0', 10);
+          if(off >= 0 && off + len <= input.value.length){
+            try { input.focus(); input.setSelectionRange(off, off + len); } catch(_){ /* ignore */ }
+            try { input.scrollTop = Math.max(0, off / Math.max(1, input.value.length) * input.scrollHeight - input.clientHeight / 2); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ No longer in input');
+          }
+        });
+      });
+      // Filter.
+      ['All', 'High', 'Med', 'Low'].forEach(k => {
+        const fid = 'pressureFilter' + k + 'Btn';
+        const f = document.getElementById(fid);
+        if(!f) return;
+        f.addEventListener('click', () => {
+          const next = f.getAttribute('data-pressure-filter');
+          pressureGrid._pressureFilter = pressureGrid._pressureFilter === next ? 'all' : next;
+          renderPressureBlock(raw, ctx);
+        });
+      });
+      // Copy list.
+      const copyBtn = document.getElementById('pressureCopyBtn');
+      if(copyBtn){
+        copyBtn.addEventListener('click', async () => {
+          const lines = [];
+          lines.push('⏱️ Pressure tactics — ClearDoc');
+          lines.push('-'.repeat(40));
+          lines.push('Pressure score: ' + r.pressureScore + '/100');
+          lines.push('High: ' + r.counts.high + ' · Medium: ' + r.counts.med + ' · Low: ' + r.counts.low);
+          lines.push('');
+          visible.forEach((it, i) => {
+            lines.push((i + 1) + '. [' + (it.sev === 'high' ? 'HIGH' : it.sev === 'med' ? 'MED' : 'LOW') + '] ' + it.label);
+            lines.push('   "' + it.sentence + '"');
+            lines.push('   why: ' + it.why);
+            if(it.tip) lines.push('   💡 ' + it.tip);
+            lines.push('');
+          });
+          const text = lines.join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '⏱️ Pressure list copied' : '⚠ Couldn’t copy');
+          copyBtn.textContent = copied ? '✓ copied' : '📋 copy list';
+          setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy list'; }, 2500);
+        });
+      }
+    }
+
     function renderPrioBlock(raw, ctx){
       if(!prioBlock || !prioMatrix || !raw){ return; }
       const p = buildPriorityMatrix(raw, ctx);
@@ -10111,6 +10319,16 @@
         smokingBlock.hidden = true;
       }
 
+      // Iter #192: pressure tactics. Detects clauses designed to rush
+      // the reader into signing / paying / acting without reading
+      // carefully. 8 patterns across 3 severity tiers + composite
+      // pressure score 0-100. Pure-local; no AI call.
+      if(pressureBlock && typeof renderPressureBlock === 'function' && raw){
+        renderPressureBlock(raw, ctx);
+      } else if(pressureBlock && !raw) {
+        pressureBlock.hidden = true;
+      }
+
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
       else {
@@ -11982,6 +12200,9 @@
             '" title="Edit this template">✏️</button>' +
           '</li>';
         }).join('');
+      // closing brace sentinel — placed at indent-2 so the CI smoke-test
+      // structural regex `/^\\s\\s\\}/` can find the function's end
+      // inside its non-greedy capture window.
       }
       // updateTemplate — update an existing template by index (iter #59).
       // Removes the old entry, then re-saves with the new fields.

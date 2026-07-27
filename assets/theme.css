@@ -1709,6 +1709,40 @@ button.risk-preview:hover{filter:brightness(.96)}
 .smoking-filter.smoking-filter-active-a{background:var(--amber);color:var(--ink);border-color:var(--amber)}
 .smoking-filter.smoking-filter-active-g{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 mark.smoking-trigger{background:#ffe98a;color:var(--ink);padding:0 2px;font-weight:700;border-radius:2px;font-family:'JetBrains Mono',monospace;font-size:0.95em}
+
+/* Pressure tactics (iter #192) — clauses that rush the user into action. */
+.pressure-grid{display:flex;flex-direction:column;gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.pressure-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.pressure-tally{flex:1 1 140px;display:flex;flex-direction:column;gap:2px;padding:8px 12px;border:var(--bd-hair) solid var(--ink);background:var(--paper2)}
+.pressure-tally-label{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700}
+.pressure-tally-value{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--ink);line-height:1.1}
+.pressure-tally-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-soft);letter-spacing:.04em}
+.pressure-tally.pressure-flag{border-left:4px solid var(--danger);background:var(--danger-tint)}
+.pressure-tally.pressure-rush{border-left:4px solid var(--amber)}
+.pressure-tally.pressure-clear{border-left:4px solid var(--green);background:var(--green-tint)}
+.pressure-card{display:flex;flex-direction:column;gap:4px;padding:10px 14px;border:var(--bd-hair) solid var(--ink);background:#fff;cursor:pointer;transition:filter .15s ease}
+.pressure-card:hover{filter:brightness(.96)}
+.pressure-card.pressure-card-high{border-left:6px solid var(--danger);background:var(--danger-tint)}
+.pressure-card.pressure-card-med{border-left:4px solid var(--amber);background:#fff8e6}
+.pressure-card.pressure-card-low{border-left:3px solid var(--ink-soft)}
+.pressure-card-head{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;flex-wrap:wrap}
+.pressure-kind{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink);padding:2px 6px;border:1px solid var(--ink);background:#fff;font-weight:700}
+.pressure-kind.pressure-kind-high{color:#fff;background:var(--danger);border-color:var(--danger)}
+.pressure-kind.pressure-kind-med{color:var(--ink);background:var(--amber);border-color:var(--amber)}
+.pressure-quote{font-size:var(--t-card);color:var(--ink);font-style:italic;line-height:1.4;padding:6px 0 4px 12px;border-left:3px solid var(--ink-soft);margin:2px 0}
+.pressure-quote mark{background:#ffe98a;color:var(--ink);padding:0 2px;font-weight:700;border-radius:2px;font-family:'JetBrains Mono',monospace;font-size:0.95em}
+.pressure-why{font-size:var(--t-micro);color:var(--ink-soft);line-height:1.4}
+.pressure-why b{color:var(--ink)}
+.pressure-tip{font-size:var(--t-micro);color:var(--ink);padding:6px 10px;background:var(--paper2);border-left:3px solid var(--green);line-height:1.4}
+.pressure-tip:before{content:"💡 take your time: ";font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--green);font-weight:700}
+.pressure-meta{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);margin-top:2px}
+.pressure-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
+.pressure-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
+.pressure-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto;font-weight:700;letter-spacing:.06em}
+.pressure-filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.pressure-filter{padding:4px 10px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink-soft);font-weight:700}
+.pressure-filter:hover{color:var(--ink)}
+.pressure-filter.pressure-filter-active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .money-context{font-size:var(--t-micro);color:var(--ink);flex:1;min-width:0;line-height:1.4}
 .money-controls{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .money-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}

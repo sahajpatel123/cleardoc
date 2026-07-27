@@ -85,7 +85,8 @@
   .reading-row,
   .renewal-row,
   .renewal-tally,
-  .smoking-card {
+  .smoking-card,
+  .pressure-card {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
     border: 1px solid #ddd !important;
