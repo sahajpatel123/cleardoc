@@ -2010,21 +2010,8 @@
     //       </div>
     function renderRiskDetail(hits){
       if(!riskDetail) return;
-      // Tip-button helper (iter #123 / "Why this works") — when a
-      // risk row carries an h.tip string, render a small 💡 button
-      // whose click opens the showConfirmModal() with the rationale.
-      // Declared at the top of the function so the CI smoke-test
-      // structural slice (which captures the early portion up to
-      // the first riskDetail.innerHTML write) finds the
-      // `data-rc-tip` marker it asserts, AND the per-row loop below
-      // can reuse the same helper. esc(tip) guards the data
-      // attribute so the rationale text can't smuggle attribute-
-      // breakout payloads.
-      const tipHtml = (tip) => tip ? '<button type="button" class="rc-tip" data-rc-tip="' + esc(tip) + '" aria-label="Why this works">💡</button>' : '';
-      if(!Array.isArray(hits) || hits.length === 0){
-        riskDetail.innerHTML = '<div class="risk-detail-empty">No patterns matched.</div>';
-        return;
-      }
+      const tipHtml=(t)=>t?'<button type="button" class="rc-tip" data-rc-tip="'+esc(t)+'" aria-label="Why this works">💡</button>':'';
+      if(!hits||!hits.length){riskDetail.innerHTML='<div class="risk-detail-empty">No patterns matched.</div>';return;}
       // Severity rank so trap floats to the top of the list.
       const rank = { r: 0, a: 1, g: 2 };
       const ordered = hits.slice().sort((a, b) => (rank[a.sev]||9) - (rank[b.sev]||9));
@@ -5834,9 +5821,41 @@
       // sentences are slower because of legalese. Use 200 wpm floor.
       const totalWords = r.groups.reduce((a, b) => a + b.signalsAcc.wordCount, 0);
       const totalMins = Math.max(1, Math.round(totalWords / 200));
+      // Iter #187 — done-state from localStorage. Each chunk key is its
+      // offset (stable across re-analyses of the same document). The whole
+      // map is keyed by document fingerprint so different docs don't
+      // pollute each other's progress. If we have no fingerprint yet,
+      // fall back to a content-derived hash of the first 200 chars so the
+      // first analysis still gets its own namespace.
+      const fpKey = (() => {
+        try {
+          const receipts = JSON.parse(localStorage.getItem('cleardoc:receipt-log') || '[]') || [];
+          for(let i = receipts.length - 1; i >= 0; i--){
+            if(receipts[i] && receipts[i].fp) return receipts[i].fp;
+          }
+        } catch(_){ /* ignore */ }
+        return 'len' + raw.length + ':' + (raw.slice(0, 200) || '').replace(/[^a-z0-9]/gi, '').slice(0, 32);
+      })();
+      const doneKey = 'cleardoc:reading-done:' + fpKey;
+      let doneMap = {};
+      try { doneMap = JSON.parse(localStorage.getItem(doneKey) || '{}') || {}; } catch(_){ doneMap = {}; }
+      const isDone = (chunk) => !!doneMap[String(chunk.offset)];
+      const markDone = (chunk, val) => {
+        doneMap[String(chunk.offset)] = !!val;
+        try { localStorage.setItem(doneKey, JSON.stringify(doneMap)); } catch(_){ /* ignore */ }
+      };
+      const signalFilter = readingGrid._readingSignalFilter || null;
+      const undoneOnly = readingGrid._readingUndoneOnly === true;
+      // Progress numbers (must-read done %) drive both the progress bar
+      // and the strip overlay.
+      const mustTotal = r.buckets.must.length;
+      const mustDone = r.buckets.must.filter(c => isDone(c)).length;
+      const mustPct = mustTotal > 0 ? Math.round(mustDone / mustTotal * 100) : 0;
       // Reading strip: a thin color-coded bar showing the proportion of
       // each bucket across the whole document. Helps users see at a glance
       // "this is 30% must-read" vs "this is mostly skippable filler".
+      // Iter #187 — overlay a green fill on the must-read cells to show
+      // reading progress.
       const stripBuckets = [
         { kind: 'must', count: r.buckets.must.length, color: 'var(--danger)' },
         { kind: 'skim', count: r.buckets.skim.length, color: 'var(--amber)' },
@@ -5846,37 +5865,77 @@
       const stripHtml = stripTotal > 0 ? '<div class="reading-strip" title="Document split: ' +
         Math.round(stripBuckets[0].count / stripTotal * 100) + '% must-read, ' +
         Math.round(stripBuckets[1].count / stripTotal * 100) + '% skim, ' +
-        Math.round(stripBuckets[2].count / stripTotal * 100) + '% skip">' +
-        stripBuckets.map(b => '<div class="reading-strip-cell" style="width:' + (b.count / stripTotal * 100) + '%;background:' + b.color + '" title="' + b.count + ' ' + b.kind + ' chunks"></div>').join('') +
+        Math.round(stripBuckets[2].count / stripTotal * 100) + '% skip · reading progress ' + mustPct + '% (' + mustDone + '/' + mustTotal + ')">' +
+        stripBuckets.map(b => {
+          const w = b.count / stripTotal * 100;
+          // Iter #187 — green done overlay on the must-read cells, sized
+          // by the percentage of must-read chunks already marked done.
+          let overlay = '';
+          if(b.kind === 'must' && mustTotal > 0){
+            const doneChunks = r.buckets.must.filter(c => isDone(c)).length;
+            const donePct = doneChunks / mustTotal * 100;
+            overlay = '<div class="reading-strip-overlay" style="width:' + (donePct / 100 * w) + '%;background:var(--green);opacity:.7"></div>';
+          }
+          return '<div class="reading-strip-cell" style="width:' + w + '%;background:' + b.color + '" title="' + b.count + ' ' + b.kind + ' chunks">' + overlay + '</div>';
+        }).join('') +
+      '</div>' : '';
+      // Iter #187 — dedicated progress bar under the strip so the user
+      // sees exact numbers ("3/8 must-read done · 38%") instead of having
+      // to hover the strip to guess.
+      const progressBar = mustTotal > 0 ? '<div class="reading-progress" title="Must-read chunks you have marked done">' +
+        '<div class="reading-progress-bar">' +
+          '<div class="reading-progress-fill" style="width:' + mustPct + '%"></div>' +
+        '</div>' +
+        '<span class="reading-progress-label"><b>' + mustDone + '</b>/' + mustTotal + ' must-read done · ' + mustPct + '%</span>' +
+        (mustDone > 0 ? '<button type="button" class="reading-clear ghost-btn ghost-btn-sm" id="readingClearDoneBtn" title="Reset the must-read done list">↺ reset</button>' : '') +
       '</div>' : '';
       const renderBucket = (kind, label, hint) => {
         const chunks = r.buckets[kind];
         if(!chunks.length) return '';
-        const visible = (filter === 'all' || filter === kind) ? chunks.slice(0, kind === 'skip' ? 6 : 12) : [];
+        // Iter #187 — apply signal + undone filters before slicing.
+        const visible = (filter === 'all' || filter === kind)
+          ? chunks.filter(c => {
+              if(undoneOnly && isDone(c)) return false;
+              if(signalFilter){
+                if(signalFilter === 'flagged' && !c.signalsAcc.flagged) return false;
+                if(signalFilter === 'moneyHit' && !c.signalsAcc.moneyHit) return false;
+                if(signalFilter === 'deadlineHit' && !c.signalsAcc.deadlineHit) return false;
+                if(signalFilter === 'rightsHit' && !c.signalsAcc.rightsHit) return false;
+                if(signalFilter === 'actionHit' && !c.signalsAcc.actionHit) return false;
+              }
+              return true;
+            }).slice(0, kind === 'skip' ? 6 : 12)
+          : [];
         if(!visible.length) return '';
         const rows = visible.map(c => {
           const signals = [];
-          if(c.signalsAcc.flagged) signals.push('🚩 risk');
-          if(c.signalsAcc.moneyHit) signals.push('💰 money');
-          if(c.signalsAcc.deadlineHit) signals.push('⏰ deadline');
-          if(c.signalsAcc.rightsHit) signals.push('✓ your rights');
-          if(c.signalsAcc.actionHit && !signals.length) signals.push('📌 obligation');
-          const signalText = signals.length ? signals.join(' · ') : 'factual';
-          // First sentence is enough for the preview; never blow past
-          // 240 chars so it stays scannable.
+          // Iter #187 — every signal is a clickable filter button.
+          if(c.signalsAcc.flagged) signals.push({ kind: 'flagged', label: '🚩 risk' });
+          if(c.signalsAcc.moneyHit) signals.push({ kind: 'moneyHit', label: '💰 money' });
+          if(c.signalsAcc.deadlineHit) signals.push({ kind: 'deadlineHit', label: '⏰ deadline' });
+          if(c.signalsAcc.rightsHit) signals.push({ kind: 'rightsHit', label: '✓ your rights' });
+          if(c.signalsAcc.actionHit && !signals.length) signals.push({ kind: 'actionHit', label: '📌 obligation' });
+          const done = isDone(c);
           const previewSrc = c.sentences[0] + (c.sentences.length > 1 ? ' …' : '');
-          return '<div class="reading-row' + (c.bucket === 'skip' ? ' reading-row-skip' : '') + '" data-reading-offset="' + c.offset + '" title="' + c.sentences.length + ' sentence' + (c.sentences.length === 1 ? '' : 's') + ' · click to jump">' +
+          const sigHtml = signals.length
+            ? signals.map(s => '<button type="button" class="reading-sig reading-sig-' + s.kind + (signalFilter === s.kind ? ' reading-sig-active' : '') + '" data-reading-signal="' + s.kind + '" title="Filter to only chunks with this signal">' + s.label + '</button>').join('')
+            : '<span class="reading-sig reading-sig-factual">factual</span>';
+          // Row layout: [done] [prio] [content]
+          return '<div class="reading-row' + (c.bucket === 'skip' ? ' reading-row-skip' : '') + (done ? ' reading-row-done' : '') + '" data-reading-offset="' + c.offset + '" title="' + c.sentences.length + ' sentence' + (c.sentences.length === 1 ? '' : 's') + ' · click anywhere except the checkbox or signal badges to jump">' +
+            '<button type="button" class="reading-done" data-reading-done="' + c.offset + '" title="' + (done ? 'Mark as not read' : 'Mark this chunk as read') + '" aria-label="toggle done">' + (done ? '✓' : '○') + '</button>' +
             '<div class="reading-prio reading-prio-' + (c.bucket === 'must' ? 'high' : c.bucket === 'skim' ? 'mid' : 'low') + '">' + Math.round(c.score * 100) + '</div>' +
-            '<div style="flex:1;min-width:0">' +
+            '<div class="reading-content">' +
               '<div class="reading-preview">' + esc(trunc(previewSrc, 240)) + '</div>' +
-              '<div class="reading-meta">' + signalText + ' · ' + c.sentences.length + ' sentence' + (c.sentences.length === 1 ? '' : 's') + '</div>' +
+              '<div class="reading-meta">' + sigHtml + ' · ' + c.sentences.length + ' sentence' + (c.sentences.length === 1 ? '' : 's') + (done ? ' · <b class="reading-done-flag">✓ done</b>' : '') + '</div>' +
             '</div>' +
           '</div>';
         }).join('');
         const hiddenCount = chunks.length - visible.length;
         const hiddenText = hiddenCount > 0 ? ' <span class="reading-meta">+ ' + hiddenCount + ' more not shown</span>' : '';
+        // Iter #187 — show "X done" count in the bucket label.
+        const bucketDone = chunks.filter(c => isDone(c)).length;
         return '<div class="reading-bucket reading-bucket-' + kind + '">' +
-          '<div class="reading-bucket-label"><span>' + label + '</span><span class="reading-count">' + chunks.length + ' chunk' + (chunks.length === 1 ? '' : 's') + hiddenText + '</span></div>' +
+          '<div class="reading-bucket-label"><span>' + label + '</span><span class="reading-count">' + chunks.length + ' chunk' + (chunks.length === 1 ? '' : 's') + (bucketDone > 0 ? ' · ' + bucketDone + ' done' : '') + hiddenText + '</span></div>' +
           rows +
         '</div>';
       };
@@ -5885,26 +5944,35 @@
         renderBucket('skim', '🟡 Skim (context only)', 'Read the topic, skim the body — non-binding / informational.'),
         renderBucket('skip', '🟢 Skip (low priority)', 'Boilerplate, signature blocks, recitals — same in every doc.')
       ].filter(Boolean).join('');
+      // Iter #187 — active signal filter chip + the toggles.
+      const signalChipHtml = signalFilter ? '<div class="reading-signal-chip" title="Active signal filter — click ✕ to clear">' +
+        'filter: <b>' + esc(signalFilter) + '</b> · <button type="button" id="readingClearSignalBtn" class="ghost-btn ghost-btn-sm">✕ clear filter</button>' +
+      '</div>' : '';
       const controls = '<div class="reading-controls">' +
         '<span class="reading-count">' + r.totalSentences + ' sentence' + (r.totalSentences === 1 ? '' : 's') + ' · ' + r.groups.length + ' chunk' + (r.groups.length === 1 ? '' : 's') + ' · ~' + totalMins + ' min at 200 wpm</span>' +
         '<button type="button" class="reading-filter ghost-btn" id="readingFilterMustBtn" title="Show only must-read chunks">🔴 must only</button>' +
         '<button type="button" class="reading-filter ghost-btn" id="readingFilterSkimBtn" title="Show only skim chunks">🟡 skim only</button>' +
         '<button type="button" class="reading-filter ghost-btn" id="readingFilterSkipBtn" title="Show only skippable chunks">🟢 skip only</button>' +
         '<button type="button" class="reading-filter ghost-btn" id="readingFilterAllBtn" title="Show every chunk">🌐 all</button>' +
+        '<button type="button" class="reading-filter ghost-btn' + (undoneOnly ? ' reading-filter-active' : '') + '" id="readingUndoneBtn" title="Show only chunks you have not yet marked done">⏳ undone only</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyListBtn" title="Copy the reading priority list as plain text">📋 copy list</button>' +
-      '</div>';
-      readingGrid.innerHTML = stripHtml + buckets + controls;
+      '</div>' + signalChipHtml;
+      readingGrid.innerHTML = stripHtml + progressBar + buckets + controls;
       readingBlock.hidden = false;
       if(readingNote){
         const pctMust = Math.round(r.buckets.must.length / r.groups.length * 100);
         const lead = r.buckets.must.length + ' must-read · ' + r.buckets.skim.length + ' skim · ' + r.buckets.skip.length + ' skip';
         readingNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
-          'Pure-local: walks the doc sentence-by-sentence and scores each against risk, money, deadline, and rights signals. <b>🔴 must</b> = every red/orange dot (' + pctMust + '% of the doc). ' +
-          'Click any chunk to jump. <b>📋 copy list</b> exports the priority order as a checklist.';
+          'Pure-local: walks the doc sentence-by-sentence and scores each against risk, money, deadline, and rights signals. ' +
+          '<b>🔴 must</b> = every red/orange dot (' + pctMust + '% of the doc). ' +
+          'Click a chunk to jump to it; click <b>○</b> to mark it read (progress persists). ' +
+          'Click any signal badge (🚩/💰/⏰/✓) to filter chunks with that signal. <b>📋 copy list</b> exports the priority order as a checklist.';
       }
-      // Click-to-jump.
+      // Click-to-jump. Inner controls (done + signal badges) stop
+      // propagation so they don't accidentally jump the input.
       $$('.reading-row', readingGrid).forEach(row => {
-        row.addEventListener('click', () => {
+        row.addEventListener('click', (e) => {
+          if(e.target && (e.target.closest('.reading-done') || e.target.closest('.reading-sig'))) return;
           if(!input) return;
           const off = parseInt(row.getAttribute('data-reading-offset') || '-1', 10);
           if(off >= 0 && off < input.value.length){
@@ -5914,6 +5982,39 @@
             showAnalyzeToast('⚠ No longer in input');
           }
         });
+      });
+      // Iter #187 — done toggles. Persist and re-render to refresh the
+      // progress bar + bucket counts.
+      $$('.reading-done', readingGrid).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const off = parseInt(btn.getAttribute('data-reading-done') || '-1', 10);
+          const chunk = r.groups.find(c => c.offset === off);
+          if(!chunk) return;
+          markDone(chunk, !isDone(chunk));
+          renderReadingBlock(raw, ctx);
+        });
+      });
+      // Iter #187 — signal-badge filters. Click twice to clear.
+      $$('.reading-sig', readingGrid).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const sig = btn.getAttribute('data-reading-signal') || '';
+          if(!sig) return;
+          readingGrid._readingSignalFilter = readingGrid._readingSignalFilter === sig ? null : sig;
+          renderReadingBlock(raw, ctx);
+        });
+      });
+      // Iter #187 — "✕ clear filter" chip when a signal is active.
+      const clearSigBtn = document.getElementById('readingClearSignalBtn');
+      if(clearSigBtn) clearSigBtn.addEventListener('click', () => { readingGrid._readingSignalFilter = null; renderReadingBlock(raw, ctx); });
+      // Iter #187 — reset button wipes the per-document done map.
+      const clearDoneBtn = document.getElementById('readingClearDoneBtn');
+      if(clearDoneBtn) clearDoneBtn.addEventListener('click', () => {
+        try { localStorage.removeItem(doneKey); } catch(_){ /* ignore */ }
+        renderReadingBlock(raw, ctx);
       });
       // Filter chips.
       const setFilter = (next) => {
@@ -5928,6 +6029,13 @@
       if(fSkim) fSkim.addEventListener('click', () => setFilter('skim'));
       if(fSkip) fSkip.addEventListener('click', () => setFilter('skip'));
       if(fAll) fAll.addEventListener('click', () => setFilter('all'));
+      // Iter #187 — undone-only toggle. Active state already baked into
+      // the button class above.
+      const undoneBtn = document.getElementById('readingUndoneBtn');
+      if(undoneBtn) undoneBtn.addEventListener('click', () => {
+        readingGrid._readingUndoneOnly = !readingGrid._readingUndoneOnly;
+        renderReadingBlock(raw, ctx);
+      });
       if(readingGrid._readingFilter === 'must' && fMust) fMust.classList.add('reading-filter-active');
       else if(readingGrid._readingFilter === 'skim' && fSkim) fSkim.classList.add('reading-filter-active');
       else if(readingGrid._readingFilter === 'skip' && fSkip) fSkip.classList.add('reading-filter-active');
@@ -5937,7 +6045,7 @@
       if(copyBtn){
         copyBtn.addEventListener('click', async () => {
           const lines = [];
-          lines.push('Reading priority order · ' + r.totalSentences + ' sentences · ' + r.groups.length + ' chunks · ~' + totalMins + ' min');
+          lines.push('Reading priority order · ' + r.totalSentences + ' sentences · ' + r.groups.length + ' chunks · ~' + totalMins + ' min · ' + mustDone + '/' + mustTotal + ' must-read done');
           lines.push('-'.repeat(40));
           for(const kind of ['must', 'skim', 'skip']){
             const lbl = kind === 'must' ? '🔴 MUST READ' : kind === 'skim' ? '🟡 SKIM' : '🟢 SKIP';
@@ -5952,7 +6060,8 @@
               if(c.signalsAcc.deadlineHit) signals.push('deadline');
               if(c.signalsAcc.rightsHit) signals.push('rights');
               if(!signals.length) signals.push('factual');
-              lines.push((i + 1) + '. [' + Math.round(c.score * 100) + '] [' + signals.join(',') + '] ' + c.sentences[0] + (c.sentences.length > 1 ? ' … (+' + (c.sentences.length - 1) + ' more)' : ''));
+              const doneMark = isDone(c) ? ' [✓ done]' : '';
+              lines.push((i + 1) + '. [' + Math.round(c.score * 100) + '] [' + signals.join(',') + ']' + doneMark + ' ' + c.sentences[0] + (c.sentences.length > 1 ? ' … (+' + (c.sentences.length - 1) + ' more)' : ''));
             });
           }
           const text = lines.join('\n');
@@ -12073,6 +12182,27 @@
                   '<p><b style="color:var(--amber)">watch = $50</b><br>Medium stakes — could trigger unwanted terms, missed deadlines, or administrative headaches.</p>' +
                   '<p><b style="color:var(--green)">note  = $20</b><br>Low stakes — minor administrative cost — extra paperwork, follow-up calls, or small fees.</p>' +
                   '<p class="apply-confirm-note">These are industry-rough conservative estimates. Real costs vary by contract, jurisdiction, and situation. Use the number as a relative gauge, not a literal price tag.</p>',
+                confirmLabel: 'Got it',
+              });
+            }
+            return;
+          }
+          // Iter #123 — "Why this works" tip: each counter-suggestion
+          // row carries an optional 💡 button (data-rc-tip). Click opens
+          // the confirm modal with the legal/business rationale for the
+          // proposed counter-clause. Builds trust by explaining the
+          // reasoning, not just the clause text. The stored tip is
+          // escaped on render so this attribute is safe to inject
+          // directly into showConfirmModal's bodyHtml.
+          const tipBtn = e.target.closest && e.target.closest('[data-rc-tip]');
+          if(tipBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const tip = tipBtn.getAttribute('data-rc-tip') || '';
+            if(tip && typeof showConfirmModal === 'function'){
+              await showConfirmModal({
+                title: 'Why this works',
+                bodyHtml: '<p>' + tip + '</p>',
                 confirmLabel: 'Got it',
               });
             }
