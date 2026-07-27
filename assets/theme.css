@@ -978,6 +978,13 @@ button.risk-preview:hover{filter:brightness(.96)}
    scroll. Hover stays the inverted style for non-active links. */
 .section-nav a.sn-active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .section-nav a.sn-active .sn-count{color:var(--paper)}
+/* iter #208: analyzed-ago badge — small live "X min ago" indicator
+   next to the verdict title. Subdued mono font so it doesn't fight
+   the verdict label for attention. Hover reveals the full ISO
+   timestamp via the title attribute (set in JS). */
+.analyzed-ago{margin-left:8px;font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:400;padding:3px 8px;border:1px solid var(--ink-soft);cursor:help}
+.analyzed-ago[data-stale="1"]{color:var(--amber);border-color:var(--amber)}
+.analyzed-ago[data-stale="2"]{color:var(--danger);border-color:var(--danger)}
 /* iter #201 v2: "showing X of Y" pill that appears at the right of the
    filter strip whenever a non-'all' filter is active. Aligns with the
    baseline of the buttons, mono font, muted color. */

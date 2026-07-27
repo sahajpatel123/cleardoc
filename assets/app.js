@@ -724,7 +724,7 @@
   /* ================= INIT ================= */
   function initAll(){
     const page=(document.body.dataset.page)||'home';
-    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav];
+    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo];
     const byPage={
       home:[heroClarifier,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,faq],
@@ -1155,6 +1155,37 @@
       const c = s.count > 0 ? ' <span class="sn-count">' + s.count + '</span>' : '';
       return '<a href="#' + esc(targetId) + '" data-sn-target="' + esc(targetId) + '">' + esc(s.label) + c + '</a>';
     }).join('');
+  }
+  // iter #208: analyzed-ago badge — small live "X min ago" indicator
+  // next to the verdict title. Tracks analysis timestamp in
+  // lastAnalysisTs; paintAnalyzedAgo() updates the badge and a
+  // 30-second setInterval refreshes it so the number stays current
+  // while the user lingers on the page. data-stale escalates from
+  // 1 (>15 min, amber) to 2 (>1 hr, danger) so users see when the
+  // analysis is starting to feel old.
+  const _analyzedState = { ts: 0, timer: null };
+  function paintAnalyzedAgo(){
+    const el = document.getElementById('analyzedAgo');
+    if(!el || !_analyzedState.ts) return;
+    if(typeof formatRelativeTime !== 'function') return;
+    const txt = 'Analyzed ' + formatRelativeTime(_analyzedState.ts);
+    el.textContent = txt;
+    el.title = new Date(_analyzedState.ts).toLocaleString();
+    el.hidden = false;
+    const ageMs = Date.now() - _analyzedState.ts;
+    if(ageMs > 60 * 60 * 1000) el.dataset.stale = '2';
+    else if(ageMs > 15 * 60 * 1000) el.dataset.stale = '1';
+    else el.dataset.stale = '0';
+  }
+  function setAnalyzedTimestamp(ts){
+    _analyzedState.ts = ts || Date.now();
+    paintAnalyzedAgo();
+    if(_analyzedState.timer) clearInterval(_analyzedState.timer);
+    _analyzedState.timer = setInterval(paintAnalyzedAgo, 30000);
+  }
+  function wireAnalyzedAgo(){
+    if(_analyzedState.timer) clearInterval(_analyzedState.timer);
+    _analyzedState.timer = setInterval(paintAnalyzedAgo, 30000);
   }
   function wireSectionNav(){
     const nav = document.getElementById('sectionNav');
@@ -12080,8 +12111,7 @@
       paintTopConcern(flags);
       wireAskPerRisk();
       paintSectionNav();
-
-      // Iter #88: heat map — color every sentence by its risk
+      setAnalyzedTimestamp(Date.now());
       // severity so the user can see WHERE the traps cluster.
       // Iter #89: click-to-jump on tiles + a "View only flagged"
       // filter chip + a "view mode" toggle (tiles ↔ inline list).
@@ -12611,6 +12641,7 @@
         paintTopConcern(lastFlags);
         wireAskPerRisk();
         paintSectionNav();
+        setAnalyzedTimestamp(Date.now());
       }
 
       // Verdict
