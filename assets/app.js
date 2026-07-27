@@ -7854,6 +7854,179 @@
       }
     }
 
+    // Iter #198 — who bears the risk? For every flagged clause,
+    // classifies which side bears the risk: YOU / THEM / SHARED.
+    // Pure-local regex + a 24-pattern catalog.
+    function buildBearer(raw, ctx){
+      const text = String(raw || '');
+      if(!text) return null;
+      const items = [];
+      const firstSnippet = (re) => {
+        const m = re.exec(text);
+        if(!m) return null;
+        const start = Math.max(0, m.index - 40);
+        const end = Math.min(text.length, m.index + m[0].length + 100);
+        return { snippet: text.slice(start, end).replace(/\s+/g, ' ').trim(), offset: m.index, length: m[0].length };
+      };
+      const push = (side, label, re, why) => {
+        const found = firstSnippet(re);
+        if(!found) return;
+        items.push({ side: side, label: label, quote: found.snippet, offset: found.offset, length: found.length, why: why });
+      };
+      push('you', 'non-refundable fee', /\bnon[-\s]?refundable\b/i, 'You pay whether or not you use the service.');
+      push('you', 'forfeit / liquidated damages', /\b(?:forfeit(?:ure)?|liquidated\s+damages)\b/i, 'You lose a deposit or owe a stated amount on breach.');
+      push('you', 'hold-harmless / indemnify them', /(?<!mutual\s)hold\s+(?:you|the\s+(?:company|vendor|provider|us))\s+harmless|\bindemnif(?:y|ication|ied)\b/i, 'You pay their losses if a third party sues them. Ask for mutual.');
+      push('you', 'late fee / default interest', /\b(?:late\s+(?:fee|charge|payment)|default\s+interest|default\s+rate)\b/i, 'You pay an extra charge if you pay late.');
+      push('you', 'early-termination fee', /\bearly\s+terminat\w+\s+fee\b/i, 'You pay a stated amount for cancelling before the natural end.');
+      push('you', 'auto-renew without cancellation notice', /\bauto(?:matic(?:ally)?)?[- ]?renew(?:al|s|ing)?\b(?![^.]*\b(?:notify|notice|cancel)\b)/i, 'You keep getting charged unless you take action.');
+      push('you', 'unbounded liability / uncapped losses', /\b(?:perpetual\s+liability|uncapped\s+liability|no\s+liability\s+cap|liability\s+with\s+no\s+limit)/i, 'Your exposure has no dollar ceiling.');
+      push('you', 'perpetual obligation', /\bperpetual\s+obligation\b/i, 'You stay on the hook forever.');
+      push('you', 'class-action waiver', /\bclass[-\s]?action\s+waiver|waive\s+(?:your|the)\s+(?:right\s+to\s+)?class\s+action\b/i, 'You cannot join other users in a class action.');
+      push('you', 'mandatory binding arbitration', /\b(?:mandatory|required)\s+(?:binding\s+)?arbitrat(?:ion|ed)\b/i, 'You give up your right to a jury trial in court.');
+      push('you', 'attorney fee clause (loser pays)', /(?<!prevailing\s+party)(?<!each\s+party\s+shall\s+bear\s+its\s+own)attorney['']?s?\s+fees/i, 'You may owe their attorney fees if you lose.');
+      push('you', 'consequential-damages exclusion', /\b(?:no|excludes?)\s+consequential\s+damages\b/i, 'You cannot recover indirect losses even if they breach.');
+      push('you', 'waiver of jury trial', /\bwaive\s+(?:your|the)\s+(?:right\s+to\s+)?(?:a\s+)?jury\s+trial\b/i, 'You give up the right to a jury trial.');
+      push('you', 'data sale authorization', /\b(?:sell(?:ing)?\s+(?:your|user|customer)\s+(?:data|information)|assign(?:ing)?\s+(?:your|the)\s+(?:personal\s+)?information)\b/i, 'They monetize your data — usually without further consent.');
+      push('them', 'limited-recourse liability cap', /\b(?:liability\s+cap|aggregate\s+liability|maximum\s+liability|cap\s+on\s+damages)\b/i, 'Their exposure is capped — you may not collect full damages.');
+      push('them', 'refund owed to you', /\b(?:refund(?:able)?|reimburs(?:e|ement)|return\s+of\s+(?:payment|deposit)|money[\s-]back)\b/i, 'You receive money back if you cancel or if the service fails.');
+      push('them', 'warranty / guarantee', /\b(?:warrant(?:y|ed|s)|guarantee(?:d|s)?)\b/i, 'They promise the product/service will work as described.');
+      push('them', 'indemnify you', /\b(?:indemnif(?:y|ication)\s+(?:you|your|the\s+other\s+party|each\s+party))\b/i, 'They pay your losses if a third party sues you.');
+      push('shared', 'deposit / escrow', /\b(?:security\s+deposit|deposit|escrow|collateral)\b/i, 'Money held by either side — returnable if terms met.');
+      push('shared', 'mutual indemnification', /\b(?:mutual\s+indemnif|each\s+party\s+(?:shall|will)\s+indemnif|indemnif(?:y|ication)\s+(?:each\s+other|one\s+another|the\s+other))\b/i, 'Both sides indemnify each other for their own actions.');
+      push('shared', 'force-majeure / act of god', /\b(?:force\s+majeure|act\s+of\s+god|unforeseeable\s+circumstances)\b/i, 'Either side excused from performance on natural disaster / pandemic / war.');
+      push('shared', 'each-party-pays-own attorney fees', /\b(?:each\s+party\s+shall\s+bear\s+its\s+own\s+(?:attorney|legal)\s+fees)\b/i, 'Either side pays its own lawyer — favorable to both.');
+      push('shared', 'mutual confidentiality / NDA', /\b(?:mutual\s+confidentiality|mutual\s+non[-\s]?disclosure|each\s+party\s+(?:shall|will)\s+keep\s+confidential)\b/i, 'Both sides keep each other secrets.');
+      push('shared', 'mutual termination', /\b(?:either\s+party\s+may\s+terminat|mutual\s+terminat|mutual\s+cancellation)\b/i, 'Both sides can end the contract under the same conditions.');
+      push('shared', 'governing law / jurisdiction', /\b(?:governed\s+by\s+the\s+laws?|jurisdiction|venue|forum)\s+(?:of)\b/i, 'Applies to both sides equally.');
+      if(!items.length) return null;
+      const seen = new Set();
+      const dedup = items.filter(it => {
+        const key = it.offset + ':' + it.label;
+        if(seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      const counts = { you: 0, them: 0, shared: 0 };
+      dedup.forEach(it => { counts[it.side] = (counts[it.side] || 0) + 1; });
+      const skew = counts.them > 0 ? counts.you / counts.them : counts.you;
+      return { items: dedup, counts, skew };
+    }
+
+    function renderBearerBlock(raw, ctx){
+      if(!bearerBlock || !bearerGrid || !raw){ return; }
+      const r = buildBearer(raw, ctx);
+      if(!r || !r.items.length){ bearerBlock.hidden = true; return; }
+      const filter = bearerGrid._bearerFilter || 'all';
+      const visible = filter === 'all' ? r.items : r.items.filter(it => it.side === filter);
+      const tally = '<div class="bearer-summary">' +
+        '<div class="bearer-tally bearer-tally-you" title="Risks you bear — the counterparty wrote these to protect themselves">' +
+          '<span class="bearer-tally-label">You bear</span>' +
+          '<span class="bearer-tally-value">' + r.counts.you + '</span>' +
+          '<span class="bearer-tally-sub">risk' + (r.counts.you === 1 ? '' : 's') + ' · unfavorable to you</span>' +
+        '</div>' +
+        '<div class="bearer-tally bearer-tally-them" title="Risks the counterparty bears — favorable to you">' +
+          '<span class="bearer-tally-label">They bear</span>' +
+          '<span class="bearer-tally-value">' + r.counts.them + '</span>' +
+          '<span class="bearer-tally-sub">risk' + (r.counts.them === 1 ? '' : 's') + ' · favorable to you</span>' +
+        '</div>' +
+        '<div class="bearer-tally bearer-tally-shared" title="Risks applied equally to both sides">' +
+          '<span class="bearer-tally-label">Shared</span>' +
+          '<span class="bearer-tally-value">' + r.counts.shared + '</span>' +
+          '<span class="bearer-tally-sub">risk' + (r.counts.shared === 1 ? '' : 's') + ' · bilateral</span>' +
+        '</div>' +
+      '</div>';
+      const total = Math.max(1, r.counts.you + r.counts.them + r.counts.shared);
+      const bar = '<div class="bearer-bar" title="Risk allocation: you (red) / them (green) / shared (amber)">' +
+        '<div class="bearer-bar-cell bearer-bar-you" style="width:' + (r.counts.you / total * 100) + '%"></div>' +
+        '<div class="bearer-bar-cell bearer-bar-them" style="width:' + (r.counts.them / total * 100) + '%"></div>' +
+        '<div class="bearer-bar-cell bearer-bar-shared" style="width:' + (r.counts.shared / total * 100) + '%"></div>' +
+      '</div>';
+      const skewBanner = (r.skew >= 2 && r.counts.you > 1)
+        ? '<div class="bearer-skew" title="You bear >=2× the risks they do — flag for negotiation">⚠ skew: you bear <b>' + r.skew.toFixed(1) + 'x</b> more risk than they do</div>'
+        : '';
+      const cards = visible.map(it => {
+        const tag = '<span class="bearer-tag bearer-tag-' + it.side + '">' + (it.side === 'you' ? '🔴 you bear' : it.side === 'them' ? '🟢 they bear' : '🟡 shared') + '</span>';
+        return '<div class="bearer-row" data-bearer-offset="' + it.offset + '" data-bearer-len="' + it.length + '" title="Click to jump to the clause in the source">' +
+          '<div class="bearer-row-head">' + tag + '<span class="bearer-row-name">' + esc(it.label) + '</span></div>' +
+          '<div class="bearer-quote">"' + esc(trunc(it.quote, 240)) + '"</div>' +
+          '<div class="bearer-explain">' + esc(it.why) + '</div>' +
+        '</div>';
+      }).join('');
+      const filterChips = '<div class="bearer-filter-row">' +
+        '<button type="button" class="bearer-filter' + (filter === 'all' ? ' bearer-filter-active' : '') + '" id="bearerFilterAllBtn" data-bearer-filter="all">🌐 all (' + r.items.length + ')</button>' +
+        '<button type="button" class="bearer-filter' + (filter === 'you' ? ' bearer-filter-active' : '') + '" id="bearerFilterYouBtn" data-bearer-filter="you">🔴 you bear (' + r.counts.you + ')</button>' +
+        '<button type="button" class="bearer-filter' + (filter === 'them' ? ' bearer-filter-active' : '') + '" id="bearerFilterThemBtn" data-bearer-filter="them">🟢 they bear (' + r.counts.them + ')</button>' +
+        '<button type="button" class="bearer-filter' + (filter === 'shared' ? ' bearer-filter-active' : '') + '" id="bearerFilterSharedBtn" data-bearer-filter="shared">🟡 shared (' + r.counts.shared + ')</button>' +
+      '</div>';
+      const controls = '<div class="bearer-controls">' +
+        '<span class="bearer-count">' + visible.length + ' / ' + r.items.length + ' shown · click any to jump</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="bearerCopyBtn" title="Copy the risk-allocation list as plain text">📋 copy</button>' +
+      '</div>';
+      bearerGrid.innerHTML = tally + bar + skewBanner + filterChips + cards + controls;
+      bearerBlock.hidden = false;
+      if(bearerNote){
+        const lead = r.counts.you + ' you · ' + r.counts.them + ' them · ' + r.counts.shared + ' shared';
+        const tone = r.skew >= 2 ? ' <b>⚠ This contract is one-sided in their favor.</b> Ask to make indemnification mutual, the liability cap reciprocal, and the jury-trial waiver optional.' : '';
+        bearerNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
+          'Pure-local. For every flagged clause, we ask the question most people do not: <b>who actually pays?</b> The bar shows red where you bear risk, green where they bear risk, and amber where both sides do. ' + tone + ' Click any row to jump to the clause. <b>📋 copy</b> exports the list.';
+      }
+      $$('.bearer-row', bearerGrid).forEach(row => {
+        row.addEventListener('click', () => {
+          if(!input) return;
+          const off = parseInt(row.getAttribute('data-bearer-offset') || '-1', 10);
+          const len = parseInt(row.getAttribute('data-bearer-len') || '0', 10);
+          if(off >= 0 && off + len <= input.value.length){
+            try { input.focus(); input.setSelectionRange(off, off + len); } catch(_){ /* ignore */ }
+            try { input.scrollTop = Math.max(0, off / Math.max(1, input.value.length) * input.scrollHeight - input.clientHeight / 2); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ No longer in input');
+          }
+        });
+      });
+      const setFilter = (next) => {
+        bearerGrid._bearerFilter = bearerGrid._bearerFilter === next ? 'all' : next;
+        renderBearerBlock(raw, ctx);
+      };
+      const fAll = document.getElementById('bearerFilterAllBtn');
+      const fYou = document.getElementById('bearerFilterYouBtn');
+      const fThem = document.getElementById('bearerFilterThemBtn');
+      const fShared = document.getElementById('bearerFilterSharedBtn');
+      if(fAll) fAll.addEventListener('click', () => { bearerGrid._bearerFilter = 'all'; renderBearerBlock(raw, ctx); });
+      if(fYou) fYou.addEventListener('click', () => setFilter('you'));
+      if(fThem) fThem.addEventListener('click', () => setFilter('them'));
+      if(fShared) fShared.addEventListener('click', () => setFilter('shared'));
+      const copyBtn = document.getElementById('bearerCopyBtn');
+      if(copyBtn){
+        copyBtn.addEventListener('click', async () => {
+          const lines = [];
+          lines.push('🎯 Who bears the risk — ClearDoc');
+          lines.push('-'.repeat(40));
+          lines.push('You bear: ' + r.counts.you + ' risk' + (r.counts.you === 1 ? '' : 's'));
+          lines.push('They bear: ' + r.counts.them + ' risk' + (r.counts.them === 1 ? '' : 's'));
+          lines.push('Shared: ' + r.counts.shared + ' risk' + (r.counts.shared === 1 ? '' : 's'));
+          if(r.skew >= 2) lines.push('Skew: you bear ' + r.skew.toFixed(1) + 'x more risk than they do.');
+          lines.push('');
+          visible.forEach((it, i) => {
+            const side = it.side === 'you' ? 'YOU BEAR' : (it.side === 'them' ? 'THEY BEAR' : 'SHARED');
+            lines.push((i + 1) + '. [' + side + '] ' + it.label);
+            lines.push('   "' + it.quote + '"');
+            lines.push('   ' + it.why);
+            lines.push('');
+          });
+          const text = lines.join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '🎯 Risk allocation copied' : '⚠ Couldn’t copy');
+          copyBtn.textContent = copied ? '✓ copied' : '📋 copy';
+          setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 2500);
+        });
+      }
+    }
+
     function renderPrioBlock(raw, ctx){
       if(!prioBlock || !prioMatrix || !raw){ return; }
       const p = buildPriorityMatrix(raw, ctx);
@@ -11267,6 +11440,16 @@
         renderScenarioBlock(raw, ctx);
       } else if(scenarioBlock && !raw) {
         scenarioBlock.hidden = true;
+      }
+
+      // Iter #198: who bears the risk. Walks every flagged clause
+      // and classifies which side bears it (you / them / shared),
+      // then aggregates into a stacked bar + 3-tally summary. Pure-
+      // local; no AI call.
+      if(bearerBlock && typeof renderBearerBlock === 'function' && raw){
+        renderBearerBlock(raw, ctx);
+      } else if(bearerBlock && !raw) {
+        bearerBlock.hidden = true;
       }
 
 

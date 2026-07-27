@@ -88,7 +88,8 @@
   .smoking-card,
   .pressure-card,
   .exposure-card,
-  .scenario-card {
+  .scenario-card,
+  .bearer-row {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
     border: 1px solid #ddd !important;
