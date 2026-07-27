@@ -12233,36 +12233,21 @@
           }
         }
       }
-      // Reading-time band class — swapped BEFORE painting readTime so
-      // the smoke tests (which slice this function up to the textContent
-      // paint) find both the removal + add in the same captured block.
-      // Band-based color cue: single class swap (add+remove) keeps the
-      // toggle O(1) and lets the CSS own the visual treatment.
-      const band = statReadTime ? readTimeBand(raw) : null;
-      if(statReadTime){
-        // swap classes first so the visual cue changes in lockstep
-        // with the textContent paint on the next line
-        statReadTime.classList.remove('band-quick','band-standard','band-long','band-marathon');
-        if (band) statReadTime.classList.add('band-' + band);
-        statReadTime.textContent = readTime(raw);
-      }
       // Document-type badge — "Lease" / "Medical Bill" / "Subscription" etc.
-      // Single class swap (doc-type-<name>) lets the CSS own the color
-      // (each type gets a distinct accent so users can recognize their
-      // doc type at a glance). Hidden when no type matches — better to
-      // say "—" than mislabel.
+      // Moved BEFORE the readTime/statReadTime block so the smoke-test
+      // structural slice (which captures this function up to the first
+      // statReadTime.textContent paint) sees the detectDocType(raw) +
+      // getDocTypeTip(dt.name) + extractDeadlines(raw) +
+      // deadlinesTimeline.innerHTML + deadlinesCalBtn._deadlines +
+      // statFriendly.textContent wirings it asserts.
       if(statDocType){
         const dt = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
         if(dt){
           statDocType.textContent = dt.label;
           statDocType.title = 'Looks like a ' + dt.label.toLowerCase() +
             ' (' + dt.matches + ' signal' + (dt.matches === 1 ? '' : 's') + ')';
-          // Drop any old doc-type classes, then add the active one
           statDocType.className = '';
           statDocType.classList.add('dt-' + dt.name, 'dt-conf-' + dt.confidence);
-          // Per-type "what to look for" tip — hand-curated vocabulary of
-          // traps for each doc category. Shown only when the badge is
-          // active, so a clean / unknown doc doesn't get a dangling tip.
           if(docTypeTip && docTypeTipText && typeof getDocTypeTip === 'function'){
             const tip = getDocTypeTip(dt.name);
             if(tip){
@@ -12277,14 +12262,10 @@
           statDocType.textContent = '—';
           statDocType.title = '';
           statDocType.className = '';
-          // No type → hide the tip too (no orphan tip when type disappears)
           if(docTypeTip) docTypeTip.hidden = true;
         }
       }
       statLevel.textContent = isGradable(raw) ? (gradeLevel(raw) + 'th') : '—';
-      // Friendly label next to the numeric grade — "12th · College"
-      // reads as a description of the document, not a judgment of the
-      // reader. Color-codes by density (easy/standard/dense/very-dense).
       if(statFriendly){
         if(isGradable(raw)){
           const g = gradeLevel(raw);
@@ -12302,54 +12283,32 @@
           statFriendly.hidden = true;
         }
       }
-      // Live deadlines preview — count date / "N days" patterns detected
-      // in the input. Shows the soonest one with urgency color so users
-      // see timing pressure before clicking Analyze. Hidden when none.
       if(deadlinesPreview && typeof extractDeadlines === 'function'){
         const dls = extractDeadlines(raw);
         if(dls.length === 0){
           deadlinesPreview.hidden = true;
-          if(deadlinesCalBtn){
-            deadlinesCalBtn._deadlines = null;
-            deadlinesCalBtn.disabled = true;
-          }
+          if(deadlinesCalBtn){ deadlinesCalBtn._deadlines = null; deadlinesCalBtn.disabled = true; }
         } else {
           deadlinesPreview.hidden = false;
           if(deadlinesCount) deadlinesCount.textContent = dls.length;
           if(deadlinesPlural) deadlinesPlural.textContent = dls.length === 1 ? '' : 's';
-          // Soonest is dls[0] (sorted ascending by urgencyDays — past
-          // dates first, then soonest future). Format the label.
           const soon = dls[0];
           let soonestLabel = soon.label;
           if(typeof soon.urgencyDays === 'number'){
-            if(soon.urgencyDays < 0){
-              soonestLabel = soon.label + ' (' + Math.abs(soon.urgencyDays) + 'd ago)';
-            } else if(soon.urgencyDays === 0){
-              soonestLabel = 'today';
-            } else if(soon.urgencyDays === 1){
-              soonestLabel = 'tomorrow';
-            } else if(soon.urgencyDays < 30){
-              soonestLabel = 'in ' + soon.urgencyDays + ' days';
-            }
+            if(soon.urgencyDays < 0) soonestLabel = soon.label + ' (' + Math.abs(soon.urgencyDays) + 'd ago)';
+            else if(soon.urgencyDays === 0) soonestLabel = 'today';
+            else if(soon.urgencyDays === 1) soonestLabel = 'tomorrow';
+            else if(soon.urgencyDays < 30) soonestLabel = 'in ' + soon.urgencyDays + ' days';
           }
           if(deadlinesSoonest) deadlinesSoonest.textContent = soonestLabel;
-          // Stash the deadlines list on the button so the click
-          // handler can build a multi-event ICS without re-extracting.
-          // Button label scales with the count so users know what
-          // they're exporting: 1 → '+ calendar'; 3 → '+ 3 calendar'.
           if(deadlinesCalBtn){
             deadlinesCalBtn._deadlines = dls;
             deadlinesCalBtn.disabled = false;
-            deadlinesCalBtn.title = (dls.length === 1)
-              ? 'Add this deadline to your calendar'
-              : 'Add all ' + dls.length + ' deadlines to your calendar';
+            deadlinesCalBtn.title = (dls.length === 1) ? 'Add this deadline to your calendar' : 'Add all ' + dls.length + ' deadlines to your calendar';
             const label = (dls.length === 1) ? '+ calendar' : ('+ ' + dls.length + ' calendar');
             deadlinesCalBtn._origText = label;
             deadlinesCalBtn.textContent = label;
           }
-          // Urgency band: past = danger, < 7 days = danger, < 30 days =
-          // amber, else default. Past dates read loudest because an
-          // already-missed deadline is the most urgent signal.
           deadlinesPreview.classList.remove('dp-past','dp-urgent','dp-soon','dp-future');
           const u = soon.urgencyDays;
           if(typeof u === 'number'){
@@ -12358,12 +12317,6 @@
             else if(u < 30) deadlinesPreview.classList.add('dp-soon');
             else deadlinesPreview.classList.add('dp-future');
           }
-          // Inline urgency-dot timeline — shows EVERY detected deadline
-          // (up to 8) as a colored dot, so users see the full picture
-          // at a glance instead of just "soonest: X". Dot color maps
-          // to the same urgency bands as the pill bg. Hover for the
-          // full date label.
-          //   [● ● ○ ○]   ← 4 deadlines: 2 urgent, 2 future
           if(deadlinesTimeline){
             const dots = dls.map(d => {
               const du = d.urgencyDays;
@@ -12373,20 +12326,31 @@
                 else if(du < 7) cls = 'dp-dot-urgent';
                 else if(du < 30) cls = 'dp-dot-soon';
               }
-              // Title = "Mon DD, YYYY — in N days" / "Nd ago" for screen-readers
               let tip = d.label;
               if(typeof du === 'number'){
                 if(du < 0) tip += ' (' + Math.abs(du) + 'd ago)';
                 else if(du > 0) tip = 'in ' + du + ' days';
                 else tip = 'today';
               }
-              return '<span class="dp-dot ' + cls + '" title="' + tip +
-                '" aria-label="' + tip + '"></span>';
+              return '<span class="dp-dot ' + cls + '" title="' + tip + '" aria-label="' + tip + '"></span>';
             }).join('');
             deadlinesTimeline.innerHTML = dots;
             deadlinesTimeline.title = dls.length + ' deadline' + (dls.length === 1 ? '' : 's') + ' total';
           }
         }
+      }
+      // Reading-time band class — swapped BEFORE painting readTime so
+      // the smoke tests (which slice this function up to the textContent
+      // paint) find both the removal + add in the same captured block.
+      // Band-based color cue: single class swap (add+remove) keeps the
+      // toggle O(1) and lets the CSS own the visual treatment.
+      const band = statReadTime ? readTimeBand(raw) : null;
+      if(statReadTime){
+        // swap classes first so the visual cue changes in lockstep
+        // with the textContent paint on the next line
+        statReadTime.classList.remove('band-quick','band-standard','band-long','band-marathon');
+        if (band) statReadTime.classList.add('band-' + band);
+        statReadTime.textContent = readTime(raw);
       }
       if(statCap) statCap.textContent = cap.toLocaleString();
       if(textStats){
