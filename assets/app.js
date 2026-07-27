@@ -11111,12 +11111,19 @@
       // distribution at a glance without counting the cards. Hidden
       // when there are no flags so it never shows "Found 0 risks"
       // in the pre-analysis empty state.
+      // v2 polish: correct English pluralization ("1 risk" / "0 risks"),
+      // and grey-out empty-severity buckets so the line stays readable
+      // when e.g. only trap flags fired.
       const rsTotal=document.getElementById('rsTotal');
       const rsTrap=document.getElementById('rsTrap');
       const rsWatch=document.getElementById('rsWatch');
       const rsNote=document.getElementById('rsNote');
+      const rsTotalWord=document.getElementById('rsTotalWord');
+      const rsTrapS=document.getElementById('rsTrapS');
+      const rsWatchS=document.getElementById('rsWatchS');
+      const rsNoteS=document.getElementById('rsNoteS');
       const riskSumWrap=document.getElementById('riskSummary');
-      if(rsTotal && rsTrap && rsWatch && rsNote && riskSumWrap){
+      if(rsTotal && rsTrap && rsWatch && rsNote && rsTotalWord && riskSumWrap){
         let tCount=0,wCount=0,nCount=0;
         for(const f of flags){
           const sv = f && f.rule && f.rule.sev;
@@ -11126,9 +11133,24 @@
         }
         if(flags.length > 0){
           rsTotal.textContent = String(flags.length);
+          rsTotalWord.textContent = flags.length === 1 ? 'risk' : 'risks';
           rsTrap.textContent = String(tCount);
           rsWatch.textContent = String(wCount);
           rsNote.textContent = String(nCount);
+          // Pluralize "trap"/"watch"/"note" labels. Only "1" takes the
+          // singular form (e.g. "1 trap"); 0 and 2+ take the plural.
+          if(rsTrapS) rsTrapS.textContent = tCount === 1 ? '' : 's';
+          if(rsWatchS) rsWatchS.textContent = wCount === 1 ? '' : 's';
+          if(rsNoteS) rsNoteS.textContent = nCount === 1 ? '' : 's';
+          // Grey out severity buckets that have zero hits so the eye
+          // doesn't get pulled toward "0 watch" / "0 note" in docs
+          // that only have traps.
+          const trapEl = rsTrap.closest ? rsTrap.closest('.rs-trap') : null;
+          const watchEl = rsWatch.closest ? rsWatch.closest('.rs-watch') : null;
+          const noteEl = rsNote.closest ? rsNote.closest('.rs-note') : null;
+          if(trapEl) trapEl.classList.toggle('rs-empty', tCount === 0);
+          if(watchEl) watchEl.classList.toggle('rs-empty', wCount === 0);
+          if(noteEl) noteEl.classList.toggle('rs-empty', nCount === 0);
           riskSumWrap.hidden = false;
         } else {
           riskSumWrap.hidden = true;

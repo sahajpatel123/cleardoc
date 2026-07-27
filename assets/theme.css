@@ -896,6 +896,13 @@ button.risk-preview:hover{filter:brightness(.96)}
 .rewrite b{color:var(--green);background:var(--green-tint);padding:0 3px}
 .metaline{display:flex;gap:var(--s4);flex-wrap:wrap;font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-top:var(--s2)}
 .metaline b{color:var(--green)}
+/* iter #200 risk summary — subtle per-severity tint that matches the
+   radar rows (r/a/g = trap/watch/note). rs-empty greys a zero-bucket
+   out so the eye isn't drawn to "0 watch / 0 note" in trap-only docs. */
+.risk-summary .rs-trap b{color:var(--danger)}
+.risk-summary .rs-watch b{color:var(--amber)}
+.risk-summary .rs-note b{color:var(--green)}
+.risk-summary .rs-empty{opacity:.35}
 .risk-built{display:flex;flex-direction:column;gap:12px;border:none;margin-top:var(--s3)}
 .risk-built .rrow{border:var(--bd) solid var(--ink);box-shadow:var(--shadow-sm)}
 .risk-built .rrow:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink)}
