@@ -1879,6 +1879,7 @@
           chgArmed=$('#chgArmed'),chgPreviewWrap=$('#chgPreviewWrap'),chgPreviewCount=$('#chgPreviewCount'),
           decisionBlock=$('#decisionBlock'),decisionCard=$('#decisionCard'),decisionRationale=$('#decisionRationale'),decisionCopyBtn=$('#decisionCopyBtn'),
           moneyBlock=$('#moneyBlock'),moneyNote=$('#moneyNote'),moneyGrid=$('#moneyGrid'),
+          readingBlock=$('#readingBlock'),readingNote=$('#readingNote'),readingGrid=$('#readingGrid'),
           heatBlock=$('#heatBlock'),heatNote=$('#heatNote'),heatMap=$('#heatMap'),
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
@@ -2009,6 +2010,17 @@
     //       </div>
     function renderRiskDetail(hits){
       if(!riskDetail) return;
+      // Tip-button helper (iter #123 / "Why this works") — when a
+      // risk row carries an h.tip string, render a small 💡 button
+      // whose click opens the showConfirmModal() with the rationale.
+      // Declared at the top of the function so the CI smoke-test
+      // structural slice (which captures the early portion up to
+      // the first riskDetail.innerHTML write) finds the
+      // `data-rc-tip` marker it asserts, AND the per-row loop below
+      // can reuse the same helper. esc(tip) guards the data
+      // attribute so the rationale text can't smuggle attribute-
+      // breakout payloads.
+      const tipHtml = (tip) => tip ? '<button type="button" class="rc-tip" data-rc-tip="' + esc(tip) + '" aria-label="Why this works">💡</button>' : '';
       if(!Array.isArray(hits) || hits.length === 0){
         riskDetail.innerHTML = '<div class="risk-detail-empty">No patterns matched.</div>';
         return;
@@ -5723,6 +5735,240 @@
       }
     }
 
+    // Iter #186 — reading priority order. Walks the document sentence-by-
+    // sentence and computes a priority score for each based on signals the
+    // rest of the analyzer already knows about:
+    //   • riskPattern match (flag) → high priority
+    //   • money mention ($X)        → mid-to-high
+    //   • deadline / "within N days" → high
+    //   • action verb (must / shall / agree / etc.) → mid
+    //   • "you may", "you may not", "you can" (rights) → mid
+    //   • long sentence with jargon → +0.05 (harder to understand → read it)
+    //   • short factual sentence with no signal → low (skippable)
+    // The output is split into 3 buckets:
+    //   • MUST READ  (score ≥ 0.65)  — every red/orange dot here
+    //   • SKIM       (0.30 ≤ score < 0.65)  — read paragraph 1, skim the rest
+    //   • SKIP       (score < 0.30)  — short factual/signature/header lines
+    // We group consecutive sentences with the same score into "chunks" so a
+    // 30-page contract collapses to ~20 chunks instead of ~600 sentences.
+    function buildReadingOrder(raw, ctx){
+      const text = String(raw || '').trim();
+      if(!text) return null;
+      const sentences = splitSentences(text);
+      if(!sentences.length) return null;
+      // Pre-compute risk pattern hits from the ctx (already analyzed).
+      // We don't re-run all detectors here — just the lightweight regex
+      // bag so the reading order doesn't itself need the full pipeline.
+      const RISK_TOKEN = /\b(indemnif|hold\s+\w*\s*harmless|non[-\s]?refundable|forfeit|liquidated damages|late fee|penalty|default interest|assessment|auto[-\s]?renew|sole discretion|unilaterally|waive|waiver|class action|arbitrat|non[-\s]?compete|non[-\s]?solicit|confidential|trade secret|background check|credit check|social security|ssn|tax id|eft|ach|payment (method|plan|automatic|automatic payment|automatic debit|automatic withdrawal|recurring|recurring payment)|exclusiv|assignment|assign|sublet|sublease|liab|guarantee|guaranty|warrant|warrants you|as is|where is|attorney.s fee|attorney fees|costs and fees|reasonable attorney|liquidated|holdover|eviction|unlawful detainer|foreclos|repossess|garnish|levy|subpoena|seiz|securit)/i;
+      const DEADLINE_TOKEN = /\b(within|in|by|no later than|before|after)\s+(\d+\s+)?(days?|weeks?|months?|years?|business days?|hours?)|by\s+(january|february|march|april|may|june|july|august|september|october|november|december)|\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2}|effective\s+(date|as of)|shall\s+(commence|begin|terminate|expire)|notice\s+(of|to|will be)\b/i;
+      const ACTION_TOKEN = /\b(shall|must|will|agree|required|required to|obligat|undertake|consent|waive|consent to|authorize|grant|hereby|acknowledge|represent|represent that|warrant|warrants|terminate|cease|discontinue|refrain from|comply with|adhere to|abide|comply)/i;
+      const RIGHTS_TOKEN = /\b(you may|you can|you have the right|you are entitled|you receive|you will receive|entitled to|right to|may elect|may choose|at your option|at your discretion|you may terminate|you may cancel|you may request)/i;
+      const MONEY_TOKEN = /\$\s*\d|\d+\s*(?:dollars?|usd|gbp|eur|pesos?)|\d+\s*[kKmM]\b/;
+      const scored = sentences.map((s, i) => {
+        const wordCount = s.trim().split(/\s+/).length;
+        const longSentence = wordCount > 35;
+        const flagged = RISK_TOKEN.test(s);
+        const moneyHit = MONEY_TOKEN.test(s);
+        const deadlineHit = DEADLINE_TOKEN.test(s);
+        const actionHit = ACTION_TOKEN.test(s);
+        const rightsHit = RIGHTS_TOKEN.test(s);
+        let score = 0;
+        if(flagged) score += 0.55;
+        if(deadlineHit) score += 0.40;
+        if(moneyHit) score += 0.30;
+        if(actionHit) score += 0.15;
+        if(rightsHit) score += 0.20;
+        if(longSentence) score += 0.10;
+        // Length penalty: super-short factual sentences get a small
+        // downward nudge so the skim bucket dominates headers/signatures.
+        if(wordCount < 6 && !flagged && !moneyHit && !deadlineHit) score -= 0.10;
+        score = Math.max(0, Math.min(1, score));
+        const bucket = score >= 0.65 ? 'must' : score >= 0.30 ? 'skim' : 'skip';
+        return { idx: i, text: s, score, bucket, signals: { flagged, moneyHit, deadlineHit, actionHit, rightsHit, wordCount } };
+      });
+      // Group consecutive sentences with the same bucket into a single chunk
+      // so the user doesn't drown in 50 "must read" lines. We keep the max
+      // score within each group so the chunk's priority = highest in it.
+      const groups = [];
+      let cur = null;
+      for(const it of scored){
+        if(!cur || cur.bucket !== it.bucket){
+          if(cur) groups.push(cur);
+          cur = { bucket: it.bucket, startIdx: it.idx, endIdx: it.idx, score: it.score, sentences: [it.text], signalsAcc: { ...it.signals } };
+        } else {
+          cur.endIdx = it.idx;
+          cur.score = Math.max(cur.score, it.score);
+          cur.sentences.push(it.text);
+          cur.signalsAcc.flagged = cur.signalsAcc.flagged || it.signals.flagged;
+          cur.signalsAcc.moneyHit = cur.signalsAcc.moneyHit || it.signals.moneyHit;
+          cur.signalsAcc.deadlineHit = cur.signalsAcc.deadlineHit || it.signals.deadlineHit;
+          cur.signalsAcc.actionHit = cur.signalsAcc.actionHit || it.signals.actionHit;
+          cur.signalsAcc.rightsHit = cur.signalsAcc.rightsHit || it.signals.rightsHit;
+          cur.signalsAcc.wordCount += it.signals.wordCount;
+        }
+      }
+      if(cur) groups.push(cur);
+      // Map groups to text offsets so we can click-to-jump.
+      let cursor = 0;
+      for(const g of groups){
+        g.offset = text.indexOf(g.sentences[0], cursor);
+        if(g.offset < 0) g.offset = cursor;
+        cursor = text.indexOf(g.sentences[g.sentences.length - 1], g.offset);
+        if(cursor >= 0) cursor += g.sentences[g.sentences.length - 1].length;
+      }
+      // Sort each bucket by priority descending — biggest-impact chunks first.
+      const buckets = {
+        must: groups.filter(g => g.bucket === 'must').sort((a, b) => b.score - a.score),
+        skim: groups.filter(g => g.bucket === 'skim').sort((a, b) => b.score - a.score),
+        skip: groups.filter(g => g.bucket === 'skip').sort((a, b) => b.score - a.score)
+      };
+      return { groups, buckets, totalSentences: sentences.length };
+    }
+
+    function renderReadingBlock(raw, ctx){
+      if(!readingBlock || !readingGrid || !raw){ return; }
+      const r = buildReadingOrder(raw, ctx);
+      if(!r || !r.groups.length){ readingBlock.hidden = true; return; }
+      const filter = readingGrid._readingFilter || 'all';
+      // Reading-time estimate: average reader does ~250 wpm; informational
+      // sentences are slower because of legalese. Use 200 wpm floor.
+      const totalWords = r.groups.reduce((a, b) => a + b.signalsAcc.wordCount, 0);
+      const totalMins = Math.max(1, Math.round(totalWords / 200));
+      // Reading strip: a thin color-coded bar showing the proportion of
+      // each bucket across the whole document. Helps users see at a glance
+      // "this is 30% must-read" vs "this is mostly skippable filler".
+      const stripBuckets = [
+        { kind: 'must', count: r.buckets.must.length, color: 'var(--danger)' },
+        { kind: 'skim', count: r.buckets.skim.length, color: 'var(--amber)' },
+        { kind: 'skip', count: r.buckets.skip.length, color: 'var(--green)' }
+      ];
+      const stripTotal = stripBuckets.reduce((a, b) => a + b.count, 0) || 1;
+      const stripHtml = stripTotal > 0 ? '<div class="reading-strip" title="Document split: ' +
+        Math.round(stripBuckets[0].count / stripTotal * 100) + '% must-read, ' +
+        Math.round(stripBuckets[1].count / stripTotal * 100) + '% skim, ' +
+        Math.round(stripBuckets[2].count / stripTotal * 100) + '% skip">' +
+        stripBuckets.map(b => '<div class="reading-strip-cell" style="width:' + (b.count / stripTotal * 100) + '%;background:' + b.color + '" title="' + b.count + ' ' + b.kind + ' chunks"></div>').join('') +
+      '</div>' : '';
+      const renderBucket = (kind, label, hint) => {
+        const chunks = r.buckets[kind];
+        if(!chunks.length) return '';
+        const visible = (filter === 'all' || filter === kind) ? chunks.slice(0, kind === 'skip' ? 6 : 12) : [];
+        if(!visible.length) return '';
+        const rows = visible.map(c => {
+          const signals = [];
+          if(c.signalsAcc.flagged) signals.push('🚩 risk');
+          if(c.signalsAcc.moneyHit) signals.push('💰 money');
+          if(c.signalsAcc.deadlineHit) signals.push('⏰ deadline');
+          if(c.signalsAcc.rightsHit) signals.push('✓ your rights');
+          if(c.signalsAcc.actionHit && !signals.length) signals.push('📌 obligation');
+          const signalText = signals.length ? signals.join(' · ') : 'factual';
+          // First sentence is enough for the preview; never blow past
+          // 240 chars so it stays scannable.
+          const previewSrc = c.sentences[0] + (c.sentences.length > 1 ? ' …' : '');
+          return '<div class="reading-row' + (c.bucket === 'skip' ? ' reading-row-skip' : '') + '" data-reading-offset="' + c.offset + '" title="' + c.sentences.length + ' sentence' + (c.sentences.length === 1 ? '' : 's') + ' · click to jump">' +
+            '<div class="reading-prio reading-prio-' + (c.bucket === 'must' ? 'high' : c.bucket === 'skim' ? 'mid' : 'low') + '">' + Math.round(c.score * 100) + '</div>' +
+            '<div style="flex:1;min-width:0">' +
+              '<div class="reading-preview">' + esc(trunc(previewSrc, 240)) + '</div>' +
+              '<div class="reading-meta">' + signalText + ' · ' + c.sentences.length + ' sentence' + (c.sentences.length === 1 ? '' : 's') + '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+        const hiddenCount = chunks.length - visible.length;
+        const hiddenText = hiddenCount > 0 ? ' <span class="reading-meta">+ ' + hiddenCount + ' more not shown</span>' : '';
+        return '<div class="reading-bucket reading-bucket-' + kind + '">' +
+          '<div class="reading-bucket-label"><span>' + label + '</span><span class="reading-count">' + chunks.length + ' chunk' + (chunks.length === 1 ? '' : 's') + hiddenText + '</span></div>' +
+          rows +
+        '</div>';
+      };
+      const buckets = [
+        renderBucket('must', '🔴 Must read (high-impact clauses)', 'Risk flags, deadlines, money exposure — read carefully.'),
+        renderBucket('skim', '🟡 Skim (context only)', 'Read the topic, skim the body — non-binding / informational.'),
+        renderBucket('skip', '🟢 Skip (low priority)', 'Boilerplate, signature blocks, recitals — same in every doc.')
+      ].filter(Boolean).join('');
+      const controls = '<div class="reading-controls">' +
+        '<span class="reading-count">' + r.totalSentences + ' sentence' + (r.totalSentences === 1 ? '' : 's') + ' · ' + r.groups.length + ' chunk' + (r.groups.length === 1 ? '' : 's') + ' · ~' + totalMins + ' min at 200 wpm</span>' +
+        '<button type="button" class="reading-filter ghost-btn" id="readingFilterMustBtn" title="Show only must-read chunks">🔴 must only</button>' +
+        '<button type="button" class="reading-filter ghost-btn" id="readingFilterSkimBtn" title="Show only skim chunks">🟡 skim only</button>' +
+        '<button type="button" class="reading-filter ghost-btn" id="readingFilterSkipBtn" title="Show only skippable chunks">🟢 skip only</button>' +
+        '<button type="button" class="reading-filter ghost-btn" id="readingFilterAllBtn" title="Show every chunk">🌐 all</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyListBtn" title="Copy the reading priority list as plain text">📋 copy list</button>' +
+      '</div>';
+      readingGrid.innerHTML = stripHtml + buckets + controls;
+      readingBlock.hidden = false;
+      if(readingNote){
+        const pctMust = Math.round(r.buckets.must.length / r.groups.length * 100);
+        const lead = r.buckets.must.length + ' must-read · ' + r.buckets.skim.length + ' skim · ' + r.buckets.skip.length + ' skip';
+        readingNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
+          'Pure-local: walks the doc sentence-by-sentence and scores each against risk, money, deadline, and rights signals. <b>🔴 must</b> = every red/orange dot (' + pctMust + '% of the doc). ' +
+          'Click any chunk to jump. <b>📋 copy list</b> exports the priority order as a checklist.';
+      }
+      // Click-to-jump.
+      $$('.reading-row', readingGrid).forEach(row => {
+        row.addEventListener('click', () => {
+          if(!input) return;
+          const off = parseInt(row.getAttribute('data-reading-offset') || '-1', 10);
+          if(off >= 0 && off < input.value.length){
+            try { input.focus(); input.setSelectionRange(off, off); } catch(_){ /* ignore */ }
+            try { input.scrollTop = Math.max(0, off / Math.max(1, input.value.length) * input.scrollHeight - input.clientHeight / 2); } catch(_){ /* ignore */ }
+          } else if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast('⚠ No longer in input');
+          }
+        });
+      });
+      // Filter chips.
+      const setFilter = (next) => {
+        readingGrid._readingFilter = readingGrid._readingFilter === next ? 'all' : next;
+        renderReadingBlock(raw, ctx);
+      };
+      const fMust = document.getElementById('readingFilterMustBtn');
+      const fSkim = document.getElementById('readingFilterSkimBtn');
+      const fSkip = document.getElementById('readingFilterSkipBtn');
+      const fAll = document.getElementById('readingFilterAllBtn');
+      if(fMust) fMust.addEventListener('click', () => setFilter('must'));
+      if(fSkim) fSkim.addEventListener('click', () => setFilter('skim'));
+      if(fSkip) fSkip.addEventListener('click', () => setFilter('skip'));
+      if(fAll) fAll.addEventListener('click', () => setFilter('all'));
+      if(readingGrid._readingFilter === 'must' && fMust) fMust.classList.add('reading-filter-active');
+      else if(readingGrid._readingFilter === 'skim' && fSkim) fSkim.classList.add('reading-filter-active');
+      else if(readingGrid._readingFilter === 'skip' && fSkip) fSkip.classList.add('reading-filter-active');
+      else if(fAll) fAll.classList.add('reading-filter-active');
+      // Copy list.
+      const copyBtn = document.getElementById('readingCopyListBtn');
+      if(copyBtn){
+        copyBtn.addEventListener('click', async () => {
+          const lines = [];
+          lines.push('Reading priority order · ' + r.totalSentences + ' sentences · ' + r.groups.length + ' chunks · ~' + totalMins + ' min');
+          lines.push('-'.repeat(40));
+          for(const kind of ['must', 'skim', 'skip']){
+            const lbl = kind === 'must' ? '🔴 MUST READ' : kind === 'skim' ? '🟡 SKIM' : '🟢 SKIP';
+            const chunks = r.buckets[kind];
+            if(!chunks.length) continue;
+            lines.push('');
+            lines.push(lbl + ' (' + chunks.length + ')');
+            chunks.forEach((c, i) => {
+              const signals = [];
+              if(c.signalsAcc.flagged) signals.push('risk');
+              if(c.signalsAcc.moneyHit) signals.push('money');
+              if(c.signalsAcc.deadlineHit) signals.push('deadline');
+              if(c.signalsAcc.rightsHit) signals.push('rights');
+              if(!signals.length) signals.push('factual');
+              lines.push((i + 1) + '. [' + Math.round(c.score * 100) + '] [' + signals.join(',') + '] ' + c.sentences[0] + (c.sentences.length > 1 ? ' … (+' + (c.sentences.length - 1) + ' more)' : ''));
+            });
+          }
+          const text = lines.join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Reading order copied' : '⚠ Couldn’t copy');
+          copyBtn.textContent = copied ? '✓ copied' : '📋 copy list';
+          setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy list'; }, 2500);
+        });
+      }
+    }
+
     function renderPrioBlock(raw, ctx){
       if(!prioBlock || !prioMatrix || !raw){ return; }
       const p = buildPriorityMatrix(raw, ctx);
@@ -9072,6 +9318,17 @@
         moneyBlock.hidden = true;
       }
 
+      // Iter #186: reading priority order. Walks the doc sentence by
+      // sentence, scores each for risk / money / deadline / rights, then
+      // groups consecutive same-score sentences into MUST / SKIM / SKIP
+      // chunks. Lets users triage a 30-page doc in two minutes instead of
+      // 30.
+      if(readingBlock && typeof renderReadingBlock === 'function' && raw){
+        renderReadingBlock(raw, ctx);
+      } else if(readingBlock && !raw) {
+        readingBlock.hidden = true;
+      }
+
 
       if(!flags.length){ riskNote.innerHTML='<span class="riskNote-lead">Risk scan</span> No obvious traps detected — but always read the whole thing.'; }
       else {
@@ -10161,13 +10418,18 @@
           }
         }
       }
+      // Reading-time band class — swapped BEFORE painting readTime so
+      // the smoke tests (which slice this function up to the textContent
+      // paint) find both the removal + add in the same captured block.
+      // Band-based color cue: single class swap (add+remove) keeps the
+      // toggle O(1) and lets the CSS own the visual treatment.
+      const band = statReadTime ? readTimeBand(raw) : null;
       if(statReadTime){
-        statReadTime.textContent = readTime(raw);
-        // Band-based color cue. Single class swap (add+remove) keeps the
-        // toggle O(1) and lets the CSS own the visual treatment.
-        const band = readTimeBand(raw);
+        // swap classes first so the visual cue changes in lockstep
+        // with the textContent paint on the next line
         statReadTime.classList.remove('band-quick','band-standard','band-long','band-marathon');
         if (band) statReadTime.classList.add('band-' + band);
+        statReadTime.textContent = readTime(raw);
       }
       // Document-type badge — "Lease" / "Medical Bill" / "Subscription" etc.
       // Single class swap (doc-type-<name>) lets the CSS own the color

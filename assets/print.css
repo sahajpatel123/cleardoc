@@ -80,7 +80,9 @@
   .verdict-block,
   .ask-bubble,
   .money-row,
-  .money-tally {
+  .money-tally,
+  .reading-bucket,
+  .reading-row {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
     border: 1px solid #ddd !important;
