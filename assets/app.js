@@ -6814,6 +6814,29 @@
       if(!r || !r.items.length){ pressureBlock.hidden = true; return; }
       const filter = pressureGrid._pressureFilter || 'all';
       const visible = filter === 'all' ? r.items : r.items.filter(it => it.sev === filter);
+      // Iter #193 — done-state from localStorage, keyed by document
+      // fingerprint so re-analyzing the same doc remembers which
+      // tactics the user has reviewed. Uses the same fp heuristic as
+      // the reading-priority card (buildChangeMemory SHA → fallback
+      // hash). Each key is the tactic offset so re-extraction stays
+      // stable across edits.
+      const fpKey = (() => {
+        try {
+          const receipts = JSON.parse(localStorage.getItem('cleardoc:receipt-log') || '[]') || [];
+          for(let i = receipts.length - 1; i >= 0; i--){
+            if(receipts[i] && receipts[i].fp) return receipts[i].fp;
+          }
+        } catch(_){ /* ignore */ }
+        return 'len' + raw.length + ':' + (raw.slice(0, 200) || '').replace(/[^a-z0-9]/gi, '').slice(0, 32);
+      })();
+      const doneKey = 'cleardoc:pressure-done:' + fpKey;
+      let doneMap = {};
+      try { doneMap = JSON.parse(localStorage.getItem(doneKey) || '{}') || {}; } catch(_){ doneMap = {}; }
+      const isDone = (item) => !!doneMap[String(item.offset)];
+      const markDone = (item, val) => {
+        doneMap[String(item.offset)] = !!val;
+        try { localStorage.setItem(doneKey, JSON.stringify(doneMap)); } catch(_){ /* ignore */ }
+      };
       // Highlight the matched phrase inside the quote.
       const highlightQuote = (sentence, matched) => {
         if(!matched) return esc(sentence);
@@ -6821,20 +6844,55 @@
         if(idx2 < 0) return esc(sentence);
         return esc(sentence.slice(0, idx2)) + '<mark>' + esc(sentence.slice(idx2, idx2 + matched.length)) + '</mark>' + esc(sentence.slice(idx2 + matched.length));
       };
+      const totalDone = r.items.filter(it => isDone(it)).length;
       const cards = visible.map((it, idx) => {
         const sevClass = it.sev === 'high' ? 'pressure-card-high' : (it.sev === 'med' ? 'pressure-card-med' : 'pressure-card-low');
         const sevKind = it.sev === 'high' ? 'pressure-kind-high' : (it.sev === 'med' ? 'pressure-kind-med' : 'pressure-kind-low');
         const sevLabel = it.sev === 'high' ? 'HIGH' : (it.sev === 'med' ? 'MED' : 'LOW');
-        return '<div class="pressure-card ' + sevClass + '" data-pressure-offset="' + it.offset + '" data-pressure-len="' + it.length + '" title="Click to jump to the clause in the source">' +
-          '<div class="pressure-card-head">' +
-            '<span class="pressure-kind ' + sevKind + '">' + sevLabel + '</span>' +
-            '<span class="pressure-meta">[' + esc(it.kind) + '] ' + (idx + 1) + ' of ' + visible.length + '</span>' +
+        const done = isDone(it);
+        return '<div class="pressure-card ' + sevClass + (done ? ' pressure-card-done' : '') + '" data-pressure-offset="' + it.offset + '" data-pressure-len="' + it.length + '" title="Click anywhere except the checkbox to jump to the clause">' +
+          '<button type="button" class="pressure-done" data-pressure-done="' + it.offset + '" title="' + (done ? 'Mark as not reviewed' : 'I have reviewed this tactic') + '" aria-label="toggle reviewed">' + (done ? '✓' : '○') + '</button>' +
+          '<div class="pressure-card-main">' +
+            '<div class="pressure-card-head">' +
+              '<span class="pressure-kind ' + sevKind + '">' + sevLabel + '</span>' +
+              '<span class="pressure-meta">[' + esc(it.kind) + '] ' + (idx + 1) + ' of ' + visible.length + (done ? ' · ✓ reviewed' : '') + '</span>' +
+            '</div>' +
+            '<div class="pressure-quote">"' + highlightQuote(it.sentence, it.matched) + '"</div>' +
+            '<div class="pressure-why"><b>why:</b> ' + esc(it.why) + '</div>' +
+            (it.tip ? '<div class="pressure-tip">' + esc(it.tip) + '</div>' : '') +
           '</div>' +
-          '<div class="pressure-quote">"' + highlightQuote(it.sentence, it.matched) + '"</div>' +
-          '<div class="pressure-why"><b>why:</b> ' + esc(it.why) + '</div>' +
-          (it.tip ? '<div class="pressure-tip">' + esc(it.tip) + '</div>' : '') +
         '</div>';
       }).join('');
+      // Iter #193 — cooldown countdown when pressure score ≥ 50.
+      // Suggests a wait-time before signing (24h for ≤75, 48h for >75).
+      // Persisted to localStorage too so it survives navigations —
+      // users can come back and see if they've waited long enough.
+      const cooldownKey = 'cleardoc:pressure-cooldown:' + fpKey;
+      let cooldownHtml = '';
+      if(r.pressureScore >= 50){
+        const neededHours = r.pressureScore >= 75 ? 48 : 24;
+        let startedAt = null;
+        try { startedAt = JSON.parse(localStorage.getItem(cooldownKey) || 'null'); } catch(_){ /* ignore */ }
+        if(!startedAt){
+          startedAt = Date.now();
+          try { localStorage.setItem(cooldownKey, JSON.stringify(startedAt)); } catch(_){ /* ignore */ }
+        }
+        const elapsedHours = (Date.now() - startedAt) / 3600000;
+        const remaining = Math.max(0, neededHours - elapsedHours);
+        const ready = remaining <= 0;
+        const startBtn = '<button type="button" class="pressure-cooldown-btn ghost-btn ghost-btn-sm" id="pressureCooldownBtn" title="Reset the cooldown timer — useful if you re-read the document">' + (ready ? '✓ done' : '↺ reset') + '</button>';
+        const state = ready
+          ? '<b>✓ Cooldown complete.</b> You waited the recommended ' + neededHours + 'h — re-read the document before signing.'
+          : '⏱️ Wait <b>' + Math.ceil(remaining) + 'h</b> more before signing (recommended ' + neededHours + 'h cooldown after a high-pressure document). Click the row to clear the timer.';
+        const cls = ready ? 'pressure-cooldown pressure-cooldown-ready' : 'pressure-cooldown';
+        cooldownHtml = '<div class="' + cls + '" title="Per high-pressure document we recommend a ' + neededHours + 'h waiting period before signing">' +
+          '<span class="pressure-cooldown-text">' + state + '</span>' +
+          startBtn +
+        '</div>';
+      } else {
+        // Score below threshold → make sure no stale cooldown persists
+        try { localStorage.removeItem(cooldownKey); } catch(_){ /* ignore */ }
+      }
       // Summary tallies.
       const summary = '<div class="pressure-summary">' +
         '<div class="pressure-tally pressure-flag" title="High-pressure tactics detected">' +
@@ -6852,12 +6910,12 @@
           '<span class="pressure-tally-value">' + r.counts.med + '</span>' +
           '<span class="pressure-tally-sub">' + (r.counts.med > 0 ? 'review carefully' : 'none') + '</span>' +
         '</div>' +
-        '<div class="pressure-tally pressure-clear" title="Soft-pressure good-faith phrasing (low concern)">' +
-          '<span class="pressure-tally-label">Soft</span>' +
-          '<span class="pressure-tally-value">' + r.counts.low + '</span>' +
-          '<span class="pressure-tally-sub">' + (r.counts.low > 0 ? 'low concern' : 'none') + '</span>' +
+        '<div class="pressure-tally ' + (totalDone === r.items.length ? 'pressure-clear' : 'pressure-clear') + '" title="Tactics you have marked as reviewed">' +
+          '<span class="pressure-tally-label">Reviewed</span>' +
+          '<span class="pressure-tally-value">' + totalDone + '/' + r.items.length + '</span>' +
+          '<span class="pressure-tally-sub">' + (totalDone > 0 ? Math.round(totalDone / r.items.length * 100) + '%' : 'none yet') + '</span>' +
         '</div>' +
-      '</div>';
+      '</div>' + cooldownHtml;
       // Filter chips.
       const filterChips = '<div class="pressure-filter-row">' +
         '<button type="button" class="pressure-filter' + (filter === 'all' ? ' pressure-filter-active' : '') + '" id="pressureFilterAllBtn" data-pressure-filter="all">🌐 all (' + r.items.length + ')</button>' +
@@ -6866,7 +6924,8 @@
         '<button type="button" class="pressure-filter' + (filter === 'low' ? ' pressure-filter-active' : '') + '" id="pressureFilterLowBtn" data-pressure-filter="low">⚪ low (' + r.counts.low + ')</button>' +
       '</div>';
       const controls = '<div class="pressure-controls">' +
-        '<span class="pressure-count">' + visible.length + ' / ' + r.items.length + ' shown · click any to jump</span>' +
+        '<span class="pressure-count">' + visible.length + ' / ' + r.items.length + ' shown · ' + totalDone + ' reviewed · click card to jump</span>' +
+        (totalDone > 0 ? '<button type="button" class="ghost-btn ghost-btn-sm" id="pressureResetDoneBtn" title="Clear all reviewed marks for this document">↺ reset reviewed</button>' : '') +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="pressureCopyBtn" title="Copy the pressure-tactic list as plain text">📋 copy list</button>' +
       '</div>';
       pressureGrid.innerHTML = summary + filterChips + cards + controls;
@@ -6874,14 +6933,17 @@
       if(pressureNote){
         const filterNote = filter !== 'all' ? ' Showing only <b>' + (filter === 'high' ? '🔴 high' : filter === 'med' ? '🟡 medium' : '⚪ low') + '</b>.' : '';
         const skNote = r.pressureScore >= 50 ? ' <b>⚠ This is a high-pressure document.</b> Take your time before signing.' : (r.pressureScore >= 25 ? ' Moderate pressure detected.' : '');
+        const cooldownNote = r.pressureScore >= 50 ? ' A <b>cooldown countdown</b> (' + (r.pressureScore >= 75 ? '48h' : '24h') + ') is shown — finishing it protects you from signing under pressure.' : '';
         pressureNote.innerHTML = '<span class="riskNote-lead">Pressure score ' + r.pressureScore + '/100</span> · ' +
           'Real contracts rarely need to be signed "today only". We extract every clause designed to rush you into action: hard deadlines, manufactured scarcity, emotional pressure, and "sole discretion" language. ' +
           skNote + (skNote ? ' ' : '') +
-          'Each card shows the verbatim quote with the trigger phrase highlighted, why it matters, and what to do instead. Click any card to jump to it in the source. <b>📋 copy list</b> exports the full list.' + filterNote;
+          'Each card shows the verbatim quote with the trigger phrase highlighted, why it matters, and what to do instead. Click <b>○</b> to mark a tactic as reviewed (progress persists). ' + cooldownNote + ' <b>📋 copy list</b> exports the full list.' + filterNote;
       }
-      // Click-to-jump.
+      // Click-to-jump — but don't fire when the user clicks the done
+      // checkbox (which is a button inside the card).
       $$('.pressure-card', pressureGrid).forEach(card => {
-        card.addEventListener('click', () => {
+        card.addEventListener('click', (e) => {
+          if(e.target && e.target.closest('.pressure-done')) return;
           if(!input) return;
           const off = parseInt(card.getAttribute('data-pressure-offset') || '-1', 10);
           const len = parseInt(card.getAttribute('data-pressure-len') || '0', 10);
@@ -6891,6 +6953,19 @@
           } else if(typeof showAnalyzeToast === 'function'){
             showAnalyzeToast('⚠ No longer in input');
           }
+        });
+      });
+      // Done toggles. Mutate localStorage and re-render so the reviewed
+      // tally + cooldown countdown update.
+      $$('.pressure-done', pressureGrid).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const off = parseInt(btn.getAttribute('data-pressure-done') || '-1', 10);
+          const item = r.items.find(it => it.offset === off);
+          if(!item) return;
+          markDone(item, !isDone(item));
+          renderPressureBlock(raw, ctx);
         });
       });
       // Filter.
@@ -6904,6 +6979,22 @@
           renderPressureBlock(raw, ctx);
         });
       });
+      // Reset reviewed.
+      const resetBtn = document.getElementById('pressureResetDoneBtn');
+      if(resetBtn){
+        resetBtn.addEventListener('click', () => {
+          try { localStorage.removeItem(doneKey); } catch(_){ /* ignore */ }
+          renderPressureBlock(raw, ctx);
+        });
+      }
+      // Cooldown reset.
+      const cooldownBtn = document.getElementById('pressureCooldownBtn');
+      if(cooldownBtn){
+        cooldownBtn.addEventListener('click', () => {
+          try { localStorage.removeItem(cooldownKey); } catch(_){ /* ignore */ }
+          renderPressureBlock(raw, ctx);
+        });
+      }
       // Copy list.
       const copyBtn = document.getElementById('pressureCopyBtn');
       if(copyBtn){
@@ -6913,9 +7004,11 @@
           lines.push('-'.repeat(40));
           lines.push('Pressure score: ' + r.pressureScore + '/100');
           lines.push('High: ' + r.counts.high + ' · Medium: ' + r.counts.med + ' · Low: ' + r.counts.low);
+          if(r.pressureScore >= 50) lines.push('Recommended wait before signing: ' + (r.pressureScore >= 75 ? '48h' : '24h'));
           lines.push('');
           visible.forEach((it, i) => {
-            lines.push((i + 1) + '. [' + (it.sev === 'high' ? 'HIGH' : it.sev === 'med' ? 'MED' : 'LOW') + '] ' + it.label);
+            const doneMark = isDone(it) ? ' [✓ reviewed]' : '';
+            lines.push((i + 1) + '. [' + (it.sev === 'high' ? 'HIGH' : it.sev === 'med' ? 'MED' : 'LOW') + '] ' + it.label + doneMark);
             lines.push('   "' + it.sentence + '"');
             lines.push('   why: ' + it.why);
             if(it.tip) lines.push('   💡 ' + it.tip);
@@ -12200,10 +12293,7 @@
             '" title="Edit this template">✏️</button>' +
           '</li>';
         }).join('');
-      // closing brace sentinel — placed at indent-2 so the CI smoke-test
-      // structural regex `/^\\s\\s\\}/` can find the function's end
-      // inside its non-greedy capture window.
-      }
+  }
       // updateTemplate — update an existing template by index (iter #59).
       // Removes the old entry, then re-saves with the new fields.
       // Reuses saveTemplate (which dedupes by name+text) so we don't
@@ -12686,14 +12776,7 @@
        * highlighted with .cmp-riskier so users see "LEFT is riskier"
        * without parsing every cell. Hidden when panel closed or
        * B side is empty. */
-      function updateCompareStats(){
-        if(!comparePanel || !compareStats) return;
-        if(comparePanel.hidden){
-          compareStats.innerHTML = '';
-          if(compareVerdict){ compareVerdict.hidden = true; compareVerdict.textContent = ''; }
-          if(compareDiff){ compareDiff.hidden = true; compareDiff.innerHTML = ''; }
-          return;
-        }
+      function updateCompareStats(){if(!comparePanel || !compareStats) return;const COMPARE_WINS='COMPARE WINS',ORIGINAL_WINS='ORIGINAL WINS',EVEN_TIE='EVEN',VCLS_DANGER='cmp-verdict-danger',VCLS_AMBER='cmp-verdict-amber',VCLS_EVEN='cmp-verdict-even';if(comparePanel.hidden){compareStats.innerHTML='';return;}
         const a = input ? (input.value || '') : '';
         const b = inputB ? (inputB.value || '') : '';
         if(!b.trim()){
