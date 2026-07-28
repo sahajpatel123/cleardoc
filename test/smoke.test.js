@@ -8458,6 +8458,20 @@ test("analyzer: Health Check computes readiness verdict and renders it", () => {
   assert.match(cssSrc, /\.health-check\.review\b/, "health-check .review style must exist");
   assert.match(cssSrc, /\.health-check\.negotiate\b/, "health-check .negotiate style must exist");
   assert.match(cssSrc, /\.health-check\.danger\b/, "health-check .danger style must exist");
+  // Health check has fade-in animation for smooth appearance
+  assert.match(cssSrc, /@keyframes health-check-in/,
+    "health check must have a fade-in keyframe animation");
+  assert.match(cssSrc, /animation:health-check-in/,
+    "health check must use the fade-in animation");
+  // Health check has transition for opacity (smooth show/hide)
+  assert.match(cssSrc, /transition:opacity \.3s ease/,
+    "health check must have an opacity transition");
+  // healthCopyBtn has its own dedicated style rule
+  assert.match(cssSrc, /\.health-copy\b/,
+    "health-copy button style must exist");
+  // healthCheck has role=status for accessibility
+  assert.match(html, /role="status"/,
+    "healthCheck must have role=status for screen readers");
 });
 
 

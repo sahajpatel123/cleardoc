@@ -3130,6 +3130,7 @@
         healthCheckScore.textContent = '';
         healthCheckDetail.textContent = '';
         healthCheckRec.textContent = '';
+        if(healthCopyBtn){ healthCopyBtn.textContent = '📋 Copy'; healthCopyBtn.hidden = true; }
         return;
       }
       healthCheck.hidden = false;
@@ -3139,6 +3140,7 @@
       healthCheckScore.textContent = 'Score ' + hc.score;
       healthCheckDetail.textContent = hc.detail;
       healthCheckRec.textContent = hc.recommendation;
+      if(healthCopyBtn){ healthCopyBtn.hidden = false; healthCopyBtn.textContent = '📋 Copy'; }
     }
     function esc(s){
       // Defense-in-depth: escape &, <, > plus BOTH quote flavours.

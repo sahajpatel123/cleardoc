@@ -1147,7 +1147,8 @@ button.risk-preview:hover{filter:brightness(.96)}
  * threat-score palette for consistency. The .no-print class
  * keeps it out of the printed PDF (it's already reflected in
  * the verdict + threat score). */
-.health-check{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;padding:8px 14px;border:2px solid var(--ink);background:#fff;margin-top:4px}
+@keyframes health-check-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.health-check{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;padding:8px 14px;border:2px solid var(--ink);background:#fff;margin-top:4px;animation:health-check-in .35s ease}
 .health-check-header{display:flex;align-items:center;gap:8px;flex:1 1 100%}
 .health-check-icon{font-size:var(--t-body-lg);flex:0 0 auto}
 .health-check-label{font-size:var(--t-body);font-weight:700;text-transform:uppercase;letter-spacing:.08em}
@@ -1166,6 +1167,13 @@ button.risk-preview:hover{filter:brightness(.96)}
 .health-check.danger .health-check-score{color:#fff}
 .health-check.danger .health-check-recommendation{color:#fff}
 .health-check.danger .health-check-detail{color:rgba(255,255,255,.85)}
+.health-check.danger .health-copy{border-color:#fff;color:#fff}
+/* Health check copy button — mirrors threat-copy pattern. */
+.health-copy{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border:1px solid var(--ink);background:transparent;color:inherit;cursor:pointer;border-radius:3px;flex:0 0 auto;opacity:.7;transition:opacity .2s}
+.health-copy:hover{opacity:1;background:var(--ink);color:#fff}
+.health-check.low .health-copy{border-color:var(--green);color:var(--green)}
+.health-check.review .health-copy{border-color:var(--amber);color:var(--amber)}
+.health-check.negotiate .health-copy{border-color:var(--accent);color:var(--accent)}
 .health-check.danger .health-copy{border-color:#fff;color:#fff}
 
 /* Print: hide health check (already in .md / .txt exports) */
