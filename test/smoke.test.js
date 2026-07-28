@@ -429,6 +429,7 @@ skip("analyze: loads without console errors and has new AI-backed sections", asy
     ["#copyBtn", "copy analysis button"],
     ["#copyChecklistBtn", "copy checklist button"],
     ["#copyJsonBtn", "copy JSON button"],
+    ["#downloadJsonBtn", "download JSON button"],
     ["#shareBtn", "share-link button"],
     ["#shareBanner", "shared-analysis banner"],
     [".print-header", "print-only header bar"],
@@ -619,8 +620,8 @@ skip("analyze: result-actions live inside the result panel and start hidden unti
   });
   assert.equal(initiallyHidden, true, "result-actions must be hidden initially (inside hidden resultPanel)");
 
-  // All five buttons must exist in the DOM with stable IDs
-  for (const id of ["#printBtn", "#saveBtn", "#copyBtn", "#copyChecklistBtn", "#copyJsonBtn"]) {
+  // All six buttons must exist in the DOM with stable IDs
+  for (const id of ["#printBtn", "#saveBtn", "#copyBtn", "#copyChecklistBtn", "#copyJsonBtn", "#downloadJsonBtn"]) {
     const el = await page.$(id);
     assert.ok(el, `${id} should exist in the DOM`);
   }
@@ -8380,6 +8381,42 @@ test("analyzer: risk checklist sorts traps first then watches then notes", () =>
     "iter #217 must tag watches with [P1] for task-manager priority detection");
   assert.match(appSrc, /\[P2\]/,
     "iter #217 must tag notes with [P2] for task-manager priority detection");
+});
+
+// Iter #218 v2: JSON export polish — download button + DOM-extracted
+// deadlines/nextSteps + counter-clauses + P0/P1/P2 priority tags.
+test("analyzer: JSON export includes download, deadlines from DOM, counter-clauses, and priority tags", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // buildAnalysisJson must exist
+  assert.match(appSrc, /function buildAnalysisJson\(\)/,
+    "buildAnalysisJson must exist");
+  // downloadAnalysisJson must exist for the .json file download
+  assert.match(appSrc, /function downloadAnalysisJson\(\)/,
+    "downloadAnalysisJson must exist");
+  // Deadlines extracted from DOM, not from non-existent helper
+  assert.match(appSrc, /#deadlinesList .deadline-row/,
+    "iter #218 v2 must extract deadlines from DOM #deadlinesList");
+  // Next steps extracted from DOM
+  assert.match(appSrc, /#nextStepsList li/,
+    "iter #218 v2 must extract next steps from DOM #nextStepsList");
+  // P0/P1/P2 priority tags included in JSON output
+  assert.match(appSrc, /'P0'/,
+    "iter #218 v2 must include P0 priority in JSON risks");
+  assert.match(appSrc, /'P1'/,
+    "iter #218 v2 must include P1 priority in JSON risks");
+  assert.match(appSrc, /'P2'/,
+    "iter #218 v2 must include P2 priority in JSON risks");
+  // Counter-clause included when present on the risk rule
+  assert.match(appSrc, /counterClause/,
+    "iter #218 v2 must include counterClause in JSON when available");
+  // downloadJsonBtn must exist in the HTML toolbar
+  assert.match(html, /id="downloadJsonBtn"/,
+    "analyze.html must contain #downloadJsonBtn");
 });
 
 

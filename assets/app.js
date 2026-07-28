@@ -13962,22 +13962,78 @@
       });
       const verdictLabel = (verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-label')) ? verdictDisplay.querySelector('.verdict-label').textContent.trim() : '';
       const verdictSummary = (verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-summary')) ? verdictDisplay.querySelector('.verdict-summary').textContent.trim() : '';
+
+      // Extract deadlines from the DOM so the JSON always reflects what's rendered.
+      const deadlines = [];
+      if(typeof document !== 'undefined'){
+        document.querySelectorAll('#deadlinesList .deadline-row').forEach(row => {
+          const dateEl = row.querySelector('.deadline-date');
+          const descEl = row.querySelector('.deadline-desc');
+          if(dateEl || descEl){
+            deadlines.push({ date: dateEl ? dateEl.textContent.trim() : null, description: descEl ? descEl.textContent.trim() : null });
+          }
+        });
+      }
+
+      // Extract next steps from the DOM so the JSON always reflects what's rendered.
+      const nextSteps = [];
+      if(typeof document !== 'undefined'){
+        document.querySelectorAll('#nextStepsList li').forEach(li => {
+          const text = li.textContent.trim();
+          if(text) nextSteps.push(text);
+        });
+      }
+
       return JSON.stringify({
         documentFingerprint: (_fpState && _fpState.short) ? _fpState.short : null,
         analyzedAt: new Date().toISOString(),
         verdict: verdictLabel,
         verdictSummary: verdictSummary,
         threatLevel: (typeof computeThreatScore === 'function') ? computeThreatScore(lastFlags) : null,
-        risks: sorted.map(f => ({
-          severity: f && f.rule ? f.rule.sev : null,
-          label: f && f.rule ? f.rule.label : null,
-          why: f && f.rule ? f.rule.why : null,
-          sentence: f ? f.s : null,
-          sentenceIndex: f ? f.i : null
-        })),
-        deadlines: (typeof buildDeadlineLines === 'function') ? buildDeadlineLines() : [],
-        nextSteps: (typeof buildNextStepLines === 'function') ? buildNextStepLines() : []
+        risks: sorted.map(f => {
+          const entry = {
+            severity: f && f.rule ? f.rule.sev : null,
+            priority: f && f.rule ? (f.rule.sev === 'r' ? 'P0' : f.rule.sev === 'a' ? 'P1' : 'P2') : null,
+            label: f && f.rule ? f.rule.label : null,
+            why: f && f.rule ? f.rule.why : null,
+            sentence: f ? f.s : null,
+            sentenceIndex: f ? f.i : null
+          };
+          if(f && f.rule && f.rule.counter){
+            entry.counterClause = f.rule.counter;
+          }
+          return entry;
+        }),
+        deadlines: deadlines,
+        nextSteps: nextSteps
       }, null, 2);
+    }
+    async function downloadAnalysisJson(){
+      if(!lastRaw){
+        if(msg){msg.textContent='Analyze a document first, then download the JSON.'; msg.className='analyze-msg';}
+        return;
+      }
+      const text = buildAnalysisJson();
+      if(!text){
+        if(msg){msg.textContent='No analysis data to export.'; msg.className='analyze-msg';}
+        return;
+      }
+      try{
+        const stamp=new Date().toISOString().slice(0,10);
+        const filename='cleardoc-analysis-'+stamp+'.json';
+        const url=URL.createObjectURL(new Blob([text],{type:'application/json;charset=utf-8'}));
+        const a=document.createElement('a');
+        a.href=url; a.download=filename;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        const btn=document.getElementById('downloadJsonBtn');
+        if(btn) flashButton(btn, 'Downloaded ✓', 1500);
+      }catch(e){
+        console.warn('[download-json] failed',e);
+        const btn=document.getElementById('downloadJsonBtn');
+        if(btn) flashButton(btn, 'Download failed', 1800);
+      }
     }
     async function copyAnalysisJson(){
       if(!lastRaw){
@@ -17004,6 +17060,10 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     // iter #218: copy-as-JSON button — exports the full analysis as structured
     // JSON for APIs, scripts, and tooling consumption.
     if(copyJsonBtn) copyJsonBtn.addEventListener('click', copyAnalysisJson);
+    // iter #218 v2: download-as-JSON button — saves the full analysis as a
+    // .json file so it can be opened in any JSON tool or IDE.
+    const downloadJsonBtn = document.getElementById('downloadJsonBtn');
+    if(downloadJsonBtn) downloadJsonBtn.addEventListener('click', downloadAnalysisJson);
     // iter #202: export full analysis as Markdown (.md) — mirrors the
     // .txt path (buildAnalysisSummary → saveAnalysis) but with markdown
     // formatting so users can drop the result into Obsidian/Notion/email
