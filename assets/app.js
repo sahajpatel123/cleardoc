@@ -2606,7 +2606,7 @@
           tagsInput=$('#tagsInput'),tagsList=$('#tagsList'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
-          printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),copyChecklistBtn=$('#copyChecklistBtn'),printDate=$('#printDate'),
+          printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),copyChecklistBtn=$('#copyChecklistBtn'),copyJsonBtn=$('#copyJsonBtn'),printDate=$('#printDate'),
           shareBtn=$('#shareBtn'),speakBtn=$('#speakBtn'),
           voicePicker=$('#voicePicker'),risksAvoidedBadge=$('#risksAvoidedBadge'),
           shareBadgeBtn=$('#shareBadgeBtn'),resetBadgeBtn=$('#resetBadgeBtn'),
@@ -13947,6 +13947,63 @@
       }
       flashButton(copyChecklistBtn, ok?'✓ Checklist copied':'Copy failed', ok?1400:1800);
     }
+    // iter #218: export the full analysis result as structured JSON
+    // so it can be consumed by APIs, scripts, or other tooling.
+    // Omits DOM references and circular objects; serializes the
+    // same data the analysis pipeline produces (lastRaw, lastFlags,
+    // verdict label + summary, top concerns, deadlines, next steps).
+    function buildAnalysisJson(){
+      if(!lastRaw) return null;
+      const order = { r:0, a:1, g:2 };
+      const sorted = (lastFlags || []).slice().sort((x,y) => {
+        const ox = order[(x&&x.rule&&x.rule.sev)] ?? 3;
+        const oy = order[(y&&y.rule&&y.rule.sev)] ?? 3;
+        return ox - oy;
+      });
+      const verdictLabel = (verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-label')) ? verdictDisplay.querySelector('.verdict-label').textContent.trim() : '';
+      const verdictSummary = (verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-summary')) ? verdictDisplay.querySelector('.verdict-summary').textContent.trim() : '';
+      return JSON.stringify({
+        documentFingerprint: (_fpState && _fpState.short) ? _fpState.short : null,
+        analyzedAt: new Date().toISOString(),
+        verdict: verdictLabel,
+        verdictSummary: verdictSummary,
+        threatLevel: (typeof computeThreatScore === 'function') ? computeThreatScore(lastFlags) : null,
+        risks: sorted.map(f => ({
+          severity: f && f.rule ? f.rule.sev : null,
+          label: f && f.rule ? f.rule.label : null,
+          why: f && f.rule ? f.rule.why : null,
+          sentence: f ? f.s : null,
+          sentenceIndex: f ? f.i : null
+        })),
+        deadlines: (typeof buildDeadlineLines === 'function') ? buildDeadlineLines() : [],
+        nextSteps: (typeof buildNextStepLines === 'function') ? buildNextStepLines() : []
+      }, null, 2);
+    }
+    async function copyAnalysisJson(){
+      if(!lastRaw){
+        if(msg){msg.textContent='Analyze a document first, then copy as JSON.'; msg.className='analyze-msg';}
+        return;
+      }
+      const text = buildAnalysisJson();
+      if(!text){
+        if(msg){msg.textContent='No analysis data to export.'; msg.className='analyze-msg';}
+        return;
+      }
+      let ok=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text); ok=true;
+        } else {
+          const ta=document.createElement('textarea');
+          ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok=document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      }catch(e){
+        console.warn('[copy-json] clipboard failed',e);
+      }
+      flashButton(copyJsonBtn, ok?'✓ JSON copied':'Copy failed', ok?1400:1800);
+    }
 
     if(btn) btn.addEventListener('click',analyze);
     if(clearBtn) clearBtn.addEventListener('click',()=>{ input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); clearDraft(); updateTextStats(); input.focus(); });
@@ -16944,6 +17001,9 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     if(copyBtn) copyBtn.addEventListener('click',copyAnalysis);
     // iter #217: copy-as-checklist button — pastes into Jira/Linear/Notion
     if(copyChecklistBtn) copyChecklistBtn.addEventListener('click', copyAnalysisChecklist);
+    // iter #218: copy-as-JSON button — exports the full analysis as structured
+    // JSON for APIs, scripts, and tooling consumption.
+    if(copyJsonBtn) copyJsonBtn.addEventListener('click', copyAnalysisJson);
     // iter #202: export full analysis as Markdown (.md) — mirrors the
     // .txt path (buildAnalysisSummary → saveAnalysis) but with markdown
     // formatting so users can drop the result into Obsidian/Notion/email

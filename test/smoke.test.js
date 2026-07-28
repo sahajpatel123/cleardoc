@@ -428,6 +428,7 @@ skip("analyze: loads without console errors and has new AI-backed sections", asy
     ["#saveBtn", "save analysis button"],
     ["#copyBtn", "copy analysis button"],
     ["#copyChecklistBtn", "copy checklist button"],
+    ["#copyJsonBtn", "copy JSON button"],
     ["#shareBtn", "share-link button"],
     ["#shareBanner", "shared-analysis banner"],
     [".print-header", "print-only header bar"],
@@ -618,8 +619,8 @@ skip("analyze: result-actions live inside the result panel and start hidden unti
   });
   assert.equal(initiallyHidden, true, "result-actions must be hidden initially (inside hidden resultPanel)");
 
-  // All four buttons must exist in the DOM with stable IDs
-  for (const id of ["#printBtn", "#saveBtn", "#copyBtn", "#copyChecklistBtn"]) {
+  // All five buttons must exist in the DOM with stable IDs
+  for (const id of ["#printBtn", "#saveBtn", "#copyBtn", "#copyChecklistBtn", "#copyJsonBtn"]) {
     const el = await page.$(id);
     assert.ok(el, `${id} should exist in the DOM`);
   }
