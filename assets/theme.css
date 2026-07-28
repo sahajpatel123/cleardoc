@@ -1203,6 +1203,12 @@ button.risk-preview:hover{filter:brightness(.96)}
 /* Print: hide exec summary (already in .md / .txt exports) */
 @media print{.exec-summary{display:none!important}}
 
+/* Contract type badge (iter #223) — shows the detected
+ * document type in the print header so users immediately
+ * know the context of their analysis. Hidden in print. */
+.contract-type-badge{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.08em;padding:2px 8px;border:1px solid var(--ink);background:var(--paper2);color:var(--ink-soft);display:none}
+.contract-type-badge.visible{display:inline-block}
+
 /* ---- deadlines list ---- */
 .deadlines-list{display:flex;flex-direction:column;gap:10px;margin-top:var(--s2)}
 .deadline-row{display:flex;gap:var(--s3);align-items:flex-start;padding:10px 14px;border:var(--bd-hair) solid var(--ink);background:#fff}

@@ -12671,6 +12671,22 @@
         }
       }
 
+      // Contract type badge — show the detected document type
+      // in the result panel so users immediately know the
+      // contract category (e.g. "SaaS Agreement", "Lease").
+      const contractTypeBadge = document.getElementById('contractTypeBadge');
+      if(contractTypeBadge){
+        const dt = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
+        if(dt && dt.label){
+          contractTypeBadge.textContent = dt.label;
+          contractTypeBadge.className = 'contract-type-badge mono no-print visible';
+          contractTypeBadge.hidden = false;
+        } else {
+          contractTypeBadge.hidden = true;
+          contractTypeBadge.className = 'contract-type-badge mono no-print';
+        }
+      }
+
       // 5) deadlines — AI only
       if(deadlinesList){
         deadlinesList.innerHTML='';
@@ -13157,6 +13173,18 @@
             +'<div class="verdict-summary">'+esc(summary||'')+'</div>';
           if(verdictBlock) verdictBlock.hidden=false;
         } else if(verdictBlock){ verdictBlock.hidden=true; }
+      }
+
+      // Contract type badge in restored snapshot
+      if(contractTypeBadge && snap.raw){
+        const dt = (typeof detectDocType === 'function') ? detectDocType(snap.raw) : null;
+        if(dt && dt.label){
+          contractTypeBadge.textContent = dt.label;
+          contractTypeBadge.className = 'contract-type-badge mono no-print visible';
+          contractTypeBadge.hidden = false;
+        } else {
+          contractTypeBadge.hidden = true;
+        }
       }
 
       // Restore tags
