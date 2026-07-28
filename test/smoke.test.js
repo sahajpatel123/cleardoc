@@ -8356,6 +8356,31 @@ test("analyzer: Risk priority matrix plots risks by impact vs likelihood", () =>
     "cheat-sheet must include print-specific styles");
 });
 
+// Iter #217: risk checklist — sorted by severity (traps first, watches, then notes)
+// and includes threat-level header when scores exist.
+test("analyzer: risk checklist sorts traps first then watches then notes", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // buildRiskChecklist must exist and sort by severity (trap=0, watch=1, note=2)
+  assert.match(appSrc, /function buildRiskChecklist\(\)/,
+    "buildRiskChecklist must exist");
+  assert.match(appSrc, /const sevOrder\s*=\s*\{[^}]*r:0[^}]*\}/,
+    "iter #217 must sort traps before watches before notes via sevOrder");
+  // Risks sorted by document order within each severity tier (stable sort by index)
+  assert.match(appSrc, /\(a\.i\s*??\s*0\)\s*-\s*\(b\.i\s*??\s*0\)/,
+    "iter #217 must preserve document order within each severity tier (stable sort by index)");
+  // Checklist must include P0/P1/P2 priority tags for task managers (Jira/Linear/Notion)
+  assert.match(appSrc, /\[P0\]/,
+    "iter #217 must tag traps with [P0] for task-manager priority detection");
+  assert.match(appSrc, /\[P1\]/,
+    "iter #217 must tag watches with [P1] for task-manager priority detection");
+  assert.match(appSrc, /\[P2\]/,
+    "iter #217 must tag notes with [P2] for task-manager priority detection");
+});
+
 
 
 
