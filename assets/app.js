@@ -2607,7 +2607,7 @@
           tagsInput=$('#tagsInput'),tagsList=$('#tagsList'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
-          printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),copyChecklistBtn=$('#copyChecklistBtn'),copyJsonBtn=$('#copyJsonBtn'),printDate=$('#printDate'),
+          printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),copyChecklistBtn=$('#copyChecklistBtn'),copyJsonBtn=$('#copyJsonBtn'),copyCsvBtn=$('#copyCsvBtn'),downloadCsvBtn=$('#downloadCsvBtn'),downloadJsonBtn=$('#downloadJsonBtn'),printDate=$('#printDate'),
           shareBtn=$('#shareBtn'),speakBtn=$('#speakBtn'),
           voicePicker=$('#voicePicker'),risksAvoidedBadge=$('#risksAvoidedBadge'),
           shareBadgeBtn=$('#shareBadgeBtn'),resetBadgeBtn=$('#resetBadgeBtn'),
@@ -14126,6 +14126,81 @@
       }
       flashButton(copyJsonBtn, ok?'✓ JSON copied':'Copy failed', ok?1400:1800);
     }
+    // iter #220: build the risk table as CSV — a simple two-level header
+    // (severity | label) followed by one row per risk. Columns are
+    // compatible with Excel, Google Sheets, and Numbers so users can
+    // sort, filter, and share the data in their preferred spreadsheet.
+    function buildAnalysisCsv(){
+      if(!lastFlags || !lastFlags.length) return null;
+      const rows = [];
+      rows.push(['Severity','Label','Why','Sentence','Sentence Index']);
+      (lastFlags || []).forEach(f => {
+        if(!f || !f.rule) return;
+        const sev = f.rule.sev === 'r' ? 'TRAP' : f.rule.sev === 'a' ? 'WATCH' : f.rule.sev === 'g' ? 'NOTE' : 'UNKNOWN';
+        rows.push([
+          sev,
+          f.rule.label || '',
+          f.rule.why || '',
+          (f.s || '').replace(/"/g,'""'),
+          f.i != null ? String(f.i) : ''
+        ]);
+      });
+      // Escape all fields for CSV compliance: wrap in double quotes
+      // and double any internal double quotes per RFC 4180.
+      return rows.map(row => row.map(cell => '"' + String(cell).replace(/"/g,'""') + '"').join(',')).join('\n');
+    }
+    async function downloadAnalysisCsv(){
+      if(!lastFlags || !lastFlags.length){
+        if(msg){msg.textContent='No risks found — CSV export requires flagged items.'; msg.className='analyze-msg';}
+        return;
+      }
+      const text = buildAnalysisCsv();
+      if(!text){
+        if(msg){msg.textContent='No analysis data to export.'; msg.className='analyze-msg';}
+        return;
+      }
+      try{
+        const stamp=new Date().toISOString().slice(0,10);
+        const filename='cleardoc-risks-'+stamp+'.csv';
+        const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));
+        const a=document.createElement('a');
+        a.href=url; a.download=filename;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        const btn=document.getElementById('downloadCsvBtn');
+        if(btn) flashButton(btn, 'Downloaded ✓', 1500);
+      }catch(e){
+        console.warn('[download-csv] failed',e);
+        const btn=document.getElementById('downloadCsvBtn');
+        if(btn) flashButton(btn, 'Download failed', 1800);
+      }
+    }
+    async function copyAnalysisCsv(){
+      if(!lastFlags || !lastFlags.length){
+        if(msg){msg.textContent='No risks found — copy a CSV when the analysis has flagged items.'; msg.className='analyze-msg';}
+        return;
+      }
+      const text = buildAnalysisCsv();
+      if(!text){
+        if(msg){msg.textContent='No analysis data to export.'; msg.className='analyze-msg';}
+        return;
+      }
+      let ok=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text); ok=true;
+        } else {
+          const ta=document.createElement('textarea');
+          ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok=document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      }catch(e){
+        console.warn('[copy-csv] clipboard failed',e);
+      }
+      flashButton(copyCsvBtn, ok?'✓ CSV copied':'Copy failed', ok?1400:1800);
+    }
 
     if(btn) btn.addEventListener('click',analyze);
     if(clearBtn) clearBtn.addEventListener('click',()=>{ input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); clearDraft(); updateTextStats(); input.focus(); });
@@ -17156,6 +17231,12 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     // .json file so it can be opened in any JSON tool or IDE.
     const downloadJsonBtn = document.getElementById('downloadJsonBtn');
     if(downloadJsonBtn) downloadJsonBtn.addEventListener('click', downloadAnalysisJson);
+    // iter #220: CSV export buttons — copy risk table to clipboard
+    // or download as a .csv file for Excel / Google Sheets / Numbers.
+    const copyCsvBtn = document.getElementById('copyCsvBtn');
+    if(copyCsvBtn) copyCsvBtn.addEventListener('click', copyAnalysisCsv);
+    const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+    if(downloadCsvBtn) downloadCsvBtn.addEventListener('click', downloadAnalysisCsv);
     // iter #202: export full analysis as Markdown (.md) — mirrors the
     // .txt path (buildAnalysisSummary → saveAnalysis) but with markdown
     // formatting so users can drop the result into Obsidian/Notion/email
