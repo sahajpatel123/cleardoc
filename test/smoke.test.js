@@ -8476,6 +8476,38 @@ test("analyzer: Health Check computes readiness verdict and renders it", () => {
     "healthCheck must have role=status for screen readers");
 });
 
+// Iter #220 v2: CSV export polish — metadata header, row numbering, priority.
+test("analyzer: CSV export includes metadata row, row numbers, priority, and fingerprint", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // buildAnalysisCsv must exist
+  assert.match(appSrc, /function buildAnalysisCsv\(\)/,
+    "buildAnalysisCsv must exist");
+  // Metadata header row with document fingerprint and analysis date
+  assert.match(appSrc, /Document Fingerprint/,
+    "iter #220 v2 must include document fingerprint in CSV metadata");
+  assert.match(appSrc, /Analysis Date/,
+    "iter #220 v2 must include analysis date in CSV metadata");
+  // Row numbering column for spreadsheet reference
+  assert.match(appSrc, /const idx \+ 1/,
+    "iter #220 v2 must include sequential row numbers");
+  // Priority column (P0/P1/P2) in CSV output
+  assert.match(appSrc, /priority.*P0.*P1.*P2|P0.*P1.*P2/,
+    "iter #220 v2 must include P0/P1/P2 priority labels in CSV");
+  // Newline escaping in why and sentence fields
+  assert.match(appSrc, /replace\(\/\[\\r\\n\]/,
+    "iter #220 v2 must escape newlines in CSV fields");
+  // Download filename includes document fingerprint for uniqueness
+  assert.match(appSrc, /cleardoc-risks-.*fp.*stamp/,
+    "iter #220 v2 download filename must include document fingerprint");
+  // Threat score / health check metadata included when available
+  assert.match(appSrc, /Threat Level/,
+    "iter #220 v2 must include threat level in CSV metadata rows");
+});
+
 
 
 

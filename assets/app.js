@@ -14133,15 +14133,41 @@
     function buildAnalysisCsv(){
       if(!lastFlags || !lastFlags.length) return null;
       const rows = [];
-      rows.push(['Severity','Label','Why','Sentence','Sentence Index']);
-      (lastFlags || []).forEach(f => {
+      // Metadata header row — document fingerprint + analysis date so the CSV
+      // is self-identifying when shared or re-opened later.
+      const fp = (_fpState && _fpState.short) ? _fpState.short : '';
+      rows.push(['#','Document Fingerprint', fp, 'Analysis Date', new Date().toISOString()]);
+      // Severity counts row — at-a-glance summary of risk distribution.
+      const t = (typeof computeThreatScore === 'function') ? computeThreatScore(lastFlags) : null;
+      const total = t ? t.total : (lastFlags || []).length;
+      rows.push(['#','Total Risks', String(total), 'Traps', t ? (t.traps||0) : 0]);
+      rows.push(['#','Watches', t ? (t.watches||0) : 0, 'Notes', t ? (t.notes||0) : 0]);
+      rows.push(['#','Threat Level', t ? t.level : 'N/A', 'Score', t ? t.score : 0]);
+      rows.push([]); // blank separator row
+      // Column headers.
+      rows.push(['#','Severity','Priority','Label','Why','Sentence','Sentence Index']);
+      // Data rows with sequential numbering for spreadsheet reference.
+      const order = { r:0, a:1, g:2 };
+      const sorted = (lastFlags || []).slice().sort((x,y) => {
+        const ox = order[(x&&x.rule&&x.rule.sev)] ?? 3;
+        const oy = order[(y&&y.rule&&y.rule.sev)] ?? 3;
+        return ox !== oy ? ox - oy : (x.i||0) - (y.i||0);
+      });
+      sorted.forEach((f, idx) => {
         if(!f || !f.rule) return;
         const sev = f.rule.sev === 'r' ? 'TRAP' : f.rule.sev === 'a' ? 'WATCH' : f.rule.sev === 'g' ? 'NOTE' : 'UNKNOWN';
+        const priority = f.rule.sev === 'r' ? 'P0' : f.rule.sev === 'a' ? 'P1' : 'P2';
+        // Escape newlines in "why" and "sentence" fields by replacing \n with \n literal
+        // so CSV rows stay single-line per record.
+        const safeWhy = (f.rule.why || '').replace(/[\r\n]+/g, ' ');
+        const safeSentence = (f.s || '').replace(/[\r\n]+/g, ' ');
         rows.push([
+          String(idx + 1),
           sev,
+          priority,
           f.rule.label || '',
-          f.rule.why || '',
-          (f.s || '').replace(/"/g,'""'),
+          safeWhy,
+          safeSentence,
           f.i != null ? String(f.i) : ''
         ]);
       });
@@ -14161,7 +14187,8 @@
       }
       try{
         const stamp=new Date().toISOString().slice(0,10);
-        const filename='cleardoc-risks-'+stamp+'.csv';
+        const fp = (_fpState && _fpState.short) ? _fpState.short : 'unknown';
+        const filename='cleardoc-risks-'+fp+'-'+stamp+'.csv';
         const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));
         const a=document.createElement('a');
         a.href=url; a.download=filename;
