@@ -2602,6 +2602,7 @@
           attachTray=$('#attachTray'),draftOut=$('#draftOut'),draftNote=$('#draftNote'),copyDraftBtn=$('#copyDraftBtn'),
           downloadDraftBtn=$('#downloadDraftBtn'),
           analyzeLoading=$('#analyzeLoading'),verdictBlock=$('#verdictBlock'),verdictDisplay=$('#verdictDisplay'),verdictCopyBtn=$('#verdictCopyBtn'),
+          threatScore=$('#threatScore'),threatScoreNum=$('#threatScoreNum'),threatScoreLbl=$('#threatScoreLbl'),threatScoreMeta=$('#threatScoreMeta'),
           tagsInput=$('#tagsInput'),tagsList=$('#tagsList'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
@@ -3019,6 +3020,64 @@
     }
     function splitSentences(t){ return t.replace(/\s+/g,' ').trim().split(/(?<=[.!?;])\s+/).filter(s=>s.trim().length>1); }
     function trunc(s,n){ s=s.trim(); return s.length>n? s.slice(0,n)+'…' : s; }
+    // iter #216: at-a-glance weighted severity score (trap=10, watch=4, note=1).
+    // Pure function — accepts the same `lastFlags` array the radar paints from
+    // and returns `{ score, level, tone, total }`. Tone buckets mirror the
+    // verdict palette: low (green), medium (amber), high (danger-tint),
+    // critical (danger solid). Defensive against bad input — non-array
+    // input or missing `rule.sev` falls back to a 0 / Low score so the
+    // UI never paints an undefined label.
+    function computeThreatScore(flags){
+      const list = Array.isArray(flags) ? flags : [];
+      let score = 0;
+      let traps = 0, watches = 0, notes = 0;
+      list.forEach(function(f){
+        if(!f || !f.rule) return;
+        const sev = f.rule.sev;
+        if(sev === 'r'){ score += 10; traps++; }
+        else if(sev === 'a'){ score += 4; watches++; }
+        else if(sev === 'g'){ score += 1; notes++; }
+      });
+      let level, tone;
+      // Buckets chosen so 1 trap (=10) stays Low but a single trap
+      // plus a couple of watches (=18) is still Low — Medium lands
+      // around "2 traps or many watches", High around "5+ traps",
+      // Critical at "10+ traps" or a deeply-clustered document.
+      if(score < 20)               { level = 'Low';      tone = 'low'; }
+      else if(score < 50)          { level = 'Medium';   tone = 'medium'; }
+      else if(score < 100)         { level = 'High';     tone = 'high'; }
+      else                         { level = 'Critical'; tone = 'critical'; }
+      return { score: score, level: level, tone: tone, traps: traps, watches: watches, notes: notes, total: list.length };
+    }
+    // Render the threat score block from the current `lastFlags` array.
+    // Hidden when there are zero flags so the verdict block doesn't grow
+    // an empty "Threat level: 0" pill for clean documents. Idempotent —
+    // safe to call on every render and on every re-analysis.
+    function renderThreatScore(){
+      if(!threatScore || !threatScoreNum || !threatScoreLbl || !threatScoreMeta) return;
+      const t = computeThreatScore(lastFlags);
+      if(!t.total){
+        threatScore.hidden = true;
+        threatScore.className = 'threat-score mono no-print';
+        threatScoreNum.textContent = '';
+        threatScoreLbl.textContent = '';
+        threatScoreMeta.textContent = '';
+        return;
+      }
+      threatScore.hidden = false;
+      threatScore.className = 'threat-score mono no-print ' + t.tone;
+      threatScoreNum.textContent = String(t.score);
+      threatScoreLbl.textContent = t.level;
+      // Compact tally: 7 risks · 2 traps · 3 watches · 2 notes. Same
+      // pluralization rules as the chat-share tally (iter #215) so users
+      // see one consistent voice across the panel.
+      const parts = [];
+      parts.push(t.total + ' risk' + (t.total === 1 ? '' : 's'));
+      if(t.traps)   parts.push(t.traps   + ' trap'  + (t.traps   === 1 ? '' : 's'));
+      if(t.watches) parts.push(t.watches + ' watch' + (t.watches === 1 ? '' : 'es'));
+      if(t.notes)   parts.push(t.notes   + ' note'  + (t.notes   === 1 ? '' : 's'));
+      threatScoreMeta.textContent = '· ' + parts.join(' · ');
+    }
     function esc(s){
       // Defense-in-depth: escape &, <, > plus BOTH quote flavours.
       // Templates interpolate `esc(...)` into BOTH text context (`>esc(t)<`)
@@ -11888,6 +11947,7 @@
         sentences.forEach((s,i)=>{ for(const rule of RISK){ if(rule.re.test(s)){ flags.push({i,s,rule}); break; } } });
       }
       lastFlags=flags;
+      renderThreatScore();
       riskList.innerHTML='';
 
       // iter #200: risk summary footer — one-line tally under the radar
@@ -12849,6 +12909,9 @@
           why:String(r.why||'')
         }
       }));
+      // iter #216: paint the threat score from the restored snapshot
+      // so a shared/reloaded analysis shows the same severity pill.
+      renderThreatScore();
 
       // Pre-fill the textarea ONLY if it's currently the preloaded sample — never clobber
       // a user's in-progress edit. This matches what the file-attachment path does.
@@ -13394,6 +13457,19 @@
         md.push('');
         md.push('**'+vLabel.textContent.trim()+'**');
         if(vSummary && vSummary.textContent.trim()) md.push(vSummary.textContent.trim());
+        // iter #216: emit the threat score line in the markdown
+        // export too, so .md carries the same at-a-glance severity
+        // signal the on-page pill shows. Mirrors the headline
+        // data — "Threat level: <Score> (<Level>) · N risks ...".
+        if(lastFlags && lastFlags.length){
+          const t = computeThreatScore(lastFlags);
+          const parts = [];
+          parts.push(t.total + ' risk' + (t.total === 1 ? '' : 's'));
+          if(t.traps)   parts.push(t.traps   + ' trap'  + (t.traps   === 1 ? '' : 's'));
+          if(t.watches) parts.push(t.watches + ' watch' + (t.watches === 1 ? '' : 'es'));
+          if(t.notes)   parts.push(t.notes   + ' note'  + (t.notes   === 1 ? '' : 's'));
+          md.push('_Threat level: **'+t.score+'** ('+t.level+') · '+parts.join(' · ')+'_');
+        }
         md.push('');
       }
       // iter #202 v2: at-a-glance risk tally — mirrors the on-page
@@ -13606,6 +13682,17 @@
       lines.push('');
       lines.push('I just analyzed a document with ClearDoc and wanted to share the highlights. Verdict: ' + verdictText + '.');
       if(summaryText) lines.push(summaryText);
+      // iter #216: include the threat score so the email carries
+      // the same at-a-glance severity signal the on-page pill shows.
+      if(lastFlags && lastFlags.length){
+        const t = computeThreatScore(lastFlags);
+        const parts = [];
+        parts.push(t.total + ' risk' + (t.total === 1 ? '' : 's'));
+        if(t.traps)   parts.push(t.traps   + ' trap'  + (t.traps   === 1 ? '' : 's'));
+        if(t.watches) parts.push(t.watches + ' watch' + (t.watches === 1 ? '' : 'es'));
+        if(t.notes)   parts.push(t.notes   + ' note'  + (t.notes   === 1 ? '' : 's'));
+        lines.push('Threat level: ' + t.score + ' (' + t.level + ') — ' + parts.join(' · '));
+      }
       lines.push('');
       if(top && top.rule){
         lines.push('TOP CONCERN (' + (top.rule.label || 'risk') + ')');

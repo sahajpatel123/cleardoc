@@ -431,6 +431,7 @@ skip("analyze: loads without console errors and has new AI-backed sections", asy
     ["#shareBanner", "shared-analysis banner"],
     [".print-header", "print-only header bar"],
     [".result-actions", "result action toolbar"],
+    ["#threatScore", "threat score block"],
   ]);
   assert.deepEqual(errors, [], "analyze: console errors");
 });
