@@ -442,6 +442,7 @@ skip("analyze: loads without console errors and has new AI-backed sections", asy
     ["#downloadCsvBtn", "download CSV button"],
     ["#execSummary", "executive summary block"],
     ["#execCopyBtn", "executive summary copy button"],
+    ["#contractTypeBadge", "contract type badge"],
   ]);
   assert.deepEqual(errors, [], "analyze: console errors");
 });
@@ -8549,6 +8550,31 @@ test("analyzer: Executive summary generates headline, body, and has all CSS tone
   assert.match(cssSrc, /\.exec-summary\.critical\b/, "exec-summary .critical tone must exist");
   assert.match(html, /id="execSummary"/, "analyze.html must contain #execSummary");
   assert.match(html, /id="execCopyBtn"/, "analyze.html must contain #execCopyBtn");
+});
+
+// Iter #223: Contract type badge — shows detected document type in result panel.
+test("analyzer: Contract type badge renders when doc type is detected", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // contractTypeBadge element must exist in HTML
+  assert.match(html, /id="contractTypeBadge"/,
+    "analyze.html must contain #contractTypeBadge");
+  // badge must start hidden, become visible when doc type detected
+  assert.match(html, /contractTypeBadge.*hidden/,
+    "contractTypeBadge must start hidden");
+  // render code must call detectDocType to get the label
+  assert.match(appSrc, /detectDocType.*raw/,
+    "contract badge must use detectDocType for detection");
+  // badge CSS class has visible state toggle
+  assert.match(cssSrc, /contract-type-badge\.visible/,
+    "contract-type-badge .visible CSS class must exist");
+  // badge uses .mono and .no-print for consistent styling
+  assert.match(html, /contract-type-badge.*mono.*no-print/,
+    "contract badge must use mono and no-print classes");
 });
 
 
