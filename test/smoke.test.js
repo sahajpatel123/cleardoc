@@ -8532,8 +8532,17 @@ test("analyzer: Executive summary generates headline, body, and has all CSS tone
     "renderExecSummary must exist");
   assert.match(appSrc, /headline\s*=/,
     "buildExecSummary must generate a headline");
-  assert.match(appSrc, /top concern is/,
-    "buildExecSummary must include top concern in the body");
+  assert.match(appSrc, /top priority:/,
+    "buildExecSummary must use 'Top priority' label in the body");
+  // Why text is truncated to keep summary readable
+  assert.match(appSrc, /197\s*\+\s*'\.\.\.'/,
+    "buildExecSummary must truncate long why text at 200 chars");
+  // Fingerprint included for traceability
+  assert.match(appSrc, /fingerprint\s*\?.*_fpState.*short/,
+    "buildExecSummary must include document fingerprint");
+  // Analysis date included in output
+  assert.match(appSrc, /toLocaleDateString/,
+    "buildExecSummary must include a formatted analysis date");
   assert.match(cssSrc, /\.exec-summary\.low\b/, "exec-summary .low tone must exist");
   assert.match(cssSrc, /\.exec-summary\.medium\b/, "exec-summary .medium tone must exist");
   assert.match(cssSrc, /\.exec-summary\.high\b/, "exec-summary .high tone must exist");
