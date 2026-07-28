@@ -5484,6 +5484,7 @@ skip("keyboard: ? opens the help modal and Esc closes it", async () => {
   assert.match(themeSrc, /\.kb-modal\.show/, ".kb-modal.show state must exist");
   assert.match(themeSrc, /\.kb-modal-card/, ".kb-modal-card CSS must exist");
   assert.match(themeSrc, /\.kb-row kbd/, ".kb-row kbd styling must exist");
+  assert.match(themeSrc, /\.kb-modal-subtitle/, ".kb-modal-subtitle CSS for export section heading must exist");
 
   // Live: load the home page, press ?, modal appears with the documented shortcuts
   const page = await context.newPage();
@@ -5501,6 +5502,13 @@ skip("keyboard: ? opens the help modal and Esc closes it", async () => {
   assert.match(modalText, /Open the analyzer/, "modal must mention 'Open the analyzer' (g a)");
   assert.match(modalText, /See pricing/, "modal must mention 'See pricing' (g p)");
   assert.match(modalText, /Show this help/, "modal must mention 'Show this help' (?)");
+  // Export/share shortcuts documented in the modal
+  assert.match(modalText, /Copy Markdown/, "modal must document 'Copy Markdown' shortcut");
+  assert.match(modalText, /JSON/, "modal must document 'JSON' shortcut");
+  assert.match(modalText, /CSV/, "modal must document 'CSV' shortcut");
+  assert.match(modalText, /Checklist/, "modal must document 'Checklist' shortcut");
+  assert.match(modalText, /Share link/, "modal must document 'Share link' shortcut");
+  assert.match(modalText, /chat-friendly/, "modal must document 'Share to chat' shortcut");
 
   // Pressing Escape closes the modal
   await page.keyboard.press("Escape");

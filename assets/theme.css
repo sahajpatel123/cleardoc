@@ -414,6 +414,7 @@
   .kb-row span{flex:1;color:var(--ink);font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.04em}
   .kb-row kbd{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);font-weight:700;background:#fff;border:2px solid var(--ink);padding:3px 9px;min-width:34px;text-align:center;color:var(--ink);text-transform:none;letter-spacing:0;box-shadow:3px 3px 0 var(--ink)}
   .kb-modal-foot{font-size:var(--t-micro);color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em;border-top:1px solid var(--ink);padding-top:10px;margin-top:6px}
+.kb-modal-subtitle{font-size:var(--t-meta);text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:var(--ink-soft);margin:10px 0 6px}
 
   /* ---- Footer "?" hint ---- */
   .kb-hint{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);color:var(--on-dark);opacity:.7;cursor:pointer;border-bottom:1px dotted transparent;padding:0}

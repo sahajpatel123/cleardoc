@@ -1718,7 +1718,19 @@
             <div class="kb-row"><kbd>?</kbd><span>Show this help</span></div>
             <div class="kb-row"><kbd>Esc</kbd><span>Close any modal / banner</span></div>
           </div>
-          <p class="kb-modal-foot mono">Shortcuts are disabled while typing in a field.</p>
+          <h3 class="kb-modal-subtitle mono">EXPORT &amp; SHARE</h3>
+          <div class="kb-modal-grid">
+            <div class="kb-row"><kbd>📋</kbd><span>Copy plain-text summary to clipboard</span></div>
+            <div class="kb-row"><kbd>📋 .md</kbd><span>Copy Markdown to clipboard</span></div>
+            <div class="kb-row"><kbd>{ } JSON</kbd><span>Copy structured JSON to clipboard</span></div>
+            <div class="kb-row"><kbd>📊 CSV</kbd><span>Copy risk table as CSV to clipboard</span></div>
+            <div class="kb-row"><kbd>☐</kbd><span>Copy risk checklist to clipboard</span></div>
+            <div class="kb-row"><kbd>⬇</kbd><span>Download analysis files (.txt / .md / .json / .csv)</span></div>
+            <div class="kb-row"><kbd>🔗</kbd><span>Copy share link to clipboard</span></div>
+            <div class="kb-row"><kbd>💬</kbd><span>Copy chat-friendly summary to clipboard</span></div>
+            <div class="kb-row"><kbd>📧</kbd><span>Open mail client with analysis summary</span></div>
+          </div>
+          <p class="kb-modal-foot mono">Shortcuts are disabled while typing in a field. Threat level &amp; health check appear automatically after analysis.</p>
         </div>`;
       document.body.appendChild(m);
       // Click on backdrop or close button dismisses
