@@ -2602,7 +2602,7 @@
           attachTray=$('#attachTray'),draftOut=$('#draftOut'),draftNote=$('#draftNote'),copyDraftBtn=$('#copyDraftBtn'),
           downloadDraftBtn=$('#downloadDraftBtn'),
           analyzeLoading=$('#analyzeLoading'),verdictBlock=$('#verdictBlock'),verdictDisplay=$('#verdictDisplay'),verdictCopyBtn=$('#verdictCopyBtn'),
-          threatScore=$('#threatScore'),threatScoreNum=$('#threatScoreNum'),threatScoreLbl=$('#threatScoreLbl'),threatScoreMeta=$('#threatScoreMeta'),
+          threatScore=$('#threatScore'),threatScoreNum=$('#threatScoreNum'),threatScoreLbl=$('#threatScoreLbl'),threatScoreMeta=$('#threatScoreMeta'),threatCopyBtn=$('#threatCopyBtn'),
           tagsInput=$('#tagsInput'),tagsList=$('#tagsList'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
@@ -3062,6 +3062,7 @@
         threatScoreNum.textContent = '';
         threatScoreLbl.textContent = '';
         threatScoreMeta.textContent = '';
+        if(threatCopyBtn){ threatCopyBtn.textContent = 'Copy'; threatCopyBtn.hidden = true; }
         return;
       }
       threatScore.hidden = false;
@@ -3077,6 +3078,7 @@
       if(t.watches) parts.push(t.watches + ' watch' + (t.watches === 1 ? '' : 'es'));
       if(t.notes)   parts.push(t.notes   + ' note'  + (t.notes   === 1 ? '' : 's'));
       threatScoreMeta.textContent = '· ' + parts.join(' · ');
+      if(threatCopyBtn){ threatCopyBtn.hidden = false; threatCopyBtn.textContent = 'Copy'; }
     }
     function esc(s){
       // Defense-in-depth: escape &, <, > plus BOTH quote flavours.
@@ -16259,6 +16261,30 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       verdictCopyBtn.textContent=ok ? 'Copied ✓' : 'Copy failed';
       clearTimeout(verdictCopyBtn._flashTimer);
       verdictCopyBtn._flashTimer=setTimeout(()=>{ verdictCopyBtn.textContent=orig; },1400);
+    });
+    // iter #216 polish: copy threat score to clipboard — mirrors verdictCopyBtn pattern.
+    if(threatCopyBtn) threatCopyBtn.addEventListener('click',async()=>{
+      if(!threatScore || threatScore.hidden) return;
+      const num=threatScoreNum.textContent||'';
+      const lbl=threatScoreLbl.textContent||'';
+      const meta=threatScoreMeta.textContent||'';
+      const text=('Threat '+lbl+': '+num+' '+meta.trim().replace(/^· /,'')).trim();
+      if(!text) return;
+      let ok=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text); ok=true;
+        } else {
+          const ta=document.createElement('textarea');
+          ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok=document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      }catch(_){}
+      const orig='Copy';
+      threatCopyBtn.textContent=ok ? 'Copied ✓' : 'Copy failed';
+      clearTimeout(threatCopyBtn._flashTimer);
+      threatCopyBtn._flashTimer=setTimeout(()=>{ threatCopyBtn.textContent=orig; },1400);
     });
     if(downloadDraftBtn) downloadDraftBtn.addEventListener('click',()=>{ if(!draftOut||!draftOut.value)return; const url=URL.createObjectURL(new Blob([draftOut.value],{type:'text/plain'})); const a=document.createElement('a'); a.href=url; a.download='cleardoc-response-draft.txt'; a.click(); URL.revokeObjectURL(url); });
     if(printBtn) printBtn.addEventListener('click',printAnalysis);
