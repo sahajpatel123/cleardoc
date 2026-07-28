@@ -436,6 +436,8 @@ skip("analyze: loads without console errors and has new AI-backed sections", asy
     [".result-actions", "result action toolbar"],
     ["#threatScore", "threat score block"],
     ["#threatCopyBtn", "threat score copy button"],
+    ["#healthCheck", "health check block"],
+    ["#healthCopyBtn", "health check copy button"],
   ]);
   assert.deepEqual(errors, [], "analyze: console errors");
 });
@@ -8417,6 +8419,45 @@ test("analyzer: JSON export includes download, deadlines from DOM, counter-claus
   // downloadJsonBtn must exist in the HTML toolbar
   assert.match(html, /id="downloadJsonBtn"/,
     "analyze.html must contain #downloadJsonBtn");
+});
+
+// Iter #219: Contract Health Check — synthesizes analysis into a readiness verdict.
+test("analyzer: Health Check computes readiness verdict and renders it", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // computeHealthCheck must exist
+  assert.match(appSrc, /function computeHealthCheck\(\)/,
+    "computeHealthCheck must exist");
+  // renderHealthCheck must exist
+  assert.match(appSrc, /function renderHealthCheck\(\)/,
+    "renderHealthCheck must exist");
+  // computeHealthCheck returns a readiness level
+  assert.match(appSrc, /level:\s*['"]Ready['"]/,
+    "computeHealthCheck must have a Ready level");
+  assert.match(appSrc, /level:\s*['"]Review['"]/,
+    "computeHealthCheck must have a Review level");
+  assert.match(appSrc, /level:\s*['"]Negotiate['"]/,
+    "computeHealthCheck must have a Negotiate level");
+  assert.match(appSrc, /level:\s*['"]Do Not Sign['"]/,
+    "computeHealthCheck must have a Do Not Sign level");
+  // healthCheck block exists in HTML
+  assert.match(html, /id="healthCheck"/,
+    "analyze.html must contain #healthCheck");
+  // healthCheck hidden by default (no false positives for clean docs)
+  assert.match(html, /healthCheck.*hidden/,
+    "healthCheck must start hidden");
+  // healthCopyBtn exists in HTML
+  assert.match(html, /id="healthCopyBtn"/,
+    "analyze.html must contain #healthCopyBtn");
+  // CSS health-check tones exist for all four levels
+  assert.match(cssSrc, /\.health-check\.low\b/, "health-check .low style must exist");
+  assert.match(cssSrc, /\.health-check\.review\b/, "health-check .review style must exist");
+  assert.match(cssSrc, /\.health-check\.negotiate\b/, "health-check .negotiate style must exist");
+  assert.match(cssSrc, /\.health-check\.danger\b/, "health-check .danger style must exist");
 });
 
 

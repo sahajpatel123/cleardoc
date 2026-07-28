@@ -1140,6 +1140,37 @@ button.risk-preview:hover{filter:brightness(.96)}
 .threat-score.high .threat-copy{border-color:var(--danger);color:var(--danger)}
 .threat-score.critical .threat-copy{border-color:#fff;color:#fff}
 
+/* Health Check (iter #219) — contract readiness score
+ * shown directly under the threat score, this block synthesizes
+ * the analysis into a simple "Ready / Review / Negotiate / Do Not Sign"
+ * verdict with a concrete recommendation. Tone mirrors the
+ * threat-score palette for consistency. The .no-print class
+ * keeps it out of the printed PDF (it's already reflected in
+ * the verdict + threat score). */
+.health-check{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;padding:8px 14px;border:2px solid var(--ink);background:#fff;margin-top:4px}
+.health-check-header{display:flex;align-items:center;gap:8px;flex:1 1 100%}
+.health-check-icon{font-size:var(--t-body-lg);flex:0 0 auto}
+.health-check-label{font-size:var(--t-body);font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.health-check-score{font-family:'Archivo Black',sans-serif;font-size:var(--t-body-lg);letter-spacing:.02em;margin-left:auto}
+.health-check-detail{font-size:var(--t-micro);color:var(--ink-soft);flex:1 1 100%;line-height:1.5}
+.health-check-recommendation{font-size:var(--t-body);flex:1 1 100%;font-weight:600;padding:4px 0}
+.health-copy{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border:1px solid var(--ink);background:transparent;color:inherit;cursor:pointer;border-radius:3px;flex:0 0 auto;opacity:.7;transition:opacity .2s}
+.health-copy:hover{opacity:1;background:var(--ink);color:#fff}
+.health-check.low{border-color:var(--green);background:var(--green-tint);color:var(--green)}
+.health-check.low .health-check-score{color:var(--green)}
+.health-check.review{border-color:var(--amber);background:var(--amber-tint);color:var(--amber)}
+.health-check.review .health-check-score{color:var(--amber)}
+.health-check.negotiate{border-color:var(--accent);background:var(--paper2);color:var(--accent)}
+.health-check.negotiate .health-check-score{color:var(--accent)}
+.health-check.danger{border-color:var(--danger);background:var(--danger);color:#fff}
+.health-check.danger .health-check-score{color:#fff}
+.health-check.danger .health-check-recommendation{color:#fff}
+.health-check.danger .health-check-detail{color:rgba(255,255,255,.85)}
+.health-check.danger .health-copy{border-color:#fff;color:#fff}
+
+/* Print: hide health check (already in .md / .txt exports) */
+@media print{.health-check{display:none!important}}
+
 /* ---- deadlines list ---- */
 .deadlines-list{display:flex;flex-direction:column;gap:10px;margin-top:var(--s2)}
 .deadline-row{display:flex;gap:var(--s3);align-items:flex-start;padding:10px 14px;border:var(--bd-hair) solid var(--ink);background:#fff}

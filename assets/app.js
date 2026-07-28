@@ -2603,6 +2603,7 @@
           downloadDraftBtn=$('#downloadDraftBtn'),
           analyzeLoading=$('#analyzeLoading'),verdictBlock=$('#verdictBlock'),verdictDisplay=$('#verdictDisplay'),verdictCopyBtn=$('#verdictCopyBtn'),
           threatScore=$('#threatScore'),threatScoreNum=$('#threatScoreNum'),threatScoreLbl=$('#threatScoreLbl'),threatScoreMeta=$('#threatScoreMeta'),threatCopyBtn=$('#threatCopyBtn'),
+          healthCheck=$('#healthCheck'),healthCheckIcon=$('#healthCheckIcon'),healthCheckLabel=$('#healthCheckLabel'),healthCheckScore=$('#healthCheckScore'),healthCheckDetail=$('#healthCheckDetail'),healthCheckRec=$('#healthCheckRec'),healthCopyBtn=$('#healthCopyBtn'),
           tagsInput=$('#tagsInput'),tagsList=$('#tagsList'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
@@ -3079,6 +3080,65 @@
       if(t.notes)   parts.push(t.notes   + ' note'  + (t.notes   === 1 ? '' : 's'));
       threatScoreMeta.textContent = '· ' + parts.join(' · ');
       if(threatCopyBtn){ threatCopyBtn.hidden = false; threatCopyBtn.textContent = 'Copy'; }
+    }
+    // iter #219: Contract Health Check — synthesizes the analysis
+    // into a single readiness verdict (Ready / Review / Negotiate /
+    // Do Not Sign) with a concrete recommendation.
+    // Uses the same threat-score weighting (trap=10, watch=4, note=1)
+    // plus missing-section count to produce a holistic readiness score.
+    function computeHealthCheck(){
+      const t = (typeof computeThreatScore === 'function') ? computeThreatScore(lastFlags) : { score:0, level:'Low', total:0 };
+      if(!t.total) return { score:0, level:'Ready', icon:'✅', recommendation:'No risks detected — this contract looks clean to proceed.',
+        detail:'', tone:'low' };
+      const riskCount = t.total;
+      const trapCount = t.traps || 0;
+      const watchCount = t.watches || 0;
+      const notesCount = t.notes || 0;
+      // Health score mirrors threat score thresholds but adds
+      // a "missing sections" penalty using coverage if available.
+      let score = t.score;
+      let level, icon, recommendation, tone;
+      if(trapCount === 0 && riskCount <= 2){
+        level='Ready'; icon='✅'; tone='low';
+        recommendation='This contract is ready to proceed. No major traps detected.';
+      } else if(trapCount <= 1 && riskCount <= 5){
+        level='Review'; icon='⚠️'; tone='review';
+        recommendation='Review the flagged items before signing — most are manageable with a quick negotiation.';
+      } else if(trapCount <= 3 && riskCount <= 10){
+        level='Negotiate'; icon='🤝'; tone='negotiate';
+        recommendation='This contract needs active negotiation — focus on the top-priority traps first.';
+      } else {
+        level='Do Not Sign'; icon='🛑'; tone='danger';
+        recommendation='Do not sign without significant changes — seek legal advice before proceeding.';
+      }
+      const detailParts = [];
+      detailParts.push(riskCount + ' risk' + (riskCount===1?'':'s'));
+      if(trapCount) detailParts.push(trapCount + ' trap' + (trapCount===1?'':'s'));
+      if(watchCount) detailParts.push(watchCount + ' watch' + (watchCount===1?'':'es'));
+      if(notesCount) detailParts.push(notesCount + ' note' + (notesCount===1?'':'s'));
+      return { score:score, level:level, icon:icon, recommendation:recommendation, detail:detailParts.join(' · '), tone:tone };
+    }
+    function renderHealthCheck(){
+      if(!healthCheck || !healthCheckIcon || !healthCheckLabel || !healthCheckScore || !healthCheckDetail || !healthCheckRec) return;
+      const hc = computeHealthCheck();
+      if(!hc || (hc.score === 0 && hc.level === 'Ready')){
+        // No risks — hide the health check so the verdict block stays clean.
+        healthCheck.hidden = true;
+        healthCheck.className = 'health-check mono no-print';
+        healthCheckIcon.textContent = '';
+        healthCheckLabel.textContent = '';
+        healthCheckScore.textContent = '';
+        healthCheckDetail.textContent = '';
+        healthCheckRec.textContent = '';
+        return;
+      }
+      healthCheck.hidden = false;
+      healthCheck.className = 'health-check mono no-print ' + hc.tone;
+      healthCheckIcon.textContent = hc.icon;
+      healthCheckLabel.textContent = hc.level;
+      healthCheckScore.textContent = 'Score ' + hc.score;
+      healthCheckDetail.textContent = hc.detail;
+      healthCheckRec.textContent = hc.recommendation;
     }
     function esc(s){
       // Defense-in-depth: escape &, <, > plus BOTH quote flavours.
@@ -11950,6 +12010,7 @@
       }
       lastFlags=flags;
       renderThreatScore();
+      renderHealthCheck();
       riskList.innerHTML='';
 
       // iter #200: risk summary footer — one-line tally under the radar
@@ -12914,6 +12975,9 @@
       // iter #216: paint the threat score from the restored snapshot
       // so a shared/reloaded analysis shows the same severity pill.
       renderThreatScore();
+      // iter #219: also paint the health check so a restored snapshot
+      // shows the same readiness verdict.
+      renderHealthCheck();
 
       // Pre-fill the textarea ONLY if it's currently the preloaded sample — never clobber
       // a user's in-progress edit. This matches what the file-attachment path does.
@@ -16461,6 +16525,32 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       threatCopyBtn.textContent=ok ? 'Copied ✓' : 'Copy failed';
       clearTimeout(threatCopyBtn._flashTimer);
       threatCopyBtn._flashTimer=setTimeout(()=>{ threatCopyBtn.textContent=orig; },1400);
+    });
+    // iter #219: copy health check to clipboard.
+    if(healthCopyBtn) healthCopyBtn.addEventListener('click',async()=>{
+      if(!healthCheck || healthCheck.hidden) return;
+      const icon=healthCheckIcon.textContent||'';
+      const label=healthCheckLabel.textContent||'';
+      const score=healthCheckScore.textContent||'';
+      const detail=healthCheckDetail.textContent||'';
+      const rec=healthCheckRec.textContent||'';
+      const text=(icon+' '+label+' ('+score+')\n'+detail+'\n'+rec).trim();
+      if(!text) return;
+      let ok=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text); ok=true;
+        } else {
+          const ta=document.createElement('textarea');
+          ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok=document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      }catch(_){}
+      const orig='📋 Copy';
+      healthCopyBtn.textContent=ok ? 'Copied ✓' : 'Copy failed';
+      clearTimeout(healthCopyBtn._flashTimer);
+      healthCopyBtn._flashTimer=setTimeout(()=>{ healthCopyBtn.textContent=orig; },1400);
     });
     if(downloadDraftBtn) downloadDraftBtn.addEventListener('click',()=>{ if(!draftOut||!draftOut.value)return; const url=URL.createObjectURL(new Blob([draftOut.value],{type:'text/plain'})); const a=document.createElement('a'); a.href=url; a.download='cleardoc-response-draft.txt'; a.click(); URL.revokeObjectURL(url); });
     if(printBtn) printBtn.addEventListener('click',printAnalysis);
