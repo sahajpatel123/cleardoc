@@ -12679,6 +12679,9 @@
         const dt = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
         if(dt && dt.label){
           contractTypeBadge.textContent = dt.label;
+          contractTypeBadge.title = 'Detected as ' + dt.label.toLowerCase() +
+            ' · ' + dt.matches + ' signal' + (dt.matches===1?'':'s') +
+            ' · confidence: ' + dt.confidence;
           contractTypeBadge.className = 'contract-type-badge mono no-print visible';
           contractTypeBadge.hidden = false;
         } else {
