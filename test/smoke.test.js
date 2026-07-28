@@ -443,6 +443,7 @@ skip("analyze: loads without console errors and has new AI-backed sections", asy
     ["#execSummary", "executive summary block"],
     ["#execCopyBtn", "executive summary copy button"],
     ["#contractTypeBadge", "contract type badge"],
+    ["#readinessBlock", "readiness score block"],
   ]);
   assert.deepEqual(errors, [], "analyze: console errors");
 });
@@ -8575,6 +8576,42 @@ test("analyzer: Contract type badge renders when doc type is detected", () => {
   // badge uses .mono and .no-print for consistent styling
   assert.match(html, /contract-type-badge.*mono.*no-print/,
     "contract badge must use mono and no-print classes");
+});
+
+// Iter #224: Contract Readiness Score — single 0-100 number for quick decisions.
+test("analyzer: Readiness Score computes 0-100 from threat data with four tone levels", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // computeReadinessScore must exist
+  assert.match(appSrc, /function computeReadinessScore\(\)/,
+    "computeReadinessScore must exist");
+  // renderReadinessScore must exist
+  assert.match(appSrc, /function renderReadinessScore\(\)/,
+    "renderReadinessScore must exist");
+  // Readiness score uses the four tone levels matching threat score
+  assert.match(appSrc, /tone.*low.*medium.*high.*critical|low.*medium.*high.*critical/,
+    "readiness score must have four tone levels");
+  // score is always clamped between 0 and 100
+  assert.match(appSrc, /Math\.max\(0.*Math\.min\(100/,
+    "readiness score must be clamped 0-100");
+  // readinessBlock element exists in HTML
+  assert.match(html, /id="readinessBlock"/,
+    "analyze.html must contain #readinessBlock");
+  // readinessScore element exists
+  assert.match(html, /id="readinessScore"/,
+    "analyze.html must contain #readinessScore");
+  // readinessLabel element exists
+  assert.match(html, /id="readinessLabel"/,
+    "analyze.html must contain #readinessLabel");
+  // CSS readiness score tones exist for all four levels
+  assert.match(cssSrc, /#readinessBlock\.low\b/, "readiness .low tone must exist");
+  assert.match(cssSrc, /#readinessBlock\.medium\b/, "readiness .medium tone must exist");
+  assert.match(cssSrc, /#readinessBlock\.high\b/, "readiness .high tone must exist");
+  assert.match(cssSrc, /#readinessBlock\.critical\b/, "readiness .critical tone must exist");
 });
 
 

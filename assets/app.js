@@ -3155,6 +3155,43 @@
       healthCheckRec.textContent = hc.recommendation;
       if(healthCopyBtn){ healthCopyBtn.hidden = false; healthCopyBtn.textContent = '📋 Copy'; }
     }
+    // iter #224: Contract Readiness Score — a single 0-100 number
+    // combining threat severity with risk count for quick
+    // at-a-glance decision making. Formula:
+    //   score = min(100, 100 - (threatScore * 0.6) + adjustment)
+    // where adjustment accounts for risk density and trap ratio.
+    // Results map to the same palette as threat score:
+    // low (≥60), medium (40-59), high (20-39), critical (<20).
+    function computeReadinessScore(){
+      const t = (typeof computeThreatScore === 'function') ? computeThreatScore(lastFlags) : { score:0, total:0, traps:0 };
+      if(!t.total) return { score:100, level:'Low', tone:'low' };
+      const base = Math.max(0, 100 - (t.score * 0.6));
+      // Penalize dense risk clusters: more risks per trap = lower score.
+      const densityPenalty = Math.min(15, (t.total - t.traps) * 0.5);
+      const score = Math.max(0, Math.min(100, Math.round(base - densityPenalty)));
+      let level, tone;
+      if(score >= 60)       { level = 'Low';      tone = 'low'; }
+      else if(score >= 40)  { level = 'Medium';   tone = 'medium'; }
+      else if(score >= 20)  { level = 'High';     tone = 'high'; }
+      else                   { level = 'Critical'; tone = 'critical'; }
+      return { score, level, tone };
+    }
+    function renderReadinessScore(){
+      const block = document.getElementById('readinessBlock');
+      const scoreEl = document.getElementById('readinessScore');
+      const labelEl = document.getElementById('readinessLabel');
+      if(!block || !scoreEl || !labelEl) return;
+      const rs = computeReadinessScore();
+      if(rs.score === 100 && lastFlags && lastFlags.length === 0){
+        block.hidden = true;
+        return;
+      }
+      block.hidden = false;
+      block.className = '';
+      block.classList.add('readiness-score', 'no-print', rs.tone);
+      scoreEl.textContent = rs.score;
+      labelEl.textContent = rs.level + ' readiness';
+    }
     // iter #222: build a plain-English executive summary of the analysis.
     // Gives a one-sentence headline + a brief narrative that non-lawyers
     // can read at a glance. Uses the same threat-score weighting
@@ -12082,6 +12119,7 @@
       lastFlags=flags;
       renderThreatScore();
       renderHealthCheck();
+      renderReadinessScore();
       renderExecSummary();
       riskList.innerHTML='';
       paintRiskFilter(lastFlags);
@@ -13072,6 +13110,8 @@
       renderHealthCheck();
       // iter #222: also paint the executive summary.
       renderExecSummary();
+      // iter #224: also paint the readiness score for restored snapshots.
+      renderReadinessScore();
 
       // Pre-fill the textarea ONLY if it's currently the preloaded sample — never clobber
       // a user's in-progress edit. This matches what the file-attachment path does.

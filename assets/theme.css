@@ -1134,6 +1134,25 @@ button.risk-preview:hover{filter:brightness(.96)}
 .threat-score.high{border-color:var(--danger);background:var(--danger-tint);color:var(--danger)}
 .threat-score.critical{background:var(--danger);color:#fff;border-color:var(--danger)}
 .threat-score.critical .threat-score-meta{color:rgba(255,255,255,.85)}
+
+/* Readiness Score (iter #224) — a single 0-100 number
+   combining threat severity with risk count for quick
+   at-a-glance decision making. Mirrors the threat
+   score palette: green (safe) → amber (review) →
+   red (needs negotiation) → dark red (do not sign). */
+#readinessBlock{border:2px solid var(--ink);background:#fff;padding:10px 14px;margin-top:6px;text-align:center;transition:opacity .3s ease}
+.readiness-score{font-family:'Archivo Black',sans-serif;font-size:clamp(36px,6vw,56px);letter-spacing:.02em;line-height:1}
+.readiness-label{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.12em;font-weight:600;margin-top:2px}
+#readinessBlock.low{border-color:var(--green);background:var(--green-tint);color:var(--green)}
+#readinessBlock.low .readiness-score{color:var(--green)}
+#readinessBlock.medium{border-color:var(--amber);background:var(--amber-tint);color:var(--amber)}
+#readinessBlock.medium .readiness-score{color:var(--amber)}
+#readinessBlock.high{border-color:var(--danger);background:var(--danger-tint);color:var(--danger)}
+#readinessBlock.high .readiness-score{color:var(--danger)}
+#readinessBlock.critical{background:var(--danger);color:#fff;border-color:var(--danger)}
+#readinessBlock.critical .readiness-score{color:#fff}
+#readinessBlock.critical .readiness-label{color:rgba(255,255,255,.85)}
+
 .threat-copy{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border:1px solid var(--ink);background:transparent;color:inherit;cursor:pointer;border-radius:3px;margin-left:4px;flex:0 0 auto;opacity:.7;transition:opacity .2s}
 .threat-copy:hover{opacity:1;background:var(--ink);color:#fff}
 .threat-score.low .threat-copy{border-color:var(--green);color:var(--green)}
