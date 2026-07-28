@@ -1177,8 +1177,31 @@ button.risk-preview:hover{filter:brightness(.96)}
 .health-check.negotiate .health-copy{border-color:var(--accent);color:var(--accent)}
 .health-check.danger .health-copy{border-color:#fff;color:#fff}
 
-/* Print: hide health check (already in .md / .txt exports) */
-@media print{.health-check{display:none!important}}
+/* Executive Summary (iter #222) — plain-English narrative
+   overview of the analysis, shown below the health check.
+   Gives a one-sentence "headline" plus a 3-sentence summary
+   that non-lawyers can read at a glance. Mirrors the threat
+   score palette so users get consistent visual tone.
+   Hidden for clean documents and in print. */
+.exec-summary{border:2px solid var(--ink);background:#fff;padding:8px 14px;margin-top:4px;transition:opacity .3s ease}
+.exec-summary-header{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.exec-summary-icon{font-size:var(--t-body-lg);flex:0 0 auto}
+.exec-summary-label{font-size:var(--t-body);font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.exec-summary-body{font-size:var(--t-body);line-height:1.5;color:var(--ink-soft)}
+.exec-summary.low{border-color:var(--green);background:var(--green-tint)}
+.exec-summary.medium{border-color:var(--amber);background:var(--amber-tint)}
+.exec-summary.high{border-color:var(--danger);background:var(--danger-tint);color:var(--danger)}
+.exec-summary.critical{background:var(--danger);color:#fff;border-color:var(--danger)}
+.exec-summary.critical .exec-summary-body{color:rgba(255,255,255,.85)}
+.exec-copy{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border:1px solid var(--ink);background:transparent;color:inherit;cursor:pointer;border-radius:3px;flex:0 0 auto;opacity:.7;transition:opacity .2s;margin-left:auto}
+.exec-copy:hover{opacity:1;background:var(--ink);color:#fff}
+.exec-summary.low .exec-copy{border-color:var(--green);color:var(--green)}
+.exec-summary.medium .exec-copy{border-color:var(--amber);color:var(--amber)}
+.exec-summary.high .exec-copy{border-color:var(--danger);color:var(--danger)}
+.exec-summary.critical .exec-copy{border-color:#fff;color:#fff}
+
+/* Print: hide exec summary (already in .md / .txt exports) */
+@media print{.exec-summary{display:none!important}}
 
 /* ---- deadlines list ---- */
 .deadlines-list{display:flex;flex-direction:column;gap:10px;margin-top:var(--s2)}

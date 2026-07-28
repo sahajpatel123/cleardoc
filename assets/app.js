@@ -2616,6 +2616,7 @@
           analyzeLoading=$('#analyzeLoading'),verdictBlock=$('#verdictBlock'),verdictDisplay=$('#verdictDisplay'),verdictCopyBtn=$('#verdictCopyBtn'),
           threatScore=$('#threatScore'),threatScoreNum=$('#threatScoreNum'),threatScoreLbl=$('#threatScoreLbl'),threatScoreMeta=$('#threatScoreMeta'),threatCopyBtn=$('#threatCopyBtn'),
           healthCheck=$('#healthCheck'),healthCheckIcon=$('#healthCheckIcon'),healthCheckLabel=$('#healthCheckLabel'),healthCheckScore=$('#healthCheckScore'),healthCheckDetail=$('#healthCheckDetail'),healthCheckRec=$('#healthCheckRec'),healthCopyBtn=$('#healthCopyBtn'),
+          execSummary=$('#execSummary'),execSummaryBody=$('#execSummaryBody'),execCopyBtn=$('#execCopyBtn'),
           tagsInput=$('#tagsInput'),tagsList=$('#tagsList'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
@@ -3153,6 +3154,59 @@
       healthCheckDetail.textContent = hc.detail;
       healthCheckRec.textContent = hc.recommendation;
       if(healthCopyBtn){ healthCopyBtn.hidden = false; healthCopyBtn.textContent = '📋 Copy'; }
+    }
+    // iter #222: build a plain-English executive summary of the analysis.
+    // Gives a one-sentence headline + a brief narrative that non-lawyers
+    // can read at a glance. Uses the same threat-score weighting
+    // (trap=10, watch=4, note=1) to determine the summary tone.
+    function buildExecSummary(){
+      if(!lastFlags || !lastFlags.length) return null;
+      const t = (typeof computeThreatScore === 'function') ? computeThreatScore(lastFlags) : { score:0, level:'Low', traps:0, watches:0, notes:0, total:0 };
+      const order = { r:0, a:1, g:2 };
+      const sorted = (lastFlags || []).slice().sort((x,y) => {
+        const ox = order[(x&&x.rule&&x.rule.sev)] ?? 3;
+        const oy = order[(y&&y.rule&&y.rule.sev)] ?? 3;
+        return ox !== oy ? ox - oy : (x.i||0) - (y.i||0);
+      });
+      const top = sorted[0];
+      const topLabel = top ? (top.rule ? top.rule.label : 'Risk') : 'Risk';
+      const topWhy = top && top.rule ? top.rule.why : '';
+      // Headline: one sentence summarizing the document's risk posture.
+      let headline;
+      if(t.traps === 0 && t.watches === 0) headline = 'This contract has no significant risks.';
+      else if(t.traps === 0) headline = 'This contract has ' + t.watches + ' watch points but no critical traps.';
+      else if(t.traps === 1) headline = 'One critical trap was found that needs attention.';
+      else headline = t.traps + ' critical traps were found that need negotiation.';
+      // Body: top concern + secondary concerns.
+      const bodyParts = [headline];
+      if(top && top.rule){
+        bodyParts.push('The top concern is "' + topLabel + '" — ' + topWhy);
+      }
+      if(t.watches > 0){
+        bodyParts.push(t.watches + ' watch points add moderate risk and should be reviewed.');
+      }
+      if(t.notes > 0){
+        bodyParts.push(t.notes + ' note-level finding' + (t.notes !== 1 ? 's' : '') + ' provides additional context.');
+      }
+      return { headline, body: bodyParts.join(' '), tone: t.traps >= 5 ? 'critical' : t.traps >= 2 ? 'high' : t.watches >= 3 ? 'medium' : 'low', score: t.score };
+    }
+    function renderExecSummary(){
+      if(!execSummary || !execSummaryBody) return;
+      const es = buildExecSummary();
+      if(!es){
+        execSummary.hidden = true;
+        execSummary.className = 'exec-summary';
+        execSummaryBody.textContent = '';
+        return;
+      }
+      execSummary.hidden = false;
+      execSummary.className = 'exec-summary ' + es.tone;
+      execSummaryBody.textContent = es.body;
+      // Update header icon based on tone
+      const icon = execSummary.querySelector('.exec-summary-icon');
+      if(icon){
+        icon.textContent = es.tone === 'critical' ? '🛑' : es.tone === 'high' ? '⚠️' : es.tone === 'medium' ? '⚡' : '✅';
+      }
     }
     function esc(s){
       // Defense-in-depth: escape &, <, > plus BOTH quote flavours.
@@ -12025,6 +12079,7 @@
       lastFlags=flags;
       renderThreatScore();
       renderHealthCheck();
+      renderExecSummary();
       riskList.innerHTML='';
 
       // iter #200: risk summary footer — one-line tally under the radar
@@ -12992,6 +13047,8 @@
       // iter #219: also paint the health check so a restored snapshot
       // shows the same readiness verdict.
       renderHealthCheck();
+      // iter #222: also paint the executive summary.
+      renderExecSummary();
 
       // Pre-fill the textarea ONLY if it's currently the preloaded sample — never clobber
       // a user's in-progress edit. This matches what the file-attachment path does.
@@ -16667,6 +16724,27 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       healthCopyBtn.textContent=ok ? 'Copied ✓' : 'Copy failed';
       clearTimeout(healthCopyBtn._flashTimer);
       healthCopyBtn._flashTimer=setTimeout(()=>{ healthCopyBtn.textContent=orig; },1400);
+    });
+    // iter #222: copy executive summary to clipboard.
+    if(execCopyBtn) execCopyBtn.addEventListener('click',async()=>{
+      if(!execSummary || execSummary.hidden) return;
+      const text=execSummaryBody.textContent||'';
+      if(!text) return;
+      let ok=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text); ok=true;
+        } else {
+          const ta=document.createElement('textarea');
+          ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok=document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      }catch(_){}
+      const orig='📋 Copy';
+      execCopyBtn.textContent=ok ? 'Copied ✓' : 'Copy failed';
+      clearTimeout(execCopyBtn._flashTimer);
+      execCopyBtn._flashTimer=setTimeout(()=>{ execCopyBtn.textContent=orig; },1400);
     });
     if(downloadDraftBtn) downloadDraftBtn.addEventListener('click',()=>{ if(!draftOut||!draftOut.value)return; const url=URL.createObjectURL(new Blob([draftOut.value],{type:'text/plain'})); const a=document.createElement('a'); a.href=url; a.download='cleardoc-response-draft.txt'; a.click(); URL.revokeObjectURL(url); });
     if(printBtn) printBtn.addEventListener('click',printAnalysis);

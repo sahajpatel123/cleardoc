@@ -440,6 +440,8 @@ skip("analyze: loads without console errors and has new AI-backed sections", asy
     ["#healthCopyBtn", "health check copy button"],
     ["#copyCsvBtn", "copy CSV button"],
     ["#downloadCsvBtn", "download CSV button"],
+    ["#execSummary", "executive summary block"],
+    ["#execCopyBtn", "executive summary copy button"],
   ]);
   assert.deepEqual(errors, [], "analyze: console errors");
 });
@@ -624,8 +626,8 @@ skip("analyze: result-actions live inside the result panel and start hidden unti
   });
   assert.equal(initiallyHidden, true, "result-actions must be hidden initially (inside hidden resultPanel)");
 
-  // All eight buttons must exist in the DOM with stable IDs
-  for (const id of ["#printBtn", "#saveBtn", "#copyBtn", "#copyChecklistBtn", "#copyJsonBtn", "#downloadJsonBtn", "#copyCsvBtn", "#downloadCsvBtn"]) {
+  // All nine buttons must exist in the DOM with stable IDs
+  for (const id of ["#printBtn", "#saveBtn", "#copyBtn", "#copyChecklistBtn", "#copyJsonBtn", "#downloadJsonBtn", "#copyCsvBtn", "#downloadCsvBtn", "#execCopyBtn"]) {
     const el = await page.$(id);
     assert.ok(el, `${id} should exist in the DOM`);
   }
@@ -8514,6 +8516,30 @@ test("analyzer: CSV export includes metadata row, row numbers, priority, and fin
   // Threat score / health check metadata included when available
   assert.match(appSrc, /Threat Level/,
     "iter #220 v2 must include threat level in CSV metadata rows");
+});
+
+// Iter #222: Executive Summary — plain-English narrative overview.
+test("analyzer: Executive summary generates headline, body, and has all CSS tones", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(appSrc, /function buildExecSummary\(\)/,
+    "buildExecSummary must exist");
+  assert.match(appSrc, /function renderExecSummary\(\)/,
+    "renderExecSummary must exist");
+  assert.match(appSrc, /headline\s*=/,
+    "buildExecSummary must generate a headline");
+  assert.match(appSrc, /top concern is/,
+    "buildExecSummary must include top concern in the body");
+  assert.match(cssSrc, /\.exec-summary\.low\b/, "exec-summary .low tone must exist");
+  assert.match(cssSrc, /\.exec-summary\.medium\b/, "exec-summary .medium tone must exist");
+  assert.match(cssSrc, /\.exec-summary\.high\b/, "exec-summary .high tone must exist");
+  assert.match(cssSrc, /\.exec-summary\.critical\b/, "exec-summary .critical tone must exist");
+  assert.match(html, /id="execSummary"/, "analyze.html must contain #execSummary");
+  assert.match(html, /id="execCopyBtn"/, "analyze.html must contain #execCopyBtn");
 });
 
 

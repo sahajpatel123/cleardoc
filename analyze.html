@@ -333,6 +333,14 @@
             <div class="health-check-recommendation" id="healthCheckRec"></div>
             <button class="health-copy no-print" id="healthCopyBtn" type="button" title="Copy health check to clipboard">📋 Copy</button>
           </div>
+          <div class="exec-summary" id="execSummary" hidden aria-live="polite">
+            <div class="exec-summary-header">
+              <span class="exec-summary-icon">📝</span>
+              <span class="exec-summary-label">Executive Summary</span>
+              <button class="exec-copy no-print" id="execCopyBtn" type="button" title="Copy summary to clipboard">📋 Copy</button>
+            </div>
+            <div class="exec-summary-body" id="execSummaryBody"></div>
+          </div>
           <div class="tags-row no-print">
             <label class="tags-lbl mono" for="tagsInput">// tags · comma-separated (e.g. lease, acme-corp, 2026-q2)</label>
             <input type="text" id="tagsInput" class="tags-input" placeholder="add tags…" autocomplete="off" aria-label="Tag this analysis" maxlength="300">
