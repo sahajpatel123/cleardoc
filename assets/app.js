@@ -12084,6 +12084,7 @@
       renderHealthCheck();
       renderExecSummary();
       riskList.innerHTML='';
+      paintRiskFilter(lastFlags);
 
       // iter #200: risk summary footer — one-line tally under the radar
       // (Found N · X trap · Y watch · Z note) so users see the
