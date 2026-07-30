@@ -8614,6 +8614,17 @@ test("analyzer: Readiness Score computes 0-100 from threat data with four tone l
   assert.match(cssSrc, /#readinessBlock\.critical\b/, "readiness .critical tone must exist");
 });
 
+test("analyzer: RISK array detects Intellectual Property / Work for Hire trap", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /work (made )?for hire|assign(s|ed)\? (all )\?(right|title|interest)/,
+    "RISK array must include regex for Work for Hire / IP Assignment clauses");
+  assert.match(appSrc, /Transfers ownership of your work, ideas, or creations/,
+    "IP Assignment rule must explain why IP transfer is a trap");
+});
+
 
 
 

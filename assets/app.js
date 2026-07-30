@@ -2750,7 +2750,10 @@
         tip:'The seller picks their home venue for a reason: their lawyers are local, their precedents favor them. Pushing for your own state is a small ask that can save $50K+ in dispute-resolution costs if things go wrong.'},
       {re:/confidential|non-?disclosure|proprietary/i, sev:'g', label:'Note', why:'Restricts what you can share.',
         counter:'Add a "whistleblower carve-out" so you can disclose to regulators/law enforcement even if the NDA is broad. Standard in most jurisdictions.',
-        tip:'Federal whistleblower law (Dodd-Frank, SEC, OSHA) already protects most disclosures to regulators. An explicit contract clause is belt-and-suspenders — and prevents the other side from arguing the NDA overrides federal law.'}
+        tip:'Federal whistleblower law (Dodd-Frank, SEC, OSHA) already protects most disclosures to regulators. An explicit contract clause is belt-and-suspenders — and prevents the other side from arguing the NDA overrides federal law.'},
+      {re:/work (made )?for hire|assign(s|ed)? (all )?(right|title|interest)|intellectual property|all inventions/i, sev:'r', label:'Trap', why:'Transfers ownership of your work, ideas, or creations to the other party.',
+        counter:'Limit IP assignment to specific deliverables paid for in full; retain ownership of pre-existing tools, background IP, and open-source assets.',
+        tip:'Work-for-hire provisions assign complete copyright ownership at creation. Without explicit carve-outs for pre-existing IP or tools, you risk forfeiting your own trade secrets and reusable code libraries.'}
     ];
     // Count how many distinct RISK patterns the input matches, broken
     // down by severity. Same pattern source as the analyze path, so
