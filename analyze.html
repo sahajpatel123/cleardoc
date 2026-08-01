@@ -315,10 +315,16 @@
           <button class="ghost-btn voice-preview" id="voicePreviewBtn" type="button" hidden aria-label="Preview the selected voice">▶ preview</button>
           <button class="ghost-btn" id="shareBtn" type="button" title="Copy a link to this analysis — nothing leaves your device, the text is encoded in the URL">🔗 Share link</button>
         </div>
-        <div class="result-block" id="readinessBlock" hidden>
-          <span class="rh">📊 Readiness</span>
-          <div class="readiness-score" id="readinessScore"></div>
+        <div class="result-block" id="readinessBlock" hidden role="status" aria-live="polite">
+          <span class="rh">📊 Readiness <button class="readiness-copy no-print" id="readinessCopyBtn" type="button" title="Copy the readiness score + breakdown to your clipboard">📋 Copy</button></span>
+          <div class="readiness-score-wrap">
+            <span class="readiness-score" id="readinessScore"></span><span class="readiness-out-of" id="readinessOutOf"></span>
+          </div>
           <div class="readiness-label" id="readinessLabel"></div>
+          <div class="readiness-bar" id="readinessBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" title="Readiness score out of 100">
+            <div class="readiness-bar-fill" id="readinessBarFill"></div>
+          </div>
+          <div class="readiness-detail" id="readinessDetail"></div>
         </div>
         <div class="result-block" id="verdictBlock">
           <span class="rh">📋 Verdict <button class="verdict-copy no-print" id="verdictCopyBtn" type="button" title="Copy just the verdict + summary to the clipboard">Copy</button><span class="analyzed-ago mono no-print" id="analyzedAgo" hidden aria-live="off" title="When this analysis ran"></span><button type="button" class="doc-fp mono no-print" id="docFpBtn" hidden title="Click to copy full SHA-256 — short hash shown so re-analyses can be matched"></button></span>

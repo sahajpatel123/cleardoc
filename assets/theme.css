@@ -1140,18 +1140,43 @@ button.risk-preview:hover{filter:brightness(.96)}
    at-a-glance decision making. Mirrors the threat
    score palette: green (safe) → amber (review) →
    red (needs negotiation) → dark red (do not sign). */
+/* Readiness Score (iter #224) — single 0-100 number for quick decisions.
+ * iter #224 v2: score bar + "/100" context + risk breakdown line + copy
+ * button, mirroring the threat-score / health-check copy patterns. */
 #readinessBlock{border:2px solid var(--ink);background:#fff;padding:10px 14px;margin-top:6px;text-align:center;transition:opacity .3s ease}
+#readinessBlock .rh{display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:6px}
+.readiness-score-wrap{display:inline-flex;align-items:baseline;gap:4px}
 .readiness-score{font-family:'Archivo Black',sans-serif;font-size:clamp(36px,6vw,56px);letter-spacing:.02em;line-height:1}
+.readiness-out-of{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);opacity:.65;font-weight:600}
 .readiness-label{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.12em;font-weight:600;margin-top:2px}
+.readiness-bar{height:8px;border-radius:4px;background:rgba(0,0,0,.14);overflow:hidden;margin:8px 0 6px}
+.readiness-bar-fill{height:100%;width:100%;background:currentColor;border-radius:4px;transition:width .5s ease}
+.readiness-detail{font-size:var(--t-micro);color:var(--ink-soft);letter-spacing:.04em;line-height:1.4}
 #readinessBlock.low{border-color:var(--green);background:var(--green-tint);color:var(--green)}
 #readinessBlock.low .readiness-score{color:var(--green)}
+#readinessBlock.low .readiness-bar{background:rgba(0,128,0,.15)}
+#readinessBlock.low .readiness-detail{color:var(--green)}
 #readinessBlock.medium{border-color:var(--amber);background:var(--amber-tint);color:var(--amber)}
 #readinessBlock.medium .readiness-score{color:var(--amber)}
+#readinessBlock.medium .readiness-bar{background:rgba(230,165,0,.18)}
+#readinessBlock.medium .readiness-detail{color:var(--amber)}
 #readinessBlock.high{border-color:var(--danger);background:var(--danger-tint);color:var(--danger)}
 #readinessBlock.high .readiness-score{color:var(--danger)}
+#readinessBlock.high .readiness-bar{background:rgba(217,46,46,.18)}
+#readinessBlock.high .readiness-detail{color:var(--danger)}
 #readinessBlock.critical{background:var(--danger);color:#fff;border-color:var(--danger)}
 #readinessBlock.critical .readiness-score{color:#fff}
 #readinessBlock.critical .readiness-label{color:rgba(255,255,255,.85)}
+#readinessBlock.critical .readiness-bar{background:rgba(255,255,255,.25)}
+#readinessBlock.critical .readiness-detail{color:rgba(255,255,255,.85)}
+.readiness-copy{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border:1px solid var(--ink);background:transparent;color:inherit;cursor:pointer;border-radius:3px;flex:0 0 auto;opacity:.7;transition:opacity .2s;font-weight:600}
+.readiness-copy:hover{opacity:1;background:var(--ink);color:#fff}
+#readinessBlock.low .readiness-copy{border-color:var(--green);color:var(--green)}
+#readinessBlock.medium .readiness-copy{border-color:var(--amber);color:var(--amber)}
+#readinessBlock.high .readiness-copy{border-color:var(--danger);color:var(--danger)}
+#readinessBlock.critical .readiness-copy{border-color:#fff;color:#fff}
+#readinessBlock.critical .readiness-copy:hover{background:#fff;color:var(--danger)}
+@media print{#readinessBlock{display:none!important}}
 
 .threat-copy{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border:1px solid var(--ink);background:transparent;color:inherit;cursor:pointer;border-radius:3px;margin-left:4px;flex:0 0 auto;opacity:.7;transition:opacity .2s}
 .threat-copy:hover{opacity:1;background:var(--ink);color:#fff}
