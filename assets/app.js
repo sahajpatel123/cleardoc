@@ -95,6 +95,36 @@
     [/\bdeductibles?\b/gi,'out-of-pocket costs'],[/\bpolicyholder\b/gi,'you'],[/\btendered\b/gi,'given'],
     [/\bliable\b/gi,'responsible'],[/\bfacility fees?\b/gi,'extra hospital charges'],[/\bevergreen\b/gi,'auto-renewing']
   ];
+  // Shared HTML-escaper — lives at IIFE level so BOTH the homepage BYOF
+  // demo (clarify) and the analyzer page (risk rows, currency rows, etc.)
+  // can use it. Defense-in-depth: escape &, <, > plus BOTH quote flavours.
+  // Templates interpolate `esc(...)` into BOTH text context (`>esc(t)<`)
+  // and attribute context (`aria-label="...esc(t)..."`). The text-context
+  // chars alone (&<>) are sufficient for the text case, but if a value
+  // contains `"` or `'` it can break out of a quoted attribute and add
+  // an event handler (e.g. `" onmouseover="alert(1)`). Escaping the
+  // quotes here covers every existing call site without code changes,
+  // since `&quot;` and `&#39;` render identically in browsers.
+  function esc(s){
+    // Coerce to string first — call sites pass sentence indices (numbers)
+    // and other values that are logically text but not typed as strings.
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      switch(c){
+        case '&': return '&amp;';
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '"': return '&quot;';
+        case "'": return '&#39;';
+      }
+      return c;
+    });
+  }
+  // Shared truncate helper — IIFE level so both the homepage callouts
+  // (paintTopConcern) and the analyzer page can use it.
+  function trunc(s, n){
+    s = String(s == null ? '' : s).trim();
+    return s.length > n ? s.slice(0, n) + '…' : s;
+  }
   function clarify(raw){
     let text=(raw||"").trim();
     // Soft cap the input length to keep the JARGON regex array (30 patterns,
@@ -1359,6 +1389,11 @@
   // analyzed text shown next to the verdict. Uses SubtleCrypto when
   // available (all evergreen browsers); falls back to a small custom
   // FNV-1a-style hash so the chip never silently disappears.
+  // Shared analysis state lives at IIFE level too — paint helpers
+  // (paintCounterSummary, paintReanalysisDelta, share handlers) read
+  // lastFlags/lastRaw, so they must live in the same scope analyzePage
+  // writes them from.
+  let lastSentences=[],lastFlags=[],lastRaw='',attachedText='',attachedFile=null,chipUrls=[];
   const _fpState = { full: '', short: '' };
   async function computeDocFingerprint(text){
     const t = String(text || '');
@@ -2617,6 +2652,7 @@
           threatScore=$('#threatScore'),threatScoreNum=$('#threatScoreNum'),threatScoreLbl=$('#threatScoreLbl'),threatScoreMeta=$('#threatScoreMeta'),threatCopyBtn=$('#threatCopyBtn'),
           healthCheck=$('#healthCheck'),healthCheckIcon=$('#healthCheckIcon'),healthCheckLabel=$('#healthCheckLabel'),healthCheckScore=$('#healthCheckScore'),healthCheckDetail=$('#healthCheckDetail'),healthCheckRec=$('#healthCheckRec'),healthCopyBtn=$('#healthCopyBtn'),
           execSummary=$('#execSummary'),execSummaryBody=$('#execSummaryBody'),execCopyBtn=$('#execCopyBtn'),
+          readinessBlock=$('#readinessBlock'),readinessScoreEl=$('#readinessScore'),readinessLabelEl=$('#readinessLabel'),readinessOutOfEl=$('#readinessOutOf'),readinessBar=$('#readinessBar'),readinessBarFill=$('#readinessBarFill'),readinessDetailEl=$('#readinessDetail'),readinessCopyBtn=$('#readinessCopyBtn'),
           tagsInput=$('#tagsInput'),tagsList=$('#tagsList'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
@@ -3036,7 +3072,6 @@
       return lines.join('\n');
     }
     function splitSentences(t){ return t.replace(/\s+/g,' ').trim().split(/(?<=[.!?;])\s+/).filter(s=>s.trim().length>1); }
-    function trunc(s,n){ s=s.trim(); return s.length>n? s.slice(0,n)+'…' : s; }
     // iter #216: at-a-glance weighted severity score (trap=10, watch=4, note=1).
     // Pure function — accepts the same `lastFlags` array the radar paints from
     // and returns `{ score, level, tone, total }`. Tone buckets mirror the
@@ -3180,9 +3215,14 @@
       return { score, level, tone };
     }
     function renderReadinessScore(){
-      const block = document.getElementById('readinessBlock');
-      const scoreEl = document.getElementById('readinessScore');
-      const labelEl = document.getElementById('readinessLabel');
+      const block = readinessBlock || document.getElementById('readinessBlock');
+      const scoreEl = readinessScoreEl || document.getElementById('readinessScore');
+      const labelEl = readinessLabelEl || document.getElementById('readinessLabel');
+      const outOfEl = readinessOutOfEl || document.getElementById('readinessOutOf');
+      const barEl = readinessBar || document.getElementById('readinessBar');
+      const barFillEl = readinessBarFill || document.getElementById('readinessBarFill');
+      const detailEl = readinessDetailEl || document.getElementById('readinessDetail');
+      const copyBtn = readinessCopyBtn || document.getElementById('readinessCopyBtn');
       if(!block || !scoreEl || !labelEl) return;
       const rs = computeReadinessScore();
       if(rs.score === 100 && lastFlags && lastFlags.length === 0){
@@ -3190,10 +3230,27 @@
         return;
       }
       block.hidden = false;
-      block.className = '';
-      block.classList.add('readiness-score', 'no-print', rs.tone);
+      // Preserve the base result-block styling — never wipe className.
+      block.classList.remove('low','medium','high','critical');
+      block.classList.add(rs.tone);
       scoreEl.textContent = rs.score;
       labelEl.textContent = rs.level + ' readiness';
+      if(outOfEl) outOfEl.textContent = '/ 100';
+      if(barEl){
+        barEl.setAttribute('aria-valuenow', String(rs.score));
+        if(barFillEl){
+          // Start from 0 then ease up so the bar visibly fills in.
+          barFillEl.style.width = '0%';
+          requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ if(barFillEl) barFillEl.style.width = rs.score + '%'; }); });
+        }
+      }
+      // iter #224 v2: one-line risk breakdown reuses the health-check tally
+      // so the score never floats without context.
+      if(detailEl){
+        const hc = (typeof computeHealthCheck === 'function') ? computeHealthCheck() : null;
+        detailEl.textContent = hc && hc.detail ? hc.detail + (hc.recommendation ? ' — ' + hc.recommendation : '') : '';
+      }
+      if(copyBtn){ copyBtn.hidden = false; copyBtn.textContent = '📋 Copy'; }
     }
     // iter #222: build a plain-English executive summary of the analysis.
     // Gives a one-sentence headline + a brief narrative that non-lawyers
@@ -3250,26 +3307,6 @@
       if(icon){
         icon.textContent = es.tone === 'critical' ? '🛑' : es.tone === 'high' ? '⚠️' : es.tone === 'medium' ? '⚡' : '✅';
       }
-    }
-    function esc(s){
-      // Defense-in-depth: escape &, <, > plus BOTH quote flavours.
-      // Templates interpolate `esc(...)` into BOTH text context (`>esc(t)<`)
-      // and attribute context (`aria-label="...esc(t)..."`). The text-context
-      // chars alone (&<>) are sufficient for the text case, but if a value
-      // contains `"` or `'` it can break out of a quoted attribute and add
-      // an event handler (e.g. `" onmouseover="alert(1)`). Escaping the
-      // quotes here covers every existing call site without code changes,
-      // since `&quot;` and `&#39;` render identically in browsers.
-      return s.replace(/[&<>"']/g, function(c){
-        switch(c){
-          case '&': return '&amp;';
-          case '<': return '&lt;';
-          case '>': return '&gt;';
-          case '"': return '&quot;';
-          case "'": return '&#39;';
-        }
-        return c;
-      });
     }
 
     // Mirrors the server-side cap in api/analyze.js — restores must not push
@@ -3829,7 +3866,6 @@
       }
     }
     let pendingSharedSnapshot=null;
-    let lastSentences=[],lastFlags=[],lastRaw='',attachedText='',attachedFile=null,chipUrls=[];
     function activeDocumentText(){
       const typed=input.value.trim();
       if(attachedText && (!typed || typed===sampleText)) return attachedText;
@@ -4162,6 +4198,16 @@
         return '<span class="cur-total-pill">' + esc(c) + ' ' + result.totals[c].toLocaleString('en-US') + '</span>';
       }).join(' ');
       currencyList.innerHTML = rows;
+      // Iter #99: small-amount filter chip + currency count + sort.
+      // Also clean up any controls row from a previous render so a second
+      // analysis never ends up with two "only $100k+" chips.
+      clearCurrencyControls();
+      const controls =
+        '<div class="cur-controls">' +
+          '<span class="cur-count">' + result.hits.length + ' of ' + result.hits.length + ' amounts</span>' +
+          '<button type="button" class="cur-only-big ghost-btn ghost-btn-sm" id="curOnlyBigBtn" title="Hide amounts under $100,000">only $100k+</button>' +
+          '<button type="button" class="cur-why ghost-btn ghost-btn-sm" id="curWhyBtn" title="Why do these numbers matter?">why?</button>' +
+        '</div>';
       currencyBlock.hidden = false;
       if(currencyNote){
         currencyNote.innerHTML =
@@ -4169,6 +4215,63 @@
           Object.keys(result.totals).length + ' currenc' + (Object.keys(result.totals).length === 1 ? 'y' : 'ies') + '</span> ' +
           'Subtotal (rough FX): <b style="color:var(--ink)">~$' +
           Math.round(result.totalUSD).toLocaleString('en-US') + ' USD</b> · ' + breakdown;
+      }
+      // Append controls below the list so they sit between list and footer.
+      currencyList.insertAdjacentHTML('afterend', controls);
+      // Iter #99: wire row click → jump to source, filter chip, why modal.
+      $$('.cur-row', currencyList).forEach(btn => {
+        btn.addEventListener('click', () => {
+          if(!input) return;
+          const raw = btn.getAttribute('data-cur-raw') || '';
+          if(!raw) return;
+          const idx = input.value.indexOf(raw);
+          if(idx < 0 && raw.length > 6){
+            const idx2 = input.value.indexOf(raw.slice(0, Math.max(6, Math.floor(raw.length / 2))));
+            if(idx2 >= 0){
+              try { input.focus(); input.setSelectionRange(idx2, idx2 + raw.length); } catch(_){ /* ignore */ }
+            } else if(typeof showAnalyzeToast === 'function'){
+              showAnalyzeToast('⚠ Amount no longer in input — the doc was edited');
+            }
+          } else if(idx >= 0){
+            try { input.focus(); input.setSelectionRange(idx, idx + raw.length); } catch(_){ /* ignore */ }
+            if(typeof input.scrollIntoView === 'function'){
+              try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+            }
+          }
+        });
+      });
+      const onlyBtn = document.getElementById('curOnlyBigBtn');
+      if(onlyBtn){
+        onlyBtn.addEventListener('click', () => {
+          const on = currencyList.classList.toggle('cur-only-big');
+          onlyBtn.textContent = on ? 'show all amounts' : 'only $100k+';
+          onlyBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+          // Update the count chip
+          const visible = currencyList.querySelectorAll('.cur-row').length;
+          const total = result.hits.length;
+          const countEl = currencyBlock.querySelector('.cur-count');
+          if(countEl){
+            countEl.textContent = (on ? visible : total) + ' of ' + total + ' amounts';
+          }
+        });
+      }
+      const whyBtn = document.getElementById('curWhyBtn');
+      if(whyBtn){
+        whyBtn.addEventListener('click', () => {
+          if(typeof showConfirmModal === 'function'){
+            showConfirmModal({
+              title: 'Why do these numbers matter?',
+              bodyHtml:
+                '<p>Contracts often mix currencies when parties cross borders (a US startup contracting with an EU client). Getting the totals wrong is a classic source of late-stage renegotiation.</p>' +
+                '<p>Three rules of thumb:</p>' +
+                '<ol style="margin:6px 0 0 18px;padding:0"><li><b>Confirm the contract currency.</b> If amounts are in USD but you live in EUR, check who eats the conversion fee.</li>' +
+                '<li><b>Watch for unit mismatches.</b> "Fifty thousand" may be ¥50,000 (~$330) or $50,000 (€46,000) — Read them aloud.</li>' +
+                '<li><b>Negotiate price re-opener clauses</b> if the FX moves more than 5% in either direction during the term.</li></ol>' +
+                '<p class="apply-confirm-note">FX rates here are hard-coded and roughly current; not a substitute for a finance-grade quote.</p>',
+              confirmLabel: 'Got it',
+            });
+          }
+        });
       }
     }
 
@@ -4876,7 +4979,7 @@
       { key: 'penalty', label: 'Penalties / late fees', re: /\bpenal(?:ty|ties)|late\s+fee|forfeit|liquidated\s+damages/i },
     ];
     function buildSectionRisk(raw, ctx){
-      const cats = SECTION_CATEGORIES.map(c => ({ key: c.key, label: c.label, hits: 0, sev: 0 }));
+      const cats = SECTION_CATEGORIES.map(c => ({ key: c.key, label: c.label, re: c.re, hits: 0, sev: 0 }));
       (lastFlags || []).forEach(f => {
         const text = (f.s || '') + ' ' + (f.rule.why || '') + ' ' + (f.rule.label || '');
         cats.forEach(c => { if(c.re.test(text)){ c.hits++; c.sev += f.rule.sev === 'r' ? 3 : (f.rule.sev === 'a' ? 1 : 0.4); } });
@@ -11760,97 +11863,6 @@
       if(preview) preview.hidden = true;
     }
 
-      if(!currencyBlock || !currencyList || !result) return;
-      if(!result.hasAmounts){ currencyBlock.hidden = true; return; }
-      const rows = result.hits.map((h, i) => {
-        const isBig = h.value >= 100000;
-        return '<button type="button" class="cur-row' + (isBig ? ' cur-big' : '') + '"' +
-          ' data-cur-idx="' + i + '" data-cur-raw="' + esc(h.raw) + '"' +
-          ' title="Click to jump to this amount in the source">' +
-          '<span class="cur-sym">' + esc(h.sym) + '</span>' +
-          '<span class="cur-val">' + h.value.toLocaleString('en-US') + '</span>' +
-          '<span class="cur-code">' + esc(h.code) + '</span>' +
-          '<code class="cur-snippet">' + esc(h.raw) + '</code>' +
-        '</button>';
-      }).join('');
-      const breakdown = Object.keys(result.totals).sort((a, b) => result.totals[b] - result.totals[a]).map(c => {
-        return '<span class="cur-total-pill">' + esc(c) + ' ' + result.totals[c].toLocaleString('en-US') + '</span>';
-      }).join(' ');
-      currencyList.innerHTML = rows;
-      // Iter #99: small-amount filter chip + currency count + sort
-      const controls =
-        '<div class="cur-controls">' +
-          '<span class="cur-count">' + result.hits.length + ' of ' + result.hits.length + ' amounts</span>' +
-          '<button type="button" class="cur-only-big ghost-btn ghost-btn-sm" id="curOnlyBigBtn" title="Hide amounts under $100,000">only $100k+</button>' +
-          '<button type="button" class="cur-why ghost-btn ghost-btn-sm" id="curWhyBtn" title="Why do these numbers matter?">why?</button>' +
-        '</div>';
-      currencyBlock.hidden = false;
-      if(currencyNote){
-        currencyNote.innerHTML =
-          '<span class="riskNote-lead">Found ' + result.hits.length + ' amount' + (result.hits.length === 1 ? '' : 's') + ' in ' +
-          Object.keys(result.totals).length + ' currenc' + (Object.keys(result.totals).length === 1 ? 'y' : 'ies') + '</span> ' +
-          'Subtotal (rough FX): <b style="color:var(--ink)">~$' +
-          Math.round(result.totalUSD).toLocaleString('en-US') + ' USD</b> · ' + breakdown;
-      }
-      // Append controls below the list so they sit between list and footer.
-      currencyList.insertAdjacentHTML('afterend', controls);
-      // Iter #99: wire row click → jump to source, filter chip, why modal.
-      $$('.cur-row', currencyList).forEach(btn => {
-        btn.addEventListener('click', () => {
-          if(!input) return;
-          const raw = btn.getAttribute('data-cur-raw') || '';
-          if(!raw) return;
-          const idx = input.value.indexOf(raw);
-          if(idx < 0 && raw.length > 6){
-            const idx2 = input.value.indexOf(raw.slice(0, Math.max(6, Math.floor(raw.length / 2))));
-            if(idx2 >= 0){
-              try { input.focus(); input.setSelectionRange(idx2, idx2 + raw.length); } catch(_){ /* ignore */ }
-            } else if(typeof showAnalyzeToast === 'function'){
-              showAnalyzeToast('⚠ Amount no longer in input — the doc was edited');
-            }
-          } else if(idx >= 0){
-            try { input.focus(); input.setSelectionRange(idx, idx + raw.length); } catch(_){ /* ignore */ }
-            if(typeof input.scrollIntoView === 'function'){
-              try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
-            }
-          }
-        });
-      });
-      const onlyBtn = document.getElementById('curOnlyBigBtn');
-      if(onlyBtn){
-        onlyBtn.addEventListener('click', () => {
-          const on = currencyList.classList.toggle('cur-only-big');
-          onlyBtn.textContent = on ? 'show all amounts' : 'only $100k+';
-          onlyBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-          // Update the count chip
-          const visible = currencyList.querySelectorAll('.cur-row').length;
-          const total = result.hits.length;
-          const countEl = currencyBlock.querySelector('.cur-count');
-          if(countEl){
-            countEl.textContent = (on ? visible : total) + ' of ' + total + ' amounts';
-          }
-        });
-      }
-      const whyBtn = document.getElementById('curWhyBtn');
-      if(whyBtn){
-        whyBtn.addEventListener('click', () => {
-          if(typeof showConfirmModal === 'function'){
-            showConfirmModal({
-              title: 'Why do these numbers matter?',
-              bodyHtml:
-                '<p>Contracts often mix currencies when parties cross borders (a US startup contracting with an EU client). Getting the totals wrong is a classic source of late-stage renegotiation.</p>' +
-                '<p>Three rules of thumb:</p>' +
-                '<ol style="margin:6px 0 0 18px;padding:0"><li><b>Confirm the contract currency.</b> If amounts are in USD but you live in EUR, check who eats the conversion fee.</li>' +
-                '<li><b>Watch for unit mismatches.</b> "Fifty thousand" may be ¥50,000 (~$330) or $50,000 (€46,000) — Read them aloud.</li>' +
-                '<li><b>Negotiate price re-opener clauses</b> if the FX moves more than 5% in either direction during the term.</li></ol>' +
-                '<p class="apply-confirm-note">FX rates here are hard-coded and roughly current; not a substitute for a finance-grade quote.</p>',
-              confirmLabel: 'Got it',
-            });
-          }
-        });
-      }
-    }
-
     // Iter #99: cleanup of controls-row duplicates across re-renders so a
     // second analysis doesn’t end up with two “only $100k+” chips.
     function clearCurrencyControls(){
@@ -11882,7 +11894,7 @@
       // 2) Risk radar
       items.push(commonSurface(
         !!(riskNote && /\b\d+\b\s+flagged|trap\b|watch\b/i.test(riskNote.textContent || '')),
-        { key: 'risk', glyph: '⚠', label: 'Risk radar', state: (flags && flags.length) ? 'on' : 'clean', anchor: riskList || riskNote }
+        { key: 'risk', glyph: '⚠', label: 'Risk radar', state: (ctx && ctx.flags && ctx.flags.length) ? 'on' : 'clean', anchor: riskList || riskNote }
       ));
       // 3) Verdict
       items.push(commonSurface(
@@ -12206,7 +12218,7 @@
       // the analysis actually produced, so users see at a glance
       // what their analysis covers.
       if(typeof renderCoverageStrip === 'function'){
-        renderCoverageStrip(ctx);
+        renderCoverageStrip({ ...ctx, flags });
       }
 
       // Iter #98: currency & amounts scanner — surface every
@@ -12947,8 +12959,8 @@
         if(total > 0){
           let text = '📊 ' + total + ' risk' + (total === 1 ? '' : 's') + ' avoided';
           // Add severity breakdown if any of the per-sev counts are > 0
+          const parts = [];
           if(data.trap || data.watch || data.note){
-            const parts = [];
             if(data.trap)  parts.push(data.trap  + ' trap');
             if(data.watch) parts.push(data.watch + ' watch');
             if(data.note)  parts.push(data.note  + ' note');
@@ -16803,6 +16815,31 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       clearTimeout(healthCopyBtn._flashTimer);
       healthCopyBtn._flashTimer=setTimeout(()=>{ healthCopyBtn.textContent=orig; },1400);
     });
+    // iter #224 v2: copy the readiness score + breakdown to clipboard.
+    if(readinessCopyBtn) readinessCopyBtn.addEventListener('click',async()=>{
+      if(!readinessBlock || readinessBlock.hidden) return;
+      const rs = computeReadinessScore();
+      const hc = (typeof computeHealthCheck === 'function') ? computeHealthCheck() : null;
+      const lines = ['📊 Readiness: ' + rs.score + '/100 — ' + rs.level];
+      if(hc && hc.detail) lines.push(hc.detail);
+      if(hc && hc.recommendation) lines.push(hc.recommendation);
+      const text = lines.join('\n');
+      let ok=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text); ok=true;
+        } else {
+          const ta=document.createElement('textarea');
+          ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok=document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      }catch(_){}
+      const orig='📋 Copy';
+      readinessCopyBtn.textContent=ok ? 'Copied ✓' : 'Copy failed';
+      clearTimeout(readinessCopyBtn._flashTimer);
+      readinessCopyBtn._flashTimer=setTimeout(()=>{ readinessCopyBtn.textContent=orig; },1400);
+    });
     // iter #222: copy executive summary to clipboard.
     // Includes the headline + body + fingerprint for traceability.
     if(execCopyBtn) execCopyBtn.addEventListener('click',async()=>{
@@ -17427,13 +17464,10 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     if(copyJsonBtn) copyJsonBtn.addEventListener('click', copyAnalysisJson);
     // iter #218 v2: download-as-JSON button — saves the full analysis as a
     // .json file so it can be opened in any JSON tool or IDE.
-    const downloadJsonBtn = document.getElementById('downloadJsonBtn');
     if(downloadJsonBtn) downloadJsonBtn.addEventListener('click', downloadAnalysisJson);
     // iter #220: CSV export buttons — copy risk table to clipboard
     // or download as a .csv file for Excel / Google Sheets / Numbers.
-    const copyCsvBtn = document.getElementById('copyCsvBtn');
     if(copyCsvBtn) copyCsvBtn.addEventListener('click', copyAnalysisCsv);
-    const downloadCsvBtn = document.getElementById('downloadCsvBtn');
     if(downloadCsvBtn) downloadCsvBtn.addEventListener('click', downloadAnalysisCsv);
     // iter #202: export full analysis as Markdown (.md) — mirrors the
     // .txt path (buildAnalysisSummary → saveAnalysis) but with markdown
@@ -17928,4 +17962,5 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     try { maybeOfferRestore(); } catch(e){ console.warn('[restore]', e); }
     // Decode any #share= fragment so we can offer to view it
     try { tryLoadSharedAnalysis(); } catch(e){ console.warn('[share-load]', e); }
+  }
 })();
