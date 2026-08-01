@@ -444,6 +444,9 @@ skip("analyze: loads without console errors and has new AI-backed sections", asy
     ["#execCopyBtn", "executive summary copy button"],
     ["#contractTypeBadge", "contract type badge"],
     ["#readinessBlock", "readiness score block"],
+    ["#readinessBar", "readiness score bar"],
+    ["#readinessCopyBtn", "readiness copy button"],
+    ["#readinessDetail", "readiness breakdown line"],
   ]);
   assert.deepEqual(errors, [], "analyze: console errors");
 });
@@ -1687,7 +1690,7 @@ test("analyzer: risk-preview pill expands to show matched patterns with labels",
     "Escape key must collapse the expanded list");
 
   // renderRiskDetail sorts trap → watch → note so loudest reads first
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,9800}\n    \}/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /rank\[a\.sev\]/,
     "renderRiskDetail() must sort hits by severity so trap floats to the top");
@@ -1734,7 +1737,7 @@ test("analyzer: expanded risk detail has a Copy button that exports matches as p
     "formatMatchesForCopy() must close with a ClearDoc attribution so the source is preserved");
 
   // renderRiskDetail must paint the toolbar with the copy button
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,9800}\n    \}/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /risk-detail-toolbar/,
     "renderRiskDetail() must render a .risk-detail-toolbar row");
@@ -2264,7 +2267,7 @@ test("analyzer: clicking a risk row highlights the source sentence in the input"
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must add data-rd-locate + tabindex + role to rows
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,9800}\n    \}/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rd-locate="/,
     "each row must carry data-rd-locate for the click handler to find the source text");
@@ -2274,7 +2277,7 @@ test("analyzer: clicking a risk row highlights the source sentence in the input"
     "each row must have role=button for screen-reader semantics");
   // Must esc() the matched substring before going into the attribute
   // (defense against attribute-injection via crafted doc text)
-  assert.match(renderFn[0], /esc\(h\.matched[\s\S]+?data-rd-locate/,
+  assert.match(renderFn[0], /data-rd-locate="'\s*\+\s*esc\(h\.matched/,
     "data-rd-locate must escape the matched substring (attribute-injection defense)");
 
   // Click handler must locate the source sentence + extend selection
@@ -2561,7 +2564,7 @@ test("analyzer: compare panel shows a clear 'WINS' verdict badge above the table
     "analyze.html must contain #compareVerdict above #compareStats");
 
   // updateCompareStats must compute + paint the verdict text
-  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,200}?compareStats\.innerHTML/);
+  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,6000}/);
   assert.ok(updateFn, "updateCompareStats() must exist");
   // Verdict text patterns
   assert.match(updateFn[0], /COMPARE WINS/,
@@ -2616,7 +2619,7 @@ test("analyzer: compare panel shows sentence-level diff (Original-only / Compare
     "analyze.html must contain #compareDiff below #compareStats");
 
   // updateCompareStats must call diffSentences + render both rows
-  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,200}?compareStats\.innerHTML/);
+  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,6000}/);
   assert.ok(updateFn, "updateCompareStats() must exist");
   assert.match(updateFn[0], /diffSentences\(a,\s*b\)/,
     "updateCompareStats must call diffSentences(a, b)");
@@ -2637,7 +2640,7 @@ test("analyzer: compare panel shows sentence-level diff (Original-only / Compare
     ".cmp-diff-b (Compare) label must use --accent-text (accent — second side)");
 
   // Shared-count summary line — polish on iter #21
-  const updateFnDiff = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,200}?compareStats\.innerHTML/);
+  const updateFnDiff = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,6000}/);
   assert.ok(updateFnDiff, "updateCompareStats() must exist");
   assert.match(updateFnDiff[0], /cmp-diff-summary/,
     "diff must render a summary line with the shared + unique counts");
@@ -2972,7 +2975,7 @@ test("analyzer: Read-aloud button speaks the expanded risk list with row-by-row 
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must emit the speak button
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,9800}\n    \}/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rd-speak/,
     "toolbar must include a [data-rd-speak] button");
@@ -3467,7 +3470,7 @@ test("analyzer: negotiation suggestions have a per-suggestion Copy button", () =
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must render the copy button in the counter row
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,9800}\n    \}/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rc-copy/,
     "renderRiskDetail must render [data-rc-copy] button");
@@ -3589,7 +3592,7 @@ test("analyzer: apply button swaps the counter-clause into the source input with
 
   // renderRiskDetail must render an [data-rc-apply] button with both
   // the suggestion text and the matched substring in data attributes
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,9800}\n    \}/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rc-apply/,
     "renderRiskDetail must render a [data-rc-apply] button");
@@ -3652,7 +3655,7 @@ test("analyzer: applied suggestion shows a green badge so users see which they'v
     "apply handler must add the .rc-applied class to the row");
 
   // renderRiskDetail must check appliedSet and render rows accordingly
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,9800}\n    \}/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /_appliedSuggestions/,
     "renderRiskDetail must read input._appliedSuggestions to render applied state");
@@ -3689,7 +3692,7 @@ test("analyzer: Apply-all button replaces every matched risk with its counter in
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must render the Apply-all button
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,9800}\n    \}/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rd-apply-all/,
     "renderRiskDetail must render a [data-rd-apply-all] button");
@@ -3999,7 +4002,7 @@ test("analyzer: per-suggestion 🔊 button speaks the counter-clause aloud", () 
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must emit the [data-rc-speak] button
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,9800}\n    \}/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rc-speak/,
     "renderRiskDetail must render a [data-rc-speak] button");
@@ -4036,7 +4039,7 @@ test("analyzer: Read-all-suggestions button speaks every counter-suggestion in s
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must emit the [data-rd-speak-suggestions] button
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,9800}\n    \}/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rd-speak-suggestions/,
     "renderRiskDetail must render a [data-rd-speak-suggestions] button");
@@ -4732,7 +4735,7 @@ test("analyzer: counter-suggestions have a 'Why this works' tip (💡 button)", 
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // renderRiskDetail must render the tip button when h.tip is set
-  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,200}?riskDetail\.innerHTML/);
+  const renderFn = appSrc.match(/function renderRiskDetail\(hits\)\{[\s\S]{0,9800}\n    \}/);
   assert.ok(renderFn, "renderRiskDetail() must exist");
   assert.match(renderFn[0], /data-rc-tip/,
     "renderRiskDetail must render [data-rc-tip] when h.tip is set");
@@ -8388,7 +8391,7 @@ test("analyzer: risk checklist sorts traps first then watches then notes", () =>
   assert.match(appSrc, /const sevOrder\s*=\s*\{[^}]*r:0[^}]*\}/,
     "iter #217 must sort traps before watches before notes via sevOrder");
   // Risks sorted by document order within each severity tier (stable sort by index)
-  assert.match(appSrc, /\(a\.i\s*??\s*0\)\s*-\s*\(b\.i\s*??\s*0\)/,
+  assert.match(appSrc, /\(a\.i\s*\?\?\s*0\)\s*-\s*\(b\.i\s*\?\?\s*0\)/,
     "iter #217 must preserve document order within each severity tier (stable sort by index)");
   // Checklist must include P0/P1/P2 priority tags for task managers (Jira/Linear/Notion)
   assert.match(appSrc, /\[P0\]/,
@@ -8442,6 +8445,7 @@ test("analyzer: Health Check computes readiness verdict and renders it", () => {
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
   const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // computeHealthCheck must exist
   assert.match(appSrc, /function computeHealthCheck\(\)/,
@@ -8450,13 +8454,13 @@ test("analyzer: Health Check computes readiness verdict and renders it", () => {
   assert.match(appSrc, /function renderHealthCheck\(\)/,
     "renderHealthCheck must exist");
   // computeHealthCheck returns a readiness level
-  assert.match(appSrc, /level:\s*['"]Ready['"]/,
+  assert.match(appSrc, /level\s*=\s*['"]Ready['"]/,
     "computeHealthCheck must have a Ready level");
-  assert.match(appSrc, /level:\s*['"]Review['"]/,
+  assert.match(appSrc, /level\s*=\s*['"]Review['"]/,
     "computeHealthCheck must have a Review level");
-  assert.match(appSrc, /level:\s*['"]Negotiate['"]/,
+  assert.match(appSrc, /level\s*=\s*['"]Negotiate['"]/,
     "computeHealthCheck must have a Negotiate level");
-  assert.match(appSrc, /level:\s*['"]Do Not Sign['"]/,
+  assert.match(appSrc, /level\s*=\s*['"]Do Not Sign['"]/,
     "computeHealthCheck must have a Do Not Sign level");
   // healthCheck block exists in HTML
   assert.match(html, /id="healthCheck"/,
@@ -8504,7 +8508,7 @@ test("analyzer: CSV export includes metadata row, row numbers, priority, and fin
   assert.match(appSrc, /Analysis Date/,
     "iter #220 v2 must include analysis date in CSV metadata");
   // Row numbering column for spreadsheet reference
-  assert.match(appSrc, /const idx \+ 1/,
+  assert.match(appSrc, /idx\s*\+\s*1/,
     "iter #220 v2 must include sequential row numbers");
   // Priority column (P0/P1/P2) in CSV output
   assert.match(appSrc, /priority.*P0.*P1.*P2|P0.*P1.*P2/,
@@ -8527,6 +8531,7 @@ test("analyzer: Executive summary generates headline, body, and has all CSS tone
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
   const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /function buildExecSummary\(\)/,
     "buildExecSummary must exist");
@@ -8534,13 +8539,13 @@ test("analyzer: Executive summary generates headline, body, and has all CSS tone
     "renderExecSummary must exist");
   assert.match(appSrc, /headline\s*=/,
     "buildExecSummary must generate a headline");
-  assert.match(appSrc, /top priority:/,
+  assert.match(appSrc, /[Tt]op priority:/,
     "buildExecSummary must use 'Top priority' label in the body");
   // Why text is truncated to keep summary readable
-  assert.match(appSrc, /197\s*\+\s*'\.\.\.'/,
+  assert.match(appSrc, /197\)\s*\+\s*['"]…['"]/,
     "buildExecSummary must truncate long why text at 200 chars");
   // Fingerprint included for traceability
-  assert.match(appSrc, /fingerprint\s*\?.*_fpState.*short/,
+  assert.match(appSrc, /fp\s*=\s*\(_fpState[\s\S]{0,80}\?\s*_fpState\.short/,
     "buildExecSummary must include document fingerprint");
   // Analysis date included in output
   assert.match(appSrc, /toLocaleDateString/,
@@ -8560,6 +8565,7 @@ test("analyzer: Contract type badge renders when doc type is detected", () => {
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
   const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // contractTypeBadge element must exist in HTML
   assert.match(html, /id="contractTypeBadge"/,
@@ -8585,6 +8591,7 @@ test("analyzer: Readiness Score computes 0-100 from threat data with four tone l
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
   const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // computeReadinessScore must exist
   assert.match(appSrc, /function computeReadinessScore\(\)/,
@@ -8612,6 +8619,23 @@ test("analyzer: Readiness Score computes 0-100 from threat data with four tone l
   assert.match(cssSrc, /#readinessBlock\.medium\b/, "readiness .medium tone must exist");
   assert.match(cssSrc, /#readinessBlock\.high\b/, "readiness .high tone must exist");
   assert.match(cssSrc, /#readinessBlock\.critical\b/, "readiness .critical tone must exist");
+  // iter #224 v2: score bar, "/100" context, breakdown line + copy button
+  assert.match(html, /id="readinessBar"/, "analyze.html must contain #readinessBar (score bar)");
+  assert.match(html, /id="readinessBarFill"/, "analyze.html must contain #readinessBarFill");
+  assert.match(html, /id="readinessOutOf"/, "analyze.html must contain #readinessOutOf (/100)");
+  assert.match(html, /id="readinessDetail"/, "analyze.html must contain #readinessDetail (breakdown)");
+  assert.match(html, /id="readinessCopyBtn"/, "analyze.html must contain #readinessCopyBtn");
+  assert.match(html, /readinessBar[^>]*role="progressbar"/,
+    "readiness bar must be an accessible progressbar");
+  assert.match(appSrc, /aria-valuenow/, "render must set aria-valuenow on the bar");
+  assert.match(appSrc, /barFillEl\.style\.width/, "render must paint the bar width from the score");
+  assert.match(appSrc, /readinessCopyBtn\.addEventListener/,
+    "copy button must be wired in app.js");
+  assert.match(cssSrc, /\.readiness-bar-fill\b/, "readiness bar fill CSS must exist");
+  assert.match(cssSrc, /\.readiness-copy\b/, "readiness copy CSS must exist");
+  // className wipe must never drop the base result-block styling
+  assert.match(appSrc, /block\.classList\.remove\('low','medium','high','critical'\)/,
+    "render must preserve base classes instead of wiping className");
 });
 
 test("analyzer: RISK array detects Intellectual Property / Work for Hire trap", () => {
@@ -8619,7 +8643,7 @@ test("analyzer: RISK array detects Intellectual Property / Work for Hire trap", 
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
 
-  assert.match(appSrc, /work (made )?for hire|assign(s|ed)\? (all )\?(right|title|interest)/,
+  assert.match(appSrc, /work \(made \)\?for hire|assign\(s\|ed\)\? \(all \)\?\(right\|title\|interest\)/,
     "RISK array must include regex for Work for Hire / IP Assignment clauses");
   assert.match(appSrc, /Transfers ownership of your work, ideas, or creations/,
     "IP Assignment rule must explain why IP transfer is a trap");
