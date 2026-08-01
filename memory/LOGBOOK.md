@@ -3106,3 +3106,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Honored the standing directives. Back to a small feature add after several test-coverage iters. The full error timeline surface is now: `lastErrorAt` (5xx server) + `lastClientErrorAt` (4xx client) + `lastBlockByIp` + `lastReporter` + `lastBlockAt` (cspReport) + `firstSeenAt`/`lastSeenAt` (cspReport accepted) + `lastBlockedAt` (cspReport rejected).
+
+**2026-08-01 | Model: opencode/deepseek-v4-flash**
+**Changes Made:**
+- **Readiness Score v2 (iter #224 v2)** — added visual score bar, "/100" context, risk-breakdown line (reuses health-check tally), copy button, progressbar a11y. Preserves result-block class (was being wiped via className='').
+- **🚑 CRITICAL analyzer repair** — the analyzer page was completely broken: a duplicated renderCurrencyBlock body was pasted mid-analyzePage without its header; its stray `}` prematurely closed analyzePage, so page init threw `result is not defined` and the Analyze button never wired up (integration test failed on the disabled-in-flight check). Fixed: moved currency controls/filter/why-modal into canonical renderCurrencyBlock, deleted the 90-line orphan, restored analyzePage brace, hoisted esc()/trunc()/lastFlags/lastRaw to IIFE scope (paint helpers + share handlers read them), fixed renderCoverageStrip ctx.flags, SECTION_CATEGORIES missing `re` property, `parts` block-scoping, esc() string-coercion.
+- **Smoke suite repaired** — file didn't even parse (`\s*??` invalid regex at iter #217 test); 14 tests had stale/broken assertions (missing cssSrc, too-small capture windows, level: vs level=, ellipsis, etc.). Added Readiness v2 coverage.
+- **Result: 490 unit + 222 smoke + 1 integration all green** (was: suite red / page broken). Commits 320d6cde, 377e4765, 7b071ef8 pushed to origin/main.
+
+**Prompt Intention:**
+- User asked for autonomous 5-minute loop cycles improving the project (alternate add/polish), with compulsory commit+push after every change. First cycle was a polish (readiness score) that surfaced and fixed the broken analyzer.
