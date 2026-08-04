@@ -1153,6 +1153,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .readiness-bar-fill{height:100%;width:100%;background:currentColor;border-radius:4px;transition:width .5s ease}
 .readiness-detail{font-size:var(--t-micro);color:var(--ink-soft);letter-spacing:.04em;line-height:1.4}
 #readinessBlock.low{border-color:var(--green);background:var(--green-tint);color:var(--green)}
+.readiness-info{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);cursor:pointer;color:var(--ink-soft);opacity:.7;border:1px solid var(--ink-soft);border-radius:3px;padding:2px 6px;margin-left:4px;transition:opacity .2s}
+.readiness-info:hover{opacity:1;background:var(--ink);color:#fff}
+@media print{.readiness-info{display:none!important}}
 #readinessBlock.low .readiness-score{color:var(--green)}
 #readinessBlock.low .readiness-bar{background:rgba(0,128,0,.15)}
 #readinessBlock.low .readiness-detail{color:var(--green)}

@@ -316,7 +316,7 @@
           <button class="ghost-btn" id="shareBtn" type="button" title="Copy a link to this analysis — nothing leaves your device, the text is encoded in the URL">🔗 Share link</button>
         </div>
         <div class="result-block" id="readinessBlock" hidden role="status" aria-live="polite">
-          <span class="rh">📊 Readiness <button class="readiness-copy no-print" id="readinessCopyBtn" type="button" title="Copy the readiness score + breakdown to your clipboard">📋 Copy</button></span>
+          <span class="rh">📊 Readiness <span class="readiness-info no-print" id="readinessInfo" title="Score: 100 - (threat × 0.6) - ((risks - traps) × 0.5). Lower = more risks. Tap for explanation.">ⓘ</span> <button class="readiness-copy no-print" id="readinessCopyBtn" type="button" title="Copy the readiness score + breakdown to your clipboard">📋 Copy</button></span>
           <div class="readiness-score-wrap">
             <span class="readiness-score" id="readinessScore"></span><span class="readiness-out-of" id="readinessOutOf"></span>
           </div>
