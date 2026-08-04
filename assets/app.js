@@ -2657,7 +2657,7 @@
           threatScore=$('#threatScore'),threatScoreNum=$('#threatScoreNum'),threatScoreLbl=$('#threatScoreLbl'),threatScoreMeta=$('#threatScoreMeta'),threatCopyBtn=$('#threatCopyBtn'),
           healthCheck=$('#healthCheck'),healthCheckIcon=$('#healthCheckIcon'),healthCheckLabel=$('#healthCheckLabel'),healthCheckScore=$('#healthCheckScore'),healthCheckDetail=$('#healthCheckDetail'),healthCheckRec=$('#healthCheckRec'),healthCopyBtn=$('#healthCopyBtn'),
           execSummary=$('#execSummary'),execSummaryBody=$('#execSummaryBody'),execCopyBtn=$('#execCopyBtn'),
-          readinessBlock=$('#readinessBlock'),readinessScoreEl=$('#readinessScore'),readinessLabelEl=$('#readinessLabel'),readinessOutOfEl=$('#readinessOutOf'),readinessBar=$('#readinessBar'),readinessBarFill=$('#readinessBarFill'),readinessDetailEl=$('#readinessDetail'),readinessCopyBtn=$('#readinessCopyBtn'),
+          readinessBlock=$('#readinessBlock'),readinessScoreEl=$('#readinessScore'),readinessLabelEl=$('#readinessLabel'),readinessOutOfEl=$('#readinessOutOf'),readinessBar=$('#readinessBar'),readinessBarFill=$('#readinessBarFill'),readinessDetailEl=$('#readinessDetail'),readinessCopyBtn=$('#readinessCopyBtn'),readinessInfo=$('#readinessInfo'),
           tagsInput=$('#tagsInput'),tagsList=$('#tagsList'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
@@ -4301,6 +4301,30 @@
           });
           const text = 'Currency amounts:\n' + amounts.join('\n');
           copyText(text);
+        });
+      }
+      // Readiness info tooltip — explains the scoring formula
+      if(readinessInfo){
+        readinessInfo.addEventListener('click', () => {
+          if(typeof showConfirmModal === 'function'){
+            showConfirmModal({
+              title: 'Readiness Score Explained',
+              bodyHtml:
+                '<p>The Readiness Score (0-100) measures your contract\'s preparedness to sign.</p>' +
+                '<h3 style="margin:12px 0 6px">Formula</h3>' +
+                '<p style="font-family:JetBrains Mono,sans-serif;background:#f5f5f5;padding:8px 12px;border-radius:4px;margin:8px 0">Score = 100 - (threatScore × 0.6) - ((risks - traps) × 0.5)</p>' +
+                '<h3 style="margin:12px 0 6px">Score Levels</h3>' +
+                '<ul style="margin:8px 0 0 20px">' +
+                '<li><b style="color:var(--green)">Low (60-100)</b>: Ready to proceed — minor or no risks</li>' +
+                '<li><b style="color:var(--amber)">Medium (40-59)</b>: Review flagged items before signing</li>' +
+                '<li><b style="color:var(--danger)">High (20-39)</b>: Active negotiation recommended</li>' +
+                '<li><b style="color:#fff;background:var(--danger)">Critical (&lt;20)</b>: Do not sign without major changes</li>' +
+                '</ul>' +
+                '<h3 style="margin:12px 0 6px">How It Works</h3>' +
+                '<p>The score combines threat severity with risk density. More traps and watches lower your score.</p>',
+              confirmLabel: 'Got it',
+            });
+          }
         });
       }
     }
