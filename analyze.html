@@ -428,13 +428,13 @@
           <div class="metaline"><span>Reading level <b id="levelFrom">—</b> → <b id="levelTo">—</b></span><span>Jargon found: <b id="jargonCount">0</b></span><span id="rewriteStats" hidden aria-live="polite"><b id="rewriteSentences">0</b> sentence<span id="rewriteSentenceS">s</span> · ~<b id="rewriteMins">—</b> min read</span></div>
         </div>
         <div class="result-block">
-          <span class="rh">⚠ Risk radar</span>
+          <span class="rh">⚠ Risk radar <span class="risk-info no-print" id="riskInfo" title="Traps: must-negotiate clauses that could cause harm. Watches: moderate concerns to review. Notes: informational flags.">ⓘ</span></span>
           <p class="analyze-msg" id="riskNote" style="margin-top:0" aria-live="polite"></p>
           <div class="risk-filter mono" id="riskFilter" hidden role="group" aria-label="Filter risk radar by severity">
             <button type="button" class="rf-btn rf-active" id="riskFilterAllBtn" data-risk-filter="all" aria-pressed="true" title="Show every risk regardless of severity">🌐 all <b id="rfAllCount">0</b></button>
-            <button type="button" class="rf-btn" id="riskFilterTrapBtn" data-risk-filter="r" aria-pressed="false" disabled title="Show only traps (most serious)">🔴 traps <b id="rfRCount">0</b></button>
-            <button type="button" class="rf-btn" id="riskFilterWatchBtn" data-risk-filter="a" aria-pressed="false" disabled title="Show only watches">🟡 watches <b id="rfACount">0</b></button>
-            <button type="button" class="rf-btn" id="riskFilterNoteBtn" data-risk-filter="g" aria-pressed="false" disabled title="Show only notes">⚪ notes <b id="rfGCount">0</b></button>
+            <button type="button" class="rf-btn" id="riskFilterTrapBtn" data-risk-filter="r" aria-pressed="false" disabled title="Traps — must-negotiate clauses that could cause financial or legal harm">🔴 traps <b id="rfRCount">0</b></button>
+            <button type="button" class="rf-btn" id="riskFilterWatchBtn" data-risk-filter="a" aria-pressed="false" disabled title="Watches — moderate concerns to review, but not immediately dangerous">🟡 watches <b id="rfACount">0</b></button>
+            <button type="button" class="rf-btn" id="riskFilterNoteBtn" data-risk-filter="g" aria-pressed="false" disabled title="Notes — informational flags that may or may not be relevant">⚪ notes <b id="rfGCount">0</b></button>
             <span class="risk-filter-count" id="riskFilterCount" hidden aria-live="polite"></span>
           </div>
           <div class="top-concern" id="topConcern" hidden aria-live="polite"></div>

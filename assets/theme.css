@@ -918,6 +918,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-filter .rf-btn.rf-active[data-risk-filter="r"]{background:var(--danger-tint);color:var(--danger);border-color:var(--danger)}
 .risk-filter .rf-btn.rf-active[data-risk-filter="a"]{background:var(--amber-tint);color:var(--amber);border-color:var(--amber)}
 .risk-filter .rf-btn.rf-active[data-risk-filter="g"]{background:var(--green-tint);color:var(--green);border-color:var(--green)}
+.risk-info{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);cursor:pointer;color:var(--ink-soft);opacity:.7;border:1px solid var(--ink-soft);border-radius:3px;padding:2px 6px;margin-left:4px;transition:opacity .2s}
+.risk-info:hover{opacity:1;background:var(--ink);color:#fff}
 .risk-built.risk-filter-r .rrow:not([data-risk="r"]){display:none}
 .risk-built.risk-filter-a .rrow:not([data-risk="a"]){display:none}
 .risk-built.risk-filter-g .rrow:not([data-risk="g"]){display:none}
