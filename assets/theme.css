@@ -377,6 +377,8 @@
   .footer-link:hover{color:var(--accent);border-bottom-color:var(--accent)}
   .footer-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
   .footer-sep{margin:0 8px;opacity:.55}
+.footer-copyright{font-size:var(--t-micro);text-transform:none;letter-spacing:0;opacity:.85}
+@media print{.footer-copyright{display:none!important}}
 
   /* ---- Forget-me toast (privacy action confirmation) ---- */
   .forget-toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,8px);background:var(--ink);color:var(--paper);border:var(--bd) solid var(--accent);box-shadow:var(--shadow);padding:14px 22px;font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:14px;z-index:10000;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;max-width:90vw}
