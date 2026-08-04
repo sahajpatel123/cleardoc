@@ -3172,8 +3172,8 @@
     function renderHealthCheck(){
       if(!healthCheck || !healthCheckIcon || !healthCheckLabel || !healthCheckScore || !healthCheckDetail || !healthCheckRec) return;
       const hc = computeHealthCheck();
-      if(!hc || (hc.score === 0 && hc.level === 'Ready')){
-        // No risks — hide the health check so the verdict block stays clean.
+      if(!hc){
+        // No data — hide the health check completely.
         healthCheck.hidden = true;
         healthCheck.className = 'health-check mono no-print';
         healthCheckIcon.textContent = '';
@@ -3184,13 +3184,14 @@
         if(healthCopyBtn){ healthCopyBtn.textContent = '📋 Copy'; healthCopyBtn.hidden = true; }
         return;
       }
+      // Show health check for all cases including clean documents
       healthCheck.hidden = false;
       healthCheck.className = 'health-check mono no-print ' + hc.tone;
       healthCheckIcon.textContent = hc.icon;
       healthCheckLabel.textContent = hc.level;
-      healthCheckScore.textContent = 'Score ' + hc.score;
-      healthCheckDetail.textContent = hc.detail;
-      healthCheckRec.textContent = hc.recommendation;
+      healthCheckScore.textContent = hc.score > 0 ? 'Score ' + hc.score : '';
+      healthCheckDetail.textContent = hc.detail || '';
+      healthCheckRec.textContent = hc.recommendation || '';
       if(healthCopyBtn){ healthCopyBtn.hidden = false; healthCopyBtn.textContent = '📋 Copy'; }
     }
     // iter #224: Contract Readiness Score — a single 0-100 number
