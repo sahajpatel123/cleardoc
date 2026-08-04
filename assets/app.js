@@ -3201,8 +3201,10 @@
     // Results map to the same palette as threat score:
     // low (≥60), medium (40-59), high (20-39), critical (<20).
     function computeReadinessScore(){
-      const t = (typeof computeThreatScore === 'function') ? computeThreatScore(lastFlags) : { score:0, total:0, traps:0 };
-      if(!t.total) return { score:100, level:'Low', tone:'low' };
+      const t = (typeof computeThreatScore === 'function') ? computeThreatScore(lastFlags) : { score:0, total:0, traps:0, watches:0, notes:0 };
+      if(!t.total){
+        return { score:100, level:'Low', tone:'low', detail:'Clean document — no risks detected' };
+      }
       const base = Math.max(0, 100 - (t.score * 0.6));
       // Penalize dense risk clusters: more risks per trap = lower score.
       const densityPenalty = Math.min(15, (t.total - t.traps) * 0.5);
@@ -3212,7 +3214,13 @@
       else if(score >= 40)  { level = 'Medium';   tone = 'medium'; }
       else if(score >= 20)  { level = 'High';     tone = 'high'; }
       else                   { level = 'Critical'; tone = 'critical'; }
-      return { score, level, tone };
+      // Build detailed breakdown showing what contributed to the score.
+      const detailParts = [];
+      detailParts.push(score + '/100');
+      if(t.traps) detailParts.push(t.traps + ' trap' + (t.traps === 1 ? '' : 's'));
+      if(t.watches) detailParts.push(t.watches + ' watch' + (t.watches === 1 ? 'es' : 'es'));
+      if(t.notes) detailParts.push(t.notes + ' note' + (t.notes === 1 ? 's' : 's'));
+      return { score, level, tone, detail: detailParts.join(' · ') };
     }
     function renderReadinessScore(){
       const block = readinessBlock || document.getElementById('readinessBlock');
@@ -3244,11 +3252,10 @@
           requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ if(barFillEl) barFillEl.style.width = rs.score + '%'; }); });
         }
       }
-      // iter #224 v2: one-line risk breakdown reuses the health-check tally
+      // iter #224 v2: one-line readiness breakdown (score + risk tally)
       // so the score never floats without context.
       if(detailEl){
-        const hc = (typeof computeHealthCheck === 'function') ? computeHealthCheck() : null;
-        detailEl.textContent = hc && hc.detail ? hc.detail + (hc.recommendation ? ' — ' + hc.recommendation : '') : '';
+        detailEl.textContent = rs.detail || '';
       }
       if(copyBtn){ copyBtn.hidden = false; copyBtn.textContent = '📋 Copy'; }
     }
