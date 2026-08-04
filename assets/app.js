@@ -1765,6 +1765,11 @@
             <div class="kb-row"><kbd>💬</kbd><span>Copy chat-friendly summary to clipboard</span></div>
             <div class="kb-row"><kbd>📧</kbd><span>Open mail client with analysis summary</span></div>
           </div>
+          <h3 class="kb-modal-subtitle mono">RISK ROW ACTIONS</h3>
+          <div class="kb-modal-grid">
+            <div class="kb-row"><kbd>a</kbd><span>Ask about flagged risk (when focused on risk row)</span></div>
+            <div class="kb-row"><kbd>e</kbd><span>Expand counter-suggestion (when focused on risk row)</span></div>
+          </div>
           <p class="kb-modal-foot mono">Shortcuts are disabled while typing in a field. Threat level &amp; health check appear automatically after analysis.</p>
         </div>`;
       document.body.appendChild(m);
