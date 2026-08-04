@@ -2682,7 +2682,7 @@
           tagsInput=$('#tagsInput'),tagsList=$('#tagsList'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
-          printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),copyChecklistBtn=$('#copyChecklistBtn'),copyJsonBtn=$('#copyJsonBtn'),copyCsvBtn=$('#copyCsvBtn'),downloadCsvBtn=$('#downloadCsvBtn'),downloadJsonBtn=$('#downloadJsonBtn'),printDate=$('#printDate'),
+          printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),copyChecklistBtn=$('#copyChecklistBtn'),copyJsonBtn=$('#copyJsonBtn'),copyCsvBtn=$('#copyCsvBtn'),downloadCsvBtn=$('#downloadCsvBtn'),downloadJsonBtn=$('#downloadJsonBtn'),printDate=$('#printDate'),printDateStamp=$('#printDateStamp'),
           shareBtn=$('#shareBtn'),speakBtn=$('#speakBtn'),
           voicePicker=$('#voicePicker'),risksAvoidedBadge=$('#risksAvoidedBadge'),
           shareBadgeBtn=$('#shareBadgeBtn'),resetBadgeBtn=$('#resetBadgeBtn'),
@@ -13672,6 +13672,7 @@
         return;
       }
       if(printDate) printDate.textContent=new Date().toLocaleString();
+      if(printDateStamp) printDateStamp.textContent=new Date().toLocaleString();
       window.print();
     }
     function saveAnalysis(){
