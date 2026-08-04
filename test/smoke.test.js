@@ -6766,6 +6766,35 @@ test("analyzer: Currency block polished with click-to-jump + only-big + why-moda
     "clearCurrencyControls must exist");
 });
 
+// Iter #225: currency copy button — export detected amounts
+test("analyzer: Currency block copy button exports amounts as plain text", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // HTML — copy button in currency block header
+  assert.match(html, /id="currencyCopyBtn"/,
+    "analyze.html must contain #currencyCopyBtn");
+  assert.match(html, /currency-copy/,
+    "analyze.html must have currency-copy class on the button");
+
+  // App.js — copy button reference and wiring
+  assert.match(appSrc, /currencyCopyBtn/,
+    "app.js must reference currencyCopyBtn");
+  assert.match(appSrc, /currencyCopyBtn\.addEventListener/,
+    "app.js must wire currencyCopyBtn click handler");
+
+  // Copy functionality — exports symbol + value + currency code per amount
+  assert.match(appSrc, /currencyCopyBtn[\s\S]+?addEventListener\(['"]click['"][\s\S]+?amounts\.push/,
+    "copy handler must build amounts array");
+  assert.match(appSrc, /\.cur-sym/,
+    "copy handler must reference cur-sym class");
+  assert.match(appSrc, /\.cur-val/,
+    "copy handler must reference cur-val class");
+});
+
 // Iter #100: key-clause highlighter — picks the 3-4 most consequential
 // sentences in the analyzed document and surfaces them in a "read
 // twice" preview block above the textarea. Pure local.
