@@ -1380,6 +1380,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .cur-controls{margin-top:6px;display:flex;gap:6px;align-items:center;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;font-size:var(--t-meta)}
 .cur-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;font-size:var(--t-micro);margin-right:auto}
 .cur-only-big{margin-left:0}
+.currency-copy{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border:1px solid var(--ink);background:transparent;color:inherit;cursor:pointer;border-radius:3px;flex:0 0 auto;opacity:.7;transition:opacity .2s;font-weight:600}
+.currency-copy:hover{opacity:1;background:var(--ink);color:#fff}
+@media print{.currency-copy{display:none!important}}
 
 /* Key-clause preview (iter #100) — read-twice highlight card. */
 .key-clause{font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.45;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);padding:8px 10px;margin:6px 0}

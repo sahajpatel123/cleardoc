@@ -2725,7 +2725,7 @@
           heatOnlyFlagsBtn=$('#heatOnlyFlagsBtn'),heatModeBtn=$('#heatModeBtn'),
           maturityBlock=$('#maturityBlock'),maturityNote=$('#maturityNote'),maturityGrid=$('#maturityGrid'),
           jurisBlock=$('#jurisBlock'),jurisNote=$('#jurisNote'),jurisRow=$('#jurisRow'),
-          currencyBlock=$('#currencyBlock'),currencyNote=$('#currencyNote'),currencyList=$('#currencyList'),
+          currencyBlock=$('#currencyBlock'),currencyNote=$('#currencyNote'),currencyList=$('#currencyList'),currencyCopyBtn=$('#currencyCopyBtn'),
           coverageStrip=$('#coverageStrip'),
           restoreBanner=$('#restoreBanner'),restoreDocName=$('#restoreDocName'),
           restoreWhen=$('#restoreWhen'),restoreBtn=$('#restoreBtn'),dismissRestoreBtn=$('#dismissRestoreBtn'),
@@ -4278,6 +4278,23 @@
               confirmLabel: 'Got it',
             });
           }
+        });
+      }
+      // Currency copy button — exports amounts as plain text for pasting into docs
+      if(currencyCopyBtn){
+        currencyCopyBtn.textContent = '📋 Copy';
+        currencyCopyBtn.hidden = false;
+        currencyCopyBtn.addEventListener('click', () => {
+          if(!currencyBlock) return;
+          const amounts = [];
+          $$('.cur-row', currencyList).forEach(row => {
+            const sym = row.querySelector('.cur-sym')?.textContent || '';
+            const val = row.querySelector('.cur-val')?.textContent || '';
+            const code = row.querySelector('.cur-code')?.textContent || '';
+            amounts.push(sym + val + (code ? ' (' + code + ')' : ''));
+          });
+          const text = 'Currency amounts:\n' + amounts.join('\n');
+          copyText(text);
         });
       }
     }
