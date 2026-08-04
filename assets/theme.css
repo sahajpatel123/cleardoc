@@ -1182,6 +1182,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 #readinessBlock.critical .readiness-copy{border-color:#fff;color:#fff}
 #readinessBlock.critical .readiness-copy:hover{background:#fff;color:var(--danger)}
 @media print{#readinessBlock{display:none!important}}
+.fp-info{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);cursor:pointer;color:var(--ink-soft);opacity:.6;border:1px solid var(--ink-soft);border-radius:3px;padding:2px 6px;margin-left:4px;transition:opacity .2s}
+.fp-info:hover{opacity:1;background:var(--ink);color:#fff}
+@media print{.fp-info{display:none!important}}
 
 .threat-copy{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border:1px solid var(--ink);background:transparent;color:inherit;cursor:pointer;border-radius:3px;margin-left:4px;flex:0 0 auto;opacity:.7;transition:opacity .2s}
 .threat-copy:hover{opacity:1;background:var(--ink);color:#fff}

@@ -1458,6 +1458,27 @@
         }, 1500);
       }
     });
+    // Fingerprint info button — explains what the fingerprint is for
+    const infoBtn = document.getElementById('fpInfo');
+    if(infoBtn){
+      infoBtn.addEventListener('click', () => {
+        if(typeof showConfirmModal === 'function'){
+          showConfirmModal({
+            title: 'Document Fingerprint Explained',
+            bodyHtml:
+              '<p>A document fingerprint is a SHA-256 hash (first 8 characters shown) that uniquely identifies this document.</p>' +
+              '<h3 style="margin:12px 0 6px">Why It Matters</h3>' +
+              '<ul style="margin:8px 0 0 20px">' +
+              '<li>Verify you\'re analyzing the <b>same document</b> after edits</li>' +
+              '<li>Match analyses across different sessions</li>' +
+              '<li>Ensure analysis integrity for legal proceedings</li>' +
+              '</ul>' +
+              '<p>Tip: Clicking the short hash (#a3f2b9c4) copies the full SHA-256 to your clipboard.</p>',
+            confirmLabel: 'Got it',
+          });
+        }
+      });
+    }
   }
   function wireSectionNav(){
     const nav = document.getElementById('sectionNav');
@@ -2657,7 +2678,7 @@
           threatScore=$('#threatScore'),threatScoreNum=$('#threatScoreNum'),threatScoreLbl=$('#threatScoreLbl'),threatScoreMeta=$('#threatScoreMeta'),threatCopyBtn=$('#threatCopyBtn'),
           healthCheck=$('#healthCheck'),healthCheckIcon=$('#healthCheckIcon'),healthCheckLabel=$('#healthCheckLabel'),healthCheckScore=$('#healthCheckScore'),healthCheckDetail=$('#healthCheckDetail'),healthCheckRec=$('#healthCheckRec'),healthCopyBtn=$('#healthCopyBtn'),
           execSummary=$('#execSummary'),execSummaryBody=$('#execSummaryBody'),execCopyBtn=$('#execCopyBtn'),
-          readinessBlock=$('#readinessBlock'),readinessScoreEl=$('#readinessScore'),readinessLabelEl=$('#readinessLabel'),readinessOutOfEl=$('#readinessOutOf'),readinessBar=$('#readinessBar'),readinessBarFill=$('#readinessBarFill'),readinessDetailEl=$('#readinessDetail'),readinessCopyBtn=$('#readinessCopyBtn'),readinessInfo=$('#readinessInfo'),
+          readinessBlock=$('#readinessBlock'),readinessScoreEl=$('#readinessScore'),readinessLabelEl=$('#readinessLabel'),readinessOutOfEl=$('#readinessOutOf'),readinessBar=$('#readinessBar'),readinessBarFill=$('#readinessBarFill'),readinessDetailEl=$('#readinessDetail'),readinessCopyBtn=$('#readinessCopyBtn'),readinessInfo=$('#readinessInfo'),docFpBtn=$('#docFpBtn'),fpInfo=$('#fpInfo'),
           tagsInput=$('#tagsInput'),tagsList=$('#tagsList'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
