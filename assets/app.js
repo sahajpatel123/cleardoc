@@ -1250,6 +1250,13 @@
       void el.offsetWidth; // force reflow so the animation restarts
       el.classList.add('is-fresh');
     }
+    // Update the visible "Last analyzed" timestamp
+    const lastEl = document.getElementById('lastAnalyzed');
+    if(lastEl){
+      const date = new Date(_analyzedState.ts);
+      lastEl.textContent = 'Last analyzed: ' + date.toLocaleString();
+      lastEl.hidden = false;
+    }
     if(_analyzedState.timer) clearInterval(_analyzedState.timer);
     _analyzedState.timer = setInterval(paintAnalyzedAgo, 30000);
   }
@@ -2678,7 +2685,7 @@
           threatScore=$('#threatScore'),threatScoreNum=$('#threatScoreNum'),threatScoreLbl=$('#threatScoreLbl'),threatScoreMeta=$('#threatScoreMeta'),threatCopyBtn=$('#threatCopyBtn'),
           healthCheck=$('#healthCheck'),healthCheckIcon=$('#healthCheckIcon'),healthCheckLabel=$('#healthCheckLabel'),healthCheckScore=$('#healthCheckScore'),healthCheckDetail=$('#healthCheckDetail'),healthCheckRec=$('#healthCheckRec'),healthCopyBtn=$('#healthCopyBtn'),
           execSummary=$('#execSummary'),execSummaryBody=$('#execSummaryBody'),execCopyBtn=$('#execCopyBtn'),
-          readinessBlock=$('#readinessBlock'),readinessScoreEl=$('#readinessScore'),readinessLabelEl=$('#readinessLabel'),readinessOutOfEl=$('#readinessOutOf'),readinessBar=$('#readinessBar'),readinessBarFill=$('#readinessBarFill'),readinessDetailEl=$('#readinessDetail'),readinessCopyBtn=$('#readinessCopyBtn'),readinessInfo=$('#readinessInfo'),docFpBtn=$('#docFpBtn'),fpInfo=$('#fpInfo'),
+          readinessBlock=$('#readinessBlock'),readinessScoreEl=$('#readinessScore'),readinessLabelEl=$('#readinessLabel'),readinessOutOfEl=$('#readinessOutOf'),readinessBar=$('#readinessBar'),readinessBarFill=$('#readinessBarFill'),readinessDetailEl=$('#readinessDetail'),readinessCopyBtn=$('#readinessCopyBtn'),readinessInfo=$('#readinessInfo'),docFpBtn=$('#docFpBtn'),fpInfo=$('#fpInfo'),lastAnalyzed=$('#lastAnalyzed'),
           tagsInput=$('#tagsInput'),tagsList=$('#tagsList'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
