@@ -1298,6 +1298,10 @@ button.risk-preview:hover{filter:brightness(.96)}
     font-size:var(--t-card);
     box-shadow:var(--shadow-sm);
   }
+  .work .run-row .analyze-btn .kb-hint-inline{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);opacity:0.8;margin-left:8px;vertical-align:middle}
+  .work .run-row .analyze-btn:hover .kb-hint-inline{opacity:1}
+  .work .run-row .kb-hint-inline{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);opacity:.7;border:1px solid var(--ink-soft);border-radius:3px;padding:4px 8px;margin-left:8px;transition:opacity .2s}
+  .work .run-row .kb-hint-inline:hover{opacity:1;background:var(--ink);color:#fff}
   .work .run-row .ghost-btn{
     padding:14px 18px;
   }
