@@ -4028,3 +4028,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 82 of the autonomous loop (alternate add/polish): the homepage rewrite deserves a copy button too.
+
+**2026-08-06 02:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #83 of the restarted autonomous loop (polish).
+- polish(ui): the hero clarifier copy chip was overlapping the card's "ClearDoc ✦" corner label (both were top-right). It now sits at top:36px, safely below the label.
+- Extended the hero-copy smoke test with the no-overlap placement assertion.
+- Full suite green (490 unit + 273 smoke + 1 integration = 764 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 83 of the autonomous loop (alternate add/polish): the copy chip and the corner label should never collide.

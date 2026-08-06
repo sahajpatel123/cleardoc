@@ -1209,6 +1209,8 @@ test("home: hero clarifier card can copy the plain-English rewrite", () => {
   // CSS: chip styled on the card + focus ring
   assert.match(cssSrc, /\.hcard \.hcard-copy\{/,
     "theme.css must style .hcard-copy within the hero card");
+  assert.match(cssSrc, /\.hcard \.hcard-copy\{[^}]*top:36px/,
+    "the copy chip must sit below the 'ClearDoc ✦' corner label (no overlap)");
   assert.match(cssSrc, /\.hcard \.hcard-copy:focus-visible\{/,
     "the copy chip must have a visible focus ring");
 });
