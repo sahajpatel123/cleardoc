@@ -13244,9 +13244,12 @@
           '<span class="kc-num">' + (idx + 1) + '.</span>' +
           '<span class="kc-sev kc-tag-' + it.sev + '">' + (it.sev === 'r' ? 'trap' : it.sev === 'a' ? 'watch' : 'note') + '</span>' +
           '<span class="kc-text">' + esc(it.s.length > 220 ? it.s.slice(0, 217) + '…' : it.s) + '</span>' +
-          '<button type="button" class="kc-speak ghost-btn ghost-btn-sm" data-kc-speak="' + esc(it.s.slice(0, 200)) + '" title="Speak this clause aloud">🔊</button>' +
-          '<button type="button" class="kc-ask ghost-btn ghost-btn-sm" data-kc-ask="' + esc(it.s.slice(0, 240)) + '" data-kc-sev="' + esc(it.sev) + '" title="Ask about this clause" aria-label="Ask about this clause">💬</button>' +
-          '<button type="button" class="kc-row-copy ghost-btn ghost-btn-sm" data-kc-copy-text="' + esc(copyText) + '" title="Copy this key clause" aria-label="Copy this key clause">📋</button>' +
+          // Cycle #145 — the action trio hangs together inline.
+          '<span class="kc-actions">' +
+            '<button type="button" class="kc-speak ghost-btn ghost-btn-sm" data-kc-speak="' + esc(it.s.slice(0, 200)) + '" title="Speak this clause aloud">🔊</button>' +
+            '<button type="button" class="kc-ask ghost-btn ghost-btn-sm" data-kc-ask="' + esc(it.s.slice(0, 240)) + '" data-kc-sev="' + esc(it.sev) + '" title="Ask about this clause" aria-label="Ask about this clause">💬</button>' +
+            '<button type="button" class="kc-row-copy ghost-btn ghost-btn-sm" data-kc-copy-text="' + esc(copyText) + '" title="Copy this key clause" aria-label="Copy this key clause">📋</button>' +
+          '</span>' +
         '</li>';
       }).join('') + counterHtml;
       preview.hidden = false;

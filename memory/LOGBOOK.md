@@ -4670,3 +4670,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 144 of the autonomous loop (alternate add/polish): the clause you're told to read twice should quote itself in one click.
+
+**2026-08-06 05:44 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #145 of the restarted autonomous loop (polish).
+- polish(ui): the key-clause row's 🔊 speak, 💬 ask, and 📋 copy buttons now hang together in one inline `.kc-actions` cluster (wrapping on narrow screens), so the three actions read as a unit instead of loose inline siblings after the clause text.
+- Extended the cycle-144 smoke test with 2 assertions covering the group markup and the inline-flex CSS.
+- Full suite green (490 unit + 307 smoke + 1 integration = 798 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 145 of the autonomous loop (alternate add/polish): hear it, ask it, copy it — one tidy cluster per clause.

@@ -8269,6 +8269,7 @@ test("analyzer: Key-clause rows copy their citation in one click", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /const copyText = '\[KEY CLAUSE · ' \+ \(it\.sev === 'r' \? 'trap' : it\.sev === 'a' \? 'watch' : 'note'\) \+ '\] "' \+ it\.s \+ '"';/,
     "the citation must carry the severity label and the clause");
@@ -8284,6 +8285,10 @@ test("analyzer: Key-clause rows copy their citation in one click", () => {
     "copying must announce via toast");
   assert.match(appSrc, /copyBtn\.textContent = copied \? '✓' : '📋';/,
     "the button must flash its copied state");
+  assert.match(appSrc, /class="kc-actions"/,
+    "the speak + ask + copy buttons must be grouped into one cluster");
+  assert.match(cssSrc, /\.kc-actions\{[^}]*display:inline-flex/,
+    "the action cluster must lay out inline");
 });
 
 // Iter #102: signing checklist — surfaces marker-phrase clauses

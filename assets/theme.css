@@ -1569,6 +1569,7 @@ button.risk-preview:hover{filter:brightness(.96)}
 .kc-row.kc-a .kc-sev{background:var(--amber)}
 .kc-row.kc-g .kc-sev{background:var(--green)}
 .kc-row .kc-text{font-size:var(--t-meta);color:var(--ink)}
+.kc-actions{display:inline-flex;gap:4px;margin-left:8px;vertical-align:middle;flex-wrap:wrap}
 .kc-speak{margin-left:6px;font-size:11px;padding:1px 6px;cursor:pointer}
 .kc-controls{margin-top:4px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro)}
 .kc-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;font-size:var(--t-micro);margin-right:auto}
