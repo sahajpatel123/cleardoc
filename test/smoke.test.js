@@ -9203,6 +9203,33 @@ test("analyzer: Obligation tracker polish — done toggle + copy-all chip", () =
   assert.match(cssSrc, /\.action-controls\b/, ".action-controls style must exist");
 });
 
+// Cycle 78 feature: obligation CSV export for spreadsheet trackers.
+test("analyzer: Obligation tracker exports a CSV with done status", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="actionCsvBtn" title="Download obligations as a \.csv file for a tracker"/,
+    "the obligation controls must include a CSV chip");
+  assert.match(appSrc, /actionCsvBtn\.addEventListener\(\s*['"]click['"]/,
+    "the CSV chip must have a click handler");
+  assert.match(appSrc, /doneMap\['ob-' \+ idx\] \? 'done' : 'todo'/,
+    "the Status column must reflect the live done state");
+  assert.match(appSrc, /csvCell\('Status'\) \+ ',' \+ csvCell\('Verb'\) \+ ',' \+ csvCell\('Sentence'\)/,
+    "the CSV must have Status, Verb, and Sentence columns in that order");
+  assert.match(appSrc, /csvCell\(doneCount \+ ' of ' \+ items\.length \+ ' done'\)/,
+    "the CSV must open with a Progress metadata row");
+  assert.match(appSrc, /'⚠ Nothing to export yet'/,
+    "the export must guard the empty state");
+  assert.match(appSrc, /const text = '\\uFEFF' \+ header \+ '\\n' \+ body;/,
+    "the download must start with a UTF-8 BOM");
+  assert.match(appSrc, /a\.download = 'cleardoc-obligations-' \+ stamp \+ '\.csv'/,
+    "the filename must be cleardoc-obligations-<date>.csv");
+  assert.match(appSrc, /'📊 Obligations CSV downloaded \(' \+ rows\.length/,
+    "the export must toast with the row count");
+});
+
 // Iter #158: analysis confidence — rates how reliable this run is.
 test("analyzer: Analysis confidence rates how reliable the result is", () => {
   if (!HAS_BROWSER) return;

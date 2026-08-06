@@ -6164,6 +6164,7 @@
       const controls = '<div class="action-controls">' +
         '<span class="action-count"><b>' + doneCount + '</b> of ' + items.length + ' done · ' + mandatory + ' must · ' + permissive + ' may</span>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="actionCopyAllBtn" title="Copy all obligations as plain text">📋 copy all</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="actionCsvBtn" title="Download obligations as a .csv file for a tracker">📊 CSV</button>' +
       '</div>';
       actionList.innerHTML = rows + controls;
       actionBlock2.hidden = false;
@@ -6203,6 +6204,42 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Obligations copied (' + items.length + ')' : '⚠ Couldn’t copy');
           copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
           setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
+        });
+      }
+      // Cycle 78 feature — obligation CSV export: Status (done/todo),
+      // Verb, and Sentence columns for spreadsheet trackers, hardened
+      // like the other exports (OWASP guard + BOM + progress metadata).
+      const actionCsvBtn = document.getElementById('actionCsvBtn');
+      if(actionCsvBtn){
+        actionCsvBtn.addEventListener('click', () => {
+          const rows = [];
+          items.forEach((it, idx) => {
+            const snip = (it.sentence || '').slice(0, 200);
+            rows.push([doneMap['ob-' + idx] ? 'done' : 'todo', it.verb, snip]);
+          });
+          if(!rows.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to export yet');
+            return;
+          }
+          const csvCell = (v) => {
+            let s = String(v || '');
+            if(/^[=+\-@]/.test(s)) s = "'" + s;
+            return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+          };
+          const header = csvCell('Progress') + ',' + csvCell(doneCount + ' of ' + items.length + ' done') + '\n' + csvCell('Status') + ',' + csvCell('Verb') + ',' + csvCell('Sentence');
+          const body = rows.map(r => csvCell(r[0]) + ',' + csvCell(r[1]) + ',' + csvCell(r[2])).join('\n');
+          const text = '\uFEFF' + header + '\n' + body;
+          try{
+            const stamp = new Date().toISOString().slice(0,10);
+            const url = URL.createObjectURL(new Blob([text], { type:'text/csv;charset=utf-8' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-obligations-' + stamp + '.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📊 Obligations CSV downloaded (' + rows.length + ')');
+          }catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create CSV file');
+          }
         });
       }
     }

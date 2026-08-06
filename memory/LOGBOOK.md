@@ -3978,3 +3978,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 77 of the autonomous loop (alternate add/polish): the urgency banner should be reachable by keyboard, not just mouse.
+
+**2026-08-06 01:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #78 of the restarted autonomous loop (feature add).
+- feat(ui): the Obligation tracker now has a "📊 CSV" chip that downloads every action verb as cleardoc-obligations-<date>.csv with Status (done/todo, live), Verb, and Sentence columns — plus a Progress metadata row, OWASP formula guard, and UTF-8 BOM, matching the other spreadsheet exports.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 271 smoke + 1 integration = 762 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 78 of the autonomous loop (alternate add/polish): every actionable list in the app now exports to a spreadsheet.
