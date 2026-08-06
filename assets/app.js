@@ -10352,9 +10352,11 @@
           '<div class="bearer-row-head">' + tag + '<span class="bearer-row-name">' + esc(it.label) + '</span></div>' +
           '<div class="bearer-quote">"' + esc(trunc(it.quote, 240)) + '"</div>' +
           '<div class="bearer-explain">' + esc(it.why) + '</div>' +
-          // Cycle #132 — one-click ask about this risk allocation.
-          '<button type="button" class="bearer-ask ghost-btn ghost-btn-sm" data-bearer-ask="' + esc(trunc(it.quote, 160)) + '" data-bearer-side="' + esc(it.side) + '" title="Ask about this risk" aria-label="Ask about this risk">💬</button>' +
-          '<button type="button" class="bearer-row-copy ghost-btn ghost-btn-sm" data-bearer-copy-text="' + esc(copyVal) + '" title="Copy this risk allocation" aria-label="Copy this risk allocation">📋</button>' +
+          // Cycle #159 — the ask + copy actions hang together right-aligned.
+          '<span class="bearer-actions">' +
+            '<button type="button" class="bearer-ask ghost-btn ghost-btn-sm" data-bearer-ask="' + esc(trunc(it.quote, 160)) + '" data-bearer-side="' + esc(it.side) + '" title="Ask about this risk" aria-label="Ask about this risk">💬</button>' +
+            '<button type="button" class="bearer-row-copy ghost-btn ghost-btn-sm" data-bearer-copy-text="' + esc(copyVal) + '" title="Copy this risk allocation" aria-label="Copy this risk allocation">📋</button>' +
+          '</span>' +
         '</div>';
       }).join('');
       const filterChips = '<div class="bearer-filter-row">' +

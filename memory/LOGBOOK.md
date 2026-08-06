@@ -4810,3 +4810,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 158 of the autonomous loop (alternate add/polish): the risk that lands on you should copy with its who-pays answer in one click.
+
+**2026-08-06 09:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #159 of the restarted autonomous loop (polish).
+- polish(ui): the bearer row's 💬 ask and 📋 copy buttons now hang together in a right-aligned `.bearer-actions` row (shrink-proof, copy focus-ringed) instead of stacking full-width in the column layout.
+- Extended the cycle-158 smoke test with 3 assertions covering the group markup, the right-alignment CSS, and the copy focus ring.
+- Full suite green (490 unit + 315 smoke + 1 integration = 806 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 159 of the autonomous loop (alternate add/polish): ask and copy should share one tidy corner of every risk row.

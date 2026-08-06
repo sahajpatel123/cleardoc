@@ -9636,6 +9636,7 @@ test("analyzer: Bearer rows copy their risk allocation in one click", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /const copyVal = '\[BEARER · ' \+ \(it\.side === 'you' \? 'you' : it\.side === 'them' \? 'them' : 'shared'\) \+ '\] ' \+ it\.label \+ ': "' \+ trunc\(it\.quote, 200\) \+ '"'/,
     "the citation must carry the side, label, and quoted clause");
@@ -9651,6 +9652,12 @@ test("analyzer: Bearer rows copy their risk allocation in one click", () => {
     "copying must announce via toast");
   assert.match(appSrc, /<b>📋<\/b> to copy one/,
     "the block note must document the copy action");
+  assert.match(appSrc, /class="bearer-actions"/,
+    "the ask + copy buttons must be grouped into one action row");
+  assert.match(cssSrc, /\.bearer-actions\{[^}]*justify-content:flex-end/,
+    "the action row must right-align");
+  assert.match(cssSrc, /\.bearer-row-copy:focus-visible\{/,
+    "the copy button must have a focus ring");
 });
 
 // Cycle #134 — per-chunk copy in the reading list.
