@@ -4720,3 +4720,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 149 of the autonomous loop (alternate add/polish): the three scenario actions should hold their corner at every width.
+
+**2026-08-06 06:54 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #150 of the restarted autonomous loop (add) — milestone cycle (801 tests).
+- feat(ui): every pressure card now has a 🔊, speak button in its header — clicking it reads the pushiest language aloud via SpeechSynthesis at the user's chosen pace (`getTtsRate()`), with a dedicated `[data-pressure-speak]` branch in the card handler so it never triggers the done-toggle, copy, or jump behaviors. The block note documents the action, completing the pressure card's action set (review / hear / copy).
+- New smoke test "Pressure cards read the pressure clause aloud in one click" — 6 assertions covering the button markup, clause data, click-handler branch, utterance creation, reading-speed respect, and note.
+- Full suite green (490 unit + 310 smoke + 1 integration = 801 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 150 of the autonomous loop (alternate add/polish): a clause engineered to rush you should be heard slowly.

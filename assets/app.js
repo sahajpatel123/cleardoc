@@ -9044,6 +9044,8 @@
             '<div class="pressure-card-head">' +
               '<span class="pressure-kind ' + sevKind + '">' + sevLabel + '</span>' +
               '<span class="pressure-meta">[' + esc(it.kind) + '] ' + (idx + 1) + ' of ' + visible.length + (done ? ' · ✓ reviewed' : '') + '</span>' +
+              // Cycle #150 — hear the pushiest language aloud.
+              '<button type="button" class="pressure-speak ghost-btn ghost-btn-sm" data-pressure-speak="' + esc(it.sentence) + '" title="Read this pressure clause aloud" aria-label="Read this pressure clause aloud">🔊</button>' +
               '<button type="button" class="pressure-copy ghost-btn ghost-btn-sm" data-pressure-copy-text="' + esc(copyText) + '" title="Copy this pressure clause as a citation" aria-label="Copy this pressure clause as a citation">📋</button>' +
             '</div>' +
             '<div class="pressure-quote">"' + highlightQuote(it.sentence, it.matched) + '"</div>' +
@@ -9126,13 +9128,29 @@
         pressureNote.innerHTML = '<span class="riskNote-lead">Pressure score ' + r.pressureScore + '/100</span> · ' +
           'Real contracts rarely need to be signed "today only". We extract every clause designed to rush you into action: hard deadlines, manufactured scarcity, emotional pressure, and "sole discretion" language. ' +
           skNote + (skNote ? ' ' : '') +
-          'Each card shows the verbatim quote with the trigger phrase highlighted, why it matters, and what to do instead. Click <b>○</b> to mark a tactic as reviewed (progress persists). ' + cooldownNote + ' <b>📋 copy list</b> exports the full list.' + filterNote;
+          'Each card shows the verbatim quote with the trigger phrase highlighted, why it matters, and what to do instead. Click <b>○</b> to mark a tactic as reviewed (progress persists). ' + cooldownNote + ' <b>📋 copy list</b> exports the full list. <b>🔊</b> reads one aloud.' + filterNote;
       }
       // Click-to-jump — but don't fire when the user clicks the done
       // checkbox (which is a button inside the card).
       $$('.pressure-card', pressureGrid).forEach(card => {
         card.addEventListener('click', async (e) => {
           if(e.target && e.target.closest('.pressure-done')) return;
+          // Cycle #150 — 🔊, reads the pressure clause instead of jumping.
+          const speakBtn = e.target.closest && e.target.closest('[data-pressure-speak]');
+          if(speakBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = speakBtn.getAttribute('data-pressure-speak') || '';
+            if(text && typeof window !== 'undefined' && 'speechSynthesis' in window){
+              try {
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = getTtsRate();
+                window.speechSynthesis.speak(u);
+              } catch(_){ /* ignore */ }
+            }
+            return;
+          }
           // Cycle #126 — 📋 copies the card as a citation instead of jumping.
           const copyBtn = e.target.closest && e.target.closest('[data-pressure-copy-text]');
           if(copyBtn){

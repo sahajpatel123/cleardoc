@@ -10910,6 +10910,27 @@ test("analyzer: Pressure cards copy their citation in one click", () => {
     "the copy button must right-align in the head");
 });
 
+// Cycle #150 — hear any pressure clause aloud.
+test("analyzer: Pressure cards read the pressure clause aloud in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="pressure-speak ghost-btn ghost-btn-sm"/,
+    "each pressure card must render a speak button");
+  assert.match(appSrc, /data-pressure-speak="' \+ esc\(it\.sentence\) \+ '"/,
+    "the speak button must carry the pressure clause");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-pressure-speak\]'\)/,
+    "the card click handler must catch speak-button clicks");
+  assert.match(appSrc, /new SpeechSynthesisUtterance\(text\)/,
+    "clicking must speak the pressure clause");
+  assert.match(appSrc, /u\.rate = getTtsRate\(\);/,
+    "the reading must respect the chosen speed");
+  assert.match(appSrc, /🔊<\/b> reads one aloud\./,
+    "the block note must document the speak action");
+});
+
 // Iter #218 v2: JSON export polish — download button + DOM-extracted
 // deadlines/nextSteps + counter-clauses + P0/P1/P2 priority tags.
 test("analyzer: JSON export includes download, deadlines from DOM, counter-clauses, and priority tags", () => {
