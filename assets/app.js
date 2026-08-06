@@ -9889,6 +9889,13 @@
         const offset = s.sourceOffset >= 0 ? s.sourceOffset : -1;
         const offsetAttr = offset >= 0 ? ' data-scenario-offset="' + offset + '"' : '';
         const jumpHint = offset >= 0 ? ' · click card to jump to source' : '';
+        // Cycle #130 — per-card copy citation (mirrors the smoking-gun /
+        // exposure / pressure copy buttons).
+        const copyText = '[SCENARIO · ' + (s.severity === 'bad' ? 'BAD' : s.severity === 'warn' ? 'CAUTION' : 'FAVORABLE') + '] IF: ' +
+          (s.ifText || '') + ' → THEN: ' + (s.thenText || '') +
+          (s.detail ? '\nDetail: ' + s.detail : '') +
+          (s.suggestion ? '\nCounter: ' + s.suggestion : '') +
+          '\n— ClearDoc scenario citation';
         return '<div class="scenario-card ' + cardCls + '" data-scenario-kind="' + esc(s.kind) + '"' + offsetAttr + ' title="' + esc(s.evidence) + jumpHint + '">' +
           '<span class="scenario-trigger ' + trigCls + '">' + esc(sevLabel) + ' · ' + esc(s.kind) + '</span>' +
           '<div class="scenario-flow">' +
@@ -9898,6 +9905,7 @@
           '<div class="scenario-detail">' + esc(s.detail) + '</div>' +
           suggestionHtml +
           '<button type="button" class="scenario-ask ghost-btn ghost-btn-sm" data-scenario-ask="' + esc((s.ifText || '') + ' → ' + (s.thenText || '')) + '" data-scenario-sev="' + esc(s.severity) + '" title="Ask about this scenario" aria-label="Ask about this scenario">💬</button>' +
+          '<button type="button" class="scenario-copy ghost-btn ghost-btn-sm" data-scenario-copy-text="' + esc(copyText) + '" title="Copy this scenario as a citation" aria-label="Copy this scenario as a citation">📋</button>' +
         '</div>';
       }).join('');
       const badCount = ordered.filter(s => s.severity === 'bad').length;
@@ -9942,12 +9950,33 @@
         const filterNote = sevFilter !== 'all' ? ' Showing only <b>' + (sevFilter === 'bad' ? '🔴 bad' : sevFilter === 'warn' ? '🟡 caution' : '🟢 favorable') + '</b>.' : '';
         scenarioNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
           'Pure-local. Each scenario composes existing analyzer signals into a concrete <b>IF … THEN …</b> prediction, plus a counter-suggestion showing what to negotiate. ' + tone + ' Click any card to jump to the source clause. <b>📋 markdown</b> exports a checklist you can bring to a lawyer.' + filterNote;
-        scenarioNote.innerHTML += ' <b>💬</b> asks the document about a scenario.';
+        scenarioNote.innerHTML += ' <b>💬</b> asks the document about a scenario. <b>📋</b> copies one as a citation.';
       }
       // Iter #197 — click-to-jump on each card using the captured
       // source offset.
       $$('.scenario-card', scenarioGrid).forEach(card => {
-        card.addEventListener('click', (e) => {
+        card.addEventListener('click', async (e) => {
+          // Cycle #130 — 📋 copies the card as a citation instead of jumping.
+          const copyBtn = e.target.closest && e.target.closest('[data-scenario-copy-text]');
+          if(copyBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = copyBtn.getAttribute('data-scenario-copy-text') || '';
+            if(!text) return;
+            let copied = false;
+            try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+            if(!copied){
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                copied = true;
+              } catch(_){ /* ignore */ }
+            }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Scenario citation copied' : '⚠ Couldn’t copy');
+            copyBtn.textContent = copied ? '✓' : '📋';
+            if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋'; }, 1500);
+            return;
+          }
           // Cycle #116 — 💬 ask about this scenario: prefill the Ask
           // panel instead of jumping to source.
           const askBtn = e.target.closest && e.target.closest('[data-scenario-ask]');

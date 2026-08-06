@@ -9431,6 +9431,31 @@ test("analyzer: Scenario cards can ask the document about the scenario in one cl
     "the a shortcut must also cover scenario cards");
 });
 
+// Cycle #130 — per-scenario-card copy citation.
+test("analyzer: Scenario cards copy their citation in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="scenario-copy ghost-btn ghost-btn-sm"/,
+    "each scenario card must render a copy button");
+  assert.match(appSrc, /const copyText = '\[SCENARIO · '/,
+    "the citation must open with the SCENARIO tag");
+  assert.match(appSrc, /IF: ' \+\s*\(s\.ifText \|\| ''\) \+ ' → THEN: '/,
+    "the citation must carry the IF … THEN prediction");
+  assert.match(appSrc, /data-scenario-copy-text="' \+ esc\(copyText\) \+ '"/,
+    "the copy button must carry the prebuilt citation");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-scenario-copy-text\]'\)/,
+    "the card click handler must catch copy-button clicks");
+  assert.match(appSrc, /📋 Scenario citation copied/,
+    "copying must announce via toast");
+  assert.match(appSrc, /copyBtn\.textContent = copied \? '✓' : '📋';/,
+    "the button must flash its copied state");
+  assert.match(appSrc, /<b>📋<\/b> copies one as a citation\./,
+    "the block note must document the copy action");
+});
+
 // Iter #140: section risk map — aggregates risk patterns by
 // clause category and renders weighted horizontal bars.
 test("analyzer: Section risk map aggregates risk by clause category", () => {

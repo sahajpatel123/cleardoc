@@ -4520,3 +4520,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 129 of the autonomous loop (alternate add/polish): term, count, and speaker on one line; meaning below — no stacking surprises.
+
+**2026-08-06 02:14 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #130 of the restarted autonomous loop (add) — milestone cycle.
+- feat(ui): every scenario card now has a one-click 📋 copy-citation button next to the 💬 ask button — "[SCENARIO · BAD/CAUTION/FAVORABLE] IF: … → THEN: …" plus the detail and counter-suggestion, with clipboard API + `execCommand` fallback, toast, and a ✓ flash. The card click handler has a dedicated `[data-scenario-copy-text]` branch, so copying never triggers jump-to-source; the block note documents both ask and copy.
+- New smoke test "Scenario cards copy their citation in one click" — 8 assertions covering the button markup, SCENARIO tag, IF…THEN shape, prebuilt data attribute, click-handler branch, toast, flash, and note.
+- Full suite green (490 unit + 300 smoke + 1 integration = 791 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 130 of the autonomous loop (alternate add/polish): a predicted "if this, then that" should copy with its counter-suggestion in one click.
