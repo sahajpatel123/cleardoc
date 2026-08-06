@@ -1514,10 +1514,11 @@
   // iter #207: click-to-expand risk row — toggles the inline counter-
   // suggestion panel. Delegated click handler on riskList (so re-
   // renders don't double-bind). Ignores clicks that originate on the
-  // existing 💬 (rrow-ask) button or the ▾ toggle (rrow-expand) so the
-  // affordances don't fight each other. AI risks that lack a counter
-  // field don't get an expand button, so this handler is a no-op for
-  // those rows.
+  // per-action buttons (💬 ask / 📋 copy / 🔊, speak / ⚡ fix / the
+  // counter-copy) so those keep their own handlers. The ▾ toggle
+  // (rrow-expand) is NOT excluded — it is the expand affordance.
+  // AI risks that lack a counter field don't get an expand button, so
+  // this handler is a no-op for those rows.
   function wireRiskRowExpand(){
     const list = document.getElementById('riskList');
     if(!list || list._expandWired) return;
@@ -1525,7 +1526,7 @@
     list.addEventListener('click', e => {
       // Don't toggle when clicking the existing 💬 ask button or the
       // expand ▾ toggle (those have their own handlers).
-      if(e.target.closest && (e.target.closest('.rrow-ask') || e.target.closest('.rrow-expand') || e.target.closest('.rrow-fix') || e.target.closest('.rrow-copy') || e.target.closest('.rrow-speak'))) return;
+      if(e.target.closest && (e.target.closest('.rrow-ask') || e.target.closest('.rrow-fix') || e.target.closest('.rrow-copy') || e.target.closest('.rrow-speak') || e.target.closest('.rrow-counter-copy'))) return;
       const row = e.target.closest && e.target.closest('.rrow');
       if(!row) return;
       const counter = row.querySelector('.rrow-counter');
@@ -1539,6 +1540,36 @@
       }
     });
   }
+  // Cycle #184 — copy the counter-suggestion: every expanded risk-row
+  // counter panel gets a 📋 copy button (delegated so re-renders don't
+  // double-bind). The expand toggle ignores it, and it never collapses
+  // the panel it lives in.
+  function wireRrowCounterCopy(){
+    const list = document.getElementById('riskList');
+    if(!list || list._rrowCounterCopyWired) return;
+    list._rrowCounterCopyWired = true;
+    list.addEventListener('click', async (e) => {
+      const btn = e.target.closest && e.target.closest('[data-counter-copy-text]');
+      if(!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const text = btn.getAttribute('data-counter-copy-text') || '';
+      if(!text) return;
+      let copied = false;
+      try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+      if(!copied){
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+          copied = true;
+        } catch(_){ /* ignore */ }
+      }
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Counter-suggestion copied' : '⚠ Couldn’t copy');
+      btn.textContent = copied ? '✓' : '📋 copy';
+      if(copied) setTimeout(() => { if(btn.isConnected) btn.textContent = '📋 copy'; }, 1500);
+    });
+  }
+  wireRrowCounterCopy();
   // iter #204 v2: keyboard shortcuts on a focused risk row — 'a' asks
   // about the flagged clause, 'e' expands its counter-suggestion.
   // Delegated handler on riskList so we wire once and never re-bind.
@@ -14686,7 +14717,7 @@
         // `counter` field; AI risks may not — gate the expand UI on
         // its presence so we don't show a broken toggle.
         const counterHtml = counter
-          ? '<div class="rrow-counter no-print" hidden><span class="rrow-counter-lbl">Counter-suggestion · ask for this instead</span><span class="rrow-counter-text">'+esc(counter)+'</span></div>'
+          ? '<div class="rrow-counter no-print" hidden><span class="rrow-counter-lbl">Counter-suggestion · ask for this instead</span><span class="rrow-counter-text">'+esc(counter)+'</span><button type="button" class="rrow-counter-copy no-print" data-counter-copy-text="'+esc(counter)+'" title="Copy this counter-suggestion" aria-label="Copy this counter-suggestion">📋 copy</button></div>'
           : '';
         row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>'+counterHtml+
           (counter ? '<button type="button" class="rrow-expand" aria-expanded="false" title="Show counter-suggestion">▾</button>' : '');
@@ -15339,7 +15370,7 @@
           const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev; row.id='risk-'+i;
           const counter = f && f.rule && f.rule.counter;
           const counterHtml = counter
-            ? '<div class="rrow-counter no-print" hidden><span class="rrow-counter-lbl">Counter-suggestion · ask for this instead</span><span class="rrow-counter-text">'+esc(counter)+'</span></div>'
+            ? '<div class="rrow-counter no-print" hidden><span class="rrow-counter-lbl">Counter-suggestion · ask for this instead</span><span class="rrow-counter-text">'+esc(counter)+'</span><button type="button" class="rrow-counter-copy no-print" data-counter-copy-text="'+esc(counter)+'" title="Copy this counter-suggestion" aria-label="Copy this counter-suggestion">📋 copy</button></div>'
             : '';
           row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>'+counterHtml+
             (counter ? '<button type="button" class="rrow-expand" aria-expanded="false" title="Show counter-suggestion">▾</button>' : '');

@@ -5078,3 +5078,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 183 of the autonomous loop (alternate add/polish): a sample is a suggestion — your half-written clause is the work, and the app should never confuse the two.
+
+**2026-08-06 21:13 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #184 of the restarted autonomous loop (add).
+- feat(risks): the expanded counter-suggestion panel on every risk row now has a one-click 📋 copy button (both local and AI render paths), wired once through a delegated `wireRrowCounterCopy()` handler with clipboard API + `execCommand` fallback, a toast, and a ✓ flash — and clicking it never collapses the panel.
+- Bug fixed in-process: the ▾ expand button itself had NO click handler — the row-click toggle explicitly excluded `.rrow-expand` under a stale comment claiming it "has its own handlers" (only the keyboard `e` shortcut existed), so clicking the button did nothing. The exclude list now covers only the per-action buttons (ask/copy/speak/fix/counter-copy), and the ▾ toggle expands the panel like the row does. The browser probe caught this: the first probe's expand click no-op'd, which led to the fix; after it, the ▾ click expanded (▴ glyph), and the copy click flashed ✓ + toasted without closing the panel; zero console errors.
+- New smoke test "analyzer: risk counter-suggestions copy in one click" — 10 assertions (both render paths, expand-ignore for the copy button, expand-button not excluded, delegated wiring, handler selector, toast, flash, CSS).
+- Full suite green (490 unit + 324 smoke + 1 integration = 815 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 184 of the autonomous loop (alternate add/polish): "ask for this instead" should be as easy to save as the clause it answers — and the button that opens it should actually work.

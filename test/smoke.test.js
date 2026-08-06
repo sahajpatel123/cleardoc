@@ -11283,6 +11283,36 @@ test("analyzer: risk rows carry deep-link ids and the page honors #risk-N", () =
   assert.match(cssSrc, /\.rrow-deeplink\{/, "the deep-link highlight must be styled");
 });
 
+// Cycle #184 — copy the counter-suggestion: the expanded risk-row counter
+// panel gets a one-click 📋 copy button in both render paths.
+test("analyzer: risk counter-suggestions copy in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  const counterButtons = (appSrc.match(/data-counter-copy-text="'\+esc\(counter\)\+'" title="Copy this counter-suggestion"/g) || []).length;
+  assert.ok(counterButtons >= 2,
+    "both the local and AI risk render paths must render a counter-copy button");
+  assert.match(appSrc, /e\.target\.closest\('\.rrow-speak'\) \|\| e\.target\.closest\('\.rrow-counter-copy'\)\)/,
+    "the expand toggle must ignore clicks on the counter-copy button");
+  assert.doesNotMatch(appSrc, /closest\('\.rrow-ask'\) \|\| e\.target\.closest\('\.rrow-expand'\)/,
+    "the ▾ expand button itself must not be excluded from the row toggle");
+  assert.match(appSrc, /function wireRrowCounterCopy\(\)\{/,
+    "a delegated counter-copy handler must exist");
+  assert.match(appSrc, /list\._rrowCounterCopyWired = true;/,
+    "the counter-copy handler must wire once");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-counter-copy-text\]'\)/,
+    "the handler must catch counter-copy clicks");
+  assert.match(appSrc, /'📋 Counter-suggestion copied'/,
+    "copying must toast on success");
+  assert.match(appSrc, /btn\.textContent = copied \? '✓' : '📋 copy';/,
+    "the button must flash confirmation");
+  assert.match(cssSrc, /\.rrow-counter-copy\{/, "the counter-copy button must be styled");
+  assert.match(cssSrc, /\.rrow-counter-copy:focus-visible\{/, "the counter-copy button must have a focus ring");
+});
+
 // Cycle #122 — per-smoking-gun copy citation.
 test("analyzer: Smoking-gun cards copy their citation in one click", () => {
   if (!HAS_BROWSER) return;
