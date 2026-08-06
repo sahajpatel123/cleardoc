@@ -20522,20 +20522,25 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       const dr = document.getElementById('deadlineReminder');
       if(dr) dr.hidden = true;
     });
-    // Cycle #180 — snooze the deadline reminder until tomorrow (persisted,
-    // unlike the visit-only Dismiss).
-    const deadlineReminderSnoozeBtn = document.getElementById('deadlineReminderSnoozeBtn');
-    if(deadlineReminderSnoozeBtn) deadlineReminderSnoozeBtn.addEventListener('click', () => {
+    // Cycle #180 — snooze the deadline reminder (persisted, unlike the
+    // visit-only Dismiss). Cycle #230 — pick the horizon: 1 / 3 / 7 days.
+    const snoozeDeadlineReminder = (days) => {
       try {
         const d = new Date();
-        d.setDate(d.getDate() + 1);
+        d.setDate(d.getDate() + days);
         const until = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         localStorage.setItem('cleardoc:deadlineSnooze', JSON.stringify({ until, ts: Date.now() }));
       } catch(_){ /* ignore */ }
       const dr = document.getElementById('deadlineReminder');
       if(dr) dr.hidden = true;
-      if(typeof showAnalyzeToast === 'function') showAnalyzeToast('😴 Reminder snoozed until tomorrow');
-    });
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(days === 1 ? '😴 Reminder snoozed until tomorrow' : '😴 Reminder snoozed for ' + days + ' days');
+    };
+    const deadlineReminderSnoozeBtn = document.getElementById('deadlineReminderSnoozeBtn');
+    if(deadlineReminderSnoozeBtn) deadlineReminderSnoozeBtn.addEventListener('click', () => snoozeDeadlineReminder(1));
+    const deadlineReminderSnooze3Btn = document.getElementById('deadlineReminderSnooze3Btn');
+    if(deadlineReminderSnooze3Btn) deadlineReminderSnooze3Btn.addEventListener('click', () => snoozeDeadlineReminder(3));
+    const deadlineReminderSnooze7Btn = document.getElementById('deadlineReminderSnooze7Btn');
+    if(deadlineReminderSnooze7Btn) deadlineReminderSnooze7Btn.addEventListener('click', () => snoozeDeadlineReminder(7));
     $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ setFocusMode(false); setPrivacyBlur(false); input.value=q.dataset.fill; clearAttachments(); clearDraft(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} updateTextStats(); }));
     if(copyDraftBtn) copyDraftBtn.addEventListener('click',async()=>{ if(!draftOut||!draftOut.value)return; try{ await navigator.clipboard.writeText(draftOut.value); copyDraftBtn.textContent='Copied'; setTimeout(()=>copyDraftBtn.textContent='Copy draft',1400); }catch(_){ draftOut.focus(); draftOut.select(); } });
     if(verdictCopyBtn) verdictCopyBtn.addEventListener('click',async()=>{

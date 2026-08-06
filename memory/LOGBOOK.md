@@ -5588,3 +5588,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 229 of the autonomous loop (alternate add/polish): a board card that only moves in a toast is a bug wearing a feature's clothes — persist the move, then let the keyboard move it too.
+
+**2026-08-07 02:52 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #230 of the restructured autonomous loop (add).
+- feat(deadlines): the deadline reminder's snooze is no longer fixed at "until tomorrow" — the banner now offers 😴 1d / 3d / 7d, all persisted to `cleardoc:deadlineSnooze` via a shared `snoozeDeadlineReminder(days)` helper (multi-day snoozes toast "snoozed for N days").
+- Verified in a real browser via a new integration test: seeded the reminder record, loaded the analyzer from a fresh origin (no service-worker/cache interference), waited for the banner to appear, clicked the 3-day snooze, and asserted `cleardoc:deadlineSnooze.until` equals today+3 with the banner hidden — zero console errors.
+- Test-harness discovery (valuable for every future browser test): the GSAP preloader delays app init by ~2–3s, so Playwright assertions that read app state immediately after load race the initialization. The new test waits for the banner to become visible instead of racing it. This also retroactively explains earlier "mystery" failures where markers set during init appeared unset.
+- New smoke source test additions (6 assertions: 3d/7d buttons in analyze.html, shared days-based helper, wiring for 3/7, days-based toast) on top of the existing snooze test.
+- Full suite green (490 unit + 345 smoke + 4 integration = 839 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 230 of the autonomous loop (alternate add/polish): a reminder that only knows "tomorrow" is a nudge, not a tool — let users snooze for the length of their actual deadline horizon.

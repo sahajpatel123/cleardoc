@@ -240,7 +240,6 @@ skip("integration: reading list downloads a CSV tracker file", async () => {
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
   page.on("pageerror", (e) => errors.push(String(e)));
-
   await page.addInitScript(() => {
     const MOCK = {
       analysis: {
@@ -382,4 +381,82 @@ skip("integration: strategy board downloads a CSV tracker file", async () => {
 
   await page.close();
   await ctx.close();
+});
+
+// Cycle #230 — the deadline reminder can be snoozed for 1 / 3 / 7 days.
+skip("integration: deadline reminder snoozes for a chosen horizon", async () => {
+  // Serve from a fresh origin so no service worker / shared cache can
+  // intercept the navigation or the assets (Playwright's init script
+  // only reliably runs on a genuinely fresh document).
+  const WEB2 = 4341;
+  const web2 = staticServer();
+  await new Promise((r) => web2.listen(WEB2, r));
+  const fctx = await browser.newContext();
+  const page = await fctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+
+  await page.addInitScript(() => {
+    const MOCK = {
+      analysis: {
+        plainEnglishRewrite: "<b>This is a rewritten clause.</b> It says you must pay within 30 days.",
+        risks: [],
+        verdict: { label: "Suspicious", summary: "One clause deserves attention before signing." },
+        deadlines: [],
+        nextSteps: ["Calendar the cancellation deadline."],
+        readingLevel: { before: 14, after: 8 },
+        jargonFound: 7,
+      },
+    };
+    const origFetch = window.fetch.bind(window);
+    window.fetch = function patchedFetch(url, opts) {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (u.endsWith("/api/analyze")) {
+        return Promise.resolve(new Response(JSON.stringify(MOCK), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return origFetch(url, opts);
+    };
+    localStorage.setItem("cleardoc:upcomingDeadlines", JSON.stringify({
+      ts: Date.now(),
+      fp: "probe",
+      docName: "probe",
+      items: [{ date: "2099-01-01", label: "Renewal notice", days: 5 }],
+    }));
+  });
+
+  try {
+    await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
+    const banner = await page.$("#deadlineReminder");
+    assert.ok(banner, "the reminder banner must exist in the DOM");
+    // The preloader animation delays app init by a couple of seconds, so
+    // wait for the banner to actually appear rather than racing it.
+    await page.waitForFunction(() => {
+      const el = document.getElementById("deadlineReminder");
+      return el && !el.hidden;
+    }, { timeout: 8000 });
+    const visibleBefore = await page.$eval("#deadlineReminder", (el) => !el.hidden);
+    assert.equal(visibleBefore, true, "a returning user with deadlines must see the reminder");
+
+    await page.click("#deadlineReminderSnooze3Btn");
+    await page.waitForTimeout(200);
+    const snooze = await page.evaluate(() => JSON.parse(localStorage.getItem("cleardoc:deadlineSnooze") || "null"));
+    const hiddenAfter = await page.$eval("#deadlineReminder", (el) => el.hidden);
+    const expected = (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 3);
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    })();
+    assert.ok(snooze && snooze.until === expected,
+      `3-day snooze must persist until=${expected}, got ${JSON.stringify(snooze)}`);
+    assert.equal(hiddenAfter, true, "the reminder must hide after snoozing");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await fctx.close();
+    await new Promise((r) => web2.close(r));
+  }
 });

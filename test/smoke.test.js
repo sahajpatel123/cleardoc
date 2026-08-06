@@ -11488,6 +11488,19 @@ test("analyzer: Returning users get an upcoming-deadline reminder banner", () =>
     "snooze must persist the until-date");
   assert.match(appSrc, /'😴 Reminder snoozed until tomorrow'/,
     "snooze must confirm with a toast");
+  // Cycle #230 — snooze horizons: 1 / 3 / 7 days.
+  assert.match(html, /id="deadlineReminderSnooze3Btn" type="button" aria-label="Snooze the deadline reminder for 3 days"/,
+    "the banner must offer a 3-day snooze");
+  assert.match(html, /id="deadlineReminderSnooze7Btn" type="button" aria-label="Snooze the deadline reminder for 7 days"/,
+    "the banner must offer a 7-day snooze");
+  assert.match(appSrc, /const snoozeDeadlineReminder = \(days\) => \{/,
+    "snoozing must live in a shared days-based helper");
+  assert.match(appSrc, /deadlineReminderSnooze3Btn\) deadlineReminderSnooze3Btn\.addEventListener\('click', \(\) => snoozeDeadlineReminder\(3\)\);/,
+    "the 3-day button must be wired to the helper");
+  assert.match(appSrc, /deadlineReminderSnooze7Btn\) deadlineReminderSnooze7Btn\.addEventListener\('click', \(\) => snoozeDeadlineReminder\(7\)\);/,
+    "the 7-day button must be wired to the helper");
+  assert.match(appSrc, /'😴 Reminder snoozed for ' \+ days \+ ' days'/,
+    "multi-day snoozes must confirm with a days-based toast");
   const snoozeClears = (appSrc.match(/cleardoc:deadlineSnooze'\); \} catch\(_\)\{ \/\* ignore \*\/ \}/g) || []).length;
   assert.ok(snoozeClears >= 4,
     "a fresh analysis, no-deadline analysis, history clear, and restore dismissal must all reset the snooze");
