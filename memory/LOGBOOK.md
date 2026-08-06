@@ -4560,3 +4560,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 133 of the autonomous loop (alternate add/polish): every row that can ask, asks with `a` — bearers included.
+
+**2026-08-06 03:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #134 of the restarted autonomous loop (add).
+- feat(ui): every reading-list chunk now has a one-click 📋 copy button — it quotes "[MUST-READ / SKIM / SKIP] \"{chunk}\"" plus a 🚩 risk-signal line when the chunk carries one, with clipboard API + `execCommand` fallback, toast, and a ✓ flash. The row click handler has a dedicated `[data-reading-copy-text]` branch, so copying never triggers the jump-to-source behavior (and never collides with the done/signal buttons); the block note documents the action.
+- New smoke test "Reading-list chunks copy their quote in one click" — 7 assertions covering the bucket label, button markup, prebuilt quote data, click-handler branch, toast, flash, and note.
+- Full suite green (490 unit + 302 smoke + 1 integration = 793 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 134 of the autonomous loop (alternate add/polish): the sentence you're told to read twice should copy with its priority tag in one click.

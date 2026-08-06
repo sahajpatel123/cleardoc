@@ -9492,6 +9492,29 @@ test("analyzer: Bearer rows can ask the document about the risk in one click", (
     "the a shortcut must target the bearer ask button");
 });
 
+// Cycle #134 — per-chunk copy in the reading list.
+test("analyzer: Reading-list chunks copy their quote in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /const bucketLabel = c\.bucket === 'must' \? 'MUST-READ' : c\.bucket === 'skim' \? 'SKIM' : 'SKIP';/,
+    "the citation must carry the bucket label");
+  assert.match(appSrc, /class="reading-copy ghost-btn ghost-btn-sm"/,
+    "each reading chunk must render a copy button");
+  assert.match(appSrc, /data-reading-copy-text="' \+ esc\(copyText\) \+ '"/,
+    "the copy button must carry the prebuilt quote");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-reading-copy-text\]'\)/,
+    "the row click handler must catch copy-button clicks");
+  assert.match(appSrc, /📋 Reading chunk copied/,
+    "copying must announce via toast");
+  assert.match(appSrc, /copyBtn\.textContent = copied \? '✓' : '📋';/,
+    "the button must flash its copied state");
+  assert.match(appSrc, /<b>📋<\/b> per row copies a single chunk/,
+    "the block note must document the copy action");
+});
+
 // Iter #140: section risk map — aggregates risk patterns by
 // clause category and renders weighted horizontal bars.
 test("analyzer: Section risk map aggregates risk by clause category", () => {

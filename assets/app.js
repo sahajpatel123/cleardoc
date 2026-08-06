@@ -8033,6 +8033,11 @@
           if(c.signalsAcc.actionHit && !signals.length) signals.push({ kind: 'actionHit', label: '📌 obligation' });
           const done = isDone(c);
           const previewSrc = c.sentences[0] + (c.sentences.length > 1 ? ' …' : '');
+          // Cycle #134 — per-chunk copy: quote the bucket + the chunk.
+          const bucketLabel = c.bucket === 'must' ? 'MUST-READ' : c.bucket === 'skim' ? 'SKIM' : 'SKIP';
+          const copyText = '[' + bucketLabel + '] "' + c.sentences.join(' ') + '"' +
+            (c.signalsAcc.flagged ? '\n🚩 risk signal' : '') +
+            '\n— ClearDoc reading-list chunk';
           const sigHtml = signals.length
             ? signals.map(s => '<button type="button" class="reading-sig reading-sig-' + s.kind + (signalFilter === s.kind ? ' reading-sig-active' : '') + '" data-reading-signal="' + s.kind + '" title="Filter to only chunks with this signal">' + s.label + '</button>').join('')
             : '<span class="reading-sig reading-sig-factual">factual</span>';
@@ -8044,6 +8049,7 @@
               '<div class="reading-preview">' + esc(trunc(previewSrc, 240)) + '</div>' +
               '<div class="reading-meta">' + sigHtml + ' · ' + c.sentences.length + ' sentence' + (c.sentences.length === 1 ? '' : 's') + (done ? ' · <b class="reading-done-flag">✓ done</b>' : '') + '</div>' +
             '</div>' +
+            '<button type="button" class="reading-copy ghost-btn ghost-btn-sm" data-reading-copy-text="' + esc(copyText) + '" title="Copy this chunk as a quote" aria-label="Copy this chunk as a quote">📋</button>' +
           '</div>';
         }).join('');
         const hiddenCount = chunks.length - visible.length;
@@ -8082,12 +8088,33 @@
           'Pure-local: walks the doc sentence-by-sentence and scores each against risk, money, deadline, and rights signals. ' +
           '<b>🔴 must</b> = every red/orange dot (' + pctMust + '% of the doc). ' +
           'Click a chunk to jump to it; click <b>○</b> to mark it read (progress persists). ' +
-          'Click any signal badge (🚩/💰/⏰/✓) to filter chunks with that signal. <b>📋 copy list</b> exports the priority order as a checklist.';
+          'Click any signal badge (🚩/💰/⏰/✓) to filter chunks with that signal. <b>📋</b> per row copies a single chunk, <b>📋 copy list</b> exports the priority order as a checklist.';
       }
       // Click-to-jump. Inner controls (done + signal badges) stop
       // propagation so they don't accidentally jump the input.
       $$('.reading-row', readingGrid).forEach(row => {
-        row.addEventListener('click', (e) => {
+        row.addEventListener('click', async (e) => {
+          // Cycle #134 — 📋 copies the chunk instead of jumping.
+          const copyBtn = e.target.closest && e.target.closest('[data-reading-copy-text]');
+          if(copyBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = copyBtn.getAttribute('data-reading-copy-text') || '';
+            if(!text) return;
+            let copied = false;
+            try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+            if(!copied){
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                copied = true;
+              } catch(_){ /* ignore */ }
+            }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Reading chunk copied' : '⚠ Couldn’t copy');
+            copyBtn.textContent = copied ? '✓' : '📋';
+            if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋'; }, 1500);
+            return;
+          }
           if(e.target && (e.target.closest('.reading-done') || e.target.closest('.reading-sig'))) return;
           if(!input) return;
           const off = parseInt(row.getAttribute('data-reading-offset') || '-1', 10);
