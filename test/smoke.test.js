@@ -3939,6 +3939,52 @@ test("analyzer: history panel has a language filter row that shows count per lan
     "historyFilter 'All' must use a globe 🌐 (neutral across languages)");
 });
 
+// Cycle 56 feature: keyword search across saved analyses.
+test("analyzer: history panel searches past analyses by keyword", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html must carry the search input with an accessible label
+  assert.match(html, /id="historySearch"[^>]*aria-label="Search past analyses"/,
+    "analyze.html must contain #historySearch with an aria-label");
+  assert.match(html, /id="historySearch"[^>]*maxlength="80"/,
+    "history search must be length-capped to avoid paste-spam lag");
+
+  // State + visibility: query persists per open, input hides when empty
+  assert.match(appSrc, /let historyQuery = '';/,
+    "historyQuery state must exist next to the language filter");
+  assert.match(appSrc, /if\(historySearch\) historySearch\.hidden = true;/,
+    "search input must hide when history is empty");
+  assert.match(appSrc, /if\(historySearch\) historySearch\.hidden = false;/,
+    "search input must show when history has entries");
+
+  // Filtering: keyword match against the snippet + language label
+  assert.match(appSrc, /byLang\.filter\(it => \{/,
+    "renderHistory must filter the language-filtered list by query");
+  assert.match(appSrc, /\(\(it && it\.snippet\) \|\| ''\)\.toLowerCase\(\)/,
+    "search must match against each entry's snippet");
+  assert.match(appSrc, /hay\.indexOf\(q\) !== -1/,
+    "search must use a case-insensitive substring match");
+  assert.match(appSrc, /No analyses match "' \+ esc\(q\) \+ '"\./,
+    "no-match state must echo the query for clarity");
+
+  // Wiring: input listener attached once
+  assert.match(appSrc, /historySearch\._historySearchWired/,
+    "search wiring must be guarded so it is attached only once");
+  assert.match(appSrc, /historySearch\.addEventListener\(\s*['"]input['"]/,
+    "search must re-render live on every input event");
+
+  // CSS: styled to match the panel + hidden override
+  assert.match(cssSrc, /\.history-panel \.hp-search\{/,
+    "theme.css must style .hp-search within the history panel");
+  assert.match(cssSrc, /\.history-panel \.hp-search\[hidden\]\{display:none\}/,
+    "the search input's hidden state must be respected");
+});
+
 test("analyzer: voice picker dropdown lets users choose a specific TTS voice", () => {
   // New feature — dropdown populated with available SpeechSynthesis
   // voices, preferring the detected language. User pick is persisted

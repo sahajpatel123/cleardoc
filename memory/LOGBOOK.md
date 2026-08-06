@@ -3758,3 +3758,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 55 of the autonomous loop (alternate add/polish): every spreadsheet export in the app is now safe and correctly encoded.
+
+**2026-08-06 21:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #56 of the restarted autonomous loop (feature add).
+- feat(ui): the history panel now has a keyword search box — type any phrase and past analyses are filtered live by their snippet + language label, combining with the existing language filter. The no-match state echoes the query, the input hides when history is empty, and it's length-capped at 80 chars.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 260 smoke + 1 integration = 751 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 56 of the autonomous loop (alternate add/polish): find a past analysis by content, not just by language.

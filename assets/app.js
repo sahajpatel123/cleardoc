@@ -3170,6 +3170,7 @@
           micBtn=$('#micBtn'),
           historyBtn=$('#historyBtn'),historyPanel=$('#historyPanel'),
           historyList=$('#historyList'),historyClearBtn=$('#historyClearBtn'),
+          historySearch=$('#historySearch'),
           historyFilter=$('#historyFilter'),
           tplBtn=$('#tplBtn'),tplPanel=$('#tplPanel'),tplList=$('#tplList'),
           tplNameInput=$('#tplNameInput'),tplSaveBtn=$('#tplSaveBtn'),tplClearBtn=$('#tplClearBtn'),
@@ -15877,14 +15878,17 @@
        * entry to load it back into the textarea. */
       // Current language filter ('all' or a 2-letter code). Default 'all'.
       let currentLangFilter = 'all';
+      let historyQuery = '';
       const renderHistory = () => {
         if(!historyList || !historyPanel) return;
         const items = (typeof readHistoryRaw === 'function') ? readHistoryRaw() : [];
         if(items.length === 0){
           historyList.innerHTML = '<li class="hp-empty">No past analyses yet.</li>';
           if(historyFilter) historyFilter.hidden = true;
+          if(historySearch) historySearch.hidden = true;
           return;
         }
+        if(historySearch) historySearch.hidden = false;
         // Update the filter row — show count per language so users
         // see at a glance which languages are present in history.
         if(historyFilter){
@@ -15904,12 +15908,23 @@
             btn.textContent = base + ' (' + count + ')';
           });
         }
-        // Apply the filter
-        const filtered = currentLangFilter === 'all'
+        // Apply the language filter
+        const byLang = currentLangFilter === 'all'
           ? items
           : items.filter(it => it && it.lang === currentLangFilter);
+        // Cycle 56 feature — keyword search across history snippets so a
+        // past analysis can be found by content, not just by language.
+        const q = (historyQuery || '').trim().toLowerCase();
+        const filtered = q
+          ? byLang.filter(it => {
+              const hay = ((it && it.snippet) || '').toLowerCase() + ' ' + ((it && it.langLabel) || '').toLowerCase();
+              return hay.indexOf(q) !== -1;
+            })
+          : byLang;
         if(filtered.length === 0){
-          historyList.innerHTML = '<li class="hp-empty">No analyses match that language filter.</li>';
+          historyList.innerHTML = q
+            ? '<li class="hp-empty">No analyses match "' + esc(q) + '".</li>'
+            : '<li class="hp-empty">No analyses match that language filter.</li>';
           return;
         }
         historyList.innerHTML = filtered.map((it, i) => {
@@ -15933,6 +15948,14 @@
           const btn = e.target.closest && e.target.closest('[data-hp-filter]');
           if(!btn) return;
           currentLangFilter = btn.getAttribute('data-hp-filter') || 'all';
+          renderHistory();
+        });
+      }
+      // History search — live keyword filter on every keystroke (wired once).
+      if(historySearch && !historySearch._historySearchWired){
+        historySearch._historySearchWired = true;
+        historySearch.addEventListener('input', () => {
+          historyQuery = historySearch.value || '';
           renderHistory();
         });
       }
