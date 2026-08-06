@@ -14203,6 +14203,11 @@
       }
       plainOut.innerHTML=html || '<p>'+esc(raw)+'</p>';
       annotateRewriteJargon();
+      // Cycle #186 — remember both views for the ⇄ original / rewritten
+      // toggle; the original view is built lazily on first use.
+      _rewriteAiHtml = plainOut.innerHTML;
+      _rewriteOriginalHtml = null;
+      resetRewriteToggle();
       if(jargonCount) jargonCount.textContent = ai && Number.isFinite(ai.jargonFound) ? ai.jargonFound : totalJargon;
 
       // 2) reading level — prefer AI, fall back to local gradeLevel
@@ -15333,6 +15338,9 @@
       // Plain-English rewrite (already sanitized when saved; sanitize again defensively)
       if(plainOut){
         plainOut.innerHTML=sanitizeAiRewrite(snap.rewriteHtml||'');
+        _rewriteAiHtml = plainOut.innerHTML;
+        _rewriteOriginalHtml = null;
+        resetRewriteToggle();
       }
       if(jargonCount){
         const jf=Number(snap.jargonFound);
@@ -19893,6 +19901,57 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Rewrite copied' : '⚠ Couldn’t copy');
       clearTimeout(rewriteCopyBtn._flashTimer);
       rewriteCopyBtn._flashTimer=setTimeout(()=>{ rewriteCopyBtn.textContent=orig; },1400);
+    });
+    // Cycle #186 — original / rewritten toggle on the rewrite block.
+    let rewriteShowOriginal = false;
+    let _rewriteAiHtml = '';
+    let _rewriteOriginalHtml = null;
+    function buildRewriteOriginalHtml(){
+      const raw = input ? input.value : '';
+      if(!raw.trim()) return '<p></p>';
+      let h = '';
+      splitSentences(raw).forEach(s => {
+        // Cycle #186 — keep the ORIGINAL wording but wrap every jargon
+        // match in a highlight (reusing the JARGON pattern list), so the
+        // original view shows what you pasted and what it means.
+        let text = String(s);
+        let found = 0;
+        JARGON.forEach(([re]) => {
+          const r = new RegExp(re.source, re.flags);
+          if(r.test(text)){
+            found++;
+            text = text.replace(new RegExp(re.source, re.flags), '[[H]]$&[[/H]]');
+          }
+        });
+        const html = esc(text).split('[[H]]').join('<mark class="jargon-hit">').split('[[/H]]').join('</mark>');
+        h += '<p>' + html + (found ? ' <span class="rewrite-jargon-count">' + found + ' jargon</span>' : '') + '</p>';
+      });
+      return h || '<p>' + esc(raw) + '</p>';
+    }
+    function setRewriteToggle(original){
+      const tb = document.getElementById('rewriteToggleBtn');
+      if(!plainOut || !tb) return;
+      if(original){
+        if(_rewriteOriginalHtml === null) _rewriteOriginalHtml = buildRewriteOriginalHtml();
+        plainOut.innerHTML = _rewriteOriginalHtml;
+      } else {
+        plainOut.innerHTML = _rewriteAiHtml;
+      }
+      rewriteShowOriginal = original;
+      tb.setAttribute('aria-pressed', original ? 'true' : 'false');
+      tb.textContent = original ? '⇄ rewritten' : '⇄ original';
+    }
+    function resetRewriteToggle(){
+      rewriteShowOriginal = false;
+      const tb = document.getElementById('rewriteToggleBtn');
+      if(tb){
+        tb.setAttribute('aria-pressed', 'false');
+        tb.textContent = '⇄ original';
+      }
+    }
+    const rewriteToggleBtn = document.getElementById('rewriteToggleBtn');
+    if(rewriteToggleBtn) rewriteToggleBtn.addEventListener('click', () => {
+      setRewriteToggle(!rewriteShowOriginal);
     });
     // Cycle 48 — rewrite text size (WCAG 1.4.4): A−/A+ adjust the
     // plain-English rewrite font size in ±2px steps via the data-size

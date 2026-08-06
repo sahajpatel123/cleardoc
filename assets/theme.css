@@ -1257,6 +1257,12 @@ button.risk-preview:hover{filter:brightness(.96)}
 .rewrite-copy{background:none;border:none;font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);cursor:pointer;border-bottom:1px dotted transparent;padding:0 0 0 8px;margin-left:8px;vertical-align:baseline;transition:color .15s,border-color .15s}
 .rewrite-copy:hover{color:var(--accent);border-bottom-color:var(--accent)}
 .rewrite-copy:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.rewrite-toggle{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;border:var(--bd-hair) solid var(--ink-soft);background:transparent;color:var(--ink-soft);padding:3px 9px;cursor:pointer;vertical-align:baseline;margin-left:8px}
+.rewrite-toggle:hover{background:var(--ink);color:var(--paper)}
+.rewrite-toggle[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.rewrite-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.jargon-hit{background:var(--amber-tint);color:var(--amber);font-weight:700;padding:0 2px}
+.rewrite-jargon-count{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em}
 /* Cycle 48 — rewrite text-size controls (WCAG 1.4.4). A−/A+ nudge the
    plain-English rewrite in ±2px steps; the data-size attribute on the
    .rewrite container selects a calc() override so the base var stays

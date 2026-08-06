@@ -406,6 +406,44 @@ skip("rewrite block: has a Copy button that copies just the plain-English rewrit
   assert.match(themeSrc, /\.rewrite-copy:focus-visible\{/, "theme.css must give .rewrite-copy a focus ring");
 });
 
+// Cycle #186 — original / rewritten toggle on the rewrite block.
+test("analyzer: rewrite block toggles original ↔ rewritten", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(analyzeHtml, /id="rewriteToggleBtn" aria-pressed="false"/,
+    "analyze.html must expose the rewrite toggle button");
+  assert.match(appSrc, /let rewriteShowOriginal = false;/,
+    "the toggle state must live in the analyzer scope");
+  assert.match(appSrc, /function setRewriteToggle\(original\)\{/,
+    "a toggle setter must exist");
+  assert.match(appSrc, /function buildRewriteOriginalHtml\(\)\{/,
+    "an original-view builder must exist");
+  assert.match(appSrc, /JARGON\.forEach\(\(\[re\]\) => \{/,
+    "the original view must reuse the jargon pattern list");
+  assert.match(appSrc, /text\.replace\(new RegExp\(re\.source, re\.flags\), '\[\[H\]\]\$&\[\[\/H\]\]'\)/,
+    "the original view must wrap matched jargon in place, not replace it");
+  assert.match(appSrc, /<mark class="jargon-hit">/,
+    "the original view must render jargon as highlights");
+  assert.match(appSrc, /rewrite-jargon-count/,
+    "each highlighted sentence must carry a jargon count");
+  assert.match(appSrc, /_rewriteAiHtml = plainOut\.innerHTML;/,
+    "each render must remember the rewritten view");
+  assert.match(appSrc, /rewriteToggleBtn\.addEventListener\('click', \(\) => \{[\s\S]{0,60}setRewriteToggle\(!rewriteShowOriginal\);/,
+    "the toggle button must flip the view");
+  assert.match(appSrc, /tb\.setAttribute\('aria-pressed', original \? 'true' : 'false'\);/,
+    "the toggle must announce its state via aria-pressed");
+  const resetCount = (appSrc.match(/resetRewriteToggle\(\);/g) || []).length;
+  assert.ok(resetCount >= 2,
+    "both the render and snapshot-restore paths must reset the toggle");
+  assert.match(cssSrc, /\.rewrite-toggle\{/, "the toggle must be styled");
+  assert.match(cssSrc, /\.rewrite-toggle\[aria-pressed="true"\]\{/, "the pressed state must be visible");
+});
+
 skip("risk filter: 'showing X of Y' pill counts rows the CSS actually reveals", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

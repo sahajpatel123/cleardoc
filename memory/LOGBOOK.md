@@ -5100,3 +5100,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 185 of the autonomous loop (alternate add/polish): a checklist you paste into a task tracker should already know what to ask for.
+
+**2026-08-06 21:22 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #186 of the restarted autonomous loop (add).
+- feat(rewrite): the rewrite block now has a "⇄ original" toggle — flip between the plain-English rewrite and the exact source text you pasted, with every jargon match highlighted in place (`<mark class="jargon-hit">`, reusing the JARGON pattern list) plus a per-sentence "N jargon" tag. The toggle is aria-pressed-announced, resets on every render and on snapshot restore, and the Copy / Read-aloud / print actions operate on whichever view is showing. The original view is built lazily on first use.
+- Verified in a real browser with a mocked analyze flow: toggling to original showed the source sentence with `Lessee`, `shall`, `indemnify and hold lessor harmless`, and `in perpetuity` highlighted and a "7 jargon" tag; toggling back restored the rewrite; re-analysis reset the toggle; zero console errors. An early version used `clarify()`'s replaced output (not the source) — reworked in-cycle to highlight original terms in place.
+- New smoke test "analyzer: rewrite block toggles original ↔ rewritten" — 11 assertions (markup + aria-pressed, state, setter/builder/reset helpers, in-place highlight approach, render + restore hooks, click wiring, reset count ≥ 2, CSS).
+- Full suite green (490 unit + 325 smoke + 1 integration = 816 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 186 of the autonomous loop (alternate add/polish): the rewrite is the map — sometimes you want to look at the territory, with the tricky words lit up.
