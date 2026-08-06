@@ -276,6 +276,20 @@ skip("focus mode: hides input + non-rewrite blocks and exits via Esc/Clear", asy
   assert.match(themeSrc, /body\.focus-mode \.col\.in\{display:none\}/, "CSS must hide the input column in focus mode");
 });
 
+skip("theme.css: health-copy rules are defined once (no duplicate blocks)", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.equal((themeSrc.match(/\.health-copy\{/g) || []).length, 1, ".health-copy base rule must be defined exactly once");
+  assert.equal((themeSrc.match(/\.health-copy:hover\{/g) || []).length, 1, ".health-copy:hover must be defined exactly once");
+  for (const sev of ["low", "review", "negotiate", "danger"]) {
+    const re = new RegExp("\\.health-check\\." + sev + " \\.health-copy\\{", "g");
+    assert.equal((themeSrc.match(re) || []).length, 1, ".health-check." + sev + " .health-copy must be defined exactly once");
+  }
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
