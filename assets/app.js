@@ -7176,6 +7176,15 @@
       } catch(_){ /* ignore */ }
       // Cycle #204 — filter chips (all / next 7d / overdue) narrow the
       // rows without touching the export/title data.
+      // Cycle #220 — remember the user's filter across re-analyses and
+      // reloads (mirrors the money filter), so an "overdue only" view
+      // isn't lost on every render.
+      if(deadlineList._dlFilter === undefined){
+        try {
+          const saved = localStorage.getItem('cleardoc:deadline-filter');
+          if(saved === 'all' || saved === 'soon' || saved === 'overdue') deadlineList._dlFilter = saved;
+        } catch(_){ /* ignore (privacy mode etc.) */ }
+      }
       const dlFilter = deadlineList._dlFilter || 'all';
       const visibleItems = dlFilter === 'all' ? items : items.filter(it => {
         const d = dayDiff(it.date);
@@ -7245,6 +7254,7 @@
           const chip = e.target.closest && e.target.closest('[data-dl-filter]');
           if(!chip) return;
           deadlineList._dlFilter = chip.getAttribute('data-dl-filter') || 'all';
+          try { localStorage.setItem('cleardoc:deadline-filter', deadlineList._dlFilter); } catch(_){ /* ignore */ }
           renderDeadlineBlock(raw, ctx);
         });
       }

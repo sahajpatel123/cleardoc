@@ -5473,3 +5473,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 219 of the autonomous loop (alternate add/polish): the deadline chips were visual-only — make the active one speak for itself.
+
+**2026-08-06 23:41 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #220 of the restarted autonomous loop (add).
+- feat(deadlines): the filter choice (🌐 all / ⏰ next 7d / ⚠ overdue) now persists to `localStorage` under `cleardoc:deadline-filter` and is restored on re-analysis and page reload — mirroring the existing money-filter pattern. A user who keeps an "overdue only" view no longer loses it on every render.
+- Verified in a real browser with a mocked analyze flow over a two-deadline document: the overdue chip stored `overdue`, a page reload + re-analyze came back with the overdue chip active (`aria-pressed=true`, `.dl-filter-active`) and exactly 1 visible row, and clicking "all" stored `all`; zero console errors.
+- Extended the cycle-#204 smoke test with 4 assertions (restore-when-unset, storage read, value validation, persist-on-click).
+- Full suite green (490 unit + 340 smoke + 1 integration = 831 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 220 of the autonomous loop (alternate add/polish): your deadline view is a preference, not a one-time click — remember it.

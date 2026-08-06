@@ -3287,6 +3287,14 @@ test("analyzer: deadline block filters to next-7-days or overdue", () => {
     "a next-7-days chip must exist");
   assert.match(appSrc, /data-dl-filter="overdue" aria-pressed="' \+ \(dlFilter === 'overdue' \? 'true' : 'false'\) \+ '" title="Show only overdue deadlines"/,
     "an overdue chip must exist");
+  assert.match(appSrc, /if\(deadlineList\._dlFilter === undefined\)\{/,
+    "the deadline filter must be restored only when unset");
+  assert.match(appSrc, /localStorage\.getItem\('cleardoc:deadline-filter'\)/,
+    "the deadline filter must read the saved choice");
+  assert.match(appSrc, /saved === 'all' \|\| saved === 'soon' \|\| saved === 'overdue'/,
+    "a saved deadline filter must be validated before use");
+  assert.match(appSrc, /localStorage\.setItem\('cleardoc:deadline-filter', deadlineList\._dlFilter\)/,
+    "a chip click must persist the chosen filter");
   assert.match(appSrc, /data-dl-filter="all" aria-pressed="' \+ \(dlFilter === 'all' \? 'true' : 'false'\) \+ '"/,
     "the all chip must announce its pressed state");
   assert.match(appSrc, /data-dl-filter="overdue" aria-pressed="' \+ \(dlFilter === 'overdue' \? 'true' : 'false'\) \+ '"/,
