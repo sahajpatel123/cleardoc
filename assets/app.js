@@ -1241,6 +1241,9 @@
     };
     check();
     const interval=setInterval(()=>{ if(check()===false) clearInterval(interval); }, RE_CHECK_MS);
+    document.addEventListener('visibilitychange', () => {
+      if(!document.hidden) check();
+    });
   }
 
   /* ---- CTAs ---- */

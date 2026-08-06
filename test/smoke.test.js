@@ -135,6 +135,8 @@ skip("home: service status chip reports API health", async () => {
     "the status chip must show operational when the API is healthy");
   assert.match(appSrc, /RE_CHECK_MS=60000/,
     "the status chip must re-check on an interval");
+  assert.match(appSrc, /visibilitychange/,
+    "the status chip must re-check when the tab becomes visible");
   assert.match(appSrc, /Last checked/,
     "the status chip must record when it last checked");
   assert.match(cssSrc, /\.service-status\{/, "service status CSS must exist");
