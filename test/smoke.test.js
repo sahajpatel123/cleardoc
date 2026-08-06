@@ -193,6 +193,27 @@ skip("risk rows: advertised 'e' expand + 'a' ask shortcuts both work (no dead gu
   assert.match(handler, /rrow-ask/, "ask must trigger the per-risk ask button");
 });
 
+skip("risk detail: Escape collapses the expanded panel and returns focus to the pill", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Locate the riskDetail keydown handler.
+  const marker = "riskDetail.addEventListener('keydown'";
+  const hStart = appSrc.indexOf(marker);
+  assert.ok(hStart > -1, "riskDetail keydown handler must exist");
+  const handler = appSrc.slice(hStart, hStart + 900);
+
+  // Escape must collapse the panel, sync the pill, and return focus.
+  assert.match(handler, /if\(e\.key === 'Escape'\)\{/, "riskDetail must handle Escape");
+  assert.match(handler, /riskDetail\.hidden = true;/, "Escape must collapse the detail panel");
+  assert.match(handler, /riskPreview\.setAttribute\('aria-expanded','false'\)/, "Escape must reset the pill's aria-expanded");
+  assert.match(handler, /riskPreview\.focus/, "Escape must return focus to the preview pill");
+  // The original Enter/Space locate behavior must remain.
+  assert.match(handler, /e\.key !== 'Enter' && e\.key !== ' '/, "Enter/Space locate parity must be preserved");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

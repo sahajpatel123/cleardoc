@@ -3228,3 +3228,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 2 of the autonomous loop (alternate add/polish): deliver one new working feature — the advertised-but-broken keyboard shortcut.
+
+**2026-08-06 12:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #3 of the restarted autonomous loop (polish).
+- polish(keys): the expanded risk-detail panel had no keyboard path to collapse once focus moved inside — its handler only covered Enter/Space (locate), and the help modal's "Esc closes" promise didn't reach it. Added an Escape handler on #riskDetail that collapses the panel, syncs the preview pill's aria-expanded/class, and returns focus to the pill (mirrors the existing riskPreview Escape pattern).
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 225 smoke + 1 integration = 716 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 3 of the autonomous loop (alternate add/polish): keyboard polish for the risk-detail panel.

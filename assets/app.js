@@ -16767,8 +16767,21 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
             }, 1200);
           }
         });
-        // Keyboard parity: Enter / Space on a focused row triggers locate
+        // Keyboard parity: Enter / Space on a focused row triggers locate;
+        // Escape collapses the detail panel and returns focus to the
+        // preview pill (mirrors the riskPreview Escape pattern above).
         riskDetail.addEventListener('keydown', (e) => {
+          if(e.key === 'Escape'){
+            if(riskDetail.hidden) return;
+            e.preventDefault();
+            riskDetail.hidden = true;
+            if(riskPreview){
+              riskPreview.setAttribute('aria-expanded','false');
+              riskPreview.classList.remove('rp-open');
+              try { riskPreview.focus({preventScroll:false}); } catch(_) { riskPreview.focus(); }
+            }
+            return;
+          }
           if(e.key !== 'Enter' && e.key !== ' ') return;
           const row = e.target.closest && e.target.closest('[data-rd-locate]');
           if(!row) return;
