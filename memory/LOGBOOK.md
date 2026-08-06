@@ -4256,3 +4256,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 103 of the autonomous loop (alternate add/polish): the audio controls should appear and disappear as one coherent unit, and the current pace should be visible while listening.
+
+**2026-08-06 20:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #104 of the restarted autonomous loop (add).
+- feat(ui): every risk row now has a one-click 📋 copy-citation button — it grabs the flagged sentence, severity ([TRAP]/[WATCH]/[NOTE]), the reason, and the counter-suggestion (when present) as a formatted block ending with "— ClearDoc risk citation", for notes, email, or a lawyer.
+- Mirrors the per-row 💬/▾/⚡ pattern: wired per render after both risk renders (idempotent guard), stops propagation so the row never expands (also added to the click-to-expand ignore list), clipboard API with textarea `execCommand` fallback, toast + ✓ flash, accessible `aria-label`, and positioned next to the ask button (`.rrow-copy` at right:34px with a focus ring).
+- New smoke test "Every risk row can copy its citation in one click" — 11 assertions covering the wirer, button class, aria-label, citation shape (severity + sentence + counter), toast, execCommand fallback, expand-ignore, both render call sites, and CSS.
+- Full suite green (490 unit + 286 smoke + 1 integration = 777 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 104 of the autonomous loop (alternate add/polish): quoting a single risk to a lawyer or into notes should take one click, not a copy-paste of the whole report.

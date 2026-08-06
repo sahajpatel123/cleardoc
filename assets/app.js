@@ -1432,6 +1432,53 @@
       row.appendChild(btn);
     });
   }
+  // Cycle #104 — per-risk "copy citation": one click grabs the flagged
+  // sentence, its severity, the reason, and the counter-suggestion as a
+  // formatted block for notes, email, or a lawyer. Mirrors the
+  // per-row 💬/▾/⚡ buttons: wired per render, idempotent, stops
+  // propagation so the row never expands.
+  function wireCopyPerRisk(){
+    const list = document.getElementById('riskList');
+    if(!list) return;
+    list.querySelectorAll('.rrow').forEach((row, idx) => {
+      if(row.querySelector('.rrow-copy')) return;
+      const flag = (typeof lastFlags !== 'undefined' && lastFlags && lastFlags[idx]) || null;
+      const sentence = flag && flag.s
+        ? String(flag.s).replace(/\s+/g, ' ').trim()
+        : (row.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+      const sev = (row.dataset && row.dataset.risk) || (flag && flag.rule && flag.rule.sev) || 'g';
+      const sevLabel = sev === 'r' ? 'TRAP' : sev === 'a' ? 'WATCH' : 'NOTE';
+      const why = flag && flag.rule && flag.rule.why ? String(flag.rule.why).trim() : '';
+      const counter = flag && flag.rule && flag.rule.counter ? String(flag.rule.counter).trim() : '';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'rrow-copy ghost-btn ghost-btn-sm';
+      btn.setAttribute('aria-label', 'Copy this ' + sev.toLowerCase() + ' as a citation');
+      btn.title = 'Copy this risk as a citation';
+      btn.textContent = '📋';
+      btn.dataset.rrowCopyText = '[' + sevLabel + '] "' + sentence + '"' +
+        (why ? '\nWhy: ' + why : '') +
+        (counter ? '\nCounter: ' + counter : '') +
+        '\n— ClearDoc risk citation';
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const text = btn.dataset.rrowCopyText || '';
+        let copied = false;
+        try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+        if(!copied){
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+            copied = true;
+          } catch(_){ /* ignore */ }
+        }
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Risk citation copied' : '⚠ Couldn’t copy');
+        btn.textContent = copied ? '✓' : '📋';
+        setTimeout(() => { if(btn.isConnected) btn.textContent = '📋'; }, 1500);
+      });
+      row.appendChild(btn);
+    });
+  }
   // iter #207: click-to-expand risk row — toggles the inline counter-
   // suggestion panel. Delegated click handler on riskList (so re-
   // renders don't double-bind). Ignores clicks that originate on the
@@ -1446,7 +1493,7 @@
     list.addEventListener('click', e => {
       // Don't toggle when clicking the existing 💬 ask button or the
       // expand ▾ toggle (those have their own handlers).
-      if(e.target.closest && (e.target.closest('.rrow-ask') || e.target.closest('.rrow-expand') || e.target.closest('.rrow-fix'))) return;
+      if(e.target.closest && (e.target.closest('.rrow-ask') || e.target.closest('.rrow-expand') || e.target.closest('.rrow-fix') || e.target.closest('.rrow-copy'))) return;
       const row = e.target.closest && e.target.closest('.rrow');
       if(!row) return;
       const counter = row.querySelector('.rrow-counter');
@@ -13600,6 +13647,7 @@
       paintRiskFilter(flags);
       paintTopConcern(flags);
       wireAskPerRisk();
+      wireCopyPerRisk();
       paintSectionNav();
       setAnalyzedTimestamp(Date.now());
       paintDocFingerprint();
@@ -14211,6 +14259,7 @@
         paintRiskFilter(lastFlags);
         paintTopConcern(lastFlags);
         wireAskPerRisk();
+        wireCopyPerRisk();
         paintSectionNav();
         setAnalyzedTimestamp(Date.now());
         paintDocFingerprint();

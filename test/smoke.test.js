@@ -10191,6 +10191,40 @@ test("analyzer: risk checklist sorts traps first then watches then notes", () =>
     "iter #217 must tag notes with [P2] for task-manager priority detection");
 });
 
+// Cycle #104 — per-risk copy-citation button.
+test("analyzer: Every risk row can copy its citation in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /function wireCopyPerRisk\(\)\{/,
+    "a per-risk copy wirer must exist");
+  assert.match(appSrc, /btn\.className = 'rrow-copy ghost-btn ghost-btn-sm';/,
+    "each risk row must get a copy button");
+  assert.match(appSrc, /aria-label', 'Copy this ' \+ sev\.toLowerCase\(\) \+ ' as a citation'/,
+    "the copy button must expose an accessible name");
+  assert.match(appSrc, /btn\.dataset\.rrowCopyText = '\[/,
+    "the citation must be built with severity + sentence");
+  assert.match(appSrc, /sevLabel \+ '\] "' \+ sentence \+ '"'/,
+    "the citation must quote the exact sentence");
+  assert.match(appSrc, /'\\nCounter: ' \+ counter/,
+    "the citation must include the counter-suggestion when present");
+  assert.match(appSrc, /showAnalyzeToast\(copied \? '📋 Risk citation copied'/,
+    "copying must announce via toast");
+  assert.match(appSrc, /execCommand\('copy'\)/,
+    "copying must fall back to execCommand");
+  assert.match(appSrc, /e\.target\.closest\('\.rrow-copy'\)/,
+    "clicking copy must not expand the row");
+  const callSites = (appSrc.match(/wireCopyPerRisk\(\);/g) || []).length;
+  assert.ok(callSites >= 2, `wireCopyPerRisk must run after every risk render, found ${callSites}`);
+  assert.match(cssSrc, /\.risk-built \.rrow \.rrow-copy\{/,
+    "the copy button must sit beside the ask button");
+  assert.match(cssSrc, /\.rrow-copy:focus-visible\{/,
+    "the copy button must have a focus ring");
+});
+
 // Iter #218 v2: JSON export polish — download button + DOM-extracted
 // deadlines/nextSteps + counter-clauses + P0/P1/P2 priority tags.
 test("analyzer: JSON export includes download, deadlines from DOM, counter-clauses, and priority tags", () => {

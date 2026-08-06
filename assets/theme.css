@@ -1029,6 +1029,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-built .rrow{position:relative}
 .risk-built .rrow .rrow-ask{position:absolute;right:8px;top:8px;padding:3px 8px;font-size:11px;opacity:.7}
 .risk-built .rrow:hover .rrow-ask{opacity:1}
+.risk-built .rrow .rrow-copy{position:absolute;right:34px;top:8px;padding:3px 8px;font-size:11px;opacity:.7}
+.risk-built .rrow:hover .rrow-copy{opacity:1}
+.rrow-copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 /* iter #207: inline counter-suggestion panel — collapses by default,
    expands when the row gets .rrow-expanded (set by wireRiskRowExpand).
    Sits below the row content with a green tint to signal "this is
