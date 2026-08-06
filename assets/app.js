@@ -12227,6 +12227,7 @@
         '<span class="cov-count">' + c.present + ' of ' + c.total + ' standard sections · score ' + c.score + '/100</span>' +
         '<span class="cov-verdict">' + verdict + '</span>' +
         (missing.length ? '<button type="button" class="ghost-btn ghost-btn-sm" id="covCopyChecklistBtn" title="Copy the missing sections as a markdown checklist">📋 copy checklist</button>' : '') +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="covCopyMdBtn" title="Copy the coverage index as Markdown">📋 copy .md</button>' +
       '</div>';
       covGrid.innerHTML = cells + controls;
       covBlock.hidden = false;
@@ -12266,6 +12267,33 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Missing sections copied (' + missing.length + ' items)' : '⚠ Couldn’t copy');
           copyChecklistBtn.textContent = copied ? '✓ copied' : '📋 copy checklist';
           setTimeout(() => { if(copyChecklistBtn.isConnected) copyChecklistBtn.textContent = '📋 copy checklist'; }, 2500);
+        });
+      }
+      const copyMdBtn = document.getElementById('covCopyMdBtn');
+      if(copyMdBtn){
+        copyMdBtn.addEventListener('click', async () => {
+          const rows = c.list.map(s => '| ' + String(s.label).replace(/\|/g, '\\|') + ' | ' + (s.present ? '✓ present' : '○ missing') + ' |').join('\n');
+          const md = '| Section | Status |\n|---|---|\n' + rows + '\n\nCoverage score: ' + c.score + '/100';
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Coverage index copied as Markdown' : '⚠ Couldn’t copy');
+          copyMdBtn.textContent = copied ? '✓ copied' : '📋 copy .md';
+          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '📋 copy .md'; }, 2500);
         });
       }
     }

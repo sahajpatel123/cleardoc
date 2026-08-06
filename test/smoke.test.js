@@ -12340,6 +12340,51 @@ test("analyzer: Coverage index measures presence of standard contract sections",
     "iter #161 must render a copy-checklist button");
   assert.match(appSrc, /covCopyChecklistBtn[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
     "iter #161 must use clipboard fallback for the checklist");
+  assert.match(appSrc, /covCopyMdBtn/,
+    "iter #266 must render a coverage-index copy-as-Markdown button");
+  assert.match(appSrc, /'📋 Coverage index copied as Markdown'/,
+    "iter #266 must confirm when the coverage index is copied");
+  assert.match(appSrc, /\| Section \| Status \|/,
+    "iter #266 must build a Markdown table header");
+});
+
+skip("analyze: coverage index copies as Markdown", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedCovMd = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedCovMd = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedCovMd = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#covBlock:not([hidden]) #covCopyMdBtn", { timeout: 8000 });
+    await page.click("#covCopyMdBtn");
+    await page.waitForFunction(() => window.__copiedCovMd && window.__copiedCovMd.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedCovMd);
+    assert.match(captured, /^\| Section \| Status \|/, "the copied coverage index must start with the Markdown header");
+    assert.match(captured, /\|---\|---\|/, "the copied coverage index must include the separator row");
+    assert.match(captured, /Coverage score:/, "the copied coverage index must include the score");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
 });
 
 // Iter #162: contact extract — emails + phone numbers.
