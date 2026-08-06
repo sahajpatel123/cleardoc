@@ -4329,3 +4329,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 110 of the autonomous loop (alternate add/polish): the clauses you're told to read twice are the ones you should be able to question with one click.
+
+**2026-08-06 21:48 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #111 of the restarted autonomous loop (polish).
+- polish(ui): the per-row `a` shortcut is now one generic handler — a single `.closest('.rrow, .ques-row, .deadline-row, .kc-row')` matcher with a shared ask-button lookup (`.rrow-ask, .ques-ask, .deadline-ask, .kc-ask`), so key-clause rows get keyboard parity automatically and any future per-row ask button needs zero shortcut wiring. The `e` expand shortcut stays risk-row-only via a `classList.contains('rrow')` guard.
+- Updated the cycle-91 and cycle-108 shortcut assertions to the generic matcher/shared-lookup shape and added a key-clause coverage assertion to the cycle-110 test (190 patterns across the three blocks verified).
+- Full suite green (490 unit + 289 smoke + 1 integration = 780 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 111 of the autonomous loop (alternate add/polish): one keyboard shortcut, one generic handler — every row that can ask, asks with `a`.

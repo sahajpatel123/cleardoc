@@ -8147,6 +8147,8 @@ test("analyzer: Key-clause rows can ask the document about the clause in one cli
     "clicking must bring the Ask panel into view");
   assert.match(appSrc, /showAnalyzeToast\('💬 Question ready — press Ask'\)/,
     "clicking must announce the prefilled question");
+  assert.match(appSrc, /\.deadline-row, \.kc-row'\) : null;/,
+    "the a shortcut must also cover key-clause rows");
 });
 
 // Iter #102: signing checklist — surfaces marker-phrase clauses
@@ -9086,12 +9088,12 @@ test("analyzer: Questions-to-ask rows can prefill the Ask panel with one click",
   assert.match(cssSrc, /\.ques-copy,\.ques-ask\{/,
     ".ques-ask must share the row-button style");
   // Cycle #91 polish — the risk-row 'a' shortcut now also serves question rows.
-  assert.match(appSrc, /const qrow = t && t\.closest \? t\.closest\('\.ques-row'\) : null;/,
-    "the row-shortcut handler must detect question rows");
-  assert.match(appSrc, /if\(!row && !qrow && !drow\) return;/,
-    "the handler must ignore keys outside risk and question rows");
-  assert.match(appSrc, /row \? \(row\.querySelector && row\.querySelector\('\.rrow-ask'\)\)\s*: \(qrow \? qrow\.querySelector\('\.ques-ask'\) : \(drow \? drow\.querySelector\('\.deadline-ask'\) : null\)\)/,
-    "the a shortcut must target the ask button of whichever row is focused");
+  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row'\) : null;/,
+    "the row-shortcut handler must match every per-row ask surface");
+  assert.match(appSrc, /if\(!row\) return;[\s\S]{0,120}row\.classList\.contains\('rrow'\) && \(key === 'e' \|\| key === 'E'\)/,
+    "keys outside supported rows must be ignored and e must stay risk-only");
+  assert.match(appSrc, /row\.querySelector && row\.querySelector\('\.rrow-ask, \.ques-ask, \.deadline-ask, \.kc-ask'\)/,
+    "the a shortcut must target whichever ask button the row has");
 });
 
 // Iter #128: negotiation playbook — ordered steps with impact +
@@ -9911,11 +9913,9 @@ test("analyzer: Deadline rows can ask the document about the deadline in one cli
   assert.match(appSrc, /<b>💬<\/b> to ask about it/,
     "the block note must document the ask action");
   // The a-shortcut now covers deadline rows too.
-  assert.match(appSrc, /const drow = t && t\.closest \? t\.closest\('\.deadline-row'\) : null;/,
-    "the row-shortcut handler must detect deadline rows");
-  assert.match(appSrc, /if\(!row && !qrow && !drow\) return;/,
-    "keys outside risk/question/deadline rows must be ignored");
-  assert.match(appSrc, /drow \? drow\.querySelector\('\.deadline-ask'\) : null/,
+  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row'\) : null;[\s\S]{0,80}if\(!row\) return;/,
+    "the row-shortcut handler must include deadline rows and ignore other keys");
+  assert.match(appSrc, /\.deadline-ask, \.kc-ask'\)/,
     "the a shortcut must target the deadline ask button");
 });
 

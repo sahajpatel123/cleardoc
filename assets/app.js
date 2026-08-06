@@ -1525,14 +1525,11 @@
     const t = e.target;
     if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || (t.isContentEditable === true))) return;
     const key = e.key;
-    const row = t && t.closest ? t.closest('.rrow') : null;
-    // Cycle #91 — question rows get the same 'a' shortcut as risk rows
-    // (prefill the Ask panel with the row's 💬 action).
-    const qrow = t && t.closest ? t.closest('.ques-row') : null;
-    // Cycle #108 — deadline rows get it too.
-    const drow = t && t.closest ? t.closest('.deadline-row') : null;
-    if(!row && !qrow && !drow) return;
-    if(row && (key === 'e' || key === 'E')){
+    // Cycle #111 — one generic row matcher for every per-row ask button
+    // (risk, question, deadline, key clause — and anything added later).
+    const row = t && t.closest ? t.closest('.rrow, .ques-row, .deadline-row, .kc-row') : null;
+    if(!row) return;
+    if(row.classList.contains('rrow') && (key === 'e' || key === 'E')){
       const counter = row.querySelector('.rrow-counter');
       if(!counter) return; // no counter-suggestion → nothing to expand
       e.preventDefault();
@@ -1546,8 +1543,7 @@
       return;
     }
     if(key === 'a' || key === 'A'){
-      const ask = row ? (row.querySelector && row.querySelector('.rrow-ask'))
-        : (qrow ? qrow.querySelector('.ques-ask') : (drow ? drow.querySelector('.deadline-ask') : null));
+      const ask = row.querySelector && row.querySelector('.rrow-ask, .ques-ask, .deadline-ask, .kc-ask');
       if(!ask) return;
       e.preventDefault();
       ask.click();
