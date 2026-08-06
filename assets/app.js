@@ -1527,7 +1527,7 @@
     const key = e.key;
     // Cycle #111 — one generic row matcher for every per-row ask button
     // (risk, question, deadline, key clause — and anything added later).
-    const row = t && t.closest ? t.closest('.rrow, .ques-row, .deadline-row, .kc-row') : null;
+    const row = t && t.closest ? t.closest('.rrow, .ques-row, .deadline-row, .kc-row, .scenario-card') : null;
     if(!row) return;
     if(row.classList.contains('rrow') && (key === 'e' || key === 'E')){
       const counter = row.querySelector('.rrow-counter');
@@ -1543,7 +1543,7 @@
       return;
     }
     if(key === 'a' || key === 'A'){
-      const ask = row.querySelector && row.querySelector('.rrow-ask, .ques-ask, .deadline-ask, .kc-ask');
+      const ask = row.querySelector && row.querySelector('.rrow-ask, .ques-ask, .deadline-ask, .kc-ask, .scenario-ask');
       if(!ask) return;
       e.preventDefault();
       ask.click();

@@ -4390,3 +4390,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 116 of the autonomous loop (alternate add/polish): a predicted outcome you're worried about should be one click away from a question.
+
+**2026-08-06 23:12 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #117 of the restarted autonomous loop (polish).
+- polish(ui): the generic `a` shortcut now covers scenario cards — `.scenario-card` joined the row matcher and `.scenario-ask` joined the shared ask-button lookup, so keyboard users can ask about a predicted outcome with one key, exactly like risks, questions, deadlines, and key clauses.
+- Updated the cycle-91/108/110 shortcut assertions for the extended matcher and selector (208 patterns across the four shortcut-related test blocks verified) and added a scenario-ask coverage assertion to the cycle-116 test.
+- Full suite green (490 unit + 292 smoke + 1 integration = 783 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 117 of the autonomous loop (alternate add/polish): every card that can ask, asks with `a` — scenarios included.
