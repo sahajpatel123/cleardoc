@@ -702,6 +702,12 @@
         <div class="result-block">
           <span class="rh">💬 Ask this document</span>
           <div class="askbox"><input id="askInput" type="text" maxlength="1000" placeholder="e.g. Can I cancel early? What am I liable for?" aria-label="Ask a question about your document" disabled><button id="askBtn" disabled>Ask</button></div>
+          <div class="ask-chips no-print" id="askChips" aria-label="Suggested questions">
+            <button type="button" class="ask-chip" data-ask-chip="Can I cancel this early?">Can I cancel early?</button>
+            <button type="button" class="ask-chip" data-ask-chip="What am I liable for if I sign this?">What am I liable for?</button>
+            <button type="button" class="ask-chip" data-ask-chip="Are there hidden fees or penalties?">Hidden fees?</button>
+            <button type="button" class="ask-chip" data-ask-chip="Is this agreement legal?">Is this legal?</button>
+          </div>
           <div class="ask-thread no-print" id="askThread" role="log" aria-live="polite" aria-label="Ask thread"></div>
           <div class="ask-out" id="askOut" hidden></div>
           <button class="ask-clear no-print" id="askClearBtn" type="button" hidden>Clear thread</button>

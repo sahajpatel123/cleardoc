@@ -18339,6 +18339,22 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     if(fileInput) fileInput.addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(f) handleFile(f); });
     if(askBtn) askBtn.addEventListener('click',ask);
     if(askInput) askInput.addEventListener('keydown',e=>{ if(e.key==='Enter') ask(); });
+    // Quick-question chips — pre-written questions for users who aren't sure
+    // how to phrase one. Clicking a chip fills the input and asks immediately.
+    const askChips = document.getElementById('askChips');
+    if(askChips) askChips.addEventListener('click', (e) => {
+      const chip = e.target.closest && e.target.closest('[data-ask-chip]');
+      if(!chip) return;
+      const q = (chip.getAttribute('data-ask-chip') || '').trim();
+      if(!q) return;
+      if(askInput){
+        askInput.value = q;
+        askInput.disabled = false;
+      }
+      if(askBtn) askBtn.disabled = false;
+      try { if(askInput) askInput.focus({preventScroll:false}); } catch(_){}
+      if(typeof ask === 'function') ask();
+    });
 
     // Offer to restore the last analysis (24h TTL) — never blocks the empty state
     try { maybeOfferRestore(); } catch(e){ console.warn('[restore]', e); }

@@ -393,6 +393,23 @@ skip("compare panel: copy button exports verdict + stats as plain text", async (
   assert.match(themeSrc, /\.compare-actions \.cmp-copy\{/, "theme.css must style .cmp-copy");
 });
 
+skip("ask: quick-question chips fill the input and ask immediately", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(analyzeHtml, /id="askChips"/, "analyze.html must expose #askChips");
+  assert.match(analyzeHtml, /data-ask-chip="Can I cancel this early\?"/, "a cancellation quick-question must exist");
+  assert.match(appSrc, /askChips\.addEventListener\('click'/, "app.js must wire the chips");
+  assert.match(appSrc, /askInput\.value = q/, "clicking a chip must fill the ask input");
+  assert.match(appSrc, /typeof ask === 'function'\) ask\(\)/, "clicking a chip must send the question");
+  assert.match(themeSrc, /\.ask-chip\{/, "theme.css must style .ask-chip");
+  assert.match(themeSrc, /\.ask-chip:focus-visible\{/, "theme.css must give chips a focus ring");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

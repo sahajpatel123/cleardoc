@@ -3418,3 +3418,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 21 of the autonomous loop (alternate add/polish): reward completing the action checklist.
+
+**2026-08-06 16:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #22 of the restarted autonomous loop (feature add).
+- feat(ui): added four quick-question chips under the Ask box — "Can I cancel early?", "What am I liable for?", "Hidden fees?", "Is this legal?" — so non-expert users can interrogate a document without phrasing a question. Clicking a chip fills the input, enables Ask, focuses it, and sends immediately (no document yet → the existing "Analyze a document first" guard).
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 237 smoke + 1 integration = 728 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 22 of the autonomous loop (alternate add/polish): one-tap starter questions for the Ask panel.
