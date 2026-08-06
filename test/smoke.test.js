@@ -9498,6 +9498,7 @@ test("analyzer: Reading-list chunks copy their quote in one click", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /const bucketLabel = c\.bucket === 'must' \? 'MUST-READ' : c\.bucket === 'skim' \? 'SKIM' : 'SKIP';/,
     "the citation must carry the bucket label");
@@ -9513,6 +9514,10 @@ test("analyzer: Reading-list chunks copy their quote in one click", () => {
     "the button must flash its copied state");
   assert.match(appSrc, /<b>📋<\/b> per row copies a single chunk/,
     "the block note must document the copy action");
+  assert.match(cssSrc, /\.reading-copy\{[^}]*flex-shrink:0/,
+    "the copy button must never get crushed beside the content");
+  assert.match(cssSrc, /\.reading-copy:focus-visible\{/,
+    "the copy button must have a focus ring");
 });
 
 // Iter #140: section risk map — aggregates risk patterns by

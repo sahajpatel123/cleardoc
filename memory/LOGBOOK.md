@@ -4570,3 +4570,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 134 of the autonomous loop (alternate add/polish): the sentence you're told to read twice should copy with its priority tag in one click.
+
+**2026-08-06 03:24 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #135 of the restarted autonomous loop (polish).
+- polish(ui): the reading-row 📋 copy button is now layout-safe — it never shrinks beside the flexing chunk content (`flex-shrink:0`), centers itself vertically in the row, and gets a proper focus ring.
+- Extended the cycle-134 smoke test with 2 CSS assertions covering the shrink guard and the focus ring.
+- Full suite green (490 unit + 302 smoke + 1 integration = 793 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 135 of the autonomous loop (alternate add/polish): the copy button should sit calmly at the row's right edge at every width.
