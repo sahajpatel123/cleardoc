@@ -1532,6 +1532,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .kc-controls{margin-top:4px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro)}
 .kc-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;font-size:var(--t-micro);margin-right:auto}
 .kc-expand{margin-left:0;font-size:11px;padding:2px 8px}
+/* Cycle 76 — key-clause copy chip, same family as expand. */
+.kc-copy{font-size:11px;padding:2px 8px}
 .key-clause.kc-expanded .kc-row .kc-sev{background:var(--ink-soft)}
 
 /* Signing checklist (iter #102) — grouped by who acts. */

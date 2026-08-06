@@ -3958,3 +3958,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 75 of the autonomous loop (alternate add/polish): a saved conversation should say when it happened.
+
+**2026-08-06 01:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #76 of the restarted autonomous loop (feature add).
+- feat(ui): the Key-clause preview now has a "📋 copy" chip that exports the "read twice" list as a numbered plain-text list with severity tags ("1. [trap] The Lessee shall indemnify…"), opening with the block header — ready for notes or sharing. Clipboard + toast + flash + aria announce, matching the other copy chips.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 270 smoke + 1 integration = 761 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 76 of the autonomous loop (alternate add/polish): the clauses worth reading twice should leave the app with you.

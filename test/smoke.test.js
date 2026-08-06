@@ -7842,6 +7842,33 @@ test("analyzer: Key-clause preview polished with per-row 🔊 + counter badge", 
     ".kc-count style must exist");
 });
 
+// Cycle 76 feature: copy the key-clause list as plain text.
+test("analyzer: Key clauses copy as a numbered list with severity", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // The copy chip lives in the key-clause controls row
+  assert.match(appSrc, /id="kcCopyBtn"[^>]*title="Copy the key clauses as plain text"/,
+    "the key-clause controls must include a copy chip");
+  assert.match(appSrc, /kcCopyBtn\._kcCopyWired/,
+    "copy wiring must be guarded so it is attached only once");
+  assert.match(appSrc, /\(idx \+ 1\) \+ '\. \[' \+ sev \+ '\] ' \+ String\(it\.s \|\| ''\)/,
+    "each line must carry a number, severity tag, and clause text");
+  assert.match(appSrc, /'Top clauses to read twice\\n' \+ lines\.join\('\\n'\)/,
+    "the copy must open with the block header");
+  assert.match(appSrc, /'📋 Key clauses copied'/,
+    "copy must toast on success");
+  assert.match(appSrc, /kcCopyBtn\.setAttribute\('aria-label', ok \? 'Key clauses copied to clipboard' : 'Copy failed — try again'\)/,
+    "copy must announce success/failure via aria-label");
+  assert.match(appSrc, /kcCopyBtn\.setAttribute\('aria-label', 'Copy the key clauses'\)/,
+    "copy must restore the original aria-label after the flash");
+  assert.match(cssSrc, /\.kc-copy\{/,
+    "theme.css must style .kc-copy");
+});
+
 // Iter #102: signing checklist — surfaces marker-phrase clauses
 // that need explicit action (notarize / witness / counsel /
 // arbitration / wire / etc.) grouped by who needs to act. Pure

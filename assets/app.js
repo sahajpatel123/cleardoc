@@ -12504,6 +12504,7 @@
       const counterHtml =
         '<div class="kc-controls">' +
           '<span class="kc-count">' + picks.length + ' clauses</span>' +
+          '<button type="button" class="kc-copy ghost-btn ghost-btn-sm" id="kcCopyBtn" title="Copy the key clauses as plain text">📋 copy</button>' +
           '<button type="button" class="kc-expand ghost-btn ghost-btn-sm" id="kcExpandBtn" title="Show every long sentence in the document">expand all</button>' +
         '</div>';
       list.innerHTML = picks.map((it, idx) => (
@@ -12548,6 +12549,45 @@
           }
         });
       });
+      // Cycle 76 feature — copy the key clauses as plain text so the top
+      // "read twice" list can be pasted into notes or shared.
+      const kcCopyBtn = document.getElementById('kcCopyBtn');
+      if(kcCopyBtn && !kcCopyBtn._kcCopyWired){
+        kcCopyBtn._kcCopyWired = true;
+        kcCopyBtn.addEventListener('click', async () => {
+          const lines = picks.map((it, idx) => {
+            const sev = it.sev === 'r' ? 'trap' : it.sev === 'a' ? 'watch' : 'note';
+            return (idx + 1) + '. [' + sev + '] ' + String(it.s || '').replace(/\s+/g, ' ').trim();
+          });
+          if(!lines.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy yet');
+            return;
+          }
+          const text = 'Top clauses to read twice\n' + lines.join('\n');
+          let ok = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(text);
+              ok = true;
+            } else {
+              const ta = document.createElement('textarea');
+              ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+              document.body.appendChild(ta); ta.select();
+              ok = document.execCommand('copy'); document.body.removeChild(ta);
+            }
+          } catch(_){ /* ignore */ }
+          kcCopyBtn.textContent = ok ? '✓ copied' : 'Copy failed';
+          kcCopyBtn.setAttribute('aria-label', ok ? 'Key clauses copied to clipboard' : 'Copy failed — try again');
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Key clauses copied' : '⚠ Couldn’t copy');
+          clearTimeout(kcCopyBtn._flashTimer);
+          kcCopyBtn._flashTimer = setTimeout(() => {
+            if(kcCopyBtn.isConnected){
+              kcCopyBtn.textContent = '📋 copy';
+              kcCopyBtn.setAttribute('aria-label', 'Copy the key clauses');
+            }
+          }, 1400);
+        });
+      }
     }
 
     function clearKeyClausePreview(){
