@@ -3592,6 +3592,7 @@
     const out = document.getElementById('privacyGuardText');
     const dismiss = document.getElementById('privacyGuardDismiss');
     const maskBtn = document.getElementById('privacyMaskBtn');
+    const maskUndoBtn = document.getElementById('privacyMaskUndoBtn');
     if(!ta || !box || !out) return;
     const EMAIL_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
     const PHONE_RE = /\b\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(?!\d)/g;
@@ -3614,6 +3615,7 @@
       { key:'ids', one:'ID-like number', many:'ID-like numbers' }
     ];
     let timer = 0;
+    let lastOriginal = null;
     function scan(value){
       const counts = { emails:0, phones:0, cards:0, ids:0 };
       if(!value) return counts;
@@ -3662,6 +3664,7 @@
     });
     if(maskBtn) maskBtn.addEventListener('click', () => {
       let changed = false;
+      const originals = [ta, taB].map(t => t ? t.value : null);
       [ta, taB].forEach(t => {
         if(!t) return;
         const masked = maskPii(t.value);
@@ -3672,8 +3675,26 @@
         }
       });
       if(!changed) return;
+      lastOriginal = originals;
+      if(maskUndoBtn) maskUndoBtn.hidden = false;
       if(typeof showAnalyzeToast === 'function'){
         showAnalyzeToast('🙈 Personal info masked');
+      }
+      render();
+    });
+    if(maskUndoBtn) maskUndoBtn.addEventListener('click', () => {
+      if(!lastOriginal) return;
+      [ta, taB].forEach((t, i) => {
+        if(!t) return;
+        const original = lastOriginal[i];
+        if(original == null || t.value === original) return;
+        t.value = original;
+        try { t.dispatchEvent(new Event('input', { bubbles:true })); } catch(_){ /* fall through */ }
+      });
+      lastOriginal = null;
+      maskUndoBtn.hidden = true;
+      if(typeof showAnalyzeToast === 'function'){
+        showAnalyzeToast('↩ Personal info restored');
       }
       render();
     });

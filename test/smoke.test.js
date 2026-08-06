@@ -263,6 +263,8 @@ test("analyze: privacy guard scans pasted text for personal identifiers before A
     "the guard must have a dismiss button");
   assert.match(html, /id="privacyMaskBtn" title="Replace emails, phones, and card\/ID-like numbers with placeholders"/,
     "the guard must offer a mask-PII action");
+  assert.match(html, /id="privacyMaskUndoBtn" title="Undo the last mask-PII pass" hidden/,
+    "the guard must offer an undo for the last mask pass");
   assert.match(appSrc, /function privacyGuard\(\)\{/,
     "privacyGuard must exist in app.js");
   assert.match(appSrc, /function privacyGuard\(\)\{[\s\S]{0,700}getElementById\('docInputB'\)/,
@@ -289,10 +291,14 @@ test("analyze: privacy guard scans pasted text for personal identifiers before A
     "dismissing must stick for the page load");
   assert.match(appSrc, /const maskBtn = document\.getElementById\('privacyMaskBtn'\);/,
     "the mask button must be wired in privacyGuard");
+  assert.match(appSrc, /const maskUndoBtn = document\.getElementById\('privacyMaskUndoBtn'\);/,
+    "the undo button must be wired in privacyGuard");
   assert.match(appSrc, /const maskPii = \(value\) => \{/,
     "the guard must define a maskPii helper");
   assert.match(appSrc, /'🙈 Personal info masked'/,
     "masking must confirm with a toast");
+  assert.match(appSrc, /'↩ Personal info restored'/,
+    "undoing a mask must confirm with a toast");
   assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,wireSelectionAsk,faq\]/,
     "privacyGuard must run on the analyze page init list");
   assert.match(cssSrc, /\.privacy-guard\{/, "guard styling must exist");
@@ -327,6 +333,14 @@ skip("analyze: privacy mask button redacts personal identifiers", async () => {
     assert.match(val, /\[phone\]/, "phone must be masked");
     assert.match(val, /\[card\]/, "card number must be masked");
     assert.match(val, /\[id\]/, "ID number must be masked");
+    await page.click("#privacyMaskUndoBtn");
+    await page.waitForFunction(() => document.getElementById("docInput").value.includes("jane@example.com"),
+      { timeout: 4000 });
+    const restored = await page.inputValue("#docInput");
+    assert.match(restored, /jane@example\.com/, "undo must restore the email");
+    assert.match(restored, /415-555-0199/, "undo must restore the phone number");
+    assert.match(restored, /4111 1111 1111 1111/, "undo must restore the card number");
+    assert.match(restored, /123-45-6789/, "undo must restore the ID number");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
