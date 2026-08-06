@@ -4,6 +4,12 @@
 
 ClearDoc turns intimidating legal, medical, and financial documents into plain English — flags the traps, gives you a verdict, and tells you exactly what to do next. Built as a static editorial site with four Vercel serverless API endpoints.
 
+## CI/CD Status
+
+![Tests](https://github.com/sahajpatel123/cleardoc/actions/workflows/test.yml/badge.svg)
+![Security](https://github.com/sahajpatel123/cleardoc/actions/workflows/security.yml/badge.svg)
+![CodeQL](https://github.com/sahajpatel123/cleardoc/actions/workflows/codeql.yml/badge.svg)
+
 ## Stack
 
 - **Frontend** — Hand-crafted editorial / brutalist design with GSAP animations, Lenis smooth scroll, PDF.js + Tesseract.js attachment support. Vanilla JS, no framework.
@@ -110,9 +116,8 @@ If neither AI key is set, the analyzer falls back to a fully local regex-based s
 │   ├── csp-report-error.test.js  source-pattern tests for csp-report.js safety net
 │   ├── smoke.test.js             60+ Playwright browser tests (load + CSP + share + a11y)
 │   └── integration.test.js       1 end-to-end test against a mock AI server
-├── public/
-│   └── .well-known/
-│       └── security.txt          RFC 9116 disclosure endpoint
+├── .well-known/
+│   └── security.txt              RFC 9116 disclosure endpoint
 ├── SECURITY.md                   Vulnerability disclosure policy + posture summary
 ├── CONTRIBUTING.md               Dev setup, test commands, commit conventions, PR checklist
 ├── vercel.json                   Routing, security headers, build config
@@ -128,7 +133,7 @@ This project uses an agent memory protocol — see `memory/MEMORY.md`. Every CLI
 
 ## Security & disclosure
 
-See [SECURITY.md](./SECURITY.md) for the full security posture (CSP, SRI, fail-closed validators, safety nets, X-Request-Id, rate-limit headers, etc.) and disclosure policy. The well-known [RFC 9116 `security.txt`](./public/.well-known/security.txt) is served at `/.well-known/security.txt`.
+See [SECURITY.md](./SECURITY.md) for the full security posture (CSP, SRI, fail-closed validators, safety nets, X-Request-Id, rate-limit headers, etc.) and disclosure policy. The well-known [RFC 9116 `security.txt`](./.well-known/security.txt) is served at `/.well-known/security.txt`.
 
 ## Contributing
 
