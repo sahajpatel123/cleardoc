@@ -13067,6 +13067,7 @@
       const controls = '<div class="section-controls">' +
         '<span class="section-count">' + visible.length + ' of ' + cats.length + ' categories</span>' +
         '<button type="button" class="section-filter ghost-btn ghost-btn-sm" id="sectionFilterBtn">' + (highOnly ? 'show all' : 'high-only') + '</button>' +
+        '<button type="button" class="section-filter ghost-btn ghost-btn-sm" id="sectionCopyBtn" title="Copy the section risk map as Markdown">📋 copy .md</button>' +
       '</div>';
       sectionGrid.innerHTML = rows + controls;
       sectionBlock.hidden = false;
@@ -13099,6 +13100,36 @@
         filterBtn.addEventListener('click', () => {
           sectionGrid._highOnly = !sectionGrid._highOnly;
           renderSectionBlock(raw, ctx);
+        });
+      }
+      const copyBtn = document.getElementById('sectionCopyBtn');
+      if(copyBtn){
+        copyBtn.addEventListener('click', async () => {
+          const rows = visible.map(c => {
+            const risk = c.sev >= 3 ? 'High' : c.sev >= 1 ? 'Watch' : 'Low';
+            return '| ' + String(c.label).replace(/\|/g, '\\|') + ' | ' + c.hits + ' | ' + risk + ' |';
+          }).join('\n');
+          const md = '| Section | Hits | Risk |\n|---|---|---|\n' + rows;
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Section map copied as Markdown' : '⚠ Couldn’t copy');
+          copyBtn.textContent = copied ? '✓ copied' : '📋 copy .md';
+          setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy .md'; }, 2500);
         });
       }
     }

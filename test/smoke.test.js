@@ -11261,7 +11261,51 @@ test("analyzer: Section risk map aggregates risk by clause category", () => {
     "iter #141 must wire click-to-jump");
   assert.match(appSrc, /sectionFilterBtn|high-only/,
     "iter #141 must include a high-only filter chip");
+  assert.match(appSrc, /sectionCopyBtn/,
+    "iter #264 must include a section-map Markdown copy button");
+  assert.match(appSrc, /'📋 Section map copied as Markdown'/,
+    "iter #264 must confirm when the section map is copied");
+  assert.match(appSrc, /\| Section \| Hits \| Risk \|/,
+    "iter #264 must build a Markdown table header");
   assert.match(cssSrc, /\.section-controls\b/, ".section-controls style must exist");
+});
+
+skip("analyze: section risk map copies as Markdown", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedSectionMd = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedSectionMd = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedSectionMd = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#sectionBlock:not([hidden]) #sectionCopyBtn", { timeout: 8000 });
+    await page.click("#sectionCopyBtn");
+    await page.waitForFunction(() => window.__copiedSectionMd && window.__copiedSectionMd.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedSectionMd);
+    assert.match(captured, /^\| Section \| Hits \| Risk \|/, "the copied section map must start with the Markdown header");
+    assert.match(captured, /\|---\|---\|---\|/, "the copied section map must include the separator row");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
 });
 
 // Iter #142: quick-summary stamp — one-line social-card with
