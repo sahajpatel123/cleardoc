@@ -676,6 +676,9 @@ test("analyzer: Next Steps export a CSV with done/todo status", () => {
   assert.match(appSrc, /'⚠ Nothing to export yet — analyze first'/,
     "the export must guard the empty state");
   assert.match(themeSrc, /\.steps-csv\{/, "theme.css must style .steps-csv");
+  // Cycle 67 polish — self-describing progress metadata row
+  assert.match(appSrc, /csvCell\('Progress'\) \+ ',' \+ csvCell\(doneCount \+ ' of ' \+ total \+ ' done'\)/,
+    "the CSV must open with a Progress metadata row (N of M done)");
 });
 
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {

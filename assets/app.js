@@ -295,7 +295,11 @@
         if(/^[=+\-@]/.test(s)) s = "'" + s;
         return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
       };
-      const header = csvCell('Status') + ',' + csvCell('Step');
+      // Cycle 67 polish — leading Progress row makes the file self-
+      // identifying (mirrors the risk CSV's metadata rows).
+      const doneCount = list.querySelectorAll('li.done').length;
+      const total = list.querySelectorAll('li').length;
+      const header = csvCell('Progress') + ',' + csvCell(doneCount + ' of ' + total + ' done') + '\n' + csvCell('Status') + ',' + csvCell('Step');
       const body = rows.map(r => csvCell(r[0]) + ',' + csvCell(r[1])).join('\n');
       const text = '\uFEFF' + header + '\n' + body;
       try{

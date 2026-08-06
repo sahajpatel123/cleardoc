@@ -3868,3 +3868,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 66 of the autonomous loop (alternate add/polish): every actionable list in the app now exports to a spreadsheet.
+
+**2026-08-06 23:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #67 of the restarted autonomous loop (polish).
+- polish(ui): the Next Steps CSV now opens with a self-describing Progress metadata row ("Progress,2 of 5 done") before the Status/Step header, mirroring the risk CSV's metadata rows — so the file is identifiable when reopened or shared.
+- Extended the steps-CSV smoke test with the progress-row assertion.
+- Full suite green (490 unit + 265 smoke + 1 integration = 756 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 67 of the autonomous loop (alternate add/polish): a spreadsheet export should say what it is.
