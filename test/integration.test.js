@@ -649,3 +649,71 @@ skip("integration: deadline list sorts by date and persists the choice", async (
     await new Promise((r) => web2.close(r));
   }
 });
+
+// Cycle #236 — duplicating a saved template creates a "(copy)" entry.
+skip("integration: templates can be duplicated", async () => {
+  const WEB2 = 4341;
+  const web2 = staticServer();
+  await new Promise((r) => web2.listen(WEB2, r));
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+
+  await page.addInitScript(() => {
+    const MOCK = {
+      analysis: {
+        plainEnglishRewrite: "<b>This is a rewritten clause.</b> It says you must pay within 30 days.",
+        risks: [],
+        verdict: { label: "Suspicious", summary: "One clause deserves attention before signing." },
+        deadlines: [],
+        nextSteps: ["Calendar the cancellation deadline."],
+        readingLevel: { before: 14, after: 8 },
+        jargonFound: 7,
+      },
+    };
+    const origFetch = window.fetch.bind(window);
+    window.fetch = function patchedFetch(url, opts) {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (u.endsWith("/api/analyze")) {
+        return Promise.resolve(new Response(JSON.stringify(MOCK), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return origFetch(url, opts);
+    };
+    localStorage.setItem("cleardoc:templates", JSON.stringify([{
+      v: 1,
+      ts: Date.now(),
+      name: "Lease",
+      text: "This lease shall automatically renew for successive terms unless cancelled.",
+      type: "Lease",
+    }]));
+  });
+
+  try {
+    await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
+    await page.waitForSelector("#tplBtn", { timeout: 8000 });
+    await page.click("#tplBtn");
+    await page.waitForSelector("#tplList .tpl-item", { timeout: 8000 });
+    const namesBefore = await page.$$eval("#tplList .tpl-name", (els) => els.map((e) => e.textContent.trim()));
+    assert.deepEqual(namesBefore, ["Lease"], "the seeded template must render first");
+
+    await page.click('[data-tpl-dup="0"]');
+    await page.waitForTimeout(300);
+    const namesAfter = await page.$$eval("#tplList .tpl-name", (els) => els.map((e) => e.textContent.trim()));
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("cleardoc:templates") || "[]"));
+    assert.deepEqual(namesAfter, ["Lease (copy)", "Lease"],
+      "duplicating must render a (copy) entry above the original");
+    assert.equal(stored.length, 2, "the store must hold both templates");
+    assert.equal(stored[0].name, "Lease (copy)", "the new entry must carry the copy name");
+    assert.equal(stored[0].text, stored[1].text, "the copy must share the original text");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+    await new Promise((r) => web2.close(r));
+  }
+});

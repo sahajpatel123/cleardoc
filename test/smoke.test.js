@@ -5056,6 +5056,27 @@ test("analyzer: Template panel exports and imports a JSON backup", () => {
     "imported type must be normalized to a string or null");
 });
 
+// Cycle #236 — duplicate a saved template for variants.
+test("analyzer: templates can be duplicated", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /data-tpl-dup="' \+ i \+[\s\S]{0,60}'" title="Duplicate this template"/,
+    "each template row must include a duplicate button");
+  assert.match(appSrc, /const dupBtn = e\.target\.closest && e\.target\.closest\('\[data-tpl-dup\]'\);/,
+    "the duplicate button must be caught by the delegated handler");
+  assert.match(appSrc, /const dupName = \(t\.name \|\| 'Untitled'\) \+ ' \(copy\)';/,
+    "the copy must be named '<name> (copy)'");
+  assert.match(appSrc, /saveTemplate\(dupName, t\.text, t\.type\)/,
+    "the copy must be saved through the dedup-aware saveTemplate");
+  assert.match(appSrc, /'⧉ Template duplicated: ' \+ dupName/,
+    "duplicating must toast the new name");
+  assert.match(appSrc, /'⚠ Couldn’t duplicate — same name exists or cap reached'/,
+    "a failed duplicate must be reported");
+});
+
 // Cycle #214 — saved templates offer a one-click analyze action.
 test("analyzer: saved templates offer one-click analyze", () => {
   if (!HAS_BROWSER) return;

@@ -18775,6 +18775,11 @@
             '<span class="tpl-when">' + esc(ago) + '</span></button>' +
             '<button type="button" class="tpl-edit" data-tpl-edit="' + i +
             '" title="Edit this template">✏️</button>' +
+            // Cycle #236 — duplicate a template for variants (e.g. a lease
+            // per landlord): same text, "(copy)" name, saved via the
+            // dedup-aware saveTemplate.
+            '<button type="button" class="tpl-dup" data-tpl-dup="' + i +
+            '" title="Duplicate this template">⧉ dup</button>' +
             '<button type="button" class="tpl-run" data-tpl-run="' + i +
             '" title="Load and analyze this template">⚡ analyze</button>' +
           '</li>';
@@ -18799,6 +18804,21 @@
       }
       if(tplList){
         tplList.addEventListener('click', (e) => {
+          // Cycle #236 — duplicate button
+          const dupBtn = e.target.closest && e.target.closest('[data-tpl-dup]');
+          if(dupBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const idx = parseInt(dupBtn.getAttribute('data-tpl-dup') || '0', 10);
+            const items = (typeof readTemplates === 'function') ? readTemplates() : [];
+            const t = items[idx];
+            if(!t || !t.text) return;
+            const dupName = (t.name || 'Untitled') + ' (copy)';
+            const ok = (typeof saveTemplate === 'function') ? saveTemplate(dupName, t.text, t.type) : false;
+            renderTemplates();
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '⧉ Template duplicated: ' + dupName : '⚠ Couldn’t duplicate — same name exists or cap reached');
+            return;
+          }
           // Edit button (iter #59) — opens inline edit mode
           const editBtn = e.target.closest && e.target.closest('[data-tpl-edit]');
           if(editBtn){

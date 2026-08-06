@@ -5656,3 +5656,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 235 of the autonomous loop (alternate add/polish): a toggle that doesn't announce itself is a toggle only the mouse can hear — press it out loud, and tell the note where it lives.
+
+**2026-08-07 04:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #236 of the restructured autonomous loop (add).
+- feat(templates): each saved template now has a "⧉ dup" button that creates a "<name> (copy)" variant with the same text and type, saved through the dedup-aware `saveTemplate` (so duplicates are distinct by name). Success toasts the new name; failure (same name already exists or the 10-entry cap) reports why. Perfect for per-landlord lease variants.
+- Verified in a real browser via a new integration test (fresh origin + seeded store): the seeded "Lease" template rendered; clicking dup produced "Lease (copy)" above the original, the store held both entries with identical text, and there were zero console errors.
+- New smoke source test (6 assertions: dup button markup, delegated handler, copy naming, saveTemplate wiring, success + failure toasts).
+- Full suite green (490 unit + 347 smoke + 7 integration = 844 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 236 of the autonomous loop (alternate add/polish): a template that fits one deal is a note; a template that can spawn variants is a system — let every saved doc clone itself.
