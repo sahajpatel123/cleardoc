@@ -10520,6 +10520,7 @@ test("analyzer: Smoking-gun cards copy their citation in one click", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /class="smoking-card-copy ghost-btn ghost-btn-sm"/,
     "each smoking-gun card must render a copy button");
@@ -10535,6 +10536,10 @@ test("analyzer: Smoking-gun cards copy their citation in one click", () => {
     "copying must announce via toast");
   assert.match(appSrc, /copyBtn\.textContent = copied \? '✓' : '📋';/,
     "the button must flash its copied state");
+  assert.match(cssSrc, /\.smoking-card-head\{[^}]*flex-wrap:wrap/,
+    "the card head must wrap with the new button on narrow screens");
+  assert.match(cssSrc, /\.smoking-card-copy\{[^}]*margin-left:auto/,
+    "the copy button must right-align in the head");
 });
 
 // Cycle #123 — per-exposure-card copy citation.
@@ -10568,6 +10573,7 @@ test("analyzer: Pressure cards copy their citation in one click", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /const copyText = '\[PRESSURE · ' \+ sevLabel \+ '\] "' \+ it\.sentence \+ '"'/,
     "the citation must open with severity and the sentence");
@@ -10583,6 +10589,8 @@ test("analyzer: Pressure cards copy their citation in one click", () => {
     "copying must announce via toast");
   assert.match(appSrc, /copyBtn\.textContent = copied \? '✓' : '📋';/,
     "the button must flash its copied state");
+  assert.match(cssSrc, /\.pressure-copy\{[^}]*margin-left:auto/,
+    "the copy button must right-align in the head");
 });
 
 // Iter #218 v2: JSON export polish — download button + DOM-extracted

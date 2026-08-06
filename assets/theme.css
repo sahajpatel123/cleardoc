@@ -2125,7 +2125,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .smoking-card.smoking-rank-1{border-left:6px solid var(--danger);background:var(--danger-tint)}
 .smoking-card.smoking-rank-2,.smoking-card.smoking-rank-3{border-left:4px solid var(--danger)}
 .smoking-card.smoking-rank-4,.smoking-card.smoking-rank-5{border-left:3px solid var(--amber)}
-.smoking-card-head{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700}
+.smoking-card-head{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;flex-wrap:wrap}
+.smoking-card-copy{margin-left:auto}
 .smoking-rank{font-family:'Archivo Black',sans-serif;font-size:14px;color:var(--ink);background:var(--paper2);border:1px solid var(--ink-soft);padding:2px 8px;line-height:1}
 .smoking-rank-1 .smoking-rank{background:var(--danger);color:#fff;border-color:var(--danger)}
 .smoking-tag{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;padding:2px 5px;border:1px solid var(--bd-hair);background:#fff}
@@ -2175,6 +2176,7 @@ mark.smoking-trigger{background:#ffe98a;color:var(--ink);padding:0 2px;font-weig
 .pressure-card.pressure-card-med{border-left:4px solid var(--amber);background:#fff8e6}
 .pressure-card.pressure-card-low{border-left:3px solid var(--ink-soft)}
 .pressure-card-head{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;flex-wrap:wrap}
+.pressure-copy{margin-left:auto}
 .pressure-kind{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink);padding:2px 6px;border:1px solid var(--ink);background:#fff;font-weight:700}
 .pressure-kind.pressure-kind-high{color:#fff;background:var(--danger);border-color:var(--danger)}
 .pressure-kind.pressure-kind-med{color:var(--ink);background:var(--amber);border-color:var(--amber)}

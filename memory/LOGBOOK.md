@@ -4490,3 +4490,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 126 of the autonomous loop (alternate add/polish): the pushiest sentence in the document should copy with its warning attached.
+
+**2026-08-06 01:32 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #127 of the restarted autonomous loop (polish).
+- polish(ui): the smoking-gun card head now wraps on narrow screens (`flex-wrap:wrap`), so the new 📋 copy button can never get clipped next to the rank, severity tag, and meta; both the smoking-gun and pressure copy buttons right-align in their heads (`margin-left:auto`) for a consistent action corner.
+- Extended the cycle-122 and cycle-126 smoke tests with CSS assertions covering the wrap and the right-alignment (2 new assertions in each test).
+- Full suite green (490 unit + 298 smoke + 1 integration = 789 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 127 of the autonomous loop (alternate add/polish): the copy button should sit in a predictable corner on every card, at every width.
