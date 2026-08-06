@@ -942,6 +942,8 @@ skip("integration: exposure cards ask about the exposure", async () => {
     await page.click("#analyzeBtn");
     await page.waitForSelector("#exposureGrid .exposure-card", { timeout: 8000 });
 
+    const noteText = await page.$eval("#exposureNote", (el) => el.textContent || "");
+    assert.match(noteText, /asks about one/, "the exposure note must document the ask action");
     const sentence = await page.$eval("#exposureGrid .exposure-card [data-exposure-ask]", (el) => el.getAttribute("data-exposure-ask"));
     await page.click("#exposureGrid .exposure-card [data-exposure-ask]");
     await page.waitForTimeout(200);

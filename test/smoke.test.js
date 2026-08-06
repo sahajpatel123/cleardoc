@@ -12199,6 +12199,8 @@ test("analyzer: Exposure cards ask about the exposure in one click", () => {
     "clicking must prefill the Ask panel with the sentence");
   assert.match(appSrc, /'💬 Question ready — press Ask'/,
     "asking must announce via toast");
+  assert.match(appSrc, /💬<\/b> asks about one/,
+    "the block note must document the ask action");
   assert.match(cssSrc, /\.exposure-ask\{[^}]*margin-left:4px/,
     "the ask button must sit beside the copy button");
   assert.match(cssSrc, /\.exposure-ask:focus-visible\{/,

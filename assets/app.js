@@ -10592,7 +10592,7 @@
           'Pure-local: walks the document, extracts every payable amount and every unbounded-liability phrase, and computes both worst-case and probability-adjusted exposure. ' +
           ubNote +
           '<b>Drag any slider</b> to set the chance you think that clause will fire. Preset chips (10% / 50% / 75%) set every slider at once. Click any card to jump. ' +
-          '<b>📋 copy</b> exports plain text; <b>📋 markdown</b> exports a table with probabilities. <b>🔊</b> reads one aloud.';
+          '<b>📋 copy</b> exports plain text; <b>📋 markdown</b> exports a table with probabilities. <b>🔊</b> reads one aloud, or <b>💬</b> asks about one.';
       }
       // Click-to-jump, ignoring slider.
       $$('.exposure-card', exposureGrid).forEach(card => {

@@ -5755,3 +5755,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 244 of the autonomous loop (alternate add/polish): a six-figure exposure you can't interrogate is just a scary number — let users ask the document what it actually means.
+
+**2026-08-07 06:18 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #245 of the restructured autonomous loop (polish).
+- polish(exposure): the exposure note now documents the cycle-#244 💬 ask action ("…🔊 reads one aloud, or 💬 asks about one") so the completed trio is discoverable next to the copy/markdown exports.
+- Verified in a real browser via the extended exposure integration test: the rendered `#exposureNote` mentions "asks about one"; zero console errors.
+- Extended the cycle-#244 smoke test with 1 note-text assertion.
+- Full suite green (490 unit + 351 smoke + 10 integration = 851 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 245 of the autonomous loop (alternate add/polish): the note that teaches a block should teach all of it — a question button nobody knows about is a question button nobody asks.
