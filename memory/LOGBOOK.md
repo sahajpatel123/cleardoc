@@ -3408,3 +3408,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 20 of the autonomous loop (alternate add/polish): make comparison results copyable as text.
+
+**2026-08-06 15:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #21 of the restarted autonomous loop (polish).
+- polish(ui): the Next Steps progress line now celebrates completion — when every step is checked it reads "✓ all N done" in green (bold) instead of "N of N done", then reverts to the plain count when any step is unchecked or the reset is used.
+- Extended the next-steps smoke test with the all-done assertions.
+- Full suite green (490 unit + 237 smoke + 1 integration = 728 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 21 of the autonomous loop (alternate add/polish): reward completing the action checklist.

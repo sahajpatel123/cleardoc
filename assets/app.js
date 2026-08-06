@@ -121,7 +121,9 @@
     if(!list || !el) return;
     const total = list.querySelectorAll('li').length;
     const done = list.querySelectorAll('li.done').length;
-    el.textContent = total > 0 ? done + ' of ' + total + ' done' : '';
+    const allDone = total > 0 && done === total;
+    el.textContent = total > 0 ? (allDone ? '✓ all ' + total + ' done' : done + ' of ' + total + ' done') : '';
+    el.classList.toggle('steps-all-done', allDone);
     list.querySelectorAll('li').forEach(li => li.setAttribute('aria-checked', li.classList.contains('done') ? 'true' : 'false'));
   }
   function applyStepsDone(){

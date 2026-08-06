@@ -1292,6 +1292,7 @@ button.risk-preview:hover{filter:brightness(.96)}
 .nextsteps-list li.done{text-decoration:line-through;opacity:.55}
 .nextsteps-list li:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .steps-progress{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);letter-spacing:.04em;margin-left:8px}
+.steps-progress.steps-all-done{color:var(--green);font-weight:700}
 .steps-reset{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;background:none;border:1px solid var(--ink-soft);color:var(--ink-soft);cursor:pointer;padding:1px 6px;margin-left:8px;vertical-align:baseline}
 .steps-reset:hover{background:var(--ink);color:var(--paper)}
 .steps-reset:focus-visible{outline:2px solid var(--accent);outline-offset:3px}

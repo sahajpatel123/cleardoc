@@ -311,6 +311,8 @@ skip("next steps: interactive done-tracking with persisted progress", async () =
   assert.match(appSrc, /e\.key !== 'Enter' && e\.key !== ' '/, "steps must toggle via Enter/Space");
   assert.match(themeSrc, /\.nextsteps-list li\.done\{/, "done steps must be visually marked");
   assert.match(themeSrc, /\.nextsteps-list li:focus-visible\{/, "focused steps must show a focus ring");
+  assert.match(appSrc, /'✓ all ' \+ total \+ ' done'/, "the progress line must celebrate when every step is done");
+  assert.match(themeSrc, /\.steps-progress\.steps-all-done\{/, "theme.css must style the all-done progress state");
 });
 
 skip("top concern: callout has a copy button that exports clause + why", async () => {
