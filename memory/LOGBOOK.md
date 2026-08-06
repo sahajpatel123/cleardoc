@@ -4288,3 +4288,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 106 of the autonomous loop (alternate add/polish): a deadline you found yesterday shouldn't hide until you paste the document again.
+
+**2026-08-06 20:52 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #107 of the restarted autonomous loop (polish).
+- polish(ui): the load-time deadline reminder never stacks with the restore banner — when the restore offer is visible (which already re-renders the deadline alert on restore), the reminder yields and stays hidden.
+- Stale-record hygiene: dismissing the restore offer and clearing history now both purge the `cleardoc:upcomingDeadlines` record (joining the existing Forget-me purge), so a dismissed or wiped analysis can't leave a zombie reminder.
+- Extended the cycle-106 smoke test with 3 assertions covering the no-stack guard, the dismiss purge, and the history-clear purge (19 total in that test).
+- Full suite green (490 unit + 287 smoke + 1 integration = 778 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 107 of the autonomous loop (alternate add/polish): one reminder at a time, and none that outlive the analysis it came from.

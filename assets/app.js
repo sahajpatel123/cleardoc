@@ -4197,6 +4197,9 @@
       // conversations (they belong to those documents) and resets the
       // in-memory thread so nothing stale resurfaces.
       purgeStoredAskThreads();
+      // Cycle #107 — clearing history also drops the load-time deadline
+      // reminder (its deadlines belong to those past analyses).
+      try { localStorage.removeItem('cleardoc:upcomingDeadlines'); } catch(_){ /* ignore */ }
       askHistory = [];
       _threadRestored = false;
       if(askThread) askThread.innerHTML = '';
@@ -14410,6 +14413,9 @@
     function showDeadlineReminder(){
       const banner = document.getElementById('deadlineReminder');
       if(!banner) return;
+      // Cycle #107 — the restore banner already offers the last analysis
+      // (which re-renders the deadline alert), so never stack two banners.
+      if(restoreBanner && !restoreBanner.hidden){ banner.hidden = true; return; }
       let rec = null;
       try { rec = JSON.parse(localStorage.getItem('cleardoc:upcomingDeadlines') || 'null'); } catch(_){ rec = null; }
       if(!rec || !Array.isArray(rec.items) || !rec.items.length){ banner.hidden = true; return; }
@@ -18569,7 +18575,12 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     });
     if(dismissRestoreBtn) dismissRestoreBtn.addEventListener('click',()=>{
       clearStoredSnapshot();
+      // Cycle #107 — dismissing the restore offer also drops its
+      // deadline-reminder record so nothing stale resurfaces.
+      try { localStorage.removeItem('cleardoc:upcomingDeadlines'); } catch(_){ /* ignore */ }
       if(restoreBanner) restoreBanner.hidden=true;
+      const dr = document.getElementById('deadlineReminder');
+      if(dr) dr.hidden = true;
       if(msg){msg.textContent='Saved analysis dismissed. It will not be offered again until you run a new analysis.'; msg.className='analyze-msg';}
     });
     // Cycle #106 — reminder actions: restore through the existing restore

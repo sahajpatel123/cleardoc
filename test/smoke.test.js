@@ -9989,6 +9989,13 @@ test("analyzer: Returning users get an upcoming-deadline reminder banner", () =>
     "a fresh analysis must hide the reminder");
   assert.match(appSrc, /cleardoc:upcomingDeadlines'\]/,
     "Forget me must purge the reminder record");
+  // Cycle #107 — no stacked banners, and stale records get purged.
+  assert.match(appSrc, /if\(restoreBanner && !restoreBanner\.hidden\)\{ banner\.hidden = true; return; \}/,
+    "the reminder must yield to the restore banner instead of stacking");
+  assert.match(appSrc, /if\(dismissRestoreBtn\) dismissRestoreBtn\.addEventListener\('click',\(\)=>\{[\s\S]{0,260}cleardoc:upcomingDeadlines/,
+    "dismissing the restore offer must purge the reminder record");
+  assert.match(appSrc, /function clearHistory\(\)\{[\s\S]{0,520}cleardoc:upcomingDeadlines/,
+    "clearing history must purge the reminder record");
   assert.match(cssSrc, /\.deadline-reminder\{/,
     "the reminder banner must be styled");
   assert.match(cssSrc, /\.deadline-reminder\.overdue\{/,
