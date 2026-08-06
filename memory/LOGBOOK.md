@@ -5810,3 +5810,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 249 of the autonomous loop (alternate add/polish): a shortcut that silently does nothing in one view isn't a shortcut — `r` should always take you back to the reading list, even when Focus mode is hiding it.
+
+**2026-08-07 07:25 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #250 of the restructured autonomous loop (add).
+- feat(freshness): the freshness stamp block now has a "📋 copy all" chip that exports every marker as a plain-text citation ("[FRESHNESS · label] "raw" / When: …"), mirroring the per-row format — including the relative "When" (months ago / this month / in N months) for dated markers and the raw string for version markers. A styled controls row was added below the verdict.
+- Verified in a real browser via a new integration test (fresh origin, "effective as of March 1, 2025 … last revised on June 15, 2024" doc): both markers surfaced, copy-all exported exactly one citation per marker including the effective-date marker; zero console errors.
+- New smoke source test (5 assertions: chip markup, handler wiring, citation format, count toast, controls style).
+- Full suite green (490 unit + 355 smoke + 13 integration = 858 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 250 of the autonomous loop (alternate add/polish): the version dates that tell you whether a contract is stale deserve the same one-click export as every other finding — copy all the freshness markers, not one at a time.

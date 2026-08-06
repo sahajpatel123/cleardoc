@@ -13834,7 +13834,13 @@
         headerVerdict = '📦 Version marker detected: ' + version.raw;
       }
       const verdictHtml = headerVerdict ? '<div class="fresh-verdict">' + esc(headerVerdict) + '</div>' : '';
-      freshGrid.innerHTML = verdictHtml + rows;
+      // Cycle #250 — bulk copy of every freshness marker, mirroring the
+      // per-row citation format.
+      const freshControls = '<div class="fresh-controls">' +
+        '<span class="fresh-count">' + count + ' marker' + (count === 1 ? '' : 's') + '</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="freshCopyAllBtn" title="Copy all freshness markers as plain text">📋 copy all</button>' +
+      '</div>';
+      freshGrid.innerHTML = verdictHtml + rows + freshControls;
       freshBlock.hidden = false;
       // Cycle #140 — per-row copy. stopPropagation keeps the row's
       // click-to-jump from firing when the copy button is pressed.
@@ -13858,6 +13864,30 @@
           if(copied) setTimeout(() => { if(btn.isConnected) btn.textContent = '📋'; }, 1500);
         });
       });
+      // Cycle #250 — copy all freshness markers.
+      const freshCopyAllBtn = document.getElementById('freshCopyAllBtn');
+      if(freshCopyAllBtn){
+        freshCopyAllBtn.addEventListener('click', async () => {
+          const lines = items.map(it => {
+            let when = '—';
+            if(it.key === 'version'){ when = it.raw; }
+            else if(it.date){
+              const monthsAgo = Math.round((now - it.date.getTime()) / (30 * 86400000));
+              when = monthsAgo === 0 ? 'this month' : (monthsAgo < 0 ? 'in ' + Math.abs(monthsAgo) + ' months' : monthsAgo + ' months ago');
+            }
+            return '[FRESHNESS · ' + it.label + '] "' + it.raw + '"' + (when !== '—' ? '\nWhen: ' + when : '');
+          });
+          const text = lines.join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Freshness markers copied (' + lines.length + ')' : '⚠ Couldn’t copy');
+          freshCopyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
+          setTimeout(() => { if(freshCopyAllBtn.isConnected) freshCopyAllBtn.textContent = '📋 copy all'; }, 2500);
+        });
+      }
       if(freshNote){
         freshNote.innerHTML = '<span class="riskNote-lead">' + count + ' freshness marker' + (count === 1 ? '' : 's') + '</span> ' +
           (old > 0 ? '⚠ At least one date is >1 year old — confirm you have the latest revision before signing.' : 'Looks current. Always double-check you have the latest revision.');

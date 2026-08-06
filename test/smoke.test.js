@@ -9650,6 +9650,26 @@ test("analyzer: Freshness rows copy their marker in one click", () => {
     "the action row must lay out horizontally");
 });
 
+// Cycle #250 — bulk copy of every freshness marker.
+test("analyzer: Freshness block copies all markers in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /id="freshCopyAllBtn" title="Copy all freshness markers as plain text"/,
+    "the freshness block must include a copy-all chip");
+  assert.match(appSrc, /const freshCopyAllBtn = document\.getElementById\('freshCopyAllBtn'\);/,
+    "the copy-all chip must have a click handler");
+  assert.match(appSrc, /'\[FRESHNESS · ' \+ it\.label \+ '\] "' \+ it\.raw \+ '"' \+ \(when !== '—' \? '\\nWhen: ' \+ when : ''\)/,
+    "the copy-all must mirror the per-row citation format");
+  assert.match(appSrc, /'📋 Freshness markers copied \(' \+ lines\.length \+ '\)'/,
+    "copying must toast the marker count");
+  assert.match(cssSrc, /\.fresh-controls\{/,
+    "the copy-all controls row must be styled");
+});
+
 // Iter #120: document simplifier — paste a confusing sentence and
 // we translate it to plain English using the same jargon table that
 // powers the rewrite. Pure local.
