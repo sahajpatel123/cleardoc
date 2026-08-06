@@ -329,6 +329,22 @@ skip("top concern: callout has a copy button that exports clause + why", async (
   assert.match(themeSrc, /\.tc-copy:focus-visible\{/, "theme.css must give .tc-copy a focus ring");
 });
 
+skip("ask thread: answered turns have a copy button that exports answer + citation", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /data-ask-copy="1"/, "answered turns must render a copy button");
+  assert.match(appSrc, /function wireAskCopy\(/, "app.js must define wireAskCopy");
+  assert.match(appSrc, /'📋 Answer copied'/, "answer copy must toast on success");
+  assert.match(appSrc, /querySelector\('\.ans-line'\)/, "copy payload must read the answer line");
+  assert.match(appSrc, /querySelector\('\.cite'\)/, "copy payload must include the citation");
+  assert.match(themeSrc, /\.ask-copy\{/, "theme.css must style .ask-copy");
+  assert.match(themeSrc, /\.ask-copy:focus-visible\{/, "theme.css must give .ask-copy a focus ring");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

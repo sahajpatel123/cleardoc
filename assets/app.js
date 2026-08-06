@@ -181,6 +181,47 @@
     applyStepsDone();
   }
 
+  // Ask-thread answer copy — each answered turn gets a Copy button that
+  // exports the answer text plus its citation. Delegated on #askThread so
+  // re-renders never double-bind.
+  function wireAskCopy(){
+    const thread = document.getElementById('askThread');
+    if(!thread || thread._askCopyWired) return;
+    thread._askCopyWired = true;
+    thread.addEventListener('click', async (e) => {
+      const btn = e.target.closest && e.target.closest('[data-ask-copy]');
+      if(!btn) return;
+      const a = btn.closest('.ask-a');
+      if(!a) return;
+      const line = a.querySelector('.ans-line');
+      const cite = a.querySelector('.cite');
+      const text = ((line ? line.textContent : '') + (cite ? '\n\n' + cite.textContent : '')).trim();
+      if(!text) return;
+      let ok = false;
+      try {
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok = document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      } catch(_){}
+      const orig = 'Copy';
+      btn.textContent = ok ? 'Copied ✓' : 'Copy failed';
+      btn.setAttribute('aria-label', ok ? 'Answer copied to clipboard' : 'Copy failed — try again');
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Answer copied' : '⚠ Couldn’t copy');
+      clearTimeout(btn._flashTimer);
+      btn._flashTimer = setTimeout(() => {
+        btn.textContent = orig;
+        btn.setAttribute('aria-label', 'Copy this answer to the clipboard');
+      }, 1400);
+    });
+  }
+  wireAskCopy();
+
   /* ---- shared clarify engine (offline) ---- */
   const JARGON=[
     [/\bnotwithstanding any provision herein(,? to the contrary)?\b/gi,'no matter what else this says'],
@@ -13614,7 +13655,8 @@
         const pending = turn.pending;
         const aBody = pending
           ? '<span class="think"><i></i><i></i><i></i></span> Asking…'
-          : '<div class="ans-line">'+esc(turn.answer)+'</div>' + (turn.cite ? '<div class="cite" style="opacity:1">'+esc(turn.cite)+'</div>' : '');
+          : '<div class="ans-line">'+esc(turn.answer)+'</div>' + (turn.cite ? '<div class="cite" style="opacity:1">'+esc(turn.cite)+'</div>' : '') +
+            '<div class="ans-actions"><button type="button" class="ask-copy no-print" data-ask-copy="1" aria-label="Copy this answer to the clipboard">Copy</button></div>';
         return '<div class="ask-q">'+esc(turn.q)+'</div>' +
                '<div class="ask-a">'+aBody+'</div>';
       }).join('');

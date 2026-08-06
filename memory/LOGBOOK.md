@@ -3338,3 +3338,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 13 of the autonomous loop (alternate add/polish): announce Top Concern copy results to assistive tech.
+
+**2026-08-06 14:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #14 of the restarted autonomous loop (feature add).
+- feat(ui): every answered turn in the Ask thread now has a Copy button that exports the answer plus its citation as plain text (answer + blank line + citation). Delegated on #askThread so re-renders never double-bind; uses the flash + toast + dynamic aria-label pattern used across the app.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 233 smoke + 1 integration = 724 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 14 of the autonomous loop (alternate add/polish): make Ask answers copyable with their citations.
