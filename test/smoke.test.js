@@ -8116,6 +8116,8 @@ test("analyzer: Voice mode announces the deadline-urgency alert first", () => {
     "voice must push a 'deadline alert' segment");
   assert.match(appSrc, /click to jump\\s\*⤓/,
     "voice must strip the 'click to jump' hint from the alert text");
+  assert.match(appSrc, /jump to deadlines\\s\*⤓/,
+    "voice must also strip the new jump-button text from the alert");
   assert.match(appSrc, /add\('deadline alert', alertText\);[\s\S]+?add\('rewrite', grabText\('plainOut'\)\);/,
     "the alert must be the first segment read, before the rewrite");
 });
@@ -9395,6 +9397,13 @@ test("analyzer: Deadline alert surfaces overdue + within-7-days deadlines", () =
     "alert jump wiring must be attached only once");
   assert.match(appSrc, /lenis\.scrollTo\(deadlineBlock[\s\S]+?scrollIntoView/,
     "alert click must scroll to the deadlines block via lenis or scrollIntoView");
+  // Cycle 77 polish — a real button inside the banner is keyboard usable
+  assert.match(appSrc, /id="deadlineAlertJumpBtn"/,
+    "the alert must contain a real jump button for keyboard users");
+  assert.match(cssSrc, /\.deadline-alert \.da-jump-btn\{/,
+    "theme.css must style the jump button");
+  assert.match(cssSrc, /\.deadline-alert \.da-jump-btn:focus-visible\{/,
+    "the jump button must have a visible focus ring");
 
   // CSS: danger-tinted banner + hidden-state + focus ring
   assert.match(cssSrc, /\.deadline-alert\{[^}]*var\(--danger-tint\)/,

@@ -6396,7 +6396,10 @@
           parts.push('<b>' + upcoming.length + ' deadline' + (upcoming.length === 1 ? '' : 's') + ' within the next 7 days</b> — ' + esc(upcoming.map(it => it.date).join(', ')));
         }
         if(parts.length){
-          deadlineAlert.innerHTML = '<span class="da-icon" aria-hidden="true">⏰</span> ' + parts.join(' <span class="da-sep" aria-hidden="true">·</span> ') + ' <span class="da-jump-hint">click to jump ⤓</span>';
+          // Cycle 77 polish — a real button inside the status banner gives
+          // keyboard users an accessible jump affordance (the whole-banner
+          // click stays as a convenience).
+          deadlineAlert.innerHTML = '<span class="da-icon" aria-hidden="true">⏰</span> ' + parts.join(' <span class="da-sep" aria-hidden="true">·</span> ') + ' <button type="button" class="da-jump-btn" id="deadlineAlertJumpBtn">jump to deadlines ⤓</button>';
           deadlineAlert.hidden = false;
           if(!deadlineAlert._jumpWired){
             deadlineAlert._jumpWired = true;
@@ -15632,7 +15635,9 @@
           // Guard on visibility: the banner keeps stale markup when hidden.
           const deadlineAlertEl = document.getElementById('deadlineAlert');
           if(deadlineAlertEl && !deadlineAlertEl.hidden){
-            const alertText = (deadlineAlertEl.innerText || deadlineAlertEl.textContent || '').replace(/\s+/g, ' ').replace(/click to jump\s*⤓/g, '').trim();
+            // Cycle 77 polish — strip both the legacy hint and the new
+            // jump button from the narration.
+            const alertText = (deadlineAlertEl.innerText || deadlineAlertEl.textContent || '').replace(/\s+/g, ' ').replace(/click to jump\s*⤓|jump to deadlines\s*⤓/g, '').trim();
             add('deadline alert', alertText);
           }
           add('rewrite', grabText('plainOut'));

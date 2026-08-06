@@ -3968,3 +3968,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 76 of the autonomous loop (alternate add/polish): the clauses worth reading twice should leave the app with you.
+
+**2026-08-06 01:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #77 of the restarted autonomous loop (polish).
+- polish(a11y): the deadline-urgency banner's jump affordance is now a real button ("jump to deadlines ⤓") inside the status region — keyboard users can tab to it and activate it natively, while the whole-banner click stays as a convenience. Voice narration strips both the old hint and the new button text, and the button has a visible focus ring.
+- Extended the deadline-alert and voice-alert smoke tests with the jump-button and strip assertions.
+- Full suite green (490 unit + 270 smoke + 1 integration = 761 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 77 of the autonomous loop (alternate add/polish): the urgency banner should be reachable by keyboard, not just mouse.
