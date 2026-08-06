@@ -10022,6 +10022,29 @@ test("analyzer: Deadline rows can ask the document about the deadline in one cli
     "the a shortcut must target the deadline ask button");
 });
 
+// Cycle #120 — per-deadline copy citation.
+test("analyzer: Deadline rows copy their citation in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="deadline-row-copy ghost-btn ghost-btn-sm"/,
+    "each deadline row must render a copy button");
+  assert.match(appSrc, /data-deadline-copy-text="' \+ '\[/,
+    "the copy button must carry a citation starting with a bracket");
+  assert.match(appSrc, /\(isM \? '⚡ obligated' : '📅 scheduled'\) \+ ' · ' \+ esc\(it\.date\)/,
+    "the citation must carry the type and date");
+  assert.match(appSrc, /\$\$\('\.deadline-row-copy', deadlineList\)\.forEach/,
+    "copy buttons must be wired after each render");
+  assert.match(appSrc, /await navigator\.clipboard\.writeText\(text\)/,
+    "copying must use the clipboard API");
+  assert.match(appSrc, /execCommand\('copy'\)/,
+    "copying must fall back to execCommand");
+  assert.match(appSrc, /📋 Deadline citation copied/,
+    "copying must announce via toast");
+});
+
 // Cycle 50 feature: deadline CSV export — Date / Type / Countdown /
 // Context columns for spreadsheet import (mirrors the risk CSV).
 test("analyzer: Deadline block exports all deadlines as a CSV file", () => {

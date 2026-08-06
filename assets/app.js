@@ -6682,6 +6682,7 @@
           '<button type="button" class="deadline-ics ghost-btn ghost-btn-sm" data-deadline-ics="' + esc(it.date) + '" title="Save to your calendar">📅 ics</button>' +
           '<a class="deadline-gcal ghost-btn ghost-btn-sm" href="' + esc(gcalHref) + '" target="_blank" rel="noopener noreferrer" title="Add this deadline to Google Calendar" aria-label="Add deadline ' + esc(it.date) + ' to Google Calendar">🌐 gcal</a>' +
           '<button type="button" class="deadline-ask ghost-btn ghost-btn-sm" data-deadline-ask="' + esc(it.sentence || it.date || '') + '" data-deadline-date="' + esc(it.date || '') + '" data-deadline-type="' + (isM ? 'obligated' : 'scheduled') + '" title="Ask about this deadline" aria-label="Ask about this deadline">💬</button>' +
+          '<button type="button" class="deadline-row-copy ghost-btn ghost-btn-sm" data-deadline-copy-text="' + '[' + (isM ? '⚡ obligated' : '📅 scheduled') + ' · ' + esc(it.date) + '] "' + esc((it.sentence || '').slice(0, 180)) + '"' + ' title="Copy this deadline as a citation" aria-label="Copy this deadline as a citation">📋</button>' +
         '</div>';
       }).join('');
       const controls = '<div class="deadline-controls">' +
@@ -6796,6 +6797,27 @@
           try { qInput.focus({preventScroll:false}); } catch(_){ qInput.focus(); }
           try { qInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
+        });
+      });
+      // Cycle #120 — per-deadline copy citation: one click grabs the
+      // type + date + source sentence as a formatted block.
+      $$('.deadline-row-copy', deadlineList).forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const text = btn.getAttribute('data-deadline-copy-text') || '';
+          if(!text) return;
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Deadline citation copied' : '⚠ Couldn’t copy');
+          btn.textContent = copied ? '✓' : '📋';
+          setTimeout(() => { if(btn.isConnected) btn.textContent = '📋'; }, 1500);
         });
       });
     }

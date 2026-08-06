@@ -4420,3 +4420,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 119 of the autonomous loop (alternate add/polish): every row that can ask, asks with `a` — obligations complete the set.
+
+**2026-08-06 23:54 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #120 of the restarted autonomous loop (add) — milestone cycle.
+- feat(ui): every deadline row now has a one-click 📋 copy-citation button — it grabs "[⚡ obligated / 📅 scheduled · {date}] \"{sentence}\"" as a formatted block, with clipboard API + `execCommand` fallback, toast, and a ✓ flash. The deadline block previously had copy-all/CSV/ICS/Google-Calendar/ask but no way to copy a single deadline, so quoting one deadline to a lawyer or into notes took manual copy-paste.
+- New smoke test "Deadline rows copy their citation in one click" — 7 assertions covering the button markup, citation shape (type + date), per-render wiring, clipboard API, execCommand fallback, and toast.
+- Full suite green (490 unit + 294 smoke + 1 integration = 785 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 120 of the autonomous loop (alternate add/polish): one deadline, one click, one clean quote.
