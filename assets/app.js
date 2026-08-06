@@ -15424,6 +15424,7 @@
       // they cook / drive / walk.
       const voiceBtn = document.getElementById('voiceModeBtn');
       const voiceStopBtn = document.getElementById('voiceModeStopBtn');
+      const voiceTranscriptBtn = document.getElementById('voiceModeTranscriptBtn');
       // Iter #108: reveal cheat-sheet button alongside voice mode.
       const cheatSheetBtn = document.getElementById('cheatSheetBtn');
       if(cheatSheetBtn) cheatSheetBtn.hidden = false;
@@ -15440,6 +15441,7 @@
         try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
         showVoiceBtn();
         if(voiceStopBtn) voiceStopBtn.hidden = true;
+        if(voiceTranscriptBtn) voiceTranscriptBtn.hidden = true;
         if(voicePrevBtn) voicePrevBtn.hidden = true;
         if(voiceNextBtn) voiceNextBtn.hidden = true;
         if(voicePauseBtn){ voicePauseBtn.hidden = true; voicePauseBtn.textContent = '⏸ pause'; }
@@ -15527,6 +15529,7 @@
           try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
           voiceBtn.hidden = true;
           if(voiceStopBtn) voiceStopBtn.hidden = false;
+          if(voiceTranscriptBtn) voiceTranscriptBtn.hidden = false;
           if(voicePrevBtn) voicePrevBtn.hidden = false;
           if(voiceNextBtn) voiceNextBtn.hidden = false;
           if(voicePauseBtn) voicePauseBtn.hidden = false;
@@ -15833,6 +15836,35 @@
               voicePauseBtn.textContent = '⏸ pause';
             }
           } catch(_){ /* ignore */ }
+        });
+      }
+      // Cycle 70 feature — copy the voice transcript as plain text so the
+      // spoken summary can be pasted into notes, email, or a chat.
+      if(voiceTranscriptBtn && !voiceTranscriptBtn._voiceTranscriptWired){
+        voiceTranscriptBtn._voiceTranscriptWired = true;
+        voiceTranscriptBtn.addEventListener('click', async () => {
+          const segs = (voiceQueue || []).slice();
+          if(!segs.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy — start voice mode first');
+            return;
+          }
+          const text = segs.join('\n\n');
+          let ok = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(text);
+              ok = true;
+            } else {
+              const ta = document.createElement('textarea');
+              ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+              document.body.appendChild(ta); ta.select();
+              ok = document.execCommand('copy'); document.body.removeChild(ta);
+            }
+          } catch(_){ /* ignore */ }
+          voiceTranscriptBtn.textContent = ok ? '✓ copied' : 'Copy failed';
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Transcript copied' : '⚠ Couldn’t copy');
+          clearTimeout(voiceTranscriptBtn._flashTimer);
+          voiceTranscriptBtn._flashTimer = setTimeout(() => { if(voiceTranscriptBtn.isConnected) voiceTranscriptBtn.textContent = '📋 transcript'; }, 1400);
         });
       }
       if(voiceStopBtn){

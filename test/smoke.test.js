@@ -8000,6 +8000,39 @@ test("analyzer: Voice mode announces the deadline-urgency alert first", () => {
     "the alert must be the first segment read, before the rewrite");
 });
 
+// Cycle 70 feature: copy the voice transcript as plain text.
+test("analyzer: Voice mode can copy its transcript as plain text", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // analyze.html must carry the transcript button in the voice controls
+  assert.match(html, /id="voiceModeTranscriptBtn" title="Copy the full voice transcript as plain text"/,
+    "analyze.html must contain #voiceModeTranscriptBtn with a descriptive title");
+
+  // Visibility: shown with the playback controls, hidden on stop
+  assert.match(appSrc, /if\(voiceTranscriptBtn\) voiceTranscriptBtn\.hidden = false;/,
+    "the transcript button must appear when voice mode starts");
+  assert.match(appSrc, /if\(voiceTranscriptBtn\) voiceTranscriptBtn\.hidden = true;/,
+    "the transcript button must hide when voice mode stops");
+
+  // Wiring: once-only guard + reads the live playback queue
+  assert.match(appSrc, /voiceTranscriptBtn\._voiceTranscriptWired/,
+    "transcript wiring must be guarded so it is attached only once");
+  assert.match(appSrc, /\(voiceQueue \|\| \[\]\)\.slice\(\)/,
+    "transcript must snapshot the live playback queue");
+  assert.match(appSrc, /segs\.join\('\\n\\n'\)/,
+    "transcript must join the segments into one text block");
+  assert.match(appSrc, /'⚠ Nothing to copy — start voice mode first'/,
+    "transcript must guard the empty state");
+  assert.match(appSrc, /'📋 Transcript copied'/,
+    "transcript must toast on success");
+  assert.match(appSrc, /voiceTranscriptBtn\.textContent = '📋 transcript'; \}, 1400\);/,
+    "the button must flash and restore its label");
+});
+
 // Iter #108: cheat-sheet modal — printable single-page summary of
 // the analysis for meetings / lawyer hand-off. Pure local; built
 // from already-rendered DOM.
