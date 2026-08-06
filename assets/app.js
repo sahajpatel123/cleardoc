@@ -7147,6 +7147,10 @@
         if(d === null) return false;
         return dlFilter === 'soon' ? (d >= 0 && d <= 7) : d < 0;
       });
+      // Cycle #205 — exports follow the active filter (copy-all, CSV, and
+      // batch ICS act on what's visible, with a filtered tag in toasts).
+      const exportItems = visibleItems;
+      const filteredNote = dlFilter !== 'all' ? ' · filtered' : '';
       const rows = visibleItems.map(it => {
         const isM = /\(obligated\)/.test(it.verb);
         const cls = isM ? 'deadline-mandatory' : 'deadline-optional';
@@ -7220,7 +7224,7 @@
         copyAllBtn.addEventListener('click', async () => {
           // Cycle #193 — the copy-all list carries countdowns too, matching
           // the per-row copy so pasted lists read urgent at a glance.
-          const text = items.map(it => {
+          const text = exportItems.map(it => {
             const cd = (countdown(it.date) || '').trim();
             return it.date + (cd ? ' (' + cd + ')' : '') + (it.verb === '(obligated)' ? '  (must)' : '  (scheduled)') + '  ' + (it.sentence || '').slice(0, 120);
           }).join('\n');
@@ -7234,7 +7238,7 @@
               copied = true;
             } catch(_){ /* ignore */ }
           }
-          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Deadlines copied (' + items.length + ')' : '⚠ Couldn’t copy');
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Deadlines copied (' + exportItems.length + ')' + filteredNote : '⚠ Couldn’t copy');
           copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
           setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
         });
@@ -7253,7 +7257,7 @@
             return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
           };
           const header = csvCell('Date') + ',' + csvCell('Type') + ',' + csvCell('Countdown') + ',' + csvCell('Context');
-          const body = items.map(it => {
+          const body = exportItems.map(it => {
             const type = /\(obligated\)/.test(it.verb) ? 'obligated' : 'scheduled';
             return csvCell(it.date) + ',' + csvCell(type) + ',' + csvCell((countdown(it.date) || '').trim()) + ',' + csvCell((it.sentence || '').slice(0, 180));
           }).join('\n');
@@ -7267,7 +7271,7 @@
             a.href = url; a.download = 'cleardoc-deadlines-' + stamp + '.csv';
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📊 Deadlines CSV downloaded (' + items.length + ')');
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📊 Deadlines CSV downloaded (' + exportItems.length + ')' + filteredNote);
           }catch(_){
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create CSV file');
           }
@@ -7278,7 +7282,7 @@
       const deadlineIcsAllBtn = document.getElementById('deadlineIcsAllBtn');
       if(deadlineIcsAllBtn){
         deadlineIcsAllBtn.addEventListener('click', () => {
-          const events = items.map(it => {
+          const events = exportItems.map(it => {
             const dt = new Date((it.date || '') + 'T00:00:00Z');
             return { date: dt, label: 'Contract deadline ' + (it.date || '') };
           });

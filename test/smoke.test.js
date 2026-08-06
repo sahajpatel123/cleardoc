@@ -3293,6 +3293,17 @@ test("analyzer: deadline block filters to next-7-days or overdue", () => {
     "the handler must catch filter-chip clicks");
   assert.match(appSrc, /No deadlines match this filter\./,
     "an empty filtered view must say so");
+  // Cycle #205 — exports follow the filter.
+  assert.match(appSrc, /const exportItems = visibleItems;/,
+    "exports must act on the visible (filtered) items");
+  assert.match(appSrc, /const filteredNote = dlFilter !== 'all' \? ' · filtered' : '';/,
+    "filtered exports must carry a filtered tag");
+  assert.match(appSrc, /'📋 Deadlines copied \(' \+ exportItems\.length \+ '\)' \+ filteredNote/,
+    "the copy-all toast must count the filtered set");
+  assert.match(appSrc, /const body = exportItems\.map/,
+    "the CSV export must use the filtered set");
+  assert.match(appSrc, /const events = exportItems\.map/,
+    "the batch ICS export must use the filtered set");
   assert.match(cssSrc, /\.deadline-controls \.dl-filter-active\{/, "the active chip must be styled");
   assert.match(cssSrc, /\.deadline-empty\{/, "the empty state must be styled");
 });
@@ -11031,7 +11042,7 @@ test("analyzer: Deadline block exports all deadlines as a CSV file", () => {
     "filename must be cleardoc-deadlines-<date>.csv");
   assert.match(appSrc, /URL\.revokeObjectURL\(url\)/,
     "object URL must be revoked after the download");
-  assert.match(appSrc, /'📊 Deadlines CSV downloaded \(' \+ items\.length/,
+  assert.match(appSrc, /'📊 Deadlines CSV downloaded \(' \+ exportItems\.length/,
     "download must toast with the deadline count");
 });
 
@@ -11047,7 +11058,7 @@ test("analyzer: Deadline block exports all deadlines as one .ics calendar file",
     "deadline controls must include a batch .ics chip");
   assert.match(appSrc, /deadlineIcsAllBtn\.addEventListener\(\s*['"]click['"]/,
     "the batch .ics chip must have a click handler");
-  assert.match(appSrc, /const events = items\.map\(it => \{[\s\S]+?new Date\(\(it\.date \|\| ''\) \+ 'T00:00:00Z'\)/,
+  assert.match(appSrc, /const events = exportItems\.map\(it => \{[\s\S]+?new Date\(\(it\.date \|\| ''\) \+ 'T00:00:00Z'\)/,
     "each deadline must become a UTC-midnight all-day event");
   assert.match(appSrc, /const ics = buildIcs\(events\);/,
     "the batch export must reuse the multi-event builder");

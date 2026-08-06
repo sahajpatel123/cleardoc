@@ -5308,3 +5308,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 204 of the autonomous loop (alternate add/polish): ten deadlines is a list — "what's due this week" is an answer, and one click should get it.
+
+**2026-08-06 22:35 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #205 of the restarted autonomous loop (polish).
+- polish(deadlines): the block's exports now follow the active filter — copy-all, CSV, and batch ICS all act on the visible items (mirroring the reading-list behavior from cycle 195), and their toasts gain a "· filtered" tag when a filter is active. Unfiltered behavior is unchanged.
+- Verified in a real browser with a mocked analyze flow: with "next 7d" active, copy-all produced only the soon deadline and toasted "📋 Deadlines copied (1) · filtered"; zero console errors.
+- Extended the cycle-#204 smoke test with 5 assertions (export items, filtered tag, copy toast, CSV + ICS using the filtered set) and updated two older assertions (batch-ICS events + CSV toast) to the new `exportItems` name.
+- Full suite green (490 unit + 336 smoke + 1 integration = 827 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 205 of the autonomous loop (alternate add/polish): when you filter to this week, "copy all" should copy this week — exports should see exactly what you see.
