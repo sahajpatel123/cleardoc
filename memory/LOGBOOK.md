@@ -4730,3 +4730,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 150 of the autonomous loop (alternate add/polish): a clause engineered to rush you should be heard slowly.
+
+**2026-08-06 07:08 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #151 of the restarted autonomous loop (polish).
+- polish(ui): the pressure card's 🔊 speak + 📋 copy buttons now sit together at the head's right edge — speak owns the `margin-left:auto` push (both buttons shrink-proof), copy sits beside it with a small gap, and speak gets a proper focus ring.
+- Updated the cycle-126 test assertions for the pair alignment (speak push, copy gap, speak focus ring) — replacing the old single-button right-align check.
+- Full suite green (490 unit + 310 smoke + 1 integration = 801 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 151 of the autonomous loop (alternate add/polish): hear and copy should share one tidy corner of the pressure card.

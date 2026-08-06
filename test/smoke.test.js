@@ -10906,8 +10906,12 @@ test("analyzer: Pressure cards copy their citation in one click", () => {
     "copying must announce via toast");
   assert.match(appSrc, /copyBtn\.textContent = copied \? '✓' : '📋';/,
     "the button must flash its copied state");
-  assert.match(cssSrc, /\.pressure-copy\{[^}]*margin-left:auto/,
-    "the copy button must right-align in the head");
+  assert.match(cssSrc, /\.pressure-speak\{[^}]*margin-left:auto/,
+    "the speak button must push the action pair to the right edge");
+  assert.match(cssSrc, /\.pressure-copy\{[^}]*margin-left:4px/,
+    "the copy button must sit beside the speak button");
+  assert.match(cssSrc, /\.pressure-speak:focus-visible\{/,
+    "the speak button must have a focus ring");
 });
 
 // Cycle #150 — hear any pressure clause aloud.
