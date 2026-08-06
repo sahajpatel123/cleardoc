@@ -10301,6 +10301,27 @@ test("analyzer: reading list copies must-reads only", () => {
     "an empty must bucket must be reported");
 });
 
+// Cycle #222 — one-click copy of just the chunks still unread.
+test("analyzer: reading list copies the remaining unread chunks", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="readingCopyLeftBtn" title="Copy only the chunks you have not marked done"/,
+    "reading controls must include a left-to-read chip");
+  assert.match(appSrc, /const copyLeftBtn = document\.getElementById\('readingCopyLeftBtn'\);/,
+    "the left chip must have a click handler");
+  assert.match(appSrc, /const remaining = \[\];[\s\S]{0,320}if\(isDone\(c\)\) return;/,
+    "the handler must skip chunks already marked done");
+  assert.match(appSrc, /'⏳ STILL TO READ \(' \+ remaining\.length \+ ' chunk'/,
+    "the copied list must lead with a still-to-read header");
+  assert.match(appSrc, /'✓ Nothing left — every chunk is marked done'/,
+    "an all-done list must be reported");
+  assert.match(appSrc, /'⏳ ' \+ remaining\.length \+ ' chunk' \+ \(remaining\.length === 1 \? '' : 's'\) \+ ' left copied'/,
+    "copying must toast the remaining count");
+});
+
 // Cycle #216 — bulk mark every must-read chunk done in one click.
 test("analyzer: reading list marks all must-reads done in one click", () => {
   if (!HAS_BROWSER) return;

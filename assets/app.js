@@ -8682,6 +8682,7 @@
         '<button type="button" class="reading-filter ghost-btn' + (undoneOnly ? ' reading-filter-active' : '') + '" id="readingUndoneBtn" title="Show only chunks you have not yet marked done">⏳ undone only</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyListBtn" title="Copy the reading priority list as plain text">📋 copy list</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyMustBtn" title="Copy only the must-read chunks">🔴 must list</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyLeftBtn" title="Copy only the chunks you have not marked done">⏳ left</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingMustDoneBtn" title="Mark every must-read chunk as done">✓ must done</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingResumeBtn" title="Jump to your first unfinished must-read chunk">▶ resume</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingResetBtn" title="Clear all read marks for this document">↺ reset</button>' +
@@ -8926,6 +8927,59 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '🔴 Must-read list copied' : '⚠ Couldn’t copy');
           copyMustBtn.textContent = copied ? '✓ copied' : '🔴 must list';
           setTimeout(() => { if(copyMustBtn.isConnected) copyMustBtn.textContent = '🔴 must list'; }, 2500);
+        });
+      }
+      // Cycle #222 — "⏳ left": copy only the chunks still unread, so a
+      // half-finished review exports just what remains. Respects the
+      // active bucket + signal filters; done chunks are always excluded
+      // and there is no display cap (unlike copy-list, this is a
+      // working list of everything left, not a screenshot of the view).
+      const copyLeftBtn = document.getElementById('readingCopyLeftBtn');
+      if(copyLeftBtn){
+        copyLeftBtn.addEventListener('click', async () => {
+          const activeFilter = readingGrid._readingFilter || 'all';
+          const remaining = [];
+          for(const kind of ['must', 'skim', 'skip']){
+            if(activeFilter !== 'all' && activeFilter !== kind) continue;
+            r.buckets[kind].forEach(c => {
+              if(isDone(c)) return;
+              if(signalFilter){
+                if(signalFilter === 'flagged' && !c.signalsAcc.flagged) return;
+                if(signalFilter === 'moneyHit' && !c.signalsAcc.moneyHit) return;
+                if(signalFilter === 'deadlineHit' && !c.signalsAcc.deadlineHit) return;
+                if(signalFilter === 'rightsHit' && !c.signalsAcc.rightsHit) return;
+                if(signalFilter === 'actionHit' && !c.signalsAcc.actionHit) return;
+              }
+              remaining.push(c);
+            });
+          }
+          if(!remaining.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✓ Nothing left — every chunk is marked done');
+            return;
+          }
+          const leftWords = remaining.reduce((a, c) => a + (c.signalsAcc.wordCount || 0), 0);
+          const leftMins = Math.max(1, Math.round(leftWords / 200));
+          const lines = ['⏳ STILL TO READ (' + remaining.length + ' chunk' + (remaining.length === 1 ? '' : 's') + ' · ~' + leftMins + ' min)' + ((activeFilter !== 'all' || undoneOnly || signalFilter) ? ' · filtered view' : ''), '-'.repeat(40)];
+          remaining.forEach((c, i) => {
+            const signals = [];
+            if(c.signalsAcc.flagged) signals.push('risk');
+            if(c.signalsAcc.moneyHit) signals.push('money');
+            if(c.signalsAcc.deadlineHit) signals.push('deadline');
+            if(c.signalsAcc.rightsHit) signals.push('rights');
+            if(!signals.length) signals.push('factual');
+            const bucket = c.bucket === 'must' ? '🔴 MUST' : c.bucket === 'skim' ? '🟡 SKIM' : '🟢 SKIP';
+            lines.push((i + 1) + '. [' + bucket + '] [' + Math.round(c.score * 100) + '] [' + signals.join(',') + '] ' + c.sentences[0] + (c.sentences.length > 1 ? ' … (+' + (c.sentences.length - 1) + ' more)' : ''));
+          });
+          const text = lines.join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '⏳ ' + remaining.length + ' chunk' + (remaining.length === 1 ? '' : 's') + ' left copied' : '⚠ Couldn’t copy');
+          copyLeftBtn.textContent = copied ? '✓ copied' : '⏳ left';
+          setTimeout(() => { if(copyLeftBtn.isConnected) copyLeftBtn.textContent = '⏳ left'; }, 2500);
         });
       }
       // Cycle #216 — bulk "✓ must done": mark every must-read chunk read

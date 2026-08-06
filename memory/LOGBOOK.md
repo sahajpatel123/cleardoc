@@ -5496,3 +5496,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 221 of the autonomous loop (alternate add/polish): shoulder-surfing protection deserved the same one-key treatment as Focus mode — and the suite should never be a coin flip.
+
+**2026-08-07 00:23 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #222 of the restarted autonomous loop (add).
+- feat(reading): a "⏳ left" chip in the reading-list controls copies only the chunks you have not marked done — the natural companion to "📋 copy list" and "🔴 must list" for a half-finished review. It respects the active bucket + signal filters, excludes done chunks, has no display cap (it's a working list of everything left, not a screenshot of the view), leads with a "⏳ STILL TO READ (N chunks · ~X min)" header, and toasts "✓ Nothing left — every chunk is marked done" when the list is empty.
+- Verified in a real browser with a mocked analyze flow over a 5-sentence contract: after marking the must chunk done, "⏳ left" copied exactly the remaining 2 chunks with the right header, the button flashed "✓ copied", marking the rest done made the empty state toast fire (no second copy), and there were zero console errors.
+- New smoke test "analyzer: reading list copies the remaining unread chunks" — 6 assertions (chip markup, handler wiring, done-chunk exclusion, header, empty state, success toast).
+- Full suite green (490 unit + 342 smoke + 1 integration = 833 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 222 of the autonomous loop (alternate add/polish): a review started yesterday shouldn't make you re-export everything — copy only what's actually left.
