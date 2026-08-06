@@ -3133,6 +3133,34 @@ test("analyzer: deadlines preview shows live count + soonest deadline with urgen
     ".dp-soon must use --amber (<30 days)");
 });
 
+// Cycle #188 — the live deadlines preview's "↓ all" jumps to the full
+// deadlines list in the results (or guides to Analyze before a run).
+test("analyzer: deadlines preview jump button scrolls to the full list", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(html, /id="deadlinesJumpBtn" aria-label="Jump to the full deadlines list"/,
+    "analyze.html must expose the jump button");
+  assert.match(appSrc, /deadlinesJumpBtn\._jumpWired = true;/,
+    "the jump button must wire once");
+  assert.match(appSrc, /deadlinesJumpBtn\.addEventListener\('click'/,
+    "the jump button must have a click handler");
+  assert.match(appSrc, /const target = \(block && !block\.hidden\) \? block : \(\(altBlock && !altBlock\.hidden\) \? altBlock : null\);/,
+    "the jump must target whichever deadline block is visible");
+  assert.match(appSrc, /target\.scrollIntoView\(\{ behavior: noMotion \? 'auto' : 'smooth', block: 'start' \}\)/,
+    "clicking must scroll to the deadline block");
+  assert.match(appSrc, /target\.classList\.add\('deadlines-jump-flash'\)/,
+    "the target block must be highlighted");
+  assert.match(appSrc, /'📅 Run Analyze to see the full deadlines list'/,
+    "before a run, the jump must guide the user to Analyze");
+  assert.match(cssSrc, /\.deadlines-preview \.dp-jump\{/, "the jump chip must be styled");
+  assert.match(cssSrc, /\.deadlines-jump-flash\{/, "the jump highlight must be styled");
+});
+
 test("analyzer: deadlines preview copy-all chip exports every deadline to the clipboard", () => {
   // Cycle 46 feature: the live deadlines strip now has a "copy all" chip
   // so users can grab the whole list (with countdowns) before running

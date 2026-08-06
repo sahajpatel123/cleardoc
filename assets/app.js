@@ -19970,6 +19970,33 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     if(rewriteToggleBtn) rewriteToggleBtn.addEventListener('click', () => {
       setRewriteToggle(!rewriteShowOriginal);
     });
+    // Cycle #188 — the live deadlines preview's "↓ all" jumps to the full
+    // deadlines list in the results (flashing it); before analysis runs,
+    // it guides the user to the Analyze button instead.
+    const deadlinesJumpBtn = document.getElementById('deadlinesJumpBtn');
+    if(deadlinesJumpBtn && !deadlinesJumpBtn._jumpWired){
+      deadlinesJumpBtn._jumpWired = true;
+      deadlinesJumpBtn.addEventListener('click', () => {
+        // Two deadline blocks can exist — the full 📅 list (#deadlineBlock)
+        // and the AI-only ⏰ list (#deadlinesBlock). Jump to whichever is
+        // actually visible.
+        const block = document.getElementById('deadlineBlock');
+        const altBlock = document.getElementById('deadlinesBlock');
+        const target = (block && !block.hidden) ? block : ((altBlock && !altBlock.hidden) ? altBlock : null);
+        if(target){
+          try { target.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'start' }); } catch(_){}
+          target.classList.add('deadlines-jump-flash');
+          clearTimeout(deadlinesJumpBtn._flashTimer);
+          deadlinesJumpBtn._flashTimer = setTimeout(() => target.classList.remove('deadlines-jump-flash'), 2200);
+        } else {
+          const ab = document.getElementById('analyzeBtn');
+          if(ab){
+            try { ab.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📅 Run Analyze to see the full deadlines list');
+        }
+      });
+    }
     // Cycle 48 — rewrite text size (WCAG 1.4.4): A−/A+ adjust the
     // plain-English rewrite font size in ±2px steps via the data-size
     // attribute (CSS calc overrides). The choice persists across reloads

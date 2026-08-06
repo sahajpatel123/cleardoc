@@ -791,6 +791,10 @@ button.risk-preview:hover{filter:brightness(.96)}
 .deadlines-preview .dp-cal:hover{background:currentColor;color:var(--paper)}
 .deadlines-preview .dp-cal:hover span,.deadlines-preview .dp-cal:hover b{color:var(--paper)}
 .deadlines-preview .dp-cal:disabled{opacity:.4;cursor:not-allowed}
+.deadlines-preview .dp-jump{font:inherit;font-size:.92em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid currentColor;background:transparent;color:inherit;padding:3px 8px;cursor:pointer;transition:background .15s,color .15s}
+.deadlines-preview .dp-jump:hover{background:currentColor;color:var(--paper)}
+.deadlines-preview .dp-jump:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.deadlines-jump-flash{outline:3px solid var(--accent);outline-offset:2px}
 /* Cycle 52 — deadline-urgency alert pinned to the top of the results.
    Danger-tinted so time pressure reads before scrolling to the block. */
 .deadline-alert{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:var(--s4);padding:9px 12px;border:1px solid var(--danger);border-left:4px solid var(--danger);background:var(--danger-tint);color:var(--danger);font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);letter-spacing:.04em;cursor:pointer;transition:filter .15s}

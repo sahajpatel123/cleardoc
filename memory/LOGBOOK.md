@@ -5122,3 +5122,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 187 of the autonomous loop (alternate add/polish): highlights should mark words, not pile on top of each other — one clean ring per phrase.
+
+**2026-08-06 21:34 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #188 of the restarted autonomous loop (add).
+- feat(deadlines): the live deadlines preview strip now has a "↓ all" jump chip — after an analysis it scrolls to whichever deadline block is actually visible (the full 📅 `#deadlineBlock` or the AI-only ⏰ `#deadlinesBlock`) and flashes it for ~2.2s; before an analysis it scrolls to the Analyze button and toasts "📅 Run Analyze to see the full deadlines list". Wired once via a `_jumpWired` guard.
+- Verified in a real browser with a mocked analyze flow: pre-run clicking guided to Analyze with the toast; post-run clicking flashed the visible deadline block; zero console errors. The probe exposed that two deadline blocks exist and the first version targeted the wrong (hidden) one — the handler now picks the visible block.
+- New smoke test "analyzer: deadlines preview jump button scrolls to the full list" — 8 assertions (markup, once-wiring, handler, visible-block target selection, scroll + flash, pre-run guidance, CSS).
+- Full suite green (490 unit + 326 smoke + 1 integration = 817 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 188 of the autonomous loop (alternate add/polish): when the preview says "3 deadlines," one tap should take you straight to them — or tell you how.
