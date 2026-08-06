@@ -1468,8 +1468,13 @@
     const lastEl = document.getElementById('lastAnalyzed');
     if(lastEl){
       const date = new Date(_analyzedState.ts);
-      lastEl.textContent = 'Last analyzed: ' + date.toLocaleString();
-      lastEl.hidden = false;
+      if(!isNaN(date.getTime())){
+        lastEl.textContent = 'Last analyzed: ' + date.toLocaleString();
+        lastEl.hidden = false;
+      } else {
+        // Corrupt/stale snapshot — never render "Invalid Date".
+        lastEl.hidden = true;
+      }
     }
     if(_analyzedState.timer) clearInterval(_analyzedState.timer);
     _analyzedState.timer = setInterval(paintAnalyzedAgo, 30000);

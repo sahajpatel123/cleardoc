@@ -509,6 +509,19 @@ skip("keyboard: 'c' copies the plain-text summary when results are visible", asy
   assert.match(appSrc, /<kbd>c<\/kbd><span>Copy the plain-text summary<\/span>/, "the help modal must document the c shortcut");
 });
 
+skip("last-analyzed: never renders 'Invalid Date' for corrupt timestamps", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const hStart = appSrc.indexOf("function setAnalyzedTimestamp");
+  assert.ok(hStart > -1, "setAnalyzedTimestamp must exist");
+  const handler = appSrc.slice(hStart, hStart + 900);
+  assert.match(handler, /isNaN\(date\.getTime\(\)\)/, "the timestamp must be validated before rendering");
+  assert.match(handler, /lastEl\.hidden = true;/, "invalid timestamps must hide the element");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
