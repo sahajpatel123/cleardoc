@@ -3378,3 +3378,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 17 of the autonomous loop (alternate add/polish): fix the shortcut's interaction with other input fields.
+
+**2026-08-06 15:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #18 of the restarted autonomous loop (feature add).
+- feat(ui): added two more "try:" sample documents — Eviction Notice (forfeiture, waiver-of-defenses, jury-waiver language) and Debt Collection (due-immediately balance, 24% interest, binding arbitration, collection costs). Both are written with real risk-trigger language so the live risk preview fires on load, giving new users more relevant demos.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 235 smoke + 1 integration = 726 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 18 of the autonomous loop (alternate add/polish): expand the demo sample library.

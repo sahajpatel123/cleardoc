@@ -361,6 +361,18 @@ skip("keyboard: Ctrl/Cmd+Enter runs the analysis from anywhere", async () => {
   assert.match(appSrc, /<kbd>⌘<\/kbd><kbd>Enter<\/kbd><span>Run the analysis<\/span>/, "the help modal must document the shortcut");
 });
 
+skip("samples: eviction + debt-collection demo documents are offered", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(analyzeHtml, /try: Eviction/, "the sample row must offer an Eviction demo");
+  assert.match(analyzeHtml, /try: Debt Collection/, "the sample row must offer a Debt Collection demo");
+  assert.match(analyzeHtml, /data-fill="Tenant shall vacate the premises/, "the eviction sample must load realistic notice language");
+  assert.match(analyzeHtml, /binding arbitration/, "the debt sample must include arbitration language that trips the risk radar");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
