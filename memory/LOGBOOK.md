@@ -3688,3 +3688,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 48 of the autonomous loop (alternate add/polish): let users resize the rewrite text to their reading comfort.
+
+**2026-08-06 20:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #49 of the restarted autonomous loop (polish).
+- polish(a11y): the A−/A+ size controls now meet the WCAG 2.5.8 minimum touch-target size (30×26px, up from a ~20px-tall target), wrap gracefully on narrow screens, and each button's aria-label now includes the current level ("Increase rewrite text size (currently 112%)"), computed live from the --t-body-lg token so it never hardcodes the base.
+- Extended the text-size smoke test with the target-size, wrap, and live-percentage assertions.
+- Full suite green (490 unit + 256 smoke + 1 integration = 747 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 49 of the autonomous loop (alternate add/polish): make the size controls themselves accessible and stateful.

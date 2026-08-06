@@ -17496,9 +17496,20 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       }catch(_){ /* storage unavailable — start at default */ }
       const paintSize=()=>{
         plainOutEl.setAttribute('data-size',String(sizeSteps));
+        // Cycle 49 polish — announce the current level in each aria-label
+        // (computed from the live --t-body-lg token) so screen-reader
+        // users get persistent state, not just a direction.
+        let pct=100;
+        try{
+          const basePx=parseFloat(getComputedStyle(plainOutEl).getPropertyValue('--t-body-lg')) || 17;
+          pct=Math.round(((basePx + sizeSteps*2) / basePx) * 100);
+        }catch(_){ /* keep 100 */ }
         if(sizeDown) sizeDown.disabled=sizeSteps<=MIN_SIZE;
         if(sizeUp) sizeUp.disabled=sizeSteps>=MAX_SIZE;
         if(sizeReset) sizeReset.disabled=sizeSteps===0;
+        if(sizeDown) sizeDown.setAttribute('aria-label','Decrease rewrite text size (currently '+pct+'%)');
+        if(sizeUp) sizeUp.setAttribute('aria-label','Increase rewrite text size (currently '+pct+'%)');
+        if(sizeReset) sizeReset.setAttribute('aria-label','Reset rewrite text size to default (currently '+pct+'%)');
       };
       const changeSize=(delta)=>{
         sizeSteps=Math.max(MIN_SIZE,Math.min(MAX_SIZE,sizeSteps+delta));

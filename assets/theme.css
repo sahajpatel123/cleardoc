@@ -1157,8 +1157,11 @@ button.risk-preview:hover{filter:brightness(.96)}
    plain-English rewrite in ±2px steps; the data-size attribute on the
    .rewrite container selects a calc() override so the base var stays
    the single source of truth. data-size="0" falls through to default. */
-.rewrite-size{display:inline-flex;gap:2px;margin-left:8px;vertical-align:baseline}
-.rewrite-size-btn{background:none;border:var(--bd-hair) solid var(--ink-soft);font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);line-height:1;color:var(--ink-soft);cursor:pointer;padding:2px 5px;transition:color .15s,border-color .15s}
+/* Cycle 49 polish — WCAG 2.5.8: 30×26px minimum target so the buttons
+   meet the 24×24px touch-target requirement, and wrap-friendly layout
+   on narrow screens. */
+.rewrite-size{display:inline-flex;gap:2px;margin-left:8px;vertical-align:baseline;flex-wrap:wrap}
+.rewrite-size-btn{background:none;border:var(--bd-hair) solid var(--ink-soft);font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);line-height:1;color:var(--ink-soft);cursor:pointer;padding:4px 8px;min-width:30px;min-height:26px;display:inline-flex;align-items:center;justify-content:center;transition:color .15s,border-color .15s}
 .rewrite-size-btn:hover{color:var(--accent);border-color:var(--accent)}
 .rewrite-size-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .rewrite-size-btn:disabled{opacity:.35;cursor:not-allowed}

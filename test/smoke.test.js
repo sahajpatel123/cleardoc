@@ -3456,6 +3456,19 @@ test("analyzer: rewrite block has A−/A+ text-size controls (WCAG 1.4.4) with p
     "A+ must disable at the maximum bound");
   assert.match(appSrc, /_rewriteSizeWired/,
     "size wiring must be guarded so it is attached only once");
+  // Cycle 49 polish — WCAG 2.5.8 target size + persistent aria-labels
+  assert.match(cssSrc, /\.rewrite-size-btn\{[^}]*min-width:30px;min-height:26px/,
+    "size buttons must meet the 24×24px minimum touch-target size (WCAG 2.5.8)");
+  assert.match(cssSrc, /\.rewrite-size\{[^}]*flex-wrap:wrap/,
+    "size control group must wrap on narrow screens");
+  assert.match(appSrc, /getComputedStyle\(plainOutEl\)\.getPropertyValue\('--t-body-lg'\)/,
+    "aria-label percentage must be derived from the live --t-body-lg token");
+  assert.match(appSrc, /sizeDown\.setAttribute\('aria-label','Decrease rewrite text size \(currently '\+pct\+'%\)'\)/,
+    "A− must announce the current level in its aria-label");
+  assert.match(appSrc, /sizeUp\.setAttribute\('aria-label','Increase rewrite text size \(currently '\+pct\+'%\)'\)/,
+    "A+ must announce the current level in its aria-label");
+  assert.match(appSrc, /sizeReset\.setAttribute\('aria-label','Reset rewrite text size to default \(currently '\+pct\+'%\)'\)/,
+    "reset must announce the current level in its aria-label");
 });
 
 test("analyzer: Read-aloud button speaks the plain-English rewrite via SpeechSynthesis", () => {
