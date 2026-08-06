@@ -12251,10 +12251,20 @@
         actCopyBtn._actCopyWired = true;
         actCopyBtn.addEventListener('click', async () => {
           const lines = [];
-          actionGrid.querySelectorAll('.act-item').forEach(li => {
+          // Cycle 69 polish — include who acts (the group role) on each line
+          // so the copied checklist stays actionable outside the app.
+          const lineOf = (li) => {
             const done = li.classList.contains('act-checked');
             const label = ((li.querySelector('.act-label') || {}).textContent || '').replace(/\s+/g, ' ').trim();
-            if(label) lines.push((done ? '[✓] ' : '[ ] ') + label);
+            if(!label) return '';
+            const groupEl = li.closest('.act-group');
+            const who = groupEl ? ((groupEl.className.match(/act-(\w+)/) || [])[1] || '') : '';
+            const role = (who && labels[who]) ? labels[who].replace(/^[^\s]+\s*/, '') : '';
+            return (done ? '[✓] ' : '[ ] ') + label + (role ? ' — ' + role : '');
+          };
+          actionGrid.querySelectorAll('.act-item').forEach(li => {
+            const l = lineOf(li);
+            if(l) lines.push(l);
           });
           if(!lines.length){
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy yet');

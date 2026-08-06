@@ -3888,3 +3888,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 68 of the autonomous loop (alternate add/polish): take the signing checklist out of the app and into action.
+
+**2026-08-06 00:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #69 of the restarted autonomous loop (polish).
+- polish(ui): the signing-checklist copy now appends who acts to each line (e.g. "[ ] Notarize signature — Notary witnesses") by resolving each item's group and stripping the emoji from the role label — the copied checklist keeps its grouping context outside the app.
+- Extended the signing-checklist copy smoke test with the group-resolution and role-suffix assertions.
+- Full suite green (490 unit + 266 smoke + 1 integration = 757 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 69 of the autonomous loop (alternate add/polish): a copied checklist should still say who does what.

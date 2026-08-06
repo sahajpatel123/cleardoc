@@ -7856,6 +7856,13 @@ test("analyzer: Signing checklist copies with checked progress", () => {
     "the chip must flash and restore its label");
   assert.match(cssSrc, /\.act-copy\{/,
     "theme.css must style .act-copy");
+  // Cycle 69 polish — copied lines include who acts (the group role)
+  assert.match(appSrc, /li\.closest\('\.act-group'\)/,
+    "each item must resolve its group to know who acts");
+  assert.match(appSrc, /labels\[who\]\.replace\(\/\^\[\^\\s\]\+\\s\*\/, ''\)/,
+    "the group role must be stripped of its emoji for clean copy");
+  assert.match(appSrc, /' — ' \+ role/,
+    "each copied line must append the role");
 });
 
 // Iter #104: gap detector — surfaces clauses the document is missing
