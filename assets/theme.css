@@ -410,6 +410,14 @@
   .footer-link:hover{color:var(--accent);border-bottom-color:var(--accent)}
   .footer-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
   .footer-sep{margin:0 8px;opacity:.55}
+  .service-status{display:inline-flex;align-items:center;gap:6px;cursor:help}
+  .service-status::before{content:'';width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--fog)}
+  .service-status.ok{color:var(--green)}
+  .service-status.ok::before{background:var(--green)}
+  .service-status.warn{color:var(--amber)}
+  .service-status.warn::before{background:var(--amber)}
+  .service-status.off{color:var(--fog)}
+  .service-status.off::before{background:var(--fog)}
 .footer-copyright{font-size:var(--t-micro);text-transform:none;letter-spacing:0;opacity:.85}
 @media print{.footer-copyright{display:none!important}}
 

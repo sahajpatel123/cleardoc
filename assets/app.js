@@ -1177,7 +1177,7 @@
   /* ================= INIT ================= */
   function initAll(){
     const page=(document.body.dataset.page)||'home';
-    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo,wireDocFingerprint];
+    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo,wireDocFingerprint,initServiceStatus];
     const byPage={
       home:[heroClarifier,flagHunt,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,privacyGuard,wireSelectionAsk,faq],
@@ -1186,6 +1186,51 @@
     always.concat(byPage[page]||[]).forEach(fn=>{ try{fn();}catch(e){console.error('[init '+fn.name+']',e);} });
     if(hasGSAP) ScrollTrigger.refresh();
     if(location.hash){ const t=$(location.hash); if(t) setTimeout(()=>scrollToEl(location.hash), noMotion?0:350); }
+  }
+
+  /* ---- Service status ----
+   * Shows a tiny live status chip in the footer when the element exists
+   * (home page). Pings /api/health with a short timeout so the page never
+   * hangs on a slow or unreachable endpoint; falls back to a neutral
+   * "offline" state if the check fails.
+   */
+  function initServiceStatus(){
+    const el=document.getElementById('serviceStatus');
+    if(!el) return;
+    const setState=(label, cls, title)=>{
+      el.textContent=label;
+      el.className='service-status mono no-print '+cls;
+      if(title) el.title=title;
+    };
+    setState('… checking', 'off', 'Checking ClearDoc API status');
+    let done=false;
+    const TIMEOUT_MS=4000;
+    const timer=setTimeout(()=>{
+      if(done) return;
+      done=true;
+      setState('○ status offline', 'off', 'Could not reach the status endpoint');
+    }, TIMEOUT_MS);
+    const fail=()=>{
+      if(done) return;
+      done=true;
+      clearTimeout(timer);
+      setState('○ status offline', 'off', 'Could not reach the status endpoint');
+    };
+    try{
+      fetch('/api/health', { headers:{ 'Accept':'application/json' }, cache:'no-store' })
+        .then(r=>r.json())
+        .then(data=>{
+          if(done) return;
+          done=true;
+          clearTimeout(timer);
+          if(data && data.ok && data.status==='ok'){
+            setState('● operational', 'ok', 'ClearDoc API is operational');
+          } else {
+            setState('● degraded', 'warn', (data && data.reason) || 'ClearDoc API is degraded');
+          }
+        })
+        .catch(fail);
+    }catch(_){ fail(); }
   }
 
   /* ---- CTAs ---- */

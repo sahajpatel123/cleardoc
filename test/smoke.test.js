@@ -116,6 +116,64 @@ skip("home: loads without console errors and has expected landmarks", async () =
   assert.deepEqual(errors, [], "home: console errors");
 });
 
+// Cycle #256 — live service status chip in the footer.
+skip("home: service status chip reports API health", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(html, /id="serviceStatus" role="status" aria-live="polite"/,
+    "index.html must include the service status chip");
+  assert.match(appSrc, /function initServiceStatus\(\)\{/,
+    "app.js must define initServiceStatus");
+  assert.match(appSrc, /fetch\('\/api\/health'/,
+    "the status chip must poll /api/health");
+  assert.match(appSrc, /'● operational'/,
+    "the status chip must show operational when the API is healthy");
+  assert.match(cssSrc, /\.service-status\{/, "service status CSS must exist");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    const origFetch = window.fetch.bind(window);
+    window.fetch = function patchedFetch(url, opts) {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (u === "/api/health") {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, status: "ok" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return origFetch(url, opts);
+    };
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
+    await page.waitForFunction(() => {
+      const el = document.getElementById("serviceStatus");
+      return el && el.textContent.includes("operational");
+    }, { timeout: 8000 });
+    const state = await page.$eval("#serviceStatus", (el) => ({
+      text: el.textContent.trim(),
+      cls: el.className,
+      title: el.title,
+    }));
+    assert.equal(state.text, "● operational", "the chip must report operational");
+    assert.match(state.cls, /\bok\b/, "the chip must carry the ok class");
+    assert.equal(state.title, "ClearDoc API is operational", "the chip must explain the status");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #162 — interactive "what ClearDoc hunts" flags section.
 test("home: the landing page explains the phrases ClearDoc flags", () => {
   if (!HAS_BROWSER) return;
