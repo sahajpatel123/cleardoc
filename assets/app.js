@@ -13609,6 +13609,7 @@
       const controls = '<div class="playbook-controls">' +
         '<span class="playbook-count"><b>' + doneCount + '</b> of ' + total + ' done</span>' +
         '<button type="button" class="playbook-export ghost-btn ghost-btn-sm" id="playbookExportBtn" title="Export this playbook as a markdown file">📄 export .md</button>' +
+        '<button type="button" class="playbook-export ghost-btn ghost-btn-sm" id="playbookCopyBtn" title="Copy this playbook as Markdown">📋 copy .md</button>' +
       '</div>';
       playbookList.insertAdjacentHTML('afterend', controls);
       playbookBlock.hidden = false;
@@ -13646,6 +13647,26 @@
           } catch(_){
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t export');
           }
+        });
+      }
+      const copyBtn = document.getElementById('playbookCopyBtn');
+      if(copyBtn){
+        copyBtn.addEventListener('click', async () => {
+          const md = '# ClearDoc Negotiation Playbook\n\n' +
+            'Generated locally · ' + new Date().toLocaleString() + '\n\n' +
+            steps.map((s, i) => (i + 1) + '. **' + s.step + '** · ' + eff(s.effort) + '\n   ' + s.detail + '\n' + (done['step-' + i] ? '   - [x] done\n' : '   - [ ] pending\n')).join('\n');
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(typeof showAnalyzeToast === 'function'){
+            showAnalyzeToast(copied ? '📋 Playbook copied as markdown' : '⚠ Couldn’t copy');
+          }
+          copyBtn.textContent = copied ? '✓ copied' : '📋 copy .md';
+          setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy .md'; }, 1400);
         });
       }
     }

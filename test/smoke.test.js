@@ -10334,6 +10334,12 @@ test("analyzer: Negotiation playbook builds prioritized steps from analyzer outp
     "iter #129 must persist done state to localStorage");
   assert.match(appSrc, /playbookExportBtn[\s\S]+?text\/markdown|new Blob\([\s\S]+?text\/markdown/,
     "iter #129 must export as a markdown blob");
+  assert.match(appSrc, /playbookCopyBtn/,
+    "iter #261 must add a copy-as-markdown button");
+  assert.match(appSrc, /clipboard\.writeText\(md\)/,
+    "iter #261 must copy the playbook markdown to the clipboard");
+  assert.match(appSrc, /'📋 Playbook copied as markdown'/,
+    "iter #261 must toast when the copy succeeds");
   assert.match(cssSrc, /\.playbook-done-step\b/, ".playbook-done-step style must exist");
   assert.match(cssSrc, /\.playbook-controls\b/, ".playbook-controls style must exist");
 });
