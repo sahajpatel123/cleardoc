@@ -13885,6 +13885,32 @@
           setTimeout(() => { if(tldrCopyBtn.isConnected) tldrCopyBtn.textContent = '📋 copy'; }, 2500);
         });
       }
+      const tldrCopyMdBtn = document.getElementById('tldrCopyMdBtn');
+      if(tldrCopyMdBtn){
+        tldrCopyMdBtn.addEventListener('click', async () => {
+          const md = '## TL;DR\n\n1. ' + built.s1 + '\n2. ' + built.s2 + '\n3. ' + built.s3 + '\n\n**Next step:** ' + built.nextStep;
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 TL;DR copied as Markdown' : '⚠ Couldn’t copy');
+          tldrCopyMdBtn.textContent = copied ? '✓ copied' : '# MD';
+          setTimeout(() => { if(tldrCopyMdBtn.isConnected) tldrCopyMdBtn.textContent = '# MD'; }, 2500);
+        });
+      }
       if(tldrSpeakBtn){
         tldrSpeakBtn.addEventListener('click', () => {
           if(typeof window === 'undefined' || !('speechSynthesis' in window)) return;

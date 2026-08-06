@@ -10240,6 +10240,12 @@ test("analyzer: TL;DR generator assembles a three-sentence summary from analyzer
   // Copy + read-aloud
   assert.match(appSrc, /tldrCopyBtn[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
     "tldrCopyBtn must copy to clipboard");
+  assert.match(appSrc, /const tldrCopyMdBtn = document\.getElementById\('tldrCopyMdBtn'\);/,
+    "tldrCopyMdBtn must be wired in the TL;DR block");
+  assert.match(appSrc, /'📋 TL;DR copied as Markdown'/,
+    "TL;DR Markdown copy must confirm with a toast");
+  assert.match(html, /id="tldrCopyMdBtn"/,
+    "analyze.html must expose the TL;DR Markdown copy button");
   assert.match(appSrc, /tldrSpeakBtn[\s\S]+?SpeechSynthesisUtterance|speechSynthesis\.speak/,
     "tldrSpeakBtn must use SpeechSynthesis");
 
@@ -10272,6 +10278,44 @@ test("analyzer: TL;DR polished with numbered sentences + sentiment arrow + next 
   assert.match(cssSrc, /\.tldr-s\b/, ".tldr-s style must exist");
   assert.match(cssSrc, /\.tldr-num\b/, ".tldr-num style must exist");
   assert.match(cssSrc, /\.tldr-next\b/, ".tldr-next style must exist");
+});
+
+skip("analyze: TL;DR copies as Markdown", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedTldrMd = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedTldrMd = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedTldrMd = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#tldrBlock:not([hidden]) #tldrCopyMdBtn", { timeout: 8000 });
+    await page.click("#tldrCopyMdBtn");
+    await page.waitForFunction(() => window.__copiedTldrMd && window.__copiedTldrMd.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedTldrMd);
+    assert.match(captured, /^## TL;DR/, "the copied TL;DR must start with a Markdown heading");
+    assert.match(captured, /\*\*Next step:\*\*/, "the copied TL;DR must include the next step");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
 });
 
 // Iter #124: email composer — assembles a ready-to-send reply
