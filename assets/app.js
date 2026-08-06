@@ -5056,6 +5056,26 @@
         flashButton(shareBtn, 'Too long', 1800);
         return;
       }
+      // Cycle #258 — native share sheet when the browser supports it.
+      // Falls back to the clipboard path below.
+      if(navigator.share && typeof navigator.share === 'function'){
+        try{
+          await navigator.share({
+            title: 'ClearDoc analysis',
+            text: 'I analyzed a document with ClearDoc — here is the share link.',
+            url: result.url,
+          });
+          flashButton(shareBtn, 'Shared ✓', 1500);
+          if(msg){
+            msg.textContent='Shared with your device share sheet — the document text is encoded in the URL.';
+            msg.className='analyze-msg';
+          }
+          return;
+        }catch(e){
+          if(e && (e.name === 'AbortError' || e.code === 20)) return;
+          console.warn('[share] native share failed, falling back to clipboard', e);
+        }
+      }
       let copied=false;
       try{
         if(navigator.clipboard && navigator.clipboard.writeText){

@@ -2115,6 +2115,56 @@ skip("share: buildShareUrl produces a gzipped+base64url URL that decodes back to
   await page.close();
 });
 
+// Cycle #258 — native device share sheet for the analysis link.
+skip("share: native share sheet receives the analysis URL", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(appSrc, /navigator\.share && typeof navigator\.share === 'function'/,
+    "the share flow must check for native share support");
+  assert.match(appSrc, /await navigator\.share\(\{/,
+    "the share flow must call the native share sheet");
+  assert.match(appSrc, /'Shared ✓'/,
+    "a successful native share must confirm on the button");
+  assert.match(appSrc, /AbortError/,
+    "a dismissed share sheet must not be treated as an error");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__sharedPayload = null;
+    try {
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: async (data) => { window.__sharedPayload = data; },
+      });
+    } catch (_) {
+      try { navigator.share = async (data) => { window.__sharedPayload = data; }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#resultPanel:not([hidden])", { timeout: 8000 });
+    await page.click("#shareBtn");
+    await page.waitForFunction(() => window.__sharedPayload && window.__sharedPayload.url, { timeout: 8000 });
+    const payload = await page.evaluate(() => window.__sharedPayload);
+    assert.match(payload.url, /^http.*\/analyze\.html#share=[A-Za-z0-9_-]+$/,
+      "native share must receive the encoded analysis URL");
+    assert.equal(payload.title, "ClearDoc analysis", "native share must carry the ClearDoc title");
+    assert.match(payload.text, /ClearDoc/, "native share must carry a short description");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 skip("share: opening a #share= URL offers the shared analysis banner with a View button", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await browser.newContext();
