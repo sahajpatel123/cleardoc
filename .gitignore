@@ -12,6 +12,7 @@ Thumbs.db
 .claude/
 .openclaude/
 .antigravitycli/
+.opencode/
 
 # Build / dependency artifacts
 node_modules/
