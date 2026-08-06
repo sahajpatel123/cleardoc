@@ -8642,11 +8642,17 @@
         const counterHtml = (it.pattern && it.pattern.counter) ? '<div class="smoking-counter">' + esc(it.pattern.counter) + '</div>' : '';
         const sevTag = '<span class="smoking-tag smoking-tag-' + sev + '">' + sevLabel[sev] + '</span>';
         const wc = it.sentence.trim().split(/\s+/).length;
+        // Cycle #122 — per-card copy citation (mirrors the risk-row copy).
+        const copyText = '[' + sevLabel[sev] + '] "' + it.sentence + '"' +
+          (it.pattern ? '\n' + it.pattern.label + '. ' + it.pattern.why : '') +
+          (it.pattern && it.pattern.counter ? '\nCounter: ' + it.pattern.counter : '') +
+          '\n— ClearDoc smoking-gun citation';
         return '<div class="smoking-card smoking-rank-' + Math.min(rank, 7) + '" data-smoking-offset="' + it.offset + '" data-smoking-len="' + it.sentence.length + '" title="Click to jump to the sentence in the source">' +
           '<div class="smoking-card-head">' +
             '<span class="smoking-rank">#' + rank + '</span>' +
             sevTag +
             '<span class="smoking-meta">sentence ' + (it.idx + 1) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + ' · risk score ' + it.score.toFixed(1) + '</span>' +
+            '<button type="button" class="smoking-card-copy ghost-btn ghost-btn-sm" data-smoking-copy-text="' + esc(copyText) + '" title="Copy this smoking gun as a citation" aria-label="Copy this smoking gun as a citation">📋</button>' +
           '</div>' +
           '<div class="smoking-quote">"' + highlightQuote(it.sentence, it.pattern) + '"</div>' +
           '<div class="smoking-why">' + whyHtml + '</div>' +
@@ -8687,7 +8693,28 @@
       }
       // Click-to-jump.
       $$('.smoking-card', smokingGrid).forEach(card => {
-        card.addEventListener('click', () => {
+        card.addEventListener('click', async (e) => {
+          // Cycle #122 — 📋 copies the card as a citation instead of jumping.
+          const copyBtn = e.target.closest && e.target.closest('[data-smoking-copy-text]');
+          if(copyBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = copyBtn.getAttribute('data-smoking-copy-text') || '';
+            if(!text) return;
+            let copied = false;
+            try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+            if(!copied){
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                copied = true;
+              } catch(_){ /* ignore */ }
+            }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Smoking-gun citation copied' : '⚠ Couldn’t copy');
+            copyBtn.textContent = copied ? '✓' : '📋';
+            if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋'; }, 1500);
+            return;
+          }
           if(!input) return;
           const off = parseInt(card.getAttribute('data-smoking-offset') || '-1', 10);
           const len = parseInt(card.getAttribute('data-smoking-len') || '0', 10);

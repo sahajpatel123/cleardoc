@@ -4440,3 +4440,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 121 of the autonomous loop (alternate add/polish): five actions should read as one cluster, not five loose siblings.
+
+**2026-08-06 00:22 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #122 of the restarted autonomous loop (add).
+- feat(ui): every smoking-gun card now has a one-click 📋 copy-citation button in its header — it copies "[TRAP/WATCH/NOTE] \"{sentence}\"" plus the label + why and the counter-redline (when present), with clipboard API + `execCommand` fallback, toast, and a ✓ flash. The card click handler has a dedicated `[data-smoking-copy-text]` branch so copying never triggers the jump-to-source behavior.
+- New smoke test "Smoking-gun cards copy their citation in one click" — 7 assertions covering the button markup, citation shape (severity + sentence), prebuilt data attribute, click-handler branch, clipboard API, toast, and the ✓ flash.
+- Full suite green (490 unit + 295 smoke + 1 integration = 786 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 122 of the autonomous loop (alternate add/polish): the single most important quote in your document should copy as one click, not one screenshot.
