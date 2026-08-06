@@ -22244,7 +22244,17 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     }
     if(fileInput) fileInput.addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(f) handleFile(f); });
     if(askBtn) askBtn.addEventListener('click',ask);
-    if(askInput) askInput.addEventListener('keydown',e=>{ if(e.key==='Enter') ask(); });
+    if(askInput) askInput.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){ ask(); return; }
+      // Cycle #247 — Escape clears the drafted question without letting
+      // the global Escape handler clear the whole analysis. stopPropagation
+      // keeps the two behaviors distinct.
+      if(e.key === 'Escape' && (askInput.value || '').trim()){
+        e.preventDefault();
+        e.stopPropagation();
+        askInput.value = '';
+      }
+    });
     // Quick-question chips — pre-written questions for users who aren't sure
     // how to phrase one. Clicking a chip fills the input and asks immediately.
     const askChips = document.getElementById('askChips');

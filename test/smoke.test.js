@@ -934,6 +934,21 @@ test("analyzer: 'q' focuses the Ask panel when results are visible", () => {
     "the help modal must document the q shortcut");
 });
 
+// Cycle #247 — Escape clears the drafted Ask question (and only that).
+test("keyboard: Escape clears the drafted Ask question", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /if\(e\.key === 'Escape' && \(askInput\.value \|\| ''\)\.trim\(\)\)\{/,
+    "the Ask input must branch on Escape when a question is drafted");
+  assert.match(appSrc, /if\(e\.key === 'Escape' && \(askInput\.value \|\| ''\)\.trim\(\)\)\{[\s\S]{0,160}e\.stopPropagation\(\);/,
+    "the Escape branch must stop propagation so the global clear doesn't fire");
+  assert.match(appSrc, /if\(e\.key === 'Escape' && \(askInput\.value \|\| ''\)\.trim\(\)\)\{[\s\S]{0,240}askInput\.value = '';/,
+    "the Escape branch must clear the drafted question");
+});
+
 // Cycle #198 — one-click paste from the system clipboard.
 test("analyzer: paste button reads the clipboard into the input", () => {
   if (!HAS_BROWSER) return;

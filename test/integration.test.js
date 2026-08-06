@@ -1021,6 +1021,17 @@ skip("integration: pressure cards ask about the clause", async () => {
     assert.ok(askState.value.includes(sentence.slice(0, 40)),
       "the prefilled question must carry the flagged clause");
     assert.equal(askState.disabled, false, "the Ask input must be enabled");
+
+    // Cycle #247 — Escape clears the drafted question, not the analysis.
+    await page.focus("#askInput");
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(150);
+    const afterEsc = await page.evaluate(() => ({
+      q: document.getElementById("askInput").value,
+      panelHidden: document.getElementById("resultPanel") ? document.getElementById("resultPanel").hidden : null,
+    }));
+    assert.equal(afterEsc.q, "", "Escape must clear the drafted question");
+    assert.equal(afterEsc.panelHidden, false, "Escape must not clear the analysis");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();

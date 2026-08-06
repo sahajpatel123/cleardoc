@@ -5777,3 +5777,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 246 of the autonomous loop (alternate add/polish): every scary card in the app can now answer questions — the copy/speak/ask trio is finally complete across risks, reading chunks, smoking guns, exposures, and pressure clauses.
+
+**2026-08-07 06:45 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #247 of the restructured autonomous loop (polish).
+- polish(ask): the Ask input now handles Escape the standard way — it clears the drafted question instead of doing nothing, and `stopPropagation` keeps the global Escape handler from clearing the whole analysis. Enter-to-send is unchanged.
+- Verified in a real browser via the extended pressure-ask integration test: after a card prefilled the question, pressing Escape in the input cleared it while the results panel stayed visible; zero console errors.
+- New smoke source test (3 assertions: Escape branch, stopPropagation guard, clear behavior).
+- Full suite green (490 unit + 353 smoke + 11 integration = 854 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 247 of the autonomous loop (alternate add/polish): a question box where Escape does nothing is a trap — let it undo the half-typed thought without nuking the analysis beside it.
