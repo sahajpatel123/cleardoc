@@ -5027,6 +5027,8 @@ test("analyzer: saved templates offer one-click analyze", () => {
     "the template handler must catch analyze clicks");
   assert.match(appSrc, /if\(runBtn\)\{[\s\S]{0,500}input\.value = t\.text;/,
     "the analyze action must load the template text");
+  assert.match(appSrc, /input\.value = t\.text;[\s\S]{0,200}clearDraft\(\);/,
+    "the analyze action must clear stale drafts and attachments first");
   assert.match(appSrc, /if\(ab && !ab\.disabled\) ab\.click\(\);/,
     "the analyze action must trigger the analysis");
   assert.match(appSrc, /'⚡ Template loaded — press Analyze'/,

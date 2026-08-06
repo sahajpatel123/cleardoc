@@ -18464,6 +18464,10 @@
             const t = items[idx];
             if(!t || !t.text) return;
             input.value = t.text;
+            // Cycle #215 — clear stale drafts/attachments so the template
+            // loads clean (same as the sample-fill buttons).
+            clearAttachments();
+            clearDraft();
             input.dispatchEvent(new Event('input', { bubbles: true }));
             if(tplPanel) tplPanel.hidden = true;
             const ab = document.getElementById('analyzeBtn');

@@ -5418,3 +5418,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 214 of the autonomous loop (alternate add/polish): a saved template should be one click from its analysis — load-and-run, not load-then-run.
+
+**2026-08-06 23:16 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #215 of the restarted autonomous loop (polish).
+- polish(templates): the ⚡ analyze quick action now clears stale drafts and attachments before loading — matching the sample-fill buttons — so a saved template never gets clobbered by an older in-progress draft (which auto-restores over the default sample at load).
+- Verified in a real browser with a seeded stale draft + template: the draft restored on load, then ⚡ analyze replaced the input with the template text and wiped the draft key; zero console errors.
+- Extended the cycle-#214 smoke test with 1 assertion (draft-clear before the input event).
+- Full suite green (490 unit + 339 smoke + 1 integration = 830 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 215 of the autonomous loop (alternate add/polish): a template should load into a clean slate — yesterday's half-written draft has no say.
