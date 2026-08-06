@@ -7142,6 +7142,9 @@
         // deadline reads at a glance (mirrors the alert + dp-past band).
         const d = dayDiff(it.date);
         const isOverdue = d !== null && d < 0;
+        // Cycle #192 — the copy carries the countdown so a pasted
+        // deadline reads as urgent ("in 7 days") without reopening the app.
+        const cd = (countdown(it.date) || '').trim();
         const rowCls = 'deadline-row ' + cls + (isOverdue ? ' deadline-overdue' : '');
         return '<div class="' + rowCls + '">' +
           '<div class="deadline-tag">' + tag + '</div>' +
@@ -7155,7 +7158,7 @@
             '<button type="button" class="deadline-ics ghost-btn ghost-btn-sm" data-deadline-ics="' + esc(it.date) + '" title="Save to your calendar">📅 ics</button>' +
             '<a class="deadline-gcal ghost-btn ghost-btn-sm" href="' + esc(gcalHref) + '" target="_blank" rel="noopener noreferrer" title="Add this deadline to Google Calendar" aria-label="Add deadline ' + esc(it.date) + ' to Google Calendar">🌐 gcal</a>' +
             '<button type="button" class="deadline-ask ghost-btn ghost-btn-sm" data-deadline-ask="' + esc(it.sentence || it.date || '') + '" data-deadline-date="' + esc(it.date || '') + '" data-deadline-type="' + (isM ? 'obligated' : 'scheduled') + '" title="Ask about this deadline" aria-label="Ask about this deadline">💬</button>' +
-            '<button type="button" class="deadline-row-copy ghost-btn ghost-btn-sm" data-deadline-copy-text="' + '[' + (isM ? '⚡ obligated' : '📅 scheduled') + ' · ' + esc(it.date) + '] "' + esc((it.sentence || '').slice(0, 180)) + '"' + ' title="Copy this deadline as a citation" aria-label="Copy this deadline as a citation">📋</button>' +
+            '<button type="button" class="deadline-row-copy ghost-btn ghost-btn-sm" data-deadline-copy-text="' + '[' + (isM ? '⚡ obligated' : '📅 scheduled') + ' · ' + esc(it.date) + (cd ? ' · ' + esc(cd) : '') + '] "' + esc((it.sentence || '').slice(0, 180)) + '"' + ' title="Copy this deadline as a citation" aria-label="Copy this deadline as a citation">📋</button>' +
           '</span>' +
         '</div>';
       }).join('');

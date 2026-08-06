@@ -5166,3 +5166,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 191 of the autonomous loop (alternate add/polish): an answer pasted into notes should never leave the question behind.
+
+**2026-08-06 21:47 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #192 of the restarted autonomous loop (add).
+- feat(deadlines): the per-row deadline copy now carries the countdown inside the bracket — `[⚡ obligated · 2026-08-10 · in 3 days] "…"` — so a deadline pasted into an email or tracker reads as urgent without reopening the app. Unparseable dates simply omit the countdown segment.
+- Verified in a real browser with a mocked analyze flow: copying the row produced `[⚡ obligated · 2026-08-10 · in 3 days]` with the toast; zero console errors.
+- Extended the cycle-#120 deadline-copy smoke test with 2 assertions (countdown computation + in-bracket placement).
+- Full suite green (490 unit + 328 smoke + 1 integration = 819 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 192 of the autonomous loop (alternate add/polish): a deadline copy should carry its own urgency — "in 3 days" beats a bare date in any inbox.

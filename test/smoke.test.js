@@ -10810,6 +10810,11 @@ test("analyzer: Deadline rows copy their citation in one click", () => {
     "the copy button must carry a citation starting with a bracket");
   assert.match(appSrc, /\(isM \? '⚡ obligated' : '📅 scheduled'\) \+ ' · ' \+ esc\(it\.date\)/,
     "the citation must carry the type and date");
+  // Cycle #192 — the copy carries the countdown.
+  assert.match(appSrc, /const cd = \(countdown\(it\.date\) \|\| ''\)\.trim\(\);/,
+    "the citation must compute the deadline countdown");
+  assert.match(appSrc, /\+ \(cd \? ' · ' \+ esc\(cd\) : ''\) \+ '\] "'/,
+    "the countdown must sit inside the bracket when available");
   assert.match(appSrc, /\$\$\('\.deadline-row-copy', deadlineList\)\.forEach/,
     "copy buttons must be wired after each render");
   assert.match(appSrc, /await navigator\.clipboard\.writeText\(text\)/,
