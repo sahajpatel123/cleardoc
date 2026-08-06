@@ -2110,6 +2110,14 @@
         }
         if(setFocusMode(false)){ e.preventDefault(); }
         setPrivacyBlur(false);
+        // The Clear button advertises "Press Escape to clear results" —
+        // make good on it: Esc clears the analysis when no overlay is open
+        // and focus isn't in a field (so typing can't wipe work).
+        const rp = document.getElementById('resultPanel');
+        if(rp && !rp.hidden && !isTypingTarget(e.target)){
+          const cl = document.getElementById('clearBtn');
+          if(cl){ e.preventDefault(); cl.click(); return; }
+        }
         return;
       }
 

@@ -581,6 +581,20 @@ skip("privacy: Escape exits the blur like it exits focus mode", async () => {
   assert.match(handler, /setPrivacyBlur\(false\);/, "Escape must exit privacy blur");
 });
 
+skip("keyboard: Escape clears results when the Clear hint promises it", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const hStart = appSrc.indexOf("function wireKeyboardShortcuts");
+  assert.ok(hStart > -1, "wireKeyboardShortcuts must exist");
+  const handler = appSrc.slice(hStart, hStart + 6000);
+  assert.match(handler, /cl\.click\(\); return;/, "Escape must trigger the Clear button");
+  assert.match(handler, /!isTypingTarget\(e\.target\)/, "Escape must not clear while typing");
+  assert.match(handler, /rp && !rp\.hidden/, "Escape must only clear when results are visible");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

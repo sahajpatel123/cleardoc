@@ -3578,3 +3578,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 37 of the autonomous loop (alternate add/polish): Esc exits all overlays, including the privacy blur.
+
+**2026-08-06 18:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #38 of the restarted autonomous loop (feature add).
+- feat(keys): the Clear button advertises "Press Escape to clear results" but Escape never cleared anything. Escape now clears the analysis when no modal/banner is open and focus isn't in a field — so typing can never wipe work by accident.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 250 smoke + 1 integration = 741 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 38 of the autonomous loop (alternate add/polish): make Escape honor the Clear button's documented shortcut.
