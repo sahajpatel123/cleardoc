@@ -3678,3 +3678,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 47 of the autonomous loop (alternate add/polish): make the calendar export's accessible name match what it actually does.
+
+**2026-08-06 20:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #48 of the restarted autonomous loop (feature add).
+- feat(a11y): the plain-English rewrite block now has A−/A+ text-size controls (WCAG 1.4.4). Each step nudges the rewrite ±2px via a data-size attribute + CSS calc() overrides on --t-body-lg, the choice persists in localStorage, A−/A+ disable at the bounds, reset restores the default, and every change announces through the aria-live toast.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 256 smoke + 1 integration = 747 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 48 of the autonomous loop (alternate add/polish): let users resize the rewrite text to their reading comfort.

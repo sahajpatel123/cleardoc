@@ -3407,6 +3407,57 @@ test("analyzer: history panel uses relative time labels ('2h ago', 'yesterday') 
     "renderHistory must keep the full timestamp as the title attribute for hover");
 });
 
+test("analyzer: rewrite block has A−/A+ text-size controls (WCAG 1.4.4) with persistence", () => {
+  // Cycle 48 feature — user-adjustable rewrite text size. A−/A+ step
+  // the plain-English rewrite ±2px (data-size attribute + CSS calc
+  // overrides), persist in localStorage, disable at bounds, and
+  // announce changes via the aria-live toast.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Three controls in the rewrite header with descriptive aria-labels
+  assert.match(html, /id="rewriteSizeDownBtn" aria-label="Decrease rewrite text size"/,
+    "analyze.html must have an A− button with a descriptive aria-label");
+  assert.match(html, /id="rewriteSizeUpBtn" aria-label="Increase rewrite text size"/,
+    "analyze.html must have an A+ button with a descriptive aria-label");
+  assert.match(html, /id="rewriteSizeResetBtn" aria-label="Reset rewrite text size to default"/,
+    "analyze.html must have a reset button with a descriptive aria-label");
+  assert.match(html, /role="group" aria-label="Rewrite text size"/,
+    "the controls must be grouped with an accessible group label");
+
+  // CSS: data-size overrides use calc on the base body-large token
+  for (const size of ['"-2"', '"-1"', '"1"', '"2"', '"3"', '"4"']) {
+    assert.ok(cssSrc.includes('.rewrite[data-size=' + size + '] p{font-size:calc(var(--t-body-lg)'),
+      `theme.css must define .rewrite[data-size=${size}] p as a calc() override`);
+  }
+  assert.match(cssSrc, /\.rewrite-size-btn:focus-visible\{/,
+    "size buttons must have a visible focus ring");
+
+  // JS: clamped steps, localStorage persistence, data-size paint, toast announce
+  assert.match(appSrc, /SIZE_KEY='cleardoc\.rewriteSizeSteps'/,
+    "size preference must persist under a stable localStorage key");
+  assert.match(appSrc, /const MIN_SIZE=-2, MAX_SIZE=4;/,
+    "size steps must be clamped to [-2, +4] (±2px per step)");
+  assert.match(appSrc, /plainOutEl\.setAttribute\('data-size',String\(sizeSteps\)\)/,
+    "size must be applied via the data-size attribute on the rewrite container");
+  assert.match(appSrc, /localStorage\.setItem\(SIZE_KEY,String\(sizeSteps\)\)/,
+    "each change must persist the new step to localStorage");
+  assert.match(appSrc, /'🔠 Rewrite text size increased'/,
+    "increase must announce via the aria-live toast");
+  assert.match(appSrc, /'🔠 Rewrite text size reset to default'/,
+    "reset must announce via the aria-live toast");
+  assert.match(appSrc, /sizeDown\.disabled=sizeSteps<=MIN_SIZE/,
+    "A− must disable at the minimum bound");
+  assert.match(appSrc, /sizeUp\.disabled=sizeSteps>=MAX_SIZE/,
+    "A+ must disable at the maximum bound");
+  assert.match(appSrc, /_rewriteSizeWired/,
+    "size wiring must be guarded so it is attached only once");
+});
+
 test("analyzer: Read-aloud button speaks the plain-English rewrite via SpeechSynthesis", () => {
   // New feature — speak the rewrite aloud via the Web Speech API.
   // Accessibility win (visually impaired users) + lets users listen

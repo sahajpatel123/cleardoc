@@ -17478,6 +17478,51 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       clearTimeout(rewriteCopyBtn._flashTimer);
       rewriteCopyBtn._flashTimer=setTimeout(()=>{ rewriteCopyBtn.textContent=orig; },1400);
     });
+    // Cycle 48 — rewrite text size (WCAG 1.4.4): A−/A+ adjust the
+    // plain-English rewrite font size in ±2px steps via the data-size
+    // attribute (CSS calc overrides). The choice persists across reloads
+    // and the bounds disable their buttons so users can feel the limits.
+    const plainOutEl=document.getElementById('plainOut');
+    const sizeDown=document.getElementById('rewriteSizeDownBtn');
+    const sizeUp=document.getElementById('rewriteSizeUpBtn');
+    const sizeReset=document.getElementById('rewriteSizeResetBtn');
+    const SIZE_KEY='cleardoc.rewriteSizeSteps';
+    const MIN_SIZE=-2, MAX_SIZE=4;
+    if(plainOutEl){
+      let sizeSteps=0;
+      try{
+        const saved=parseInt(localStorage.getItem(SIZE_KEY),10);
+        if(!isNaN(saved)) sizeSteps=Math.max(MIN_SIZE,Math.min(MAX_SIZE,saved));
+      }catch(_){ /* storage unavailable — start at default */ }
+      const paintSize=()=>{
+        plainOutEl.setAttribute('data-size',String(sizeSteps));
+        if(sizeDown) sizeDown.disabled=sizeSteps<=MIN_SIZE;
+        if(sizeUp) sizeUp.disabled=sizeSteps>=MAX_SIZE;
+        if(sizeReset) sizeReset.disabled=sizeSteps===0;
+      };
+      const changeSize=(delta)=>{
+        sizeSteps=Math.max(MIN_SIZE,Math.min(MAX_SIZE,sizeSteps+delta));
+        paintSize();
+        try{ localStorage.setItem(SIZE_KEY,String(sizeSteps)); }catch(_){ /* ignore */ }
+        if(typeof showAnalyzeToast==='function'){
+          if(sizeSteps===0) showAnalyzeToast('🔠 Rewrite text size reset to default');
+          else showAnalyzeToast(delta>0 ? '🔠 Rewrite text size increased' : '🔠 Rewrite text size decreased');
+        }
+      };
+      paintSize();
+      if(sizeDown && !sizeDown._rewriteSizeWired){
+        sizeDown._rewriteSizeWired=true;
+        sizeDown.addEventListener('click',()=>changeSize(-1));
+      }
+      if(sizeUp && !sizeUp._rewriteSizeWired){
+        sizeUp._rewriteSizeWired=true;
+        sizeUp.addEventListener('click',()=>changeSize(1));
+      }
+      if(sizeReset && !sizeReset._rewriteSizeWired){
+        sizeReset._rewriteSizeWired=true;
+        sizeReset.addEventListener('click',()=>changeSize(-sizeSteps));
+      }
+    }
     // iter #216 polish: copy threat score to clipboard — mirrors verdictCopyBtn pattern.
     if(threatCopyBtn) threatCopyBtn.addEventListener('click',async()=>{
       if(!threatScore || threatScore.hidden) return;
