@@ -14331,10 +14331,14 @@
     // and local-only (no extra API round-trip until the user clicks):
     // chips are derived from the answer text plus the document's own
     // risk landscape, so the thread keeps moving without typing.
-    function buildFollowUps(answer, cite){
+    function buildFollowUps(answer, cite, priorQs){
       const lower = String(answer || '').toLowerCase();
       const doc = String(lastRaw || '').toLowerCase();
       const has = (re) => re.test(lower) || re.test(doc);
+      // Cycle #95 — never suggest a question the user already asked
+      // (including the one that produced this answer): normalize both
+      // sides and skip any chip that matches a prior question.
+      const asked = new Set((priorQs || []).map(x => String(x || '').toLowerCase().replace(/\s+/g, ' ').trim()));
       const chips = [];
       if(has(/deadline|due|within\s+\d+\s+day|by\s+\w+\s+\d/)) chips.push('What happens if I miss the deadline?');
       if(has(/cancel|terminate|renew|notice/)) chips.push('How do I end this agreement early?');
@@ -14344,7 +14348,10 @@
       chips.push('Explain that in simpler terms.');
       chips.push('What should I do next?');
       const seen = new Set(), out = [];
-      for(const c of chips){ if(!seen.has(c)){ seen.add(c); out.push(c); } }
+      for(const c of chips){
+        const k = c.toLowerCase().replace(/\s+/g, ' ').trim();
+        if(!seen.has(k) && !asked.has(k)){ seen.add(k); out.push(c); }
+      }
       return out.slice(0, 3);
     }
     function renderAskThread(){
@@ -14359,7 +14366,7 @@
       askThread.innerHTML = askHistory.map((turn, idx) => {
         const pending = turn.pending;
         const isLast = idx === askHistory.length - 1;
-        const followUps = (!pending && isLast) ? buildFollowUps(turn.answer, turn.cite) : [];
+        const followUps = (!pending && isLast) ? buildFollowUps(turn.answer, turn.cite, askHistory.map(t => t.q)) : [];
         const aBody = pending
           ? '<span class="think"><i></i><i></i><i></i></span> Asking…'
           : '<div class="ans-line">'+esc(turn.answer)+'</div>' + (turn.cite ? '<div class="cite" style="opacity:1">'+esc(turn.cite)+'</div>' : '') +

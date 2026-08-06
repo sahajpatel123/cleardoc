@@ -4157,3 +4157,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 94 of the autonomous loop (alternate add/polish): an answer should hand you the next question, not leave you staring at the input.
+
+**2026-08-06 17:56 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #95 of the restarted autonomous loop (polish).
+- polish(ui): the Ask follow-up chips now refuse to repeat the conversation — `buildFollowUps(answer, cite, priorQs)` normalizes every question already in the thread (lowercase, whitespace-collapsed) and skips any chip that matches, so asking "What happens if I miss the deadline?" no longer surfaces that same chip as a suggestion. The renderer passes the full `askHistory` question list.
+- Updated the cycle-94 smoke test: builder signature, the prior-question collection + normalization + skip logic, and the history-passing caller all asserted (15 patterns total in that test).
+- Full suite green (490 unit + 280 smoke + 1 integration = 771 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 95 of the autonomous loop (alternate add/polish): a suggested follow-up should never be the question you just asked.

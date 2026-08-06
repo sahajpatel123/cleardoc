@@ -421,7 +421,7 @@ test("analyzer: Ask answers suggest deterministic per-answer follow-up questions
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // The follow-up builder derives chips from the answer + document.
-  assert.match(appSrc, /function buildFollowUps\(answer, cite\)\{/,
+  assert.match(appSrc, /function buildFollowUps\(answer, cite, priorQs\)\{/,
     "the follow-up builder must exist");
   assert.match(appSrc, /What happens if I miss the deadline\?/,
     "a deadline follow-up must be offered when the document has deadlines");
@@ -429,9 +429,15 @@ test("analyzer: Ask answers suggest deterministic per-answer follow-up questions
     "a simpler-terms follow-up must always be available");
   assert.match(appSrc, /return out\.slice\(0, 3\);/,
     "the builder must cap suggestions at three chips");
+  assert.match(appSrc, /const asked = new Set\(\(priorQs \|\| \[\]\)\.map/,
+    "the builder must collect the questions already asked");
+  assert.match(appSrc, /\.replace\(\/\\s\+\/g, ' '\)\.trim\(\)\)/,
+    "prior questions must be normalized before comparison");
+  assert.match(appSrc, /!asked\.has\(k\)/,
+    "chips that duplicate a prior question must be skipped");
   // Chips render only on the latest answered turn, as an accessible group.
-  assert.match(appSrc, /const followUps = \(!pending && isLast\) \? buildFollowUps\(turn\.answer, turn\.cite\) : \[\];/,
-    "chips must attach to the newest answered turn only");
+  assert.match(appSrc, /const followUps = \(!pending && isLast\) \? buildFollowUps\(turn\.answer, turn\.cite, askHistory\.map\(t => t\.q\)\) : \[\];/,
+    "chips must attach to the newest answered turn and receive the thread history");
   assert.match(appSrc, /role="group" aria-label="Suggested follow-up questions"/,
     "chips must be an accessible group");
   assert.match(appSrc, /data-ask-followup="' \+ esc\(f\) \+ '"/,
