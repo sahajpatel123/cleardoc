@@ -5012,3 +5012,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 177 of the autonomous loop (alternate add/polish): a deep link should follow your keyboard, and disappear when the analysis does.
+
+**2026-08-06 20:45 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #178 of the restarted autonomous loop (add).
+- feat(reading): the reading list now has a "▶ resume" button that jumps to your first unfinished must-read chunk (falling back to any unfinished chunk, then the top), flashes an accent outline for ~2.2s, and toasts "▶ Resuming: chunk N of M". It respects reduced motion, plays nice with the done-toggles (progress persists), and the block note documents it.
+- Verified in a real browser with a mocked analyze flow: with 2 chunks and the first marked done, resume flashed chunk 2 and toasted "▶ Resuming: chunk 2 of 2"; zero console errors.
+- New smoke test "analyzer: reading list resume button jumps to the first unfinished chunk" — 9 assertions (button markup, handler, must-first target, fallback, flash add/remove timing, position toast, note, CSS).
+- Full suite green (490 unit + 323 smoke + 1 integration = 814 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 178 of the autonomous loop (alternate add/polish): coming back to a long contract shouldn't mean re-reading from page one — one tap should put you exactly where you stopped.

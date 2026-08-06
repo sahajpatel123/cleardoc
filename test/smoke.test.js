@@ -9893,6 +9893,35 @@ test("analyzer: Reading-list chunks ask about the chunk in one click", () => {
     "the ask button must have a focus ring");
 });
 
+// Cycle #178 — resume reading: one click jumps to the first unfinished
+// must-read chunk (falling back to any unfinished chunk), flashes it, and
+// reports where you are.
+test("analyzer: reading list resume button jumps to the first unfinished chunk", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /id="readingResumeBtn" title="Jump to your first unfinished must-read chunk"/,
+    "reading controls must include a resume button");
+  assert.match(appSrc, /const resumeBtn = document\.getElementById\('readingResumeBtn'\);/,
+    "the resume button must have a click handler");
+  assert.match(appSrc, /\.reading-bucket-must \.reading-row:not\(\.reading-row-done\)/,
+    "resume must prefer the first unfinished must-read chunk");
+  assert.match(appSrc, /readingGrid\.querySelector\('\.reading-row:not\(\.reading-row-done\)'\)/,
+    "resume must fall back to any unfinished chunk");
+  assert.match(appSrc, /target\.classList\.add\('reading-resume-flash'\)/,
+    "the target chunk must be highlighted");
+  assert.match(appSrc, /setTimeout\(\(\) => target\.classList\.remove\('reading-resume-flash'\), 2200\);/,
+    "the highlight must fade after a couple of seconds");
+  assert.match(appSrc, /'▶ Resuming: chunk ' \+ pos \+ ' of ' \+ all\.length/,
+    "resume must announce the chunk position");
+  assert.match(appSrc, /<b>▶ resume<\/b> jumps to your first unfinished must-read/,
+    "the block note must document the resume action");
+  assert.match(cssSrc, /\.reading-resume-flash\{/, "the resume highlight must be styled");
+});
+
 // Iter #140: section risk map — aggregates risk patterns by
 // clause category and renders weighted horizontal bars.
 test("analyzer: Section risk map aggregates risk by clause category", () => {

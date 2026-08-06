@@ -8462,6 +8462,7 @@
         '<button type="button" class="reading-filter ghost-btn" id="readingFilterAllBtn" title="Show every chunk">🌐 all</button>' +
         '<button type="button" class="reading-filter ghost-btn' + (undoneOnly ? ' reading-filter-active' : '') + '" id="readingUndoneBtn" title="Show only chunks you have not yet marked done">⏳ undone only</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyListBtn" title="Copy the reading priority list as plain text">📋 copy list</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="readingResumeBtn" title="Jump to your first unfinished must-read chunk">▶ resume</button>' +
       '</div>' + signalChipHtml;
       readingGrid.innerHTML = stripHtml + progressBar + buckets + controls;
       readingBlock.hidden = false;
@@ -8472,7 +8473,7 @@
           'Pure-local: walks the doc sentence-by-sentence and scores each against risk, money, deadline, and rights signals. ' +
           '<b>🔴 must</b> = every red/orange dot (' + pctMust + '% of the doc). ' +
           'Click a chunk to jump to it; click <b>○</b> to mark it read (progress persists). ' +
-          'Click any signal badge (🚩/💰/⏰/✓) to filter chunks with that signal. <b>📋</b> per row copies a single chunk, <b>💬</b> asks about one, <b>🔊</b> reads one aloud, <b>📋 copy list</b> exports the priority order as a checklist.';
+          'Click any signal badge (🚩/💰/⏰/✓) to filter chunks with that signal. <b>📋</b> per row copies a single chunk, <b>💬</b> asks about one, <b>🔊</b> reads one aloud, <b>📋 copy list</b> exports the priority order as a checklist, or <b>▶ resume</b> jumps to your first unfinished must-read.';
       }
       // Click-to-jump. Inner controls (done + signal badges) stop
       // propagation so they don't accidentally jump the input.
@@ -8636,6 +8637,25 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Reading order copied' : '⚠ Couldn’t copy');
           copyBtn.textContent = copied ? '✓ copied' : '📋 copy list';
           setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy list'; }, 2500);
+        });
+      }
+      // Cycle #178 — resume: jump to the first unfinished must-read chunk
+      // (falling back to any unfinished chunk, then the top), flash it,
+      // and say where you are.
+      const resumeBtn = document.getElementById('readingResumeBtn');
+      if(resumeBtn){
+        resumeBtn.addEventListener('click', () => {
+          const target = readingGrid.querySelector('.reading-bucket-must .reading-row:not(.reading-row-done)') ||
+            readingGrid.querySelector('.reading-row:not(.reading-row-done)') ||
+            readingGrid.querySelector('.reading-row');
+          if(!target) return;
+          try { target.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){}
+          target.classList.add('reading-resume-flash');
+          clearTimeout(resumeBtn._flashTimer);
+          resumeBtn._flashTimer = setTimeout(() => target.classList.remove('reading-resume-flash'), 2200);
+          const all = [...readingGrid.querySelectorAll('.reading-row')];
+          const pos = all.indexOf(target) + 1;
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('▶ Resuming: chunk ' + pos + ' of ' + all.length);
         });
       }
     }
