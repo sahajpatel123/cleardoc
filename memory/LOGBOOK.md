@@ -5821,3 +5821,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 250 of the autonomous loop (alternate add/polish): the version dates that tell you whether a contract is stale deserve the same one-click export as every other finding — copy all the freshness markers, not one at a time.
+
+**2026-08-07 07:37 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #251 of the restructured autonomous loop (polish).
+- polish(freshness): the freshness note now documents the cycle-#250 "📋 copy all" chip ("…📋 copy all exports the markers as plain text") so the new export is discoverable next to the staleness verdict.
+- Verified in a real browser via the extended freshness integration test: the rendered `#freshNote` mentions "copy all"; zero console errors.
+- Extended the cycle-#250 smoke test with 1 note-text assertion.
+- Full suite green (490 unit + 355 smoke + 13 integration = 858 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 251 of the autonomous loop (alternate add/polish): a block's note is its instruction manual — when the block grows a new export, the note should grow the sentence that points to it.

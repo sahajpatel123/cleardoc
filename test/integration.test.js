@@ -1163,6 +1163,8 @@ skip("integration: freshness block copies all markers", async () => {
     await page.waitForSelector("#freshBlock:not([hidden]) .fresh-row", { timeout: 8000 });
 
     const rowCount = await page.$$eval("#freshBlock .fresh-row", (els) => els.length);
+    const noteText = await page.$eval("#freshNote", (el) => el.textContent || "");
+    assert.match(noteText, /copy all/, "the freshness note must document the copy-all chip");
     await page.click("#freshCopyAllBtn");
     await page.waitForTimeout(200);
     const copied = await page.evaluate(() => window.__clipboardCapture[window.__clipboardCapture.length - 1] || "");

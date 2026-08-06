@@ -13890,7 +13890,8 @@
       }
       if(freshNote){
         freshNote.innerHTML = '<span class="riskNote-lead">' + count + ' freshness marker' + (count === 1 ? '' : 's') + '</span> ' +
-          (old > 0 ? '⚠ At least one date is >1 year old — confirm you have the latest revision before signing.' : 'Looks current. Always double-check you have the latest revision.');
+          (old > 0 ? '⚠ At least one date is >1 year old — confirm you have the latest revision before signing.' : 'Looks current. Always double-check you have the latest revision.') +
+          ' <b>📋 copy all</b> exports the markers as plain text.';
       }
       // Iter #119: click-to-jump on each row
       $$('.fresh-row', freshGrid).forEach(row => {

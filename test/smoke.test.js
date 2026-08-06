@@ -9666,6 +9666,8 @@ test("analyzer: Freshness block copies all markers in one click", () => {
     "the copy-all must mirror the per-row citation format");
   assert.match(appSrc, /'📋 Freshness markers copied \(' \+ lines\.length \+ '\)'/,
     "copying must toast the marker count");
+  assert.match(appSrc, /📋 copy all<\/b> exports the markers as plain text/,
+    "the freshness note must document the copy-all chip");
   assert.match(cssSrc, /\.fresh-controls\{/,
     "the copy-all controls row must be styled");
 });
