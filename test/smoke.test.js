@@ -2403,6 +2403,60 @@ skip("analyze: response draft downloads as Markdown", async () => {
   }
 });
 
+// Cycle #263 — copy the response draft as Markdown.
+skip("analyze: response draft copies as Markdown", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="copyDraftMdBtn"/,
+    "analyze.html must expose the Markdown draft copy button");
+  assert.match(appSrc, /const copyDraftMdBtn=document\.getElementById\('copyDraftMdBtn'\);/,
+    "app.js must wire the Markdown draft copy button");
+  assert.match(appSrc, /clipboard\.writeText\(md\)/,
+    "the Markdown draft copy must use the clipboard");
+  assert.match(appSrc, /'📋 Draft copied as Markdown'/,
+    "the Markdown draft copy must confirm with a toast");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedDraftMd = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedDraftMd = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedDraftMd = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#draftOut", { timeout: 8000 });
+    await page.waitForFunction(() => (document.getElementById("draftOut") || {}).value && document.getElementById("draftOut").value.length > 10,
+      { timeout: 8000 });
+    await page.click("#copyDraftMdBtn");
+    await page.waitForFunction(() => window.__copiedDraftMd && window.__copiedDraftMd.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedDraftMd);
+    assert.match(captured, /^# ClearDoc response draft/, "the copied draft must start with the Markdown title");
+    assert.match(captured, /not legal advice/, "the copied draft must carry the disclaimer");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 skip("share: opening a #share= URL offers the shared analysis banner with a View button", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await browser.newContext();

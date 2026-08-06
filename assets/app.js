@@ -21667,6 +21667,33 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       URL.revokeObjectURL(url);
       if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⬇ Draft saved as Markdown');
     });
+    const copyDraftMdBtn=document.getElementById('copyDraftMdBtn');
+    if(copyDraftMdBtn) copyDraftMdBtn.addEventListener('click', async () => {
+      if(!draftOut||!draftOut.value) return;
+      const fp=(_fpState && _fpState.short) ? '-' + _fpState.short : '';
+      const md='# ClearDoc response draft'+(fp ? ' · #'+_fpState.short : '')+'\n\n> Generated locally · not legal advice. Review before sending.\n\n' + draftOut.value;
+      let copied=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(md);
+          copied=true;
+        }
+      }catch(_){ /* fall through */ }
+      if(!copied){
+        try {
+          const ta=document.createElement('textarea');
+          ta.value=md;
+          ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta);
+          ta.select();
+          copied=document.execCommand('copy');
+          document.body.removeChild(ta);
+        } catch(_2){ copied=false; }
+      }
+      copyDraftMdBtn.textContent=copied ? '✓ copied' : 'Copy .md';
+      setTimeout(()=>{ if(copyDraftMdBtn.isConnected) copyDraftMdBtn.textContent='Copy .md'; }, 1400);
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Draft copied as Markdown' : '⚠ Couldn’t copy');
+    });
     if(printBtn) printBtn.addEventListener('click',printAnalysis);
     if(saveBtn) saveBtn.addEventListener('click',saveAnalysis);
 
