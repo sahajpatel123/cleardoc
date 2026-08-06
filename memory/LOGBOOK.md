@@ -3328,3 +3328,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 12 of the autonomous loop (alternate add/polish): make the most important callout copyable.
+
+**2026-08-06 14:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #13 of the restarted autonomous loop (polish).
+- polish(a11y): the Top Concern Copy button had a static aria-label, so screen-reader users got no confirmation when the copy succeeded. It now swaps to "Top concern copied to clipboard" / "Copy failed — try again" during the flash and restores the original label after, matching the Risk Details copy-button pattern.
+- Extended the top-concern smoke test with the aria-label assertions.
+- Full suite green (490 unit + 233 smoke + 1 integration = 724 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 13 of the autonomous loop (alternate add/polish): announce Top Concern copy results to assistive tech.

@@ -1073,9 +1073,13 @@
       } catch(_){}
       const orig = 'Copy';
       copyBtn.textContent = ok ? 'Copied ✓' : 'Copy failed';
+      copyBtn.setAttribute('aria-label', ok ? 'Top concern copied to clipboard' : 'Copy failed — try again');
       if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Top concern copied' : '⚠ Couldn’t copy');
       clearTimeout(copyBtn._flashTimer);
-      copyBtn._flashTimer = setTimeout(() => { copyBtn.textContent = orig; }, 1400);
+      copyBtn._flashTimer = setTimeout(() => {
+        copyBtn.textContent = orig;
+        copyBtn.setAttribute('aria-label', 'Copy the top concern to the clipboard');
+      }, 1400);
     });
     el.hidden = false;
   }

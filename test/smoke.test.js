@@ -323,6 +323,8 @@ skip("top concern: callout has a copy button that exports clause + why", async (
   assert.match(appSrc, /'📋 Top concern copied'/, "top-concern copy must toast on success");
   assert.match(appSrc, /'Top concern \(' \+ sevLabel \+ '\):/, "copy payload must include the severity label and clause");
   assert.match(appSrc, /Why it matters:/, "copy payload must include the why-text");
+  assert.match(appSrc, /copyBtn\.setAttribute\('aria-label', ok \? 'Top concern copied to clipboard' : 'Copy failed — try again'\)/, "top-concern copy must announce success via aria-label");
+  assert.match(appSrc, /copyBtn\.setAttribute\('aria-label', 'Copy the top concern to the clipboard'\)/, "top-concern copy must restore the original aria-label");
   assert.match(themeSrc, /\.tc-copy\{/, "theme.css must style .tc-copy");
   assert.match(themeSrc, /\.tc-copy:focus-visible\{/, "theme.css must give .tc-copy a focus ring");
 });
