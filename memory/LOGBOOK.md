@@ -5600,3 +5600,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 230 of the autonomous loop (alternate add/polish): a reminder that only knows "tomorrow" is a nudge, not a tool — let users snooze for the length of their actual deadline horizon.
+
+**2026-08-07 03:09 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #231 of the restructured autonomous loop (polish).
+- polish(deadlines): the snooze toast now names the actual return date — "😴 Reminder snoozed until Fri, Aug 10" instead of "snoozed for 3 days" — computed with `toLocaleDateString` (short weekday + month + day). The 1-day path keeps "until tomorrow".
+- polish(a11y): snoozing no longer strands keyboard focus on the just-hidden snooze button; focus moves to the document input so keyboard users land somewhere visible and useful.
+- Verified in a real browser via the extended snooze integration test: after the 3-day snooze, `document.activeElement.id === "docInput"` (plus the existing until-date + hidden-banner assertions), zero console errors.
+- Updated the cycle-#230 smoke assertions (3 new: resume-date toast, readable short-date label, focus move) and adjusted the old days-based toast assertion.
+- Full suite green (490 unit + 345 smoke + 4 integration = 839 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 231 of the autonomous loop (alternate add/polish): "snoozed for 3 days" is vague — "until Fri, Aug 10" is a plan; and a hidden button is no place to leave someone's keyboard focus.

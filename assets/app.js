@@ -20525,15 +20525,24 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     // Cycle #180 — snooze the deadline reminder (persisted, unlike the
     // visit-only Dismiss). Cycle #230 — pick the horizon: 1 / 3 / 7 days.
     const snoozeDeadlineReminder = (days) => {
+      let resumeLabel = '';
       try {
         const d = new Date();
         d.setDate(d.getDate() + days);
         const until = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         localStorage.setItem('cleardoc:deadlineSnooze', JSON.stringify({ until, ts: Date.now() }));
+        // Cycle #231 — the toast names the actual return date so "3 days"
+        // becomes "until Fri, Aug 10" (clearer than a count).
+        if(days > 1) resumeLabel = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
       } catch(_){ /* ignore */ }
       const dr = document.getElementById('deadlineReminder');
       if(dr) dr.hidden = true;
-      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(days === 1 ? '😴 Reminder snoozed until tomorrow' : '😴 Reminder snoozed for ' + days + ' days');
+      // Cycle #231 — don't strand keyboard focus on a just-hidden button.
+      const input = document.getElementById('docInput');
+      if(input && document.activeElement && dr && dr.contains(document.activeElement)){
+        try { input.focus({preventScroll:true}); } catch(_){ input.focus(); }
+      }
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(days === 1 ? '😴 Reminder snoozed until tomorrow' : '😴 Reminder snoozed until ' + resumeLabel);
     };
     const deadlineReminderSnoozeBtn = document.getElementById('deadlineReminderSnoozeBtn');
     if(deadlineReminderSnoozeBtn) deadlineReminderSnoozeBtn.addEventListener('click', () => snoozeDeadlineReminder(1));

@@ -453,6 +453,9 @@ skip("integration: deadline reminder snoozes for a chosen horizon", async () => 
     assert.ok(snooze && snooze.until === expected,
       `3-day snooze must persist until=${expected}, got ${JSON.stringify(snooze)}`);
     assert.equal(hiddenAfter, true, "the reminder must hide after snoozing");
+    const focusedAfter = await page.evaluate(() => document.activeElement && document.activeElement.id);
+    assert.equal(focusedAfter, "docInput",
+      "keyboard focus must move to the document input instead of staying on the hidden snooze button");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();

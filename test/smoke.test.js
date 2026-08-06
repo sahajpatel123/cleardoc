@@ -11499,8 +11499,14 @@ test("analyzer: Returning users get an upcoming-deadline reminder banner", () =>
     "the 3-day button must be wired to the helper");
   assert.match(appSrc, /deadlineReminderSnooze7Btn\) deadlineReminderSnooze7Btn\.addEventListener\('click', \(\) => snoozeDeadlineReminder\(7\)\);/,
     "the 7-day button must be wired to the helper");
-  assert.match(appSrc, /'😴 Reminder snoozed for ' \+ days \+ ' days'/,
-    "multi-day snoozes must confirm with a days-based toast");
+  assert.match(appSrc, /'😴 Reminder snoozed until ' \+ resumeLabel/,
+    "multi-day snoozes must name the resume date in the toast");
+  assert.match(appSrc, /resumeLabel = d\.toLocaleDateString\(undefined, \{ weekday: 'short', month: 'short', day: 'numeric' \}\)/,
+    "the resume label must be a readable short date");
+  assert.match(appSrc, /dr\.contains\(document\.activeElement\)/,
+    "snoozing must detect focus sitting on a banner control");
+  assert.match(appSrc, /input\.focus\(\{preventScroll:true\}\)/,
+    "snoozing must move keyboard focus to the document input");
   const snoozeClears = (appSrc.match(/cleardoc:deadlineSnooze'\); \} catch\(_\)\{ \/\* ignore \*\/ \}/g) || []).length;
   assert.ok(snoozeClears >= 4,
     "a fresh analysis, no-deadline analysis, history clear, and restore dismissal must all reset the snooze");
