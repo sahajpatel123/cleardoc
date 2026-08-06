@@ -10340,6 +10340,8 @@ test("analyzer: Negotiation playbook builds prioritized steps from analyzer outp
     "iter #261 must copy the playbook markdown to the clipboard");
   assert.match(appSrc, /'📋 Playbook copied as markdown'/,
     "iter #261 must toast when the copy succeeds");
+  assert.match(appSrc, /copyBtn\.addEventListener[\s\S]{0,800}execCommand\('copy'\)/,
+    "iter #261 must fall back to the legacy textarea copy path");
   assert.match(cssSrc, /\.playbook-done-step\b/, ".playbook-done-step style must exist");
   assert.match(cssSrc, /\.playbook-controls\b/, ".playbook-controls style must exist");
 });

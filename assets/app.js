@@ -13661,7 +13661,18 @@
               await navigator.clipboard.writeText(md);
               copied = true;
             }
-          } catch(_){ /* fall through */ }
+          } catch(_){ /* fall through to legacy copy */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
           if(typeof showAnalyzeToast === 'function'){
             showAnalyzeToast(copied ? '📋 Playbook copied as markdown' : '⚠ Couldn’t copy');
           }
