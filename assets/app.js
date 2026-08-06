@@ -96,6 +96,70 @@
     return !!on;
   }
 
+  // Next-steps tracking — each recommended step is a clickable checkbox that
+  // toggles a .done state, shows a live "N of M done" progress line, and
+  // persists per document fingerprint (falls back to 'latest' pre-analysis).
+  function stepsStoreKey(){
+    const btn = document.getElementById('docFpBtn');
+    const fp = (btn && btn.textContent) ? btn.textContent.replace(/^#/, '').trim() : '';
+    return 'cleardoc:steps:' + (fp || 'latest');
+  }
+  function loadStepsDone(){
+    try {
+      const raw = localStorage.getItem(stepsStoreKey());
+      if(!raw) return {};
+      const o = JSON.parse(raw);
+      return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {};
+    } catch(_){ return {}; }
+  }
+  function saveStepsDone(map){
+    try { localStorage.setItem(stepsStoreKey(), JSON.stringify(map)); } catch(_){}
+  }
+  function paintStepsProgress(){
+    const list = document.getElementById('nextStepsList');
+    const el = document.getElementById('stepsProgress');
+    if(!list || !el) return;
+    const total = list.querySelectorAll('li').length;
+    const done = list.querySelectorAll('li.done').length;
+    el.textContent = total > 0 ? done + ' of ' + total + ' done' : '';
+  }
+  function applyStepsDone(){
+    const list = document.getElementById('nextStepsList');
+    if(!list) return;
+    const done = loadStepsDone();
+    list.querySelectorAll('li').forEach((li, i) => {
+      if(done[i]) li.classList.add('done');
+    });
+    paintStepsProgress();
+  }
+  function wireStepsTracking(){
+    const list = document.getElementById('nextStepsList');
+    if(!list || list._stepsWired) return;
+    list._stepsWired = true;
+    list.addEventListener('click', (e) => {
+      const li = e.target.closest && e.target.closest('li');
+      if(!li || !li.parentNode) return;
+      const idx = Array.prototype.indexOf.call(li.parentNode.children, li);
+      if(idx < 0) return;
+      const done = li.classList.toggle('done');
+      const map = loadStepsDone();
+      if(done) map[idx] = true; else delete map[idx];
+      saveStepsDone(map);
+      paintStepsProgress();
+    });
+    const reset = document.getElementById('stepsResetBtn');
+    if(reset) reset.addEventListener('click', () => {
+      try { localStorage.removeItem(stepsStoreKey()); } catch(_){}
+      list.querySelectorAll('li.done').forEach(li => li.classList.remove('done'));
+      paintStepsProgress();
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast('↺ Next-step progress cleared');
+    });
+  }
+  function refreshStepsUI(){
+    wireStepsTracking();
+    applyStepsDone();
+  }
+
   /* ---- shared clarify engine (offline) ---- */
   const JARGON=[
     [/\bnotwithstanding any provision herein(,? to the contrary)?\b/gi,'no matter what else this says'],
@@ -12878,6 +12942,7 @@
           if(nextStepsBlock) nextStepsBlock.hidden=true;
         }
       }
+      refreshStepsUI();
 
       // 7) translation cheat sheet — only when the source language
       // isn't English. Uses a local glossary keyed to the most common
@@ -13379,6 +13444,7 @@
         });
         if(nextStepsBlock) nextStepsBlock.hidden = steps.length===0;
       }
+      refreshStepsUI();
 
       // Draft (regenerate from the restored risks so the buttons match)
       if(draftOut){

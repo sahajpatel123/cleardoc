@@ -290,6 +290,24 @@ skip("theme.css: health-copy rules are defined once (no duplicate blocks)", asyn
   }
 });
 
+skip("next steps: interactive done-tracking with persisted progress", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(analyzeHtml, /id="stepsProgress"/, "analyze.html must expose #stepsProgress");
+  assert.match(analyzeHtml, /id="stepsResetBtn"/, "analyze.html must expose #stepsResetBtn");
+  assert.match(appSrc, /function wireStepsTracking\(/, "app.js must define wireStepsTracking");
+  assert.match(appSrc, /function applyStepsDone\(/, "app.js must define applyStepsDone");
+  assert.match(appSrc, /localStorage\.getItem\(stepsStoreKey\(\)\)/, "done-state must be loaded from localStorage");
+  assert.match(appSrc, /li\.classList\.toggle\('done'\)/, "clicking a step must toggle .done");
+  assert.match(appSrc, /cleardoc:steps:/, "storage key must be namespaced per document fingerprint");
+  assert.match(themeSrc, /\.nextsteps-list li\.done\{/, "done steps must be visually marked");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

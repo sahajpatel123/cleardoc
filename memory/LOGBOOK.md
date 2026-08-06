@@ -3298,3 +3298,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 9 of the autonomous loop (alternate add/polish): remove duplicated CSS without changing any styling.
+
+**2026-08-06 14:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #10 of the restarted autonomous loop (feature add).
+- feat(ui): made the Next Steps list interactive — each recommended step is now a clickable item that toggles a strikethrough .done state, a live "N of M done" progress line, and a ↺ reset button. Done-state persists in localStorage keyed by the document fingerprint short hash (falls back to 'latest'), so re-analyzing the same document restores your progress. Wired into both the AI render and the snapshot-restore render paths.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 231 smoke + 1 integration = 722 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 10 of the autonomous loop (alternate add/polish): turn the static Next Steps list into a trackable action checklist.
