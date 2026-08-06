@@ -153,6 +153,25 @@ skip("ask: citation in local-fallback includes the matched sentence + a quote", 
   assert.match(appSrc, /local\.citeFmt \|\| \(local\.cite/, "the Ask thread must prefer citeFmt over the raw fallback string");
 });
 
+skip("risk-detail copy: rd/rc buttons announce success via aria-label + toast (a11y parity)", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Per-suggestion counter-clause copy (rc-copy) must update its accessible
+  // name on success/failure and restore it after the flash, plus announce
+  // via the app-wide toast like every other copy control.
+  assert.match(appSrc, /rcCopy\.setAttribute\('aria-label', ok \? 'Counter-clause copied to clipboard' : 'Copy failed — try again'\)/, "rc-copy must set a success/failure aria-label");
+  assert.match(appSrc, /rcCopy\.setAttribute\('aria-label', 'Copy suggestion to clipboard'\)/, "rc-copy must restore the original aria-label after the flash");
+  assert.match(appSrc, /showAnalyzeToast\(ok \? '📋 Counter-clause copied' : '⚠ Couldn’t copy'\)/, "rc-copy must announce via toast like the rest of the app");
+
+  // Match-list copy (rd-copy) must do the same.
+  assert.match(appSrc, /copyBtn\.setAttribute\('aria-label', ok \? 'Match list copied to clipboard' : 'Copy failed — try again'\)/, "rd-copy must set a success/failure aria-label");
+  assert.match(appSrc, /copyBtn\.setAttribute\('aria-label', 'Copy match list to clipboard'\)/, "rd-copy must restore the original aria-label after the flash");
+  assert.match(appSrc, /showAnalyzeToast\(ok \? '📋 Match list copied' : '⚠ Couldn’t copy'\)/, "rd-copy must announce via toast like the rest of the app");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
@@ -8677,7 +8696,6 @@ test("analyzer: RISK array detects Intellectual Property / Work for Hire trap", 
   assert.match(appSrc, /Transfers ownership of your work, ideas, or creations/,
     "IP Assignment rule must explain why IP transfer is a trap");
 });
-
 
 
 

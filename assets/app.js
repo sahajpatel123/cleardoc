@@ -16364,8 +16364,13 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
             } catch(_) {}
             const orig = 'copy';
             rcCopy.textContent = ok ? '✓ copied' : 'failed';
+            rcCopy.setAttribute('aria-label', ok ? 'Counter-clause copied to clipboard' : 'Copy failed — try again');
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Counter-clause copied' : '⚠ Couldn’t copy');
             clearTimeout(rcCopy._flashTimer);
-            rcCopy._flashTimer = setTimeout(() => { rcCopy.textContent = orig; }, 1400);
+            rcCopy._flashTimer = setTimeout(() => {
+              rcCopy.textContent = orig;
+              rcCopy.setAttribute('aria-label', 'Copy suggestion to clipboard');
+            }, 1400);
             return;
           }
           // 0c. Per-suggestion speak button (iter #55) — speak the
@@ -16442,8 +16447,13 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
             } catch(_) {}
             const orig = 'Copy';
             copyBtn.textContent = ok ? 'Copied ✓' : 'Copy failed';
+            copyBtn.setAttribute('aria-label', ok ? 'Match list copied to clipboard' : 'Copy failed — try again');
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Match list copied' : '⚠ Couldn’t copy');
             clearTimeout(copyBtn._flashTimer);
-            copyBtn._flashTimer = setTimeout(() => { copyBtn.textContent = orig; }, 1400);
+            copyBtn._flashTimer = setTimeout(() => {
+              copyBtn.textContent = orig;
+              copyBtn.setAttribute('aria-label', 'Copy match list to clipboard');
+            }, 1400);
             return;
           }
           // 1. Apply-all button — applies every unmatched suggestion

@@ -3116,3 +3116,105 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - User asked for autonomous 5-minute loop cycles improving the project (alternate add/polish), with compulsory commit+push after every change. First cycle was a polish (readiness score) that surfaced and fixed the broken analyzer.
+
+**2026-08-04 18:00 | Model: Claude Sonnet 5**
+**Changes Made:**
+- Polished Readability Score v2 display in assets/app.js
+- Enhanced computeReadinessScore() to return its own detailed breakdown line
+- Detail now shows 'X/100 · N trap(s) · M watch(es) · K notes' for accuracy
+- Clean documents show 'Clean document — no risks detected'
+- All 223 tests pass after changes
+
+**Prompt Intention:**
+- User requested continuous improvement loop with 5-minute intervals
+- Polished the Readiness Score v2 feature which was recently added (iter #224)
+- Commit pushed to GitHub main branch
+
+**2026-08-04 18:30 | Model: Claude Sonnet 5**
+**Changes Made:**
+- Added copy button to Currency block (💱 Currency & amounts)
+- Copy exports detected amounts as plain text: "$10,000 (USD)\n€5,000 (EUR)"
+- Added CSS styling for currency copy button with hover effects
+- Follows same pattern as other result block copy buttons
+- All 223 tests pass after changes
+
+**Prompt Intention:**
+- User requested continuous improvement loop with 5-minute intervals
+- Added new feature: Currency block copy button
+- Commit pushed to GitHub main branch
+
+**2026-08-04 19:00 | Model: Claude Sonnet 5**
+**Changes Made:**
+- Polished Health Check display to show for clean documents
+- Now displays "Ready to proceed" status with copy button instead of hiding completely
+- Score field hidden for clean docs (empty string vs "Score 0")
+- All 223 tests pass after changes
+
+**Prompt Intention:**
+- User requested continuous improvement loop with 5-minute intervals
+- Polished the Health Check feature (iter #219)
+- Commit pushed to GitHub main branch
+
+**2026-08-04 19:10 | Model: Claude Sonnet 5**
+**Changes Made:**
+- Polished Readiness Score v2 with information tooltip
+- Added ⓘ icon showing scoring formula on hover
+- Formula: 100 - (threat × 0.6) - ((risks-traps) × 0.5)
+- CSS styled with hover effects and print hiding
+- All 223 tests pass after changes
+
+**Prompt Intention:**
+- User requested continuous improvement loop with 5-minute intervals
+- Polished the Readiness Score feature with info tooltip
+- Commit pushed to GitHub main branch
+
+**2026-08-04 19:15 | Model: Claude Sonnet 5**
+**Changes Made:**
+- Polished Risk Radar with info tooltips explaining severity levels
+- Added ⓘ icon next to "Risk radar" header
+- Tooltip: Traps (harmful clauses), Watches (moderate concerns), Notes (informational)
+- Enhanced filter button titles with clearer explanations
+- CSS styled with hover effects and print hiding
+- All 223 tests pass after changes
+
+**Prompt Intention:**
+- User requested continuous improvement loop with 5-minute intervals
+- Polished the Risk Radar feature with severity level explanations
+- Commit pushed to GitHub main branch
+
+**2026-08-04 19:20 | Model: Claude Sonnet 5**
+**Changes Made:**
+- Enhanced help modal with 'RISK ROW ACTIONS' section
+- Documented 'a' key for asking about flagged risks
+- Documented 'e' key for expanding counter-suggestions
+- Improved discoverability of context-specific shortcuts
+- All 223 tests pass after changes
+
+**Prompt Intention:**
+- User requested continuous improvement loop with 5-minute intervals
+- Polished the help modal to document context-specific shortcuts
+- Commit pushed to GitHub main branch
+
+**2026-08-04 19:25 | Model: Claude Sonnet 5**
+**Changes Made:**
+- Added Readiness Score explainer modal on info icon click
+- Modal explains formula: Score = 100 - (threat × 0.6) - ((risks-traps) × 0.5)
+- Documents all four score levels with color coding
+- Explains factors that affect the score
+- Uses existing showConfirmModal pattern
+- All 223 tests pass after changes
+
+**Prompt Intention:**
+- User requested continuous improvement loop with 5-minute intervals
+- Added new feature: Readiness Score explainer modal
+- Commit pushed to GitHub main branch
+
+**2026-08-06 12:35 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #1 of the restarted autonomous loop (5-min cycles, goal-driven).
+- Polish (a11y): Risk Details copy buttons — rd-copy (match list) and rc-copy (counter-clause) now update their aria-label to announce success/failure and fire the app-wide toast, matching every other copy control. Accessible name restores after the 1.4s flash.
+- Added source-pattern smoke test locking in the new behavior.
+- Full suite green (490 unit + 223 smoke + 1 integration = 714 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- User restarted the autonomous 5-minute improvement loop: one add/polish per cycle, alternating, compulsory commit+push to main, run until stopped. Cycle 1 = polish of the newest copy-button feature.
