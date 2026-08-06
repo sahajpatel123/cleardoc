@@ -13237,15 +13237,18 @@
           '<button type="button" class="kc-copy ghost-btn ghost-btn-sm" id="kcCopyBtn" title="Copy the key clauses as plain text">📋 copy</button>' +
           '<button type="button" class="kc-expand ghost-btn ghost-btn-sm" id="kcExpandBtn" title="Show every long sentence in the document">expand all</button>' +
         '</div>';
-      list.innerHTML = picks.map((it, idx) => (
-        '<li class="kc-row kc-' + it.sev + '" data-kc-idx="' + esc(it.i) + '" data-kc-snippet="' + esc(it.s.slice(0, 240)) + '">' +
+      list.innerHTML = picks.map((it, idx) => {
+        // Cycle #144 — per-row copy citation.
+        const copyText = '[KEY CLAUSE · ' + (it.sev === 'r' ? 'trap' : it.sev === 'a' ? 'watch' : 'note') + '] "' + it.s + '"';
+        return '<li class="kc-row kc-' + it.sev + '" data-kc-idx="' + esc(it.i) + '" data-kc-snippet="' + esc(it.s.slice(0, 240)) + '">' +
           '<span class="kc-num">' + (idx + 1) + '.</span>' +
           '<span class="kc-sev kc-tag-' + it.sev + '">' + (it.sev === 'r' ? 'trap' : it.sev === 'a' ? 'watch' : 'note') + '</span>' +
           '<span class="kc-text">' + esc(it.s.length > 220 ? it.s.slice(0, 217) + '…' : it.s) + '</span>' +
           '<button type="button" class="kc-speak ghost-btn ghost-btn-sm" data-kc-speak="' + esc(it.s.slice(0, 200)) + '" title="Speak this clause aloud">🔊</button>' +
           '<button type="button" class="kc-ask ghost-btn ghost-btn-sm" data-kc-ask="' + esc(it.s.slice(0, 240)) + '" data-kc-sev="' + esc(it.sev) + '" title="Ask about this clause" aria-label="Ask about this clause">💬</button>' +
-        '</li>'
-      )).join('') + counterHtml;
+          '<button type="button" class="kc-row-copy ghost-btn ghost-btn-sm" data-kc-copy-text="' + esc(copyText) + '" title="Copy this key clause" aria-label="Copy this key clause">📋</button>' +
+        '</li>';
+      }).join('') + counterHtml;
       preview.hidden = false;
       // Click a row → jump to the source sentence in the textarea.
       $$('.kc-row', list).forEach(row => {
@@ -13302,6 +13305,28 @@
       });
       // Cycle 76 feature — copy the key clauses as plain text so the top
       // "read twice" list can be pasted into notes or shared.
+      // Cycle #144 — per-row copy. stopPropagation keeps the row's
+      // jump/speak/ask behaviors from firing when the button is pressed.
+      $$('.kc-row-copy', list).forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const text = btn.getAttribute('data-kc-copy-text') || '';
+          if(!text) return;
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Key-clause citation copied' : '⚠ Couldn’t copy');
+          btn.textContent = copied ? '✓' : '📋';
+          if(copied) setTimeout(() => { if(btn.isConnected) btn.textContent = '📋'; }, 1500);
+        });
+      });
       const kcCopyBtn = document.getElementById('kcCopyBtn');
       if(kcCopyBtn && !kcCopyBtn._kcCopyWired){
         kcCopyBtn._kcCopyWired = true;

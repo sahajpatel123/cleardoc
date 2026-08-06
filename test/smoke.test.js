@@ -8263,6 +8263,29 @@ test("analyzer: Key-clause rows can ask the document about the clause in one cli
     "the a shortcut must also cover key-clause, scenario, obligation, and bearer rows");
 });
 
+// Cycle #144 — per-key-clause copy citation.
+test("analyzer: Key-clause rows copy their citation in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /const copyText = '\[KEY CLAUSE · ' \+ \(it\.sev === 'r' \? 'trap' : it\.sev === 'a' \? 'watch' : 'note'\) \+ '\] "' \+ it\.s \+ '"';/,
+    "the citation must carry the severity label and the clause");
+  assert.match(appSrc, /class="kc-row-copy ghost-btn ghost-btn-sm"/,
+    "each key-clause row must render a copy button");
+  assert.match(appSrc, /data-kc-copy-text="' \+ esc\(copyText\) \+ '"/,
+    "the copy button must carry the prebuilt citation");
+  assert.match(appSrc, /\$\$\('\.kc-row-copy', list\)\.forEach/,
+    "copy buttons must be wired after each render");
+  assert.match(appSrc, /e\.stopPropagation\(\);/,
+    "copying must not trigger the row's jump/speak/ask behaviors");
+  assert.match(appSrc, /📋 Key-clause citation copied/,
+    "copying must announce via toast");
+  assert.match(appSrc, /copyBtn\.textContent = copied \? '✓' : '📋';/,
+    "the button must flash its copied state");
+});
+
 // Iter #102: signing checklist — surfaces marker-phrase clauses
 // that need explicit action (notarize / witness / counsel /
 // arbitration / wire / etc.) grouped by who needs to act. Pure

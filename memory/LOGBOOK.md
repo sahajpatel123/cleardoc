@@ -4660,3 +4660,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 143 of the autonomous loop (alternate add/polish): the copy button should tuck into the card's corner, not stretch across it.
+
+**2026-08-06 05:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #144 of the restarted autonomous loop (add).
+- feat(ui): every key-clause row now has a one-click 📋 copy-citation button — "[KEY CLAUSE · trap/watch/note] \"{clause}\"", with clipboard API + `execCommand` fallback, toast, and a ✓ flash. The copy button's own listener calls `stopPropagation`, so it never triggers the row's jump/speak/ask behaviors; it's wired per render (class `kc-row-copy`, distinct from the toolbar's `kc-copy` copy-all button).
+- New smoke test "Key-clause rows copy their citation in one click" — 7 assertions covering the citation shape, button markup/data, per-render wiring, the stopPropagation guard, toast, and flash.
+- Full suite green (490 unit + 307 smoke + 1 integration = 798 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 144 of the autonomous loop (alternate add/polish): the clause you're told to read twice should quote itself in one click.
