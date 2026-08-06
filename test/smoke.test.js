@@ -9804,6 +9804,31 @@ test("analyzer: Obligation tracker exports a CSV with done status", () => {
     "the export must toast with the row count");
 });
 
+// Cycle #118 — ask the document about any obligation in one click.
+test("analyzer: Obligation rows can ask the document about the obligation in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="act-ask ghost-btn ghost-btn-sm"/,
+    "each obligation row must render an ask button");
+  assert.match(appSrc, /data-act-ask="' \+ esc\(snip\) \+ '"/,
+    "the ask button must carry the obligation sentence");
+  assert.match(appSrc, /data-act-must="' \+ \(isMandatory \? '1' : '0'\) \+ '"/,
+    "the ask button must carry the must/may type");
+  assert.match(appSrc, /\$\$\('\.act-ask', actionList\)\.forEach/,
+    "ask buttons must be wired after each render");
+  assert.match(appSrc, /don\\'t fulfill this obligation: "|What should I do about: "/,
+    "the question must fit the obligation type");
+  assert.match(appSrc, /qInput\.scrollIntoView/,
+    "clicking must bring the Ask panel into view");
+  assert.match(appSrc, /showAnalyzeToast\('💬 Question ready — press Ask'\)/,
+    "clicking must announce the prefilled question");
+  assert.match(appSrc, /<b>💬<\/b> to ask about an obligation/,
+    "the block note must document the ask action");
+});
+
 // Iter #158: analysis confidence — rates how reliable this run is.
 test("analyzer: Analysis confidence rates how reliable the result is", () => {
   if (!HAS_BROWSER) return;

@@ -6314,6 +6314,7 @@
           '<button type="button" class="act-done-btn ghost-btn ghost-btn-sm" data-act-done="' + idx + '" title="Mark as fulfilled">' + (isDone ? '✓' : '◯') + '</button>' +
           '<div class="action-tag">' + esc(tag) + '</div>' +
           '<div class="action-sentence">' + esc(snip) + '</div>' +
+          '<button type="button" class="act-ask ghost-btn ghost-btn-sm" data-act-ask="' + esc(snip) + '" data-act-must="' + (isMandatory ? '1' : '0') + '" title="Ask about this obligation" aria-label="Ask about this obligation">💬</button>' +
         '</div>';
       }).join('');
       const mandatory = items.filter(it => /^(shall|must|is required|are required|undertakes|warrants|covenants|is obligated|are obligated|is responsible|are responsible)/.test(it.verb)).length;
@@ -6329,7 +6330,7 @@
       if(actionBlock2Note){
         actionBlock2Note.innerHTML = '<span class="riskNote-lead">' + items.length + ' action verb' + (items.length === 1 ? '' : 's') + '</span> · ' +
           '<b>' + mandatory + ' mandatory</b> (shall / must / undertakes) · <b>' + permissive + ' permissive</b> (may / agrees). ' +
-          'Click ☐ to mark fulfilled (saved on this device). 📋 copy all exports the whole list.';
+          'Click ☐ to mark fulfilled (saved on this device), <b>💬</b> to ask about an obligation, or 📋 copy all to export the list.';
       }
       $$('.act-done-btn', actionList).forEach(btn => {
         btn.addEventListener('click', () => {
@@ -6339,6 +6340,27 @@
           m['ob-' + i] = !m['ob-' + i];
           try { localStorage.setItem(DONE_KEY, JSON.stringify(m)); } catch(_){ /* quota */ }
           renderActionBlock(raw, ctx);
+        });
+      });
+      // Cycle #118 — one-click "ask about this obligation": prefill the
+      // Ask panel with the verb + sentence, same interaction as the
+      // per-risk/question/deadline/key-clause/scenario 💬 buttons.
+      $$('.act-ask', actionList).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const sentence = btn.getAttribute('data-act-ask') || '';
+          const must = btn.getAttribute('data-act-must') === '1';
+          const qInput = document.getElementById('askInput');
+          const qBtn = document.getElementById('askBtn');
+          if(!qInput) return;
+          const q = (must ? 'What happens if I don\'t fulfill this obligation: "' : 'What should I do about: "') +
+            sentence.slice(0, 100) + '"';
+          qInput.value = q;
+          qInput.disabled = false;
+          if(qBtn) qBtn.disabled = false;
+          try { qInput.focus({preventScroll:false}); } catch(_){ qInput.focus(); }
+          try { qInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
         });
       });
       const copyAllBtn = document.getElementById('actionCopyAllBtn');

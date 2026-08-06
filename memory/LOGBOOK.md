@@ -4400,3 +4400,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 117 of the autonomous loop (alternate add/polish): every card that can ask, asks with `a` — scenarios included.
+
+**2026-08-06 23:26 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #118 of the restarted autonomous loop (add).
+- feat(ui): every obligation row now has a one-click 💬 ask button — mandatory obligations ask "What happens if I don't fulfill this obligation: \"{sentence}\"?" and permissive ones ask "What should I do about: \"{sentence}\"?" (sentence truncated to 100 chars), prefilling the Ask panel, focusing and scrolling it into view, and announcing via toast — matching the per-risk/question/deadline/key-clause/scenario interaction. The block note documents the action.
+- New smoke test "Obligation rows can ask the document about the obligation in one click" — 8 assertions covering the button markup, sentence + must/may data, per-render wiring, the type-fitting question, scroll, toast, and note.
+- Full suite green (490 unit + 293 smoke + 1 integration = 784 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 118 of the autonomous loop (alternate add/polish): an obligation you're not sure about should be one click away from "what happens if I don't".
