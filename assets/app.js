@@ -8174,6 +8174,26 @@
           setTimeout(() => { if(decisionCopyBtn.isConnected) decisionCopyBtn.textContent = '📋 copy'; }, 2500);
         };
       }
+      // Cycle #254 — hear the bottom line: tier + headline + rationale.
+      const decisionSpeakBtn = document.getElementById('decisionSpeakBtn');
+      if(decisionSpeakBtn){
+        decisionSpeakBtn.onclick = () => {
+          if(!('speechSynthesis' in window)) return;
+          if(window.speechSynthesis.speaking){
+            try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
+            decisionSpeakBtn.textContent = '🔊 hear';
+            return;
+          }
+          try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
+          const text = 'Recommendation: ' + m.k + '. ' + d.headline + '. ' + d.rationale;
+          const u = new SpeechSynthesisUtterance(text);
+          u.rate = getTtsRate();
+          window.speechSynthesis.speak(u);
+          decisionSpeakBtn.textContent = '◼ Stop';
+          u.onend = () => { decisionSpeakBtn.textContent = '🔊 hear'; };
+          u.onerror = () => { decisionSpeakBtn.textContent = '🔊 hear'; };
+        };
+      }
     }
 
     // Iter #184 — money trail. Pulls every dollar amount in the document,

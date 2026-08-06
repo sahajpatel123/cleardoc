@@ -1256,3 +1256,98 @@ skip("integration: signing checklist downloads a CSV tracker file", async () => 
     await new Promise((r) => web2.close(r));
   }
 });
+
+// Cycle #254 — the bottom-line decision reads aloud.
+skip("integration: decision block hears the recommendation", async () => {
+  const WEB2 = 4341;
+  const web2 = staticServer();
+  await new Promise((r) => web2.listen(WEB2, r));
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+
+  await page.addInitScript(() => {
+    window.__ttsPending = [];
+    const stub = {
+      speaking: false,
+      pending: window.__ttsPending,
+      speak(u) { this.speaking = true; this.pending.push(u); },
+      cancel() { this.speaking = false; },
+      getVoices() { return []; },
+    };
+    try { Object.defineProperty(window, "speechSynthesis", { value: stub, configurable: true }); }
+    catch (_) { window.speechSynthesis = stub; }
+    const MOCK = {
+      analysis: {
+        plainEnglishRewrite: "<b>This is a rewritten clause.</b> It says you must pay within 30 days.",
+        risks: [],
+        verdict: { label: "Suspicious", summary: "One clause deserves attention before signing." },
+        deadlines: [],
+        nextSteps: ["Calendar the cancellation deadline."],
+        readingLevel: { before: 14, after: 8 },
+        jargonFound: 7,
+      },
+    };
+    const origFetch = window.fetch.bind(window);
+    window.fetch = function patchedFetch(url, opts) {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (u.endsWith("/api/analyze")) {
+        return Promise.resolve(new Response(JSON.stringify(MOCK), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return origFetch(url, opts);
+    };
+  });
+
+  try {
+    const doc = "The tenant shall pay $500 monthly and may terminate with 30 days notice.";
+    await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
+    await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#decisionBlock:not([hidden]) #decisionSpeakBtn", { timeout: 8000 });
+
+    await page.click("#decisionSpeakBtn");
+    await page.waitForTimeout(200);
+    const state1 = await page.evaluate(() => ({
+      label: document.getElementById("decisionSpeakBtn").textContent.trim(),
+      text: window.__ttsPending[0] ? window.__ttsPending[0].text : "",
+      speaking: window.speechSynthesis.speaking,
+    }));
+    assert.equal(state1.label, "◼ Stop", "the button must become a stop button while speaking");
+    assert.match(state1.text, /^Recommendation:/, "the utterance must lead with the recommendation");
+    assert.equal(state1.speaking, true, "speechSynthesis must be speaking");
+
+    await page.evaluate(() => {
+      const u = window.__ttsPending[0];
+      if (u && u.onend) u.onend();
+    });
+    await page.waitForTimeout(100);
+    const labelAfter = await page.$eval("#decisionSpeakBtn", (el) => el.textContent.trim());
+    assert.equal(labelAfter, "🔊 hear", "the button must restore after the utterance ends");
+
+    await page.click("#decisionSpeakBtn");
+    await page.waitForTimeout(100);
+    const state2 = await page.evaluate(() => ({
+      label: document.getElementById("decisionSpeakBtn").textContent.trim(),
+      speaking: window.speechSynthesis.speaking,
+    }));
+    assert.equal(state2.speaking, true, "a second click must start speaking again");
+    await page.click("#decisionSpeakBtn");
+    await page.waitForTimeout(100);
+    const state3 = await page.evaluate(() => ({
+      label: document.getElementById("decisionSpeakBtn").textContent.trim(),
+      speaking: window.speechSynthesis.speaking,
+    }));
+    assert.equal(state3.label, "🔊 hear", "clicking while speaking must restore the button");
+    assert.equal(state3.speaking, false, "clicking while speaking must cancel");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+    await new Promise((r) => web2.close(r));
+  }
+});

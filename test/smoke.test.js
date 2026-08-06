@@ -12703,6 +12703,26 @@ test("analyzer: Readiness Score computes 0-100 from threat data with four tone l
     "render must preserve base classes instead of wiping className");
 });
 
+// Cycle #254 — hear the bottom-line recommendation.
+test("analyzer: Decision block hears the recommendation aloud", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(html, /id="decisionSpeakBtn" title="Hear the recommendation aloud"/,
+    "analyze.html must contain a decision speak button");
+  assert.match(appSrc, /const decisionSpeakBtn = document\.getElementById\('decisionSpeakBtn'\);/,
+    "the speak button must be wired in app.js");
+  assert.match(appSrc, /const text = 'Recommendation: ' \+ m\.k \+ '\. ' \+ d\.headline \+ '\. ' \+ d\.rationale;/,
+    "the utterance must carry tier + headline + rationale");
+  assert.match(appSrc, /decisionSpeakBtn\.textContent = '◼ Stop';/,
+    "the button must become a stop button while speaking");
+  assert.match(appSrc, /u\.rate = getTtsRate\(\);/,
+    "the reading must respect the chosen speed");
+});
+
 test("analyzer: RISK array detects Intellectual Property / Work for Hire trap", () => {
   const fs = require("node:fs");
   const path = require("node:path");
