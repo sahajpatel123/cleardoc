@@ -8689,6 +8689,12 @@ test("analyzer: currency only-big filter persists", () => {
     "toggling must persist the choice");
   assert.match(appSrc, /onlyBtn\.setAttribute\('aria-pressed', curOnlyBig \? 'true' : 'false'\)/,
     "the restored view must announce the pressed state");
+  assert.match(appSrc, /currencyList\.querySelectorAll\(on \? '\.cur-row\.cur-big' : '\.cur-row'\)\.length/,
+    "the count must reflect the rows actually visible under the filter");
+  assert.match(appSrc, /currencyList\.querySelectorAll\('\.cur-row\.cur-big'\)\.length \+ ' of ' \+ result\.hits\.length \+ ' amounts'/,
+    "a restored only-big view must show the accurate visible count");
+  assert.match(appSrc, /Toggle <b>only \$100k\+<\/b> to hide small amounts/,
+    "the currency note must document the filter chip");
 });
 
 // Iter #100: key-clause highlighter — picks the 3-4 most consequential

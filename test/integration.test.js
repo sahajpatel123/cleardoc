@@ -779,9 +779,13 @@ skip("integration: currency only-big filter persists", async () => {
     const classAfter = await page.$eval(".currency-list", (el) => el.classList.contains("cur-only-big"));
     const stored = await page.evaluate(() => localStorage.getItem("cleardoc:money-onlybig"));
     const hiddenSmall = await page.$$eval(".currency-list .cur-row:not(.cur-big)", (els) => els.every((e) => e.offsetParent === null));
+    const countAfter = await page.$eval(".cur-controls .cur-count", (el) => el.textContent.trim());
+    const noteText = await page.$eval("#currencyNote", (el) => el.textContent || "");
     assert.equal(classAfter, true, "clicking must apply the only-big class");
     assert.equal(stored, "1", "the choice must persist");
     assert.equal(hiddenSmall, true, "small amounts must be hidden by the filter");
+    assert.match(countAfter, /^1 of 2 amounts$/, `the count must reflect the visible rows, got "${countAfter}"`);
+    assert.match(noteText, /only \$100k\+/, "the currency note must document the filter chip");
 
     // Reload + re-analyze: the restored view must come back on.
     await page.reload({ waitUntil: "networkidle" });
@@ -792,6 +796,8 @@ skip("integration: currency only-big filter persists", async () => {
     assert.equal(classRestored, true, "the only-big view must restore after reload");
     assert.equal(pressedRestored, "true", "the restored chip must announce its pressed state");
     assert.equal(labelRestored, "show all amounts", "the restored chip must carry the active label");
+    const countRestored = await page.$eval(".cur-controls .cur-count", (el) => el.textContent.trim());
+    assert.match(countRestored, /^1 of 2 amounts$/, `the restored view must show the accurate count, got "${countRestored}"`);
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();

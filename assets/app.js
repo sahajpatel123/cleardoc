@@ -5343,7 +5343,8 @@
           '<span class="riskNote-lead">Found ' + result.hits.length + ' amount' + (result.hits.length === 1 ? '' : 's') + ' in ' +
           Object.keys(result.totals).length + ' currenc' + (Object.keys(result.totals).length === 1 ? 'y' : 'ies') + '</span> ' +
           'Subtotal (rough FX): <b style="color:var(--ink)">~$' +
-          Math.round(result.totalUSD).toLocaleString('en-US') + ' USD</b> · ' + breakdown;
+          Math.round(result.totalUSD).toLocaleString('en-US') + ' USD</b> · ' + breakdown +
+          '. Toggle <b>only $100k+</b> to hide small amounts; click <b>📋</b> on a row to copy it.';
       }
       // Append controls below the list so they sit between list and footer.
       currencyList.insertAdjacentHTML('afterend', controls);
@@ -5400,13 +5401,19 @@
       if(onlyBtn){
         onlyBtn.textContent = curOnlyBig ? 'show all amounts' : 'only $100k+';
         onlyBtn.setAttribute('aria-pressed', curOnlyBig ? 'true' : 'false');
+        // Cycle #239 — a restored only-big view must show the accurate
+        // visible count (big amounts only), not the full total.
+        if(curOnlyBig){
+          const countEl = currencyBlock.querySelector('.cur-count');
+          if(countEl) countEl.textContent = currencyList.querySelectorAll('.cur-row.cur-big').length + ' of ' + result.hits.length + ' amounts';
+        }
         onlyBtn.addEventListener('click', () => {
           const on = currencyList.classList.toggle('cur-only-big');
           try { localStorage.setItem('cleardoc:money-onlybig', on ? '1' : '0'); } catch(_){ /* ignore */ }
           onlyBtn.textContent = on ? 'show all amounts' : 'only $100k+';
           onlyBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-          // Update the count chip
-          const visible = currencyList.querySelectorAll('.cur-row').length;
+          // Cycle #239 — count the rows actually visible under the filter.
+          const visible = currencyList.querySelectorAll(on ? '.cur-row.cur-big' : '.cur-row').length;
           const total = result.hits.length;
           const countEl = currencyBlock.querySelector('.cur-count');
           if(countEl){

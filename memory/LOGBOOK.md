@@ -5689,3 +5689,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 238 of the autonomous loop (alternate add/polish): if the pay/receive view remembers itself, the "only big numbers" view should too — preferences that reset on every render aren't preferences, they're chores.
+
+**2026-08-07 04:57 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #239 of the restructured autonomous loop (polish).
+- polish(currency): the "N of M amounts" count now reflects the rows actually visible under the "only $100k+" filter (big amounts only) instead of always showing the full total — both when toggling and when the persisted view restores. The currency note now documents the filter chip and the per-row copy action.
+- Verified in a real browser via the extended currency integration test: after toggling on a $250,000 + $50 document, the count read "1 of 2 amounts" and the note mentioned the chip; after a reload + re-analyze, the restored view again showed "1 of 2 amounts" with the active chip; zero console errors.
+- Extended the cycle-#238 smoke test with 3 assertions (filter-aware count, restored count, note text).
+- Full suite green (490 unit + 348 smoke + 8 integration = 846 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 239 of the autonomous loop (alternate add/polish): a filter that lies about its count ("2 of 2" while one row is hidden) undermines the whole view — count what's actually visible, and tell the note what the chip does.
