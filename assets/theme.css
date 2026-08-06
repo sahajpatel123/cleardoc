@@ -828,6 +828,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .tpl-actions{display:flex;justify-content:flex-end}
 .tpl-actions .tpl-clear{font:inherit;font-size:var(--t-micro);font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink-soft);background:transparent;color:var(--ink-soft);padding:3px 8px;cursor:pointer}
 .tpl-actions .tpl-clear:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
+/* Cycle 64 — template export/import: same family as Clear but non-destructive. */
+.tpl-actions .tpl-export,.tpl-actions .tpl-import{font:inherit;font-size:var(--t-micro);font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink-soft);background:transparent;color:var(--ink-soft);padding:3px 8px;cursor:pointer;margin-right:6px}
+.tpl-actions .tpl-export:hover,.tpl-actions .tpl-import:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 /* Template edit form (iter #59) — inline edit mode that replaces
  * the row with a name input + text textarea + Save / Cancel / Delete. */
 .tpl-edit{font:inherit;font-size:var(--t-micro);padding:2px 6px;margin-left:4px;border:var(--bd-hair) solid var(--ink-soft);background:transparent;color:var(--ink-soft);cursor:pointer;flex-shrink:0}

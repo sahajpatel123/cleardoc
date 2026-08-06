@@ -3177,6 +3177,7 @@
           historyFilter=$('#historyFilter'),
           tplBtn=$('#tplBtn'),tplPanel=$('#tplPanel'),tplList=$('#tplList'),
           tplNameInput=$('#tplNameInput'),tplSaveBtn=$('#tplSaveBtn'),tplClearBtn=$('#tplClearBtn'),
+          tplExportBtn=$('#tplExportBtn'),tplImportBtn=$('#tplImportBtn'),tplImportInput=$('#tplImportInput'),
           riskPreview=$('#riskPreview'),riskCount=$('#riskCount'),riskDetail=$('#riskDetail'),
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
@@ -16158,6 +16159,78 @@
         tplClearBtn.addEventListener('click', () => {
           if(typeof clearTemplates === 'function') clearTemplates();
           renderTemplates();
+        });
+      }
+      // Cycle 64 feature — template backup round-trip, mirroring history:
+      // ⬇ Export downloads all saved templates as JSON; ⇪ Import restores
+      // them with validation, TTL-free merge, dedupe, and the 10-entry cap.
+      if(tplExportBtn && !tplExportBtn._tplExportWired){
+        tplExportBtn._tplExportWired = true;
+        tplExportBtn.addEventListener('click', () => {
+          const items = (typeof readTemplates === 'function') ? readTemplates() : [];
+          if(!items.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No templates to export yet');
+            return;
+          }
+          try{
+            const stamp = new Date().toISOString().slice(0,10);
+            const text = JSON.stringify({ exportedAt: new Date().toISOString(), count: items.length, items: items }, null, 2);
+            const url = URL.createObjectURL(new Blob([text], { type:'application/json;charset=utf-8' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-templates-' + stamp + '.json';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⬇ Templates exported (' + items.length + ')');
+          }catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t export templates');
+          }
+        });
+      }
+      if(tplImportBtn && tplImportInput && !tplImportBtn._tplImportWired){
+        tplImportBtn._tplImportWired = true;
+        tplImportBtn.addEventListener('click', () => {
+          try { tplImportInput.value = ''; } catch(_){ /* ignore */ }
+          tplImportInput.click();
+        });
+        tplImportInput.addEventListener('change', () => {
+          const file = tplImportInput.files && tplImportInput.files[0];
+          if(!file) return;
+          const MAX_IMPORT_BYTES = 1024 * 1024;
+          if(file.size > MAX_IMPORT_BYTES){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ That backup is too large');
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => {
+            try{
+              const data = JSON.parse(String(reader.result || ''));
+              const arr = Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : []);
+              const valid = arr.filter(t => t && typeof t === 'object' && typeof t.name === 'string' && typeof t.text === 'string' && t.name.trim() && t.text.trim().length >= 8);
+              if(!valid.length){
+                if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No valid templates in that file');
+                return;
+              }
+              const merged = readTemplates().concat(valid);
+              const seen = new Set();
+              const out = [];
+              merged.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)).forEach(t => {
+                const key = (t.name || '') + '|' + (t.text || '');
+                if(seen.has(key)) return;
+                seen.add(key);
+                out.push(t);
+              });
+              while(out.length > TPL_MAX_ENTRIES) out.pop();
+              try { localStorage.setItem(TPL_KEY, JSON.stringify(out)); } catch(_){ /* ignore */ }
+              renderTemplates();
+              if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⇪ Templates restored (' + out.length + ')');
+            }catch(_){
+              if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t read that backup file');
+            }
+          };
+          reader.onerror = () => {
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t read that backup file');
+          };
+          reader.readAsText(file);
         });
       }
       if(historyBtn && historyPanel){

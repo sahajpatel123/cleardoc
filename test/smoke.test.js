@@ -4115,6 +4115,54 @@ test("analyzer: History panel imports a JSON backup and merges entries", () => {
     "entries without a text payload must be rejected (restore needs it)");
 });
 
+// Cycle 64 feature: JSON backup round-trip for saved templates.
+test("analyzer: Template panel exports and imports a JSON backup", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html must carry the export/import buttons + hidden file input
+  assert.match(html, /id="tplExportBtn" title="Download all saved templates as a JSON backup"/,
+    "analyze.html must contain #tplExportBtn with a descriptive title");
+  assert.match(html, /id="tplImportBtn" title="Restore saved templates from a JSON backup"/,
+    "analyze.html must contain #tplImportBtn with a descriptive title");
+  assert.match(html, /id="tplImportInput" accept="application\/json,\.json" hidden/,
+    "analyze.html must contain a hidden JSON file input for templates");
+
+  // Export path
+  assert.match(appSrc, /tplExportBtn\._tplExportWired/,
+    "template export wiring must be guarded so it is attached only once");
+  assert.match(appSrc, /'⚠ No templates to export yet'/,
+    "template export must toast when the store is empty");
+  assert.match(appSrc, /a\.download = 'cleardoc-templates-' \+ stamp \+ '\.json'/,
+    "template export filename must be cleardoc-templates-<date>.json");
+  assert.match(appSrc, /'⬇ Templates exported \(' \+ items\.length/,
+    "template export must toast the exported count");
+
+  // Import path: validation, merge, dedupe, cap
+  assert.match(appSrc, /tplImportBtn\._tplImportWired/,
+    "template import wiring must be guarded so it is attached only once");
+  assert.match(appSrc, /typeof t\.name === 'string' && typeof t\.text === 'string'/,
+    "imported templates must carry name and text strings");
+  assert.match(appSrc, /t\.text\.trim\(\)\.length >= 8/,
+    "imported templates must meet the same minimum-text rule as saves");
+  assert.match(appSrc, /readTemplates\(\)\.concat\(valid\)/,
+    "import must merge validated templates into the existing store");
+  assert.match(appSrc, /while\(out\.length > TPL_MAX_ENTRIES\) out\.pop\(\);/,
+    "import must re-apply the 10-entry cap after merging");
+  assert.match(appSrc, /'⚠ No valid templates in that file'/,
+    "import must toast when no valid templates survive validation");
+  assert.match(appSrc, /'⇪ Templates restored \(' \+ out\.length/,
+    "import must toast the restored count");
+
+  // CSS: non-destructive export/import buttons
+  assert.match(cssSrc, /\.tpl-actions \.tpl-export,\.tpl-actions \.tpl-import\{/,
+    "theme.css must style the template export/import buttons together");
+});
+
 test("analyzer: voice picker dropdown lets users choose a specific TTS voice", () => {
   // New feature — dropdown populated with available SpeechSynthesis
   // voices, preferring the detected language. User pick is persisted

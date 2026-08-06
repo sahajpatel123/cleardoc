@@ -239,7 +239,10 @@
         </div>
         <ol class="tpl-list" id="tplList"></ol>
         <div class="tpl-actions">
+          <button type="button" class="tpl-export" id="tplExportBtn" title="Download all saved templates as a JSON backup">⬇ Export</button>
+          <button type="button" class="tpl-import" id="tplImportBtn" title="Restore saved templates from a JSON backup">⇪ Import</button>
           <button type="button" class="tpl-clear" id="tplClearBtn">Clear all</button>
+          <input type="file" id="tplImportInput" accept="application/json,.json" hidden>
         </div>
       </div>
       <div class="attach-tray" id="attachTray" hidden aria-live="polite"></div>

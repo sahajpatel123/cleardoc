@@ -3838,3 +3838,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 63 of the autonomous loop (alternate add/polish): only import backups that are safe to parse and usable when restored.
+
+**2026-08-06 23:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #64 of the restarted autonomous loop (feature add).
+- feat(ui): the template panel now has the same backup round-trip as history — ⬇ Export downloads all saved templates as cleardoc-templates-<date>.json, and ⇪ Import restores them with validation (name + text strings, same 8-char minimum as saves), merge, dedupe by name+text, the 10-entry cap, and the 1MB file-size guard. Invalid/empty files toast instead of writing.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 264 smoke + 1 integration = 755 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 64 of the autonomous loop (alternate add/polish): named templates deserve a backup too.
