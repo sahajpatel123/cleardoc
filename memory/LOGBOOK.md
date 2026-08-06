@@ -4410,3 +4410,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 118 of the autonomous loop (alternate add/polish): an obligation you're not sure about should be one click away from "what happens if I don't".
+
+**2026-08-06 23:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #119 of the restarted autonomous loop (polish).
+- polish(ui): the generic `a` shortcut now covers obligation rows — `.action-row` joined the row matcher and `.act-ask` joined the shared ask-button lookup, completing keyboard parity across every per-row ask surface (risks, questions, deadlines, key clauses, scenarios, obligations).
+- Updated the cycle-91/108/110/116 shortcut assertions for the extended matcher and selector (217 patterns across the four shortcut-related blocks verified) and added an obligation coverage assertion to the cycle-118 test.
+- Full suite green (490 unit + 293 smoke + 1 integration = 784 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 119 of the autonomous loop (alternate add/polish): every row that can ask, asks with `a` — obligations complete the set.
