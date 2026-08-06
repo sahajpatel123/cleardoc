@@ -4837,6 +4837,9 @@
             value: num,
             raw: m[0],
             start: offset,
+            // Cycle #125 — a short surrounding snippet so a copied amount
+            // carries the context it appeared in.
+            context: text.slice(Math.max(0, offset - 40), offset + m[0].length + 40).replace(/\s+/g, ' ').trim(),
           });
           totals[c.code] = (totals[c.code] || 0) + num;
         }
@@ -4862,7 +4865,8 @@
         const isBig = h.value >= 100000;
         // Cycle #124 — per-row copy: the row becomes a focusable div so it
         // can host a nested 📋 button (buttons can't nest buttons).
-        const copyVal = h.code + ' ' + h.value.toLocaleString('en-US') + ' — "' + h.raw + '"';
+        const copyVal = h.code + ' ' + h.value.toLocaleString('en-US') + ' — "' + h.raw + '"' +
+          (h.context ? ' · in: "' + trunc(h.context, 80) + '"' : '');
         return '<div class="cur-row' + (isBig ? ' cur-big' : '') + '"' +
           ' role="button" tabindex="0"' +
           ' data-cur-idx="' + i + '" data-cur-raw="' + esc(h.raw) + '"' +

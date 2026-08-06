@@ -8087,8 +8087,12 @@ test("analyzer: Currency rows copy their amount in one click", () => {
 
   assert.match(appSrc, /role="button" tabindex="0"/,
     "currency rows must become focusable divs to host a nested button");
-  assert.match(appSrc, /const copyVal = h\.code \+ ' ' \+ h\.value\.toLocaleString\('en-US'\) \+ ' — "' \+ h\.raw \+ '"';/,
+  assert.match(appSrc, /h\.code \+ ' ' \+ h\.value\.toLocaleString\('en-US'\) \+ ' — "' \+ h\.raw \+ '"'/,
     "the citation must carry code, value, and the raw amount");
+  assert.match(appSrc, /h\.context \? ' · in: "' \+ trunc\(h\.context, 80\) \+ '"' : ''\);/,
+    "the citation must carry the surrounding context snippet");
+  assert.match(appSrc, /context: text\.slice\(Math\.max\(0, offset - 40\), offset \+ m\[0\]\.length \+ 40\)\.replace/,
+    "the detector must capture a short context snippet per hit");
   assert.match(appSrc, /class="cur-row-copy ghost-btn ghost-btn-sm"/,
     "each currency row must render a copy button");
   assert.match(appSrc, /data-cur-copy-text="' \+ esc\(copyVal\) \+ '"/,

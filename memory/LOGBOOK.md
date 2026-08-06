@@ -4470,3 +4470,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 124 of the autonomous loop (alternate add/polish): the number that matters should copy with its currency and source in one click.
+
+**2026-08-06 01:04 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #125 of the restarted autonomous loop (polish).
+- polish(ui): a copied currency amount now carries its context — `detectCurrency` captures a short surrounding snippet per hit (±40 chars, whitespace-normalized) and the copy citation appends `· in: "{context}"` (truncated to 80), so a pasted figure like `USD 1,250 — "$1,250" · in: "monthly rent of $1,250, payable in advance"` never floats without its clause.
+- Updated the cycle-124 smoke test: the citation-shape assertion matches the new suffix, plus 2 new assertions for the context field in the detector and the `· in:` suffix (12 total in that test).
+- Full suite green (490 unit + 297 smoke + 1 integration = 788 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 125 of the autonomous loop (alternate add/polish): a copied number should come with the sentence that explains it.
