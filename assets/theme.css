@@ -1470,6 +1470,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 
 /* ---- RESTORE BANNER (auto-saved analysis) ---- */
 .restore-banner{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);flex-wrap:wrap;margin:0 var(--pad-x) var(--s3);padding:var(--s2) var(--s3);border:var(--bd) solid var(--ink);background:var(--paper2);box-shadow:var(--shadow-sm);animation:rbIn .4s cubic-bezier(.34,1.56,.64,1) both}
+.deadline-reminder{border-left:4px solid var(--amber)}
+.deadline-reminder.overdue{border-left-color:var(--danger)}
 .restore-banner[hidden]{display:none}
 @keyframes rbIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 .restore-banner .rb-info{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;min-width:0}

@@ -9951,6 +9951,50 @@ test("analyzer: Deadline alert surfaces overdue + within-7-days deadlines", () =
     "the alert must have a visible focus ring");
 });
 
+// Cycle #106 — load-time reminder for deadlines from the last analysis.
+test("analyzer: Returning users get an upcoming-deadline reminder banner", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(html, /id="deadlineReminder" hidden aria-live="polite"/,
+    "analyze.html must carry the reminder banner");
+  assert.match(html, /id="deadlineReminderText"/,
+    "the banner must have a text slot");
+  assert.match(html, /id="deadlineReminderRestoreBtn"/,
+    "the banner must offer a restore action");
+  assert.match(html, /id="deadlineReminderDismissBtn"/,
+    "the banner must offer a dismiss action");
+  // The reminder is persisted at analysis time, filtered to a 3-week window.
+  assert.match(appSrc, /localStorage\.setItem\('cleardoc:upcomingDeadlines', JSON\.stringify\(/,
+    "analysis must persist the reminder record");
+  assert.match(appSrc, /x\.days >= -7 && x\.days <= 14/,
+    "the reminder must cover overdue + next-14-days deadlines");
+  assert.match(appSrc, /localStorage\.removeItem\('cleardoc:upcomingDeadlines'\)/,
+    "an analysis with no deadlines must clear a stale reminder");
+  assert.match(appSrc, /function showDeadlineReminder\(\)\{/,
+    "a load-time show function must exist");
+  assert.match(appSrc, /showDeadlineReminder\(\);/,
+    "the show function must run at init");
+  assert.match(appSrc, /if\(deadlineReminderRestoreBtn\) deadlineReminderRestoreBtn\.addEventListener\('click'/,
+    "the restore button must be wired");
+  assert.match(appSrc, /if\(restoreBtn\) restoreBtn\.click\(\);/,
+    "restore must reuse the existing restore flow");
+  assert.match(appSrc, /if\(deadlineReminderDismissBtn\) deadlineReminderDismissBtn\.addEventListener\('click'/,
+    "the dismiss button must be wired");
+  assert.match(appSrc, /_reminderEl\) _reminderEl\.hidden = true;/,
+    "a fresh analysis must hide the reminder");
+  assert.match(appSrc, /cleardoc:upcomingDeadlines'\]/,
+    "Forget me must purge the reminder record");
+  assert.match(cssSrc, /\.deadline-reminder\{/,
+    "the reminder banner must be styled");
+  assert.match(cssSrc, /\.deadline-reminder\.overdue\{/,
+    "an overdue reminder must get the danger accent");
+});
+
 // Cycle 54 feature: overdue deadline rows are visually flagged in the list.
 test("analyzer: Overdue deadline rows show a danger flag in the list", () => {
   if (!HAS_BROWSER) return;

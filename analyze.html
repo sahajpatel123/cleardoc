@@ -119,6 +119,17 @@
     </div>
   </aside>
 
+  <aside class="restore-banner deadline-reminder" id="deadlineReminder" hidden aria-live="polite">
+    <div class="rb-info">
+      <span class="rb-kicker">// upcoming deadlines</span>
+      <span class="rb-text" id="deadlineReminderText"></span>
+    </div>
+    <div class="rb-actions">
+      <button class="ghost-btn" id="deadlineReminderRestoreBtn" type="button">Restore analysis</button>
+      <button class="ghost-btn rb-dismiss" id="deadlineReminderDismissBtn" type="button" aria-label="Dismiss the deadline reminder">Dismiss</button>
+    </div>
+  </aside>
+
   <section class="work" aria-label="Document analyzer">
     <div class="col in">
       <label class="lbl" for="docInput">Your document or clause</label>

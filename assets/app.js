@@ -2174,7 +2174,7 @@
 
     // 1. Wipe our own localStorage keys (don't touch unrelated keys — be polite).
     try {
-      const ownKeys = ['cleardoc:lastAnalysis', 'cleardoc:draftInput'];
+      const ownKeys = ['cleardoc:lastAnalysis', 'cleardoc:draftInput', 'cleardoc:upcomingDeadlines'];
       for(const k of ownKeys){ localStorage.removeItem(k); }
       purgeStoredAskThreads();
       if(typeof __resetAskThread === 'function') __resetAskThread();
@@ -6527,12 +6527,15 @@
     }
     function renderDeadlineBlock(raw, ctx){
       if(!deadlineBlock || !deadlineList || !raw){ return; }
-      const items = extractDeadlines(raw, ctx);
-      if(!items.length){
-        deadlineBlock.hidden = true;
-        if(deadlineAlert) deadlineAlert.hidden = true;
-        return;
-      }
+    const items = extractDeadlines(raw, ctx);
+    if(!items.length){
+      deadlineBlock.hidden = true;
+      if(deadlineAlert) deadlineAlert.hidden = true;
+      // Cycle #106 — no deadlines in this analysis, so a stale reminder
+      // from an earlier document must not linger.
+      try { localStorage.removeItem('cleardoc:upcomingDeadlines'); } catch(_){ /* ignore */ }
+      return;
+    }
       // Iter #175 — per-row countdown from today
       const now = new Date();
       const countdown = (dateStr) => {
@@ -6589,6 +6592,23 @@
           deadlineAlert.hidden = true;
         }
       }
+      // Cycle #106 — persist a lightweight reminder so returning users
+      // see upcoming deadlines before they re-run anything.
+      try {
+        const soon = items.map(x => ({
+          date: x.date,
+          label: String(x.label || x.date || '').slice(0, 90),
+          days: dayDiff(x.date),
+        })).filter(x => x.days !== null && x.days >= -7 && x.days <= 14).slice(0, 6);
+        if(soon.length){
+          localStorage.setItem('cleardoc:upcomingDeadlines', JSON.stringify({
+            ts: Date.now(),
+            fp: (_fpState && _fpState.short) || null,
+            docName: (attachedFile && attachedFile.name) || 'last analysis',
+            items: soon,
+          }));
+        }
+      } catch(_){ /* ignore */ }
       const rows = items.map(it => {
         const isM = /\(obligated\)/.test(it.verb);
         const cls = isM ? 'deadline-mandatory' : 'deadline-optional';
@@ -13942,6 +13962,9 @@
       }
       if(!noMotion && window.gsap) gsap.fromTo(panel,{opacity:0,y:14},{opacity:1,y:0,duration:DUR.base,ease:EASE.enter});
       if(askInput) askInput.disabled=false; if(askBtn) askBtn.disabled=false;
+      // Cycle #106 — a fresh analysis supersedes the load-time reminder.
+      const _reminderEl = document.getElementById('deadlineReminder');
+      if(_reminderEl) _reminderEl.hidden = true;
       // Cycle #96 — restore the Ask conversation for this document
       // (per-fingerprint, local-only), or start fresh when the
       // document changed since the in-memory thread was loaded.
@@ -14380,6 +14403,30 @@
       if(!noMotion && window.gsap){
         gsap.from(restoreBanner,{y:-6,opacity:0,duration:DUR.base,ease:EASE.enter});
       }
+    }
+
+    // Cycle #106 — remind returning users about deadlines from their last
+    // analysis without re-running anything (compact localStorage record).
+    function showDeadlineReminder(){
+      const banner = document.getElementById('deadlineReminder');
+      if(!banner) return;
+      let rec = null;
+      try { rec = JSON.parse(localStorage.getItem('cleardoc:upcomingDeadlines') || 'null'); } catch(_){ rec = null; }
+      if(!rec || !Array.isArray(rec.items) || !rec.items.length){ banner.hidden = true; return; }
+      const parts = [];
+      let overdue = false;
+      for(const it of rec.items){
+        const days = typeof it.days === 'number' ? it.days : null;
+        if(days === null || days < -7 || days > 14) continue;
+        if(days < 0) overdue = true;
+        const when = days < 0 ? Math.abs(days) + 'd overdue' : days === 0 ? 'today' : days === 1 ? 'tomorrow' : 'in ' + days + 'd';
+        parts.push((it.label || it.date) + ' (' + when + ')');
+      }
+      if(!parts.length){ banner.hidden = true; return; }
+      const textEl = document.getElementById('deadlineReminderText');
+      if(textEl) textEl.textContent = parts.slice(0, 3).join(' · ') + (parts.length > 3 ? ' · +' + (parts.length - 3) + ' more' : '');
+      banner.classList.toggle('overdue', overdue);
+      banner.hidden = false;
     }
 
     // Light sanitizer for AI rewrite HTML — only allow safe tags, neutralize anything else
@@ -18517,11 +18564,24 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       const snap=loadStoredSnapshot();
       if(snap){ paintStoredSnapshot(snap); }
       else if(restoreBanner){ restoreBanner.hidden=true; }
+      const dr = document.getElementById('deadlineReminder');
+      if(dr) dr.hidden = true;
     });
     if(dismissRestoreBtn) dismissRestoreBtn.addEventListener('click',()=>{
       clearStoredSnapshot();
       if(restoreBanner) restoreBanner.hidden=true;
       if(msg){msg.textContent='Saved analysis dismissed. It will not be offered again until you run a new analysis.'; msg.className='analyze-msg';}
+    });
+    // Cycle #106 — reminder actions: restore through the existing restore
+    // button, or dismiss for this visit.
+    const deadlineReminderRestoreBtn = document.getElementById('deadlineReminderRestoreBtn');
+    if(deadlineReminderRestoreBtn) deadlineReminderRestoreBtn.addEventListener('click', () => {
+      if(restoreBtn) restoreBtn.click();
+    });
+    const deadlineReminderDismissBtn = document.getElementById('deadlineReminderDismissBtn');
+    if(deadlineReminderDismissBtn) deadlineReminderDismissBtn.addEventListener('click', () => {
+      const dr = document.getElementById('deadlineReminder');
+      if(dr) dr.hidden = true;
     });
     $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ setFocusMode(false); setPrivacyBlur(false); input.value=q.dataset.fill; clearAttachments(); clearDraft(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} updateTextStats(); }));
     if(copyDraftBtn) copyDraftBtn.addEventListener('click',async()=>{ if(!draftOut||!draftOut.value)return; try{ await navigator.clipboard.writeText(draftOut.value); copyDraftBtn.textContent='Copied'; setTimeout(()=>copyDraftBtn.textContent='Copy draft',1400); }catch(_){ draftOut.focus(); draftOut.select(); } });
@@ -19866,6 +19926,7 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
 
     // Offer to restore the last analysis (24h TTL) — never blocks the empty state
     try { maybeOfferRestore(); } catch(e){ console.warn('[restore]', e); }
+    try { showDeadlineReminder(); } catch(e){ console.warn('[deadline-reminder]', e); }
     // Decode any #share= fragment so we can offer to view it
     try { tryLoadSharedAnalysis(); } catch(e){ console.warn('[share-load]', e); }
   }

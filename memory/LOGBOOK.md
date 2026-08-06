@@ -4277,3 +4277,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 105 of the autonomous loop (alternate add/polish): a copied risk should carry its exact place in the document, the way every answer does.
+
+**2026-08-06 20:38 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #106 of the restarted autonomous loop (add).
+- feat(ui): returning users now get an upcoming-deadline reminder banner — at analysis time the deadline block persists a compact record (`cleardoc:upcomingDeadlines`: date, label, days-until, fingerprint, doc name) for deadlines within 7 days overdue through 14 days ahead; on page load, `showDeadlineReminder()` renders "Restore analysis" + "Dismiss" actions beside the text ("Auto-renewal (in 3d) · Final payment (today)…", with an overdue danger accent when any are past).
+- Consistency: an analysis with no deadlines clears the record; a fresh analysis hides the banner; Restore reuses the existing restore flow (and hides the banner); Dismiss hides it for the visit; "Forget me" purges the record. The banner reuses `.restore-banner` layout with a `.deadline-reminder` amber/overdue accent.
+- New smoke test "Returning users get an upcoming-deadline reminder banner" — 16 assertions covering the banner markup, persist + clear, the −7/+14 filter window, the show function + init call, restore/dismiss wiring, fresh-analysis hide, forget purge, and CSS.
+- Full suite green (490 unit + 287 smoke + 1 integration = 778 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 106 of the autonomous loop (alternate add/polish): a deadline you found yesterday shouldn't hide until you paste the document again.
