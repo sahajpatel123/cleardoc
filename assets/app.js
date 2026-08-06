@@ -1142,7 +1142,7 @@
     const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo,wireDocFingerprint];
     const byPage={
       home:[heroClarifier,flagHunt,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
-      analyze:[analyzePage,privacyGuard,faq],
+      analyze:[analyzePage,privacyGuard,wireSelectionAsk,faq],
       pricing:[classifieds,faq]
     };
     always.concat(byPage[page]||[]).forEach(fn=>{ try{fn();}catch(e){console.error('[init '+fn.name+']',e);} });
@@ -3438,6 +3438,80 @@
       box.hidden = true;
     });
     render();
+  }
+
+  /* ---- Selection-to-ask (cycle #170) ---- */
+  // Select any passage in the results with the mouse (or Shift+arrows)
+  // and a small floating "💬 Ask about this" button appears just above
+  // the selection. Clicking it prefills the Ask panel with the passage —
+  // the same interaction as the per-row 💬 buttons, but for text you
+  // chose yourself. Pure local; the button hides on scroll or click-away.
+  function wireSelectionAsk(){
+    const rp = document.getElementById('resultPanel');
+    if(!rp) return;
+    let btn = null;
+    let hideTimer = 0;
+    function removeBtn(){
+      if(btn){ btn.remove(); btn = null; }
+    }
+    function makeBtn(rect, clean){
+      if(btn) btn.remove();
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sel-ask no-print';
+      btn.textContent = '💬 Ask about this';
+      btn.setAttribute('aria-label', 'Ask about the selected passage');
+      btn._selText = clean;
+      document.body.appendChild(btn);
+      btn.addEventListener('click', () => {
+        const qInput = document.getElementById('askInput');
+        const qBtn = document.getElementById('askBtn');
+        const q = 'What does this mean: "' + btn._selText + '"';
+        if(qInput){
+          qInput.value = q;
+          qInput.disabled = false;
+          if(qBtn) qBtn.disabled = false;
+          try { qInput.focus({preventScroll:false}); } catch(_){ qInput.focus(); }
+          try { qInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
+        }
+        removeBtn();
+      });
+      const w = btn.offsetWidth || 150;
+      const x = Math.min(Math.max(8, rect.left + rect.width / 2 - w / 2), Math.max(8, window.innerWidth - w - 8));
+      const y = Math.max(8, rect.top - 46);
+      btn.style.left = x + 'px';
+      btn.style.top = y + 'px';
+    }
+    function onSelection(){
+      const sel = window.getSelection && window.getSelection();
+      if(!sel || rp.hidden) return;
+      const text = sel.toString();
+      if(sel.isCollapsed || text.trim().length < 8 || text.trim().length > 600){
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(removeBtn, 120);
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      if(!rect || rect.width === 0 && rect.height === 0){
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(removeBtn, 120);
+        return;
+      }
+      clearTimeout(hideTimer);
+      makeBtn(rect, text.replace(/\s+/g, ' ').trim().slice(0, 220));
+    }
+    function dismissSoon(){
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(removeBtn, 80);
+    }
+    document.addEventListener('selectionchange', onSelection);
+    document.addEventListener('scroll', dismissSoon, true);
+    window.addEventListener('scroll', dismissSoon);
+    document.addEventListener('click', (e) => {
+      if(btn && !(e.target && e.target.closest && e.target.closest('.sel-ask'))) removeBtn();
+    });
   }
 
   function analyzePage(){

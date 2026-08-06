@@ -198,11 +198,47 @@ test("analyze: privacy guard scans pasted text for personal identifiers before A
     "the compare textarea must trigger a rescan");
   assert.match(appSrc, /_pgDismissed/,
     "dismissing must stick for the page load");
-  assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,faq\]/,
+  assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,wireSelectionAsk,faq\]/,
     "privacyGuard must run on the analyze page init list");
   assert.match(cssSrc, /\.privacy-guard\{/, "guard styling must exist");
   assert.match(cssSrc, /\.privacy-guard b\{/, "the count summary must stand out");
   assert.match(cssSrc, /\.pg-dismiss\{/, "the dismiss button must be styled");
+});
+
+// Cycle 170 feature: select any passage in the results and ask about it —
+// a floating 💬 button appears above the selection and prefills the Ask
+// panel with the same interaction as the per-row ask buttons.
+test("analyze: selecting a passage offers a floating ask button that prefills the Ask panel", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /function wireSelectionAsk\(\)\{/,
+    "wireSelectionAsk must exist in app.js");
+  assert.match(appSrc, /window\.getSelection && window\.getSelection\(\)/,
+    "the feature must read the current selection");
+  assert.match(appSrc, /text\.trim\(\)\.length < 8 \|\| text\.trim\(\)\.length > 600/,
+    "tiny or huge selections must be ignored");
+  assert.match(appSrc, /text\.replace\(\/\\s\+\/g, ' '\)\.trim\(\)\.slice\(0, 220\)/,
+    "the passage must be whitespace-normalized and capped at 220 chars");
+  assert.match(appSrc, /const q = 'What does this mean: "' \+ btn\._selText \+ '"';/,
+    "the prefill must quote the selected passage");
+  assert.match(appSrc, /qInput\.disabled = false/,
+    "the Ask input must be re-enabled");
+  assert.match(appSrc, /scrollIntoView\(\{behavior:'smooth', block:'center'\}\)/,
+    "clicking must bring the Ask panel into view");
+  assert.match(appSrc, /'💬 Question ready — press Ask'/,
+    "clicking must announce the prefilled question");
+  assert.match(appSrc, /document\.addEventListener\('selectionchange', onSelection\)/,
+    "selection changes must show/hide the button");
+  assert.match(appSrc, /document\.addEventListener\('scroll',/,
+    "scrolling must dismiss the button");
+  assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,wireSelectionAsk,faq\]/,
+    "wireSelectionAsk must run on the analyze page init list");
+  assert.match(cssSrc, /\.sel-ask\{/, "the floating button must be styled");
+  assert.match(cssSrc, /\.sel-ask:focus-visible\{/, "the floating button must have a focus ring");
 });
 
 skip("ticker: every public page rotates ≥6 distinct signals so the marquee feels like a news wire", async () => {

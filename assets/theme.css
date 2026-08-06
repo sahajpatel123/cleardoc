@@ -978,6 +978,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .pg-dismiss{margin-left:auto;border:none;background:none;color:var(--ink-soft);cursor:pointer;font-size:var(--t-meta-sm);padding:0 2px;line-height:1}
 .pg-dismiss:hover{color:var(--ink)}
 .pg-dismiss:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sel-ask{position:fixed;z-index:1200;font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;background:var(--accent);color:#fff;border:none;padding:8px 12px;cursor:pointer;box-shadow:var(--shadow-sm)}
+.sel-ask:hover{background:var(--ink)}
+.sel-ask:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .analyze-msg{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);margin-top:var(--s2);min-height:1.2em;color:var(--ink-soft)}
 .analyze-msg.err{color:var(--danger)}
 .analyze-msg strong{color:var(--danger);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:var(--t-meta-sm)}

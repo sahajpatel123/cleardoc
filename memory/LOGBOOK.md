@@ -4924,3 +4924,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 169 of the autonomous loop (alternate add/polish): if j/k can move focus, the buttons it lands on must actually show that focus.
+
+**2026-08-06 20:14 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #170 of the restarted autonomous loop (add).
+- feat(ask): select any passage in the analysis results with the mouse (or Shift+arrows) and a floating "💬 Ask about this" button appears just above the selection — clicking it prefills the Ask panel with `What does this mean: "<passage>"`, re-enables the input, scrolls the panel into view, and toasts "💬 Question ready — press Ask", exactly mirroring the per-row 💬 buttons. The passage is whitespace-normalized and capped at 220 chars; tiny (<8 chars) or huge (>600 chars) selections are ignored; the button hides on scroll or click-away and never appears while results are hidden.
+- Verified in a real browser: selecting a sentence shows the button, clicking prefills the quoted question, the button disappears after use and after scrolling; zero console errors. A window-level scroll listener was added after the probe caught that document-only listening missed window scrolls.
+- New smoke test "analyze: selecting a passage offers a floating ask button that prefills the Ask panel" — 13 assertions covering the function, selection bounds, normalization cap, quoted prefill, re-enable, scroll-into-view, toast, selectionchange + scroll dismissal wiring, the init list, and both CSS rules. Two pre-existing assertions were updated for the new init list entry.
+- Full suite green (490 unit + 320 smoke + 1 integration = 811 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 170 of the autonomous loop (alternate add/polish): the most natural question a reader has is about the exact sentence they're looking at — let them select it and ask.
