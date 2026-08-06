@@ -1578,6 +1578,12 @@
       const el = btn || target;
       try { el.focus({ preventScroll: true }); } catch(_){ el.focus(); }
       target.scrollIntoView({ block: 'nearest', behavior: noMotion ? 'auto' : 'smooth' });
+      // Cycle #177 — keyboard navigation keeps the deep link current:
+      // wherever j/k lands, the URL hash follows so the focused clause
+      // stays shareable without extra steps.
+      if(target.id && target.id.indexOf('risk-') === 0){
+        try { history.replaceState(null, '', '#' + target.id); } catch(_){ /* ignore */ }
+      }
     }
     if(!row) return;
     if(row.classList.contains('rrow') && (key === 'e' || key === 'E')){
@@ -16779,7 +16785,7 @@
     }
 
     if(btn) btn.addEventListener('click',analyze);
-    if(clearBtn) clearBtn.addEventListener('click',()=>{ setFocusMode(false); setPrivacyBlur(false); input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); clearDraft(); updateTextStats(); resetRiskTitle(); resetDeadlineTitle(); input.focus(); });
+    if(clearBtn) clearBtn.addEventListener('click',()=>{ setFocusMode(false); setPrivacyBlur(false); input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); clearDraft(); updateTextStats(); resetRiskTitle(); resetDeadlineTitle(); if(location.hash && location.hash.indexOf('#risk-') === 0){ try { history.replaceState(null, '', location.pathname + location.search); } catch(_){ /* ignore */ } } input.focus(); });
 
     /* ---- Live text stats (word/char count + estimated reading level) ---- */
     function updateTextStats(){

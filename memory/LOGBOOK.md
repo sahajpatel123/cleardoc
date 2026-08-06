@@ -5001,3 +5001,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 176 of the autonomous loop (alternate add/polish): "that indemnity clause on page 4" should be a link you can paste — one click, one exact clause.
+
+**2026-08-06 20:42 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #177 of the restarted autonomous loop (polish).
+- polish(risks): the per-risk deep links from cycle 176 now stay honest through keyboard use and cleanup. (1) j/k navigation syncs the URL hash to the focused row (`history.replaceState`), so hopping risks with the keyboard also produces shareable `#risk-N` links. (2) Clearing the analysis strips a stale `#risk-` hash (while preserving unrelated hashes like `#share=...`), so a refresh after Clear can't attempt a meaningless scroll.
+- Verified in a real browser with a mocked analyze flow: pressing j twice moved the hash `#risk-0` → `#risk-1`, and Clear removed the hash while hiding the panel; zero console errors.
+- Extended the cycle-#176 smoke test with 2 assertions (j/k hash sync inside the row-aware handler, and the clear-path hash strip).
+- Full suite green (490 unit + 322 smoke + 1 integration = 813 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 177 of the autonomous loop (alternate add/polish): a deep link should follow your keyboard, and disappear when the analysis does.

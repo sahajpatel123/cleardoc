@@ -11198,6 +11198,10 @@ test("analyzer: risk rows carry deep-link ids and the page honors #risk-N", () =
     "clicking a row must update the URL without adding history entries");
   assert.match(appSrc, /paintRiskDeepLink\(\);/,
     "the painter must run after risk rows render");
+  assert.match(appSrc, /target\.id\.indexOf\('risk-'\) === 0\)\{[\s\S]{0,100}history\.replaceState\(null, '', '#' \+ target\.id\)/,
+    "j/k navigation must keep the deep-link hash current");
+  assert.match(appSrc, /location\.hash\.indexOf\('#risk-'\) === 0\)\{[\s\S]{0,100}history\.replaceState\(null, '', location\.pathname \+ location\.search\)/,
+    "clearing the analysis must strip a stale risk deep link");
   assert.match(cssSrc, /\.rrow-deeplink\{/, "the deep-link highlight must be styled");
 });
 
