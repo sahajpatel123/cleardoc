@@ -2734,6 +2734,7 @@ mark.smoking-trigger{background:#ffe98a;color:var(--ink);padding:0 2px;font-weig
 
 html[data-theme="dark"]{
   /* warm inverted palette — paper becomes night, ink becomes cream */
+  color-scheme: dark; /* native scrollbars, selects, and form controls */
   --paper:#16130E; --paper2:#211D15;
   --ink:#EDE7D8; --ink-soft:#A79F8C;
   --accent:#FF5C2A; --accent-text:#FF7A4D;
@@ -2745,6 +2746,7 @@ html[data-theme="dark"]{
   --shadow:6px 6px 0 rgba(237,231,216,.13);
   --shadow-sm:4px 4px 0 rgba(237,231,216,.13);
 }
+html[data-theme="light"]{color-scheme:light}
 html[data-theme="dark"] body{background:var(--paper);color:var(--ink)}
 
 /* Inputs, textareas, selects, and keycaps are white on screen. */

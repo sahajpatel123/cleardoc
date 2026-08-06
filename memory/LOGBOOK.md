@@ -4090,3 +4090,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 88 of the autonomous loop (alternate add/polish): readers who work at night should get the full ClearDoc report without the cream-paper glare.
+
+**2026-08-06 16:25 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #89 of the restarted autonomous loop (polish).
+- polish(ui): dark-mode completion pass — 404.html now loads `assets/darkmode.js` + the `#themeToggle` nav button and the dark `theme-color` media meta, so the 404 page matches every other public page.
+- polish(darkmode.js): an explicit theme choice now strips the `media` attribute from every `theme-color` meta and writes the chosen color to all of them, so browser chrome stops following the OS after the user picks the opposite theme; OS-follow keeps the authored media pair untouched until a choice exists.
+- polish(theme.css): `color-scheme: dark` / `light` on `html[data-theme=…]` so native scrollbars, selects, and form controls render in the matching scheme.
+- Extended the dark-mode smoke tests: 404.html joins the source-wiring loop; browser test asserts theme-color metas are stripped + matched after a toggle; CSS/JS assertions cover `color-scheme` and the meta force-sync.
+- Full suite green (490 unit + 277 smoke + 1 integration = 768 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 89 of the autonomous loop (alternate add/polish): the dark mode should be complete on every page, native controls should match, and an explicit choice should override the OS for browser chrome.

@@ -45,8 +45,18 @@
       btn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
       btn.title = dark ? "Switch to light mode" : "Switch to dark mode";
     }
-    var meta = document.querySelector('meta[name="theme-color"]:not([media])');
-    if (meta) meta.content = dark ? "#14120E" : "#fbf7ee";
+    // An explicit choice must beat the OS-based `media` meta (otherwise
+    // the browser chrome would keep following the OS after the user
+    // picks the opposite theme). Strip `media` and write every
+    // theme-color meta to the chosen color. OS-follow keeps the authored
+    // media pair so the OS drives the chrome color until a choice exists.
+    if (persist || savedChoice()) {
+      var metas = document.querySelectorAll('meta[name="theme-color"]');
+      for (var i = 0; i < metas.length; i++) {
+        metas[i].removeAttribute("media");
+        metas[i].content = dark ? "#14120E" : "#fbf7ee";
+      }
+    }
   }
 
   apply(currentTheme(), false);

@@ -10105,12 +10105,21 @@ skip("dark mode: toggle applies, persists, and survives reload without console e
     stored: window.localStorage.getItem("cleardoc-theme"),
     label: (document.getElementById("themeToggle").textContent || "").trim(),
     pressed: document.getElementById("themeToggle").getAttribute("aria-pressed"),
+    metaThemes: [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => ({
+      content: m.content,
+      media: m.getAttribute("media"),
+    })),
   }));
   const expected = initial === "dark" ? "light" : "dark";
   assert.equal(after.theme, expected, "click must flip html data-theme");
   assert.equal(after.stored, expected, "choice must persist to localStorage");
   assert.equal(after.pressed, expected === "dark" ? "true" : "false", "aria-pressed must mirror the theme");
   assert.match(after.label, expected === "dark" ? /light/ : /dark/, "toggle label must describe the next mode");
+  assert.ok(after.metaThemes.length >= 1, "theme-color metas must exist");
+  for (const m of after.metaThemes) {
+    assert.equal(m.media, null, "an explicit choice must strip the OS media query from theme-color metas");
+    assert.equal(m.content, expected === "dark" ? "#14120E" : "#fbf7ee", "theme-color metas must match the chosen theme");
+  }
 
   await page.reload({ waitUntil: "domcontentloaded", timeout: 20000 });
   const reloaded = await page.evaluate(() => document.documentElement.getAttribute("data-theme"));
@@ -10125,7 +10134,7 @@ skip("dark mode: toggle applies, persists, and survives reload without console e
 test("dark mode: every public page loads the head script + toggle, and CSS/JS are wired", () => {
   const jsSrc = fs.readFileSync(path.join(ROOT, "assets", "darkmode.js"), "utf8");
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
-  for (const pageName of ["index.html", "analyze.html", "pricing.html"]) {
+  for (const pageName of ["index.html", "analyze.html", "pricing.html", "404.html"]) {
     const html = fs.readFileSync(path.join(ROOT, pageName), "utf8");
     assert.match(html, /<script src="assets\/darkmode\.js"><\/script>/,
       pageName + " must load assets/darkmode.js in <head> (CSP-safe external file)");
@@ -10137,9 +10146,12 @@ test("dark mode: every public page loads the head script + toggle, and CSS/JS ar
   assert.match(jsSrc, /prefers-color-scheme/, "darkmode.js must follow the OS preference");
   assert.match(jsSrc, /setAttribute\("data-theme"/, "darkmode.js must set data-theme on <html>");
   assert.match(jsSrc, /addEventListener\("change"/, "darkmode.js must live-follow OS changes until a choice is made");
-  assert.match(jsSrc, /theme-color/, "darkmode.js must keep browser chrome theme-color in sync");
+  assert.match(jsSrc, /removeAttribute\("media"\)/, "an explicit choice must strip the OS media query from theme-color metas");
+  assert.match(jsSrc, /querySelectorAll\('meta\[name="theme-color"\]'\)/, "darkmode.js must keep every theme-color meta in sync");
   // CSS: inverted palette + hardcoded-white surface overrides exist.
   assert.match(cssSrc, /html\[data-theme="dark"\]\{/, "theme.css must define the dark palette block");
+  assert.match(cssSrc, /color-scheme: dark/, "dark mode must declare color-scheme so native controls render dark");
+  assert.match(cssSrc, /html\[data-theme="light"\]\{color-scheme:light\}/, "light mode must declare color-scheme light");
   assert.match(cssSrc, /--paper:#16130E/, "dark palette must invert the paper variable");
   assert.match(cssSrc, /--ink:#EDE7D8/, "dark palette must invert the ink variable");
   assert.match(cssSrc, /html\[data-theme="dark"\] :is\(input, textarea, select, kbd\)/,
