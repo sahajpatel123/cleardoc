@@ -16118,6 +16118,18 @@
         }, 1400);
       });
 
+      /* Compare swap — swaps which document is Original and which is
+       * Compare, then re-renders the verdict + stats in place. */
+      const compareSwapBtn = document.getElementById('compareSwapBtn');
+      if(compareSwapBtn) compareSwapBtn.addEventListener('click', () => {
+        if(!input || !inputB) return;
+        const a = input.value || '';
+        input.value = inputB.value || '';
+        inputB.value = a;
+        if(typeof updateCompareStats === 'function') updateCompareStats();
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⇄ Documents swapped');
+      });
+
       /* Side-by-side comparison stats — fires on input changes to
        * either textarea. Renders a 2-column row (Original | Compare)
        * showing type, level, risks, deadlines. The riskier side is

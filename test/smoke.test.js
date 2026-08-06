@@ -438,6 +438,22 @@ skip("forget-me: exits focus mode so the wiped page is not left blank", async ()
   assert.match(handler, /setFocusMode\(false\);/, "forget-me must exit focus mode after wiping data");
 });
 
+skip("compare panel: swap button exchanges the two documents", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(analyzeHtml, /id="compareSwapBtn"/, "compare-actions must expose #compareSwapBtn");
+  assert.match(appSrc, /compareSwapBtn\.addEventListener\('click'/, "app.js must wire the swap button");
+  assert.match(appSrc, /input\.value = inputB\.value \|\| ''/, "swap must move B into the Original slot");
+  assert.match(appSrc, /inputB\.value = a/, "swap must move A into the Compare slot");
+  assert.match(appSrc, /updateCompareStats\(\)/, "swap must re-render the verdict + stats");
+  assert.match(themeSrc, /\.compare-actions \.cmp-swap\{/, "theme.css must style .cmp-swap");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

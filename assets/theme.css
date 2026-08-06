@@ -789,6 +789,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .compare-actions .cmp-png:hover{background:var(--ink);color:var(--paper)}
 .compare-actions .cmp-copy{font:inherit;font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:6px 14px;cursor:pointer;transition:background .15s,color .15s}
 .compare-actions .cmp-copy:hover{background:var(--ink);color:var(--paper)}
+.compare-actions .cmp-swap{font:inherit;font-size:var(--t-meta-sm);font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:var(--bd-hair) solid var(--ink);background:var(--paper);color:var(--ink);padding:6px 14px;cursor:pointer;transition:background .15s,color .15s}
+.compare-actions .cmp-swap:hover{background:var(--ink);color:var(--paper)}
 /* Template panel (iter #57) — save / load / clear named document
  * templates. Distinct from history (iter #25): history is automatic,
  * templates are intentional. */

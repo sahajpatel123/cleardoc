@@ -3458,3 +3458,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 25 of the autonomous loop (alternate add/polish): keep the wiped page usable after Forget.
+
+**2026-08-06 16:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #26 of the restarted autonomous loop (feature add).
+- feat(ui): added a ⇄ swap button to the Compare panel that exchanges which document is "Original" and which is "Compare", re-renders the verdict + stats in place, and confirms with a toast — no more manual copy-paste when the order matters.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 240 smoke + 1 integration = 731 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 26 of the autonomous loop (alternate add/polish): one-click side swap in the comparison tool.
