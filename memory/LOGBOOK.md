@@ -3908,3 +3908,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 70 of the autonomous loop (alternate add/polish): the voice summary should be grabbable as text too.
+
+**2026-08-06 00:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #71 of the restarted autonomous loop (polish).
+- polish(a11y): playback's natural end no longer discards the transcript — a new finishVoice path hides the playback controls but keeps the queue and the transcript button visible, so the most natural moment to copy the summary (right after listening) is exactly when it's available. Only a manual Stop still clears the queue.
+- Extended the voice-transcript smoke test with the natural-finish assertions.
+- Full suite green (490 unit + 267 smoke + 1 integration = 758 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 71 of the autonomous loop (alternate add/polish): the transcript should outlive the narration.

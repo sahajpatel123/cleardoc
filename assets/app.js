@@ -15449,6 +15449,21 @@
         voiceQueue = [];
         voiceIndex = 0;
       };
+      // Cycle 71 polish — natural end of playback keeps the transcript
+      // available (queue intact, button visible) because the moment right
+      // after listening is the most natural time to copy the summary.
+      // Only a manual Stop discards the queue.
+      const finishVoice = () => {
+        try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
+        showVoiceBtn();
+        if(voiceStopBtn) voiceStopBtn.hidden = true;
+        if(voicePrevBtn) voicePrevBtn.hidden = true;
+        if(voiceNextBtn) voiceNextBtn.hidden = true;
+        if(voicePauseBtn){ voicePauseBtn.hidden = true; voicePauseBtn.textContent = '⏸ pause'; }
+        if(voiceMeter){ voiceMeter.hidden = true; voiceMeter.textContent = ''; }
+        if(voiceTranscriptBtn) voiceTranscriptBtn.hidden = false;
+        voiceIndex = 0;
+      };
       const playCurrent = () => {
         if(voiceIndex < 0) voiceIndex = 0;
         if(voiceIndex >= voiceQueue.length) return;
@@ -15459,7 +15474,7 @@
         u.onend = u.onerror = () => {
           voiceIndex++;
           if(voiceIndex < voiceQueue.length) playCurrent();
-          else stopVoice();
+          else finishVoice();
         };
         window.speechSynthesis.speak(u);
       };

@@ -8031,6 +8031,15 @@ test("analyzer: Voice mode can copy its transcript as plain text", () => {
     "transcript must toast on success");
   assert.match(appSrc, /voiceTranscriptBtn\.textContent = '📋 transcript'; \}, 1400\);/,
     "the button must flash and restore its label");
+  // Cycle 71 polish — natural finish keeps the transcript copyable
+  assert.match(appSrc, /const finishVoice = \(\) => \{/,
+    "a natural-end path must exist alongside the manual stop");
+  assert.match(appSrc, /finishVoice[\s\S]+?if\(voiceTranscriptBtn\) voiceTranscriptBtn\.hidden = false;/,
+    "natural finish must keep the transcript button visible");
+  assert.match(appSrc, /if\(voiceIndex < voiceQueue\.length\) playCurrent\(\);\s*else finishVoice\(\);/,
+    "the last segment must end via finishVoice, not stopVoice");
+  assert.match(appSrc, /stopVoice[\s\S]+?voiceQueue = \[\];/,
+    "manual stop must still discard the queue");
 });
 
 // Iter #108: cheat-sheet modal — printable single-page summary of
