@@ -11932,7 +11932,7 @@ test("analyzer: contract type badge opens a plain-English explainer", () => {
   const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
   const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
 
-  assert.match(appSrc, /function showDocTypeExplain\(dt\)\{/,
+  assert.match(appSrc, /function showDocTypeExplain\(dt, opener\)\{/,
     "a badge explainer must exist");
   assert.match(appSrc, /getDocTypeTip\(dt\.name\)/,
     "the explainer must pull the per-type watch list");
@@ -11948,6 +11948,19 @@ test("analyzer: contract type badge opens a plain-English explainer", () => {
     "Enter and Space must open the explainer");
   assert.match(appSrc, /badge\._dtExplainWired/,
     "the badge wiring must happen once");
+  // Cycle #203 — focus management.
+  assert.match(appSrc, /m\.setAttribute\('aria-describedby','dtm-meta'\)/,
+    "the dialog must describe itself via the meta line");
+  assert.match(appSrc, /const closeBtn = m\.querySelector\('\.kb-modal-close'\);/,
+    "the explainer must find its close button");
+  assert.match(appSrc, /closeBtn\.focus\(\{preventScroll:true\}\)/,
+    "opening must move focus into the dialog");
+  assert.match(appSrc, /returnFocus\.focus\(\{preventScroll:true\}\)/,
+    "closing must return focus to the badge");
+  assert.match(appSrc, /const returnFocus = opener \|\| document\.activeElement;/,
+    "the focus target must be the badge that opened the dialog");
+  assert.match(appSrc, /badge\.addEventListener\('click', \(\) => showDocTypeExplain\(dt, badge\)\)/,
+    "the click wiring must pass the badge as the focus target");
   assert.match(html, /id="contractTypeBadgeLive"/,
     "a live badge must exist in the results panel");
   assert.match(appSrc, /const printBadge = document\.getElementById\('contractTypeBadge'\);/,

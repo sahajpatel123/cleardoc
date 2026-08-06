@@ -5286,3 +5286,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 202 of the autonomous loop (alternate add/polish): knowing it's a lease is a start — knowing what leases hide is the point, and the badge should teach it.
+
+**2026-08-06 22:28 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #203 of the restarted autonomous loop (polish).
+- polish(a11y): the type-badge explainer now manages focus properly — opening moves focus to the dialog's close button, the dialog declares `aria-describedby` (the meta line), and closing (Escape, backdrop, ✕) returns focus to the badge that opened it (passed explicitly as the opener, since a click's `document.activeElement` is usually `body` — a probe-caught detail).
+- Verified in a real browser with a mocked analyze flow: opening focused the close button, and Escape closed the dialog with focus back on the badge; zero console errors.
+- Extended the cycle-#202 smoke test with 4 assertions (aria-describedby, close-button lookup, in-dialog focus, opener-based focus restore, and the click wiring passing the badge) and updated the explainer signature assertion.
+- Full suite green (490 unit + 335 smoke + 1 integration = 826 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 203 of the autonomous loop (alternate add/polish): a modal you can't escape with the keyboard isn't a modal — focus should enter, and leave, by the same hands.

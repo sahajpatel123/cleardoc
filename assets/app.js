@@ -14973,25 +14973,35 @@
 
       // Cycle #202 — the contract-type badge opens a plain-English
       // explainer: what the detected type is and what to watch for.
-      function showDocTypeExplain(dt){
+      function showDocTypeExplain(dt, opener){
         const m = document.createElement('div');
         m.className = 'kb-modal doc-type-modal show';
         m.setAttribute('role','dialog');
         m.setAttribute('aria-modal','true');
         m.setAttribute('aria-hidden','false');
         m.setAttribute('aria-labelledby','dtm-title');
+        m.setAttribute('aria-describedby','dtm-meta');
         const tip = (typeof getDocTypeTip === 'function') ? getDocTypeTip(dt.name) : null;
         m.innerHTML =
           '<div class="kb-modal-bg" data-dtm-bg="1"></div>' +
           '<div class="kb-modal-card">' +
             '<button type="button" class="kb-modal-close" data-dtm-close="1" aria-label="Close">✕</button>' +
             '<h2 id="dtm-title" class="kb-modal-title mono">' + esc(dt.label) + '</h2>' +
-            '<p class="dtm-meta mono">Detected with ' + esc(dt.confidence) + ' confidence (' + dt.matches + ' signal' + (dt.matches === 1 ? '' : 's') + ').</p>' +
+            '<p id="dtm-meta" class="dtm-meta mono">Detected with ' + esc(dt.confidence) + ' confidence (' + dt.matches + ' signal' + (dt.matches === 1 ? '' : 's') + ').</p>' +
             (tip ? '<p class="dtm-tip"><b>Watch for:</b> ' + esc(tip) + '.</p>' : '') +
             '<p class="dtm-foot mono">ClearDoc flags these phrases in the analysis and suggests what to ask for instead.</p>' +
           '</div>';
         document.body.appendChild(m);
-        const close = () => m.remove();
+        // Cycle #203 — move focus into the dialog and return it on close.
+        const closeBtn = m.querySelector('.kb-modal-close');
+        if(closeBtn) try { closeBtn.focus({preventScroll:true}); } catch(_){ closeBtn.focus(); }
+        const returnFocus = opener || document.activeElement;
+        const close = () => {
+          m.remove();
+          if(returnFocus && typeof returnFocus.focus === 'function'){
+            try { returnFocus.focus({preventScroll:true}); } catch(_){ returnFocus.focus(); }
+          }
+        };
         m.addEventListener('click', (e) => {
           if(e.target.closest('[data-dtm-bg], [data-dtm-close], .kb-modal-close')) close();
         });
@@ -15020,9 +15030,9 @@
           badge._dtExplainWired = true;
           badge.setAttribute('role','button');
           badge.setAttribute('tabindex','0');
-          badge.addEventListener('click', () => showDocTypeExplain(dt));
+          badge.addEventListener('click', () => showDocTypeExplain(dt, badge));
           badge.addEventListener('keydown', (e) => {
-            if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); showDocTypeExplain(dt); }
+            if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); showDocTypeExplain(dt, badge); }
           });
         }
       }
