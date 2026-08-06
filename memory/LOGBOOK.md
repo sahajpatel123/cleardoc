@@ -5089,3 +5089,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 184 of the autonomous loop (alternate add/polish): "ask for this instead" should be as easy to save as the clause it answers — and the button that opens it should actually work.
+
+**2026-08-06 21:15 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #185 of the restarted autonomous loop (polish).
+- polish(risks): the copied risk checklist is now negotiation-ready — every item appends its counter-suggestion as a `  - 💬 Counter: …` sub-line (when the risk has one), so the Jira/Notion/Linear paste carries both the problem and the ask. Markdown checkbox formatting, P0/P1/P2 tags, severity ordering, and the threat-level header are unchanged.
+- Verified in a real browser with a mocked analyze flow by capturing the clipboard payload: the checklist contained the item line and its `💬 Counter: Limit this clause to a fixed term…` sub-line; zero console errors.
+- Extended the iter-#217 checklist smoke test with 2 assertions (counter read + conditional sub-line append).
+- Full suite green (490 unit + 324 smoke + 1 integration = 815 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 185 of the autonomous loop (alternate add/polish): a checklist you paste into a task tracker should already know what to ask for.

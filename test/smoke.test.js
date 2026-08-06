@@ -11171,6 +11171,11 @@ test("analyzer: risk checklist sorts traps first then watches then notes", () =>
     "iter #217 must tag watches with [P1] for task-manager priority detection");
   assert.match(appSrc, /\[P2\]/,
     "iter #217 must tag notes with [P2] for task-manager priority detection");
+  // Cycle #185 — each checklist item carries its counter-suggestion.
+  assert.match(appSrc, /const counter = f\.rule\.counter \? String\(f\.rule\.counter\)\.trim\(\) : '';/,
+    "the checklist must read each risk's counter-suggestion");
+  assert.match(appSrc, /counter \? '\\n  - 💬 Counter: ' \+ esc\(counter\) : ''/,
+    "each item must append its counter as a negotiation sub-line");
 });
 
 // Cycle #104 — per-risk copy-citation button.
