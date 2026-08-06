@@ -15876,8 +15876,35 @@
       // array + index.
       let voiceQueue = [];
       let voiceIndex = 0;
+      // Cycle #100 — voice mode highlights the rewrite sentence being
+      // read aloud (same .spoken / .spoken-active treatment as the
+      // Read-aloud button). Self-contained here so the two readers
+      // can't clobber each other's cached spans.
+      let voiceSpans = [];
+      const voiceWrapRewrite = () => {
+        if(!plainOut) return [];
+        const text = plainOut.textContent || '';
+        if(!text || text.length < 4) return [];
+        const parts = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+        if(parts.length <= 1) return [];
+        plainOut.innerHTML = parts.map(s => '<span class="spoken">' + esc(s.trim()) + '</span>').join(' ');
+        return Array.from(plainOut.querySelectorAll('.spoken'));
+      };
+      const voiceClearSpans = () => {
+        voiceSpans.forEach(s => { if(s.classList) s.classList.remove('spoken-active'); });
+        voiceSpans = [];
+      };
+      const voiceSetActive = (idx) => {
+        if(!voiceSpans.length) return;
+        voiceSpans.forEach((s, i) => s.classList.toggle('spoken-active', i === idx));
+        const active = voiceSpans[idx];
+        if(active && typeof active.scrollIntoView === 'function'){
+          try { active.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(_){ /* ignore */ }
+        }
+      };
       const stopVoice = () => {
         try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
+        voiceClearSpans();
         showVoiceBtn();
         if(voiceStopBtn) voiceStopBtn.hidden = true;
         if(voiceTranscriptBtn) voiceTranscriptBtn.hidden = true;
@@ -15894,6 +15921,7 @@
       // Only a manual Stop discards the queue.
       const finishVoice = () => {
         try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
+        voiceClearSpans();
         showVoiceBtn();
         if(voiceStopBtn) voiceStopBtn.hidden = true;
         if(voicePrevBtn) voicePrevBtn.hidden = true;
@@ -15910,7 +15938,39 @@
         if(voiceMeter) voiceMeter.textContent = '🎙 ' + (voiceIndex + 1) + ' / ' + voiceQueue.length;
         const u = new SpeechSynthesisUtterance(voiceQueue[voiceIndex]);
         u.rate = 0.95;
+        // Cycle #100 — follow along with the rewrite while it's read.
+        // The segment carries a "rewrite: " label prefix, so boundary
+        // charIndexes are offset by that prefix when mapping to spans.
+        const seg = voiceQueue[voiceIndex] || '';
+        const isRewrite = seg.indexOf('rewrite: ') === 0;
+        if(isRewrite){
+          voiceSpans = voiceWrapRewrite();
+        } else {
+          voiceClearSpans();
+        }
+        let voiceBoundaryIdx = 0;
+        if(isRewrite && voiceSpans.length){
+          u.onboundary = (ev) => {
+            if(typeof ev.charIndex !== 'number') return;
+            const base = 'rewrite: '.length;
+            const charPos = ev.charIndex - base;
+            if(charPos < 0) return;
+            let found = 0;
+            let pos = 0;
+            for(let i = 0; i < voiceSpans.length; i++){
+              pos += (voiceSpans[i].textContent || '').length + 1; // +1 for the space
+              if(charPos < pos){ found = i; break; }
+              found = i;
+            }
+            if(found !== voiceBoundaryIdx){
+              voiceBoundaryIdx = found;
+              voiceSetActive(found);
+            }
+          };
+          voiceSetActive(0);
+        }
         u.onend = u.onerror = () => {
+          voiceClearSpans();
           voiceIndex++;
           if(voiceIndex < voiceQueue.length) playCurrent();
           else finishVoice();

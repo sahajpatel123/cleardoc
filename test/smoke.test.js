@@ -8390,6 +8390,46 @@ test("analyzer: Voice-mode reader plays every analysis block aloud in order", ()
     "iter #107 must use pause/resume for the play/pause toggle");
 });
 
+// Cycle #100 — voice mode highlights the rewrite sentence being read.
+test("analyzer: Voice mode highlights the rewrite sentence being read aloud", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Voice mode wraps the rewrite into .spoken spans (self-contained, so
+  // it never clobbers the Read-aloud button's cached spans).
+  assert.match(appSrc, /const voiceWrapRewrite = \(\) => \{/,
+    "voice mode must have its own rewrite wrapper");
+  assert.match(appSrc, /const parts = text\.split\(\/\(\?<=.+?\)\\s\+\/\)\.filter/,
+    "the wrapper must split on sentence boundaries");
+  assert.match(appSrc, /'<span class="spoken">' \+ esc\(s\.trim\(\)\) \+ '<\/span>'\)\.join\(' '\)/,
+    "each sentence must become a .spoken span");
+  // Only the rewrite segment highlights; every other segment clears.
+  assert.match(appSrc, /const isRewrite = seg\.indexOf\('rewrite: '\) === 0;/,
+    "the reader must detect the rewrite segment");
+  assert.match(appSrc, /if\(isRewrite\)\{[\s\S]{0,80}voiceSpans = voiceWrapRewrite\(\);/,
+    "the rewrite segment must build highlight spans");
+  assert.match(appSrc, /else \{\s*voiceClearSpans\(\);\s*\}/,
+    "non-rewrite segments must clear the highlight");
+  // Boundary events drive the active sentence, offset for the label prefix.
+  assert.match(appSrc, /u\.onboundary = \(ev\) => \{/,
+    "boundary events must drive the highlight");
+  assert.match(appSrc, /const charPos = ev\.charIndex - base;/,
+    "char indexes must be offset for the rewrite: label prefix");
+  assert.match(appSrc, /voiceSetActive\(found\);/,
+    "the active sentence must be highlighted");
+  assert.match(appSrc, /voiceSetActive\(0\);/,
+    "the first sentence must light up immediately");
+  // Stop, finish, and segment end all clear the highlight.
+  assert.match(appSrc, /voiceClearSpans\(\);\s*showVoiceBtn\(\);/,
+    "stop and finish must clear the highlight");
+  // The Read-aloud CSS already supports the spoken-active treatment.
+  assert.match(cssSrc, /#plainOut \.spoken-active\{/,
+    "the highlight style must exist");
+});
+
 // Cycle 58 feature: voice mode announces the deadline-urgency alert first.
 test("analyzer: Voice mode announces the deadline-urgency alert first", () => {
   if (!HAS_BROWSER) return;

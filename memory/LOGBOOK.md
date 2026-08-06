@@ -4212,3 +4212,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 99 of the autonomous loop (alternate add/polish): the three questions every pricing visitor asks should already be answered on the page.
+
+**2026-08-06 19:14 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #100 of the restarted autonomous loop (add) — milestone cycle.
+- feat(ui): voice mode now highlights the rewrite sentence being read aloud — when the reader reaches the rewrite segment it wraps each sentence in a `.spoken` span (same treatment as the Read-aloud button) and drives `.spoken-active` from the utterance's `boundary` events, offsetting `charIndex` by the "rewrite: " label prefix so the highlight tracks exactly. The first sentence lights up immediately; moving to any other segment (or stopping/finishing) clears the highlight; non-rewrite segments never leave stale marks.
+- Self-contained inside the voice reader (own span cache + clear/set helpers), so it can't clobber the Read-aloud button's cached spans; re-wrapping is idempotent for text (exports keep reading `textContent`).
+- New smoke test "Voice mode highlights the rewrite sentence being read aloud" — 12 assertions covering the wrapper, sentence split, rewrite-segment detection, boundary-driven active sentence, prefix offset, immediate first-sentence highlight, clear on stop/finish, and the existing CSS treatment.
+- Full suite green (490 unit + 284 smoke + 1 integration = 775 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 100 of the autonomous loop (alternate add/polish): listeners should follow the rewrite with their eyes while the voice reads it.
