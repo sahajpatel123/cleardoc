@@ -5221,3 +5221,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 196 of the autonomous loop (alternate add/polish): the fastest question is the one you never had to reach for — one key to the Ask panel.
+
+**2026-08-06 22:03 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #197 of the restarted autonomous loop (polish).
+- polish(keyboard): the `q` Ask-focus shortcut now exits Focus mode first — Focus mode hides everything except the rewrite, so without this a `q` press would have focused a hidden input. Verified in a real browser: with Focus mode on, `q` turned it off and focused the Ask input; zero console errors.
+- Extended the cycle-#196 smoke test with 1 assertion (setFocusMode(false) inside the q branch) and widened three fixed-window regexes whose gaps grew with the new comment + call.
+- Full suite green (490 unit + 331 smoke + 1 integration = 822 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 197 of the autonomous loop (alternate add/polish): a shortcut should never land your cursor somewhere invisible — q turns the room lights back on first.

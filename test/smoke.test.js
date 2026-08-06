@@ -905,10 +905,12 @@ test("analyzer: 'q' focuses the Ask panel when results are visible", () => {
 
   assert.match(appSrc, /if\(k === 'q' \|\| k === 'Q'\)\{/,
     "the shortcut handler must branch on q/Q");
-  assert.match(appSrc, /if\(k === 'q' \|\| k === 'Q'\)\{[\s\S]{0,220}getElementById\('askInput'\)/,
+  assert.match(appSrc, /if\(k === 'q' \|\| k === 'Q'\)\{[\s\S]{0,400}getElementById\('askInput'\)/,
     "the q branch must target the Ask input");
-  assert.match(appSrc, /if\(k === 'q' \|\| k === 'Q'\)\{[\s\S]{0,260}ai\.focus\(\{preventScroll:false\}\)/,
+  assert.match(appSrc, /if\(k === 'q' \|\| k === 'Q'\)\{[\s\S]{0,440}ai\.focus\(\{preventScroll:false\}\)/,
     "the q branch must focus the Ask input");
+  assert.match(appSrc, /if\(k === 'q' \|\| k === 'Q'\)\{[\s\S]{0,300}setFocusMode\(false\);/,
+    "the q branch must exit Focus mode so the Ask panel is visible");
   assert.match(appSrc, /<kbd>q<\/kbd><span>Focus the Ask panel/,
     "the help modal must document the q shortcut");
 });

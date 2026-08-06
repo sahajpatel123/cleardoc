@@ -2587,6 +2587,9 @@
       if(k === 'q' || k === 'Q'){
         const p = document.getElementById('resultPanel');
         if(p && !p.hidden){
+          // Cycle #197 — exit Focus mode first so the Ask panel is actually
+          // visible (Focus mode hides everything but the rewrite).
+          setFocusMode(false);
           const ai = document.getElementById('askInput');
           if(ai){
             e.preventDefault();
