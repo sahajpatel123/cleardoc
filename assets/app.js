@@ -9953,6 +9953,8 @@
           // Cycle #131 — the ask + copy actions hang together in a
           // right-aligned corner, like the other card action clusters.
           '<span class="scenario-actions">' +
+            // Cycle #148 — read the scenario aloud at the chosen pace.
+            '<button type="button" class="scenario-speak ghost-btn ghost-btn-sm" data-scenario-speak="' + esc((s.ifText || '') + '. ' + (s.thenText || '') + (s.detail ? '. ' + s.detail : '')) + '" title="Read this scenario aloud" aria-label="Read this scenario aloud">🔊</button>' +
             '<button type="button" class="scenario-ask ghost-btn ghost-btn-sm" data-scenario-ask="' + esc((s.ifText || '') + ' → ' + (s.thenText || '')) + '" data-scenario-sev="' + esc(s.severity) + '" title="Ask about this scenario" aria-label="Ask about this scenario">💬</button>' +
             '<button type="button" class="scenario-copy ghost-btn ghost-btn-sm" data-scenario-copy-text="' + esc(copyText) + '" title="Copy this scenario as a citation" aria-label="Copy this scenario as a citation">📋</button>' +
           '</span>' +
@@ -10000,12 +10002,28 @@
         const filterNote = sevFilter !== 'all' ? ' Showing only <b>' + (sevFilter === 'bad' ? '🔴 bad' : sevFilter === 'warn' ? '🟡 caution' : '🟢 favorable') + '</b>.' : '';
         scenarioNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
           'Pure-local. Each scenario composes existing analyzer signals into a concrete <b>IF … THEN …</b> prediction, plus a counter-suggestion showing what to negotiate. ' + tone + ' Click any card to jump to the source clause. <b>📋 markdown</b> exports a checklist you can bring to a lawyer.' + filterNote;
-        scenarioNote.innerHTML += ' <b>💬</b> asks the document about a scenario. <b>📋</b> copies one as a citation.';
+        scenarioNote.innerHTML += ' <b>💬</b> asks the document about a scenario. <b>📋</b> copies one as a citation. <b>🔊</b> reads it aloud.';
       }
       // Iter #197 — click-to-jump on each card using the captured
       // source offset.
       $$('.scenario-card', scenarioGrid).forEach(card => {
         card.addEventListener('click', async (e) => {
+          // Cycle #148 — 🔊, reads the scenario aloud instead of jumping.
+          const speakBtn = e.target.closest && e.target.closest('[data-scenario-speak]');
+          if(speakBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = speakBtn.getAttribute('data-scenario-speak') || '';
+            if(text && typeof window !== 'undefined' && 'speechSynthesis' in window){
+              try {
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = getTtsRate();
+                window.speechSynthesis.speak(u);
+              } catch(_){ /* ignore */ }
+            }
+            return;
+          }
           // Cycle #130 — 📋 copies the card as a citation instead of jumping.
           const copyBtn = e.target.closest && e.target.closest('[data-scenario-copy-text]');
           if(copyBtn){

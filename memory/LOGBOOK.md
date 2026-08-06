@@ -4700,3 +4700,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 147 of the autonomous loop (alternate add/polish): the obligation actions should sit calmly at the row's edge, never crushed.
+
+**2026-08-06 06:26 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #148 of the restarted autonomous loop (add) — milestone cycle (800 tests).
+- feat(ui): every scenario card now has a 🔊, speak button in its action cluster — clicking it reads the IF … THEN narrative (plus the detail paragraph) aloud via SpeechSynthesis at the user's chosen pace (`getTtsRate()`), with a dedicated `[data-scenario-speak]` branch in the card handler so it never triggers ask/copy/jump. The block note documents the action, completing the scenario card's action trio (hear / ask / copy).
+- New smoke test "Scenario cards read the scenario aloud in one click" — 6 assertions covering the button markup, IF…THEN narrative data, click-handler branch, utterance creation, reading-speed respect, and note.
+- Full suite green (490 unit + 309 smoke + 1 integration = 800 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 148 of the autonomous loop (alternate add/polish): a predicted outcome should be hearable while you weigh it.

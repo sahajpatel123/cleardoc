@@ -9545,6 +9545,27 @@ test("analyzer: Scenario cards copy their citation in one click", () => {
     "the action cluster must right-align in the card");
 });
 
+// Cycle #148 — hear any scenario aloud.
+test("analyzer: Scenario cards read the scenario aloud in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="scenario-speak ghost-btn ghost-btn-sm"/,
+    "each scenario card must render a speak button");
+  assert.match(appSrc, /\(s\.ifText \|\| ''\) \+ '\. ' \+ \(s\.thenText \|\| ''\)/,
+    "the speak button must carry the IF … THEN narrative");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-scenario-speak\]'\)/,
+    "the card click handler must catch speak-button clicks");
+  assert.match(appSrc, /new SpeechSynthesisUtterance\(text\)/,
+    "clicking must speak the scenario");
+  assert.match(appSrc, /u\.rate = getTtsRate\(\);/,
+    "the reading must respect the chosen speed");
+  assert.match(appSrc, /🔊<\/b> reads it aloud\./,
+    "the block note must document the speak action");
+});
+
 // Cycle #132 — ask about any risk-allocation row.
 test("analyzer: Bearer rows can ask the document about the risk in one click", () => {
   if (!HAS_BROWSER) return;
