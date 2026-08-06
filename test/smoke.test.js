@@ -3161,6 +3161,25 @@ test("analyzer: deadlines preview jump button scrolls to the full list", () => {
   assert.match(cssSrc, /\.deadlines-jump-flash\{/, "the jump highlight must be styled");
 });
 
+// Cycle #189 — the section quick-jump nav's Deadlines entry must resolve
+// to whichever deadline block is visible (full 📅 or AI-only ⏰), never a
+// hidden one.
+test("analyzer: section nav resolves the deadlines entry to the visible block", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /resolve: \(\) => \{[\s\S]{0,220}full && !full\.hidden\) \? full :/,
+    "the deadlines nav entry must resolve to the visible block");
+  assert.match(appSrc, /const list = \(full && !full\.hidden\) \? document\.getElementById\('deadlineList'\) : document\.getElementById\('deadlinesList'\);/,
+    "the deadlines count must come from the visible block's list");
+  assert.match(appSrc, /let el = s\.resolve \? s\.resolve\(\) : document\.getElementById\(s\.id\);/,
+    "paintSectionNav must use the resolver when present");
+  assert.match(appSrc, /const targetId = \(s\.el && s\.el\.id\) \|\| s\.anchorId \|\| s\.id;/,
+    "nav links must use the resolved element's own id");
+});
+
 test("analyzer: deadlines preview copy-all chip exports every deadline to the clipboard", () => {
   // Cycle 46 feature: the live deadlines strip now has a "copy all" chip
   // so users can grab the whole list (with countdowns) before running

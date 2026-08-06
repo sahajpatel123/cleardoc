@@ -5133,3 +5133,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 188 of the autonomous loop (alternate add/polish): when the preview says "3 deadlines," one tap should take you straight to them — or tell you how.
+
+**2026-08-06 21:37 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #189 of the restarted autonomous loop (polish).
+- polish(deadlines): the result-panel section quick-jump nav's "Deadlines" entry now resolves to whichever deadline block is actually visible — the full 📅 `#deadlineBlock` or the AI-only ⏰ `#deadlinesBlock` — instead of always pointing at the AI-only block (which is often hidden, leaving the nav entry missing or linking to nothing). `paintSectionNav` gained resolver support (`s.resolve`), the count is read from the visible block's list, and nav links use the resolved element's own id so the deep link lands correctly.
+- Verified in a real browser with a mocked analyze flow where only the full 📅 block was visible: the nav rendered a Deadlines link with `data-sn-target="deadlineBlock"` / `href="#deadlineBlock"`, and clicking it set the hash correctly; zero console errors.
+- New smoke test "analyzer: section nav resolves the deadlines entry to the visible block" — 4 assertions (resolver preference, visible-list count, resolver usage in paintSectionNav, element-id links).
+- Full suite green (490 unit + 327 smoke + 1 integration = 818 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 189 of the autonomous loop (alternate add/polish): a quick-jump link is only quick if it lands on something real — point Deadlines at the block that actually exists.

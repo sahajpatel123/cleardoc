@@ -1755,7 +1755,19 @@
     { id: 'decisionBlock',   label: 'Decision' },
     { id: 'rewriteBlock',    label: 'Rewrite', anchorId: 'plainOut' },
     { id: 'riskList',        label: 'Risks',    count: () => (typeof lastFlags !== 'undefined' && lastFlags) ? lastFlags.length : 0 },
-    { id: 'deadlinesBlock',  label: 'Deadlines', count: () => { const d=document.getElementById('deadlinesList'); return d ? d.querySelectorAll('.deadline-row').length : 0; } },
+    // Cycle #189 — two deadline blocks can exist (the full 📅 #deadlineBlock
+    // and the AI-only ⏰ #deadlinesBlock); resolve to whichever is visible
+    // so the nav entry never points at a hidden element.
+    { id: 'deadlinesBlock',  label: 'Deadlines', resolve: () => {
+        const full = document.getElementById('deadlineBlock');
+        const alt = document.getElementById('deadlinesBlock');
+        return (full && !full.hidden) ? full : ((alt && !alt.hidden) ? alt : null);
+      }, count: () => {
+        const full = document.getElementById('deadlineBlock');
+        const alt = document.getElementById('deadlinesBlock');
+        const list = (full && !full.hidden) ? document.getElementById('deadlineList') : document.getElementById('deadlinesList');
+        return list ? list.querySelectorAll('.deadline-row').length : 0;
+      } },
     { id: 'scenarioBlock',   label: 'Scenarios' },
     { id: 'bearerBlock',     label: 'Bearer' },
     { id: 'exposureBlock',   label: 'Exposure' },
@@ -1770,7 +1782,7 @@
     const visible = [];
     for(const s of _SECTIONS){
       // Look up the element — first by id, then by anchorId hint.
-      let el = document.getElementById(s.id);
+      let el = s.resolve ? s.resolve() : document.getElementById(s.id);
       if(!el && s.anchorId) el = document.getElementById(s.anchorId);
       if(!el) continue;
       // For blocks where the element IS the container, check !hidden.
@@ -1779,12 +1791,12 @@
       const checkEl = (s.id === 'riskList' || s.id === 'plainOut') ? el.closest('.result-block') || el : el;
       if(checkEl.hidden) continue;
       const c = s.count ? (s.count() || 0) : 0;
-      visible.push({ ...s, count: c });
+      visible.push({ ...s, count: c, el });
     }
     if(visible.length === 0){ nav.hidden = true; nav.innerHTML = ''; return; }
     nav.hidden = false;
     nav.innerHTML = '<span class="sn-lbl">Jump to:</span>' + visible.map(s => {
-      const targetId = s.anchorId || s.id;
+      const targetId = (s.el && s.el.id) || s.anchorId || s.id;
       const c = s.count > 0 ? ' <span class="sn-count">' + s.count + '</span>' : '';
       return '<a href="#' + esc(targetId) + '" data-sn-target="' + esc(targetId) + '">' + esc(s.label) + c + '</a>';
     }).join('');
