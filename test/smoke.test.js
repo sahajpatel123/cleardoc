@@ -8405,6 +8405,13 @@ test("analyzer: Tone analyzer copies its summary as plain text", () => {
     "copy must announce success/failure via aria-label");
   assert.match(appSrc, /toneCopyBtn\.setAttribute\('aria-label', 'Copy the tone summary'\)/,
     "copy must restore the original aria-label");
+  // Cycle 87 polish — the export includes the clickable example phrases
+  assert.match(appSrc, /const examplesOf = \(k\) => \{/,
+    "the copy must build an examples helper per axis");
+  assert.match(appSrc, /arr\.slice\(0, 3\)\.join\(' · '\)/,
+    "up to three examples per axis must be joined into the line");
+  assert.match(appSrc, /' Examples: ' \+ examplesOf\('trust'\)/,
+    "the trust line must include its example phrases");
 });
 
 // Iter #114: date timeline — surfaces the next 12 upcoming dates

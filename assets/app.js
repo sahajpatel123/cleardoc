@@ -12275,13 +12275,19 @@
         toneCopyBtn.addEventListener('click', async () => {
           const sum = (tone.trust + (100 - tone.pressure) + tone.clarity) / 3;
           const verdict = sum >= 70 ? '👍 gentle + fair' : sum >= 50 ? '😐 mixed' : '⚠ hostile or confusing';
+          // Cycle 87 polish — include the clickable example phrases per axis
+          // so the export carries the evidence, not just the score.
+          const examplesOf = (k) => {
+            const arr = tone.examples && tone.examples[k];
+            return (Array.isArray(arr) ? arr.slice(0, 3).join(' · ') : '');
+          };
           const lines = [
             'Tone analyzer · ' + tone.words.toLocaleString('en-US') + ' words analyzed',
             'Overall tone: ' + verdict,
             '',
-            'Trust signals: ' + tone.trust + '/100 — Mutual language, good-faith, fair-mind; higher is healthier.',
-            'Pressure signals: ' + tone.pressure + '/100 — Forfeit, waive, must, sole discretion; higher is more aggressive.',
-            'Plain-language clarity: ' + tone.clarity + '/100 — Defined terms and examples raise it; notwithstanding/hereto lower it.',
+            'Trust signals: ' + tone.trust + '/100 — Mutual language, good-faith, fair-mind; higher is healthier.' + (examplesOf('trust') ? ' Examples: ' + examplesOf('trust') : ''),
+            'Pressure signals: ' + tone.pressure + '/100 — Forfeit, waive, must, sole discretion; higher is more aggressive.' + (examplesOf('pressure') ? ' Examples: ' + examplesOf('pressure') : ''),
+            'Plain-language clarity: ' + tone.clarity + '/100 — Defined terms and examples raise it; notwithstanding/hereto lower it.' + (examplesOf('clarity') ? ' Examples: ' + examplesOf('clarity') : ''),
           ];
           const text = lines.join('\n');
           let ok = false;

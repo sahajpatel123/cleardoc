@@ -4068,3 +4068,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 86 of the autonomous loop (alternate add/polish): the tone readout should leave the app with you.
+
+**2026-08-06 03:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #87 of the restarted autonomous loop (polish).
+- polish(ui): the tone-summary copy now appends each axis's clickable example phrases (up to 3, joined by ·) — the export carries the evidence ("Examples: good faith, mutual…"), not just the score.
+- Extended the tone-copy smoke test with the examples-helper and trust-line assertions.
+- Full suite green (490 unit + 275 smoke + 1 integration = 766 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 87 of the autonomous loop (alternate add/polish): the copied tone readout should show what triggered each score.
