@@ -12721,12 +12721,18 @@
       const controls = '<div class="clause-controls">' +
         '<span class="clause-count">' + visible.length + ' of ' + total + ' clauses</span>' +
         '<button type="button" class="clause-filter ghost-btn ghost-btn-sm" id="clauseFilterBtn" title="Show only clauses that overlap detected risks">' + (showFlaggedOnly ? 'show all' : 'flagged only') + '</button>' +
+        '<button type="button" class="clause-copy-all ghost-btn ghost-btn-sm" id="clauseCopyAllBtn" title="Copy the clause index as plain text">📋 copy list</button>' +
       '</div>';
+      // Cycle #224 — rebuild the controls row instead of stacking it: the
+      // flagged-only toggle re-renders, and an orphaned sibling would
+      // duplicate the chips (and their handlers) on every toggle.
+      const oldControls = clauseIndex.parentNode && clauseIndex.parentNode.querySelector('.clause-controls');
+      if(oldControls) oldControls.remove();
       clauseIndex.insertAdjacentHTML('afterend', controls);
       indexBlock.hidden = false;
       if(indexNote){
         indexNote.innerHTML = '<span class="riskNote-lead">' + total + ' numbered clause' + (total === 1 ? '' : 's') + ' indexed · ' + flaggedCount + ' flagged</span> ' +
-          'Click a row to jump. 📋 copies the citation. Toggle to <b>flagged only</b> to focus on the clauses that matter most.';
+          'Click a row to jump. 📋 copies the citation. Toggle to <b>flagged only</b> to focus on the clauses that matter most, or <b>📋 copy list</b> to export the index as plain text.';
       }
       // Click-to-jump on the row (but NOT on the copy button — handled below).
       $$('.clause-row', clauseIndex).forEach(row => {
@@ -12772,6 +12778,32 @@
         filterBtn.addEventListener('click', () => {
           clauseIndex._showFlagged = !clauseIndex._showFlagged;
           renderClauseIndex(raw, ctx);
+        });
+      }
+      // Cycle #224 — bulk-export the clause index (respects the
+      // flagged-only filter): number + raw marker + snippet + flagged tag.
+      const copyAllBtn = document.getElementById('clauseCopyAllBtn');
+      if(copyAllBtn){
+        copyAllBtn.addEventListener('click', async () => {
+          if(!visible.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('No clauses to copy');
+            return;
+          }
+          const lines = ['📑 CLAUSE INDEX (' + visible.length + ' of ' + total + ')' + (showFlaggedOnly ? ' · flagged only' : ''), '-'.repeat(40)];
+          visible.forEach((h, i) => {
+            const flagged = isInRiskedClause(h.offset);
+            lines.push((i + 1) + '. [' + h.raw + ']' + (flagged ? ' [⚠ flagged]' : '') + ' ' + String(h.snippet || '').replace(/\s+/g, ' ').trim());
+          });
+          const text = lines.join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Clause index copied (' + visible.length + ')' : '⚠ Couldn’t copy');
+          copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy list';
+          setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy list'; }, 2500);
         });
       }
     }

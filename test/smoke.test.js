@@ -9936,6 +9936,18 @@ test("analyzer: Clause index extracts numbered clauses with click-to-jump", () =
     "iter #137 must annotate flagged clauses against lastFlags");
   assert.match(cssSrc, /\.clause-flagged\b/, ".clause-flagged style must exist");
   assert.match(cssSrc, /\.clause-controls\b/, ".clause-controls style must exist");
+
+  // Cycle #224 — bulk copy-list export + no stacking on re-render.
+  assert.match(appSrc, /id="clauseCopyAllBtn" title="Copy the clause index as plain text"/,
+    "cycle #224 must add a clause copy-list chip");
+  assert.match(appSrc, /const copyAllBtn = document\.getElementById\('clauseCopyAllBtn'\);/,
+    "the copy-list chip must have a click handler");
+  assert.match(appSrc, /const oldControls = clauseIndex\.parentNode && clauseIndex\.parentNode\.querySelector\('\.clause-controls'\);/,
+    "re-render must remove the previous controls row instead of stacking it");
+  assert.match(appSrc, /'📑 CLAUSE INDEX \(' \+ visible\.length \+ ' of ' \+ total \+ '\)'/,
+    "the copied index must lead with a count header");
+  assert.match(appSrc, /'📋 Clause index copied \(' \+ visible\.length \+ '\)'/,
+    "copying must toast the clause count");
 });
 
 // Iter #138: cost predictor — expected vs 90th-percentile vs worst.

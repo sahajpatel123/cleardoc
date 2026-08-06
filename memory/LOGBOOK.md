@@ -5519,3 +5519,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 223 of the autonomous loop (alternate add/polish): the way you read a document is a preference too — don't reset your view every time you re-analyze.
+
+**2026-08-07 00:58 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #224 of the restarted autonomous loop (add).
+- feat(clauses): the clause index now has a "📋 copy list" chip that exports the whole index as plain text — number + raw marker + snippet + `[⚠ flagged]` tag per clause — and it respects the "flagged only" filter, so a user can hand off either the full clause map or just the risky clauses. Empty filtered views toast "No clauses to copy".
+- fix(clauses): the flagged-only toggle previously re-inserted a `.clause-controls` row after the list without removing the old one, so controls (and their handlers) stacked on every toggle; the renderer now removes any existing controls sibling first. Verified the count stays at exactly 1 across two toggles.
+- Verified in a real browser with a mocked analyze flow over a 4-section document: the copy produced "📑 CLAUSE INDEX (4 of 4)" with all 4 rows, toggling flagged-only twice kept exactly one controls row + one copy button, and there were zero console errors.
+- Extended the cycle-#136 smoke test with 5 assertions (chip markup, handler wiring, no-stacking removal, count header, success toast).
+- Full suite green (490 unit + 343 smoke + 1 integration = 834 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 224 of the autonomous loop (alternate add/polish): the clause map is a negotiation roadmap — let users export it, and don't let the toggle litter the page.
