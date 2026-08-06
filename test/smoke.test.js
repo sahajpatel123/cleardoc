@@ -2221,6 +2221,69 @@ skip("analyze: HTML report downloads a standalone analysis file", async () => {
   }
 });
 
+// Cycle #260 — copy the same rich HTML report to the clipboard.
+skip("analyze: HTML report copies as rich text to the clipboard", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="copyHtmlBtn"/,
+    "analyze.html must expose the HTML copy button");
+  assert.match(html, /title="Copy this analysis as rich HTML/,
+    "the copy button must be labelled for rich HTML");
+  assert.match(appSrc, /function buildAnalysisHtmlBody\(\)\{/,
+    "app.js must define a reusable HTML body builder");
+  assert.match(appSrc, /async function copyAnalysisHtml\(\)\{/,
+    "app.js must define copyAnalysisHtml");
+  assert.match(appSrc, /'text\/html': new Blob\(\[fragment\]/,
+    "the copy must write an HTML clipboard item when supported");
+  assert.match(appSrc, /'HTML copied — paste into email, CMS, or notes that accept rich text\.'/,
+    "copying must confirm with a descriptive toast");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__capturedHtml = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          write: async (items) => {
+            const item = items && items[0];
+            if (item && typeof item.getType === "function") {
+              const blob = await item.getType("text/html");
+              window.__capturedHtml = await blob.text();
+            }
+          },
+          writeText: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { write: async () => {}, writeText: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#resultPanel:not([hidden])", { timeout: 8000 });
+    await page.click("#copyHtmlBtn");
+    await page.waitForFunction(() => window.__capturedHtml && window.__capturedHtml.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__capturedHtml);
+    assert.match(captured, /report-summary/, "the copied HTML must include the summary header");
+    assert.match(captured, /Verdict:/, "the copied HTML must include the verdict");
+    assert.match(captured, /NOT LEGAL ADVICE/, "the copied HTML must carry the disclaimer");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 skip("share: opening a #share= URL offers the shared analysis banner with a View button", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await browser.newContext();

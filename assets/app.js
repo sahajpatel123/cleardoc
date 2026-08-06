@@ -17507,11 +17507,10 @@
     // Cycle #259 — standalone HTML report. Same result panel, minus live
     // controls, wrapped in a minimal inline-styled document so the file
     // opens in any browser with zero dependencies.
-    function buildAnalysisHtml(){
+    function buildAnalysisHtmlBody(){
       if(!resultPanel || !lastRaw) return '';
       const clone = resultPanel.cloneNode(true);
       clone.querySelectorAll('.no-print, button, select, input, textarea, script, style, [hidden]').forEach(el => el.remove());
-      const stamp = new Date().toLocaleString();
       const source = (attachedFile && attachedFile.name) ? 'Source file: '+esc(attachedFile.name) : '';
       let summaryHtml = '';
       try {
@@ -17534,6 +17533,15 @@
         }
         if(parts.length) summaryHtml = '<div class="report-summary">'+parts.join(' · ')+'</div>';
       } catch(_){ /* keep the report without a summary line */ }
+      return (source ? '<p class="mono">'+source+'</p>' : '') +
+        summaryHtml +
+        clone.innerHTML +
+        '<p class="report-foot">NOT LEGAL ADVICE — for informational purposes only. cleardoc.app</p>';
+    }
+    function buildAnalysisHtml(){
+      if(!resultPanel || !lastRaw) return '';
+      const stamp = new Date().toLocaleString();
+      const body = buildAnalysisHtmlBody();
       return '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
         '<meta name="viewport" content="width=device-width, initial-scale=1">' +
         '<title>ClearDoc Analysis</title>' +
@@ -17550,10 +17558,7 @@
         '</style></head><body>' +
         '<h1>ClearDoc Analysis</h1>' +
         '<p class="mono">Generated: '+esc(stamp)+'</p>' +
-        (source ? '<p class="mono">'+source+'</p>' : '') +
-        summaryHtml +
-        clone.innerHTML +
-        '<p class="report-foot">NOT LEGAL ADVICE — for informational purposes only. cleardoc.app</p>' +
+        body +
         '</body></html>';
     }
     function downloadAnalysisHtml(){
@@ -17578,6 +17583,49 @@
         console.error('[export-html]', e);
         const btn = document.getElementById('exportHtmlBtn');
         if(btn){ flashButton(btn, 'Save failed', 1800); }
+      }
+    }
+    // Cycle #260 — copy the same report as rich HTML for paste targets
+    // that accept formatting (email, CMS, note apps).
+    async function copyAnalysisHtml(){
+      if(!lastRaw){
+        if(msg){msg.textContent='Analyze a document first, then copy as HTML.'; msg.className='analyze-msg';}
+        return;
+      }
+      const fragment = buildAnalysisHtmlBody();
+      const plain = stripHtmlToText(fragment);
+      const btn = document.getElementById('copyHtmlBtn');
+      let ok = false;
+      try{
+        if(navigator.clipboard && typeof navigator.clipboard.write === 'function' && typeof ClipboardItem === 'function'){
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'text/html': new Blob([fragment], { type:'text/html' }),
+              'text/plain': new Blob([plain], { type:'text/plain' })
+            })
+          ]);
+          ok = true;
+        } else if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(plain);
+          ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = plain;
+          ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta);
+          ta.select();
+          ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+      }catch(e){
+        console.warn('[copy-html] clipboard failed', e);
+      }
+      if(btn){ flashButton(btn, ok ? 'Copied ✓' : 'Copy failed', ok ? 1400 : 1800); }
+      if(msg){
+        msg.textContent = ok
+          ? 'HTML copied — paste into email, CMS, or notes that accept rich text.'
+          : 'Could not copy HTML. Use Save .html instead.';
+        msg.className = ok ? 'analyze-msg' : 'analyze-msg err';
       }
     }
     // iter #202 v2: copy the Markdown to the clipboard without downloading
@@ -22127,6 +22175,8 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     if(exportMdBtn) exportMdBtn.addEventListener('click', exportAnalysisMd);
     const exportHtmlBtn = document.getElementById('exportHtmlBtn');
     if(exportHtmlBtn) exportHtmlBtn.addEventListener('click', downloadAnalysisHtml);
+    const copyHtmlBtn = document.getElementById('copyHtmlBtn');
+    if(copyHtmlBtn) copyHtmlBtn.addEventListener('click', copyAnalysisHtml);
     const copyMdBtn = document.getElementById('copyMdBtn');
     if(copyMdBtn) copyMdBtn.addEventListener('click', copyAnalysisMd);
     // iter #210: email-summary button — opens mailto: with a
