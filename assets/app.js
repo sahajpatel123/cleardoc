@@ -15104,6 +15104,7 @@
         if(dls.length === 0){
           deadlinesPreview.hidden = true;
           if(deadlinesCalBtn){ deadlinesCalBtn._deadlines = null; deadlinesCalBtn.disabled = true; }
+          if(deadlinesCopyAllBtn){ deadlinesCopyAllBtn._deadlines = null; deadlinesCopyAllBtn.disabled = true; }
         } else {
           deadlinesPreview.hidden = false;
           if(deadlinesCount) deadlinesCount.textContent = dls.length;
@@ -15124,6 +15125,50 @@
             const label = (dls.length === 1) ? '+ calendar' : ('+ ' + dls.length + ' calendar');
             deadlinesCalBtn._origText = label;
             deadlinesCalBtn.textContent = label;
+          }
+          // Iter #246 — copy-all chip in the live preview: lets users grab
+          // every detected deadline (with countdown) before running analysis.
+          if(deadlinesCopyAllBtn){
+            deadlinesCopyAllBtn._deadlines = dls;
+            deadlinesCopyAllBtn.disabled = false;
+            if(!deadlinesCopyAllBtn._copyAllWired){
+              deadlinesCopyAllBtn._copyAllWired = true;
+              deadlinesCopyAllBtn.addEventListener('click', async () => {
+                const all = deadlinesCopyAllBtn._deadlines || [];
+                if(!all.length) return;
+                const lines = all.map(d => {
+                  let when = '';
+                  if(typeof d.urgencyDays === 'number'){
+                    const abs = Math.abs(d.urgencyDays);
+                    if(d.urgencyDays < 0) when = ' — ' + abs + ' day' + (abs === 1 ? '' : 's') + ' ago';
+                    else if(d.urgencyDays === 0) when = ' — today';
+                    else if(d.urgencyDays === 1) when = ' — tomorrow';
+                    else when = ' — in ' + d.urgencyDays + ' days';
+                  }
+                  return '📅 ' + d.label + when;
+                });
+                const text = 'ClearDoc · ' + all.length + ' deadline' + (all.length === 1 ? '' : 's') + '\n\n' + lines.join('\n');
+                let copied = false;
+                try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+                catch(_){ /* fall through */ }
+                if(!copied){
+                  try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text; ta.setAttribute('readonly','');
+                    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                    copied = true;
+                  } catch(_){ /* ignore */ }
+                }
+                if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Deadlines copied (' + all.length + ')' : '⚠ Couldn’t copy');
+                deadlinesCopyAllBtn.setAttribute('aria-label', copied ? 'Deadlines copied to clipboard' : 'Copy failed — try again');
+                deadlinesCopyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
+                setTimeout(() => {
+                  if(!deadlinesCopyAllBtn.isConnected) return;
+                  deadlinesCopyAllBtn.textContent = '📋 copy all';
+                  deadlinesCopyAllBtn.setAttribute('aria-label', 'Copy all deadlines to clipboard');
+                }, 2500);
+              });
+            }
           }
           deadlinesPreview.classList.remove('dp-past','dp-urgent','dp-soon','dp-future');
           const u = soon.urgencyDays;

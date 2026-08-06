@@ -2572,6 +2572,58 @@ test("analyzer: deadlines preview shows live count + soonest deadline with urgen
     ".dp-soon must use --amber (<30 days)");
 });
 
+test("analyzer: deadlines preview copy-all chip exports every deadline to the clipboard", () => {
+  // Cycle 46 feature: the live deadlines strip now has a "copy all" chip
+  // so users can grab the whole list (with countdowns) before running
+  // analysis — paste it straight into a task tracker or email.
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  // analyze.html must have the copy-all chip in the preview strip
+  assert.match(html, /id="deadlinesCopyAllBtn"/,
+    "analyze.html must contain #deadlinesCopyAllBtn in the deadlines preview");
+  assert.match(html, /id="deadlinesCopyAllBtn" aria-label="Copy all deadlines to clipboard"/,
+    "copy-all chip must have a descriptive aria-label");
+
+  // updateTextStats must stash the live list on the button + disable when empty
+  const updateBlock = appSrc.match(/function updateTextStats\(\)\{[\s\S]+?statReadTime\.textContent\s*=\s*readTime\(/);
+  assert.ok(updateBlock, "updateTextStats() must exist");
+  assert.match(updateBlock[0], /deadlinesCopyAllBtn\._deadlines\s*=\s*dls/,
+    "updateTextStats must stash the live deadline list on the copy-all chip");
+  assert.match(updateBlock[0], /deadlinesCopyAllBtn\.disabled\s*=\s*true/,
+    "copy-all chip must disable when no deadlines are detected");
+
+  // Copy payload must include a header with the count + one line per deadline
+  assert.match(appSrc, /'ClearDoc · ' \+ all\.length/,
+    "copy payload must start with a 'ClearDoc · N deadlines' header");
+  assert.match(appSrc, /'📅 ' \+ d\.label \+ when/,
+    "each line must export the deadline label with its countdown");
+  assert.match(appSrc, /' — in ' \+ d\.urgencyDays \+ ' days'/,
+    "future deadlines must include an 'in N days' countdown");
+  assert.match(appSrc, /' — today'/,
+    "today's deadlines must be labeled 'today'");
+
+  // Clipboard path: modern API first, textarea fallback, toast + flash
+  assert.match(appSrc, /deadlinesCopyAllBtn\.addEventListener\(\s*['"]click['"]/,
+    "copy-all chip must have a click handler");
+  assert.match(appSrc, /navigator\.clipboard/,
+    "copy must use the modern clipboard API");
+  assert.match(appSrc, /document\.execCommand\('copy'\)/,
+    "copy must fall back to execCommand for older browsers");
+  assert.match(appSrc, /'📋 Deadlines copied \(' \+ all\.length/,
+    "copy must toast the deadline count on success");
+  assert.match(appSrc, /setAttribute\('aria-label', copied \? 'Deadlines copied to clipboard' : 'Copy failed — try again'\)/,
+    "copy must announce success/failure via aria-label");
+  assert.match(appSrc, /setAttribute\('aria-label', 'Copy all deadlines to clipboard'\)/,
+    "copy must restore the original aria-label after the flash");
+  // Must not double-wire on every keystroke
+  assert.match(appSrc, /deadlinesCopyAllBtn\._copyAllWired/,
+    "copy-all wiring must be guarded so it is attached only once");
+});
+
 test("analyzer: deadlines preview has an Add-to-Calendar button that exports the soonest deadline as ICS", () => {
   // Polishes iter #11's deadlines preview. One-click ICS download of
   // the soonest deadline so users can drop it into Google / Apple /

@@ -3658,3 +3658,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 45 of the autonomous loop (alternate add/polish): make the c shortcut discoverable on the button itself.
+
+**2026-08-06 20:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #46 of the restarted autonomous loop (feature add).
+- feat(ui): the live deadlines preview strip now has a "📋 copy all" chip that copies every detected deadline (label + countdown, e.g. "📅 Jan 15, 2027 — in 162 days") to the clipboard before analysis runs — no AI call needed, with toast, ✓ flash, and dynamic aria-label announce.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 255 smoke + 1 integration = 746 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 46 of the autonomous loop (alternate add/polish): export every deadline straight from the live preview.
