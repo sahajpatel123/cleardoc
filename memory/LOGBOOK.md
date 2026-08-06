@@ -5667,3 +5667,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 236 of the autonomous loop (alternate add/polish): a template that fits one deal is a note; a template that can spawn variants is a system — let every saved doc clone itself.
+
+**2026-08-07 04:32 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #237 of the restructured autonomous loop (polish).
+- polish(css): the "⧉ dup" template button from cycle #236 shipped without its own stylesheet rule, so it rendered as a raw browser button next to its styled siblings. It now matches the family: micro font, hairline border, transparent background, amber accent (distinct from edit's gray and run's green), hover fill, and a focus ring.
+- Verified in a real browser via the extended template-dup integration test: the rendered button's computed style reports `cursor: pointer` and `border-style: solid` (a styled control, not a default button), alongside the duplication assertions; zero console errors.
+- Extended the cycle-#236 smoke test with 3 CSS assertions (amber accent, hover, focus ring).
+- Full suite green (490 unit + 347 smoke + 7 integration = 844 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 237 of the autonomous loop (alternate add/polish): a button that looks like a browser default is a feature wearing a placeholder — style the newcomer like the family it joined.

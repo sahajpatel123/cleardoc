@@ -5075,6 +5075,13 @@ test("analyzer: templates can be duplicated", () => {
     "duplicating must toast the new name");
   assert.match(appSrc, /'⚠ Couldn’t duplicate — same name exists or cap reached'/,
     "a failed duplicate must be reported");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  assert.match(cssSrc, /\.tpl-dup\{[^}]*color:var\(--amber\)/,
+    "the duplicate button must carry the amber accent like its siblings");
+  assert.match(cssSrc, /\.tpl-dup:hover\{background:var\(--amber\)/,
+    "the duplicate button must have a hover state");
+  assert.match(cssSrc, /\.tpl-dup:focus-visible\{/,
+    "the duplicate button must have a focus ring");
 });
 
 // Cycle #214 — saved templates offer a one-click analyze action.

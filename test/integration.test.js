@@ -710,6 +710,13 @@ skip("integration: templates can be duplicated", async () => {
     assert.equal(stored.length, 2, "the store must hold both templates");
     assert.equal(stored[0].name, "Lease (copy)", "the new entry must carry the copy name");
     assert.equal(stored[0].text, stored[1].text, "the copy must share the original text");
+    const dupStyle = await page.evaluate(() => {
+      const btn = document.querySelector(".tpl-dup");
+      const cs = getComputedStyle(btn);
+      return { cursor: cs.cursor, background: cs.backgroundColor, border: cs.borderStyle };
+    });
+    assert.equal(dupStyle.cursor, "pointer", "the duplicate button must render as a styled control (cursor pointer)");
+    assert.equal(dupStyle.border, "solid", "the duplicate button must carry the hairline border");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
