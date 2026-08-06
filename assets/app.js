@@ -17504,6 +17504,59 @@
         if(btn){ flashButton(btn, 'Save failed', 1800); }
       }
     }
+    // Cycle #259 — standalone HTML report. Same result panel, minus live
+    // controls, wrapped in a minimal inline-styled document so the file
+    // opens in any browser with zero dependencies.
+    function buildAnalysisHtml(){
+      if(!resultPanel || !lastRaw) return '';
+      const clone = resultPanel.cloneNode(true);
+      clone.querySelectorAll('.no-print, button, select, input, textarea, script, style, [hidden]').forEach(el => el.remove());
+      const stamp = new Date().toLocaleString();
+      const source = (attachedFile && attachedFile.name) ? 'Source file: '+esc(attachedFile.name) : '';
+      return '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
+        '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+        '<title>ClearDoc Analysis</title>' +
+        '<style>' +
+          'body{font-family:Georgia,serif;max-width:820px;margin:0 auto;padding:28px 18px;color:#14120E;line-height:1.55}' +
+          '.rh{display:block;font-family:"Courier New",monospace;font-weight:bold;letter-spacing:.08em;text-transform:uppercase;margin:26px 0 8px;border-bottom:2px solid #14120E;padding-bottom:4px}' +
+          '.mono{font-family:"Courier New",monospace}' +
+          'blockquote,pre{white-space:pre-wrap;background:#f4ecd3;border-left:4px solid #9A6A00;padding:10px 12px}' +
+          '.decision-card,.health-check,.readiness-score,.riskNote-lead{border:1px solid #14120E;padding:10px 12px;background:#EDE7D8}' +
+          'table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:6px;vertical-align:top}' +
+          'li{margin:4px 0}' +
+          '.report-foot{margin-top:32px;border-top:2px solid #14120E;padding-top:10px;font-family:"Courier New",monospace;font-size:12px}' +
+        '</style></head><body>' +
+        '<h1>ClearDoc Analysis</h1>' +
+        '<p class="mono">Generated: '+esc(stamp)+'</p>' +
+        (source ? '<p class="mono">'+source+'</p>' : '') +
+        clone.innerHTML +
+        '<p class="report-foot">NOT LEGAL ADVICE — for informational purposes only. cleardoc.app</p>' +
+        '</body></html>';
+    }
+    function downloadAnalysisHtml(){
+      if(!lastRaw){
+        if(msg){msg.textContent='Analyze a document first, then export as HTML.'; msg.className='analyze-msg';}
+        return;
+      }
+      const html = buildAnalysisHtml();
+      const stamp = new Date().toISOString().slice(0,10);
+      const filename = 'cleardoc-analysis-'+stamp+'.html';
+      try{
+        const url = URL.createObjectURL(new Blob([html], { type:'text/html;charset=utf-8' }));
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(()=>URL.revokeObjectURL(url), 1500);
+        const btn = document.getElementById('exportHtmlBtn');
+        if(btn){ flashButton(btn, 'Saved ✓'); }
+      }catch(e){
+        console.error('[export-html]', e);
+        const btn = document.getElementById('exportHtmlBtn');
+        if(btn){ flashButton(btn, 'Save failed', 1800); }
+      }
+    }
     // iter #202 v2: copy the Markdown to the clipboard without downloading
     // a file. Same navigator.clipboard + execCommand fallback pattern as
     // the existing copyAnalysis() handler so the two paths share behavior.
@@ -22049,6 +22102,8 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     // drafts without manual cleanup.
     const exportMdBtn = document.getElementById('exportMdBtn');
     if(exportMdBtn) exportMdBtn.addEventListener('click', exportAnalysisMd);
+    const exportHtmlBtn = document.getElementById('exportHtmlBtn');
+    if(exportHtmlBtn) exportHtmlBtn.addEventListener('click', downloadAnalysisHtml);
     const copyMdBtn = document.getElementById('copyMdBtn');
     if(copyMdBtn) copyMdBtn.addEventListener('click', copyAnalysisMd);
     // iter #210: email-summary button — opens mailto: with a

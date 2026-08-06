@@ -2167,6 +2167,54 @@ skip("share: native share sheet receives the analysis URL", async () => {
   }
 });
 
+// Cycle #259 — standalone HTML report download.
+skip("analyze: HTML report downloads a standalone analysis file", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="exportHtmlBtn"/,
+    "analyze.html must expose the HTML export button");
+  assert.match(html, /title="Download this analysis as a standalone HTML report/,
+    "the button must be labelled for an HTML report");
+  assert.match(appSrc, /function buildAnalysisHtml\(\)\{/,
+    "app.js must define buildAnalysisHtml");
+  assert.match(appSrc, /function downloadAnalysisHtml\(\)\{/,
+    "app.js must define downloadAnalysisHtml");
+  assert.match(appSrc, /type:'text\/html;charset=utf-8'/,
+    "the download must use text/html UTF-8");
+  assert.match(appSrc, /a\.download = 'cleardoc-analysis-' \+ stamp \+ '\.html'/,
+    "the filename must be cleardoc-analysis-<date>.html");
+
+  const ctx = await browser.newContext({ acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#resultPanel:not([hidden])", { timeout: 8000 });
+    const [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 8000 }),
+      page.click("#exportHtmlBtn"),
+    ]);
+    const dlPath = await download.path();
+    const content = fs.readFileSync(dlPath, "utf8");
+    assert.match(download.suggestedFilename(), /^cleardoc-analysis-\d{4}-\d{2}-\d{2}\.html$/,
+      "the download must be named cleardoc-analysis-<date>.html");
+    assert.match(content, /^<!doctype html>/, "the report must be a full HTML document");
+    assert.match(content, /ClearDoc Analysis/, "the report must include the ClearDoc header");
+    assert.match(content, /NOT LEGAL ADVICE/, "the report must carry the disclaimer");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 skip("share: opening a #share= URL offers the shared analysis banner with a View button", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await browser.newContext();
