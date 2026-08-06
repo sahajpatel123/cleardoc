@@ -597,6 +597,9 @@ button.risk-preview:hover{filter:brightness(.96)}
  * list) so the user can paste it into a redline / email directly. */
 .risk-detail .risk-counter .rc-copy{font:inherit;font-size:var(--t-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:var(--bd-hair) solid currentColor;background:transparent;color:inherit;padding:2px 7px;cursor:pointer;margin-left:auto;flex-shrink:0;transition:background .12s,color .12s}
 .risk-detail .risk-counter .rc-copy:hover{background:currentColor;color:var(--paper)}
+.rrow-fix{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);background:none;border:1px solid var(--ink-soft);color:var(--ink-soft);cursor:pointer;margin-left:6px;flex:0 0 auto;padding:1px 7px;transition:background .15s,color .15s}
+.rrow-fix:hover{background:var(--ink);color:var(--paper)}
+.rrow-fix:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .risk-detail .risk-counter.trap .rc-copy{color:var(--danger)}
 .risk-detail .risk-counter.watch .rc-copy{color:var(--amber)}
 /* Per-suggestion speak button (iter #55) — small 🔊 in the counter

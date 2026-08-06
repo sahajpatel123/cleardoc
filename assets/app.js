@@ -119,6 +119,50 @@
     return !!on;
   }
 
+  // Shared readiness math (mirrors computeThreatScore + computeReadinessScore
+  // so it's usable outside analyzePage): trap=10, watch=4, note=1;
+  // score = clamp(100 - threat*0.6 - densityPenalty, 0, 100).
+  function readinessScoreOf(arr){
+    let score = 0, traps = 0;
+    (Array.isArray(arr) ? arr : []).forEach(f => {
+      if(!f || !f.rule) return;
+      const sev = f.rule.sev;
+      if(sev === 'r'){ score += 10; traps++; }
+      else if(sev === 'a'){ score += 4; }
+      else if(sev === 'g'){ score += 1; }
+    });
+    const total = (Array.isArray(arr) ? arr : []).length;
+    if(!total) return 100;
+    const base = Math.max(0, 100 - (score * 0.6));
+    const densityPenalty = Math.min(15, (total - traps) * 0.5);
+    return Math.max(0, Math.min(100, Math.round(base - densityPenalty)));
+  }
+  function readinessLevelOf(s){
+    return s >= 60 ? 'Low' : s >= 40 ? 'Medium' : s >= 20 ? 'High' : 'Critical';
+  }
+
+  // Per-risk "what if I fix this clause?" — ⚡ button on each risk row that
+  // toasts the readiness score without that flag. Delegated on #riskList.
+  function wireRrowFix(){
+    const list = document.getElementById('riskList');
+    if(!list || list._rrowFixWired) return;
+    list._rrowFixWired = true;
+    list.addEventListener('click', (e) => {
+      const btn = e.target.closest && e.target.closest('[data-rrow-fix]');
+      if(!btn) return;
+      const row = btn.closest('.rrow');
+      if(!row || !row.parentNode) return;
+      const flags = list._rrowFlags || [];
+      const idx = Array.prototype.indexOf.call(row.parentNode.children, row);
+      const flag = flags[idx];
+      if(!flag) return;
+      const cur = readinessScoreOf(flags);
+      const sim = readinessScoreOf(flags.filter(f => f !== flag));
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚡ If you fix this clause: ' + sim + '/100 · ' + readinessLevelOf(sim) + (sim !== cur ? ' (up from ' + cur + '/100 · ' + readinessLevelOf(cur) + ')' : ''));
+    });
+  }
+  wireRrowFix();
+
   // Next-steps tracking — each recommended step is a clickable checkbox that
   // toggles a .done state, shows a live "N of M done" progress line, and
   // persists per document fingerprint (falls back to 'latest' pre-analysis).
@@ -1167,23 +1211,6 @@
       '<span class="tc-quote">“' + esc(quote) + '”</span>' +
       '<span class="tc-why"><b>Why it matters:</b> ' + esc(why) + '</span>' +
       '<span class="tc-fixed no-print" data-tc-fixed="1" hidden aria-live="polite"></span>';
-    // Self-contained readiness math (mirrors computeThreatScore +
-    // computeReadinessScore so this stays usable outside analyzePage).
-    const scoreOf = (arr) => {
-      let score = 0, traps = 0;
-      (Array.isArray(arr) ? arr : []).forEach(f => {
-        if(!f || !f.rule) return;
-        const sev = f.rule.sev;
-        if(sev === 'r'){ score += 10; traps++; }
-        else if(sev === 'a'){ score += 4; }
-        else if(sev === 'g'){ score += 1; }
-      });
-      const total = (Array.isArray(arr) ? arr : []).length;
-      if(!total) return 100;
-      const base = Math.max(0, 100 - (score * 0.6));
-      const densityPenalty = Math.min(15, (total - traps) * 0.5);
-      return Math.max(0, Math.min(100, Math.round(base - densityPenalty)));
-    };
     const copyBtn = el.querySelector('[data-tc-copy]');
     if(copyBtn) copyBtn.addEventListener('click', async () => {
       let ok = false;
@@ -1211,11 +1238,10 @@
     const fixBtn = el.querySelector('[data-tc-fix]');
     const fixedNote = el.querySelector('[data-tc-fixed]');
     if(fixBtn && fixedNote) fixBtn.addEventListener('click', () => {
-      const levelOf = (s) => s >= 60 ? 'Low' : s >= 40 ? 'Medium' : s >= 20 ? 'High' : 'Critical';
-      const cur = scoreOf(flags);
-      const sim = scoreOf(flags.filter(f => f !== top));
-      fixedNote.textContent = '✨ If you fix this clause: ' + sim + '/100 · ' + levelOf(sim) +
-        (sim !== cur ? ' (up from ' + cur + '/100 · ' + levelOf(cur) + ')' : '');
+      const cur = readinessScoreOf(flags);
+      const sim = readinessScoreOf(flags.filter(f => f !== top));
+      fixedNote.textContent = '✨ If you fix this clause: ' + sim + '/100 · ' + readinessLevelOf(sim) +
+        (sim !== cur ? ' (up from ' + cur + '/100 · ' + readinessLevelOf(cur) + ')' : '');
       fixedNote.hidden = false;
     });
     el.hidden = false;
@@ -1282,7 +1308,7 @@
     list.addEventListener('click', e => {
       // Don't toggle when clicking the existing 💬 ask button or the
       // expand ▾ toggle (those have their own handlers).
-      if(e.target.closest && (e.target.closest('.rrow-ask') || e.target.closest('.rrow-expand'))) return;
+      if(e.target.closest && (e.target.closest('.rrow-ask') || e.target.closest('.rrow-expand') || e.target.closest('.rrow-fix'))) return;
       const row = e.target.closest && e.target.closest('.rrow');
       if(!row) return;
       const counter = row.querySelector('.rrow-counter');
@@ -13002,7 +13028,9 @@
           : '';
         row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>'+counterHtml+
           (counter ? '<button type="button" class="rrow-expand" aria-expanded="false" title="Show counter-suggestion">▾</button>' : '');
+          row.innerHTML += '<button type="button" class="rrow-fix no-print" data-rrow-fix="1" title="Preview your readiness score if this clause is fixed" aria-label="Preview score if this clause is fixed">⚡</button>';
         riskList.appendChild(row); });
+      riskList._rrowFlags = flags;
       // iter #209: multi-flag sentence indicator — sentences that
       // triggered 2+ local RISK patterns get a small "🔗 N in same
       // sentence" badge on each affected row so users can spot dense
@@ -13592,8 +13620,10 @@
             : '';
           row.innerHTML='<span class="rbar"></span><span class="ro">“'+esc(trunc(f.s,150))+'”<b>'+esc(f.rule.why)+'</b></span><span class="rflag" style="opacity:1;transform:none">'+esc(f.rule.label)+'</span>'+counterHtml+
             (counter ? '<button type="button" class="rrow-expand" aria-expanded="false" title="Show counter-suggestion">▾</button>' : '');
+          row.innerHTML += '<button type="button" class="rrow-fix no-print" data-rrow-fix="1" title="Preview your readiness score if this clause is fixed" aria-label="Preview score if this clause is fixed">⚡</button>';
           riskList.appendChild(row);
         });
+        riskList._rrowFlags = flags;
         // iter #209: multi-flag sentence indicator — same logic as the
         // local-render path above.
         try {

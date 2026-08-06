@@ -608,6 +608,22 @@ skip("confirm modal: Escape closes without triggering the clear shortcut", async
   assert.match(handler, /if\(e\.key === 'Escape'\)\{ e\.preventDefault\(\); close\(false\); \}/, "confirm modal must preventDefault before closing");
 });
 
+skip("risk rows: ⚡ button previews the score if that clause is fixed", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /function readinessScoreOf\(/, "the shared readiness helper must exist");
+  assert.match(appSrc, /data-rrow-fix="1"/, "risk rows must render a ⚡ fix button");
+  assert.match(appSrc, /function wireRrowFix\(/, "app.js must define wireRrowFix");
+  assert.match(appSrc, /list\._rrowFlags/, "the render must stash the flags for the fix preview");
+  assert.match(appSrc, /'⚡ If you fix this clause: '/, "the fix preview must report the simulated score");
+  assert.match(appSrc, /\.closest\('\.rrow-fix'\)/, "the ⚡ button must not trigger row expand");
+  assert.match(themeSrc, /\.rrow-fix\{/, "theme.css must style .rrow-fix");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

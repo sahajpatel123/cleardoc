@@ -3598,3 +3598,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 39 of the autonomous loop (alternate add/polish): never clear the analysis when Escape was meant for an overlay.
+
+**2026-08-06 19:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #40 of the restarted autonomous loop (feature add).
+- feat(ui): every risk row now has a ⚡ button that toasts the readiness score if that specific clause were fixed ("If you fix this clause: 61/100 · Medium (up from 34/100 · Critical)"). Extracted the readiness math into shared top-level helpers (readinessScoreOf / readinessLevelOf) used by both the Top Concern preview and the new per-row preview; the ⚡ button is excluded from the row's click-to-expand.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 252 smoke + 1 integration = 743 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 40 of the autonomous loop (alternate add/polish): per-clause score-impact previews across the risk radar.
