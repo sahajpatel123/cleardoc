@@ -935,6 +935,8 @@ test("analyzer: paste button reads the clipboard into the input", () => {
     "the paste must respect the 40,000-char server cap");
   assert.match(appSrc, /'📋 Pasted ' \+ text\.length \+ ' characters\. Press Analyze when ready\.'/,
     "the handler must confirm the paste");
+  assert.match(appSrc, /input\.dispatchEvent\(new Event\('input', \{ bubbles: true \}\)\)/,
+    "the handler must fire an input event so the privacy guard rescans");
   assert.match(appSrc, /'⚠ Clipboard reading isn’t supported here — use Ctrl\/Cmd\+V'/,
     "unsupported browsers must get a clear fallback hint");
   assert.match(appSrc, /'📋 Clipboard is empty'/,

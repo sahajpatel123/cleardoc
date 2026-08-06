@@ -20096,6 +20096,10 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
           if(panel) panel.hidden = true;
           if(emptyEl) emptyEl.hidden = false;
           updateTextStats();
+          // Cycle #199 — fire the input event so every value-driven
+          // listener reacts too: the privacy guard rescans the pasted
+          // text, text stats stay fresh, and the draft autosave adopts it.
+          try { input.dispatchEvent(new Event('input', { bubbles: true })); } catch(_){ /* ignore */ }
           if(msg){ msg.textContent = '📋 Pasted ' + text.length + ' characters. Press Analyze when ready.'; msg.className = 'analyze-msg'; }
           try { input.focus({preventScroll:false}); } catch(_){ input.focus(); }
         } catch(_){
