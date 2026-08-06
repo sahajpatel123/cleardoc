@@ -10405,13 +10405,16 @@
         return '<div class="board-col board-col-' + col.key + '" data-board-col="' + col.key + '">' +
           '<div class="board-col-head"><b>' + col.label + '</b> <span class="board-col-count">' + colItems.length + '</span><div class="board-col-desc">' + col.desc + '</div></div>' +
           '<div class="board-col-list">' +
-            colItems.map(it => (
-              '<div class="board-card" data-board-key="' + esc(it.key) + '">' +
+            colItems.map(it => {
+              // Cycle #142 — per-card copy of the counter-clause.
+              const copyVal = '[COUNTER-CLAUSE · ' + it.label + '] "' + it.sample + '" → "' + it.counter + '"';
+              return '<div class="board-card" data-board-key="' + esc(it.key) + '">' +
                 '<div class="board-card-label">' + esc(it.label) + '</div>' +
                 '<div class="board-card-sample">' + esc(it.sample) + '</div>' +
                 '<div class="board-card-counter">→ ' + esc(it.counter) + '</div>' +
-              '</div>'
-            )).join('') +
+                '<button type="button" class="board-card-copy ghost-btn ghost-btn-sm" data-board-copy-text="' + esc(copyVal) + '" title="Copy this counter-clause" aria-label="Copy this counter-clause">📋</button>' +
+              '</div>';
+            }).join('') +
           '</div>' +
         '</div>';
       }).join('');
@@ -10423,13 +10426,35 @@
       '</div>';
       boardGrid.innerHTML = cols + controls;
       boardBlock.hidden = false;
+      // Cycle #142 — per-card copy. stopPropagation keeps the card's
+      // click-to-advance from firing when the copy button is pressed.
+      $$('.board-card-copy', boardGrid).forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const text = btn.getAttribute('data-board-copy-text') || '';
+          if(!text) return;
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Counter-clause copied' : '⚠ Couldn’t copy');
+          btn.textContent = copied ? '✓' : '📋';
+          if(copied) setTimeout(() => { if(btn.isConnected) btn.textContent = '📋'; }, 1500);
+        });
+      });
       if(boardNote){
         const sent = items.filter(i => i.col === 'sent').length;
         const drafted = items.filter(i => i.col === 'drafted').length;
         const backlog = items.filter(i => i.col === 'backlog').length;
         boardNote.innerHTML = '<span class="riskNote-lead">Strategy board</span> · ' +
           '<b>Backlog ' + backlog + '</b> · <b>Drafted ' + drafted + '</b> · <b>Sent ' + sent + '</b>. ' +
-          'Click a card to move it to the next column. <b>💾 save</b> persists the state. Useful for tracking which counter-clauses you\'ve actually negotiated vs which you\'re still preparing.';
+          'Click a card to move it to the next column, <b>📋</b> to copy one, or <b>💾 save</b> to persist the state. Useful for tracking which counter-clauses you\'ve actually negotiated vs which you\'re still preparing.';
       }
       // Iter #166 — click-to-advance
       $$('.board-card', boardGrid).forEach(card => {

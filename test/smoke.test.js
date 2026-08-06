@@ -10611,6 +10611,29 @@ test("analyzer: Strategy board tracks counter-clauses across Backlog / Drafted /
     "iter #167 must render a markdown table with three columns");
 });
 
+// Cycle #142 — per-board-card copy.
+test("analyzer: Strategy-board cards copy their counter-clause in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /const copyVal = '\[COUNTER-CLAUSE · ' \+ it\.label \+ '\] "' \+ it\.sample \+ '" → "' \+ it\.counter \+ '"';/,
+    "the citation must carry label, sample, and counter-clause");
+  assert.match(appSrc, /class="board-card-copy ghost-btn ghost-btn-sm"/,
+    "each board card must render a copy button");
+  assert.match(appSrc, /data-board-copy-text="' \+ esc\(copyVal\) \+ '"/,
+    "the copy button must carry the prebuilt citation");
+  assert.match(appSrc, /\$\$\('\.board-card-copy', boardGrid\)\.forEach/,
+    "copy buttons must be wired after each render");
+  assert.match(appSrc, /e\.stopPropagation\(\);/,
+    "copying must not advance the card's column");
+  assert.match(appSrc, /📋 Counter-clause copied/,
+    "copying must announce via toast");
+  assert.match(appSrc, /<b>📋<\/b> to copy one/,
+    "the block note must document the copy action");
+});
+
 // Iter #168: risk priority matrix — 2x2 quadrants.
 test("analyzer: Risk priority matrix plots risks by impact vs likelihood", () => {
   if (!HAS_BROWSER) return;
