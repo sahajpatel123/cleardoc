@@ -9245,6 +9245,17 @@ test("analyzer: Cheat-sheet modal generates a printable negotiator summary", () 
   // Iter #109 polish: email-this + filename footer
   assert.match(appSrc, /document\.getElementById\(['"]cheatEmailBtn['"]\)/,
     "cheatEmailBtn must be wired via document.getElementById");
+  assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
+    "cheat-sheet must use mailto: for the email action");
+  assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,
+    "cheat-sheet must include a dated filename in the footer");
+
+  // CSS: modal + print styles
+  assert.match(cssSrc, /\.cheat-sheet-modal\b/,
+    ".cheat-sheet-modal style must exist");
+  assert.match(cssSrc, /@media\s+print/,
+    "cheat-sheet must include print-specific styles");
+});
   // Iter #110 polish: proof-pack / receipt modal — fingerprint + sign row.
 test("analyzer: Receipt modal packages the analysis as a printable signed proof", () => {
   if (!HAS_BROWSER) return;
@@ -10037,6 +10048,7 @@ test("analyzer: Scenario cards copy their citation in one click", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /class="scenario-copy ghost-btn ghost-btn-sm"/,
     "each scenario card must render a copy button");
@@ -11712,18 +11724,6 @@ test("analyzer: Risk priority matrix plots risks by impact vs likelihood", () =>
   assert.match(appSrc, /prioCopyMdBtn/,
     "iter #169 must include a copy-as-markdown button");
   assert.match(cssSrc, /\.prio-controls\b/, ".prio-controls style must exist");
-});
-
-  assert.match(appSrc, /mailto:\?subject=|location\.href\s*=\s*['"]mailto:/,
-    "cheat-sheet must use mailto: for the email action");
-  assert.match(appSrc, /cleardoc-cheatsheet-\$\{|cleardoc-cheatsheet-/,
-    "cheat-sheet must include a dated filename in the footer");
-
-  // CSS: modal + print styles
-  assert.match(cssSrc, /\.cheat-sheet-modal\b/,
-    ".cheat-sheet-modal style must exist");
-  assert.match(cssSrc, /@media\s+print/,
-    "cheat-sheet must include print-specific styles");
 });
 
 // Iter #217: risk checklist — sorted by severity (traps first, watches, then notes)

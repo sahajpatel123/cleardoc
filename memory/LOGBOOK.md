@@ -5555,3 +5555,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 226 of the autonomous loop (alternate add/polish): the reading plan is a task list — give it a spreadsheet export so progress travels beyond the app.
+
+**2026-08-07 01:52 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #227 of the restructured autonomous loop (polish).
+- polish(tests): repaired the latent smoke-suite structural bug flagged in cycle #226. The cheat-sheet test was missing its closing `});`, which silently made ~50 later tests nested subtests of it, borrowing its `appSrc/cssSrc/html` scope. The test now closes properly with its complete assertion set (including the mailto/filename/CSS/print assertions that had drifted into an orphaned block at the end of the "priority matrix" test), and the orphaned block is gone. The one dependent test that truly lacked its own variables ("Scenario cards copy their citation") now declares `cssSrc` locally. Every test after the cheat-sheet test is now a true top-level test with its own scope.
+- Verified: the smoke suite (345 tests) and the full check (490 unit + 345 smoke + 2 integration = 837 tests) are green. The cheat-sheet test's ✖-on-child-failure artifact is gone, and a failing subtest now reports under its own name instead of the cheat-sheet test.
+- Full suite green (490 unit + 345 smoke + 2 integration = 837 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 227 of the autonomous loop (alternate add/polish): a test suite where one test silently owns fifty others is a landmine — every failure gets blamed on the wrong test. Close the paren, give each test its own scope.
