@@ -2240,6 +2240,8 @@ skip("analyze: HTML report copies as rich text to the clipboard", async () => {
     "the copy must write an HTML clipboard item when supported");
   assert.match(appSrc, /'HTML copied — paste into email, CMS, or notes that accept rich text\.'/,
     "copying must confirm with a descriptive toast");
+  assert.match(appSrc, /el\.style\.fontFamily = "'Courier New',monospace";/,
+    "the HTML body builder must inline the heading font");
 
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
@@ -2277,6 +2279,8 @@ skip("analyze: HTML report copies as rich text to the clipboard", async () => {
     assert.match(captured, /report-summary/, "the copied HTML must include the summary header");
     assert.match(captured, /Verdict:/, "the copied HTML must include the verdict");
     assert.match(captured, /NOT LEGAL ADVICE/, "the copied HTML must carry the disclaimer");
+    assert.match(captured, /style="font-family:Georgia/, "the copied HTML must carry inline body styles");
+    assert.match(captured, /border-top:2px solid #14120E/, "the copied HTML must carry an inline footer rule");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();

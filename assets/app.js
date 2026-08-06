@@ -17511,6 +17511,28 @@
       if(!resultPanel || !lastRaw) return '';
       const clone = resultPanel.cloneNode(true);
       clone.querySelectorAll('.no-print, button, select, input, textarea, script, style, [hidden]').forEach(el => el.remove());
+      clone.querySelectorAll('.rh').forEach(el => {
+        el.style.fontFamily = "'Courier New',monospace";
+        el.style.fontWeight = 'bold';
+        el.style.margin = '26px 0 8px';
+        el.style.borderBottom = '2px solid #14120E';
+        el.style.paddingBottom = '4px';
+      });
+      clone.querySelectorAll('blockquote, pre').forEach(el => {
+        el.style.whiteSpace = 'pre-wrap';
+        el.style.background = '#f4ecd3';
+        el.style.borderLeft = '4px solid #9A6A00';
+        el.style.padding = '10px 12px';
+      });
+      clone.querySelectorAll('table').forEach(el => {
+        el.style.borderCollapse = 'collapse';
+        el.style.width = '100%';
+      });
+      clone.querySelectorAll('td, th').forEach(el => {
+        el.style.border = '1px solid #aaa';
+        el.style.padding = '6px';
+        el.style.verticalAlign = 'top';
+      });
       const source = (attachedFile && attachedFile.name) ? 'Source file: '+esc(attachedFile.name) : '';
       let summaryHtml = '';
       try {
@@ -17531,12 +17553,14 @@
         if(levelFrom && levelTo && levelFrom.textContent && levelTo.textContent){
           parts.push('<b>Reading level:</b> '+esc(levelFrom.textContent)+' → '+esc(levelTo.textContent));
         }
-        if(parts.length) summaryHtml = '<div class="report-summary">'+parts.join(' · ')+'</div>';
+        if(parts.length) summaryHtml = '<div class="report-summary" style="font-family:\'Courier New\',monospace;font-size:13px;border:1px solid #14120E;padding:10px 12px;margin:14px 0 18px;background:#EDE7D8">'+parts.join(' · ')+'</div>';
       } catch(_){ /* keep the report without a summary line */ }
-      return (source ? '<p class="mono">'+source+'</p>' : '') +
+      return '<div style="font-family:Georgia,serif;color:#14120E;line-height:1.55;max-width:820px">' +
+        (source ? '<p class="mono">'+source+'</p>' : '') +
         summaryHtml +
         clone.innerHTML +
-        '<p class="report-foot">NOT LEGAL ADVICE — for informational purposes only. cleardoc.app</p>';
+        '<p class="report-foot" style="margin-top:32px;border-top:2px solid #14120E;padding-top:10px;font-family:\'Courier New\',monospace;font-size:12px">NOT LEGAL ADVICE — for informational purposes only. cleardoc.app</p>' +
+        '</div>';
     }
     function buildAnalysisHtml(){
       if(!resultPanel || !lastRaw) return '';
