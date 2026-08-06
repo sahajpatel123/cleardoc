@@ -4060,6 +4060,52 @@ test("analyzer: History panel exports a JSON backup of all analyses", () => {
     "disabled export must not show the hover fill");
 });
 
+// Cycle 62 feature: restore history from an exported JSON backup.
+test("analyzer: History panel imports a JSON backup and merges entries", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html must carry the import button + hidden file input
+  assert.match(html, /id="historyImportBtn" title="Restore past analyses from a JSON backup"/,
+    "analyze.html must contain #historyImportBtn with a descriptive title");
+  assert.match(html, /id="historyImportInput" accept="application\/json,\.json" hidden/,
+    "analyze.html must contain a hidden JSON file input");
+
+  // Wiring: once-only guard + file picker reset before open
+  assert.match(appSrc, /historyImportBtn\._historyImportWired/,
+    "import wiring must be guarded so it is attached only once");
+  assert.match(appSrc, /historyImportInput\.value = '';/,
+    "the file input must be reset so the same file can be re-imported");
+  assert.match(appSrc, /new FileReader\(\)/,
+    "import must read the file via FileReader");
+
+  // Validation: accepts the exported shape + strict entry checks + TTL
+  assert.match(appSrc, /Array\.isArray\(data\) \? data : \(data && Array\.isArray\(data\.items\) \? data\.items : \[\]\)/,
+    "import must accept both a raw array and the exported { items } shape");
+  assert.match(appSrc, /typeof e\.ts === 'number' && typeof e\.snippet === 'string'/,
+    "each imported entry must carry a numeric ts and string snippet");
+  assert.match(appSrc, /e\.ts >= cutoff/,
+    "expired entries must be dropped by the TTL sweep");
+  assert.match(appSrc, /'⚠ No valid history entries in that file'/,
+    "import must toast when no valid entries survive validation");
+
+  // Merge: combine with existing, dedupe by ts, re-cap the FIFO list
+  assert.match(appSrc, /readHistoryRaw\(\)\.concat\(valid\)/,
+    "import must merge the validated entries into existing history");
+  assert.match(appSrc, /while\(out\.length > HISTORY_MAX_ENTRIES\) out\.pop\(\);/,
+    "import must re-apply the FIFO cap after merging");
+  assert.match(appSrc, /'⇪ History restored \(' \+ out\.length/,
+    "import must toast the restored count");
+
+  // CSS: non-destructive import button
+  assert.match(cssSrc, /\.history-panel \.hp-import\{/,
+    "theme.css must style .hp-import within the history panel");
+});
+
 test("analyzer: voice picker dropdown lets users choose a specific TTS voice", () => {
   // New feature — dropdown populated with available SpeechSynthesis
   // voices, preferring the detected language. User pick is persisted

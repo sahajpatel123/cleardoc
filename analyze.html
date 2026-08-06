@@ -214,7 +214,9 @@
         <ol class="hp-list" id="historyList"></ol>
         <div class="hp-actions">
           <button type="button" class="hp-export" id="historyExportBtn" title="Download all past analyses as a JSON backup">⬇ Export</button>
+          <button type="button" class="hp-import" id="historyImportBtn" title="Restore past analyses from a JSON backup">⇪ Import</button>
           <button type="button" class="hp-clear" id="historyClearBtn">Clear history</button>
+          <input type="file" id="historyImportInput" accept="application/json,.json" hidden>
         </div>
       </div>
       <div class="compare-panel" id="comparePanel" hidden aria-label="Side-by-side comparison">

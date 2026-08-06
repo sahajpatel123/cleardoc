@@ -3171,6 +3171,7 @@
           historyBtn=$('#historyBtn'),historyPanel=$('#historyPanel'),
           historyList=$('#historyList'),historyClearBtn=$('#historyClearBtn'),
           historyExportBtn=$('#historyExportBtn'),
+          historyImportBtn=$('#historyImportBtn'),historyImportInput=$('#historyImportInput'),
           historySearch=$('#historySearch'),
           historySearchClear=$('#historySearchClear'),
           historyFilter=$('#historyFilter'),
@@ -16215,6 +16216,52 @@
             }catch(_){
               if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t export history');
             }
+          });
+        }
+        // Cycle 62 feature — restore history from an exported JSON backup.
+        // Validates shape, TTL-filters + merges with existing entries,
+        // dedupes by timestamp, and re-caps to the FIFO limit.
+        if(historyImportBtn && historyImportInput && !historyImportBtn._historyImportWired){
+          historyImportBtn._historyImportWired = true;
+          historyImportBtn.addEventListener('click', () => {
+            try { historyImportInput.value = ''; } catch(_){ /* ignore */ }
+            historyImportInput.click();
+          });
+          historyImportInput.addEventListener('change', () => {
+            const file = historyImportInput.files && historyImportInput.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+              try{
+                const data = JSON.parse(String(reader.result || ''));
+                const arr = Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : []);
+                const cutoff = Date.now() - HISTORY_TTL_MS;
+                const valid = arr.filter(e => e && typeof e === 'object' && typeof e.ts === 'number' && typeof e.snippet === 'string' && e.ts >= cutoff);
+                if(!valid.length){
+                  if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No valid history entries in that file');
+                  return;
+                }
+                const merged = readHistoryRaw().concat(valid);
+                const seen = new Set();
+                const out = [];
+                merged.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)).forEach(e => {
+                  const key = String(e.ts) + '|' + (e.text || e.snippet || '');
+                  if(seen.has(key)) return;
+                  seen.add(key);
+                  out.push(e);
+                });
+                while(out.length > HISTORY_MAX_ENTRIES) out.pop();
+                try { localStorage.setItem(HISTORY_KEY, JSON.stringify(out)); } catch(_){ /* ignore */ }
+                renderHistory();
+                if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⇪ History restored (' + out.length + ')');
+              }catch(_){
+                if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t read that backup file');
+              }
+            };
+            reader.onerror = () => {
+              if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t read that backup file');
+            };
+            reader.readAsText(file);
           });
         }
       }

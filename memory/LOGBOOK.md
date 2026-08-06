@@ -3818,3 +3818,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 61 of the autonomous loop (alternate add/polish): say "nothing to export" before the click, not after.
+
+**2026-08-06 22:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #62 of the restarted autonomous loop (feature add).
+- feat(ui): the history panel now has a ⇪ Import button that restores analyses from an exported JSON backup — it validates the shape (raw array or the exported { items } envelope), TTL-filters expired entries, merges with existing history, dedupes by timestamp, re-applies the 5-entry FIFO cap, and re-renders. Invalid/empty files toast instead of writing.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 263 smoke + 1 integration = 754 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 62 of the autonomous loop (alternate add/polish): a backup is only useful if you can restore it.
