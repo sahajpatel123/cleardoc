@@ -537,6 +537,21 @@ skip("deadlines: each row has a copy button for a single deadline", async () => 
   assert.match(themeSrc, /\.deadline-copy:focus-visible\{/, "theme.css must give .deadline-copy a focus ring");
 });
 
+skip("voice mode: deadline narration skips the per-row copy buttons", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const marker = "voice-mode reader — read every visible analysis";
+  const hStart = appSrc.indexOf(marker);
+  assert.ok(hStart > -1, "voice-mode wiring must exist");
+  const handler = appSrc.slice(hStart, hStart + 5000);
+  assert.match(handler, /dlEl\.querySelectorAll\('\.deadline-row'\)/, "deadline narration must read rows individually");
+  assert.match(handler, /querySelector\('\.deadline-date'\)/, "deadline narration must use the date element");
+  assert.match(handler, /querySelector\('\.deadline-desc'\)/, "deadline narration must use the description element");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

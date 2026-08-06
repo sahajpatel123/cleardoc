@@ -15157,7 +15157,18 @@
           add('rewrite', grabText('plainOut'));
           grabRows('riskList', 6).forEach((t, i) => add('risk ' + (i + 1), t));
           add('verdict', grabText('verdictDisplay'));
-          add('deadlines', grabText('deadlinesList'));
+          // Row-aware deadline grab — date + description per row, skipping
+          // the per-row copy buttons so voice mode doesn't read "📋".
+          const dlEl = document.getElementById('deadlinesList');
+          let dlText = '';
+          if(dlEl){
+            dlText = Array.from(dlEl.querySelectorAll('.deadline-row')).map(r => {
+              const d = ((r.querySelector('.deadline-date') || {}).textContent || '').trim();
+              const x = ((r.querySelector('.deadline-desc') || {}).textContent || '').trim();
+              return (d + ' ' + x).trim();
+            }).filter(Boolean).join('. ');
+          }
+          add('deadlines', dlText);
           add('maturity', grabText('maturityGrid'));
           add('cheat sheet', grabText('transList'));
           add('amounts', grabText('currencyList'));

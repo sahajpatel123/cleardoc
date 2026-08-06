@@ -3548,3 +3548,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 34 of the autonomous loop (alternate add/polish): copy individual deadlines.
+
+**2026-08-06 18:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #35 of the restarted autonomous loop (polish).
+- polish(voice): Voice mode read the deadlines list via innerText, so the new per-row 📋 copy buttons were narrated aloud. The deadlines grab is now row-aware (date + description per row, buttons skipped).
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 247 smoke + 1 integration = 738 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 35 of the autonomous loop (alternate add/polish): keep voice narration free of control labels.
