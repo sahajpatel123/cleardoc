@@ -2392,9 +2392,9 @@ skip("analyze: response draft downloads as Markdown", async () => {
     ]);
     const dlPath = await download.path();
     const content = fs.readFileSync(dlPath, "utf8");
-    assert.match(download.suggestedFilename(), /^cleardoc-response-draft\.md$/,
-      "the download must be named cleardoc-response-draft.md");
-    assert.match(content, /^# ClearDoc response draft/, "the Markdown draft must start with the title");
+    assert.match(download.suggestedFilename(), /^cleardoc-response-draft(?:-[a-z0-9]+)?\.md$/,
+      "the download must be named cleardoc-response-draft[.<fingerprint>].md");
+    assert.match(content, /^# ClearDoc response draft(?: · #[a-z0-9]+)?/, "the Markdown draft must start with the title");
     assert.match(content, /not legal advice/, "the Markdown draft must carry the disclaimer");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {

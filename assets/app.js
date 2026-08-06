@@ -21656,10 +21656,11 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     const downloadDraftMdBtn=document.getElementById('downloadDraftMdBtn');
     if(downloadDraftMdBtn) downloadDraftMdBtn.addEventListener('click',()=>{
       if(!draftOut||!draftOut.value) return;
-      const md='# ClearDoc response draft\n\n> Generated locally · not legal advice. Review before sending.\n\n' + draftOut.value;
+      const fp=(_fpState && _fpState.short) ? '-' + _fpState.short : '';
+      const md='# ClearDoc response draft'+(fp ? ' · #'+_fpState.short : '')+'\n\n> Generated locally · not legal advice. Review before sending.\n\n' + draftOut.value;
       const url=URL.createObjectURL(new Blob([md],{type:'text/markdown;charset=utf-8'}));
       const a=document.createElement('a');
-      a.href=url; a.download='cleardoc-response-draft.md';
+      a.href=url; a.download='cleardoc-response-draft'+fp+'.md';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
