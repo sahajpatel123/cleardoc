@@ -4740,3 +4740,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 151 of the autonomous loop (alternate add/polish): hear and copy should share one tidy corner of the pressure card.
+
+**2026-08-06 07:22 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #152 of the restarted autonomous loop (add).
+- feat(ui): every exposure card now has a 🔊, speak button in its header — clicking it reads "Worst case {amount}. {money quote}" aloud via SpeechSynthesis at the user's chosen pace (`getTtsRate()`), with a dedicated `[data-exposure-speak]` branch in the card handler so it never triggers the copy or slider behaviors. The block note documents the action, completing the exposure card's action set (hear / copy / tune probability).
+- New smoke test "Exposure cards read the exposure aloud in one click" — 6 assertions covering the button markup, amount + quote data, click-handler branch, utterance creation, reading-speed respect, and note.
+- Full suite green (490 unit + 311 smoke + 1 integration = 802 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 152 of the autonomous loop (alternate add/polish): a dollar figure worth quoting should also be worth hearing.

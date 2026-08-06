@@ -9450,6 +9450,8 @@
             '<span class="exposure-kind">' + esc(kindLabel) + '</span>' +
             '<span class="exposure-meta">' + esc(it.label) + '</span>' +
             '<span class="exposure-amount ' + amountCls + '">' + worstDisplay + '</span>' +
+            // Cycle #152 — hear the money quote aloud.
+            '<button type="button" class="exposure-speak ghost-btn ghost-btn-sm" data-exposure-speak="' + esc('Worst case ' + worstDisplay + '. ' + (it.sentence || '')) + '" title="Read this exposure aloud" aria-label="Read this exposure aloud">🔊</button>' +
             '<button type="button" class="exposure-card-copy ghost-btn ghost-btn-sm" data-exposure-copy-text="' + esc(copyText) + '" title="Copy this exposure as a citation" aria-label="Copy this exposure as a citation">📋</button>' +
           '</div>' +
           '<div class="exposure-quote">"' + esc(trunc(it.sentence, 220)) + '"</div>' +
@@ -9523,11 +9525,27 @@
           'Pure-local: walks the document, extracts every payable amount and every unbounded-liability phrase, and computes both worst-case and probability-adjusted exposure. ' +
           ubNote +
           '<b>Drag any slider</b> to set the chance you think that clause will fire. Preset chips (10% / 50% / 75%) set every slider at once. Click any card to jump. ' +
-          '<b>📋 copy</b> exports plain text; <b>📋 markdown</b> exports a table with probabilities.';
+          '<b>📋 copy</b> exports plain text; <b>📋 markdown</b> exports a table with probabilities. <b>🔊</b> reads one aloud.';
       }
       // Click-to-jump, ignoring slider.
       $$('.exposure-card', exposureGrid).forEach(card => {
         card.addEventListener('click', async (e) => {
+          // Cycle #152 — 🔊, reads the exposure aloud instead of jumping.
+          const speakBtn = e.target.closest && e.target.closest('[data-exposure-speak]');
+          if(speakBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = speakBtn.getAttribute('data-exposure-speak') || '';
+            if(text && typeof window !== 'undefined' && 'speechSynthesis' in window){
+              try {
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = getTtsRate();
+                window.speechSynthesis.speak(u);
+              } catch(_){ /* ignore */ }
+            }
+            return;
+          }
           // Cycle #123 — 📋 copies the card as a citation instead of jumping.
           const copyBtn = e.target.closest && e.target.closest('[data-exposure-copy-text]');
           if(copyBtn){

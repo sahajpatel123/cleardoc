@@ -10884,6 +10884,27 @@ test("analyzer: Exposure cards copy their citation in one click", () => {
     "the button must flash its copied state");
 });
 
+// Cycle #152 — hear any exposure aloud.
+test("analyzer: Exposure cards read the exposure aloud in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="exposure-speak ghost-btn ghost-btn-sm"/,
+    "each exposure card must render a speak button");
+  assert.match(appSrc, /data-exposure-speak="' \+ esc\('Worst case ' \+ worstDisplay \+ '\. ' \+ \(it\.sentence \|\| ''\)\) \+ '"/,
+    "the speak button must carry the amount and the money quote");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-exposure-speak\]'\)/,
+    "the card click handler must catch speak-button clicks");
+  assert.match(appSrc, /new SpeechSynthesisUtterance\(text\)/,
+    "clicking must speak the exposure");
+  assert.match(appSrc, /u\.rate = getTtsRate\(\);/,
+    "the reading must respect the chosen speed");
+  assert.match(appSrc, /🔊<\/b> reads one aloud\./,
+    "the block note must document the speak action");
+});
+
 // Cycle #126 — per-pressure-card copy citation.
 test("analyzer: Pressure cards copy their citation in one click", () => {
   if (!HAS_BROWSER) return;
