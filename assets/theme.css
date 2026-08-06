@@ -513,6 +513,7 @@
 /* ===================== ANALYZER PAGE ===================== */
 .work{display:grid;grid-template-columns:1fr 1fr;border-top:var(--bd) solid var(--ink);border-bottom:var(--bd) solid var(--ink)}
 .work .col{padding:var(--s5) var(--pad-x)}
+.work .col.out{min-width:0}
 .work .col.in{border-right:var(--bd) solid var(--ink)}
 /* Focus mode — distraction-free reading of the plain-English rewrite:
    hide the input column and every result block except #rewriteBlock. */
@@ -1962,8 +1963,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .diff-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
 
 /* Letter of intent (iter #152) — generated LOI draft. */
-.loi-card{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);line-height:1.5;padding:14px 18px;border:var(--bd-hair) solid var(--ink);background:var(--paper2);color:var(--ink);white-space:pre-wrap;max-height:380px;overflow:auto;white-space:pre}
-.loi-pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.55;color:var(--ink);white-space:pre;overflow-wrap:break-word}
+.loi-card{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);line-height:1.5;padding:14px 18px;border:var(--bd-hair) solid var(--ink);background:var(--paper2);color:var(--ink);white-space:pre-wrap;max-height:380px;overflow:auto}
+.loi-pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.55;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
 .loi-actions{display:flex;gap:6px;margin-top:8px;font-size:var(--t-micro)}
 .loi-actions .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
 .loi-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0}

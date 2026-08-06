@@ -8371,8 +8371,8 @@
               '<div class="reading-meta">' + sigHtml + ' · ' + c.sentences.length + ' sentence' + (c.sentences.length === 1 ? '' : 's') + (done ? ' · <b class="reading-done-flag">✓ done</b>' : '') + '</div>' +
             '</div>' +
             '<button type="button" class="reading-copy ghost-btn ghost-btn-sm" data-reading-copy-text="' + esc(copyText) + '" title="Copy this chunk as a quote" aria-label="Copy this chunk as a quote">📋</button>' +
-            // Cycle #172 — ask about the whole chunk, completing the trio.
-            '<button type="button" class="reading-ask ghost-btn ghost-btn-sm" data-reading-ask="' + esc(c.sentences.join(' ').slice(0, 300)) + '" data-reading-bucket="' + c.bucket + '" title="Ask about this chunk" aria-label="Ask about this chunk">💬</button>' +
+          // Cycle #172 — ask about the whole chunk, completing the trio.
+            '<button type="button" class="reading-ask ghost-btn ghost-btn-sm" data-reading-ask="' + esc(c.sentences.join(' ').slice(0, 300)) + '" data-reading-bucket="' + c.bucket + '" title="Ask about this ' + bucketLabel.toLowerCase() + ' chunk" aria-label="Ask about this ' + bucketLabel.toLowerCase() + ' chunk">💬</button>' +
             // Cycle #155 — hear the chunk aloud at the chosen pace.
             '<button type="button" class="reading-speak ghost-btn ghost-btn-sm" data-reading-speak="' + esc(c.sentences.join(' ').slice(0, 300)) + '" title="Read this chunk aloud" aria-label="Read this chunk aloud">🔊</button>' +
           '</div>';

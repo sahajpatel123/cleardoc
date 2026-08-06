@@ -10157,6 +10157,17 @@ test("analyzer: Letter of intent (LOI) generates a one-paragraph non-binding let
   assert.match(appSrc, /opts\.to|opts\.from|opts\.sign/,
     "iter #153 must use opts.to/from/sign");
   assert.match(cssSrc, /\.loi-fields\b/, ".loi-fields style must exist");
+
+  // Cycle #173 polish — the LOI letter must wrap on mobile. A stray
+  // white-space:pre override inside .loi-card forced a 1476px min-content
+  // <pre>, which blew the whole results column to 1566px at a 360px
+  // viewport (everything right of the screen was unreachable).
+  assert.match(cssSrc, /\.loi-pre\{[\s\S]{0,220}white-space:pre-wrap/,
+    "the LOI letter must wrap long lines");
+  assert.doesNotMatch(cssSrc, /\.loi-card\{[^}]*white-space:pre}/,
+    "the LOI card must not override pre-wrap back to pre");
+  assert.match(cssSrc, /\.work \.col\.out\{min-width:0\}/,
+    "the results column must be allowed to shrink below its content");
 });
 
 // Iter #154: party audit — extracts parties, dates, signatures.

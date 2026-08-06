@@ -4957,3 +4957,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 172 of the autonomous loop (alternate add/polish): the reading list tells you what to read — now any chunk can be asked about in one click, like every other flagged surface.
+
+**2026-08-06 20:28 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #173 of the restarted autonomous loop (polish).
+- polish(mobile): two reading-list refinements, and a real mobile-layout bug fixed. (1) The chunk ask button's aria-label/title now names its bucket ("Ask about this must-read chunk"). (2) A narrow-viewport probe (360px) exposed that the entire results column rendered at 1566px — off-screen and unreachable — because `.loi-card` had a stray `white-space:pre` override and `.loi-pre` used `white-space:pre`, so the generated letter's min-content width was ~1476px and the grid track refused to shrink below it. Fixed: `.loi-pre` now wraps (`white-space:pre-wrap; overflow-wrap:anywhere`), the stray override is gone, and `.work .col.out` gets `min-width:0` so no future block can blow out the mobile column.
+- Verified in a real browser at 360px: `.work`/`.col.out` are 360px, the reading row's action buttons sit fully inside the viewport, the LOI letter wraps, and the bucket-specific aria-label reads correctly; zero console errors.
+- Extended the LOI smoke test with 3 regression assertions (pre-wrap on `.loi-pre`, no `white-space:pre` override inside `.loi-card`, and `min-width:0` on the results column).
+- Full suite green (490 unit + 321 smoke + 1 integration = 812 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 173 of the autonomous loop (alternate add/polish): the reading list should work on a phone — and the LOI letter should never again stretch the whole analysis sideways.
