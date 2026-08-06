@@ -1051,10 +1051,32 @@
       }
     }
     el.dataset.sev = sev;
+    const why = String(top.rule.why || '').trim();
+    const copyText = 'Top concern (' + sevLabel + '): “' + quote + '”' + (why ? ' — Why it matters: ' + why : '');
     el.innerHTML =
-      '<span class="tc-kicker">' + sevGlyph + ' Top concern · ' + esc(sevLabel) + esc(ordinal) + '</span>' +
+      '<span class="tc-kicker">' + sevGlyph + ' Top concern · ' + esc(sevLabel) + esc(ordinal) + ' <button type="button" class="tc-copy no-print" data-tc-copy="1" aria-label="Copy the top concern to the clipboard">Copy</button></span>' +
       '<span class="tc-quote">“' + esc(quote) + '”</span>' +
-      '<span class="tc-why"><b>Why it matters:</b> ' + esc(top.rule.why || '') + '</span>';
+      '<span class="tc-why"><b>Why it matters:</b> ' + esc(why) + '</span>';
+    const copyBtn = el.querySelector('[data-tc-copy]');
+    if(copyBtn) copyBtn.addEventListener('click', async () => {
+      let ok = false;
+      try {
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(copyText);
+          ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = copyText; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok = document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      } catch(_){}
+      const orig = 'Copy';
+      copyBtn.textContent = ok ? 'Copied ✓' : 'Copy failed';
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Top concern copied' : '⚠ Couldn’t copy');
+      clearTimeout(copyBtn._flashTimer);
+      copyBtn._flashTimer = setTimeout(() => { copyBtn.textContent = orig; }, 1400);
+    });
     el.hidden = false;
   }
   // iter #204: per-risk "Ask about this" button — bridges the risk radar

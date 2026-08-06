@@ -3318,3 +3318,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 11 of the autonomous loop (alternate add/polish): keyboard + screen-reader support for the new checklist.
+
+**2026-08-06 14:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #12 of the restarted autonomous loop (feature add).
+- feat(ui): added a Copy button to the Top Concern callout — the "if you only read one thing, read this" clause can now be copied in one click as "Top concern (Trap): '<clause>' — Why it matters: <why>". Uses the same flash + toast pattern as the other block copy buttons, with a focus ring.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 232 smoke + 1 integration = 723 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 12 of the autonomous loop (alternate add/polish): make the most important callout copyable.

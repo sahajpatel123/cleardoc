@@ -312,6 +312,21 @@ skip("next steps: interactive done-tracking with persisted progress", async () =
   assert.match(themeSrc, /\.nextsteps-list li:focus-visible\{/, "focused steps must show a focus ring");
 });
 
+skip("top concern: callout has a copy button that exports clause + why", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /data-tc-copy="1"/, "paintTopConcern must render a copy button");
+  assert.match(appSrc, /'📋 Top concern copied'/, "top-concern copy must toast on success");
+  assert.match(appSrc, /'Top concern \(' \+ sevLabel \+ '\):/, "copy payload must include the severity label and clause");
+  assert.match(appSrc, /Why it matters:/, "copy payload must include the why-text");
+  assert.match(themeSrc, /\.tc-copy\{/, "theme.css must style .tc-copy");
+  assert.match(themeSrc, /\.tc-copy:focus-visible\{/, "theme.css must give .tc-copy a focus ring");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
