@@ -8875,8 +8875,10 @@ test("analyzer: Deadline block exports all deadlines as a CSV file", () => {
     "download must toast with the deadline count");
 });
 
-// Cycle 52 feature: deadline-urgency alert pinned to the top of the results.
-test("analyzer: Deadline alert surfaces deadlines due within 7 days", () => {
+// Cycle 52/53: deadline-urgency alert pinned to the top of the results.
+// Cycle 53 polish adds overdue deadlines to the alert alongside the
+// next-7-days window (a missed deadline is the loudest signal).
+test("analyzer: Deadline alert surfaces overdue + within-7-days deadlines", () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -8892,14 +8894,20 @@ test("analyzer: Deadline alert surfaces deadlines due within 7 days", () => {
   assert.match(appSrc, /if\(!items\.length\)\{[\s\S]+?deadlineAlert\.hidden = true;/,
     "alert must hide when the deadline block is empty");
   // Urgency window: 0–7 days from today
-  assert.match(appSrc, /urgent = items\.filter\(it => \{/,
-    "renderDeadlineBlock must compute the urgent deadline subset");
-  assert.match(appSrc, /days >= 0 && days <= 7/,
+  assert.match(appSrc, /overdue = items\.filter\(it => \{/,
+    "renderDeadlineBlock must compute the overdue deadline subset");
+  assert.match(appSrc, /upcoming = items\.filter\(it => \{/,
+    "renderDeadlineBlock must compute the upcoming deadline subset");
+  assert.match(appSrc, /d >= 0 && d <= 7/,
     "urgency window must be the next 7 days");
   assert.match(appSrc, /within the next 7 days/,
     "alert copy must state the 7-day window");
-  assert.match(appSrc, /esc\(urgent\.map\(it => it\.date\)\.join\(', '\)\)/,
-    "alert must list the urgent deadline dates");
+  assert.match(appSrc, /deadline' \+ \(overdue\.length === 1 \? '' : 's'\) \+ ' overdue/,
+    "alert copy must state the overdue count");
+  assert.match(appSrc, /esc\(overdue\.map\(it => it\.date\)\.join\(', '\)\)/,
+    "alert must list the overdue deadline dates");
+  assert.match(appSrc, /esc\(upcoming\.map\(it => it\.date\)\.join\(', '\)\)/,
+    "alert must list the upcoming deadline dates");
 
   // Jump affordance: click scrolls to the deadlines block
   assert.match(appSrc, /deadlineAlert\._jumpWired/,

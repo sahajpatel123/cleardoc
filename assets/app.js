@@ -6281,20 +6281,33 @@
         if(days < 0) return ' ' + (-days) + ' day' + (-days === 1 ? '' : 's') + ' ago';
         return ' today';
       };
-      // Cycle 52 feature — deadline-urgency alert pinned to the top of the
-      // results: surfaces any deadline landing within the next 7 days so
-      // users see time pressure before they even scroll to the block.
-      const urgent = items.filter(it => {
-        const dt = new Date((it.date || '') + 'T00:00:00Z');
-        if(isNaN(dt.getTime())) return false;
-        const days = Math.round((dt.getTime() - now.getTime()) / 86400000);
-        return days >= 0 && days <= 7;
+      // Cycle 52/53 — deadline-urgency alert pinned to the top of the
+      // results. Cycle 53 polish: overdue deadlines are surfaced too —
+      // a missed deadline is the loudest signal, so it can't hide behind
+      // the "next 7 days" window. Matches the preview strip's dp-past band.
+      const dayDiff = (dateStr) => {
+        const dt = new Date((dateStr || '') + 'T00:00:00Z');
+        if(isNaN(dt.getTime())) return null;
+        return Math.round((dt.getTime() - now.getTime()) / 86400000);
+      };
+      const overdue = items.filter(it => {
+        const d = dayDiff(it.date);
+        return d !== null && d < 0;
+      });
+      const upcoming = items.filter(it => {
+        const d = dayDiff(it.date);
+        return d !== null && d >= 0 && d <= 7;
       });
       if(deadlineAlert){
-        if(urgent.length){
-          deadlineAlert.innerHTML = '<span class="da-icon" aria-hidden="true">⏰</span> <b>' + urgent.length + ' deadline' + (urgent.length === 1 ? '' : 's') + ' within the next 7 days</b> — ' +
-            esc(urgent.map(it => it.date).join(', ')) +
-            ' <span class="da-jump-hint">click to jump ⤓</span>';
+        const parts = [];
+        if(overdue.length){
+          parts.push('<b>' + overdue.length + ' deadline' + (overdue.length === 1 ? '' : 's') + ' overdue</b> — ' + esc(overdue.map(it => it.date).join(', ')));
+        }
+        if(upcoming.length){
+          parts.push('<b>' + upcoming.length + ' deadline' + (upcoming.length === 1 ? '' : 's') + ' within the next 7 days</b> — ' + esc(upcoming.map(it => it.date).join(', ')));
+        }
+        if(parts.length){
+          deadlineAlert.innerHTML = '<span class="da-icon" aria-hidden="true">⏰</span> ' + parts.join(' <span class="da-sep" aria-hidden="true">·</span> ') + ' <span class="da-jump-hint">click to jump ⤓</span>';
           deadlineAlert.hidden = false;
           if(!deadlineAlert._jumpWired){
             deadlineAlert._jumpWired = true;

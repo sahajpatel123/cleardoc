@@ -3728,3 +3728,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 52 of the autonomous loop (alternate add/polish): make time pressure visible before the user scrolls to the deadlines.
+
+**2026-08-06 21:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #53 of the restarted autonomous loop (polish).
+- polish(ui): the deadline-urgency alert now also surfaces overdue deadlines — a missed deadline is the loudest signal, so it can no longer hide behind the "next 7 days" window. The banner renders both groups when present ("⏰ 1 deadline overdue — Jan 12 · 2 deadlines within the next 7 days — Jan 15, Jan 20"), matching the preview strip's dp-past urgency band.
+- Extended the deadline-alert smoke test with the overdue subset, copy, and date-list assertions.
+- Full suite green (490 unit + 258 smoke + 1 integration = 749 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 53 of the autonomous loop (alternate add/polish): never hide a missed deadline behind the 7-day window.
