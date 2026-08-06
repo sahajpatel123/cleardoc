@@ -3708,3 +3708,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 50 of the autonomous loop (alternate add/polish): move the deadline list into Excel / Google Sheets / Numbers.
+
+**2026-08-06 21:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #51 of the restarted autonomous loop (polish).
+- polish(sec/data): the deadline CSV export now starts with a UTF-8 BOM (so Excel detects the encoding and non-ASCII cells don't mojibake) and every cell is guarded against CSV formula injection — values beginning with =, +, -, or @ get a leading apostrophe so they open as text, never as a formula (OWASP).
+- Extended the deadline-CSV smoke test with the BOM and injection-guard assertions.
+- Full suite green (490 unit + 257 smoke + 1 integration = 748 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 51 of the autonomous loop (alternate add/polish): make the CSV export safe and correct for spreadsheet consumers.

@@ -6325,13 +6325,22 @@
       const deadlineCsvBtn = document.getElementById('deadlineCsvBtn');
       if(deadlineCsvBtn){
         deadlineCsvBtn.addEventListener('click', () => {
-          const csvCell = (v) => '"' + String(v || '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+          // Cycle 51 polish — OWASP CSV-injection guard: any cell that
+          // begins with =, +, -, or @ gets a leading apostrophe so it
+          // opens as text, never as a formula, in Excel / Sheets.
+          const csvCell = (v) => {
+            let s = String(v || '');
+            if(/^[=+\-@]/.test(s)) s = "'" + s;
+            return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+          };
           const header = csvCell('Date') + ',' + csvCell('Type') + ',' + csvCell('Countdown') + ',' + csvCell('Context');
           const body = items.map(it => {
             const type = /\(obligated\)/.test(it.verb) ? 'obligated' : 'scheduled';
             return csvCell(it.date) + ',' + csvCell(type) + ',' + csvCell((countdown(it.date) || '').trim()) + ',' + csvCell((it.sentence || '').slice(0, 180));
           }).join('\n');
-          const text = header + '\n' + body;
+          // UTF-8 BOM so Excel detects the encoding and non-ASCII cells
+          // (e.g. the ⚡ tags, em-dashes) don't mojibake on open.
+          const text = '\uFEFF' + header + '\n' + body;
           try{
             const stamp = new Date().toISOString().slice(0,10);
             const url = URL.createObjectURL(new Blob([text], { type:'text/csv;charset=utf-8' }));

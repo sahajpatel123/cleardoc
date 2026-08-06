@@ -8850,9 +8850,13 @@ test("analyzer: Deadline block exports all deadlines as a CSV file", () => {
   assert.match(appSrc, /deadlineCsvBtn\.addEventListener\(\s*['"]click['"]/,
     "CSV chip must have a click handler");
 
-  // RFC 4180: quote-double internal quotes, flatten newlines
-  assert.match(appSrc, /csvCell = \(v\) => '"' \+ String\(v \|\| ''\)\.replace\(\/"\/g, '""'\)\.replace\(\/\[\\r\\n\]\+\/g, ' '\) \+ '"'/,
+  // RFC 4180 quoting + OWASP CSV-injection guard (cycle 51 polish)
+  assert.match(appSrc, /csvCell = \(v\) => \{[\s\S]+?if\(\/\^\[=\+\\-@\]\/\.test\(s\)\) s = "'" \+ s;/,
+    "CSV cells must neutralize formula-injection prefixes (= + - @) per OWASP");
+  assert.match(appSrc, /'"' \+ s\.replace\(\/"\/g, '""'\)\.replace\(\/\[\\r\\n\]\+\/g, ' '\) \+ '"'/,
     "CSV cells must be quoted with doubled internal quotes per RFC 4180");
+  assert.match(appSrc, /const text = '\\uFEFF' \+ header \+ '\\n' \+ body;/,
+    "CSV must start with a UTF-8 BOM so Excel decodes non-ASCII correctly");
   assert.match(appSrc, /csvCell\('Date'\) \+ ',' \+ csvCell\('Type'\) \+ ',' \+ csvCell\('Countdown'\) \+ ',' \+ csvCell\('Context'\)/,
     "CSV must have Date, Type, Countdown, Context columns in that order");
   assert.match(appSrc, /'obligated' : 'scheduled'/,
