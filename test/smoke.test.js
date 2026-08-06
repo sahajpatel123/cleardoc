@@ -10890,6 +10890,7 @@ test("analyzer: Exposure cards read the exposure aloud in one click", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /class="exposure-speak ghost-btn ghost-btn-sm"/,
     "each exposure card must render a speak button");
@@ -10903,6 +10904,12 @@ test("analyzer: Exposure cards read the exposure aloud in one click", () => {
     "the reading must respect the chosen speed");
   assert.match(appSrc, /🔊<\/b> reads one aloud\./,
     "the block note must document the speak action");
+  assert.match(cssSrc, /\.exposure-speak\{[^}]*flex-shrink:0/,
+    "the speak button must never shrink");
+  assert.match(cssSrc, /\.exposure-card-copy\{[^}]*margin-left:4px/,
+    "the copy button must sit beside the speak button");
+  assert.match(cssSrc, /\.exposure-speak:focus-visible\{/,
+    "the speak button must have a focus ring");
 });
 
 // Cycle #126 — per-pressure-card copy citation.

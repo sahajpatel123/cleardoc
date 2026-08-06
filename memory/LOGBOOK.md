@@ -4750,3 +4750,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 152 of the autonomous loop (alternate add/polish): a dollar figure worth quoting should also be worth hearing.
+
+**2026-08-06 07:36 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #153 of the restarted autonomous loop (polish).
+- polish(ui): the exposure card's 🔊, speak + 📋 copy buttons now sit together at the head's right edge after the amount — both shrink-proof, copy with a small gap beside speak, and speak with a proper focus ring.
+- Extended the cycle-152 smoke test with 3 CSS assertions covering the speak shrink guard, the copy gap, and the speak focus ring.
+- Full suite green (490 unit + 311 smoke + 1 integration = 802 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 153 of the autonomous loop (alternate add/polish): amount, hear, and copy should read as one tidy header row.
