@@ -8986,12 +8986,19 @@
         const sevKind = it.sev === 'high' ? 'pressure-kind-high' : (it.sev === 'med' ? 'pressure-kind-med' : 'pressure-kind-low');
         const sevLabel = it.sev === 'high' ? 'HIGH' : (it.sev === 'med' ? 'MED' : 'LOW');
         const done = isDone(it);
+        // Cycle #126 — per-card copy citation (mirrors the smoking-gun
+        // and exposure copy buttons).
+        const copyText = '[PRESSURE · ' + sevLabel + '] "' + it.sentence + '"' +
+          (it.why ? '\nWhy: ' + it.why : '') +
+          (it.tip ? '\nTip: ' + it.tip : '') +
+          '\n— ClearDoc pressure citation';
         return '<div class="pressure-card ' + sevClass + (done ? ' pressure-card-done' : '') + '" data-pressure-offset="' + it.offset + '" data-pressure-len="' + it.length + '" title="Click anywhere except the checkbox to jump to the clause">' +
           '<button type="button" class="pressure-done" data-pressure-done="' + it.offset + '" title="' + (done ? 'Mark as not reviewed' : 'I have reviewed this tactic') + '" aria-label="toggle reviewed">' + (done ? '✓' : '○') + '</button>' +
           '<div class="pressure-card-main">' +
             '<div class="pressure-card-head">' +
               '<span class="pressure-kind ' + sevKind + '">' + sevLabel + '</span>' +
               '<span class="pressure-meta">[' + esc(it.kind) + '] ' + (idx + 1) + ' of ' + visible.length + (done ? ' · ✓ reviewed' : '') + '</span>' +
+              '<button type="button" class="pressure-copy ghost-btn ghost-btn-sm" data-pressure-copy-text="' + esc(copyText) + '" title="Copy this pressure clause as a citation" aria-label="Copy this pressure clause as a citation">📋</button>' +
             '</div>' +
             '<div class="pressure-quote">"' + highlightQuote(it.sentence, it.matched) + '"</div>' +
             '<div class="pressure-why"><b>why:</b> ' + esc(it.why) + '</div>' +
@@ -9078,8 +9085,29 @@
       // Click-to-jump — but don't fire when the user clicks the done
       // checkbox (which is a button inside the card).
       $$('.pressure-card', pressureGrid).forEach(card => {
-        card.addEventListener('click', (e) => {
+        card.addEventListener('click', async (e) => {
           if(e.target && e.target.closest('.pressure-done')) return;
+          // Cycle #126 — 📋 copies the card as a citation instead of jumping.
+          const copyBtn = e.target.closest && e.target.closest('[data-pressure-copy-text]');
+          if(copyBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = copyBtn.getAttribute('data-pressure-copy-text') || '';
+            if(!text) return;
+            let copied = false;
+            try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+            if(!copied){
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                copied = true;
+              } catch(_){ /* ignore */ }
+            }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Pressure citation copied' : '⚠ Couldn’t copy');
+            copyBtn.textContent = copied ? '✓' : '📋';
+            if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋'; }, 1500);
+            return;
+          }
           if(!input) return;
           const off = parseInt(card.getAttribute('data-pressure-offset') || '-1', 10);
           const len = parseInt(card.getAttribute('data-pressure-len') || '0', 10);

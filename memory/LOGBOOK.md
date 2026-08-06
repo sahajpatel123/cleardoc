@@ -4480,3 +4480,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 125 of the autonomous loop (alternate add/polish): a copied number should come with the sentence that explains it.
+
+**2026-08-06 01:18 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #126 of the restarted autonomous loop (add).
+- feat(ui): every pressure card now has a one-click 📋 copy-citation button in its header — "[PRESSURE · HIGH/MED/LOW] \"{sentence}\"" plus the why-line and the negotiation tip (when present), with clipboard API + `execCommand` fallback, toast, and a ✓ flash. The card click handler has a dedicated `[data-pressure-copy-text]` branch (after the existing done-toggle guard), so copying never triggers the jump-to-source behavior.
+- New smoke test "Pressure cards copy their citation in one click" — 7 assertions covering the citation shape, button markup/data, click-handler branch, clipboard API, toast, and flash.
+- Full suite green (490 unit + 298 smoke + 1 integration = 789 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 126 of the autonomous loop (alternate add/polish): the pushiest sentence in the document should copy with its warning attached.

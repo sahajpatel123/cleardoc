@@ -10562,6 +10562,29 @@ test("analyzer: Exposure cards copy their citation in one click", () => {
     "the button must flash its copied state");
 });
 
+// Cycle #126 — per-pressure-card copy citation.
+test("analyzer: Pressure cards copy their citation in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /const copyText = '\[PRESSURE · ' \+ sevLabel \+ '\] "' \+ it\.sentence \+ '"'/,
+    "the citation must open with severity and the sentence");
+  assert.match(appSrc, /class="pressure-copy ghost-btn ghost-btn-sm"/,
+    "each pressure card must render a copy button");
+  assert.match(appSrc, /data-pressure-copy-text="' \+ esc\(copyText\) \+ '"/,
+    "the copy button must carry the prebuilt citation");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-pressure-copy-text\]'\)/,
+    "the card click handler must catch copy-button clicks");
+  assert.match(appSrc, /await navigator\.clipboard\.writeText\(text\)/,
+    "copying must use the clipboard API");
+  assert.match(appSrc, /📋 Pressure citation copied/,
+    "copying must announce via toast");
+  assert.match(appSrc, /copyBtn\.textContent = copied \? '✓' : '📋';/,
+    "the button must flash its copied state");
+});
+
 // Iter #218 v2: JSON export polish — download button + DOM-extracted
 // deadlines/nextSteps + counter-clauses + P0/P1/P2 priority tags.
 test("analyzer: JSON export includes download, deadlines from DOM, counter-clauses, and priority tags", () => {
