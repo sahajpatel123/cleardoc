@@ -179,6 +179,17 @@ skip("home: service status chip reports API health", async () => {
   }
 });
 
+test("all pages: footer includes the service status chip", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  for (const file of ["index.html", "analyze.html", "pricing.html", "404.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, file), "utf8");
+    assert.match(html, /id="serviceStatus" role="status" aria-live="polite" aria-atomic="true"/,
+      file + " must include the service status chip");
+  }
+});
+
 // Cycle #162 — interactive "what ClearDoc hunts" flags section.
 test("home: the landing page explains the phrases ClearDoc flags", () => {
   if (!HAS_BROWSER) return;
