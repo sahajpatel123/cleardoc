@@ -10192,6 +10192,8 @@
           '<div class="bearer-row-head">' + tag + '<span class="bearer-row-name">' + esc(it.label) + '</span></div>' +
           '<div class="bearer-quote">"' + esc(trunc(it.quote, 240)) + '"</div>' +
           '<div class="bearer-explain">' + esc(it.why) + '</div>' +
+          // Cycle #132 — one-click ask about this risk allocation.
+          '<button type="button" class="bearer-ask ghost-btn ghost-btn-sm" data-bearer-ask="' + esc(trunc(it.quote, 160)) + '" data-bearer-side="' + esc(it.side) + '" title="Ask about this risk" aria-label="Ask about this risk">💬</button>' +
         '</div>';
       }).join('');
       const filterChips = '<div class="bearer-filter-row">' +
@@ -10210,10 +10212,32 @@
         const lead = r.counts.you + ' you · ' + r.counts.them + ' them · ' + r.counts.shared + ' shared';
         const tone = r.skew >= 2 ? ' <b>⚠ This contract is one-sided in their favor.</b> Ask to make indemnification mutual, the liability cap reciprocal, and the jury-trial waiver optional.' : '';
         bearerNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
-          'Pure-local. For every flagged clause, we ask the question most people do not: <b>who actually pays?</b> The bar shows red where you bear risk, green where they bear risk, and amber where both sides do. ' + tone + ' Click any row to jump to the clause. <b>📋 copy</b> exports the list.';
+          'Pure-local. For every flagged clause, we ask the question most people do not: <b>who actually pays?</b> The bar shows red where you bear risk, green where they bear risk, and amber where both sides do. ' + tone + ' Click any row to jump to the clause, <b>💬</b> to ask about a risk, or <b>📋 copy</b> to export the list.';
       }
       $$('.bearer-row', bearerGrid).forEach(row => {
-        row.addEventListener('click', () => {
+        row.addEventListener('click', (e) => {
+          // Cycle #132 — 💬 asks about this risk instead of jumping.
+          const askBtn = e.target.closest && e.target.closest('[data-bearer-ask]');
+          if(askBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const quote = askBtn.getAttribute('data-bearer-ask') || '';
+            const side = askBtn.getAttribute('data-bearer-side') || 'shared';
+            const qInput = document.getElementById('askInput');
+            const qBtn = document.getElementById('askBtn');
+            if(!qInput) return;
+            qInput.value = (side === 'you'
+              ? 'What happens if this risk I bear materializes? "'
+              : side === 'them'
+                ? 'What happens if this risk they bear materializes? "'
+                : 'What happens if this shared risk materializes? "') + quote + '"';
+            qInput.disabled = false;
+            if(qBtn) qBtn.disabled = false;
+            try { qInput.focus({preventScroll:false}); } catch(_){ qInput.focus(); }
+            try { qInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
+            return;
+          }
           if(!input) return;
           const off = parseInt(row.getAttribute('data-bearer-offset') || '-1', 10);
           const len = parseInt(row.getAttribute('data-bearer-len') || '0', 10);

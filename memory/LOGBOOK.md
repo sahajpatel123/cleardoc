@@ -4540,3 +4540,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 131 of the autonomous loop (alternate add/polish): every card's actions belong in the same predictable corner.
+
+**2026-08-06 02:42 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #132 of the restarted autonomous loop (add).
+- feat(ui): every bearer (risk-allocation) row now has a one-click 💬 ask button — the question adapts to who bears the risk ("What happens if this risk I bear materializes?" / "…they bear…?" / "…this shared risk…?"), quotes the clause, prefills the Ask panel, focuses and scrolls it into view, and announces via toast. The row click handler has a dedicated `[data-bearer-ask]` branch, so asking never triggers the jump-to-source behavior; the block note documents the action.
+- New smoke test "Bearer rows can ask the document about the risk in one click" — 9 assertions covering the button markup, quote + side data, click-handler branch, the side-adaptive questions, scroll, toast, and note.
+- Full suite green (490 unit + 301 smoke + 1 integration = 792 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 132 of the autonomous loop (alternate add/polish): a risk that lands on you should be one click away from "what happens if it fires".

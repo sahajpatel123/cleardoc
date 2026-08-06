@@ -9461,6 +9461,33 @@ test("analyzer: Scenario cards copy their citation in one click", () => {
     "the action cluster must right-align in the card");
 });
 
+// Cycle #132 — ask about any risk-allocation row.
+test("analyzer: Bearer rows can ask the document about the risk in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="bearer-ask ghost-btn ghost-btn-sm"/,
+    "each bearer row must render an ask button");
+  assert.match(appSrc, /data-bearer-ask="' \+ esc\(trunc\(it\.quote, 160\)\) \+ '"/,
+    "the ask button must carry the quoted clause");
+  assert.match(appSrc, /data-bearer-side="' \+ esc\(it\.side\) \+ '"/,
+    "the ask button must carry the risk side");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-bearer-ask\]'\)/,
+    "the row click handler must catch ask-button clicks");
+  assert.match(appSrc, /What happens if this risk I bear materializes\?/,
+    "risks you bear must ask what happens if they materialize");
+  assert.match(appSrc, /What happens if this shared risk materializes\?/,
+    "shared risks must get a matching question");
+  assert.match(appSrc, /qInput\.scrollIntoView/,
+    "clicking must bring the Ask panel into view");
+  assert.match(appSrc, /showAnalyzeToast\('💬 Question ready — press Ask'\)/,
+    "clicking must announce the prefilled question");
+  assert.match(appSrc, /<b>💬<\/b> to ask about a risk/,
+    "the block note must document the ask action");
+});
+
 // Iter #140: section risk map — aggregates risk patterns by
 // clause category and renders weighted horizontal bars.
 test("analyzer: Section risk map aggregates risk by clause category", () => {
