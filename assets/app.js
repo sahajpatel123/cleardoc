@@ -8069,6 +8069,8 @@
               '<div class="reading-meta">' + sigHtml + ' · ' + c.sentences.length + ' sentence' + (c.sentences.length === 1 ? '' : 's') + (done ? ' · <b class="reading-done-flag">✓ done</b>' : '') + '</div>' +
             '</div>' +
             '<button type="button" class="reading-copy ghost-btn ghost-btn-sm" data-reading-copy-text="' + esc(copyText) + '" title="Copy this chunk as a quote" aria-label="Copy this chunk as a quote">📋</button>' +
+            // Cycle #155 — hear the chunk aloud at the chosen pace.
+            '<button type="button" class="reading-speak ghost-btn ghost-btn-sm" data-reading-speak="' + esc(c.sentences.join(' ').slice(0, 300)) + '" title="Read this chunk aloud" aria-label="Read this chunk aloud">🔊</button>' +
           '</div>';
         }).join('');
         const hiddenCount = chunks.length - visible.length;
@@ -8107,12 +8109,28 @@
           'Pure-local: walks the doc sentence-by-sentence and scores each against risk, money, deadline, and rights signals. ' +
           '<b>🔴 must</b> = every red/orange dot (' + pctMust + '% of the doc). ' +
           'Click a chunk to jump to it; click <b>○</b> to mark it read (progress persists). ' +
-          'Click any signal badge (🚩/💰/⏰/✓) to filter chunks with that signal. <b>📋</b> per row copies a single chunk, <b>📋 copy list</b> exports the priority order as a checklist.';
+          'Click any signal badge (🚩/💰/⏰/✓) to filter chunks with that signal. <b>📋</b> per row copies a single chunk, <b>🔊</b> reads one aloud, <b>📋 copy list</b> exports the priority order as a checklist.';
       }
       // Click-to-jump. Inner controls (done + signal badges) stop
       // propagation so they don't accidentally jump the input.
       $$('.reading-row', readingGrid).forEach(row => {
         row.addEventListener('click', async (e) => {
+          // Cycle #155 — 🔊, reads the chunk aloud instead of jumping.
+          const speakBtn = e.target.closest && e.target.closest('[data-reading-speak]');
+          if(speakBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = speakBtn.getAttribute('data-reading-speak') || '';
+            if(text && typeof window !== 'undefined' && 'speechSynthesis' in window){
+              try {
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = getTtsRate();
+                window.speechSynthesis.speak(u);
+              } catch(_){ /* ignore */ }
+            }
+            return;
+          }
           // Cycle #134 — 📋 copies the chunk instead of jumping.
           const copyBtn = e.target.closest && e.target.closest('[data-reading-copy-text]');
           if(copyBtn){

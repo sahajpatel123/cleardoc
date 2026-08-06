@@ -9630,6 +9630,32 @@ test("analyzer: Reading-list chunks copy their quote in one click", () => {
     "the copy button must have a focus ring");
 });
 
+// Cycle #155 — hear any reading chunk aloud.
+test("analyzer: Reading-list chunks read the chunk aloud in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /class="reading-speak ghost-btn ghost-btn-sm"/,
+    "each reading chunk must render a speak button");
+  assert.match(appSrc, /data-reading-speak="' \+ esc\(c\.sentences\.join\(' '\)\.slice\(0, 300\)\) \+ '"/,
+    "the speak button must carry the chunk sentences");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-reading-speak\]'\)/,
+    "the row click handler must catch speak-button clicks");
+  assert.match(appSrc, /new SpeechSynthesisUtterance\(text\)/,
+    "clicking must speak the chunk");
+  assert.match(appSrc, /u\.rate = getTtsRate\(\);/,
+    "the reading must respect the chosen speed");
+  assert.match(appSrc, /<b>🔊<\/b> reads one aloud/,
+    "the block note must document the speak action");
+  assert.match(cssSrc, /\.reading-speak\{[^}]*flex-shrink:0/,
+    "the speak button must never get crushed beside the content");
+  assert.match(cssSrc, /\.reading-speak:focus-visible\{/,
+    "the speak button must have a focus ring");
+});
+
 // Iter #140: section risk map — aggregates risk patterns by
 // clause category and renders weighted horizontal bars.
 test("analyzer: Section risk map aggregates risk by clause category", () => {

@@ -4770,3 +4770,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 154 of the autonomous loop (alternate add/polish): the sentence most worth quoting should also be the one you hear first.
+
+**2026-08-06 08:04 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #155 of the restarted autonomous loop (polish).
+- polish(ui): reading-list chunks can now be heard — every chunk gets a 🔊, speak button (shrink-proof, focus-ringed) that reads the chunk's sentences aloud at the user's chosen pace (`getTtsRate()`), with a dedicated `[data-reading-speak]` branch in the row handler so it never triggers jump/copy/done/signal actions. The block note documents the action, completing read-aloud parity across the narrative surfaces (rewrite, obligations, scenarios, pressure, exposure, smoking guns, and now reading chunks).
+- New smoke test "Reading-list chunks read the chunk aloud in one click" — 8 assertions covering the button markup, sentence data, click-handler branch, utterance creation, reading-speed respect, note, and both CSS additions.
+- Full suite green (490 unit + 313 smoke + 1 integration = 804 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 155 of the autonomous loop (alternate add/polish): the sentence you're told to read twice should be hearable too.
