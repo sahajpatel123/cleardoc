@@ -5059,10 +5059,20 @@
       // Cycle #258 — native share sheet when the browser supports it.
       // Falls back to the clipboard path below.
       if(navigator.share && typeof navigator.share === 'function'){
+        let shareText = 'I analyzed a document with ClearDoc — here is the share link.';
+        try {
+          const vLabel = verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-label');
+          const vSummary = verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-summary');
+          if(vLabel && vLabel.textContent.trim()){
+            shareText = 'ClearDoc verdict: ' + vLabel.textContent.trim() +
+              (vSummary && vSummary.textContent.trim() ? ' — ' + vSummary.textContent.trim() : '') +
+              ' · open the analysis link:';
+          }
+        } catch(_){ /* keep the generic text */ }
         try{
           await navigator.share({
             title: 'ClearDoc analysis',
-            text: 'I analyzed a document with ClearDoc — here is the share link.',
+            text: shareText,
             url: result.url,
           });
           flashButton(shareBtn, 'Shared ✓', 1500);

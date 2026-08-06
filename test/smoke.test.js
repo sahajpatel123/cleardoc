@@ -2125,6 +2125,8 @@ skip("share: native share sheet receives the analysis URL", async () => {
     "the share flow must check for native share support");
   assert.match(appSrc, /await navigator\.share\(\{/,
     "the share flow must call the native share sheet");
+  assert.match(appSrc, /'ClearDoc verdict: '/,
+    "the share text must include the rendered verdict when available");
   assert.match(appSrc, /'Shared ✓'/,
     "a successful native share must confirm on the button");
   assert.match(appSrc, /AbortError/,
@@ -2157,7 +2159,7 @@ skip("share: native share sheet receives the analysis URL", async () => {
     assert.match(payload.url, /^http.*\/analyze\.html#share=[A-Za-z0-9_-]+$/,
       "native share must receive the encoded analysis URL");
     assert.equal(payload.title, "ClearDoc analysis", "native share must carry the ClearDoc title");
-    assert.match(payload.text, /ClearDoc/, "native share must carry a short description");
+    assert.match(payload.text, /ClearDoc verdict:/, "native share text must lead with the verdict");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
