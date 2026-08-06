@@ -3241,6 +3241,33 @@ test("analyzer: deadlines preview jump button scrolls to the full list", () => {
   assert.match(cssSrc, /\.deadlines-jump-flash\{/, "the jump highlight must be styled");
 });
 
+// Cycle #200 — deadline timeline dots are clickable and jump to their row.
+test("analyzer: deadline timeline dots jump to their deadline row", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /<button type="button" class="dp-dot '/,
+    "timeline dots must render as buttons");
+  assert.match(appSrc, /data-dp-date="' \+ esc\(d\.date \|\| ''\) \+ '"/,
+    "each dot must carry its deadline date");
+  assert.match(appSrc, /dpTimeline\._dpDotWired = true;/,
+    "the dot handler must wire once");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\.dp-dot'\)/,
+    "the handler must catch dot clicks");
+  assert.match(appSrc, /findRow\('#deadlineList'\) \|\| findRow\('#deadlinesList'\)/,
+    "the handler must search both deadline lists");
+  assert.match(appSrc, /dd && dd\.textContent\.trim\(\)\.indexOf\(date\) === 0/,
+    "the handler must match the date prefix before the countdown suffix");
+  assert.match(appSrc, /row\.classList\.add\('deadlines-jump-flash'\)/,
+    "the matching row must be highlighted");
+  assert.match(appSrc, /'📅 Run Analyze to jump to this deadline'/,
+    "before a run, the dot must guide the user to Analyze");
+  assert.match(cssSrc, /\.deadlines-preview \.dp-dot:focus-visible\{/, "dots must have a focus ring");
+});
+
 // Cycle #189 — the section quick-jump nav's Deadlines entry must resolve
 // to whichever deadline block is visible (full 📅 or AI-only ⏰), never a
 // hidden one.

@@ -17280,7 +17280,9 @@
                 else if(du > 0) tip = 'in ' + du + ' days';
                 else tip = 'today';
               }
-              return '<span class="dp-dot ' + cls + '" title="' + tip + '" aria-label="' + tip + '"></span>';
+              // Cycle #200 — dots are real buttons that jump to their
+              // deadline row in the results.
+              return '<button type="button" class="dp-dot ' + cls + '" data-dp-date="' + esc(d.date || '') + '" title="' + tip + '" aria-label="Jump to deadline: ' + tip + '"></button>';
             }).join('');
             deadlinesTimeline.innerHTML = dots;
             deadlinesTimeline.title = dls.length + ' deadline' + (dls.length === 1 ? '' : 's') + ' total';
@@ -20131,6 +20133,37 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
             try { ab.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){}
           }
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📅 Run Analyze to see the full deadlines list');
+        }
+      });
+    }
+    // Cycle #200 — clicking a timeline dot jumps to that deadline's row
+    // in the results (flash + scroll); before a run it guides to Analyze.
+    const dpTimeline = document.getElementById('deadlinesTimeline');
+    if(dpTimeline && !dpTimeline._dpDotWired){
+      dpTimeline._dpDotWired = true;
+      dpTimeline.addEventListener('click', (e) => {
+        const dot = e.target.closest && e.target.closest('.dp-dot');
+        if(!dot) return;
+        const date = dot.getAttribute('data-dp-date') || '';
+        const findRow = (listId) => [...document.querySelectorAll(listId + ' .deadline-row')]
+          .find(r => {
+            const dd = r.querySelector('.deadline-date');
+            // The date element also holds the countdown suffix, so match
+            // by prefix.
+            return dd && dd.textContent.trim().indexOf(date) === 0;
+          });
+        const row = findRow('#deadlineList') || findRow('#deadlinesList');
+        if(row){
+          try { row.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){}
+          row.classList.add('deadlines-jump-flash');
+          clearTimeout(dpTimeline._dotFlashTimer);
+          dpTimeline._dotFlashTimer = setTimeout(() => row.classList.remove('deadlines-jump-flash'), 2200);
+        } else {
+          const ab = document.getElementById('analyzeBtn');
+          if(ab){
+            try { ab.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📅 Run Analyze to jump to this deadline');
         }
       });
     }

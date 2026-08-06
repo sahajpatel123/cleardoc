@@ -5253,3 +5253,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 199 of the autonomous loop (alternate add/polish): a new paste path must obey the same rules as typing — the privacy guard shouldn't be bypassed by a button.
+
+**2026-08-06 22:12 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #200 of the restarted autonomous loop (add) — milestone cycle.
+- feat(deadlines): the live preview's timeline dots are now real buttons that jump to their exact deadline row — each dot carries `data-dp-date`, a delegated once-wired handler searches both deadline lists (matching the date prefix before the countdown suffix, a bug caught in-process when the first probe matched the full text), scrolls and flashes the row, and before a run it guides to Analyze with a toast. Dots get button resets + a focus ring.
+- Verified in a real browser with a mocked analyze flow: the dot carried the date, pre-run clicking toasted the Analyze guide, and post-run clicking flashed the matching row; zero console errors.
+- New smoke test "analyzer: deadline timeline dots jump to their deadline row" — 8 assertions (button markup, date data, once-wiring, handler selector, dual-list search, prefix matcher, flash, pre-run toast, CSS).
+- Full suite green (490 unit + 333 smoke + 1 integration = 824 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 200 of the autonomous loop (alternate add/polish): every dot on the timeline should be a door — click it and land on that exact deadline.
