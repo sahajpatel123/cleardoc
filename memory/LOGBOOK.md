@@ -5396,3 +5396,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 212 of the autonomous loop (alternate add/polish): "give me the important parts" is one click — no filters, no hunting.
+
+**2026-08-06 23:07 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #213 of the restarted autonomous loop (polish).
+- polish(reading): the must-list copy now mirrors the copy-list header — when the undone-only or signal filters shaped the export, the header gains a "· filtered view" tag so a pasted list never hides its provenance.
+- Verified in a real browser with a mocked analyze flow: with the 🚩 risk-signal filter active, the must-list copy header read "🔴 MUST-READ ONLY (1 chunk) · filtered view"; zero console errors.
+- Updated the cycle-#212 smoke test assertion to the filtered-view header form.
+- Full suite green (490 unit + 338 smoke + 1 integration = 829 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 213 of the autonomous loop (alternate add/polish): a copied list should say when it's a filtered view — provenance in every paste.

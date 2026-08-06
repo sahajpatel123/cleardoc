@@ -10236,7 +10236,7 @@ test("analyzer: reading list copies must-reads only", () => {
     "the must-list chip must have a click handler");
   assert.match(appSrc, /r\.buckets\.must\.filter\(c => \{/,
     "the handler must start from the must bucket");
-  assert.match(appSrc, /'🔴 MUST-READ ONLY \(' \+ chunks\.length/,
+  assert.match(appSrc, /'🔴 MUST-READ ONLY \(' \+ chunks\.length \+ ' chunk' \+ \(chunks\.length === 1 \? '' : 's'\) \+ '\)' \+ \(\(undoneOnly \|\| signalFilter\) \? ' · filtered view' : ''\)/,
     "the copied list must lead with a must-read-only header");
   assert.match(appSrc, /'🔴 Must-read list copied'/,
     "copying must toast on success");

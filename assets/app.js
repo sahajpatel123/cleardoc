@@ -8878,7 +8878,9 @@
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('🔴 No must-read chunks to copy');
             return;
           }
-          const lines = ['🔴 MUST-READ ONLY (' + chunks.length + ' chunk' + (chunks.length === 1 ? '' : 's') + ')', '-'.repeat(40)];
+          // Cycle #213 — mirror the copy-list: note when undone/signal
+          // filters shaped this export.
+          const lines = ['🔴 MUST-READ ONLY (' + chunks.length + ' chunk' + (chunks.length === 1 ? '' : 's') + ')' + ((undoneOnly || signalFilter) ? ' · filtered view' : ''), '-'.repeat(40)];
           chunks.forEach((c, i) => {
             const signals = [];
             if(c.signalsAcc.flagged) signals.push('risk');
