@@ -459,6 +459,43 @@ test("analyzer: Ask answers suggest deterministic per-answer follow-up questions
   assert.match(cssSrc, /\.ask-followup:focus-visible\{/, "chips must have a focus ring");
 });
 
+test("analyzer: Ask thread persists per document and restores on reload", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Per-fingerprint storage key + capped shape.
+  assert.match(appSrc, /const askStoreKey = \(fp\) => 'cleardoc:askThread:' \+ \(fp \|\| 'latest'\);/,
+    "threads must be stored under a per-document key");
+  assert.match(appSrc, /function persistAskThread\(fp\)\{/,
+    "a persist helper must exist");
+  assert.match(appSrc, /function restoreAskThread\(fp\)\{/,
+    "a restore helper must exist");
+  assert.match(appSrc, /filter\(t => !t\.pending\)\.slice\(-8\)/,
+    "persistence must cap the thread to the last 8 complete turns");
+  assert.match(appSrc, /answer: String\(t\.answer \|\| ''\)\.slice\(0, 2600\)/,
+    "answers must be bounded so the quota can't blow");
+  assert.match(appSrc, /localStorage\.setItem\(askStoreKey\(fp\), JSON\.stringify\(slim\)\)/,
+    "complete turns must be written to localStorage");
+  assert.match(appSrc, /localStorage\.removeItem\(askStoreKey\(fp\)\)/,
+    "an empty thread must remove the stored one");
+  assert.match(appSrc, /askHistory = turns;/,
+    "restore must load the saved turns into the thread");
+  // Every completed answer persists; clearing removes the stored thread.
+  assert.match(appSrc, /persistAskThread\(\(_fpState && _fpState\.short\) \|\| null\);/,
+    "answers must persist after completion (and clear must purge)");
+  // On analysis render: restore for the current document, wipe on change.
+  assert.match(appSrc, /if\(typeof restoreAskThread === 'function'\)\{/,
+    "render must call the restore helper when present");
+  assert.match(appSrc, /if\(curFp && _threadFp !== curFp\) askHistory = \[\];/,
+    "a changed document must start a fresh in-memory thread");
+  assert.match(appSrc, /restoreAskThread\(curFp\);/,
+    "the current document's thread must be restored");
+  assert.match(appSrc, /let _threadFp = null;/,
+    "the thread-fingerprint tracker must exist");
+});
+
 skip("ask: copy-thread button exports the whole Q&A as text", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

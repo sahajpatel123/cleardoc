@@ -13831,6 +13831,15 @@
       }
       if(!noMotion && window.gsap) gsap.fromTo(panel,{opacity:0,y:14},{opacity:1,y:0,duration:DUR.base,ease:EASE.enter});
       if(askInput) askInput.disabled=false; if(askBtn) askBtn.disabled=false;
+      // Cycle #96 — restore the Ask conversation for this document
+      // (per-fingerprint, local-only), or start fresh when the
+      // document changed since the in-memory thread was loaded.
+      if(typeof restoreAskThread === 'function'){
+        const curFp = (_fpState && _fpState.short) || null;
+        if(curFp && _threadFp !== curFp) askHistory = [];
+        restoreAskThread(curFp);
+        _threadFp = curFp;
+      }
 
       // Persist for restore-on-refresh. Best-effort; failures are silent.
       // Only the renderable shape is stored — no AI API keys, no PII fields.
@@ -14325,8 +14334,37 @@
      * answer (with citation) when the network response lands.
      */
     let askHistory=[];
+    let _threadFp = null; // fingerprint the in-memory thread belongs to
     let _askInFlight = false;
     const askThread=$('#askThread'),askClearBtn=$('#askClearBtn'),askCopyThreadBtn=$('#askCopyThreadBtn'),askSaveThreadBtn=$('#askSaveThreadBtn');
+    // Cycle #96 — Ask-thread persistence: the conversation survives a
+    // reload for the same document, keyed by its SHA-256 fingerprint
+    // (same localStorage pattern as history/focus memory). Capped to the
+    // last 8 complete turns with bounded field sizes so a long chat can
+    // never blow the quota; everything stays on-device.
+    const askStoreKey = (fp) => 'cleardoc:askThread:' + (fp || 'latest');
+    function persistAskThread(fp){
+      if(!fp) return;
+      const slim = askHistory.filter(t => !t.pending).slice(-8).map(t => ({
+        q: String(t.q || '').slice(0, 500),
+        answer: String(t.answer || '').slice(0, 2600),
+        cite: String(t.cite || '').slice(0, 400),
+      }));
+      try {
+        if(!slim.length){ localStorage.removeItem(askStoreKey(fp)); }
+        else { localStorage.setItem(askStoreKey(fp), JSON.stringify(slim)); }
+      } catch(_){ /* quota — best effort */ }
+    }
+    function restoreAskThread(fp){
+      if(!fp || !askThread) return;
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem(askStoreKey(fp)) || 'null'); } catch(_){ saved = null; }
+      if(!Array.isArray(saved)) return;
+      const turns = saved.filter(t => t && t.q).map(t => ({ q: String(t.q), answer: String(t.answer || ''), cite: String(t.cite || ''), pending: false }));
+      if(!turns.length) return;
+      askHistory = turns;
+      renderAskThread();
+    }
     // Cycle #94 — suggested follow-ups after each answer. Deterministic
     // and local-only (no extra API round-trip until the user clicks):
     // chips are derived from the answer text plus the document's own
@@ -14436,12 +14474,14 @@
         turn.pending=false;
         renderAskThread();
       }
+      persistAskThread((_fpState && _fpState.short) || null);
       _askInFlight = false;
       if(askBtn) askBtn.disabled=false;
     }
     if(askClearBtn) askClearBtn.addEventListener('click',()=>{
       askHistory=[];
       renderAskThread();
+      persistAskThread((_fpState && _fpState.short) || null);
       if(askOut) askOut.innerHTML='';
     });
     // Copy the whole Q&A thread as plain text (Q / A / Source per turn).

@@ -4167,3 +4167,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 95 of the autonomous loop (alternate add/polish): a suggested follow-up should never be the question you just asked.
+
+**2026-08-06 18:12 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #96 of the restarted autonomous loop (add).
+- feat(ui): the Ask conversation now survives a reload — completed turns are persisted to localStorage under a per-document key (`cleardoc:askThread:<sha-256 fingerprint>`, same pattern as history/focus memory) and restored automatically when that document is analyzed again. Everything stays on-device; nothing new is sent anywhere.
+- Caps: only the last 8 complete turns persist, with question ≤ 500, answer ≤ 2600, citation ≤ 400 chars, so a long chat can never blow the quota. Clearing the thread removes the stored key; analyzing a different document starts a fresh in-memory thread (tracked via `_threadFp`), while re-analyzing the same document restores its conversation.
+- Hooks: `persistAskThread` runs after every completed answer and on clear; `restoreAskThread` runs at analysis render (guarded by `typeof` check and a null-fingerprint early return so embedded/local paths are safe).
+- New smoke test "Ask thread persists per document and restores on reload" — 13 source assertions covering the per-fingerprint key, persist/restore helpers, caps, quota-safe writes, purge-on-empty, render restore + wipe-on-change, and the fingerprint tracker.
+- Full suite green (490 unit + 281 smoke + 1 integration = 772 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 96 of the autonomous loop (alternate add/polish): your research conversation should still be there when you come back to the document.
