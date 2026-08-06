@@ -491,6 +491,8 @@ skip("top concern: 'What if fixed?' previews the readiness score without the cla
   assert.match(appSrc, /flags\.filter\(f => f !== top\)/, "the preview must drop the top concern from the flags");
   assert.match(appSrc, /\(total - traps\) \* 0\.5/, "the preview must use the readiness density penalty");
   assert.match(appSrc, /'✨ If you fix this clause: '/, "the preview must report the simulated score");
+  assert.match(appSrc, /levelOf\(sim\)/, "the preview must report the simulated severity band");
+  assert.match(appSrc, /' \? 'Low' : s >= 40 \? 'Medium' : s >= 20 \? 'High' : 'Critical'/, "severity bands must match the readiness thresholds");
   assert.match(themeSrc, /\.tc-fix\{/, "theme.css must style .tc-fix");
   assert.match(themeSrc, /\.tc-fixed\{/, "theme.css must style the preview note");
 });

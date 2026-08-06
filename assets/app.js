@@ -1162,9 +1162,11 @@
     const fixBtn = el.querySelector('[data-tc-fix]');
     const fixedNote = el.querySelector('[data-tc-fixed]');
     if(fixBtn && fixedNote) fixBtn.addEventListener('click', () => {
+      const levelOf = (s) => s >= 60 ? 'Low' : s >= 40 ? 'Medium' : s >= 20 ? 'High' : 'Critical';
       const cur = scoreOf(flags);
       const sim = scoreOf(flags.filter(f => f !== top));
-      fixedNote.textContent = '✨ If you fix this clause: ' + sim + '/100' + (sim !== cur ? ' (up from ' + cur + ')' : '');
+      fixedNote.textContent = '✨ If you fix this clause: ' + sim + '/100 · ' + levelOf(sim) +
+        (sim !== cur ? ' (up from ' + cur + '/100 · ' + levelOf(cur) + ')' : '');
       fixedNote.hidden = false;
     });
     el.hidden = false;

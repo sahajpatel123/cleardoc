@@ -3508,3 +3508,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 30 of the autonomous loop (alternate add/polish): show the score impact of fixing the top clause.
+
+**2026-08-06 17:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #31 of the restarted autonomous loop (polish).
+- polish(ui): the "What if fixed?" preview now also reports the severity band change — e.g. "If you fix this clause: 61/100 · Medium (up from 34/100 · Critical)" — so users see both the number and the readiness category move.
+- Extended the what-if-fixed smoke test with the band assertions.
+- Full suite green (490 unit + 244 smoke + 1 integration = 735 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 31 of the autonomous loop (alternate add/polish): surface the severity-band change in the fix preview.
