@@ -8548,6 +8548,28 @@
           }));
         } catch(_){ /* ignore */ }
       };
+      // Cycle #232 — shared "what's still unread" selection used by the
+      // speak-left feature (respects the active bucket + signal filters,
+      // excludes done chunks, no display caps).
+      const remainingChunks = () => {
+        const activeFilter = readingGrid._readingFilter || 'all';
+        const out = [];
+        for(const kind of ['must', 'skim', 'skip']){
+          if(activeFilter !== 'all' && activeFilter !== kind) continue;
+          r.buckets[kind].forEach(c => {
+            if(isDone(c)) return;
+            if(signalFilter){
+              if(signalFilter === 'flagged' && !c.signalsAcc.flagged) return;
+              if(signalFilter === 'moneyHit' && !c.signalsAcc.moneyHit) return;
+              if(signalFilter === 'deadlineHit' && !c.signalsAcc.deadlineHit) return;
+              if(signalFilter === 'rightsHit' && !c.signalsAcc.rightsHit) return;
+              if(signalFilter === 'actionHit' && !c.signalsAcc.actionHit) return;
+            }
+            out.push(c);
+          });
+        }
+        return out;
+      };
       const filter = readingGrid._readingFilter || 'all';
       // Reading-time estimate: average reader does ~250 wpm; informational
       // sentences are slower because of legalese. Use 200 wpm floor.
@@ -8706,6 +8728,7 @@
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyListBtn" title="Copy the reading priority list as plain text">📋 copy list</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyMustBtn" title="Copy only the must-read chunks">🔴 must list</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyLeftBtn" title="Copy only the chunks you have not marked done">⏳ left</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="readingSpeakLeftBtn" title="Read aloud only the chunks you have not marked done">🔊 read left</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCsvBtn" title="Download the reading plan as a .csv file for a tracker">📊 CSV</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingMustDoneBtn" title="Mark every must-read chunk as done">✓ must done</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingResumeBtn" title="Jump to your first unfinished must-read chunk">▶ resume</button>' +
@@ -9007,6 +9030,47 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '⏳ ' + remaining.length + ' chunk' + (remaining.length === 1 ? '' : 's') + ' left copied' : '⚠ Couldn’t copy');
           copyLeftBtn.textContent = copied ? '✓ copied' : '⏳ left';
           setTimeout(() => { if(copyLeftBtn.isConnected) copyLeftBtn.textContent = '⏳ left'; }, 2500);
+        });
+      }
+      // Cycle #232 — "🔊 read left": hear exactly the chunks you haven't
+      // marked done (respects the active bucket + signal filters), with a
+      // queue of utterances and a Stop toggle — mirrors the risk
+      // read-all pattern so a commute can finish the review.
+      const speakLeftBtn = document.getElementById('readingSpeakLeftBtn');
+      if(speakLeftBtn){
+        speakLeftBtn.addEventListener('click', () => {
+          if(!('speechSynthesis' in window)) return;
+          if(window.speechSynthesis.speaking){
+            try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
+            speakLeftBtn.textContent = '🔊 read left';
+            return;
+          }
+          const remaining = remainingChunks();
+          if(!remaining.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✓ Nothing left — every chunk is marked done');
+            return;
+          }
+          try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
+          const queue = remaining.map(c => {
+            const u = new SpeechSynthesisUtterance(c.sentences.join(' '));
+            u.rate = getTtsRate(); u.pitch = 1.0;
+            return u;
+          });
+          queue.forEach((u, i) => {
+            u.onend = () => {
+              if(i + 1 < queue.length){
+                try { window.speechSynthesis.speak(queue[i + 1]); } catch(_){ /* ignore */ }
+              } else {
+                speakLeftBtn.textContent = '🔊 read left';
+              }
+            };
+            u.onerror = () => { speakLeftBtn.textContent = '🔊 read left'; };
+          });
+          try {
+            window.speechSynthesis.speak(queue[0]);
+            speakLeftBtn.textContent = '◼ Stop';
+          } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('🔊 Reading ' + remaining.length + ' chunk' + (remaining.length === 1 ? '' : 's') + ' left aloud');
         });
       }
       // Cycle #226 — CSV export: the whole reading plan (or the filtered

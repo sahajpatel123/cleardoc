@@ -5612,3 +5612,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 231 of the autonomous loop (alternate add/polish): "snoozed for 3 days" is vague — "until Fri, Aug 10" is a plan; and a hidden button is no place to leave someone's keyboard focus.
+
+**2026-08-07 03:26 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #232 of the restructured autonomous loop (add).
+- feat(reading): a "🔊 read left" chip reads aloud exactly the chunks you have not marked done — the audio sibling of "⏳ left". It reuses the same remaining-chunks selection (active bucket + signal filters respected, done chunks excluded, no display caps) extracted into a shared `remainingChunks()` helper, chains one utterance per chunk with `onend` (so the whole list plays in order at the user's saved TTS rate), toggles the chip to "◼ Stop" while speaking (click cancels), restores the label when the queue finishes, and toasts the count.
+- Verified in a real browser via a new integration test (fresh origin + stubbed speechSynthesis for determinism): after marking one chunk done, clicking the chip queued the first utterance and flipped the chip to "◼ Stop"; firing `onend` chained the remaining utterances in order; the final `onend` restored the chip; a mid-play click cancelled and restored it; zero console errors.
+- New smoke source test (6 assertions: chip markup, handler wiring, shared selection, count toast, stop toggle, onend chaining).
+- Full suite green (490 unit + 346 smoke + 5 integration = 841 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 232 of the autonomous loop (alternate add/polish): if you can copy what's left, you should be able to hear it too — turn the remaining reading plan into a hands-free commute.

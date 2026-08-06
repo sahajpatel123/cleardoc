@@ -10382,6 +10382,27 @@ test("analyzer: reading list copies the remaining unread chunks", () => {
     "copying must toast the remaining count");
 });
 
+// Cycle #232 — hear the chunks still unread.
+test("analyzer: reading list speaks the remaining unread chunks", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="readingSpeakLeftBtn" title="Read aloud only the chunks you have not marked done"/,
+    "reading controls must include a read-left chip");
+  assert.match(appSrc, /const speakLeftBtn = document\.getElementById\('readingSpeakLeftBtn'\);/,
+    "the read-left chip must have a click handler");
+  assert.match(appSrc, /const remaining = remainingChunks\(\);/,
+    "the handler must use the shared remaining-chunks selection");
+  assert.match(appSrc, /'🔊 Reading ' \+ remaining\.length \+ ' chunk' \+ \(remaining\.length === 1 \? '' : 's'\) \+ ' left aloud'/,
+    "speaking must toast the remaining count");
+  assert.match(appSrc, /speakLeftBtn\.textContent = '◼ Stop';/,
+    "the chip must become a stop button while speaking");
+  assert.match(appSrc, /queue\.forEach\(\(u, i\) => \{[\s\S]{0,260}u\.onend/,
+    "utterances must chain so the chunks play in order");
+});
+
 // Cycle #226 — the reading plan exports as a tracker-ready CSV file.
 test("analyzer: reading list exports a CSV tracker file", () => {
   if (!HAS_BROWSER) return;

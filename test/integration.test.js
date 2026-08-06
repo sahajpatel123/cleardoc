@@ -463,3 +463,109 @@ skip("integration: deadline reminder snoozes for a chosen horizon", async () => 
     await new Promise((r) => web2.close(r));
   }
 });
+
+// Cycle #232 — the reading list speaks exactly the chunks still unread.
+skip("integration: reading list speaks the remaining unread chunks", async () => {
+  const WEB2 = 4341;
+  const web2 = staticServer();
+  await new Promise((r) => web2.listen(WEB2, r));
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+
+  await page.addInitScript(() => {
+    const MOCK = {
+      analysis: {
+        plainEnglishRewrite: "<b>This is a rewritten clause.</b> It says you must pay within 30 days.",
+        risks: [],
+        verdict: { label: "Suspicious", summary: "One clause deserves attention before signing." },
+        deadlines: [],
+        nextSteps: ["Calendar the cancellation deadline."],
+        readingLevel: { before: 14, after: 8 },
+        jargonFound: 7,
+      },
+    };
+    const origFetch = window.fetch.bind(window);
+    window.fetch = function patchedFetch(url, opts) {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (u.endsWith("/api/analyze")) {
+        return Promise.resolve(new Response(JSON.stringify(MOCK), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return origFetch(url, opts);
+    };
+    window.__ttsPending = [];
+    const stub = {
+      speaking: false,
+      pending: window.__ttsPending,
+      speak(u) { this.speaking = true; this.pending.push(u); },
+      cancel() { this.speaking = false; },
+      getVoices() { return []; },
+    };
+    try { Object.defineProperty(window, "speechSynthesis", { value: stub, configurable: true }); }
+    catch (_) { window.speechSynthesis = stub; }
+  });
+
+  try {
+    const doc = "Lessee shall indemnify the landlord in perpetuity. Lessee must pay all costs within 30 days. " +
+      "This Agreement may be amended by written notice. The parties acknowledge the foregoing. Executed in triplicate.";
+    await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
+    await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#readingBlock:not([hidden]) .reading-row", { timeout: 8000 });
+
+    // Mark the first chunk done so "read left" covers only what remains.
+    await page.evaluate(() => document.querySelector("#readingBlock .reading-done").click());
+    await page.waitForSelector("#readingBlock .reading-row-done", { timeout: 4000 });
+    const remainingRows = await page.$$eval("#readingBlock .reading-row:not(.reading-row-done)", (els) => els.length);
+
+    await page.click("#readingSpeakLeftBtn");
+    await page.waitForTimeout(200);
+    const state1 = await page.evaluate(() => ({
+      label: document.getElementById("readingSpeakLeftBtn").textContent,
+      queued: window.__ttsPending.length,
+      speaking: window.speechSynthesis.speaking,
+    }));
+    assert.equal(state1.label, "◼ Stop", "the chip must become a stop button while speaking");
+    assert.equal(state1.queued, 1, "clicking must start with the first unread chunk");
+    assert.equal(state1.speaking, true, "speechSynthesis must be speaking");
+
+    // Fire the first utterance's onend — the chain must speak the next one.
+    await page.evaluate(() => {
+      const u = window.__ttsPending[0];
+      if (u && u.onend) u.onend();
+    });
+    await page.waitForTimeout(100);
+    const queuedAfterChain = await page.evaluate(() => window.__ttsPending.length);
+    assert.equal(queuedAfterChain, remainingRows,
+      "the onend chain must queue the remaining utterances in order");
+
+    // Fire the last utterance's onend — the chip must restore itself.
+    await page.evaluate(() => {
+      const u = window.__ttsPending[window.__ttsPending.length - 1];
+      if (u && u.onend) u.onend();
+    });
+    await page.waitForTimeout(100);
+    const labelAfterDone = await page.$eval("#readingSpeakLeftBtn", (el) => el.textContent);
+    assert.equal(labelAfterDone, "🔊 read left", "the chip must restore after the final chunk");
+
+    // Click again while speaking — cancel + label restore.
+    await page.click("#readingSpeakLeftBtn");
+    await page.waitForTimeout(100);
+    const state2 = await page.evaluate(() => ({
+      label: document.getElementById("readingSpeakLeftBtn").textContent,
+      speaking: window.speechSynthesis.speaking,
+    }));
+    assert.equal(state2.label, "🔊 read left", "clicking while speaking must restore the chip");
+    assert.equal(state2.speaking, false, "clicking while speaking must cancel speech");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+    await new Promise((r) => web2.close(r));
+  }
+});
