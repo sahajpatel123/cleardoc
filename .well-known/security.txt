@@ -1,16 +1,28 @@
-# Contact information for security disclosures
-# Please read SECURITY.md for full disclosure policy
-Contact: security@cleardoc.app
+# security.txt — RFC 9116
+# https://www.rfc-editor.org/rfc/rfc9116.html
+#
+# This file is served by Vercel at https://cleardoc.app/.well-known/security.txt
+# Researchers and automated scanners should fetch this to learn the disclosure
+# policy before reporting a vulnerability. Companion to SECURITY.md.
+
+# How to contact the security team
 Contact: mailto:security@cleardoc.app
+Contact: https://github.com/sahajpatel123/cleardoc/security/advisories/new
 
-# Preferred encryption
-PGP: https://sahajpatel.com/pgpkeys.asc
+# When this file expires — research tooling uses this to know when to
+# re-fetch. RFC 9116 § 4 requires Expires; without it the file is invalid.
+Expires: 2027-07-18T10:01:30.000Z
 
-# Policy
-Policy: https://github.com/sahajpatel123/cleardoc/blob/main/SECURITY.md
+# Preferred languages for reports and responses
+Preferred-Languages: en
 
-# Acknowledgments
-Thank you to all security researchers who have reported vulnerabilities responsibly.
+# Canonical URL — for crawlers that find stale copies
+Canonical: https://cleardoc.app/.well-known/security.txt
 
-# This file follows the security.txt standard (RFC 9116)
-# https://datatracker.ietf.org/doc/html/rfc9116
+# Where to find the human-readable policy (not RFC-required but useful)
+Policy: https://cleardoc.app/SECURITY.md
+
+# We do not currently run a paid bug bounty program. Recognition is per
+# SECURITY.md § "Bug Bounty". The "Acknowledgments" field is reserved for
+# future use once a public hall-of-fame page exists.
+Acknowledgments: https://cleardoc.app/SECURITY.md#acknowledgments

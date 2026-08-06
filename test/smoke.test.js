@@ -7736,7 +7736,7 @@ skip("security.txt: well-known/security.txt is served and well-formed", async ()
   const fs = require("node:fs");
   const path = require("node:path");
   // File must exist on disk
-  const txtPath = path.join(ROOT, "public", ".well-known", "security.txt");
+  const txtPath = path.join(ROOT, ".well-known", "security.txt");
   assert.ok(fs.existsSync(txtPath), `${txtPath} must exist`);
   const txt = fs.readFileSync(txtPath, "utf8");
 
