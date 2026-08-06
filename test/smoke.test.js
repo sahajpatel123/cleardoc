@@ -366,11 +366,13 @@ skip("samples: eviction + debt-collection demo documents are offered", async () 
   const fs = require("node:fs");
   const path = require("node:path");
   const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
 
   assert.match(analyzeHtml, /try: Eviction/, "the sample row must offer an Eviction demo");
   assert.match(analyzeHtml, /try: Debt Collection/, "the sample row must offer a Debt Collection demo");
   assert.match(analyzeHtml, /data-fill="Tenant shall vacate the premises/, "the eviction sample must load realistic notice language");
   assert.match(analyzeHtml, /binding arbitration/, "the debt sample must include arbitration language that trips the risk radar");
+  assert.match(appSrc, /setFocusMode\(false\); input\.value=q\.dataset\.fill/, "loading a sample must exit focus mode so the document is visible");
 });
 
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {

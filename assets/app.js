@@ -17039,7 +17039,7 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       if(restoreBanner) restoreBanner.hidden=true;
       if(msg){msg.textContent='Saved analysis dismissed. It will not be offered again until you run a new analysis.'; msg.className='analyze-msg';}
     });
-    $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ input.value=q.dataset.fill; clearAttachments(); clearDraft(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} updateTextStats(); }));
+    $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ setFocusMode(false); input.value=q.dataset.fill; clearAttachments(); clearDraft(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} updateTextStats(); }));
     if(copyDraftBtn) copyDraftBtn.addEventListener('click',async()=>{ if(!draftOut||!draftOut.value)return; try{ await navigator.clipboard.writeText(draftOut.value); copyDraftBtn.textContent='Copied'; setTimeout(()=>copyDraftBtn.textContent='Copy draft',1400); }catch(_){ draftOut.focus(); draftOut.select(); } });
     if(verdictCopyBtn) verdictCopyBtn.addEventListener('click',async()=>{
       if(!verdictDisplay) return;

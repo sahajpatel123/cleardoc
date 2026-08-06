@@ -3388,3 +3388,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 18 of the autonomous loop (alternate add/polish): expand the demo sample library.
+
+**2026-08-06 15:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #19 of the restarted autonomous loop (polish).
+- polish(ui): loading a "try:" sample while Focus mode was active filled a hidden textarea — the sample loader now exits Focus mode first (same behavior as Clear) so the loaded document is visible and editable. Verified the risk preview does refresh on sample load (updateTextStats covers it).
+- Extended the samples smoke test with the focus-exit assertion.
+- Full suite green (490 unit + 236 smoke + 1 integration = 727 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 19 of the autonomous loop (alternate add/polish): make sample loading work correctly inside Focus mode.
