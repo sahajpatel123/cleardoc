@@ -3998,3 +3998,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 79 of the autonomous loop (alternate add/polish): the spreadsheet should carry the same must/may signal as the UI.
+
+**2026-08-06 01:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #80 of the restarted autonomous loop (feature add).
+- feat(ui): the Compare panel now has a "📋 copy diff" button that copies only the sentence-level diff (bulleted "only in Original/Compare" rows under a "Sentence-level diff" header) — a what-changed snippet to share without the verdict + stats. It appears only when a diff is rendered and follows the standard clipboard + toast + flash + aria-announce pattern.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 272 smoke + 1 integration = 763 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 80 of the autonomous loop (alternate add/polish): share just what changed between two clauses.

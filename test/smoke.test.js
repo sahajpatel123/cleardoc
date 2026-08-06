@@ -3940,6 +3940,41 @@ test("analyzer: PNG export includes the diff section (unique clauses from each s
     "PNG height must include the diff section (diffH variable)");
 });
 
+// Cycle 80 feature: copy only the sentence-level diff from the compare panel.
+test("analyzer: Compare panel can copy just the sentence-level diff", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // analyze.html must carry the diff-only copy button, hidden by default
+  assert.match(html, /id="compareDiffCopyBtn" title="Copy only the sentence-level diff as plain text" hidden/,
+    "analyze.html must contain #compareDiffCopyBtn, hidden until a diff exists");
+
+  // Visibility syncs with the rendered diff
+  assert.match(appSrc, /if\(compareDiffCopyBtn\) compareDiffCopyBtn\.hidden = false;/,
+    "the diff-copy button must appear when a diff is rendered");
+  assert.match(appSrc, /if\(compareDiffCopyBtn\) compareDiffCopyBtn\.hidden = true;/,
+    "the diff-copy button must hide when there is no diff");
+
+  // Wiring + guards
+  assert.match(appSrc, /compareDiffCopyBtn\.addEventListener\(\s*['"]click['"]/,
+    "the diff-copy button must have a click handler");
+  assert.match(appSrc, /'⚠ No diff to copy yet — compare two clauses first'/,
+    "the diff-copy must guard the no-diff state");
+  assert.match(appSrc, /'Sentence-level diff'/,
+    "the copy must open with a diff header");
+  assert.match(appSrc, /'• ' \+ \(r\.textContent \|\| ''\)\.replace/,
+    "each diff row must be copied as a bullet line");
+  assert.match(appSrc, /'📋 Diff copied'/,
+    "copy must toast on success");
+  assert.match(appSrc, /compareDiffCopyBtn\.setAttribute\('aria-label', ok \? 'Sentence diff copied to clipboard' : 'Copy failed — try again'\)/,
+    "copy must announce success/failure via aria-label");
+  assert.match(appSrc, /compareDiffCopyBtn\.setAttribute\('aria-label', 'Copy only the sentence-level diff'\)/,
+    "copy must restore the original aria-label");
+});
+
 test("analyzer: language detection tags the doc and picks a matching TTS voice", () => {
   // New feature — users paste non-English docs (Spanish leases,
   // French medical bills); previously the analyzer silently

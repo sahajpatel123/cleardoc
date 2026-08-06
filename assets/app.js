@@ -16965,6 +16965,7 @@
        * (one "label: Original | Compare" line per row). Mirrors the PNG
        * button's flash feedback and the app-wide toast pattern. */
       const compareCopyBtn = document.getElementById('compareCopyBtn');
+      const compareDiffCopyBtn = document.getElementById('compareDiffCopyBtn');
       if(compareCopyBtn) compareCopyBtn.addEventListener('click', async () => {
         if(!compareStats || !compareVerdict) return;
         const verdictText = (compareVerdict.textContent || '').trim();
@@ -17014,6 +17015,44 @@
         compareCopyBtn._flashTimer = setTimeout(() => {
           compareCopyBtn.textContent = orig;
           compareCopyBtn.setAttribute('aria-label', 'Copy the comparison verdict and stats');
+        }, 1400);
+      });
+      // Cycle 80 feature — copy only the sentence-level diff, so a "what
+      // changed?" snippet can be shared without the verdict + stats table.
+      if(compareDiffCopyBtn) compareDiffCopyBtn.addEventListener('click', async () => {
+        if(!compareDiff || compareDiff.hidden){
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No diff to copy yet — compare two clauses first');
+          return;
+        }
+        const dRows = compareDiff.querySelectorAll('.cmp-diff-row');
+        if(!dRows.length){
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No diff to copy yet');
+          return;
+        }
+        const lines = ['Sentence-level diff'];
+        dRows.forEach(r => lines.push('• ' + (r.textContent || '').replace(/\s+/g, ' ').trim()));
+        const text = lines.join('\n');
+        let ok = false;
+        try {
+          if(navigator.clipboard && navigator.clipboard.writeText){
+            await navigator.clipboard.writeText(text);
+            ok = true;
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+            document.body.appendChild(ta); ta.select();
+            ok = document.execCommand('copy'); document.body.removeChild(ta);
+          }
+        } catch(_){ /* ignore */ }
+        compareDiffCopyBtn.textContent = ok ? '✓ copied' : 'Copy failed';
+        compareDiffCopyBtn.setAttribute('aria-label', ok ? 'Sentence diff copied to clipboard' : 'Copy failed — try again');
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Diff copied' : '⚠ Couldn’t copy');
+        clearTimeout(compareDiffCopyBtn._flashTimer);
+        compareDiffCopyBtn._flashTimer = setTimeout(() => {
+          if(compareDiffCopyBtn.isConnected){
+            compareDiffCopyBtn.textContent = '📋 copy diff';
+            compareDiffCopyBtn.setAttribute('aria-label', 'Copy only the sentence-level diff');
+          }
         }, 1400);
       });
 
@@ -17126,8 +17165,10 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
           if(totalDiff === 0){
             compareDiff.hidden = true;
             compareDiff.innerHTML = '';
+            if(compareDiffCopyBtn) compareDiffCopyBtn.hidden = true;
           } else {
             compareDiff.hidden = false;
+            if(compareDiffCopyBtn) compareDiffCopyBtn.hidden = false;
             const row = (label, items, cls) => {
               if(items.length === 0) return '';
               return '<div class="cmp-diff-row ' + cls + '"><b>only in ' + label +
