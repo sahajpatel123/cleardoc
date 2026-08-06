@@ -4349,3 +4349,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 112 of the autonomous loop (alternate add/polish): a conversation worth keeping should paste cleanly into your notes app.
+
+**2026-08-06 22:16 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #113 of the restarted autonomous loop (polish).
+- polish(ui): the Ask thread now has a "⬇ Save .md" download beside the .txt save — a shared `buildAskMarkdown()` helper (extracted from the cycle-112 clipboard copy) feeds both the copy and the download, so the two exports can never drift. The saved file carries the same self-identifying "ClearDoc Ask · {time}" header as the .txt save, downloads as `cleardoc-ask-{date}.md` (text/markdown), and toasts/announces like its siblings; the button hides with the thread.
+- Extended the cycle-112 smoke test with 8 assertions covering the button markup/label, lookup, shared builder, hide-with-empty, wiring, .md filename, and save toast (19 total in that test).
+- Full suite green (490 unit + 290 smoke + 1 integration = 781 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 113 of the autonomous loop (alternate add/polish): copy and save should be two buttons backed by one Markdown builder.

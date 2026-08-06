@@ -14551,6 +14551,7 @@
     let _askInFlight = false;
     const askThread=$('#askThread'),askClearBtn=$('#askClearBtn'),askCopyThreadBtn=$('#askCopyThreadBtn'),askSaveThreadBtn=$('#askSaveThreadBtn');
     const askCopyMdBtn = document.getElementById('askCopyMdBtn');
+    const askSaveMdBtn = document.getElementById('askSaveMdBtn');
     // Cycle #96 — Ask-thread persistence: the conversation survives a
     // reload for the same document, keyed by its SHA-256 fingerprint
     // (same localStorage pattern as history/focus memory). Capped to the
@@ -14616,6 +14617,7 @@
         if(askCopyThreadBtn) askCopyThreadBtn.hidden = askHistory.length === 0;
         if(askCopyMdBtn) askCopyMdBtn.hidden = askHistory.length === 0;
         if(askSaveThreadBtn) askSaveThreadBtn.hidden = askHistory.length === 0;
+        if(askSaveMdBtn) askSaveMdBtn.hidden = askHistory.length === 0;
         return;
       }
       const restoredNote = (_threadRestored && askHistory.length)
@@ -14637,6 +14639,7 @@
       if(askCopyThreadBtn) askCopyThreadBtn.hidden = askHistory.length === 0;
       if(askCopyMdBtn) askCopyMdBtn.hidden = askHistory.length === 0;
       if(askSaveThreadBtn) askSaveThreadBtn.hidden = askHistory.length === 0;
+      if(askSaveMdBtn) askSaveMdBtn.hidden = askHistory.length === 0;
       // Scroll the latest answer into view
       askThread.scrollTop = askThread.scrollHeight;
     }
@@ -14749,9 +14752,9 @@
         askCopyThreadBtn.setAttribute('aria-label', 'Copy the ask thread');
       }, 1400);
     });
-    // Cycle #112 — copy the whole Q&A thread as Markdown (## Q / answer /
-    // > Source per turn) for note apps like Obsidian, Notion, or Coda.
-    if(askCopyMdBtn) askCopyMdBtn.addEventListener('click', async () => {
+    // Cycle #113 — shared Markdown builder for the Ask thread, used by
+    // both the clipboard copy (#112) and the .md download.
+    function buildAskMarkdown(){
       const parts = [];
       askHistory.forEach(t => {
         if(t.q) parts.push('## Q: ' + t.q + '\n');
@@ -14759,7 +14762,12 @@
         if(t.cite) parts.push('\n> Source: ' + t.cite + '\n');
         parts.push('---\n');
       });
-      const text = parts.join('\n').trim();
+      return parts.join('\n').trim();
+    }
+    // Cycle #112 — copy the whole Q&A thread as Markdown (## Q / answer /
+    // > Source per turn) for note apps like Obsidian, Notion, or Coda.
+    if(askCopyMdBtn) askCopyMdBtn.addEventListener('click', async () => {
+      const text = buildAskMarkdown();
       if(!text){
         if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy yet — ask a question first');
         return;
@@ -14787,6 +14795,31 @@
           askCopyMdBtn.setAttribute('aria-label', 'Copy the whole Q&A as Markdown');
         }
       }, 1800);
+    });
+    // Cycle #113 — download the whole Q&A thread as a Markdown file
+    // (parity with the .txt save; same shared builder as the copy).
+    if(askSaveMdBtn) askSaveMdBtn.addEventListener('click', () => {
+      const text = 'ClearDoc Ask · ' + new Date().toLocaleString() + '\n\n' + buildAskMarkdown();
+      if(!text || text.length < 12){
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to save yet — ask a question first');
+        return;
+      }
+      try{
+        const stamp = new Date().toISOString().slice(0,10);
+        const url = URL.createObjectURL(new Blob([text], { type:'text/markdown;charset=utf-8' }));
+        const a = document.createElement('a');
+        a.href = url; a.download = 'cleardoc-ask-' + stamp + '.md';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        askSaveMdBtn.setAttribute('aria-label', 'Ask thread saved as Markdown file');
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⬇ Ask thread saved');
+        clearTimeout(askSaveMdBtn._flashTimer);
+        askSaveMdBtn._flashTimer = setTimeout(() => {
+          if(askSaveMdBtn.isConnected) askSaveMdBtn.setAttribute('aria-label', 'Download the whole Q&A as a Markdown file');
+        }, 1400);
+      }catch(_){
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t save file');
+      }
     });
     // Cycle 74 feature — download the whole Q&A thread as a .txt file for
     // records or sharing (mirrors the copy-thread line format).

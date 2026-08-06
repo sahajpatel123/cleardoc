@@ -579,6 +579,23 @@ test("analyzer: Ask thread copies as Markdown for note apps", () => {
     "the button label must flash and restore");
   assert.match(appSrc, /if\(askCopyMdBtn\.isConnected\)\{/,
     "the label restore must skip detached buttons");
+  // Cycle #113 — download parity with the .txt save.
+  assert.match(html, /id="askSaveMdBtn"/,
+    "analyze.html must expose the Markdown save button");
+  assert.match(html, /title="Download the whole Q&A as a Markdown file"/,
+    "the save button must be labelled for Markdown");
+  assert.match(appSrc, /const askSaveMdBtn = document\.getElementById\('askSaveMdBtn'\);/,
+    "app.js must look up the Markdown save button");
+  assert.match(appSrc, /function buildAskMarkdown\(\)\{/,
+    "a shared Markdown builder must exist");
+  assert.match(appSrc, /if\(askSaveMdBtn\) askSaveMdBtn\.hidden = askHistory\.length === 0;/,
+    "the save button must hide when the thread is empty");
+  assert.match(appSrc, /if\(askSaveMdBtn\) askSaveMdBtn\.addEventListener\('click'/,
+    "the save button must be wired");
+  assert.match(appSrc, /cleardoc-ask-' \+ stamp \+ '\.md'/,
+    "the download must use a .md filename");
+  assert.match(appSrc, /⬇ Ask thread saved/,
+    "saving must toast success");
 });
 
 skip("forget-me: exits focus mode so the wiped page is not left blank", async () => {
