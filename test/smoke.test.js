@@ -10671,6 +10671,8 @@ test("analyzer: Risk tally is surfaced in the browser tab title and reset on cle
     "the painter must run on the analysis render path");
   assert.match(appSrc, /paintRiskTitle\(lastFlags\);/,
     "the painter must run on the restore/re-render path");
+  assert.match(appSrc, /renderReadinessScore\(\);[\s\S]{0,120}paintRiskTitle\(lastFlags\);/,
+    "shared/restored snapshot paints must also update the tab title");
   assert.match(appSrc, /function resetRiskTitle\(\)\{/,
     "a reset helper must exist");
   assert.match(appSrc, /updateTextStats\(\); resetRiskTitle\(\);/,

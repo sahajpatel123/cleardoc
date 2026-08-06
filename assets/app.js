@@ -14275,6 +14275,8 @@
       renderExecSummary();
       // iter #224: also paint the readiness score for restored snapshots.
       renderReadinessScore();
+      // Cycle #115 — restored/shared analyses get the tab-title tally too.
+      paintRiskTitle(lastFlags);
 
       // Pre-fill the textarea ONLY if it's currently the preloaded sample — never clobber
       // a user's in-progress edit. This matches what the file-attachment path does.

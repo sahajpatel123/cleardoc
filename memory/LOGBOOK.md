@@ -4370,3 +4370,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 114 of the autonomous loop (alternate add/polish): the risk count should be visible even when the page isn't.
+
+**2026-08-06 22:44 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #115 of the restarted autonomous loop (polish).
+- polish(ui): the tab-title risk tally now covers shared/restored analyses — `paintStoredSnapshot` (used by the #share= flow, the Restore button, and snapshot re-paints) calls `paintRiskTitle(lastFlags)` alongside the threat/health/exec/readiness paints, so a shared or restored analysis shows the same "⚠ N risks · Level" badge as a fresh one.
+- Extended the cycle-114 smoke test with 1 assertion covering the snapshot paint call (10 total in that test).
+- Full suite green (490 unit + 291 smoke + 1 integration = 782 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 115 of the autonomous loop (alternate add/polish): a restored or shared analysis should badge the tab exactly like a fresh one.
