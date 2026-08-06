@@ -127,3 +127,39 @@ We thank the following researchers for responsible disclosures (none to date —
 - **security.txt**: `/.well-known/security.txt` — Contact info for security researchers (RFC 9116)
 - **CODEOWNERS**: `.github/CODEOWNERS` — Defines code ownership for PR review requirements
 - **Dependabot**: `.github/dependabot.yml` — Automated dependency updates with security priority
+
+## Branch Protection Recommendations
+
+To maximize security, the `main` branch should have the following branch protection rules enabled in GitHub:
+
+1. **Require pull request reviews before merging**
+   - Minimum 1 approving review
+   - Dismiss stale approvals when new commits are pushed
+
+2. **Require status checks to pass before merging**
+   - `Tests` (test.yml)
+   - `Security` (security.yml)
+   - `CodeQL Analysis` (codeql.yml)
+
+3. **Require linear history** (disable merge commits)
+   - Ensures clean git history
+   - Prevents history manipulation
+
+4. **Require signed commits** (optional but recommended)
+   - Adds cryptographic verification of commits
+
+5. **Restrict who can push to matching branches**
+   - Only allow maintainers to push directly
+   - Everyone else must use PRs
+
+6. **Require conversation resolution before merging**
+   - Ensures all review comments are addressed
+
+7. **Allow force pushes**: Disabled
+   - Prevents history rewriting
+
+### Setting Up Branch Protection
+
+GitHub Branch Protection rules are configured via the repository Settings → "Branches" section. Create a rule for the `main` branch with the options above.
+
+**Note**: These rules cannot be enforced via repository files — they must be configured manually in the GitHub UI by a repository administrator.
