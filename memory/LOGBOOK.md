@@ -5111,3 +5111,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 186 of the autonomous loop (alternate add/polish): the rewrite is the map — sometimes you want to look at the territory, with the tricky words lit up.
+
+**2026-08-06 21:24 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #187 of the restarted autonomous loop (polish).
+- polish(rewrite): the original-view jargon highlights are now de-overlapped. The builder collects every match range from the JARGON patterns, keeps the longest non-overlapping spans (earliest wins ties), and wraps once — so "indemnify" no longer nests inside "indemnify and hold lessor harmless", and the count reflects unique kept highlights, not raw pattern hits.
+- Verified in a real browser with a mocked analyze flow: the source sentence rendered exactly four clean highlights (`Lessee`, `shall`, `indemnify and hold lessor harmless`, `in perpetuity`), a "4 jargon" tag, and zero nested marks; zero console errors.
+- Updated the cycle-#186 smoke test: 2 assertions re-targeted to the range-collection + overlap-skip logic and 1 to the unique-count tag.
+- Full suite green (490 unit + 325 smoke + 1 integration = 816 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 187 of the autonomous loop (alternate add/polish): highlights should mark words, not pile on top of each other — one clean ring per phrase.

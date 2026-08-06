@@ -425,12 +425,14 @@ test("analyzer: rewrite block toggles original ↔ rewritten", () => {
     "an original-view builder must exist");
   assert.match(appSrc, /JARGON\.forEach\(\(\[re\]\) => \{/,
     "the original view must reuse the jargon pattern list");
-  assert.match(appSrc, /text\.replace\(new RegExp\(re\.source, re\.flags\), '\[\[H\]\]\$&\[\[\/H\]\]'\)/,
-    "the original view must wrap matched jargon in place, not replace it");
+  assert.match(appSrc, /ranges\.push\(\{ start: m\.index, end: m\.index \+ m\[0\]\.length \}\)/,
+    "the original view must collect every jargon match range");
+  assert.match(appSrc, /kept\.some\(k => rg\.start < k\.end && rg\.end > k\.start\)/,
+    "overlapping jargon matches must be de-duplicated (longest wins)");
   assert.match(appSrc, /<mark class="jargon-hit">/,
     "the original view must render jargon as highlights");
-  assert.match(appSrc, /rewrite-jargon-count/,
-    "each highlighted sentence must carry a jargon count");
+  assert.match(appSrc, /kept\.length \? ' <span class="rewrite-jargon-count">' \+ kept\.length \+ ' jargon<\/span>' : ''/,
+    "the jargon count must reflect the unique kept highlights");
   assert.match(appSrc, /_rewriteAiHtml = plainOut\.innerHTML;/,
     "each render must remember the rewritten view");
   assert.match(appSrc, /rewriteToggleBtn\.addEventListener\('click', \(\) => \{[\s\S]{0,60}setRewriteToggle\(!rewriteShowOriginal\);/,

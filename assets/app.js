@@ -19911,20 +19911,37 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       if(!raw.trim()) return '<p></p>';
       let h = '';
       splitSentences(raw).forEach(s => {
-        // Cycle #186 — keep the ORIGINAL wording but wrap every jargon
-        // match in a highlight (reusing the JARGON pattern list), so the
-        // original view shows what you pasted and what it means.
-        let text = String(s);
-        let found = 0;
+        // Cycle #186 — keep the ORIGINAL wording but wrap jargon matches
+        // in highlights (reusing the JARGON pattern list).
+        // Cycle #187 — de-overlap: collect every match range, keep the
+        // longest non-overlapping spans, then wrap once — so "indemnify"
+        // inside "indemnify and hold lessor harmless" doesn't nest marks
+        // or inflate the count.
+        const text = String(s);
+        const ranges = [];
         JARGON.forEach(([re]) => {
           const r = new RegExp(re.source, re.flags);
-          if(r.test(text)){
-            found++;
-            text = text.replace(new RegExp(re.source, re.flags), '[[H]]$&[[/H]]');
+          let m;
+          while((m = r.exec(text))){
+            if(m[0]) ranges.push({ start: m.index, end: m.index + m[0].length });
+            if(m.index === r.lastIndex) r.lastIndex++;
           }
         });
-        const html = esc(text).split('[[H]]').join('<mark class="jargon-hit">').split('[[/H]]').join('</mark>');
-        h += '<p>' + html + (found ? ' <span class="rewrite-jargon-count">' + found + ' jargon</span>' : '') + '</p>';
+        ranges.sort((a, b) => (b.end - b.start) - (a.end - a.start) || a.start - b.start);
+        const kept = [];
+        for(const rg of ranges){
+          if(kept.some(k => rg.start < k.end && rg.end > k.start)) continue;
+          kept.push(rg);
+        }
+        kept.sort((a, b) => a.start - b.start);
+        let out = '';
+        let pos = 0;
+        kept.forEach(rg => {
+          out += esc(text.slice(pos, rg.start)) + '<mark class="jargon-hit">' + esc(text.slice(rg.start, rg.end)) + '</mark>';
+          pos = rg.end;
+        });
+        out += esc(text.slice(pos));
+        h += '<p>' + out + (kept.length ? ' <span class="rewrite-jargon-count">' + kept.length + ' jargon</span>' : '') + '</p>';
       });
       return h || '<p>' + esc(raw) + '</p>';
     }
