@@ -5045,3 +5045,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 180 of the autonomous loop (alternate add/polish): "I know, I know" should be a button — snooze the nag until tomorrow, not just this tab.
+
+**2026-08-06 20:55 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #181 of the restarted autonomous loop (polish).
+- polish(risks): the deep-link hash sync (row clicks and j/k navigation) now refuses to clobber a `#share=...` URL — if the current hash is a shared-analysis link, risk-hash updates are skipped so a refresh still restores the shared analysis. Risk hashes still update normally on empty or `#risk-` URLs, and Clear still strips only stale risk hashes.
+- Verified in a real browser with a mocked analyze flow: with `#share=abc123` in the URL, row clicks and j presses left the share hash untouched, while from `#risk-0` a j press advanced to `#risk-1`; zero console errors.
+- Extended the cycle-#176 deep-link smoke test with a ≥2 occurrence assertion for the share-guard, and widened two fixed-window regexes whose gaps grew with the new guard block (measured gap: 1928 chars → window 2400).
+- Full suite green (490 unit + 323 smoke + 1 integration = 814 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 181 of the autonomous loop (alternate add/polish): a shared-analysis link is sacred — browsing clauses must never erase it from the URL.

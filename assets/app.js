@@ -1582,7 +1582,11 @@
       // wherever j/k lands, the URL hash follows so the focused clause
       // stays shareable without extra steps.
       if(target.id && target.id.indexOf('risk-') === 0){
-        try { history.replaceState(null, '', '#' + target.id); } catch(_){ /* ignore */ }
+        // Cycle #181 — never clobber a #share= link with a risk hash.
+        const cur = location.hash || '';
+        if(!cur || cur.indexOf('#risk-') === 0){
+          try { history.replaceState(null, '', '#' + target.id); } catch(_){ /* ignore */ }
+        }
       }
     }
     if(!row) return;
@@ -4062,7 +4066,11 @@
         if(e.target.closest && e.target.closest('button')) return;
         const row = e.target.closest && e.target.closest('.rrow');
         if(row && row.id && row.id.indexOf('risk-') === 0){
-          try { history.replaceState(null, '', '#' + row.id); } catch(_){ /* ignore */ }
+          // Cycle #181 — never clobber a #share= link with a risk hash.
+          const cur = location.hash || '';
+          if(!cur || cur.indexOf('#risk-') === 0){
+            try { history.replaceState(null, '', '#' + row.id); } catch(_){ /* ignore */ }
+          }
         }
       });
     }

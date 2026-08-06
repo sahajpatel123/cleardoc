@@ -10646,7 +10646,7 @@ test("analyzer: Deadline rows can ask the document about the deadline in one cli
   assert.match(appSrc, /<b>💬<\/b> to ask about it/,
     "the block note must document the ask action");
   // The a-shortcut now covers deadline rows too.
-  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row, \.reading-row'\) : null;[\s\S]{0,1800}if\(!row\) return;/,
+  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row, \.reading-row'\) : null;[\s\S]{0,2400}if\(!row\) return;/,
     "the row-shortcut handler must include deadline rows and ignore other keys");
   assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row, \.reading-row'\) : null;[\s\S]{0,800}if\(key === 'j' \|\| key === 'J' \|\| key === 'k' \|\| key === 'K'\)\{/,
     "the j/k branch must live inside the same row-aware handler");
@@ -11249,8 +11249,11 @@ test("analyzer: risk rows carry deep-link ids and the page honors #risk-N", () =
     "clicking a row must update the URL without adding history entries");
   assert.match(appSrc, /paintRiskDeepLink\(\);/,
     "the painter must run after risk rows render");
-  assert.match(appSrc, /target\.id\.indexOf\('risk-'\) === 0\)\{[\s\S]{0,100}history\.replaceState\(null, '', '#' \+ target\.id\)/,
+  assert.match(appSrc, /target\.id\.indexOf\('risk-'\) === 0\)\{[\s\S]{0,260}history\.replaceState\(null, '', '#' \+ target\.id\)/,
     "j/k navigation must keep the deep-link hash current");
+  const shareGuards = (appSrc.match(/const cur = location\.hash \|\| '';[\s\S]{0,80}if\(!cur \|\| cur\.indexOf\('#risk-'\) === 0\)/g) || []).length;
+  assert.ok(shareGuards >= 2,
+    "both j/k and row-click hash sync must refuse to clobber a #share= link");
   assert.match(appSrc, /location\.hash\.indexOf\('#risk-'\) === 0\)\{[\s\S]{0,100}history\.replaceState\(null, '', location\.pathname \+ location\.search\)/,
     "clearing the analysis must strip a stale risk deep link");
   assert.match(cssSrc, /\.rrow-deeplink\{/, "the deep-link highlight must be styled");
