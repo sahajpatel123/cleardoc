@@ -5341,3 +5341,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 207 of the autonomous loop (alternate add/polish): if it's clickable, it should look clickable — a quiet ⓘ that stays out of the data.
+
+**2026-08-06 22:46 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #208 of the restarted autonomous loop (add).
+- feat(reading): the reading-list lead now shows where the time goes — "N must-read · N skim · N skip · ~X of ~Y min must-reads" (must-read word count / 200 wpm vs the total estimate), so "should I read now?" answers itself.
+- Verified in a real browser with a mocked analyze flow: the lead read "1 must-read · 1 skim · 1 skip · ~1 of ~1 min must-reads"; zero console errors.
+- Extended the cycle-#201 remaining-time smoke test with 3 assertions (must-word count, must-minutes estimate, lead share).
+- Full suite green (490 unit + 337 smoke + 1 integration = 828 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 208 of the autonomous loop (alternate add/polish): before you commit the time, know how much of it the important parts will take.

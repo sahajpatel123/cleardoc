@@ -10236,6 +10236,13 @@ test("analyzer: reading count shows time remaining after progress", () => {
     "the remaining minutes must reuse the 200-wpm estimate");
   assert.match(appSrc, /remainingMins < totalMins \? ' · ~' \+ remainingMins \+ ' min left' : ''/,
     "the count line must show remaining time once progress has started");
+  // Cycle #208 — the lead shows the must-reads' share of total time.
+  assert.match(appSrc, /const mustWords = r\.buckets\.must\.reduce\(\(a, c\) => a \+ \(c\.signalsAcc\.wordCount \|\| 0\), 0\);/,
+    "the lead must count words across the must-read chunks");
+  assert.match(appSrc, /const mustMins = Math\.max\(1, Math\.round\(mustWords \/ 200\)\);/,
+    "the must-read minutes must reuse the 200-wpm estimate");
+  assert.match(appSrc, /' · ~' \+ mustMins \+ ' of ~' \+ totalMins \+ ' min must-reads'/,
+    "the lead must show the must-reads' share of total reading time");
 });
 
 // Iter #140: section risk map — aggregates risk patterns by

@@ -8627,7 +8627,12 @@
       readingBlock.hidden = false;
       if(readingNote){
         const pctMust = Math.round(r.buckets.must.length / r.groups.length * 100);
-        const lead = r.buckets.must.length + ' must-read · ' + r.buckets.skim.length + ' skim · ' + r.buckets.skip.length + ' skip';
+        // Cycle #208 — show where the time goes: the must-reads' share of
+        // the total reading estimate, so "should I read now?" is easy.
+        const mustWords = r.buckets.must.reduce((a, c) => a + (c.signalsAcc.wordCount || 0), 0);
+        const mustMins = Math.max(1, Math.round(mustWords / 200));
+        const lead = r.buckets.must.length + ' must-read · ' + r.buckets.skim.length + ' skim · ' + r.buckets.skip.length + ' skip' +
+          (r.buckets.must.length ? ' · ~' + mustMins + ' of ~' + totalMins + ' min must-reads' : '');
         readingNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
           'Pure-local: walks the doc sentence-by-sentence and scores each against risk, money, deadline, and rights signals. ' +
           '<b>🔴 must</b> = every red/orange dot (' + pctMust + '% of the doc). ' +
