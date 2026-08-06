@@ -4620,3 +4620,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 139 of the autonomous loop (alternate add/polish): the copy should carry the same tone guidance the screen shows.
+
+**2026-08-06 04:34 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #140 of the restarted autonomous loop (add) — milestone cycle.
+- feat(ui): every freshness-stamp row now has a one-click 📋 copy button — it copies "[FRESHNESS · {label}] \"{matched phrase}\"" plus the age ("When: 3 months ago"), with clipboard API + `execCommand` fallback, toast, and a ✓ flash. The copy button's own listener calls `stopPropagation`, so it never triggers the row's click-to-jump (and sits beside the existing 📅 ics action).
+- New smoke test "Freshness rows copy their marker in one click" — 7 assertions covering the citation shape, button markup/data, per-render wiring, the stopPropagation guard, toast, and flash.
+- Full suite green (490 unit + 305 smoke + 1 integration = 796 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 140 of the autonomous loop (alternate add/polish): the version date you're relying on should copy with its age in one click.

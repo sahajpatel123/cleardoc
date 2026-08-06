@@ -12456,6 +12456,8 @@
         const isOld = it.date && (now - it.date.getTime() > 365 * 86400000);
         const isFuture = it.date && (it.date.getTime() > now + 30 * 86400000);
         const cls = 'fresh-row' + (isOld ? ' fresh-old' : isFuture ? ' fresh-future' : '') + (it === official ? ' fresh-official' : '');
+        // Cycle #140 — per-row copy of the freshness marker.
+        const copyVal = '[FRESHNESS · ' + it.label + '] "' + it.raw + '"' + (when !== '—' ? '\nWhen: ' + when : '');
         // Encode the matched raw phrase on the row so click-to-jump
         // works without us having to re-search.
         return '<div class="' + cls + '" data-fresh-raw="' + esc(it.raw) + '" data-fresh-iso="' + (it.date ? it.date.toISOString().slice(0, 10) : '') + '" title="' + esc(it.raw) + ' · click to jump">' +
@@ -12463,6 +12465,7 @@
           '<div class="fresh-when">' + esc(when) + '</div>' +
           '<div class="fresh-raw">' + esc(it.raw) + '</div>' +
           (it.date ? '<button type="button" class="fresh-ics ghost-btn ghost-btn-sm" data-fresh-ics="' + esc(it.date.toISOString().slice(0, 10)) + '" title="Add this effective date to your calendar">📅 ics</button>' : '') +
+          '<button type="button" class="fresh-copy ghost-btn ghost-btn-sm" data-fresh-copy-text="' + esc(copyVal) + '" title="Copy this freshness marker" aria-label="Copy this freshness marker">📋</button>' +
         '</div>';
       }).join('');
       const count = items.length;
@@ -12481,6 +12484,28 @@
       const verdictHtml = headerVerdict ? '<div class="fresh-verdict">' + esc(headerVerdict) + '</div>' : '';
       freshGrid.innerHTML = verdictHtml + rows;
       freshBlock.hidden = false;
+      // Cycle #140 — per-row copy. stopPropagation keeps the row's
+      // click-to-jump from firing when the copy button is pressed.
+      $$('.fresh-copy', freshGrid).forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const text = btn.getAttribute('data-fresh-copy-text') || '';
+          if(!text) return;
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Freshness marker copied' : '⚠ Couldn’t copy');
+          btn.textContent = copied ? '✓' : '📋';
+          if(copied) setTimeout(() => { if(btn.isConnected) btn.textContent = '📋'; }, 1500);
+        });
+      });
       if(freshNote){
         freshNote.innerHTML = '<span class="riskNote-lead">' + count + ' freshness marker' + (count === 1 ? '' : 's') + '</span> ' +
           (old > 0 ? '⚠ At least one date is >1 year old — confirm you have the latest revision before signing.' : 'Looks current. Always double-check you have the latest revision.');

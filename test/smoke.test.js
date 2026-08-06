@@ -8971,6 +8971,29 @@ test("analyzer: Freshness stamp surfaces effective-date / revised / version mark
   assert.match(cssSrc, /\.fresh-ics\b/, ".fresh-ics button style must exist");
 });
 
+// Cycle #140 — per-freshness-row copy.
+test("analyzer: Freshness rows copy their marker in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /const copyVal = '\[FRESHNESS · ' \+ it\.label \+ '\] "' \+ it\.raw \+ '"'/,
+    "the citation must carry the label and the matched phrase");
+  assert.match(appSrc, /class="fresh-copy ghost-btn ghost-btn-sm"/,
+    "each freshness row must render a copy button");
+  assert.match(appSrc, /data-fresh-copy-text="' \+ esc\(copyVal\) \+ '"/,
+    "the copy button must carry the prebuilt citation");
+  assert.match(appSrc, /\$\$\('\.fresh-copy', freshGrid\)\.forEach/,
+    "copy buttons must be wired after each render");
+  assert.match(appSrc, /e\.stopPropagation\(\);/,
+    "copying must not trigger the row's jump-to-source");
+  assert.match(appSrc, /📋 Freshness marker copied/,
+    "copying must announce via toast");
+  assert.match(appSrc, /copyBtn\.textContent = copied \? '✓' : '📋';/,
+    "the button must flash its copied state");
+});
+
 // Iter #120: document simplifier — paste a confusing sentence and
 // we translate it to plain English using the same jargon table that
 // powers the rewrite. Pure local.
