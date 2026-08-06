@@ -1138,7 +1138,7 @@
     const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo,wireDocFingerprint];
     const byPage={
       home:[heroClarifier,flagHunt,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
-      analyze:[analyzePage,faq],
+      analyze:[analyzePage,privacyGuard,faq],
       pricing:[classifieds,faq]
     };
     always.concat(byPage[page]||[]).forEach(fn=>{ try{fn();}catch(e){console.error('[init '+fn.name+']',e);} });
@@ -3336,6 +3336,60 @@
         try { opts.onRender(m); } catch(_){ /* isolate caller bugs */ }
       }
     });
+  }
+
+  /* ---- Privacy guard (cycle #164) ---- */
+  // Local-only, advisory scan of the pasted text for personal identifiers
+  // (emails, phone numbers, card-like and ID-like digit runs) so the 24h
+  // auto-purge promise is tangible right before someone hits Analyze.
+  // Nothing is stored or sent — the scan runs entirely in the browser.
+  function privacyGuard(){
+    const ta = document.getElementById('docInput');
+    const box = document.getElementById('privacyGuard');
+    const out = document.getElementById('privacyGuardText');
+    if(!ta || !box || !out) return;
+    const EMAIL_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+    const PHONE_RE = /\b\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(?!\d)/g;
+    const RUN_RE = /\b\d[\d\s.-]*\d\b/g;
+    const LABELS = [
+      { key:'emails', one:'email', many:'emails' },
+      { key:'phones', one:'phone number', many:'phone numbers' },
+      { key:'cards', one:'card-like number', many:'card-like numbers' },
+      { key:'ids', one:'ID-like number', many:'ID-like numbers' }
+    ];
+    let timer = 0;
+    function scan(value){
+      const counts = { emails:0, phones:0, cards:0, ids:0 };
+      if(!value) return counts;
+      counts.emails = (value.match(EMAIL_RE)||[]).length;
+      counts.phones = (value.match(PHONE_RE)||[]).length;
+      let rest = value.replace(EMAIL_RE,' ').replace(PHONE_RE,' ');
+      let m;
+      while((m = RUN_RE.exec(rest))){
+        const digits = (m[0].match(/\d/g)||[]).length;
+        if(digits >= 13 && digits <= 19) counts.cards++;
+        else if(digits >= 9) counts.ids++;
+      }
+      return counts;
+    }
+    function render(){
+      const counts = scan(ta.value);
+      const total = counts.emails + counts.phones + counts.cards + counts.ids;
+      if(total === 0){ box.hidden = true; out.textContent = ''; return; }
+      const parts = [];
+      LABELS.forEach(l => {
+        if(counts[l.key] > 0){
+          parts.push(counts[l.key] === 1 ? '1 ' + l.one : counts[l.key] + ' ' + l.many);
+        }
+      });
+      out.innerHTML = '<b>' + esc(parts.join(' · ')) + '</b> in your text — analyzed once, auto-purged within 24h, never used for training. This scan runs locally.';
+      box.hidden = false;
+    }
+    ta.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(render, 250);
+    });
+    render();
   }
 
   function analyzePage(){

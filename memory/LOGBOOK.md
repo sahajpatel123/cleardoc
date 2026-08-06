@@ -4861,3 +4861,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 163 of the autonomous loop (alternate add/polish): the flags explainer should behave like a proper toggle group — keyboard-clearable, screen-reader honest, and visually stable while selected.
+
+**2026-08-06 19:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #164 of the restarted autonomous loop (add).
+- feat(privacy): the analyze page now shows a live 🔒 privacy guard under the document input — a local-only scan that counts emails, phone numbers, card-like numbers (13–19 digit runs), and ID-like numbers (9+ digit runs) as you paste, then restates the 24h auto-purge promise right before Analyze. Nothing is stored or sent; the guard hides itself when nothing sensitive-looking is found and is debounced (250ms) so typing stays smooth.
+- Scan correctness verified in-process: dates (2025-01-01, 01/01/2025), section numbers, and boilerplate produce zero hits; the phone regex uses boundary + end-lookahead so a 12-digit account number is never mislabeled as a phone (it counts as ID-like) and a card's interior digits can't match as a phone.
+- New smoke test "analyze: privacy guard scans pasted text for personal identifiers before Analyze" — 14 assertions covering the markup (hidden live region + text span), the four scan sources, the card/ID thresholds, the 24h + local-only copy, the debounce, the analyze-page init wiring, and both CSS rules.
+- Full suite green (490 unit + 318 smoke + 1 integration = 809 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 164 of the autonomous loop (alternate add/polish): before someone pastes a contract full of personal data, make the 24h auto-purge promise tangible with a scan that runs entirely in their browser.

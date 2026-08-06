@@ -160,6 +160,42 @@ test("home: the landing page explains the phrases ClearDoc flags", () => {
   assert.match(cssSrc, /\.flag-readout\{/, "readout styling must exist");
 });
 
+test("analyze: privacy guard scans pasted text for personal identifiers before Analyze", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(html, /id="privacyGuard" hidden role="status" aria-live="polite"/,
+    "analyze.html must include a live privacy-guard region");
+  assert.match(html, /id="privacyGuardText"/,
+    "the guard must have a text span for the scan result");
+  assert.match(appSrc, /function privacyGuard\(\)\{/,
+    "privacyGuard must exist in app.js");
+  assert.match(appSrc, /const EMAIL_RE = \//,
+    "the guard must scan for email addresses");
+  assert.match(appSrc, /value\.match\(EMAIL_RE\)/,
+    "the email scan must run against the pasted text");
+  assert.match(appSrc, /const PHONE_RE = \//,
+    "the guard must scan for phone numbers");
+  assert.match(appSrc, /digits >= 13 && digits <= 19/,
+    "13-19 digit runs must count as card-like");
+  assert.match(appSrc, /digits >= 9/,
+    "long digit runs must count as ID-like");
+  assert.match(appSrc, /auto-purged within 24h/,
+    "the guard must restate the auto-purge promise");
+  assert.match(appSrc, /This scan runs locally/,
+    "the guard must state that the scan is local");
+  assert.match(appSrc, /setTimeout\(render, 250\)/,
+    "the scan must be debounced while typing");
+  assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,faq\]/,
+    "privacyGuard must run on the analyze page init list");
+  assert.match(cssSrc, /\.privacy-guard\{/, "guard styling must exist");
+  assert.match(cssSrc, /\.privacy-guard b\{/, "the count summary must stand out");
+});
+
 skip("ticker: every public page rotates ≥6 distinct signals so the marquee feels like a news wire", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
