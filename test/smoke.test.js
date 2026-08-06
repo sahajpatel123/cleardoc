@@ -476,6 +476,7 @@ skip("keyboard: 'f' toggles focus mode when results are visible", async () => {
   assert.match(appSrc, /k === 'f' \|\| k === 'F'/, "the global keydown handler must branch on f/F");
   assert.match(appSrc, /setFocusMode\(!document\.body\.classList\.contains\('focus-mode'\)\)/, "f must toggle the focus-mode body class");
   assert.match(appSrc, /resultPanel/, "f must only fire when the result panel is visible");
+  assert.match(appSrc, /ae\.offsetParent === null/, "focus must not be left on an element that Focus mode just hid");
   assert.match(appSrc, /<kbd>f<\/kbd><span>Toggle Focus mode/, "the help modal must document the f shortcut");
 });
 

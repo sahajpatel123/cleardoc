@@ -3488,3 +3488,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 28 of the autonomous loop (alternate add/polish): keyboard toggle for Focus mode.
+
+**2026-08-06 17:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #29 of the restarted autonomous loop (polish).
+- polish(a11y): toggling Focus mode could leave keyboard focus on an element that was just hidden (e.g. pressing 'f' while focused on a risk row). setFocusMode now checks whether the active element became invisible and moves focus to the rewrite Copy button instead.
+- Extended the f-shortcut smoke test with the focus-guard assertion.
+- Full suite green (490 unit + 243 smoke + 1 integration = 734 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 29 of the autonomous loop (alternate add/polish): keep focus on something visible when Focus mode turns on.

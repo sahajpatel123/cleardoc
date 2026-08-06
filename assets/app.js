@@ -93,6 +93,16 @@
       fb.setAttribute('aria-pressed', on ? 'true' : 'false');
       fb.textContent = on ? '🧘 Exit focus' : '🧘 Focus';
     }
+    // Never leave keyboard focus on an element Focus mode just hid (e.g.
+    // pressing 'f' while focused on a risk row). Move it to the rewrite
+    // Copy button when the active element becomes invisible.
+    if(on){
+      const ae = document.activeElement;
+      if(ae && ae !== document.body && ae.offsetParent === null){
+        const rb = document.getElementById('rewriteCopyBtn');
+        if(rb) try { rb.focus({preventScroll:true}); } catch(_){ rb.focus(); }
+      }
+    }
     return !!on;
   }
 
