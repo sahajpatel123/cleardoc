@@ -3738,3 +3738,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 53 of the autonomous loop (alternate add/polish): never hide a missed deadline behind the 7-day window.
+
+**2026-08-06 21:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #54 of the restarted autonomous loop (feature add).
+- feat(ui): overdue deadline rows in the result-panel list are now visually flagged — danger-tinted background, danger border, and an explicit "⚠ overdue" tag next to the countdown, mirroring the urgency alert and the preview strip's dp-past band. Print output still forces a clean white background.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 259 smoke + 1 integration = 750 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 54 of the autonomous loop (alternate add/polish): make missed deadlines impossible to skim past in the list itself.

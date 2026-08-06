@@ -6327,10 +6327,16 @@
         const isM = /\(obligated\)/.test(it.verb);
         const cls = isM ? 'deadline-mandatory' : 'deadline-optional';
         const tag = isM ? '⚡ obligated' : '📅 scheduled';
-        return '<div class="deadline-row ' + cls + '">' +
+        // Cycle 54 — overdue rows are flagged visually so a missed
+        // deadline reads at a glance (mirrors the alert + dp-past band).
+        const d = dayDiff(it.date);
+        const isOverdue = d !== null && d < 0;
+        const rowCls = 'deadline-row ' + cls + (isOverdue ? ' deadline-overdue' : '');
+        return '<div class="' + rowCls + '">' +
           '<div class="deadline-tag">' + tag + '</div>' +
           '<div class="deadline-date">' + esc(it.date) + '<span class="deadline-countdown">' + esc(countdown(it.date)) + '</span></div>' +
           '<div class="deadline-context">' + esc((it.sentence || '').slice(0, 180)) + '</div>' +
+          (isOverdue ? '<span class="deadline-overdue-tag">⚠ overdue</span>' : '') +
           '<button type="button" class="deadline-ics ghost-btn ghost-btn-sm" data-deadline-ics="' + esc(it.date) + '" title="Save to your calendar">📅 ics</button>' +
         '</div>';
       }).join('');

@@ -8924,6 +8924,34 @@ test("analyzer: Deadline alert surfaces overdue + within-7-days deadlines", () =
     "the alert must have a visible focus ring");
 });
 
+// Cycle 54 feature: overdue deadline rows are visually flagged in the list.
+test("analyzer: Overdue deadline rows show a danger flag in the list", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Row renderer must compute the overdue state and append the class
+  assert.match(appSrc, /const isOverdue = d !== null && d < 0;/,
+    "row renderer must flag deadlines with a negative day diff");
+  assert.match(appSrc, /rowCls = 'deadline-row ' \+ cls \+ \(isOverdue \? ' deadline-overdue' : ''\)/,
+    "overdue rows must carry the deadline-overdue class");
+  assert.match(appSrc, /isOverdue \? '<span class="deadline-overdue-tag">⚠ overdue<\/span>' : ''/,
+    "overdue rows must render an explicit ⚠ overdue tag");
+
+  // CSS: danger tint on the row + tag styling
+  assert.match(cssSrc, /\.deadline-row\.deadline-overdue\{[^}]*var\(--danger-tint\)/,
+    "theme.css must tint overdue rows with the danger background");
+  assert.match(cssSrc, /\.deadline-row\.deadline-overdue\{[^}]*border-color:var\(--danger\)/,
+    "overdue rows must use the danger border");
+  assert.match(cssSrc, /\.deadline-overdue-tag\{/,
+    "theme.css must style the overdue tag");
+  // Print must stay clean: the print override forces a white background
+  assert.match(cssSrc, /\.deadline-row\{border:1px solid #000 !important;background:#fff !important/,
+    "print output must not carry the overdue tint");
+});
+
   // Iter #159 polish: sub-score tooltips + copy-as-JSON.
   assert.match(appSrc, /'How much text we have to analyze|'How many risk patterns matched|'How far the document/,
     "iter #159 must add sub-score tooltips");
