@@ -5374,3 +5374,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 210 of the autonomous loop (alternate add/polish): the loudest banner should be the easiest to share — one tap to put it in an email.
+
+**2026-08-06 23:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #211 of the restarted autonomous loop (polish).
+- polish(deadlines): the results deadline alert now carries countdowns on every listed date — "1 deadline overdue — 2026-08-01 (6 days ago) · 1 deadline within the next 7 days — 2026-08-10 (in 3 days)" — so the banner is self-explanatory at a glance, and the cycle-#210 copy chip exports the enriched text too.
+- Verified in a real browser with a mocked analyze flow: both the banner and the copied summary included the countdowns; zero console errors.
+- Updated the deadline-alert smoke test: 3 assertions re-targeted to the countdown-aware date lists.
+- Full suite green (490 unit + 337 smoke + 1 integration = 828 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 211 of the autonomous loop (alternate add/polish): a deadline banner that says the date without the countdown makes the reader do the math — the banner should do it.

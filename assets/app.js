@@ -7094,10 +7094,20 @@
       if(deadlineAlert){
         const parts = [];
         if(overdue.length){
-          parts.push('<b>' + overdue.length + ' deadline' + (overdue.length === 1 ? '' : 's') + ' overdue</b> — ' + esc(overdue.map(it => it.date).join(', ')));
+          // Cycle #211 — the banner carries countdowns so the urgency is
+          // readable at a glance ("2026-08-01 (5d ago)").
+          const withCount = overdue.map(it => {
+            const cd = (countdown(it.date) || '').trim();
+            return it.date + (cd ? ' (' + cd + ')' : '');
+          }).join(', ');
+          parts.push('<b>' + overdue.length + ' deadline' + (overdue.length === 1 ? '' : 's') + ' overdue</b> — ' + esc(withCount));
         }
         if(upcoming.length){
-          parts.push('<b>' + upcoming.length + ' deadline' + (upcoming.length === 1 ? '' : 's') + ' within the next 7 days</b> — ' + esc(upcoming.map(it => it.date).join(', ')));
+          const withCount = upcoming.map(it => {
+            const cd = (countdown(it.date) || '').trim();
+            return it.date + (cd ? ' (' + cd + ')' : '');
+          }).join(', ');
+          parts.push('<b>' + upcoming.length + ' deadline' + (upcoming.length === 1 ? '' : 's') + ' within the next 7 days</b> — ' + esc(withCount));
         }
         if(parts.length){
           // Cycle 77 polish — a real button inside the status banner gives

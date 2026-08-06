@@ -11116,10 +11116,12 @@ test("analyzer: Deadline alert surfaces overdue + within-7-days deadlines", () =
     "alert copy must state the 7-day window");
   assert.match(appSrc, /deadline' \+ \(overdue\.length === 1 \? '' : 's'\) \+ ' overdue/,
     "alert copy must state the overdue count");
-  assert.match(appSrc, /esc\(overdue\.map\(it => it\.date\)\.join\(', '\)\)/,
-    "alert must list the overdue deadline dates");
-  assert.match(appSrc, /esc\(upcoming\.map\(it => it\.date\)\.join\(', '\)\)/,
-    "alert must list the upcoming deadline dates");
+  assert.match(appSrc, /const withCount = overdue\.map\(it => \{/,
+    "alert must build the overdue date list with countdowns");
+  assert.match(appSrc, /const withCount = upcoming\.map\(it => \{/,
+    "alert must build the upcoming date list with countdowns");
+  assert.match(appSrc, /it\.date \+ \(cd \? ' \(' \+ cd \+ '\)' : ''\)/,
+    "each listed date must carry its countdown when available");
 
   // Jump affordance: click scrolls to the deadlines block
   assert.match(appSrc, /deadlineAlert\._jumpWired/,
