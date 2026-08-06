@@ -8,6 +8,12 @@ on:
   schedule:
     - cron: '0 0 * * 0'
 
+# Concurrency: cancel in-flight runs when a new push lands.
+# Prevents stale analysis jobs from running after newer commits.
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     runs-on: ubuntu-latest
@@ -18,11 +24,14 @@ jobs:
       matrix:
         language: [javascript, python]
     steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v2
+      # SHA-pinned for supply-chain integrity — version tags can silently change
+      # behavior or pull in compromised revisions. The `comment:` field documents
+      # the version so reviewers can verify the pinned SHA matches the expected upstream.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
         with:
           languages: ${{ matrix.language }}
-      - uses: github/codeql-action/autobuild@v2
-      - uses: github/codeql-action/analyze@v2
+      - uses: github/codeql-action/autobuild@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+      - uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
         with:
           category: ${{ matrix.language }}
