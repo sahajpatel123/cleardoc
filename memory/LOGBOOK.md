@@ -3218,3 +3218,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - User restarted the autonomous 5-minute improvement loop: one add/polish per cycle, alternating, compulsory commit+push to main, run until stopped. Cycle 1 = polish of the newest copy-button feature.
+
+**2026-08-06 12:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #2 of the restarted autonomous loop (feature add).
+- feat(keys): the help modal advertises 'e' = expand counter-suggestion on a focused risk row, but the delegated keydown handler ran `if(e.key !== 'a' && e.key !== 'A') return;` BEFORE the e/E branch — the shortcut was dead code and pressing 'e' did nothing. Restructured the handler so e/E expands the counter-suggestion panel and a/A asks about the risk; 'a' behavior unchanged.
+- Added a source-pattern smoke test that fails against the old guard order.
+- Full suite green (490 unit + 224 smoke + 1 integration = 715 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 2 of the autonomous loop (alternate add/polish): deliver one new working feature — the advertised-but-broken keyboard shortcut.

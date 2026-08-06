@@ -172,6 +172,27 @@ skip("risk-detail copy: rd/rc buttons announce success via aria-label + toast (a
   assert.match(appSrc, /showAnalyzeToast\(ok \? '📋 Match list copied' : '⚠ Couldn’t copy'\)/, "rd-copy must announce via toast like the rest of the app");
 });
 
+skip("risk rows: advertised 'e' expand + 'a' ask shortcuts both work (no dead guard)", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Locate the delegated risk-row keydown listener (iter #204 v2).
+  const marker = "keyboard shortcuts on a focused risk row";
+  const hStart = appSrc.indexOf(marker);
+  assert.ok(hStart > -1, "rrow keydown handler must exist");
+  const handler = appSrc.slice(hStart, hStart + 1600);
+
+  // The old code guarded with `if(e.key !== 'a' && e.key !== 'A') return;`
+  // BEFORE the e/E branch, so the advertised Expand shortcut was dead code.
+  assert.doesNotMatch(handler, /if\(e\.key !== 'a' && e\.key !== 'A'\) return;[\s\S]*if\(key === 'e'/, "the e/E branch must not sit behind an a-only guard");
+  assert.match(handler, /if\(key === 'e' \|\| key === 'E'\)\{/, "handler must branch on e/E to expand");
+  assert.match(handler, /if\(key === 'a' \|\| key === 'A'\)\{/, "handler must branch on a/A to ask");
+  assert.match(handler, /rrow-counter/, "expand must target the counter-suggestion panel");
+  assert.match(handler, /rrow-ask/, "ask must trigger the per-risk ask button");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
@@ -8696,6 +8717,3 @@ test("analyzer: RISK array detects Intellectual Property / Work for Hire trap", 
   assert.match(appSrc, /Transfers ownership of your work, ideas, or creations/,
     "IP Assignment rule must explain why IP transfer is a trap");
 });
-
-
-
