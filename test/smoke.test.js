@@ -924,8 +924,10 @@ test("keyboard: 'r' resumes the reading list when results are visible", () => {
 
   assert.match(appSrc, /if\(k === 'r' \|\| k === 'R'\)\{/,
     "the shortcut handler must branch on r/R");
-  assert.match(appSrc, /if\(k === 'r' \|\| k === 'R'\)\{[\s\S]{0,260}getElementById\('readingResumeBtn'\)/,
+  assert.match(appSrc, /if\(k === 'r' \|\| k === 'R'\)\{[\s\S]{0,400}getElementById\('readingResumeBtn'\)/,
     "the r branch must target the resume chip");
+  assert.match(appSrc, /if\(k === 'r' \|\| k === 'R'\)\{[\s\S]{0,300}setFocusMode\(false\);/,
+    "the r branch must exit Focus mode so the reading list is visible");
   assert.match(appSrc, /rb && rb\.isConnected\)\{[\s\S]{0,80}e\.preventDefault\(\);[\s\S]{0,60}rb\.click\(\);/,
     "the r branch must click the resume chip");
   assert.match(appSrc, /<kbd>r<\/kbd><span>Resume the reading list/,

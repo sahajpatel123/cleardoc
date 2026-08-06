@@ -5799,3 +5799,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 248 of the autonomous loop (alternate add/polish): if you can copy and hear what's left, you should be able to jump back into it from the keyboard — `r` is where the reading resume always wanted to live.
+
+**2026-08-07 07:11 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #249 of the restructured autonomous loop (polish).
+- polish(keyboard): the `r` resume shortcut from cycle #248 was a silent no-op in Focus mode (the reading list is hidden there). It now exits Focus mode first, mirroring the `q` shortcut, so `r` always lands you back in the reading list.
+- Verified in a real browser via the extended r-shortcut integration test: with Focus mode on, pressing `r` exited it and still flashed the resume target row; zero console errors.
+- Extended the cycle-#248 smoke test with 1 assertion (Focus-mode exit in the r branch) and widened a source window.
+- Full suite green (490 unit + 354 smoke + 12 integration = 856 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 249 of the autonomous loop (alternate add/polish): a shortcut that silently does nothing in one view isn't a shortcut — `r` should always take you back to the reading list, even when Focus mode is hiding it.

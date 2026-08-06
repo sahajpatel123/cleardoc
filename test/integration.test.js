@@ -1093,6 +1093,20 @@ skip("integration: r shortcut resumes the reading list", async () => {
     await page.waitForTimeout(250);
     const flashed = await page.$$eval("#readingBlock .reading-row.reading-resume-flash", (els) => els.length);
     assert.ok(flashed >= 1, "pressing r must flash the resume target row");
+
+    // Cycle #249 — r must exit Focus mode so the reading list is visible.
+    await page.keyboard.press("f");
+    await page.waitForTimeout(150);
+    const inFocus = await page.evaluate(() => document.body.classList.contains("focus-mode"));
+    assert.equal(inFocus, true, "focus mode must be on before the focus-resume check");
+    await page.keyboard.press("r");
+    await page.waitForTimeout(250);
+    const afterFocusR = await page.evaluate(() => ({
+      focus: document.body.classList.contains("focus-mode"),
+      flashed: document.querySelectorAll("#readingBlock .reading-row.reading-resume-flash").length,
+    }));
+    assert.equal(afterFocusR.focus, false, "pressing r must exit Focus mode");
+    assert.ok(afterFocusR.flashed >= 1, "pressing r in Focus mode must still resume");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();

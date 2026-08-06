@@ -2617,6 +2617,9 @@
       if(k === 'r' || k === 'R'){
         const p = document.getElementById('resultPanel');
         if(p && !p.hidden){
+          // Cycle #249 — Focus mode hides the reading list, so exit it
+          // first (mirrors the q shortcut) or resume has nothing to show.
+          setFocusMode(false);
           const rb = document.getElementById('readingResumeBtn');
           if(rb && rb.isConnected){
             e.preventDefault();
