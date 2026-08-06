@@ -121,6 +121,10 @@
   .hcard .clearl b{color:var(--green);font-weight:700}.hcard .clearl .w{color:var(--danger);font-weight:700}
   .hscan{position:absolute;left:0;right:0;height:34px;top:40px;background:linear-gradient(180deg,transparent,var(--accent-glow),transparent);opacity:0}
   .hcard .cardcap{position:absolute;bottom:var(--s2);left:var(--s4);right:var(--s4);font-family:'JetBrains Mono';font-size:var(--t-micro);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+  /* Cycle 82 — copy chip on the hero clarifier card. */
+  .hcard .hcard-copy{position:absolute;top:8px;right:8px;background:transparent;border:1px solid var(--ink-soft);color:var(--ink-soft);font-family:'JetBrains Mono';font-size:var(--t-micro);letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;cursor:pointer;transition:background .12s,color .12s}
+  .hcard .hcard-copy:hover{background:var(--ink);color:var(--paper)}
+  .hcard .hcard-copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
   /* ---------- INDEX (stats) ---------- */
   .idxcap{display:flex;align-items:center;gap:var(--s1);padding:var(--s1) var(--pad-x);border-bottom:var(--bd) solid var(--ink);font-family:'JetBrains Mono';font-size:var(--t-meta-sm);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}

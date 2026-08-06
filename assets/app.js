@@ -2441,6 +2441,41 @@
       gate('.hero',()=>auto&&auto.play(),()=>auto&&auto.pause());
     } else { gsap.set(clear,{opacity:1}); gsap.set(fog,{opacity:0}); }
     input.addEventListener('focus',()=>{ if(auto){auto.kill();auto=null; gsap.set(clear,{opacity:1});gsap.set(fog,{opacity:0});} },{once:true});
+    // Cycle 82 feature — copy the hero clarifier's plain-English rewrite.
+    const hcardCopyBtn = document.getElementById('hcardCopyBtn');
+    if(hcardCopyBtn){
+      hcardCopyBtn.addEventListener('click', async () => {
+        const out = document.getElementById('hclear');
+        if(!out) return;
+        const text = (out.innerText || out.textContent || '').replace(/\s+/g, ' ').trim();
+        if(!text){
+          if(msg){ msg.classList.add('err'); msg.textContent = 'Nothing to copy yet — clarify a sentence first'; }
+          return;
+        }
+        let ok = false;
+        try {
+          if(navigator.clipboard && navigator.clipboard.writeText){
+            await navigator.clipboard.writeText(text);
+            ok = true;
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+            document.body.appendChild(ta); ta.select();
+            ok = document.execCommand('copy'); document.body.removeChild(ta);
+          }
+        } catch(_){ /* ignore */ }
+        hcardCopyBtn.textContent = ok ? '✓ copied' : 'Copy failed';
+        hcardCopyBtn.setAttribute('aria-label', ok ? 'Plain-English rewrite copied to clipboard' : 'Copy failed — try again');
+        if(msg){ msg.classList.remove('err'); msg.textContent = ok ? '✓ Plain-English rewrite copied' : '⚠ Couldn’t copy'; }
+        clearTimeout(hcardCopyBtn._flashTimer);
+        hcardCopyBtn._flashTimer = setTimeout(() => {
+          if(hcardCopyBtn.isConnected){
+            hcardCopyBtn.textContent = '📋 copy';
+            hcardCopyBtn.setAttribute('aria-label', 'Copy the plain-English rewrite');
+          }
+        }, 1400);
+      });
+    }
   }
 
   /* ---- FOG CANVAS (perf-tuned) ---- */

@@ -4018,3 +4018,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 81 of the autonomous loop (alternate add/polish): no stale copy buttons after the diff disappears.
+
+**2026-08-06 02:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #82 of the restarted autonomous loop (feature add).
+- feat(ui): the homepage hero clarifier card now has a "📋 copy" chip that copies the plain-English rewrite to the clipboard — the marketing page's core demo is now grabbable without a screenshot. Clipboard + fallback, status-message feedback, flash, and aria announce/restore.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 273 smoke + 1 integration = 764 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 82 of the autonomous loop (alternate add/polish): the homepage rewrite deserves a copy button too.

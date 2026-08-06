@@ -1179,6 +1179,40 @@ skip("hero clarifier: pasting legalese and clicking Clarify renders the plain-En
   await page.close();
 });
 
+// Cycle 82 feature: copy the hero clarifier's plain-English rewrite.
+test("home: hero clarifier card can copy the plain-English rewrite", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // index.html must carry the copy chip on the clarifier card
+  assert.match(html, /id="hcardCopyBtn" title="Copy the plain-English rewrite" aria-label="Copy the plain-English rewrite"/,
+    "index.html must contain #hcardCopyBtn with a descriptive aria-label");
+
+  // Wiring: reads the rewrite output element, clipboard + fallback
+  assert.match(appSrc, /hcardCopyBtn\.addEventListener\(\s*['"]click['"]/,
+    "the copy chip must have a click handler");
+  assert.match(appSrc, /\(out\.innerText \|\| out\.textContent \|\| ''\)\.replace/,
+    "copy must read the rewrite output text");
+  assert.match(appSrc, /'Nothing to copy yet — clarify a sentence first'/,
+    "copy must guard the empty state");
+  assert.match(appSrc, /'✓ Plain-English rewrite copied'/,
+    "copy must update the hero status message on success");
+  assert.match(appSrc, /hcardCopyBtn\.setAttribute\('aria-label', ok \? 'Plain-English rewrite copied to clipboard' : 'Copy failed — try again'\)/,
+    "copy must announce success/failure via aria-label");
+  assert.match(appSrc, /hcardCopyBtn\.setAttribute\('aria-label', 'Copy the plain-English rewrite'\)/,
+    "copy must restore the original aria-label");
+
+  // CSS: chip styled on the card + focus ring
+  assert.match(cssSrc, /\.hcard \.hcard-copy\{/,
+    "theme.css must style .hcard-copy within the hero card");
+  assert.match(cssSrc, /\.hcard \.hcard-copy:focus-visible\{/,
+    "the copy chip must have a visible focus ring");
+});
+
 skip("STRICT RULE: html/body overflow-x is 'clip', never 'hidden' (kills sticky)", async () => {
   // Project rule #1: `overflow-x: hidden` on html/body breaks position:sticky
   // site-wide. `clip` is the safe equivalent. Lock it in so future edits
