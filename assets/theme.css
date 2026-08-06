@@ -1297,6 +1297,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .verdict-label.review{background:var(--amber-tint);color:var(--amber);border:2px solid var(--amber)}
 .verdict-label.suspicious{background:var(--danger-tint);color:var(--danger);border:2px solid var(--danger)}
 .verdict-label.illegal{background:var(--danger);color:#fff;border:2px solid var(--danger)}
+.verdict-label{cursor:pointer}
+.verdict-label:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .verdict-summary{font-size:var(--t-body);line-height:1.5;color:var(--ink-soft);flex:1}
 
 /* Threat score (iter #216) — at-a-glance weighted severity score

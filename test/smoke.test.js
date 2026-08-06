@@ -12009,6 +12009,36 @@ test("analyzer: contract type badge opens a plain-English explainer", () => {
     "the visible badge must read as clickable");
 });
 
+// Cycle #206 — the verdict label explains itself.
+test("analyzer: verdict label opens a plain-English explainer", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /const VERDICT_EXPLAIN = \{[\s\S]{0,200}suspicious:/,
+    "a verdict explainer map must exist");
+  assert.match(appSrc, /function showVerdictExplain\(label, tone, opener\)\{/,
+    "a verdict explainer must exist");
+  assert.match(appSrc, /function wireVerdictLabelExplain\(label, tone\)\{/,
+    "a verdict-label wirer must exist");
+  assert.match(appSrc, /vLabel\.setAttribute\('role','button'\)/,
+    "the verdict label must be announced as a button");
+  assert.match(appSrc, /vLabel\.setAttribute\('tabindex','0'\)/,
+    "the verdict label must be keyboard-focusable");
+  assert.match(appSrc, /e\.key === 'Enter' \|\| e\.key === ' '/,
+    "Enter and Space must open the explainer");
+  assert.match(appSrc, /vLabel\._verdictExplainWired/,
+    "the verdict-label wiring must happen once");
+  const wireCalls = (appSrc.match(/wireVerdictLabelExplain\(label, tone\);/g) || []).length;
+  assert.ok(wireCalls >= 2,
+    "both the analysis and snapshot-restore renders must wire the label");
+  assert.match(cssSrc, /\.verdict-label\{cursor:pointer\}/,
+    "the verdict label must read as clickable");
+  assert.match(cssSrc, /\.verdict-label:focus-visible\{/, "the verdict label must have a focus ring");
+});
+
 // Iter #224: Contract Readiness Score — single 0-100 number for quick decisions.
 test("analyzer: Readiness Score computes 0-100 from threat data with four tone levels", () => {
   if (!HAS_BROWSER) return;

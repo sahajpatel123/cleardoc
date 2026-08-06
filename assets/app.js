@@ -14990,6 +14990,7 @@
           verdictDisplay.innerHTML='<span class="verdict-label '+tone+'">'+esc(label)+'</span>'
             +'<div class="verdict-summary">'+esc(summary||'')+'</div>';
           if(verdictBlock) verdictBlock.hidden=false;
+          wireVerdictLabelExplain(label, tone);
         } else {
           if(verdictBlock) verdictBlock.hidden=true;
         }
@@ -15057,6 +15058,62 @@
           badge.addEventListener('click', () => showDocTypeExplain(dt, badge));
           badge.addEventListener('keydown', (e) => {
             if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); showDocTypeExplain(dt, badge); }
+          });
+        }
+      }
+      // Cycle #206 — the verdict label explains itself: what Fair /
+      // Suspicious / Illegal / Review actually means for the reader.
+      const VERDICT_EXPLAIN = {
+        fair: 'The document looks mostly balanced — no glaring one-sided traps. The flagged items are still worth a read before signing.',
+        suspicious: 'One or more clauses look one-sided or pressuring. Review every flagged trap before you sign — these are the phrases negotiators target.',
+        illegal: 'Part of this document appears legally risky or unenforceable as written. Strong signal to get a lawyer’s eyes on it before signing.',
+        review: 'No clear red or green signal — worth a careful read of the flagged clauses before you commit.',
+      };
+      function showVerdictExplain(label, tone, opener){
+        const m = document.createElement('div');
+        m.className = 'kb-modal doc-type-modal show';
+        m.setAttribute('role','dialog');
+        m.setAttribute('aria-modal','true');
+        m.setAttribute('aria-hidden','false');
+        m.setAttribute('aria-labelledby','dtm-title');
+        const text = VERDICT_EXPLAIN[tone] || VERDICT_EXPLAIN.review;
+        m.innerHTML =
+          '<div class="kb-modal-bg" data-dtm-bg="1"></div>' +
+          '<div class="kb-modal-card">' +
+            '<button type="button" class="kb-modal-close" data-dtm-close="1" aria-label="Close">✕</button>' +
+            '<h2 id="dtm-title" class="kb-modal-title mono">' + esc(label) + ' verdict</h2>' +
+            '<p class="dtm-tip">' + esc(text) + '</p>' +
+            '<p class="dtm-foot mono">ClearDoc’s verdict is a readability signal, not legal advice.</p>' +
+          '</div>';
+        document.body.appendChild(m);
+        const closeBtn = m.querySelector('.kb-modal-close');
+        if(closeBtn) try { closeBtn.focus({preventScroll:true}); } catch(_){ closeBtn.focus(); }
+        const returnFocus = opener || document.activeElement;
+        const close = () => {
+          m.remove();
+          if(returnFocus && typeof returnFocus.focus === 'function'){
+            try { returnFocus.focus({preventScroll:true}); } catch(_){ returnFocus.focus(); }
+          }
+        };
+        m.addEventListener('click', (e) => {
+          if(e.target.closest('[data-dtm-bg], [data-dtm-close], .kb-modal-close')) close();
+        });
+        document.addEventListener('keydown', function onEsc(e){
+          if(e.key === 'Escape'){ close(); document.removeEventListener('keydown', onEsc); }
+        });
+      }
+      function wireVerdictLabelExplain(label, tone){
+        const vLabel = verdictDisplay && verdictDisplay.querySelector('.verdict-label');
+        if(!vLabel) return;
+        if(!vLabel._verdictExplainWired){
+          vLabel._verdictExplainWired = true;
+          vLabel.setAttribute('role','button');
+          vLabel.setAttribute('tabindex','0');
+          vLabel.title = 'Click for what this verdict means';
+          const open = () => showVerdictExplain(label, tone, vLabel);
+          vLabel.addEventListener('click', open);
+          vLabel.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); open(); }
           });
         }
       }
@@ -15631,6 +15688,7 @@
           verdictDisplay.innerHTML='<span class="verdict-label '+tone+'">'+esc(label)+'</span>'
             +'<div class="verdict-summary">'+esc(summary||'')+'</div>';
           if(verdictBlock) verdictBlock.hidden=false;
+          wireVerdictLabelExplain(label, tone);
         } else if(verdictBlock){ verdictBlock.hidden=true; }
       }
 
