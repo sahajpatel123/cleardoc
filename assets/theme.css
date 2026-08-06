@@ -1949,11 +1949,14 @@ button.risk-preview:hover{filter:brightness(.96)}
 .party-cell.party-name{border-left:3px solid var(--ink)}
 .party-cell.party-date{border-left:3px solid var(--amber)}
 .party-cell.party-sig{border-left:3px solid var(--green);background:var(--green-tint);grid-column:1 / -1}
+.party-actions{display:flex;gap:4px;margin-top:4px}
 .party-type{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;font-weight:700}
 .party-value{font-size:var(--t-meta);color:var(--ink);font-family:'JetBrains Mono',monospace}
 .party-name{cursor:pointer}
 .party-name:hover{filter:brightness(.96)}
 .party-ics{margin-top:4px;font-size:11px;padding:1px 5px;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
+.party-copy{flex-shrink:0}
+.party-copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* Glossary quick-reference (iter #156) — legal terms + plain meanings. */
 .gloss-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}

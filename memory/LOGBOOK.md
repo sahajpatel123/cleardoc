@@ -4590,3 +4590,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 136 of the autonomous loop (alternate add/polish): the name you're about to address a counter-letter to should copy in one click.
+
+**2026-08-06 03:52 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #137 of the restarted autonomous loop (polish).
+- polish(ui): the party cell's 📅 ics and 📋 copy buttons now hang together in one horizontal `.party-actions` row (instead of stacking full-width in the column layout), with the copy button shrink-proof and focus-ringed.
+- Extended the cycle-136 smoke test with 3 assertions covering the group markup and the action-row + focus-ring CSS (also cleaned up a stray duplicate `cssSrc` declaration that a broad-context patch had dropped into an unrelated test — the full suite caught it before commit).
+- Full suite green (490 unit + 303 smoke + 1 integration = 794 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 137 of the autonomous loop (alternate add/polish): the two party-cell actions should read as one tidy row, not two stacked buttons.

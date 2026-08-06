@@ -9824,6 +9824,7 @@ test("analyzer: Party cells copy their detail in one click", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /const copyVal = \(it\.type === 'name' \? '👤 party: ' : '📅 date: '\) \+ it\.value \+ \(it\.title \? ' \(' \+ it\.title \+ '\)' : ''\);/,
     "the citation must carry the type, value, and role/title");
@@ -9841,6 +9842,12 @@ test("analyzer: Party cells copy their detail in one click", () => {
     "the button must flash its copied state");
   assert.match(appSrc, /📋 to copy one/,
     "the block note must document the copy action");
+  assert.match(appSrc, /class="party-actions"/,
+    "the ics + copy buttons must be grouped into one action row");
+  assert.match(cssSrc, /\.party-actions\{[^}]*display:flex/,
+    "the action row must lay out horizontally");
+  assert.match(cssSrc, /\.party-copy:focus-visible\{/,
+    "the copy button must have a focus ring");
 });
 
 // Iter #156: glossary quick-reference — extracts legal terms + plain-English.

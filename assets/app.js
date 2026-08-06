@@ -10977,8 +10977,11 @@
         return '<div class="party-cell ' + cls + '"' + jumpAttr + ' title="Click to jump to this in the source">' +
           '<div class="party-type">' + (it.type === 'name' ? '👤 party' : '📅 date') + '</div>' +
           '<div class="party-value">' + esc(it.value) + (it.title ? ' · ' + esc(it.title) : '') + '</div>' +
-          icsBtn +
-          '<button type="button" class="party-copy ghost-btn ghost-btn-sm" data-party-copy="' + esc(copyVal) + '" title="Copy this party detail" aria-label="Copy this party detail">📋</button>' +
+          // Cycle #137 — ics + copy hang together in one action row.
+          '<span class="party-actions">' +
+            icsBtn +
+            '<button type="button" class="party-copy ghost-btn ghost-btn-sm" data-party-copy="' + esc(copyVal) + '" title="Copy this party detail" aria-label="Copy this party detail">📋</button>' +
+          '</span>' +
         '</div>';
       }).join('');
       partyGrid.innerHTML = cells +
