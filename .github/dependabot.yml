@@ -1,0 +1,46 @@
+# Dependabot configuration for automated dependency updates.
+# Updates npm dependencies weekly, prioritizing security patches.
+
+version: 2
+updates:
+  # npm dependencies (package.json)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: " sunday"
+      time: "04:00"
+      timezone: "America/Los_Angeles"
+    open-pull-requests-limit: 10
+    # Group security-related updates together for easier review
+    groups:
+      security-updates:
+        dependency-types:
+          - "direct"
+          - "production"
+        patterns:
+          - "*"
+    # Labels for categorization
+    labels:
+      - "dependencies"
+      - "automated-pr"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # GitHub Actions (actions in workflows)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "04:00"
+      timezone: "America/Los_Angeles"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated-pr"
+    commit-message:
+      prefix: "chore"
+      include: "scope"

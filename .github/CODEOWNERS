@@ -1,0 +1,29 @@
+# Code Owners - Define who is responsible for which parts of the codebase
+# This file must be in the repository root or .github/ directory.
+# CODEOWNERS file for ClearDoc security and code ownership
+
+# Primary maintainers - all source code
+*                           @sahajpatel123
+
+# API handlers - backend security critical
+/api/*.js                  @sahajpatel123
+
+# Frontend client-side code
+/assets/*.js               @sahajpatel123
+
+# Security and CI configurations
+.github/workflows/*.yml   @sahajpatel123
+.github/CODEOWNERS        @sahajpatel123
+.github/dependabot.yml     @sahajpatel123
+
+# Test files
+test/*.js                 @sahajpatel123
+
+# Documentation
+*.md                      @sahajpatel123
+
+# Security policy
+SECURITY.md               @sahajpatel123
+
+# Vercel configuration
+vercel.json               @sahajpatel123
