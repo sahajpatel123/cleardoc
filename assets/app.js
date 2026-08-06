@@ -10111,6 +10111,9 @@
               // Cycle #150 — hear the pushiest language aloud.
               '<button type="button" class="pressure-speak ghost-btn ghost-btn-sm" data-pressure-speak="' + esc(it.sentence) + '" title="Read this pressure clause aloud" aria-label="Read this pressure clause aloud">🔊</button>' +
               '<button type="button" class="pressure-copy ghost-btn ghost-btn-sm" data-pressure-copy-text="' + esc(copyText) + '" title="Copy this pressure clause as a citation" aria-label="Copy this pressure clause as a citation">📋</button>' +
+              // Cycle #246 — 💬 ask about the clause, completing the
+              // copy / speak / ask trio on pressure cards.
+              '<button type="button" class="pressure-ask ghost-btn ghost-btn-sm" data-pressure-ask="' + esc(it.sentence) + '" title="Ask about this pressure clause" aria-label="Ask about this pressure clause">💬</button>' +
             '</div>' +
             '<div class="pressure-quote">"' + highlightQuote(it.sentence, it.matched) + '"</div>' +
             '<div class="pressure-why"><b>why:</b> ' + esc(it.why) + '</div>' +
@@ -10192,7 +10195,7 @@
         pressureNote.innerHTML = '<span class="riskNote-lead">Pressure score ' + r.pressureScore + '/100</span> · ' +
           'Real contracts rarely need to be signed "today only". We extract every clause designed to rush you into action: hard deadlines, manufactured scarcity, emotional pressure, and "sole discretion" language. ' +
           skNote + (skNote ? ' ' : '') +
-          'Each card shows the verbatim quote with the trigger phrase highlighted, why it matters, and what to do instead. Click <b>○</b> to mark a tactic as reviewed (progress persists). ' + cooldownNote + ' <b>📋 copy list</b> exports the full list. <b>🔊</b> reads one aloud.' + filterNote;
+          'Each card shows the verbatim quote with the trigger phrase highlighted, why it matters, and what to do instead. Click <b>○</b> to mark a tactic as reviewed (progress persists). ' + cooldownNote + ' <b>📋 copy list</b> exports the full list. <b>🔊</b> reads one aloud, or <b>💬</b> asks about one.' + filterNote;
       }
       // Click-to-jump — but don't fire when the user clicks the done
       // checkbox (which is a button inside the card).
@@ -10234,6 +10237,23 @@
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Pressure citation copied' : '⚠ Couldn’t copy');
             copyBtn.textContent = copied ? '✓' : '📋';
             if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋'; }, 1500);
+            return;
+          }
+          // Cycle #246 — 💬 prefills the Ask panel with the clause.
+          const askBtn2 = e.target.closest && e.target.closest('[data-pressure-ask]');
+          if(askBtn2){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = askBtn2.getAttribute('data-pressure-ask') || '';
+            const qInput = document.getElementById('askInput');
+            if(!qInput || !text) return;
+            qInput.value = 'What does this pressure clause mean: "' + text.slice(0, 220) + '"';
+            qInput.disabled = false;
+            const qBtn = document.getElementById('askBtn');
+            if(qBtn) qBtn.disabled = false;
+            try { qInput.focus({preventScroll:false}); } catch(_){ qInput.focus(); }
+            try { qInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
             return;
           }
           if(!input) return;

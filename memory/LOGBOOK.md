@@ -5766,3 +5766,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 245 of the autonomous loop (alternate add/polish): the note that teaches a block should teach all of it — a question button nobody knows about is a question button nobody asks.
+
+**2026-08-07 06:32 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #246 of the restructured autonomous loop (add).
+- feat(pressure): pressure cards now have a 💬 ask button that prefills the Ask panel with "What does this pressure clause mean: "<clause> — completing the copy / speak / ask trio on the last flag-card block (smoking guns in #242, exposure in #244). Styling + note text included up front (margin-left, focus ring, "💬 asks about one").
+- Verified in a real browser via a new integration test (fresh origin, "immediately due / forfeited without notice" doc): the pressure card rendered, the note mentioned ask, clicking the ask button prefilled the Ask panel and enabled the input; zero console errors.
+- New smoke source test (8 assertions: ask button markup, clause attribute, delegated handler, prefill format, toast, note text, layout CSS, focus ring).
+- Full suite green (490 unit + 352 smoke + 11 integration = 853 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 246 of the autonomous loop (alternate add/polish): every scary card in the app can now answer questions — the copy/speak/ask trio is finally complete across risks, reading chunks, smoking guns, exposures, and pressure clauses.

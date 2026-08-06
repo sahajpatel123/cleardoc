@@ -12171,7 +12171,7 @@ test("analyzer: Exposure cards read the exposure aloud in one click", () => {
     "clicking must speak the exposure");
   assert.match(appSrc, /u\.rate = getTtsRate\(\);/,
     "the reading must respect the chosen speed");
-  assert.match(appSrc, /🔊<\/b> reads one aloud\./,
+  assert.match(appSrc, /🔊<\/b> reads one aloud/,
     "the block note must document the speak action");
   assert.match(cssSrc, /\.exposure-speak\{[^}]*flex-shrink:0/,
     "the speak button must never shrink");
@@ -12254,8 +12254,34 @@ test("analyzer: Pressure cards read the pressure clause aloud in one click", () 
     "clicking must speak the pressure clause");
   assert.match(appSrc, /u\.rate = getTtsRate\(\);/,
     "the reading must respect the chosen speed");
-  assert.match(appSrc, /🔊<\/b> reads one aloud\./,
+  assert.match(appSrc, /🔊<\/b> reads one aloud/,
     "the block note must document the speak action");
+});
+
+// Cycle #246 — ask about a pressure clause, completing the card trio.
+test("analyzer: Pressure cards ask about the clause in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /class="pressure-ask ghost-btn ghost-btn-sm"/,
+    "each pressure card must render an ask button");
+  assert.match(appSrc, /data-pressure-ask="' \+ esc\(it\.sentence\) \+ '"/,
+    "the ask button must carry the pressure clause");
+  assert.match(appSrc, /const askBtn2 = e\.target\.closest && e\.target\.closest\('\[data-pressure-ask\]'\);/,
+    "the card click handler must catch ask-button clicks");
+  assert.match(appSrc, /qInput\.value = 'What does this pressure clause mean: "' \+ text\.slice\(0, 220\) \+ '"';/,
+    "clicking must prefill the Ask panel with the clause");
+  assert.match(appSrc, /'💬 Question ready — press Ask'/,
+    "asking must announce via toast");
+  assert.match(appSrc, /💬<\/b> asks about one/,
+    "the block note must document the ask action");
+  assert.match(cssSrc, /\.pressure-ask\{[^}]*margin-left:4px/,
+    "the ask button must sit beside the copy button");
+  assert.match(cssSrc, /\.pressure-ask:focus-visible\{/,
+    "the ask button must have a focus ring");
 });
 
 // Iter #218 v2: JSON export polish — download button + DOM-extracted
