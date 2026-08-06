@@ -3268,3 +3268,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 6 of the autonomous loop (alternate add/polish): expose the already-computed rewrite word count to users.
+
+**2026-08-06 13:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #7 of the restarted autonomous loop (polish).
+- polish(ui): the Plain-English rewrite Copy button silently did nothing when clicked before a rewrite existed (loading state or failed analysis). It now shows the app-wide toast "Nothing to copy yet — analyze a document first", mirroring the empty-state feedback the read-aloud and other actions already provide.
+- Extended the rewrite copy smoke test to lock in the empty-state message.
+- Full suite green (490 unit + 229 smoke + 1 integration = 720 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 7 of the autonomous loop (alternate add/polish): give the rewrite Copy button an honest empty-state response.

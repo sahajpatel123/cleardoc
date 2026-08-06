@@ -16884,7 +16884,10 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       const el=document.getElementById('plainOut');
       if(!el) return;
       const text=(el.textContent||'').trim();
-      if(!text) return;
+      if(!text){
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy yet — analyze a document first');
+        return;
+      }
       let ok=false;
       try{
         if(navigator.clipboard && navigator.clipboard.writeText){

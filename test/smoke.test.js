@@ -227,6 +227,7 @@ skip("rewrite block: has a Copy button that copies just the plain-English rewrit
   assert.match(appSrc, /rewriteCopyBtn=\$\('#rewriteCopyBtn'\)/, "app.js must look up #rewriteCopyBtn");
   assert.match(appSrc, /rewriteCopyBtn\.addEventListener\('click'/, "app.js must wire the rewrite copy button");
   assert.match(appSrc, /getElementById\('plainOut'\)/, "rewrite copy must read #plainOut");
+  assert.match(appSrc, /'⚠ Nothing to copy yet — analyze a document first'/, "rewrite copy must give feedback when there is nothing to copy");
   assert.match(appSrc, /'📋 Rewrite copied'/, "rewrite copy must toast on success");
   assert.match(themeSrc, /\.rewrite-copy\{/, "theme.css must style .rewrite-copy");
   assert.match(themeSrc, /\.rewrite-copy:focus-visible\{/, "theme.css must give .rewrite-copy a focus ring");
