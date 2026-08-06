@@ -10106,6 +10106,7 @@ test("analyzer: Obligation rows can read the obligation aloud in one click", () 
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /class="act-speak ghost-btn ghost-btn-sm"/,
     "each obligation row must render a speak button");
@@ -10121,6 +10122,10 @@ test("analyzer: Obligation rows can read the obligation aloud in one click", () 
     "speaking must not trigger the row's other actions");
   assert.match(appSrc, /<b>🔊<\/b> to hear it/,
     "the block note must document the speak action");
+  assert.match(cssSrc, /\.action-row \.act-ask,\.action-row \.act-speak\{[^}]*flex-shrink:0/,
+    "the ask and speak buttons must never shrink beside the sentence");
+  assert.match(cssSrc, /\.act-speak:focus-visible\{/,
+    "the speak button must have a focus ring");
 });
 
 // Iter #158: analysis confidence — rates how reliable this run is.

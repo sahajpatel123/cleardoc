@@ -4690,3 +4690,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 146 of the autonomous loop (alternate add/polish): an obligation you must meet should be hearable, not just readable.
+
+**2026-08-06 06:12 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #147 of the restarted autonomous loop (polish).
+- polish(ui): the obligation row's 💬 ask and 🔊, speak buttons are now shrink-proof beside the flexing sentence (`flex-shrink:0`), and the speak button gets a proper focus ring — so the action pair stays put at the row's right edge at every width.
+- Extended the cycle-146 smoke test with 2 CSS assertions covering the shrink guard and the focus ring.
+- Full suite green (490 unit + 308 smoke + 1 integration = 799 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 147 of the autonomous loop (alternate add/polish): the obligation actions should sit calmly at the row's edge, never crushed.

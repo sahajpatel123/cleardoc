@@ -2681,6 +2681,8 @@ mark.smoking-trigger{background:#ffe98a;color:var(--ink);padding:0 2px;font-weig
 .action-row.action-done .action-sentence{text-decoration:line-through}
 .action-tag{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;flex-shrink:0;padding:2px 4px;background:var(--ink);color:var(--paper);min-width:48px;text-align:center}
 .action-sentence{font-size:var(--t-meta);color:var(--ink);flex:1;min-width:0}
+.action-row .act-ask,.action-row .act-speak{flex-shrink:0}
+.act-speak:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .act-done-btn{margin-left:6px;flex-shrink:0;font-size:14px;background:transparent;border:1px solid var(--bd-hair);color:var(--green);cursor:pointer;padding:0 6px;min-width:24px}
 .action-controls{margin-top:6px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .action-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
