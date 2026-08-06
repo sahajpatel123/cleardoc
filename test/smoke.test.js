@@ -4161,6 +4161,15 @@ test("analyzer: Template panel exports and imports a JSON backup", () => {
   // CSS: non-destructive export/import buttons
   assert.match(cssSrc, /\.tpl-actions \.tpl-export,\.tpl-actions \.tpl-import\{/,
     "theme.css must style the template export/import buttons together");
+  // Cycle 65 polish — imported entries normalized to saveTemplate invariants
+  assert.match(appSrc, /name: String\(t\.name\)\.slice\(0, 60\),/,
+    "imported names must be capped at 60 chars like saves");
+  assert.match(appSrc, /text: String\(t\.text\)\.slice\(0, 40000\),/,
+    "imported text must be capped at 40000 chars like saves");
+  assert.match(appSrc, /ts: \(typeof t\.ts === 'number'\) \? t\.ts : Date\.now\(\),/,
+    "imported entries without a numeric ts must get one");
+  assert.match(appSrc, /type: \(typeof t\.type === 'string'\) \? t\.type : null,/,
+    "imported type must be normalized to a string or null");
 });
 
 test("analyzer: voice picker dropdown lets users choose a specific TTS voice", () => {

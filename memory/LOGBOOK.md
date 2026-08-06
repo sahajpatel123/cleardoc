@@ -3848,3 +3848,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 64 of the autonomous loop (alternate add/polish): named templates deserve a backup too.
+
+**2026-08-06 23:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #65 of the restarted autonomous loop (polish).
+- polish(sec): template import now normalizes every accepted entry to the exact invariants saveTemplate enforces — name capped at 60 chars, text at 40000, numeric ts (falling back to now), version and string-or-null type — so a hand-crafted backup can't inject entries no save could ever create.
+- Extended the template-backup smoke test with the normalization assertions.
+- Full suite green (490 unit + 264 smoke + 1 integration = 755 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 65 of the autonomous loop (alternate add/polish): imported templates must obey the same rules as saved ones.

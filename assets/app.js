@@ -16205,7 +16205,17 @@
             try{
               const data = JSON.parse(String(reader.result || ''));
               const arr = Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : []);
-              const valid = arr.filter(t => t && typeof t === 'object' && typeof t.name === 'string' && typeof t.text === 'string' && t.name.trim() && t.text.trim().length >= 8);
+              const valid = arr.filter(t => t && typeof t === 'object' && typeof t.name === 'string' && typeof t.text === 'string' && t.name.trim() && t.text.trim().length >= 8).map(t => ({
+                // Cycle 65 polish — normalize imported entries to the same
+                // invariants saveTemplate enforces (name ≤ 60, text ≤ 40000,
+                // numeric ts, string-or-null type) so a hand-crafted backup
+                // can't inject entries no save could ever create.
+                v: (t.v && typeof t.v === 'number') ? t.v : TPL_VERSION,
+                ts: (typeof t.ts === 'number') ? t.ts : Date.now(),
+                name: String(t.name).slice(0, 60),
+                text: String(t.text).slice(0, 40000),
+                type: (typeof t.type === 'string') ? t.type : null,
+              }));
               if(!valid.length){
                 if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No valid templates in that file');
                 return;
