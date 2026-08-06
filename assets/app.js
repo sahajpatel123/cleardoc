@@ -7103,16 +7103,41 @@
           // Cycle 77 polish — a real button inside the status banner gives
           // keyboard users an accessible jump affordance (the whole-banner
           // click stays as a convenience).
-          deadlineAlert.innerHTML = '<span class="da-icon" aria-hidden="true">⏰</span> ' + parts.join(' <span class="da-sep" aria-hidden="true">·</span> ') + ' <button type="button" class="da-jump-btn" id="deadlineAlertJumpBtn">jump to deadlines ⤓</button>';
+          // Cycle #210 — a copy chip exports the alert summary for a
+          // lawyer or calendar note.
+          deadlineAlert.innerHTML = '<span class="da-icon" aria-hidden="true">⏰</span> ' + parts.join(' <span class="da-sep" aria-hidden="true">·</span> ') + ' <button type="button" class="da-jump-btn" id="deadlineAlertJumpBtn">jump to deadlines ⤓</button> <button type="button" class="da-copy-btn no-print" id="deadlineAlertCopyBtn" data-da-copy="1" title="Copy the deadline alert text">📋 copy</button>';
           deadlineAlert.hidden = false;
           if(!deadlineAlert._jumpWired){
             deadlineAlert._jumpWired = true;
-            deadlineAlert.addEventListener('click', () => {
+            deadlineAlert.addEventListener('click', (e) => {
+              if(e.target.closest && e.target.closest('[data-da-copy]')) return;
               if(!deadlineBlock) return;
               try {
                 if(typeof lenis !== 'undefined' && lenis) lenis.scrollTo(deadlineBlock, { offset: -10 });
                 else deadlineBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
               } catch(_){ deadlineBlock.scrollIntoView(); }
+            });
+          }
+          if(!deadlineAlert._copyWired){
+            deadlineAlert._copyWired = true;
+            deadlineAlert.addEventListener('click', async (e) => {
+              const copyBtn = e.target.closest && e.target.closest('[data-da-copy]');
+              if(!copyBtn) return;
+              const plain = parts.map(p => p.replace(/<[^>]+>/g, '')).join(' · ');
+              const text = 'ClearDoc deadline alert\n\n' + plain;
+              let copied = false;
+              try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+              catch(_){ /* fall through */ }
+              if(!copied){
+                try {
+                  const ta = document.createElement('textarea');
+                  ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                  copied = true;
+                } catch(_){ /* ignore */ }
+              }
+              if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Deadline alert copied' : '⚠ Couldn’t copy');
+              copyBtn.textContent = copied ? '✓' : '📋 copy';
+              if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 1500);
             });
           }
         } else {

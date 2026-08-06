@@ -5363,3 +5363,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 209 of the autonomous loop (alternate add/polish): "done" should mean done — no phantom minutes left after the last checkbox.
+
+**2026-08-06 22:57 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #210 of the restarted autonomous loop (add).
+- feat(deadlines): the results deadline alert (⏰ "N overdue · N within 7 days") now has a "📋 copy" chip that exports the plain-text summary — "ClearDoc deadline alert" header plus the overdue/upcoming counts and dates — for a lawyer, calendar note, or email. The jump handler ignores copy clicks, the wiring is once-guarded, and the chip flashes ✓ with a toast.
+- Verified in a real browser with a mocked analyze flow: the copy produced the full plain-text summary with both dates and toasted; zero console errors.
+- Extended the deadline-alert smoke test with 7 assertions (copy button markup, once-wiring, handler selector, HTML-tag stripping, toast, jump-ignore, CSS). A regex lesson surfaced in-process: `\>` (escaped greater-than) doesn't match in modern V8 — the assertion uses a plain `>`.
+- Full suite green (490 unit + 337 smoke + 1 integration = 828 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 210 of the autonomous loop (alternate add/polish): the loudest banner should be the easiest to share — one tap to put it in an email.

@@ -11141,6 +11141,20 @@ test("analyzer: Deadline alert surfaces overdue + within-7-days deadlines", () =
     "the flex display must not override the hidden attribute");
   assert.match(cssSrc, /\.deadline-alert:focus-visible\{/,
     "the alert must have a visible focus ring");
+  // Cycle #210 — a copy chip exports the alert summary.
+  assert.match(appSrc, /id="deadlineAlertCopyBtn" data-da-copy="1"/,
+    "the alert must contain a copy button");
+  assert.match(appSrc, /deadlineAlert\._copyWired/,
+    "the alert copy wiring must be attached only once");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-da-copy\]'\)/,
+    "the copy handler must catch copy-button clicks");
+  assert.match(appSrc, /p\.replace\(\/<\[\^>\]\+>\/g, ''\)/,
+    "the copy payload must strip the alert's HTML tags");
+  assert.match(appSrc, /'📋 Deadline alert copied'/,
+    "copying must toast on success");
+  assert.match(appSrc, /if\(e\.target\.closest && e\.target\.closest\('\[data-da-copy\]'\)\) return;/,
+    "the jump handler must ignore copy-button clicks");
+  assert.match(cssSrc, /\.deadline-alert \.da-copy-btn\{/, "the copy button must be styled");
 });
 
 // Cycle #106 — load-time reminder for deadlines from the last analysis.

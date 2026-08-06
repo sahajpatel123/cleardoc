@@ -804,6 +804,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .deadline-alert .da-jump-btn{background:none;border:1px solid currentColor;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;padding:2px 8px;cursor:pointer;opacity:.9}
 .deadline-alert .da-jump-btn:hover{background:currentColor;color:var(--paper)}
 .deadline-alert .da-jump-btn:focus-visible{outline:2px solid var(--danger);outline-offset:2px}
+.deadline-alert .da-copy-btn{background:none;border:1px solid currentColor;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;padding:2px 8px;cursor:pointer;opacity:.9}
+.deadline-alert .da-copy-btn:hover{background:currentColor;color:var(--paper)}
+.deadline-alert .da-copy-btn:focus-visible{outline:2px solid var(--danger);outline-offset:2px}
 .deadline-alert:hover{filter:brightness(.97)}
 .deadline-alert:focus-visible{outline:2px solid var(--danger);outline-offset:2px}
 .deadline-alert[hidden]{display:none}
