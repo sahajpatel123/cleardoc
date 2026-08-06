@@ -2998,6 +2998,48 @@ test("analyzer: document summary line shows sentence / paragraph / avg / longest
     ".ds-dense must use --amber (dense legalese reads louder)");
 });
 
+// Cycle 72 feature: copy the live document-stats line.
+test("analyzer: document summary line can copy its live stats", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html must carry the copy chip inside the doc-summary line
+  assert.match(html, /id="dsCopyBtn" title="Copy the document stats line" aria-label="Copy document stats"/,
+    "analyze.html must contain #dsCopyBtn with a descriptive aria-label");
+
+  // Wiring: once-only guard + live reads of the stat elements
+  assert.match(appSrc, /dsCopyBtn\._dsCopyWired/,
+    "stats-copy wiring must be guarded so it is attached only once");
+  assert.match(appSrc, /t\('dsSentences'\)/,
+    "copy must read the live sentence count");
+  assert.match(appSrc, /t\('dsParagraphs'\)/,
+    "copy must read the live paragraph count");
+  assert.match(appSrc, /t\('dsAvgWords'\)/,
+    "copy must read the live average-words count");
+  assert.match(appSrc, /t\('dsLongest'\)/,
+    "copy must read the live longest-sentence count");
+  assert.match(appSrc, /!langEl\.hidden/,
+    "copy must include the language only when it is visible");
+  assert.match(appSrc, /jn !== '0'/,
+    "copy must include jargon swaps only when non-zero");
+  assert.match(appSrc, /'Doc stats · ' \+ parts\.join\(' · '\)/,
+    "copy must prefix the line with 'Doc stats ·'");
+  assert.match(appSrc, /'📋 Document stats copied'/,
+    "copy must toast on success");
+  assert.match(appSrc, /dsCopyBtn\.textContent = '📋 copy'; \}, 1400\);/,
+    "the chip must flash and restore its label");
+
+  // CSS: chip styled within the doc-summary line + focus ring
+  assert.match(cssSrc, /\.doc-summary \.ds-copy\{/,
+    "theme.css must style .ds-copy within the doc summary");
+  assert.match(cssSrc, /\.doc-summary \.ds-copy:focus-visible\{/,
+    "the stats copy chip must have a visible focus ring");
+});
+
 test("analyzer: doc-summary line shows jargon-swap count that toggles a plain-English preview", () => {
   // Polishes iter #17 — adds a jargon-swap badge inline with the doc
   // structural summary. Click reveals the input with jargon terms

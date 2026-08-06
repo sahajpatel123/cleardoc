@@ -3918,3 +3918,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 71 of the autonomous loop (alternate add/polish): the transcript should outlive the narration.
+
+**2026-08-06 00:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #72 of the restarted autonomous loop (feature add).
+- feat(ui): the live document-stats line now has a "📋 copy" chip that exports the current shape of the document ("Doc stats · 47 sentences · 4 paragraphs · avg 18 words · longest 64 · English · 3 jargon swaps") — including language and jargon only when they're visible/non-zero. Standard clipboard + toast + flash.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 268 smoke + 1 integration = 759 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 72 of the autonomous loop (alternate add/polish): track the shape of a document without a screenshot.

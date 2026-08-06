@@ -320,6 +320,43 @@
     decorateStepsRows();
     applyStepsDone();
   }
+  // Cycle 72 feature — copy the live document-stats line so the shape of a
+  // document can be tracked or shared without a screenshot.
+  const dsCopyBtn = document.getElementById('dsCopyBtn');
+  if(dsCopyBtn && !dsCopyBtn._dsCopyWired){
+    dsCopyBtn._dsCopyWired = true;
+    dsCopyBtn.addEventListener('click', async () => {
+      const t = (id) => { const el = document.getElementById(id); return el ? (el.textContent || '').trim() : ''; };
+      const parts = [];
+      const s = t('dsSentences');
+      parts.push(s + ' sentence' + (s === '1' ? '' : 's'));
+      const p = t('dsParagraphs');
+      parts.push(p + ' paragraph' + (p === '1' ? '' : 's'));
+      parts.push('avg ' + (t('dsAvgWords') || '0') + ' words');
+      parts.push('longest ' + (t('dsLongest') || '0'));
+      const langEl = document.getElementById('dsLang');
+      if(langEl && !langEl.hidden && langEl.textContent.trim()) parts.push(langEl.textContent.trim());
+      const jn = t('dsJargonCount');
+      if(jn && jn !== '0') parts.push(jn + ' jargon swap' + (jn === '1' ? '' : 's'));
+      const text = 'Doc stats · ' + parts.join(' · ');
+      let ok = false;
+      try {
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok = document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      } catch(_){ /* ignore */ }
+      dsCopyBtn.textContent = ok ? '✓' : '✕';
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Document stats copied' : '⚠ Couldn’t copy');
+      clearTimeout(dsCopyBtn._flashTimer);
+      dsCopyBtn._flashTimer = setTimeout(() => { if(dsCopyBtn.isConnected) dsCopyBtn.textContent = '📋 copy'; }, 1400);
+    });
+  }
 
   // Ask-thread answer copy — each answered turn gets a Copy button that
   // exports the answer text plus its citation. Delegated on #askThread so
