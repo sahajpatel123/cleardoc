@@ -3314,6 +3314,18 @@ test("analyzer: deadline block filters to next-7-days or overdue", () => {
     "a saved deadline filter must be validated before use");
   assert.match(appSrc, /localStorage\.setItem\('cleardoc:deadline-filter', deadlineList\._dlFilter\)/,
     "a chip click must persist the chosen filter");
+  assert.match(appSrc, /localStorage\.getItem\('cleardoc:deadline-sort'\)/,
+    "the deadline sort must read the saved choice");
+  assert.match(appSrc, /if\(saved === 'date'\) deadlineList\._dlSort = 'date';/,
+    "a saved sort must be validated before use");
+  assert.match(appSrc, /const sortedItems = dlSort === 'date' \? visibleItems\.slice\(\)\.sort/,
+    "date mode must sort a copy of the visible rows");
+  assert.match(appSrc, /return da - db;/,
+    "the sort must order by day difference (soonest first)");
+  assert.match(appSrc, /id="deadlineSortBtn" title=/,
+    "the controls must include a sort chip");
+  assert.match(appSrc, /localStorage\.setItem\('cleardoc:deadline-sort', deadlineList\._dlSort\)/,
+    "a sort toggle must persist the choice");
   assert.match(appSrc, /data-dl-filter="all" aria-pressed="' \+ \(dlFilter === 'all' \? 'true' : 'false'\) \+ '"/,
     "the all chip must announce its pressed state");
   assert.match(appSrc, /data-dl-filter="overdue" aria-pressed="' \+ \(dlFilter === 'overdue' \? 'true' : 'false'\) \+ '"/,
@@ -3325,8 +3337,8 @@ test("analyzer: deadline block filters to next-7-days or overdue", () => {
   assert.match(appSrc, /No deadlines match this filter\./,
     "an empty filtered view must say so");
   // Cycle #205 — exports follow the filter.
-  assert.match(appSrc, /const exportItems = visibleItems;/,
-    "exports must act on the visible (filtered) items");
+  assert.match(appSrc, /const exportItems = sortedItems;/,
+    "exports must act on the visible (filtered + sorted) items");
   assert.match(appSrc, /const filteredNote = dlFilter !== 'all' \? ' · filtered' : '';/,
     "filtered exports must carry a filtered tag");
   assert.match(appSrc, /'📋 Deadlines copied \(' \+ exportItems\.length \+ '\)' \+ filteredNote/,

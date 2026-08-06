@@ -5634,3 +5634,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 233 of the autonomous loop (alternate add/polish): a feature nobody can find in the help text might as well not exist — make "read left" discoverable next to its siblings.
+
+**2026-08-07 03:52 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #234 of the restructured autonomous loop (add).
+- feat(deadlines): the deadline list now has a "⇅" sort toggle — document order ↔ soonest first (overdue at the top, undated at the bottom via `dayDiff`). The choice persists to `cleardoc:deadline-sort` and is restored on re-analysis and reload, mirroring the filter persistence from cycle #220; exports follow the sorted (and filtered) set.
+- Verified in a real browser via a new integration test (fresh origin, dynamic dates): with a soon deadline written before an overdue one, document order listed the soon date first; clicking sort flipped it to the overdue date first and stored `date`; toggling again restored document order and stored `doc`; zero console errors.
+- Extended the cycle-#204 smoke test with 7 assertions (sort read + validation, sorted copy, day-diff comparator, sort chip markup, persistence, updated export wiring) and updated the exportItems assertion for the new sorted source.
+- Full suite green (490 unit + 346 smoke + 6 integration = 842 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 234 of the autonomous loop (alternate add/polish): filtering deadlines is only half the job — once you've narrowed them, you should be able to see which one is actually next.

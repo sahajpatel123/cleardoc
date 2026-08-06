@@ -7204,11 +7204,28 @@
         if(d === null) return false;
         return dlFilter === 'soon' ? (d >= 0 && d <= 7) : d < 0;
       });
+      // Cycle #234 — sort toggle: document order ↔ soonest first
+      // (overdue at the top, undated at the bottom). Persisted like the
+      // filter so the view survives re-analysis and reloads.
+      if(deadlineList._dlSort === undefined){
+        try {
+          const saved = localStorage.getItem('cleardoc:deadline-sort');
+          if(saved === 'date') deadlineList._dlSort = 'date';
+        } catch(_){ /* ignore (privacy mode etc.) */ }
+      }
+      const dlSort = deadlineList._dlSort || 'doc';
+      const sortedItems = dlSort === 'date' ? visibleItems.slice().sort((a, b) => {
+        const da = dayDiff(a.date), db = dayDiff(b.date);
+        if(da === null && db === null) return 0;
+        if(da === null) return 1;
+        if(db === null) return -1;
+        return da - db;
+      }) : visibleItems;
       // Cycle #205 — exports follow the active filter (copy-all, CSV, and
       // batch ICS act on what's visible, with a filtered tag in toasts).
-      const exportItems = visibleItems;
+      const exportItems = sortedItems;
       const filteredNote = dlFilter !== 'all' ? ' · filtered' : '';
-      const rows = visibleItems.map(it => {
+      const rows = sortedItems.map(it => {
         const isM = /\(obligated\)/.test(it.verb);
         const cls = isM ? 'deadline-mandatory' : 'deadline-optional';
         const tag = isM ? '⚡ obligated' : '📅 scheduled';
@@ -7254,6 +7271,7 @@
         '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'all' ? ' dl-filter-active' : '') + '" data-dl-filter="all" aria-pressed="' + (dlFilter === 'all' ? 'true' : 'false') + '" title="Show every deadline">🌐 all</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'soon' ? ' dl-filter-active' : '') + '" data-dl-filter="soon" aria-pressed="' + (dlFilter === 'soon' ? 'true' : 'false') + '" title="Show only deadlines within the next 7 days">⏰ next 7d</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'overdue' ? ' dl-filter-active' : '') + '" data-dl-filter="overdue" aria-pressed="' + (dlFilter === 'overdue' ? 'true' : 'false') + '" title="Show only overdue deadlines">⚠ overdue</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineSortBtn" title="' + (dlSort === 'date' ? 'Restore document order' : 'Sort soonest first (overdue at the top)') + '">' + (dlSort === 'date' ? '⇅ by date' : '⇅ doc order') + '</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCopyAllBtn" title="Copy all deadlines as plain text">📋 copy all</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCsvBtn" title="Download all deadlines as a .csv file for Excel, Google Sheets, or Numbers">📊 CSV</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineIcsAllBtn" title="Download all deadlines as a single .ics calendar file">📅 all .ics</button>' +
@@ -7277,6 +7295,13 @@
           '<b>' + mandated + ' mandatory</b> (shall deliver by / shall be made by) · rest are scheduled milestones. ' +
           'Each row shows a countdown (in 7 days / today / 3 days ago). Click 📅 to save a calendar event, <b>🌐 gcal</b> to add it to Google Calendar, <b>💬</b> to ask about it, or <b>📋 copy all</b> / <b>📊 CSV</b> / <b>📅 all .ics</b> to export the list.';
       }
+      // Cycle #234 — sort toggle (persisted like the filter).
+      const sortBtn = document.getElementById('deadlineSortBtn');
+      if(sortBtn) sortBtn.addEventListener('click', () => {
+        deadlineList._dlSort = deadlineList._dlSort === 'date' ? 'doc' : 'date';
+        try { localStorage.setItem('cleardoc:deadline-sort', deadlineList._dlSort); } catch(_){ /* ignore */ }
+        renderDeadlineBlock(raw, ctx);
+      });
       // Iter #175 — copy-all chip
       const copyAllBtn = document.getElementById('deadlineCopyAllBtn');
       if(copyAllBtn){
