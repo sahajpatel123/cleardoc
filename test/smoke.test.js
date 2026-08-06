@@ -305,7 +305,11 @@ skip("next steps: interactive done-tracking with persisted progress", async () =
   assert.match(appSrc, /localStorage\.getItem\(stepsStoreKey\(\)\)/, "done-state must be loaded from localStorage");
   assert.match(appSrc, /li\.classList\.toggle\('done'\)/, "clicking a step must toggle .done");
   assert.match(appSrc, /cleardoc:steps:/, "storage key must be namespaced per document fingerprint");
+  assert.match(appSrc, /li\.setAttribute\('role', 'checkbox'\)/, "steps must be exposed as checkboxes to assistive tech");
+  assert.match(appSrc, /li\.setAttribute\('aria-checked'/, "steps must reflect checked state via aria-checked");
+  assert.match(appSrc, /e\.key !== 'Enter' && e\.key !== ' '/, "steps must toggle via Enter/Space");
   assert.match(themeSrc, /\.nextsteps-list li\.done\{/, "done steps must be visually marked");
+  assert.match(themeSrc, /\.nextsteps-list li:focus-visible\{/, "focused steps must show a focus ring");
 });
 
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {

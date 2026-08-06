@@ -3308,3 +3308,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 10 of the autonomous loop (alternate add/polish): turn the static Next Steps list into a trackable action checklist.
+
+**2026-08-06 14:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #11 of the restarted autonomous loop (polish).
+- polish(a11y): made the Next Steps checklist keyboard-accessible — each step is now role="checkbox" with tabindex=0, aria-checked syncs with the .done state (on toggle, restore, and reset), Enter/Space toggles the focused step, and a focus-visible ring shows keyboard focus. Mouse behavior unchanged.
+- Extended the next-steps smoke test with the a11y assertions.
+- Full suite green (490 unit + 232 smoke + 1 integration = 723 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 11 of the autonomous loop (alternate add/polish): keyboard + screen-reader support for the new checklist.

@@ -122,6 +122,7 @@
     const total = list.querySelectorAll('li').length;
     const done = list.querySelectorAll('li.done').length;
     el.textContent = total > 0 ? done + ' of ' + total + ' done' : '';
+    list.querySelectorAll('li').forEach(li => li.setAttribute('aria-checked', li.classList.contains('done') ? 'true' : 'false'));
   }
   function applyStepsDone(){
     const list = document.getElementById('nextStepsList');
@@ -131,6 +132,17 @@
       if(done[i]) li.classList.add('done');
     });
     paintStepsProgress();
+  }
+  function decorateStepsRows(){
+    const list = document.getElementById('nextStepsList');
+    if(!list) return;
+    list.querySelectorAll('li').forEach(li => {
+      if(!li.hasAttribute('role')){
+        li.tabIndex = 0;
+        li.setAttribute('role', 'checkbox');
+      }
+      li.setAttribute('aria-checked', li.classList.contains('done') ? 'true' : 'false');
+    });
   }
   function wireStepsTracking(){
     const list = document.getElementById('nextStepsList');
@@ -142,10 +154,18 @@
       const idx = Array.prototype.indexOf.call(li.parentNode.children, li);
       if(idx < 0) return;
       const done = li.classList.toggle('done');
+      li.setAttribute('aria-checked', done ? 'true' : 'false');
       const map = loadStepsDone();
       if(done) map[idx] = true; else delete map[idx];
       saveStepsDone(map);
       paintStepsProgress();
+    });
+    list.addEventListener('keydown', (e) => {
+      if(e.key !== 'Enter' && e.key !== ' ') return;
+      const li = e.target && e.target.closest ? e.target.closest('li') : null;
+      if(!li) return;
+      e.preventDefault();
+      li.click();
     });
     const reset = document.getElementById('stepsResetBtn');
     if(reset) reset.addEventListener('click', () => {
@@ -157,6 +177,7 @@
   }
   function refreshStepsUI(){
     wireStepsTracking();
+    decorateStepsRows();
     applyStepsDone();
   }
 
