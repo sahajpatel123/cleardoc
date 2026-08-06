@@ -4048,3 +4048,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 84 of the autonomous loop (alternate add/polish): track missing clauses in a spreadsheet, not just in the app.
+
+**2026-08-06 02:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #85 of the restarted autonomous loop (polish).
+- polish(ui): the gaps CSV now includes an Ask column with the same clipboard-ready "please add this clause" template the per-row 📝 button copies — the spreadsheet becomes a complete remediation request list.
+- Extended the gaps-CSV smoke test with the Ask-column and template assertions.
+- Full suite green (490 unit + 274 smoke + 1 integration = 765 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 85 of the autonomous loop (alternate add/polish): the spreadsheet should carry the request, not just the diagnosis.

@@ -8134,10 +8134,12 @@ test("analyzer: Gap detector exports missing clauses as CSV", () => {
     "the gap controls must include a CSV chip");
   assert.match(appSrc, /gapCsvBtn\.addEventListener\(\s*['"]click['"]/,
     "the CSV chip must have a click handler");
-  assert.match(appSrc, /\[catLabel\(m \? m\.cat : 'proc'\), it\.label, it\.hint \|\| ''\]/,
-    "each row must carry category, gap label, and hint");
-  assert.match(appSrc, /csvCell\('Category'\) \+ ',' \+ csvCell\('Gap'\) \+ ',' \+ csvCell\('Hint'\)/,
-    "the CSV must have Category, Gap, and Hint columns in that order");
+  assert.match(appSrc, /\[catLabel\(m \? m\.cat : 'proc'\), it\.label, it\.hint \|\| '', ask\]/,
+    "each row must carry category, gap label, hint, and ask clause");
+  assert.match(appSrc, /csvCell\('Category'\) \+ ',' \+ csvCell\('Gap'\) \+ ',' \+ csvCell\('Hint'\) \+ ',' \+ csvCell\('Ask'\)/,
+    "the CSV must have Category, Gap, Hint, and Ask columns in that order");
+  assert.match(appSrc, /'\[REQUEST: Insert a "' \+ it\.label \+ '" clause here\./,
+    "the Ask column must reuse the 📝 button's copy template");
   assert.match(appSrc, /csvCell\(result\.count \+ ' clauses'\)/,
     "the CSV must open with a Missing metadata row");
   assert.match(appSrc, /'⚠ Nothing to export yet'/,

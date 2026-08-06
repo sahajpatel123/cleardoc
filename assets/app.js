@@ -12480,14 +12480,15 @@
           }, 2500);
         });
       });
-      // Cycle 84 feature — gap CSV export: Category, Gap, and Hint columns
-      // for remediation tracking, hardened like the other exports.
+      // Cycle 84/85 — gap CSV export: Category, Gap, Hint, and the
+      // clipboard-ready Ask clause (same template as the 📝 button).
       const gapCsvBtn = document.getElementById('gapCsvBtn');
       if(gapCsvBtn){
         gapCsvBtn.addEventListener('click', () => {
           const rows = result.items.map(it => {
             const m = GAP_PATTERNS.find(p => p.key === it.key);
-            return [catLabel(m ? m.cat : 'proc'), it.label, it.hint || ''];
+            const ask = '[REQUEST: Insert a "' + it.label + '" clause here. Suggested starting language: please add this section in plain English, citing applicable law and reasonable limits. Refusal to include this clause should be flagged to legal review.]';
+            return [catLabel(m ? m.cat : 'proc'), it.label, it.hint || '', ask];
           });
           if(!rows.length){
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to export yet');
@@ -12498,8 +12499,8 @@
             if(/^[=+\-@]/.test(s)) s = "'" + s;
             return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
           };
-          const header = csvCell('Missing') + ',' + csvCell(result.count + ' clauses') + '\n' + csvCell('Category') + ',' + csvCell('Gap') + ',' + csvCell('Hint');
-          const body = rows.map(r => csvCell(r[0]) + ',' + csvCell(r[1]) + ',' + csvCell(r[2])).join('\n');
+          const header = csvCell('Missing') + ',' + csvCell(result.count + ' clauses') + '\n' + csvCell('Category') + ',' + csvCell('Gap') + ',' + csvCell('Hint') + ',' + csvCell('Ask');
+          const body = rows.map(r => csvCell(r[0]) + ',' + csvCell(r[1]) + ',' + csvCell(r[2]) + ',' + csvCell(r[3])).join('\n');
           const text = '\uFEFF' + header + '\n' + body;
           try{
             const stamp = new Date().toISOString().slice(0,10);
