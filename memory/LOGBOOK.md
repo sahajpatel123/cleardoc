@@ -4550,3 +4550,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 132 of the autonomous loop (alternate add/polish): a risk that lands on you should be one click away from "what happens if it fires".
+
+**2026-08-06 02:56 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #133 of the restarted autonomous loop (polish).
+- polish(ui): the generic `a` shortcut now covers bearer rows — `.bearer-row` joined the row matcher and `.bearer-ask` joined the shared ask-button lookup, completing keyboard parity across every per-row ask surface (risks, questions, deadlines, key clauses, scenarios, obligations, bearers).
+- Updated the cycle-91/108/110/116/118 shortcut assertions for the extended matcher/selector (320 patterns across the six shortcut-related test blocks verified) and added bearer coverage assertions to the cycle-132 test.
+- Full suite green (490 unit + 301 smoke + 1 integration = 792 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 133 of the autonomous loop (alternate add/polish): every row that can ask, asks with `a` — bearers included.

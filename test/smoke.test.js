@@ -8231,8 +8231,8 @@ test("analyzer: Key-clause rows can ask the document about the clause in one cli
     "clicking must bring the Ask panel into view");
   assert.match(appSrc, /showAnalyzeToast\('💬 Question ready — press Ask'\)/,
     "clicking must announce the prefilled question");
-  assert.match(appSrc, /\.deadline-row, \.kc-row, \.scenario-card, \.action-row'\) : null;/,
-    "the a shortcut must also cover key-clause, scenario, and obligation rows");
+  assert.match(appSrc, /\.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row'\) : null;/,
+    "the a shortcut must also cover key-clause, scenario, obligation, and bearer rows");
 });
 
 // Iter #102: signing checklist — surfaces marker-phrase clauses
@@ -9172,11 +9172,11 @@ test("analyzer: Questions-to-ask rows can prefill the Ask panel with one click",
   assert.match(cssSrc, /\.ques-copy,\.ques-ask\{/,
     ".ques-ask must share the row-button style");
   // Cycle #91 polish — the risk-row 'a' shortcut now also serves question rows.
-  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row'\) : null;/,
+  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row'\) : null;/,
     "the row-shortcut handler must match every per-row ask surface");
   assert.match(appSrc, /if\(!row\) return;[\s\S]{0,120}row\.classList\.contains\('rrow'\) && \(key === 'e' \|\| key === 'E'\)/,
     "keys outside supported rows must be ignored and e must stay risk-only");
-  assert.match(appSrc, /row\.querySelector && row\.querySelector\('\.rrow-ask, \.ques-ask, \.deadline-ask, \.kc-ask, \.scenario-ask, \.act-ask'\)/,
+  assert.match(appSrc, /row\.querySelector && row\.querySelector\('\.rrow-ask, \.ques-ask, \.deadline-ask, \.kc-ask, \.scenario-ask, \.act-ask, \.bearer-ask'\)/,
     "the a shortcut must target whichever ask button the row has");
 });
 
@@ -9428,7 +9428,7 @@ test("analyzer: Scenario cards can ask the document about the scenario in one cl
     "clicking must announce the prefilled question");
   assert.match(appSrc, /💬<\/b> asks the document about a scenario\./,
     "the block note must document the ask action");
-  assert.match(appSrc, /\.kc-ask, \.scenario-ask, \.act-ask'\)/,
+  assert.match(appSrc, /\.kc-ask, \.scenario-ask, \.act-ask, \.bearer-ask'\)/,
     "the a shortcut must also cover scenario cards");
 });
 
@@ -9486,6 +9486,10 @@ test("analyzer: Bearer rows can ask the document about the risk in one click", (
     "clicking must announce the prefilled question");
   assert.match(appSrc, /<b>💬<\/b> to ask about a risk/,
     "the block note must document the ask action");
+  assert.match(appSrc, /\.action-row, \.bearer-row'\) : null;/,
+    "the a shortcut must also cover bearer rows");
+  assert.match(appSrc, /\.act-ask, \.bearer-ask'\)/,
+    "the a shortcut must target the bearer ask button");
 });
 
 // Iter #140: section risk map — aggregates risk patterns by
@@ -9948,7 +9952,7 @@ test("analyzer: Obligation rows can ask the document about the obligation in one
     "clicking must announce the prefilled question");
   assert.match(appSrc, /<b>💬<\/b> to ask about an obligation/,
     "the block note must document the ask action");
-  assert.match(appSrc, /\.scenario-ask, \.act-ask'\)/,
+  assert.match(appSrc, /\.scenario-ask, \.act-ask, \.bearer-ask'\)/,
     "the a shortcut must also cover obligation rows");
 });
 
@@ -10137,9 +10141,9 @@ test("analyzer: Deadline rows can ask the document about the deadline in one cli
   assert.match(appSrc, /<b>💬<\/b> to ask about it/,
     "the block note must document the ask action");
   // The a-shortcut now covers deadline rows too.
-  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row'\) : null;[\s\S]{0,80}if\(!row\) return;/,
+  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row'\) : null;[\s\S]{0,80}if\(!row\) return;/,
     "the row-shortcut handler must include deadline rows and ignore other keys");
-  assert.match(appSrc, /\.deadline-ask, \.kc-ask, \.scenario-ask, \.act-ask'\)/,
+  assert.match(appSrc, /\.deadline-ask, \.kc-ask, \.scenario-ask, \.act-ask, \.bearer-ask'\)/,
     "the a shortcut must target the deadline ask button");
 });
 
