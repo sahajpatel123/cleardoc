@@ -12711,11 +12711,15 @@
       clauseIndex.innerHTML = visible.map(h => {
         const flagged = isInRiskedClause(h.offset);
         const cls = 'clause-row' + (flagged ? ' clause-flagged' : '');
-        return '<button type="button" class="' + cls + '" data-clause-offset="' + h.offset + '" data-clause-raw="' + esc(h.raw) + '" data-clause-flagged="' + (flagged ? '1' : '0') + '" title="' + esc(h.snippet) + '">' +
+        // Cycle #225 — the row is a div[role=button] (tabindex=0) so the
+        // inner copy button is valid HTML (a <button> cannot contain a
+        // <button>) and keyboard users get Enter/Space parity — mirrors
+        // the .risk-detail-row pattern.
+        return '<div class="' + cls + '" data-clause-offset="' + h.offset + '" data-clause-raw="' + esc(h.raw) + '" data-clause-flagged="' + (flagged ? '1' : '0') + '" tabindex="0" role="button" title="' + esc(h.snippet) + '">' +
           '<span class="clause-num">' + esc(h.raw) + '</span>' +
           '<span class="clause-text">' + esc(h.snippet) + '</span>' +
           '<button type="button" class="clause-copy ghost-btn ghost-btn-sm" data-clause-copy="' + esc(h.raw) + '" title="Copy this citation">📋</button>' +
-        '</button>';
+        '</div>';
       }).join('');
       // Iter #137 polish — counter + flagged-only filter
       const controls = '<div class="clause-controls">' +
@@ -12748,6 +12752,14 @@
           } else if(typeof showAnalyzeToast === 'function'){
             showAnalyzeToast('⚠ Clause marker no longer in input');
           }
+        });
+        // Cycle #225 — Enter/Space trigger the same jump as a mouse click
+        // (the copy button keeps its native key behavior).
+        row.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          if(e.target.closest && e.target.closest('[data-clause-copy]')) return;
+          e.preventDefault();
+          row.click();
         });
       });
       // Iter #137 polish — per-row copy citation

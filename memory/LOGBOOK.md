@@ -5531,3 +5531,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 224 of the autonomous loop (alternate add/polish): the clause map is a negotiation roadmap — let users export it, and don't let the toggle litter the page.
+
+**2026-08-07 01:14 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #225 of the restructured autonomous loop (polish).
+- polish(clauses): the clause index rows were `<button>` elements containing a nested `<button>` — invalid HTML that breaks button semantics and confuses screen readers. Each row is now a `div[role="button"]` (tabindex=0) with the copy button as the only real button inside, mirroring the existing `.risk-detail-row` pattern, and Enter/Space on a focused row trigger the same jump-to-source as a click (the copy button keeps its native key behavior).
+- polish(css): `.clause-row` now explicitly inherits font + color so the div renders exactly like the previous native button.
+- Verified in a real browser with a mocked analyze flow over a 3-section document: all rows parsed as DIV with role=button + tabindex=0 and zero nested buttons, Enter on a focused row selected "Section 1" in the source input, Enter on the copy button copied the citation, and there were zero console errors.
+- Extended the cycle-#136 smoke test with 4 assertions (div rows, role/tabindex, Enter/Space handler, font/color inheritance).
+- Full suite green (490 unit + 343 smoke + 1 integration = 834 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 225 of the autonomous loop (alternate add/polish): a clickable row that mislabels its own button isn't just sloppy markup — it's a keyboard trap. Make it legal and make it navigable.

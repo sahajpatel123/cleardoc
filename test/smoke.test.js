@@ -9948,6 +9948,18 @@ test("analyzer: Clause index extracts numbered clauses with click-to-jump", () =
     "the copied index must lead with a count header");
   assert.match(appSrc, /'📋 Clause index copied \(' \+ visible\.length \+ '\)'/,
     "copying must toast the clause count");
+
+  // Cycle #225 — valid HTML + keyboard parity: the row is a
+  // div[role=button] (tabindex=0) so the inner copy button is legal,
+  // and Enter/Space trigger the same jump as a click.
+  assert.match(appSrc, /<div class="' \+ cls \+ '" data-clause-offset=/,
+    "each clause row must be a div, not a button");
+  assert.match(appSrc, /tabindex="0" role="button"/,
+    "clause rows must be keyboard-focusable with button semantics");
+  assert.match(appSrc, /Clause marker no longer in input[\s\S]{0,500}row\.addEventListener\('keydown'/,
+    "clause rows must handle Enter/Space for keyboard parity");
+  assert.match(cssSrc, /\.clause-row\{[^}]*font:inherit;color:inherit/,
+    "the row div must inherit font and color like a native control");
 });
 
 // Iter #138: cost predictor — expected vs 90th-percentile vs worst.
