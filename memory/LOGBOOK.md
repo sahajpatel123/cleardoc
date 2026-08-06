@@ -4680,3 +4680,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 145 of the autonomous loop (alternate add/polish): hear it, ask it, copy it — one tidy cluster per clause.
+
+**2026-08-06 05:58 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #146 of the restarted autonomous loop (add).
+- feat(ui): every obligation row now has a one-click 🔊, speak button — clicking it reads the obligation aloud via SpeechSynthesis at the user's chosen pace (`getTtsRate()`), with `stopPropagation` so the row's other actions never fire. The block note documents the action, completing the obligation row's action set (done / ask / copy / speak).
+- New smoke test "Obligation rows can read the obligation aloud in one click" — 7 assertions covering the button markup, sentence data, per-render wiring, utterance creation, reading-speed respect, stopPropagation guard, and note.
+- Full suite green (490 unit + 308 smoke + 1 integration = 799 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 146 of the autonomous loop (alternate add/polish): an obligation you must meet should be hearable, not just readable.

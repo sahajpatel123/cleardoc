@@ -6351,6 +6351,7 @@
           '<div class="action-tag">' + esc(tag) + '</div>' +
           '<div class="action-sentence">' + esc(snip) + '</div>' +
           '<button type="button" class="act-ask ghost-btn ghost-btn-sm" data-act-ask="' + esc(snip) + '" data-act-must="' + (isMandatory ? '1' : '0') + '" title="Ask about this obligation" aria-label="Ask about this obligation">💬</button>' +
+          '<button type="button" class="act-speak ghost-btn ghost-btn-sm" data-act-speak="' + esc(snip.slice(0, 200)) + '" title="Read this obligation aloud" aria-label="Read this obligation aloud">🔊</button>' +
         '</div>';
       }).join('');
       const mandatory = items.filter(it => /^(shall|must|is required|are required|undertakes|warrants|covenants|is obligated|are obligated|is responsible|are responsible)/.test(it.verb)).length;
@@ -6366,7 +6367,7 @@
       if(actionBlock2Note){
         actionBlock2Note.innerHTML = '<span class="riskNote-lead">' + items.length + ' action verb' + (items.length === 1 ? '' : 's') + '</span> · ' +
           '<b>' + mandatory + ' mandatory</b> (shall / must / undertakes) · <b>' + permissive + ' permissive</b> (may / agrees). ' +
-          'Click ☐ to mark fulfilled (saved on this device), <b>💬</b> to ask about an obligation, or 📋 copy all to export the list.';
+          'Click ☐ to mark fulfilled (saved on this device), <b>💬</b> to ask about an obligation, <b>🔊</b> to hear it, or 📋 copy all to export the list.';
       }
       $$('.act-done-btn', actionList).forEach(btn => {
         btn.addEventListener('click', () => {
@@ -6397,6 +6398,24 @@
           try { qInput.focus({preventScroll:false}); } catch(_){ qInput.focus(); }
           try { qInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
+        });
+      });
+      // Cycle #146 — per-row speak: read the obligation aloud at the
+      // user's chosen pace. stopPropagation keeps the row's other
+      // actions from firing.
+      $$('.act-speak', actionList).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const text = btn.getAttribute('data-act-speak') || '';
+          if(text && typeof window !== 'undefined' && 'speechSynthesis' in window){
+            try {
+              window.speechSynthesis.cancel();
+              const u = new SpeechSynthesisUtterance(text);
+              u.rate = getTtsRate();
+              window.speechSynthesis.speak(u);
+            } catch(_){ /* ignore */ }
+          }
         });
       });
       const copyAllBtn = document.getElementById('actionCopyAllBtn');

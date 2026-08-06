@@ -10100,6 +10100,29 @@ test("analyzer: Obligation rows can ask the document about the obligation in one
     "the a shortcut must also cover obligation rows");
 });
 
+// Cycle #146 — hear any obligation aloud.
+test("analyzer: Obligation rows can read the obligation aloud in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="act-speak ghost-btn ghost-btn-sm"/,
+    "each obligation row must render a speak button");
+  assert.match(appSrc, /data-act-speak="' \+ esc\(snip\.slice\(0, 200\)\) \+ '"/,
+    "the speak button must carry the obligation sentence");
+  assert.match(appSrc, /\$\$\('\.act-speak', actionList\)\.forEach/,
+    "speak buttons must be wired after each render");
+  assert.match(appSrc, /new SpeechSynthesisUtterance\(text\)/,
+    "clicking must speak the obligation");
+  assert.match(appSrc, /u\.rate = getTtsRate\(\);/,
+    "the reading must respect the chosen speed");
+  assert.match(appSrc, /e\.stopPropagation\(\);/,
+    "speaking must not trigger the row's other actions");
+  assert.match(appSrc, /<b>🔊<\/b> to hear it/,
+    "the block note must document the speak action");
+});
+
 // Iter #158: analysis confidence — rates how reliable this run is.
 test("analyzer: Analysis confidence rates how reliable the result is", () => {
   if (!HAS_BROWSER) return;
