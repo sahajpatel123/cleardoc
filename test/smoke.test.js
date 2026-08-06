@@ -10081,3 +10081,72 @@ test("analyzer: RISK array detects Intellectual Property / Work for Hire trap", 
   assert.match(appSrc, /Transfers ownership of your work, ideas, or creations/,
     "IP Assignment rule must explain why IP transfer is a trap");
 });
+
+skip("dark mode: toggle applies, persists, and survives reload without console errors", async () => {
+  if (!HAS_BROWSER) return;
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => { if (m.type() === "error") errors.push(`console.error: ${m.text()}`); });
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle", timeout: 20000 });
+  // Wait for the branded preloader to leave so the nav is clickable.
+  await page.waitForFunction(() => {
+    const l = document.getElementById("loader");
+    return !l || l.style.display === "none" || getComputedStyle(l).display === "none";
+  }, null, { timeout: 20000 });
+
+  assert.equal(await page.locator("#themeToggle").count(), 1, "home must render the theme toggle");
+  const initial = await page.evaluate(() => document.documentElement.getAttribute("data-theme"));
+  assert.ok(initial === "light" || initial === "dark", "html data-theme must be set on first paint");
+
+  await page.locator("#themeToggle").click();
+  const after = await page.evaluate(() => ({
+    theme: document.documentElement.getAttribute("data-theme"),
+    stored: window.localStorage.getItem("cleardoc-theme"),
+    label: (document.getElementById("themeToggle").textContent || "").trim(),
+    pressed: document.getElementById("themeToggle").getAttribute("aria-pressed"),
+  }));
+  const expected = initial === "dark" ? "light" : "dark";
+  assert.equal(after.theme, expected, "click must flip html data-theme");
+  assert.equal(after.stored, expected, "choice must persist to localStorage");
+  assert.equal(after.pressed, expected === "dark" ? "true" : "false", "aria-pressed must mirror the theme");
+  assert.match(after.label, expected === "dark" ? /light/ : /dark/, "toggle label must describe the next mode");
+
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 20000 });
+  const reloaded = await page.evaluate(() => document.documentElement.getAttribute("data-theme"));
+  assert.equal(reloaded, expected, "chosen theme must survive a reload");
+
+  // Flip back to light so the shared context stays clean for other tests.
+  await page.locator("#themeToggle").click({ force: true });
+  await page.close();
+  assert.deepEqual(errors, [], "dark mode toggle must not produce console errors");
+});
+
+test("dark mode: every public page loads the head script + toggle, and CSS/JS are wired", () => {
+  const jsSrc = fs.readFileSync(path.join(ROOT, "assets", "darkmode.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  for (const pageName of ["index.html", "analyze.html", "pricing.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, pageName), "utf8");
+    assert.match(html, /<script src="assets\/darkmode\.js"><\/script>/,
+      pageName + " must load assets/darkmode.js in <head> (CSP-safe external file)");
+    assert.match(html, /id="themeToggle"/, pageName + " must contain the #themeToggle button");
+    assert.match(html, /aria-pressed="false"/, pageName + " toggle must expose aria-pressed");
+  }
+  // JS: persisted choice wins, OS preference is the fallback, applied pre-paint.
+  assert.match(jsSrc, /cleardoc-theme/, "darkmode.js must use a stable localStorage key");
+  assert.match(jsSrc, /prefers-color-scheme/, "darkmode.js must follow the OS preference");
+  assert.match(jsSrc, /setAttribute\("data-theme"/, "darkmode.js must set data-theme on <html>");
+  assert.match(jsSrc, /addEventListener\("change"/, "darkmode.js must live-follow OS changes until a choice is made");
+  assert.match(jsSrc, /theme-color/, "darkmode.js must keep browser chrome theme-color in sync");
+  // CSS: inverted palette + hardcoded-white surface overrides exist.
+  assert.match(cssSrc, /html\[data-theme="dark"\]\{/, "theme.css must define the dark palette block");
+  assert.match(cssSrc, /--paper:#16130E/, "dark palette must invert the paper variable");
+  assert.match(cssSrc, /--ink:#EDE7D8/, "dark palette must invert the ink variable");
+  assert.match(cssSrc, /html\[data-theme="dark"\] :is\(input, textarea, select, kbd\)/,
+    "inputs/textareas/selects must be raised in dark mode");
+  assert.match(cssSrc, /html\[data-theme="dark"\] \.smoking-card/,
+    "result cards must be covered by dark surface overrides");
+  assert.match(cssSrc, /html\[data-theme="dark"\] \.rrow:not\(\[data-risk\]\)/,
+    "un-tinted risk rows must be raised without killing severity tints");
+  assert.match(cssSrc, /\.theme-toggle\{/, "theme.css must style the toggle button");
+});

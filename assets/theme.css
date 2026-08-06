@@ -2707,3 +2707,117 @@ mark.smoking-trigger{background:#ffe98a;color:var(--ink);padding:0 2px;font-weig
 .decision-audit .da-tag-soft{background:var(--ink-soft);color:var(--paper)}
 .decision-audit .da-label{color:var(--ink);font-size:var(--t-meta)}
 .decision-audit .da-row-misses{color:var(--green);opacity:.85}
+
+/* ============================================================
+   DARK MODE (cycle #88)
+   ============================================================
+   The site is palette-driven through :root variables, so dark
+   mode swaps the variables and then patches the handful of
+   hardcoded white surfaces (cards, inputs, chips) that would
+   glare on a dark background. Toggled via the #themeToggle
+   button in the nav; persisted in localStorage by
+   assets/darkmode.js. Print output stays light (print.css).
+   ------------------------------------------------------------ */
+
+/* Toggle button — sits in the nav row on desktop, inside the
+   drawer on mobile. */
+.theme-toggle{
+  display:inline-flex;align-items:center;gap:6px;margin-left:10px;
+  padding:9px 12px;border:var(--bd) solid var(--ink);
+  background:var(--paper);color:var(--ink);
+  font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);
+  text-transform:uppercase;letter-spacing:.1em;cursor:pointer;
+  box-shadow:var(--shadow-sm);transition:background .18s,color .18s;
+}
+.theme-toggle:hover{background:var(--ink);color:var(--paper)}
+.theme-toggle:active{transform:translateY(1px)}
+
+html[data-theme="dark"]{
+  /* warm inverted palette — paper becomes night, ink becomes cream */
+  --paper:#16130E; --paper2:#211D15;
+  --ink:#EDE7D8; --ink-soft:#A79F8C;
+  --accent:#FF5C2A; --accent-text:#FF7A4D;
+  --green:#66C9A3; --danger:#FF6F55; --amber:#E0A83C;
+  --fog:#948C79;
+  --green-tint:rgba(46,120,92,.24); --danger-tint:rgba(198,54,31,.28);
+  --amber-tint:rgba(180,120,20,.24); --accent-glow:rgba(255,92,42,.24);
+  --on-dark:#16130E;
+  --shadow:6px 6px 0 rgba(237,231,216,.13);
+  --shadow-sm:4px 4px 0 rgba(237,231,216,.13);
+}
+html[data-theme="dark"] body{background:var(--paper);color:var(--ink)}
+
+/* Inputs, textareas, selects, and keycaps are white on screen. */
+html[data-theme="dark"] :is(input, textarea, select, kbd){
+  background:var(--paper2);color:var(--ink);border-color:var(--ink-soft);
+}
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder{color:var(--ink-soft)}
+
+/* Every hardcoded #fff surface: cards, rows, chips, stats. */
+html[data-theme="dark"] .doc,
+html[data-theme="dark"] .stage,
+html[data-theme="dark"] .tp-stage,
+html[data-theme="dark"] .byof-glossary,
+html[data-theme="dark"] .ba .clean,
+html[data-theme="dark"] .tp-clear,
+html[data-theme="dark"] .cell.open,
+html[data-theme="dark"] .draft-box,
+html[data-theme="dark"] .ask-a,
+html[data-theme="dark"] .attach-chip,
+html[data-theme="dark"] .threat-score,
+html[data-theme="dark"] #readinessBlock,
+html[data-theme="dark"] .health-check,
+html[data-theme="dark"] .exec-summary,
+html[data-theme="dark"] .deadline-row,
+html[data-theme="dark"] .restore-banner .rb-kicker,
+html[data-theme="dark"] .money-tag,
+html[data-theme="dark"] .money-cat,
+html[data-theme="dark"] .reading-row,
+html[data-theme="dark"] .reading-done,
+html[data-theme="dark"] .reading-sig,
+html[data-theme="dark"] .reading-prio-low,
+html[data-theme="dark"] .reading-progress-bar,
+html[data-theme="dark"] .renewal-tag,
+html[data-theme="dark"] .smoking-card,
+html[data-theme="dark"] .smoking-tag,
+html[data-theme="dark"] .smoking-tally-pill,
+html[data-theme="dark"] .pressure-card,
+html[data-theme="dark"] .pressure-kind,
+html[data-theme="dark"] .pressure-done,
+html[data-theme="dark"] .exposure-card,
+html[data-theme="dark"] .exposure-amount,
+html[data-theme="dark"] .exposure-kind,
+html[data-theme="dark"] .scenario-card,
+html[data-theme="dark"] .scenario-trigger,
+html[data-theme="dark"] .bearer-row,
+html[data-theme="dark"] .bearer-tag{
+  background:var(--paper2);color:var(--ink);
+}
+
+/* Risk rows keep their severity tints (they flow through the
+   swapped tint variables); only un-tinted rows need the raise. */
+html[data-theme="dark"] .rrow:not([data-risk]){background:var(--paper2)}
+
+/* Warm-tint chips/cards — swap #fff8e6 for the dark amber tint. */
+html[data-theme="dark"] .money-recur,
+html[data-theme="dark"] .smoking-tag.smoking-tag-a,
+html[data-theme="dark"] .pressure-card.pressure-card-med,
+html[data-theme="dark"] .exposure-card.exposure-card-high,
+html[data-theme="dark"] .exposure-amount.exposure-amount-unbounded,
+html[data-theme="dark"] .scenario-card.scenario-card-warn{
+  background:var(--amber-tint);
+}
+
+/* The preloader inverts to a light flash if left on the vars. */
+html[data-theme="dark"] #loader{background:#16130E;color:#EDE7D8}
+
+/* Mobile drawer shadow — near-black is invisible on night paper. */
+@media(max-width:900px){
+  html[data-theme="dark"] nav.open .navlinks{box-shadow:0 10px 0 rgba(237,231,216,.08)}
+  .navlinks .theme-toggle{
+    margin-left:0;border-left:none;border-top:var(--bd) solid var(--ink);
+    padding:16px var(--pad-x);font-size:var(--t-body);box-shadow:none;
+    justify-content:space-between;border-radius:0;
+  }
+}

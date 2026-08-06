@@ -4078,3 +4078,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 87 of the autonomous loop (alternate add/polish): the copied tone readout should show what triggered each score.
+
+**2026-08-06 16:08 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #88 of the restarted autonomous loop (add).
+- feat(ui): site-wide dark mode — warm night palette via CSS-variable inversion (paper→#16130E, ink→#EDE7D8, softened accent/green/danger/amber, light hard-shadows), with targeted overrides for every hardcoded white surface (cards, rows, inputs, keycaps, chips) and dark-amber tints for flagged rows.
+- New CSP-safe `assets/darkmode.js` loaded synchronously in `<head>` so the theme applies before first paint (no light flash); persisted choice in localStorage (`cleardoc-theme`) wins, otherwise live-follows `prefers-color-scheme`; keeps the `theme-color` meta in sync so browser chrome matches; exposes `aria-pressed` on the toggle.
+- Added a `#themeToggle` button to the nav of index.html / analyze.html / pricing.html (mobile-drawer styled) — hidden from print via `.no-print`; print output stays light (print.css untouched).
+- Two new smoke tests: browser test (toggle flips + persists + survives reload, no console errors) and source test (all pages load the head script + button, JS/CSS wiring).
+- Full suite green (490 unit + 277 smoke + 1 integration = 768 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 88 of the autonomous loop (alternate add/polish): readers who work at night should get the full ClearDoc report without the cream-paper glare.
