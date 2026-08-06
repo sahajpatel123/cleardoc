@@ -3171,6 +3171,7 @@
           historyBtn=$('#historyBtn'),historyPanel=$('#historyPanel'),
           historyList=$('#historyList'),historyClearBtn=$('#historyClearBtn'),
           historySearch=$('#historySearch'),
+          historySearchClear=$('#historySearchClear'),
           historyFilter=$('#historyFilter'),
           tplBtn=$('#tplBtn'),tplPanel=$('#tplPanel'),tplList=$('#tplList'),
           tplNameInput=$('#tplNameInput'),tplSaveBtn=$('#tplSaveBtn'),tplClearBtn=$('#tplClearBtn'),
@@ -15886,9 +15887,11 @@
           historyList.innerHTML = '<li class="hp-empty">No past analyses yet.</li>';
           if(historyFilter) historyFilter.hidden = true;
           if(historySearch) historySearch.hidden = true;
+          if(historySearchClear) historySearchClear.hidden = true;
           return;
         }
         if(historySearch) historySearch.hidden = false;
+        if(historySearchClear) historySearchClear.hidden = !(historySearch && (historySearch.value || '').trim());
         // Update the filter row — show count per language so users
         // see at a glance which languages are present in history.
         if(historyFilter){
@@ -15956,6 +15959,32 @@
         historySearch._historySearchWired = true;
         historySearch.addEventListener('input', () => {
           historyQuery = historySearch.value || '';
+          if(historySearchClear) historySearchClear.hidden = !historyQuery.trim();
+          renderHistory();
+        });
+        // Cycle 57 polish — Esc inside the search box clears the query
+        // (standard search behavior) instead of doing anything global.
+        historySearch.addEventListener('keydown', (e) => {
+          if(e.key === 'Escape' && (historySearch.value || '').trim()){
+            e.preventDefault();
+            e.stopPropagation();
+            historySearch.value = '';
+            historyQuery = '';
+            if(historySearchClear) historySearchClear.hidden = true;
+            renderHistory();
+          }
+        });
+      }
+      // Clear button — one tap resets the query and returns focus to the input.
+      if(historySearchClear && !historySearchClear._historySearchClearWired){
+        historySearchClear._historySearchClearWired = true;
+        historySearchClear.addEventListener('click', () => {
+          if(historySearch){
+            historySearch.value = '';
+            historySearch.focus();
+          }
+          historyQuery = '';
+          historySearchClear.hidden = true;
           renderHistory();
         });
       }

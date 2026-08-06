@@ -3768,3 +3768,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 56 of the autonomous loop (alternate add/polish): find a past analysis by content, not just by language.
+
+**2026-08-06 22:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #57 of the restarted autonomous loop (polish).
+- polish(ui): the history search now has a clear affordance — a ✕ button (24×24px, WCAG 2.5.8) appears when a query is active, one tap resets the search and returns focus to the input, and pressing Escape inside the box clears the query (standard search behavior, scoped so it never triggers anything global).
+- Extended the history-search smoke test with the clear-button, Esc, focus-return, and target-size assertions.
+- Full suite green (490 unit + 260 smoke + 1 integration = 751 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 57 of the autonomous loop (alternate add/polish): make the search easy to start over.

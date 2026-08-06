@@ -3983,6 +3983,25 @@ test("analyzer: history panel searches past analyses by keyword", () => {
     "theme.css must style .hp-search within the history panel");
   assert.match(cssSrc, /\.history-panel \.hp-search\[hidden\]\{display:none\}/,
     "the search input's hidden state must be respected");
+  // Cycle 57 polish — clear affordance + Esc-to-clear
+  assert.match(html, /id="historySearchClear" class="hp-search-clear" title="Clear search" aria-label="Clear search" hidden/,
+    "analyze.html must carry a hidden ✕ clear button with an aria-label");
+  assert.match(appSrc, /historySearchClear\.hidden = !\(historySearch && \(historySearch\.value \|\| ''\)\.trim\(\)\);/,
+    "renderHistory must sync clear-button visibility with the query");
+  assert.match(appSrc, /historySearch\.addEventListener\(\s*['"]keydown['"]/,
+    "search input must handle keydown (Esc clears the query)");
+  assert.match(appSrc, /e\.key === 'Escape' && \(historySearch\.value \|\| ''\)\.trim\(\)/,
+    "Esc must clear the query only when one is present");
+  assert.match(appSrc, /historySearchClear\.addEventListener\(\s*['"]click['"]/,
+    "clear button must have a click handler");
+  assert.match(appSrc, /historySearch\.focus\(\);/,
+    "clearing must return focus to the search input");
+  assert.match(appSrc, /_historySearchClearWired/,
+    "clear-button wiring must be guarded so it is attached only once");
+  assert.match(cssSrc, /\.history-panel \.hp-search-clear\{[^}]*width:24px;height:24px/,
+    "clear button must meet the 24×24px minimum touch-target size");
+  assert.match(cssSrc, /\.history-panel \.hp-search-clear\[hidden\]\{display:none\}/,
+    "clear button's hidden state must be respected");
 });
 
 test("analyzer: voice picker dropdown lets users choose a specific TTS voice", () => {
