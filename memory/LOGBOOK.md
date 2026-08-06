@@ -4979,3 +4979,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 174 of the autonomous loop (alternate add/polish): a deadline you can't see from another tab is a deadline you can miss — the tab title should nag gently.
+
+**2026-08-06 20:34 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #175 of the restarted autonomous loop (polish).
+- polish(deadlines): the tab-title badge now lets an overdue deadline outrank the upcoming countdown — if any detected deadline has passed, the title shows `⏳ N overdue` (e.g. `⚠ 1 risk · Low · ⏳ 1 overdue · ClearDoc`); otherwise it keeps showing the soonest upcoming `⏳ Nd / ⏳ today`. Unparseable dates are still filtered out, and the logic is simpler (a flat day-list scan instead of the map/sort).
+- Verified in a real browser with a mocked analyze flow containing both an overdue (Aug 1) and an upcoming (Aug 10) deadline: the title read `⚠ 1 risk · Low · ⏳ 1 overdue · ClearDoc`; zero console errors.
+- Updated the cycle-#174 smoke test: 3 assertions re-targeted to the new day-list logic and 1 added for the overdue-outranks rule.
+- Full suite green (490 unit + 321 smoke + 1 integration = 812 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 175 of the autonomous loop (alternate add/polish): a missed deadline is the loudest signal in a contract — the tab badge should say so first.

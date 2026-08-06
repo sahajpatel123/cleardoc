@@ -11603,10 +11603,12 @@ test("analyzer: Risk tally is surfaced in the browser tab title and reset on cle
     "a deadline title painter must exist");
   assert.match(appSrc, /function titleDeadlineDays\(dateStr\)\{/,
     "the painter must parse deadline dates into day counts");
-  assert.match(appSrc, /parts\.push\('⏳ ' \+ \(soonest\.d === 0 \? 'today' : soonest\.d \+ 'd'\)\);/,
+  assert.match(appSrc, /parts\.push\('⏳ ' \+ \(soonest === 0 \? 'today' : soonest \+ 'd'\)\);/,
     "the soonest upcoming deadline must render as ⏳ Nd / ⏳ today");
-  assert.match(appSrc, /\.filter\(x => x\.d !== null && x\.d >= 0\)/,
-    "overdue and unparseable deadlines must not appear in the badge");
+  assert.match(appSrc, /\.filter\(d => d !== null\)/,
+    "unparseable dates must not appear in the badge");
+  assert.match(appSrc, /parts\.push\('⏳ ' \+ overdue \+ ' overdue'\);/,
+    "an overdue deadline must outrank the upcoming countdown");
   assert.match(appSrc, /paintDeadlineTitle\(items\);/,
     "the deadline block must paint the badge after rendering");
   assert.match(appSrc, /paintDeadlineTitle\(\[\]\);/,

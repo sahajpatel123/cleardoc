@@ -4013,11 +4013,16 @@
           parts.push('⚠ ' + total + ' risk' + (total === 1 ? '' : 's') + (t.level ? ' · ' + t.level : ''));
         }
         if(Array.isArray(titleDeadlines) && titleDeadlines.length){
-          const soonest = titleDeadlines
-            .map(it => ({ d: titleDeadlineDays(it.date), s: it.date }))
-            .filter(x => x.d !== null && x.d >= 0)
-            .sort((a, b) => a.d - b.d)[0];
-          if(soonest) parts.push('⏳ ' + (soonest.d === 0 ? 'today' : soonest.d + 'd'));
+          // Cycle #175 — an overdue deadline outranks the countdown: a
+          // missed date is the loudest signal, so it leads the badge.
+          const days = titleDeadlines.map(it => titleDeadlineDays(it.date)).filter(d => d !== null);
+          const overdue = days.filter(d => d < 0).length;
+          if(overdue > 0){
+            parts.push('⏳ ' + overdue + ' overdue');
+          } else if(days.length){
+            const soonest = Math.min.apply(null, days);
+            parts.push('⏳ ' + (soonest === 0 ? 'today' : soonest + 'd'));
+          }
         }
         document.title = parts.length ? parts.join(' · ') + ' · ClearDoc' : DEFAULT_TITLE;
       } catch(_){ /* ignore */ }
