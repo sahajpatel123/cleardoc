@@ -14241,7 +14241,8 @@
           if(transNote) transNote.innerHTML =
             '<span class="riskNote-lead">Detected: ' + esc(lang.label) + ' · ' + sheet.items.length + ' term' + (sheet.items.length === 1 ? '' : 's') + '</span> ' +
             'Handy when negotiating with someone who reads ' + esc(lang.label) + '.' +
-            (greeting ? ' <span class="trans-tone">Tone: ' + esc(greeting) + '</span>' : '');
+            (greeting ? ' <span class="trans-tone">Tone: ' + esc(greeting) + '</span>' : '') +
+            ' <b>📋 copy sheet</b> exports every term.';
           if(transList){
             transList.innerHTML = sheet.items.map((it, i) => (
               '<div class="trans-row" data-xx="' + esc(it.xx) + '">' +
@@ -14271,6 +14272,34 @@
                     window.speechSynthesis.speak(u);
                   } catch(_){ /* ignore */ }
                 });
+              });
+            }
+            // Cycle #138 — copy the whole translation sheet as plain text.
+            if(!document.getElementById('transCopyBtn')){
+              const controls = '<div class="trans-controls">' +
+                '<button type="button" class="ghost-btn ghost-btn-sm" id="transCopyBtn" title="Copy all translated terms as plain text">📋 copy sheet</button>' +
+              '</div>';
+              transList.insertAdjacentHTML('afterend', controls);
+            }
+            const transCopyBtn = document.getElementById('transCopyBtn');
+            if(transCopyBtn && !transCopyBtn._transCopyWired){
+              transCopyBtn._transCopyWired = true;
+              transCopyBtn.addEventListener('click', async () => {
+                const lines = sheet.items.map(it => it.en + ' → ' + it.xx);
+                const text = 'ClearDoc translation cheat sheet (' + lang.label + ')\n' + lines.join('\n');
+                let copied = false;
+                try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+                if(!copied){
+                  try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                    copied = true;
+                  } catch(_){ /* ignore */ }
+                }
+                if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Translation sheet copied' : '⚠ Couldn’t copy');
+                transCopyBtn.textContent = copied ? '✓ copied' : '📋 copy sheet';
+                clearTimeout(transCopyBtn._flashTimer);
+                transCopyBtn._flashTimer = setTimeout(() => { if(transCopyBtn.isConnected) transCopyBtn.textContent = '📋 copy sheet'; }, 1800);
               });
             }
           }

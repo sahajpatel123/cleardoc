@@ -4600,3 +4600,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 137 of the autonomous loop (alternate add/polish): the two party-cell actions should read as one tidy row, not two stacked buttons.
+
+**2026-08-06 04:06 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #138 of the restarted autonomous loop (add).
+- feat(ui): the translation cheat sheet now has a one-click "📋 copy sheet" button — it exports "ClearDoc translation cheat sheet ({language})" followed by EN → translated-term lines, with clipboard API + `execCommand` fallback, toast, and a flash-restore label. The control is appended after the term list with a `_transCopyWired` guard so re-renders never double-bind; the block note documents the export.
+- New smoke test "Translation sheet copies as plain text in one click" — 8 assertions covering the button markup, append-after-list, self-identifying header, EN → term mapping, one-time wiring, toast, note, and CSS.
+- Full suite green (490 unit + 304 smoke + 1 integration = 795 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 138 of the autonomous loop (alternate add/polish): a cheat sheet you can hear should also leave with you.

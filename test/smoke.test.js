@@ -7540,6 +7540,32 @@ test("analyzer: Translation cheat sheet builds EN ↔ XX rows for foreign-langua
 });
 
 // Iter #87: translation cheat-sheet polish — tone hint + 🔊 button.
+// Cycle #138 — copy the whole translation sheet.
+test("analyzer: Translation sheet copies as plain text in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /id="transCopyBtn" title="Copy all translated terms as plain text"/,
+    "the translation block must render a copy-sheet button");
+  assert.match(appSrc, /transList\.insertAdjacentHTML\('afterend', controls\)/,
+    "the control must be appended after the term list");
+  assert.match(appSrc, /ClearDoc translation cheat sheet \(' \+ lang\.label \+ '\)/,
+    "the export must open with a self-identifying header");
+  assert.match(appSrc, /it\.en \+ ' → ' \+ it\.xx/,
+    "each line must map EN → translated term");
+  assert.match(appSrc, /transCopyBtn\._transCopyWired/,
+    "the listener must be bound only once across re-renders");
+  assert.match(appSrc, /📋 Translation sheet copied/,
+    "copying must announce via toast");
+  assert.match(appSrc, /<b>📋 copy sheet<\/b> exports every term\./,
+    "the block note must document the export");
+  assert.match(cssSrc, /\.trans-controls\{[^}]*display:flex/,
+    "the control row must lay out horizontally");
+});
+
 test("analyzer: Translation cheat sheet polished with tone hint + per-row speak button", () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
