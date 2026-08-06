@@ -569,6 +569,18 @@ skip("privacy: blur toggle hides sensitive content from onlookers", async () => 
   assert.match(themeSrc, /@media print\{body\.privacy-blur/, "print must never blur");
 });
 
+skip("privacy: Escape exits the blur like it exits focus mode", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const hStart = appSrc.indexOf("function wireKeyboardShortcuts");
+  assert.ok(hStart > -1, "wireKeyboardShortcuts must exist");
+  const handler = appSrc.slice(hStart, hStart + 6000);
+  assert.match(handler, /setPrivacyBlur\(false\);/, "Escape must exit privacy blur");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

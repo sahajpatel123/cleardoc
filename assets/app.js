@@ -2109,6 +2109,7 @@
           return;
         }
         if(setFocusMode(false)){ e.preventDefault(); }
+        setPrivacyBlur(false);
         return;
       }
 

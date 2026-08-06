@@ -3568,3 +3568,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 36 of the autonomous loop (alternate add/polish): shoulder-surfing protection for sensitive documents.
+
+**2026-08-06 18:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #37 of the restarted autonomous loop (polish).
+- polish(keys): Escape now exits Privacy blur as well as Focus mode, so pressing Esc to "un-blur" actually works.
+- Added a source-pattern smoke test scoped to the keyboard-shortcuts handler.
+- Full suite green (490 unit + 249 smoke + 1 integration = 740 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 37 of the autonomous loop (alternate add/polish): Esc exits all overlays, including the privacy blur.
