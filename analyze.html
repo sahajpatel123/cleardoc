@@ -297,6 +297,7 @@
           <button type="button" class="ghost-btn ghost-btn-sm" id="famousContractBtn" hidden title="Compare your document against well-known contracts (e.g. SaaS ToS, common lease)">📚 benchmark</button>
           <button type="button" class="ghost-btn ghost-btn-sm" id="timelineBtn" hidden title="See a visual timeline of when your analyses were done">📅 timeline</button>
           <button type="button" class="ghost-btn ghost-btn-sm" id="legendBtn" title="See what TRAP, WATCH, and NOTE mean">📖 legend</button>
+          <button type="button" class="ghost-btn ghost-btn-sm" id="focusModeBtn" title="Hide everything except the plain-English rewrite for distraction-free reading (Esc to exit)" aria-pressed="false">🧘 Focus</button>
           <button class="ghost-btn ghost-btn-sm" id="clearVersionBtn" type="button" hidden title="Clear the saved baseline so the next analysis is a fresh start">🗑 Clear baseline</button>
           <span class="saved-version-badge mono" id="savedVersionBadge" hidden aria-live="polite">📌 vs saved version</span>
           <button class="ghost-btn" id="saveBtn" type="button" title="Download a plain-text copy of this analysis">⬇ Save .txt</button>
@@ -423,7 +424,7 @@
           <p class="analyze-msg" id="currencyNote" style="margin-top:0" aria-live="polite"></p>
           <div class="currency-list" id="currencyList" aria-label="Amounts detected in the document"></div>
         </div>
-        <div class="result-block">
+        <div class="result-block" id="rewriteBlock">
           <span class="rh">✦ Plain-English rewrite <button type="button" class="rewrite-copy no-print" id="rewriteCopyBtn" title="Copy just the plain-English rewrite to the clipboard">Copy</button></span>
           <div class="rewrite" id="plainOut"></div>
           <div class="metaline"><span>Reading level <b id="levelFrom">—</b> → <b id="levelTo">—</b></span><span>Jargon found: <b id="jargonCount">0</b></span><span id="rewriteStats" hidden aria-live="polite"><b id="rewriteSentences">0</b> sentence<span id="rewriteSentenceS">s</span> · <b id="rewriteWords">0</b> word<span id="rewriteWordS">s</span> · ~<b id="rewriteMins">—</b> min read</span></div>

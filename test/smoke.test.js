@@ -259,6 +259,23 @@ skip("rewrite stats: word count is computed and displayed next to sentences + re
   assert.match(appSrc, /rsWordS\.textContent = words === 1 \? '' : 's'/, "app.js must pluralize 'word/words'");
 });
 
+skip("focus mode: hides input + non-rewrite blocks and exits via Esc/Clear", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(analyzeHtml, /id="focusModeBtn"/, "result-actions must expose the focus toggle");
+  assert.match(analyzeHtml, /id="rewriteBlock"/, "rewrite block must be addressable as #rewriteBlock");
+  assert.match(appSrc, /function setFocusMode\(/, "app.js must define setFocusMode");
+  assert.match(appSrc, /body\.classList\.toggle\('focus-mode'/, "focus mode must toggle the body class");
+  assert.match(appSrc, /setFocusMode\(false\)/, "Escape/Clear must be able to exit focus mode");
+  assert.match(themeSrc, /body\.focus-mode \.result-block:not\(#rewriteBlock\)\{display:none\}/, "CSS must hide non-rewrite blocks in focus mode");
+  assert.match(themeSrc, /body\.focus-mode \.col\.in\{display:none\}/, "CSS must hide the input column in focus mode");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

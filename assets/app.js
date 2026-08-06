@@ -83,6 +83,18 @@
   let lenis=null;
   function scrollToEl(sel){const el=$(sel);if(!el)return;
     if(lenis) lenis.scrollTo(el,{offset:-10}); else el.scrollIntoView({behavior:noMotion?'auto':'smooth'});}
+  // Focus mode — distraction-free reading: hides the input column and every
+  // result block except the plain-English rewrite. Exited via the toggle
+  // button, Escape (wireKeyboardShortcuts), or Clear (analyzePage).
+  function setFocusMode(on){
+    document.body.classList.toggle('focus-mode', !!on);
+    const fb = document.getElementById('focusModeBtn');
+    if(fb){
+      fb.setAttribute('aria-pressed', on ? 'true' : 'false');
+      fb.textContent = on ? '🧘 Exit focus' : '🧘 Focus';
+    }
+    return !!on;
+  }
 
   /* ---- shared clarify engine (offline) ---- */
   const JARGON=[
@@ -1810,9 +1822,9 @@
       });
       return m;
     }
-    function navTo(path){
-      try { window.location.href = path; } catch(_){}
-    }
+  function navTo(path){
+    try { window.location.href = path; } catch(_){}
+  }
 
     // Footer hint button — also opens the help modal (so the shortcut is
     // discoverable even on touch devices where `?` doesn't exist).
@@ -1835,6 +1847,7 @@
           e.preventDefault();
           return;
         }
+        if(setFocusMode(false)){ e.preventDefault(); }
         return;
       }
 
@@ -14479,7 +14492,7 @@
     }
 
     if(btn) btn.addEventListener('click',analyze);
-    if(clearBtn) clearBtn.addEventListener('click',()=>{ input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); clearDraft(); updateTextStats(); input.focus(); });
+    if(clearBtn) clearBtn.addEventListener('click',()=>{ setFocusMode(false); input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); clearDraft(); updateTextStats(); input.focus(); });
 
     /* ---- Live text stats (word/char count + estimated reading level) ---- */
     function updateTextStats(){
@@ -17598,6 +17611,13 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       });
     }
     if(copyBtn) copyBtn.addEventListener('click',copyAnalysis);
+    // Focus mode toggle — reading-focus view for the plain-English rewrite.
+    const focusModeBtn = document.getElementById('focusModeBtn');
+    if(focusModeBtn) focusModeBtn.addEventListener('click', () => {
+      const on = setFocusMode(!document.body.classList.contains('focus-mode'));
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(on ? '🧘 Focus mode — showing only the plain-English rewrite. Press Esc to exit.' : 'Focus mode off');
+      try { window.scrollTo({top:0, behavior:'smooth'}); } catch(_){ window.scrollTo(0,0); }
+    });
     // iter #217: copy-as-checklist button — pastes into Jira/Linear/Notion
     if(copyChecklistBtn) copyChecklistBtn.addEventListener('click', copyAnalysisChecklist);
     // iter #218: copy-as-JSON button — exports the full analysis as structured

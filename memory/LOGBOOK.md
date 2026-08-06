@@ -3278,3 +3278,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 7 of the autonomous loop (alternate add/polish): give the rewrite Copy button an honest empty-state response.
+
+**2026-08-06 13:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #8 of the restarted autonomous loop (feature add).
+- feat(ui): added Focus mode — a 🧘 Focus toggle in the result actions hides the input column and every result block except the plain-English rewrite, giving a distraction-free reading view (max-width 72ch, centered). Exits via the toggle, Escape (wired into the global Esc handler), or Clear (which resets it so the page never gets stuck blank).
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 229 smoke + 1 integration = 720 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 8 of the autonomous loop (alternate add/polish): add a reading-focus mode for the core deliverable.
