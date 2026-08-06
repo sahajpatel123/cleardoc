@@ -134,6 +134,8 @@ test("home: the landing page explains the phrases ClearDoc flags", () => {
   for(const flag of ["nonrefund","autorenew","jury","sole","late","unlimited"]){
     assert.match(html, new RegExp('data-flag="' + flag + '"'),
       "a chip for '" + flag + "' must exist");
+    assert.match(html, new RegExp('data-flag="' + flag + '" aria-pressed="false"'),
+      "the '" + flag + "' chip must start unpressed");
   }
   assert.match(appSrc, /function flagHunt\(\)\{/,
     "flagHunt must exist in app.js");
@@ -143,11 +145,18 @@ test("home: the landing page explains the phrases ClearDoc flags", () => {
     "chip clicks must be delegated");
   assert.match(appSrc, /flag-chip-active/,
     "the active chip must be highlighted");
+  assert.match(appSrc, /setAttribute\('aria-pressed', c === chip \? 'true' : 'false'\)/,
+    "picking a chip must press it and unpress the rest");
+  assert.match(appSrc, /e\.key !== 'Escape'/,
+    "Escape must clear the pick");
+  assert.match(appSrc, /readout\.textContent = PROMPT/,
+    "clearing must restore the prompt text");
   assert.match(appSrc, /flag-advice/,
     "each readout must include advice");
   assert.match(appSrc, /home:\[heroClarifier,flagHunt/,
     "flagHunt must run on the home page init list");
   assert.match(cssSrc, /\.flag-chip\{/, "chip styling must exist");
+  assert.match(cssSrc, /\.flag-chip-active:hover\{/, "the active chip must keep its accent on hover");
   assert.match(cssSrc, /\.flag-readout\{/, "readout styling must exist");
 });
 

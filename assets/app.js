@@ -2601,6 +2601,7 @@
     const chips = document.getElementById('flagChips');
     const readout = document.getElementById('flagReadout');
     if(!chips || !readout) return;
+    const PROMPT = 'Pick a phrase to see what it really means.';
     const EXPLAIN = {
       nonrefund: { plain: 'Once you pay, they keep the money — no refunds, no exceptions, even if the service is never delivered.', advice: 'Ask for a refund window tied to delivery, not to their whim.' },
       autorenew: { plain: 'If you do nothing, the contract renews and you keep being charged — often silently.', advice: 'Strike auto-renewal, or require a 30-day notice before renewal.' },
@@ -2609,15 +2610,33 @@
       late: { plain: 'Missing a payment can stack fees fast — sometimes more than the original charge.', advice: 'Cap the fee and ask for a grace period.' },
       unlimited: { plain: 'Your liability has no dollar cap — if anything goes wrong, they can come after everything.', advice: 'Insist on a mutual liability cap tied to what you paid.' },
     };
+    function clearPick(){
+      chips.querySelectorAll('.flag-chip').forEach(c => {
+        c.classList.remove('flag-chip-active');
+        c.setAttribute('aria-pressed','false');
+      });
+      readout.textContent = PROMPT;
+    }
+    chips.querySelectorAll('.flag-chip').forEach(c => {
+      if(!c.hasAttribute('aria-pressed')) c.setAttribute('aria-pressed','false');
+    });
     chips.addEventListener('click', (e) => {
       const chip = e.target.closest && e.target.closest('.flag-chip');
       if(!chip) return;
       const key = chip.getAttribute('data-flag') || '';
       const ex = EXPLAIN[key];
       if(!ex) return;
-      chips.querySelectorAll('.flag-chip').forEach(c => c.classList.remove('flag-chip-active'));
+      chips.querySelectorAll('.flag-chip').forEach(c => {
+        c.classList.remove('flag-chip-active');
+        c.setAttribute('aria-pressed', c === chip ? 'true' : 'false');
+      });
       chip.classList.add('flag-chip-active');
       readout.innerHTML = '<b>' + esc(chip.textContent) + '</b> → ' + esc(ex.plain) + ' <span class="flag-advice">' + esc(ex.advice) + '</span>';
+    });
+    document.addEventListener('keydown', (e) => {
+      if(e.key !== 'Escape') return;
+      if(!chips.querySelector('.flag-chip-active')) return;
+      clearPick();
     });
   }
   function fogCanvas(){

@@ -143,6 +143,7 @@
   .flag-chip{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);text-transform:uppercase;letter-spacing:.06em;padding:8px 14px;border:var(--bd) solid var(--ink);background:var(--paper);color:var(--ink);cursor:pointer;box-shadow:var(--shadow-sm);transition:background .18s,color .18s,transform .12s}
   .flag-chip:hover{background:var(--ink);color:var(--paper);transform:translateY(-1px)}
   .flag-chip-active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .flag-chip-active:hover{background:var(--accent);color:#fff;border-color:var(--accent);transform:none}
   .flag-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .flag-readout{margin-top:var(--s3);max-width:860px;padding:14px 16px;border:var(--bd) solid var(--ink);background:var(--paper2);box-shadow:var(--shadow-sm);font-size:var(--t-card);line-height:1.5;color:var(--ink)}
   .flag-readout b{font-family:'JetBrains Mono',monospace;text-transform:uppercase;color:var(--accent-text)}

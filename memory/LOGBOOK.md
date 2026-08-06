@@ -4851,3 +4851,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 162 of the autonomous loop (alternate add/polish): before you even paste a document, know exactly which phrases ClearDoc hunts for.
+
+**2026-08-06 19:45 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #163 of the restarted autonomous loop (polish).
+- polish(ui): the landing-page flags section now has real toggle semantics — every chip starts with `aria-pressed="false"`, picking one presses it (`aria-pressed="true"`) while un-pressing the rest, and pressing Escape clears the pick and restores the readout's prompt text. `flagHunt()` gained a shared `clearPick()` helper, an init pass that backfills `aria-pressed` on any chip missing it, and a delegated document keydown handler guarded by "only clear when a chip is actually active". CSS keeps the active chip's accent on hover (no more flip to the ink style while selected).
+- Extended the cycle-162 smoke test with 5 assertions: per-chip `aria-pressed="false"` in markup (6 chips), the press/unpress `setAttribute` logic, the Escape guard, the prompt-text reset, and the active-hover CSS rule.
+- Full suite green (490 unit + 317 smoke + 1 integration = 808 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 163 of the autonomous loop (alternate add/polish): the flags explainer should behave like a proper toggle group — keyboard-clearable, screen-reader honest, and visually stable while selected.
