@@ -550,6 +550,8 @@ skip("voice mode: deadline narration skips the per-row copy buttons", async () =
   assert.match(handler, /dlEl\.querySelectorAll\('\.deadline-row'\)/, "deadline narration must read rows individually");
   assert.match(handler, /querySelector\('\.deadline-date'\)/, "deadline narration must use the date element");
   assert.match(handler, /querySelector\('\.deadline-desc'\)/, "deadline narration must use the description element");
+  assert.match(handler, /cloneNode\(true\)/, "risk-row narration must clone rows before stripping buttons");
+  assert.match(handler, /querySelectorAll\('button'\)\.forEach\(b => b\.remove\(\)\)/, "risk-row narration must strip button labels");
 });
 
 skip("privacy: blur toggle hides sensitive content from onlookers", async () => {

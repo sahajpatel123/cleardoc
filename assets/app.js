@@ -15206,7 +15206,14 @@
             const el = id ? document.getElementById(id) : null;
             if(!el) return [];
             const rows = Array.from(el.querySelectorAll('.rrow, .risk-counter')).slice(0, max || 6);
-            return rows.map(r => (r.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+            return rows.map(r => {
+              // Clone so we can strip button labels (copy/speak/apply/⚡/▾)
+              // without mutating the live rows — voice mode reads content,
+              // not control names.
+              const clone = r.cloneNode(true);
+              clone.querySelectorAll('button').forEach(b => b.remove());
+              return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+            }).filter(Boolean);
           };
           const add = (label, text) => {
             if(text && text.length > 4) segs.push(label + ': ' + text);

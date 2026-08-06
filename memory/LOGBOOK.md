@@ -3608,3 +3608,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 40 of the autonomous loop (alternate add/polish): per-clause score-impact previews across the risk radar.
+
+**2026-08-06 19:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #41 of the restarted autonomous loop (polish).
+- polish(voice): Voice mode read risk rows via raw textContent, so every row button label (copy/speak/apply/⚡/▾) was narrated aloud. Rows are now cloned and buttons stripped before narration — content only, no control names.
+- Extended the voice-mode smoke test with the clone/strip assertions.
+- Full suite green (490 unit + 253 smoke + 1 integration = 744 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 41 of the autonomous loop (alternate add/polish): keep risk narration free of button labels.
