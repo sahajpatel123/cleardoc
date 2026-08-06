@@ -12079,6 +12079,7 @@
         '<button type="button" class="contact-filter ghost-btn ghost-btn-sm ' + (filter === 'phones' ? 'contact-filter-active' : '') + '" data-contact-filter="phones">phones</button>' +
         '<button type="button" class="contact-copy-all ghost-btn ghost-btn-sm" id="contactCopyAllBtn" title="Copy all contacts as plain text">📋 copy all</button>' +
         '<button type="button" class="contact-copy-csv ghost-btn ghost-btn-sm" id="contactCopyCsvBtn" title="Copy as CSV for spreadsheet import">📊 copy CSV</button>' +
+        '<button type="button" class="contact-copy-csv ghost-btn ghost-btn-sm" id="contactCopyMdBtn" title="Copy as a Markdown table for notes"># MD</button>' +
       '</div>';
       contactGrid.innerHTML = filtered.join('') + controls;
       contactGrid.innerHTML = rows.join('') + controls;
@@ -12160,6 +12161,34 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📊 CSV copied' : '⚠ Couldn’t copy');
           copyCsvBtn.textContent = copied ? '✓ copied' : '📊 copy CSV';
           setTimeout(() => { if(copyCsvBtn.isConnected) copyCsvBtn.textContent = '📊 copy CSV'; }, 2500);
+        });
+      }
+      const copyMdBtn = document.getElementById('contactCopyMdBtn');
+      if(copyMdBtn){
+        copyMdBtn.addEventListener('click', async () => {
+          const rows = c.emails.map(e => '| ✉ Email | ' + String(e.value).replace(/\|/g, '\\|') + ' |')
+            .concat(c.phones.map(p => '| 📞 Phone | ' + String(p.value).replace(/\|/g, '\\|') + ' |'));
+          const md = '| Type | Value |\n|---|---|\n' + rows.join('\n');
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Contacts copied as Markdown' : '⚠ Couldn’t copy');
+          copyMdBtn.textContent = copied ? '✓ copied' : '# MD';
+          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '# MD'; }, 2500);
         });
       }
       // Filter chips

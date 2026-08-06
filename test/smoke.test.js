@@ -12365,6 +12365,12 @@ test("analyzer: Contact extract pulls emails and phone numbers from the document
     "iter #163 must render filter chips");
   assert.match(appSrc, /contactCopyCsvBtn/,
     "iter #163 must include a copy-CSV button");
+  assert.match(appSrc, /contactCopyMdBtn/,
+    "iter #265 must include a copy-as-Markdown contacts button");
+  assert.match(appSrc, /'📋 Contacts copied as Markdown'/,
+    "iter #265 must confirm when the contacts Markdown is copied");
+  assert.match(appSrc, /\| Type \| Value \|/,
+    "iter #265 must build a Markdown table header");
   assert.match(cssSrc, /\.contact-filter-active\b/, ".contact-filter-active style must exist");
 });
 
@@ -12382,6 +12388,44 @@ test("analyzer: Contact extract polish — filter chips + CSV export", () => {
   // CSS
   assert.match(cssSrc, /\.contact-cell\b/, ".contact-cell style must exist");
   assert.match(cssSrc, /\.contact-email\b/, ".contact-email style must exist");
+});
+
+skip("analyze: contacts copy as Markdown table", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedContactMd = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedContactMd = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedContactMd = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#contactBlock:not([hidden]) #contactCopyMdBtn", { timeout: 8000 });
+    await page.click("#contactCopyMdBtn");
+    await page.waitForFunction(() => window.__copiedContactMd && window.__copiedContactMd.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedContactMd);
+    assert.match(captured, /^\| Type \| Value \|/, "the copied contacts must start with the Markdown header");
+    assert.match(captured, /\|---\|---\|/, "the copied contacts must include the separator row");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
 });
 
 // Iter #164: document history map — past runs of the same document.
