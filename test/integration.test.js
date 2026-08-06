@@ -522,6 +522,8 @@ skip("integration: reading list speaks the remaining unread chunks", async () =>
     await page.evaluate(() => document.querySelector("#readingBlock .reading-done").click());
     await page.waitForSelector("#readingBlock .reading-row-done", { timeout: 4000 });
     const remainingRows = await page.$$eval("#readingBlock .reading-row:not(.reading-row-done)", (els) => els.length);
+    const noteText = await page.$eval("#readingNote", (el) => el.textContent || "");
+    assert.match(noteText, /read left/, "the reading note must document the read-left chip");
 
     await page.click("#readingSpeakLeftBtn");
     await page.waitForTimeout(200);

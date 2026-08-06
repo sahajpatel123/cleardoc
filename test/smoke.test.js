@@ -10401,6 +10401,8 @@ test("analyzer: reading list speaks the remaining unread chunks", () => {
     "the chip must become a stop button while speaking");
   assert.match(appSrc, /queue\.forEach\(\(u, i\) => \{[\s\S]{0,260}u\.onend/,
     "utterances must chain so the chunks play in order");
+  assert.match(appSrc, /🔊 read left<\/b> reads them aloud in order/,
+    "the reading note must document the read-left chip");
 });
 
 // Cycle #226 — the reading plan exports as a tracker-ready CSV file.

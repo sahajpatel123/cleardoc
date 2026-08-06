@@ -8748,7 +8748,7 @@
           'Pure-local: walks the doc sentence-by-sentence and scores each against risk, money, deadline, and rights signals. ' +
           '<b>🔴 must</b> = every red/orange dot (' + pctMust + '% of the doc). ' +
           'Click a chunk to jump to it; click <b>○</b> to mark it read (progress persists). ' +
-          'Click any signal badge (🚩/💰/⏰/✓) to filter chunks with that signal. <b>📋</b> per row copies a single chunk, <b>💬</b> asks about one, <b>🔊</b> reads one aloud, <b>📋 copy list</b> exports the priority order as a checklist, <b>⏳ left</b> copies only the unread chunks, or <b>▶ resume</b> jumps to your first unfinished must-read.';
+          'Click any signal badge (🚩/💰/⏰/✓) to filter chunks with that signal. <b>📋</b> per row copies a single chunk, <b>💬</b> asks about one, <b>🔊</b> reads one aloud, <b>📋 copy list</b> exports the priority order as a checklist, <b>⏳ left</b> copies only the unread chunks, <b>🔊 read left</b> reads them aloud in order, or <b>▶ resume</b> jumps to your first unfinished must-read.';
       }
       // Click-to-jump. Inner controls (done + signal badges) stop
       // propagation so they don't accidentally jump the input.

@@ -5623,3 +5623,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 232 of the autonomous loop (alternate add/polish): if you can copy what's left, you should be able to hear it too — turn the remaining reading plan into a hands-free commute.
+
+**2026-08-07 03:39 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #233 of the restructured autonomous loop (polish).
+- polish(reading): the reading-note help text now documents the "🔊 read left" chip from cycle #232 ("reads them aloud in order"), closing the discoverability gap for the newest export — same fix applied to "⏳ left" in cycle #223.
+- Verified in a real browser via the extended speak-left integration test: the rendered `#readingNote` contains "read left" (real Chromium, zero console errors).
+- Extended the cycle-#232 smoke test with 1 note-text assertion.
+- Full suite green (490 unit + 346 smoke + 5 integration = 841 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 233 of the autonomous loop (alternate add/polish): a feature nobody can find in the help text might as well not exist — make "read left" discoverable next to its siblings.
