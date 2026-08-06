@@ -9284,6 +9284,16 @@ test("analyzer: CSV export includes metadata row, row numbers, priority, and fin
   // Threat score / health check metadata included when available
   assert.match(appSrc, /Threat Level/,
     "iter #220 v2 must include threat level in CSV metadata rows");
+  // Cycle 55 polish — OWASP formula-injection guard on every cell
+  assert.match(appSrc, /csvCell = \(v\) => \{[\s\S]+?if\(\/\^\[=\+\\-@\]\/\.test\(s\)\) s = "'" \+ s;/,
+    "risk CSV cells must neutralize formula-injection prefixes (= + - @) per OWASP");
+  assert.match(appSrc, /row\.map\(csvCell\)\.join\(','\)/,
+    "every risk CSV cell must pass through the injection guard");
+  // BOM only on the download path, not the clipboard copy
+  assert.match(appSrc, /const text = '\\uFEFF' \+ buildAnalysisCsv\(\);/,
+    "downloaded CSV must start with a UTF-8 BOM for Excel encoding detection");
+  assert.match(appSrc, /copyAnalysisCsv\(\)\{[\s\S]+?const text = buildAnalysisCsv\(\);/,
+    "clipboard copy must stay BOM-free for clean pastes");
 });
 
 // Iter #222: Executive Summary — plain-English narrative overview.

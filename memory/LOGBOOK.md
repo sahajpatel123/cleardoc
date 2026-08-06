@@ -3748,3 +3748,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 54 of the autonomous loop (alternate add/polish): make missed deadlines impossible to skim past in the list itself.
+
+**2026-08-06 21:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #55 of the restarted autonomous loop (polish).
+- polish(sec): the main risk CSV export now carries the same hardening the deadline CSV got in cycle 51 — every cell is guarded against formula injection (= + - @ prefixes get a leading apostrophe, OWASP) and the downloaded file starts with a UTF-8 BOM so Excel decodes non-ASCII correctly. The clipboard copy shares the injection guard but stays BOM-free for clean pastes into chat/notepad.
+- Extended the risk-CSV smoke test with the guard and BOM assertions.
+- Full suite green (490 unit + 259 smoke + 1 integration = 750 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 55 of the autonomous loop (alternate add/polish): every spreadsheet export in the app is now safe and correctly encoded.

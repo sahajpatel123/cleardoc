@@ -14942,16 +14942,26 @@
           f.i != null ? String(f.i) : ''
         ]);
       });
-      // Escape all fields for CSV compliance: wrap in double quotes
-      // and double any internal double quotes per RFC 4180.
-      return rows.map(row => row.map(cell => '"' + String(cell).replace(/"/g,'""') + '"').join(',')).join('\n');
+      // Escape all fields for CSV compliance: wrap in double quotes and
+      // double any internal double quotes per RFC 4180. Cycle 55 polish —
+      // OWASP CSV-injection guard: cells starting with =, +, -, or @ get
+      // a leading apostrophe so they open as text, never as a formula.
+      const csvCell = (v) => {
+        let s = String(v || '');
+        if(/^[=+\-@]/.test(s)) s = "'" + s;
+        return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+      };
+      return rows.map(row => row.map(csvCell).join(',')).join('\n');
     }
     async function downloadAnalysisCsv(){
       if(!lastFlags || !lastFlags.length){
         if(msg){msg.textContent='No risks found — CSV export requires flagged items.'; msg.className='analyze-msg';}
         return;
       }
-      const text = buildAnalysisCsv();
+      // Cycle 55 polish — UTF-8 BOM on the downloaded file so Excel detects
+      // the encoding (non-ASCII cells don't mojibake). The clipboard copy
+      // stays BOM-free so pastes into chat/notepad don't carry the marker.
+      const text = '\uFEFF' + buildAnalysisCsv();
       if(!text){
         if(msg){msg.textContent='No analysis data to export.'; msg.className='analyze-msg';}
         return;
