@@ -3788,3 +3788,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 58 of the autonomous loop (alternate add/polish): don't let voice listeners miss time pressure.
+
+**2026-08-06 22:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #59 of the restarted autonomous loop (polish).
+- polish(ui): the custom ✕ clear buttons on the history search and find inputs now suppress the native WebKit search-cancel control (::-webkit-search-cancel-button) — Chrome/Safari were rendering a second clear affordance inside the same field.
+- Extended the history-search smoke test with the native-cancel suppression assertions.
+- Full suite green (490 unit + 261 smoke + 1 integration = 752 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 59 of the autonomous loop (alternate add/polish): one clear button per search field, not two.

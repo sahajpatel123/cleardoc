@@ -4002,6 +4002,11 @@ test("analyzer: history panel searches past analyses by keyword", () => {
     "clear button must meet the 24×24px minimum touch-target size");
   assert.match(cssSrc, /\.history-panel \.hp-search-clear\[hidden\]\{display:none\}/,
     "clear button's hidden state must be respected");
+  // Cycle 59 polish — no double clear affordances from the native control
+  assert.match(cssSrc, /\.history-panel \.hp-search::-webkit-search-cancel-button[\s\S]+?appearance:none/,
+    "native WebKit cancel must be hidden on the history search (custom ✕ exists)");
+  assert.match(cssSrc, /\.find-bar \.find-input::-webkit-search-cancel-button[\s\S]+?appearance:none/,
+    "native WebKit cancel must be hidden on the find input (custom ✕ exists)");
 });
 
 test("analyzer: voice picker dropdown lets users choose a specific TTS voice", () => {
