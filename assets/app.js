@@ -7181,7 +7181,12 @@
       const copyAllBtn = document.getElementById('deadlineCopyAllBtn');
       if(copyAllBtn){
         copyAllBtn.addEventListener('click', async () => {
-          const text = items.map(it => it.date + (it.verb === '(obligated)' ? '  (must)' : '  (scheduled)') + '  ' + (it.sentence || '').slice(0, 120)).join('\n');
+          // Cycle #193 — the copy-all list carries countdowns too, matching
+          // the per-row copy so pasted lists read urgent at a glance.
+          const text = items.map(it => {
+            const cd = (countdown(it.date) || '').trim();
+            return it.date + (cd ? ' (' + cd + ')' : '') + (it.verb === '(obligated)' ? '  (must)' : '  (scheduled)') + '  ' + (it.sentence || '').slice(0, 120);
+          }).join('\n');
           let copied = false;
           try { if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; } }
           catch(_){ /* fall through */ }

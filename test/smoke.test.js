@@ -10717,6 +10717,11 @@ test("analyzer: Deadline extractor polish — countdown + copy-all chip", () => 
     "iter #175 must compute positive-day countdown");
   assert.match(appSrc, /days < 0/,
     "iter #175 must compute past-day countdown");
+  // Cycle #193 — the copy-all list carries countdowns like the row copy.
+  assert.match(appSrc, /const cd = \(countdown\(it\.date\) \|\| ''\)\.trim\(\);/,
+    "the copy-all builder must compute each deadline's countdown");
+  assert.match(appSrc, /it\.date \+ \(cd \? ' \(' \+ cd \+ '\)' : ''\) \+ \(it\.verb === '\(obligated\)'/,
+    "the countdown must sit after the date in the copy-all text");
 });
 
 test("analyzer: Deadline rows can add the event to Google Calendar in one click", () => {

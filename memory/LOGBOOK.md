@@ -5177,3 +5177,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 192 of the autonomous loop (alternate add/polish): a deadline copy should carry its own urgency — "in 3 days" beats a bare date in any inbox.
+
+**2026-08-06 21:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #193 of the restarted autonomous loop (polish).
+- polish(deadlines): the results "📋 copy all" list now carries countdowns too — each line reads `2026-08-10 (in 3 days)  (must)  <sentence>`, matching the per-row copy from cycle 192 so a pasted list keeps its urgency.
+- Verified in a real browser with a mocked analyze flow: copying all produced the countdown-bearing line and the count toast; zero console errors.
+- Extended the iter-#175 copy-all smoke test with 2 assertions (countdown computation in the builder + in-text placement after the date).
+- Full suite green (490 unit + 328 smoke + 1 integration = 819 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 193 of the autonomous loop (alternate add/polish): when the whole list is copied, every deadline should carry its countdown — not just the single rows.
