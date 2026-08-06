@@ -17084,6 +17084,9 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
           compareStats.innerHTML = '';
           if(compareVerdict){ compareVerdict.hidden = true; compareVerdict.textContent = ''; }
           if(compareDiff){ compareDiff.hidden = true; compareDiff.innerHTML = ''; }
+          // Cycle 81 polish — the diff-only copy button must hide with the
+          // diff when the comparison is cleared.
+          if(compareDiffCopyBtn) compareDiffCopyBtn.hidden = true;
           return;
         }
         const stat = (raw) => {

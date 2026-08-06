@@ -4008,3 +4008,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 80 of the autonomous loop (alternate add/polish): share just what changed between two clauses.
+
+**2026-08-06 02:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #81 of the restarted autonomous loop (polish).
+- polish(ui): clearing the comparison (empty second clause) now also hides the diff-only copy button — previously the button could linger as a stale affordance after the diff vanished.
+- Extended the compare diff-copy smoke test with the clear-path guard assertion.
+- Full suite green (490 unit + 272 smoke + 1 integration = 763 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 81 of the autonomous loop (alternate add/polish): no stale copy buttons after the diff disappears.

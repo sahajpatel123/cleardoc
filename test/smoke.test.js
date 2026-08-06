@@ -3243,7 +3243,7 @@ test("analyzer: compare panel shows a clear 'WINS' verdict badge above the table
     "analyze.html must contain #compareVerdict above #compareStats");
 
   // updateCompareStats must compute + paint the verdict text
-  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,6000}/);
+  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,6800}/);
   assert.ok(updateFn, "updateCompareStats() must exist");
   // Verdict text patterns
   assert.match(updateFn[0], /COMPARE WINS/,
@@ -3298,7 +3298,7 @@ test("analyzer: compare panel shows sentence-level diff (Original-only / Compare
     "analyze.html must contain #compareDiff below #compareStats");
 
   // updateCompareStats must call diffSentences + render both rows
-  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,6000}/);
+  const updateFn = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,6800}/);
   assert.ok(updateFn, "updateCompareStats() must exist");
   assert.match(updateFn[0], /diffSentences\(a,\s*b\)/,
     "updateCompareStats must call diffSentences(a, b)");
@@ -3319,7 +3319,7 @@ test("analyzer: compare panel shows sentence-level diff (Original-only / Compare
     ".cmp-diff-b (Compare) label must use --accent-text (accent — second side)");
 
   // Shared-count summary line — polish on iter #21
-  const updateFnDiff = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,6000}/);
+  const updateFnDiff = appSrc.match(/function updateCompareStats\(\)\{[\s\S]{0,6800}/);
   assert.ok(updateFnDiff, "updateCompareStats() must exist");
   assert.match(updateFnDiff[0], /cmp-diff-summary/,
     "diff must render a summary line with the shared + unique counts");
@@ -3957,6 +3957,8 @@ test("analyzer: Compare panel can copy just the sentence-level diff", () => {
     "the diff-copy button must appear when a diff is rendered");
   assert.match(appSrc, /if\(compareDiffCopyBtn\) compareDiffCopyBtn\.hidden = true;/,
     "the diff-copy button must hide when there is no diff");
+  assert.match(appSrc, /if\(compareDiff\)\{ compareDiff\.hidden = true; compareDiff\.innerHTML = ''; \}[\s\S]+?if\(compareDiffCopyBtn\) compareDiffCopyBtn\.hidden = true;/,
+    "clearing the comparison must also hide the diff-copy button");
 
   // Wiring + guards
   assert.match(appSrc, /compareDiffCopyBtn\.addEventListener\(\s*['"]click['"]/,
