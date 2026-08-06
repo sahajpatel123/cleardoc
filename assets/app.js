@@ -1996,6 +1996,7 @@
             <div class="kb-row"><kbd>g</kbd><kbd>p</kbd><span>See pricing</span></div>
             <div class="kb-row"><kbd>/</kbd><span>Focus the document input</span></div>
             <div class="kb-row"><kbd>⌘</kbd><kbd>Enter</kbd><span>Run the analysis</span></div>
+            <div class="kb-row"><kbd>c</kbd><span>Copy the plain-text summary</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><span>Risk radar filter (all / traps / watches / notes)</span></div>
             <div class="kb-row"><kbd>?</kbd><span>Show this help</span></div>
@@ -2097,6 +2098,16 @@
           navTo('analyze.html');
         }
         return;
+      }
+
+      // 'c' copies the plain-text summary — only when the result panel is
+      // visible, so the key stays free on other pages.
+      if(k === 'c' || k === 'C'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const cb = document.getElementById('copyBtn');
+          if(cb){ e.preventDefault(); cb.click(); return; }
+        }
       }
 
       // 'f' toggles Focus mode — but only when the result panel is visible,

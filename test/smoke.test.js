@@ -497,6 +497,18 @@ skip("top concern: 'What if fixed?' previews the readiness score without the cla
   assert.match(themeSrc, /\.tc-fixed\{/, "theme.css must style the preview note");
 });
 
+skip("keyboard: 'c' copies the plain-text summary when results are visible", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /k === 'c' \|\| k === 'C'/, "the global keydown handler must branch on c/C");
+  assert.match(appSrc, /cb\.click\(\)/, "c must trigger the main Copy button");
+  assert.match(appSrc, /resultPanel/, "c must only fire when the result panel is visible");
+  assert.match(appSrc, /<kbd>c<\/kbd><span>Copy the plain-text summary<\/span>/, "the help modal must document the c shortcut");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

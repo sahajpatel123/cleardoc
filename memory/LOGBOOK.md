@@ -3518,3 +3518,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 31 of the autonomous loop (alternate add/polish): surface the severity-band change in the fix preview.
+
+**2026-08-06 17:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #32 of the restarted autonomous loop (feature add).
+- feat(keys): added a 'c' shortcut that copies the plain-text summary — only when the result panel is visible, so the key stays free elsewhere. Documented in the keyboard-shortcuts help modal.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 244 smoke + 1 integration = 735 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 32 of the autonomous loop (alternate add/polish): keyboard copy of the summary.
