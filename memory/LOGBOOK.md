@@ -4610,3 +4610,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 138 of the autonomous loop (alternate add/polish): a cheat sheet you can hear should also leave with you.
+
+**2026-08-06 04:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #139 of the restarted autonomous loop (polish).
+- polish(ui): the translation-sheet export now carries the tone hint — when a greeting/tone line exists ("Use formal 'usted' if signing a lease…"), the copied cheat sheet includes it under the header, so the guidance that's visible on screen travels with the export.
+- Extended the cycle-138 smoke test with 1 assertion covering the tone line in the export (9 total in that test).
+- Full suite green (490 unit + 304 smoke + 1 integration = 795 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 139 of the autonomous loop (alternate add/polish): the copy should carry the same tone guidance the screen shows.

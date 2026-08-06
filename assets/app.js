@@ -14286,7 +14286,10 @@
               transCopyBtn._transCopyWired = true;
               transCopyBtn.addEventListener('click', async () => {
                 const lines = sheet.items.map(it => it.en + ' → ' + it.xx);
-                const text = 'ClearDoc translation cheat sheet (' + lang.label + ')\n' + lines.join('\n');
+                // Cycle #139 — the tone hint travels with the export too.
+                const text = 'ClearDoc translation cheat sheet (' + lang.label + ')' +
+                  (greeting ? '\nTone: ' + greeting : '') +
+                  '\n' + lines.join('\n');
                 let copied = false;
                 try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
                 if(!copied){

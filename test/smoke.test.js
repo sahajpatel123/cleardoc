@@ -7556,6 +7556,8 @@ test("analyzer: Translation sheet copies as plain text in one click", () => {
     "the export must open with a self-identifying header");
   assert.match(appSrc, /it\.en \+ ' → ' \+ it\.xx/,
     "each line must map EN → translated term");
+  assert.match(appSrc, /\\nTone: ' \+ greeting/,
+    "the export must carry the tone hint when present");
   assert.match(appSrc, /transCopyBtn\._transCopyWired/,
     "the listener must be bound only once across re-renders");
   assert.match(appSrc, /📋 Translation sheet copied/,
