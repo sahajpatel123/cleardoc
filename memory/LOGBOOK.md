@@ -3368,3 +3368,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 16 of the autonomous loop (alternate add/polish): add a global keyboard shortcut to run the analysis.
+
+**2026-08-06 15:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #17 of the restarted autonomous loop (polish).
+- polish(keys): scoped the Ctrl/Cmd+Enter analysis shortcut so it doesn't hijack other inputs' Enter semantics — e.g. pressing it while focused in the Ask box previously fired BOTH the question and a new analysis. It now runs analysis only from non-input focus or the document textarea (#docInput); other fields keep their own Enter behavior.
+- Extended the Ctrl/Cmd+Enter smoke test with the scope guard assertion.
+- Full suite green (490 unit + 235 smoke + 1 integration = 726 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 17 of the autonomous loop (alternate add/polish): fix the shortcut's interaction with other input fields.

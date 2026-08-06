@@ -2009,11 +2009,16 @@
         return;
       }
 
-      // Ctrl/Cmd+Enter runs the analysis from anywhere — including while
-      // typing in the document textarea (Enter alone keeps editing).
+      // Ctrl/Cmd+Enter runs the analysis — from anywhere on the page, and
+      // while typing in the document textarea. Other inputs keep their own
+      // Enter semantics (e.g. Ask sends the question), so we skip them.
       if((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.key === 'NumpadEnter')){
-        const ab = document.getElementById('analyzeBtn');
-        if(ab && !ab.disabled){ e.preventDefault(); ab.click(); return; }
+        const t = e.target;
+        const inOtherField = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable) && t.id !== 'docInput';
+        if(!inOtherField){
+          const ab = document.getElementById('analyzeBtn');
+          if(ab && !ab.disabled){ e.preventDefault(); ab.click(); return; }
+        }
       }
 
       // From here on, ignore shortcuts when the user is typing into a form field

@@ -356,6 +356,7 @@ skip("keyboard: Ctrl/Cmd+Enter runs the analysis from anywhere", async () => {
   assert.match(appSrc, /\(e\.ctrlKey \|\| e\.metaKey\) && \(e\.key === 'Enter' \|\| e\.key === 'NumpadEnter'\)/, "global keydown must handle Ctrl/Cmd+Enter");
   assert.match(appSrc, /ab\.click\(\)/, "Ctrl/Cmd+Enter must trigger the Analyze button");
   assert.match(appSrc, /ab && !ab\.disabled/, "the shortcut must no-op while an analysis is in flight");
+  assert.match(appSrc, /t\.id !== 'docInput'/, "the shortcut must not hijack other inputs' Enter semantics (e.g. Ask)");
   assert.match(analyzeHtml, /Ctrl\/Cmd\+Enter to analyze/, "the Analyze button hint must document the shortcut");
   assert.match(appSrc, /<kbd>⌘<\/kbd><kbd>Enter<\/kbd><span>Run the analysis<\/span>/, "the help modal must document the shortcut");
 });
