@@ -468,6 +468,24 @@
   // an event handler (e.g. `" onmouseover="alert(1)`). Escaping the
   // quotes here covers every existing call site without code changes,
   // since `&quot;` and `&#39;` render identically in browsers.
+  // Cycle #102 — user-adjustable TTS reading speed, persisted locally
+  // and clamped to a sane range. Every speak site reads it via
+  // getTtsRate() so one control governs the whole app.
+  const TTS_RATE_KEY = 'cleardoc:ttsRate';
+  function getTtsRate(){
+    let r = 1;
+    try {
+      const n = parseFloat(localStorage.getItem(TTS_RATE_KEY) || '');
+      if(Number.isFinite(n) && n >= 0.5 && n <= 2) r = n;
+    } catch(_){ /* ignore */ }
+    return r;
+  }
+  function setTtsRate(n){
+    let r = 1;
+    if(Number.isFinite(n) && n >= 0.5 && n <= 2) r = n;
+    try { localStorage.setItem(TTS_RATE_KEY, String(r)); } catch(_){ /* ignore */ }
+    return r;
+  }
   function esc(s){
     // Coerce to string first — call sites pass sentence indices (numbers)
     // and other values that are logically text but not typed as strings.
@@ -10820,7 +10838,7 @@
           try {
             window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(text);
-            u.rate = 0.95;
+            u.rate = getTtsRate();
             window.speechSynthesis.speak(u);
           } catch(_){ /* ignore */ }
         });
@@ -10867,7 +10885,7 @@
             window.speechSynthesis.cancel();
             const text = 'Step ' + s.step + ' of ' + steps.length + '. ' + (s.label || '') + '. ' + (s.why || '') + (s.counter ? ' Counter: ' + s.counter : '');
             const u = new SpeechSynthesisUtterance(text);
-            u.rate = 0.95;
+            u.rate = getTtsRate();
             u.onend = u.onerror = () => { i++; setTimeout(playNext, 600); };
             window.speechSynthesis.speak(u);
           } catch(_){
@@ -11867,7 +11885,7 @@
           try {
             window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(text);
-            u.rate = 0.95;
+            u.rate = getTtsRate();
             window.speechSynthesis.speak(u);
           } catch(_){ /* ignore */ }
         });
@@ -11914,7 +11932,7 @@
               try {
                 window.speechSynthesis.cancel();
                 const u = new SpeechSynthesisUtterance(text);
-                u.rate = 0.95;
+                u.rate = getTtsRate();
                 window.speechSynthesis.speak(u);
               } catch(_){ /* ignore */ }
             });
@@ -12326,7 +12344,7 @@
           try {
             window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(text);
-            u.rate = 0.95;
+            u.rate = getTtsRate();
             window.speechSynthesis.speak(u);
           } catch(_){ /* ignore */ }
         });
@@ -12750,7 +12768,7 @@
               try {
                 window.speechSynthesis.cancel();
                 const u = new SpeechSynthesisUtterance(text);
-                u.rate = 0.95;
+                u.rate = getTtsRate();
                 window.speechSynthesis.speak(u);
               } catch(_){ /* ignore */ }
             }
@@ -13787,7 +13805,7 @@
                     window.speechSynthesis.cancel();
                     const u = new SpeechSynthesisUtterance(word);
                     u.lang = ({es:'es-ES', fr:'fr-FR', de:'de-DE', it:'it-IT', pt:'pt-BR'})[code] || 'en-US';
-                    u.rate = 0.9;
+                    u.rate = getTtsRate();
                     window.speechSynthesis.speak(u);
                   } catch(_){ /* ignore */ }
                 });
@@ -13847,6 +13865,10 @@
             populateVoicePicker(plainOut._detectedLang || null);
             voicePicker.hidden = voicePicker.options.length <= 1;
           }
+          // Cycle #102 — reading-speed picker: always available when the
+          // Read-aloud button is (speed works even with 0 voices).
+          const voiceRatePickerEl = document.getElementById('voiceRatePicker');
+          if(voiceRatePickerEl) voiceRatePickerEl.hidden = false;
           // Preview button follows the picker (or shows alone if
           // SpeechSynthesis exists but picker has 0 voices — at least
           // users get the System default preview)
@@ -15946,7 +15968,7 @@
         try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
         if(voiceMeter) voiceMeter.textContent = '🎙 ' + (voiceIndex + 1) + ' / ' + voiceQueue.length;
         const u = new SpeechSynthesisUtterance(voiceQueue[voiceIndex]);
-        u.rate = 0.95;
+        u.rate = getTtsRate();
         // Cycle #100 — follow along with the rewrite while it's read.
         // The segment carries a "rewrite: " label prefix, so boundary
         // charIndexes are offset by that prefix when mapping to spans.
@@ -16487,7 +16509,7 @@
               if(typeof window !== 'undefined' && 'speechSynthesis' in window){
                 window.speechSynthesis.cancel();
                 const u = new SpeechSynthesisUtterance(text);
-                u.rate = 0.95;
+                u.rate = getTtsRate();
                 window.speechSynthesis.speak(u);
               }
             } catch(_){ /* ignore */ }
@@ -17640,7 +17662,7 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
             const v = voices.find(v => /^en[-_]/i.test(v.lang)) || voices[0];
             if(v) u.voice = v;
           } catch(_){}
-          u.rate = 1.0;
+          u.rate = getTtsRate();
           // Compute per-dot charIndex ranges so onboundary can advance
           let perDot = []; // [{end, idx}]
           let pos = 0;
@@ -17993,7 +18015,7 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
                 if(v) u.voice = v;
               }
             } catch(_){}
-            u.rate = 1.0; u.pitch = 1.0;
+            u.rate = getTtsRate(); u.pitch = 1.0;
             const orig = '🔊';
             rcSpeak.textContent = '◼';
             u.onend = u.onerror = () => {
@@ -18205,7 +18227,7 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
               const u = new SpeechSynthesisUtterance(labelFor(h) + '. ' + h.counter);
               if(voice) u.voice = voice;
               if(detectedLang && detectedLang.tts) u.lang = detectedLang.tts;
-              u.rate = 1.0; u.pitch = 1.0;
+              u.rate = getTtsRate(); u.pitch = 1.0;
               queue.push(u);
             });
             // Chain: each utterance's onend triggers the next
@@ -18265,7 +18287,7 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
               const v = voices.find(v => /^en[-_]/i.test(v.lang)) || voices[0];
               if(v) u.voice = v;
             } catch(_){}
-            u.rate = 1.0;
+            u.rate = getTtsRate();
             // Estimate which row is being spoken by tracking charIndex
             let perRow = []; // [{end: charIndex, idx: rowIdx}]
             let pos = 0;
@@ -19391,6 +19413,17 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
         const setStoredVoice = (v) => {
           try { localStorage.setItem(VOICE_KEY, v || ''); } catch(_) {}
         };
+        // Cycle #102 — reading-speed picker: reflect the persisted rate
+        // and persist any change; every utterance reads it via getTtsRate().
+        const voiceRatePicker = document.getElementById('voiceRatePicker');
+        if(voiceRatePicker){
+          voiceRatePicker.value = String(getTtsRate());
+          voiceRatePicker.addEventListener('change', () => {
+            const n = parseFloat(voiceRatePicker.value) || 1;
+            setTtsRate(n);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('🔊 Reading speed ' + n + '×');
+          });
+        }
         const populateVoicePicker = (detectedLang) => {
           if(!voicePicker) return;
           const allVoices = (typeof window.speechSynthesis.getVoices === 'function')
@@ -19446,7 +19479,7 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
             if(explicit) u.voice = explicit;
             const detectedLang = (plainOut && plainOut._detectedLang) || null;
             if(detectedLang && detectedLang.tts) u.lang = detectedLang.tts;
-            u.rate = 1.0; u.pitch = 1.0;
+            u.rate = getTtsRate(); u.pitch = 1.0;
             const orig = '▶ preview';
             u.onend = u.onerror = () => {
               voicePreviewBtn.textContent = orig;
@@ -19543,7 +19576,7 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
               || pickVoice();
             if(v) u.voice = v;
             if(detectedLang && detectedLang.tts) u.lang = detectedLang.tts;
-            u.rate = 1.0;
+            u.rate = getTtsRate();
             u.pitch = 1.0;
             // boundary event fires at each sentence boundary. charIndex
             // tells us where in the text we are — we map it to the

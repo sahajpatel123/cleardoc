@@ -4234,3 +4234,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 101 of the autonomous loop (alternate add/polish): the highlight should track the voice exactly, even on messy formatting.
+
+**2026-08-06 19:42 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #102 of the restarted autonomous loop (add).
+- feat(ui): reading speed is now user-adjustable — a persisted `#voiceRatePicker` (0.5× slow / 0.75× / 1× normal / 1.25× / 1.5× fast, stored as `cleardoc:ttsRate`) sits beside the voice picker and shows whenever Read aloud is available. Changing it announces the new speed via toast.
+- New IIFE-level `getTtsRate()` / `setTtsRate()` helpers (clamped 0.5–2, localStorage-persisted) and all 15 hardcoded `u.rate = 0.9/0.95/1.0` sites across the app — Read aloud, voice mode, previews, per-block speak buttons, translation terms — now read `u.rate = getTtsRate()`, so one control governs every utterance.
+- New smoke test "Reading speed is adjustable, persisted, and applied to every speak site" — 13 assertions covering the picker markup + options, the rate key, the clamped getter/setter, picker reflect/persist/toast, visibility with Read aloud, and the all-sites conversion (≥10 `getTtsRate()` sites, no hardcoded slow rates left).
+- Full suite green (490 unit + 285 smoke + 1 integration = 776 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 102 of the autonomous loop (alternate add/polish): listeners should control the pace, not just the voice.

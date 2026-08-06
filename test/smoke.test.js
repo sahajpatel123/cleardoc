@@ -8444,6 +8444,50 @@ test("analyzer: Voice mode highlights the rewrite sentence being read aloud", ()
     "the highlight style must exist");
 });
 
+// Cycle #102 — user-adjustable TTS reading speed.
+test("analyzer: Reading speed is adjustable, persisted, and applied to every speak site", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(html, /id="voiceRatePicker"/,
+    "analyze.html must contain the reading-speed picker");
+  assert.match(html, /value="0\.5">0\.5× slow/,
+    "the picker must offer a slow speed");
+  assert.match(html, /value="1" selected>1× normal/,
+    "the picker must default to normal speed");
+  assert.match(html, /value="1\.5">1\.5× fast/,
+    "the picker must offer a fast speed");
+  // Persisted, clamped rate helpers at IIFE level.
+  assert.match(appSrc, /const TTS_RATE_KEY = 'cleardoc:ttsRate';/,
+    "the rate key must be stable in localStorage");
+  assert.match(appSrc, /function getTtsRate\(\)\{/,
+    "a rate getter must exist");
+  assert.match(appSrc, /n >= 0\.5 && n <= 2/,
+    "the rate must be clamped to a sane range");
+  assert.match(appSrc, /function setTtsRate\(n\)\{/,
+    "a rate setter must exist");
+  // The picker reflects the persisted rate and persists changes.
+  assert.match(appSrc, /voiceRatePicker\.value = String\(getTtsRate\(\)\);/,
+    "the picker must reflect the persisted rate");
+  assert.match(appSrc, /setTtsRate\(n\);/,
+    "changing the picker must persist the rate");
+  assert.match(appSrc, /showAnalyzeToast\('🔊 Reading speed '/,
+    "changing the picker must announce the new speed");
+  // The picker shows whenever Read aloud is available.
+  assert.match(appSrc, /const voiceRatePickerEl = document\.getElementById\('voiceRatePicker'\);/,
+    "the picker must be looked up when the speak button appears");
+  assert.match(appSrc, /voiceRatePickerEl\) voiceRatePickerEl\.hidden = false;/,
+    "the picker must be visible whenever reading is possible");
+  // Every TTS utterance reads the chosen speed (no hardcoded rates).
+  const rateSites = (appSrc.match(/u\.rate = getTtsRate\(\);/g) || []).length;
+  assert.ok(rateSites >= 10, `every speak site must use getTtsRate(), found ${rateSites}`);
+  assert.doesNotMatch(appSrc, /u\.rate = 0\.[59];/,
+    "no hardcoded slow rates may remain");
+});
+
 // Cycle 58 feature: voice mode announces the deadline-urgency alert first.
 test("analyzer: Voice mode announces the deadline-urgency alert first", () => {
   if (!HAS_BROWSER) return;

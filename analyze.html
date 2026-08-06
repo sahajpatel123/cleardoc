@@ -335,6 +335,13 @@
           <button class="ghost-btn" id="copyBtn" type="button" title="Copy a plain-text summary to your clipboard (shortcut: c)">📋 Copy <span class="kb-hint-inline" title="Shortcut: Ctrl/Cmd+C after clicking, or press c anywhere on the page">⌘/Ctrl+C</span></button>
           <button class="ghost-btn" id="speakBtn" type="button" hidden aria-label="Read the rewrite aloud">🔊 Read aloud</button>
           <select class="ghost-btn voice-picker" id="voicePicker" hidden aria-label="Choose TTS voice"></select>
+          <select class="ghost-btn voice-picker" id="voiceRatePicker" hidden aria-label="Choose reading speed">
+            <option value="0.5">0.5× slow</option>
+            <option value="0.75">0.75×</option>
+            <option value="1" selected>1× normal</option>
+            <option value="1.25">1.25×</option>
+            <option value="1.5">1.5× fast</option>
+          </select>
           <button class="ghost-btn voice-preview" id="voicePreviewBtn" type="button" hidden aria-label="Preview the selected voice">▶ preview</button>
           <button class="ghost-btn" id="shareBtn" type="button" title="Copy a link to this analysis — nothing leaves your device, the text is encoded in the URL">🔗 Share link</button>
         </div>
