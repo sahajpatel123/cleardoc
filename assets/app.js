@@ -8657,6 +8657,7 @@
         '<button type="button" class="reading-filter ghost-btn" id="readingFilterAllBtn" title="Show every chunk">🌐 all</button>' +
         '<button type="button" class="reading-filter ghost-btn' + (undoneOnly ? ' reading-filter-active' : '') + '" id="readingUndoneBtn" title="Show only chunks you have not yet marked done">⏳ undone only</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyListBtn" title="Copy the reading priority list as plain text">📋 copy list</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyMustBtn" title="Copy only the must-read chunks">🔴 must list</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingResumeBtn" title="Jump to your first unfinished must-read chunk">▶ resume</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingResetBtn" title="Clear all read marks for this document">↺ reset</button>' +
       '</div>' + signalChipHtml;
@@ -8856,6 +8857,48 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Reading order copied' : '⚠ Couldn’t copy');
           copyBtn.textContent = copied ? '✓ copied' : '📋 copy list';
           setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy list'; }, 2500);
+        });
+      }
+      // Cycle #212 — copy just the must-reads, no filtering required.
+      const copyMustBtn = document.getElementById('readingCopyMustBtn');
+      if(copyMustBtn){
+        copyMustBtn.addEventListener('click', async () => {
+          const chunks = r.buckets.must.filter(c => {
+            if(undoneOnly && isDone(c)) return false;
+            if(signalFilter){
+              if(signalFilter === 'flagged' && !c.signalsAcc.flagged) return false;
+              if(signalFilter === 'moneyHit' && !c.signalsAcc.moneyHit) return false;
+              if(signalFilter === 'deadlineHit' && !c.signalsAcc.deadlineHit) return false;
+              if(signalFilter === 'rightsHit' && !c.signalsAcc.rightsHit) return false;
+              if(signalFilter === 'actionHit' && !c.signalsAcc.actionHit) return false;
+            }
+            return true;
+          }).slice(0, 12);
+          if(!chunks.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('🔴 No must-read chunks to copy');
+            return;
+          }
+          const lines = ['🔴 MUST-READ ONLY (' + chunks.length + ' chunk' + (chunks.length === 1 ? '' : 's') + ')', '-'.repeat(40)];
+          chunks.forEach((c, i) => {
+            const signals = [];
+            if(c.signalsAcc.flagged) signals.push('risk');
+            if(c.signalsAcc.moneyHit) signals.push('money');
+            if(c.signalsAcc.deadlineHit) signals.push('deadline');
+            if(c.signalsAcc.rightsHit) signals.push('rights');
+            if(!signals.length) signals.push('factual');
+            const doneMark = isDone(c) ? ' [✓ done]' : '';
+            lines.push((i + 1) + '. [' + Math.round(c.score * 100) + '] [' + signals.join(',') + ']' + doneMark + ' ' + c.sentences[0] + (c.sentences.length > 1 ? ' … (+' + (c.sentences.length - 1) + ' more)' : ''));
+          });
+          const text = lines.join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '🔴 Must-read list copied' : '⚠ Couldn’t copy');
+          copyMustBtn.textContent = copied ? '✓ copied' : '🔴 must list';
+          setTimeout(() => { if(copyMustBtn.isConnected) copyMustBtn.textContent = '🔴 must list'; }, 2500);
         });
       }
       // Cycle #178 — resume: jump to the first unfinished must-read chunk

@@ -10223,6 +10223,27 @@ test("analyzer: reading copy list respects the active filter", () => {
     "the copied header must note when the view is filtered");
 });
 
+// Cycle #212 — one-click copy of just the must-read chunks.
+test("analyzer: reading list copies must-reads only", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="readingCopyMustBtn" title="Copy only the must-read chunks"/,
+    "reading controls must include a must-list chip");
+  assert.match(appSrc, /const copyMustBtn = document\.getElementById\('readingCopyMustBtn'\);/,
+    "the must-list chip must have a click handler");
+  assert.match(appSrc, /r\.buckets\.must\.filter\(c => \{/,
+    "the handler must start from the must bucket");
+  assert.match(appSrc, /'🔴 MUST-READ ONLY \(' \+ chunks\.length/,
+    "the copied list must lead with a must-read-only header");
+  assert.match(appSrc, /'🔴 Must-read list copied'/,
+    "copying must toast on success");
+  assert.match(appSrc, /'🔴 No must-read chunks to copy'/,
+    "an empty must bucket must be reported");
+});
+
 // Cycle #201 — the reading count shows time remaining once progress starts.
 test("analyzer: reading count shows time remaining after progress", () => {
   if (!HAS_BROWSER) return;

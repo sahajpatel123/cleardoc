@@ -5385,3 +5385,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 211 of the autonomous loop (alternate add/polish): a deadline banner that says the date without the countdown makes the reader do the math — the banner should do it.
+
+**2026-08-06 23:04 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #212 of the restarted autonomous loop (add).
+- feat(reading): a "🔴 must list" chip next to "📋 copy list" exports only the must-read chunks — no filtering required first. It respects the undone-only and signal filters, caps at 12 like the renderer, leads with a "🔴 MUST-READ ONLY (N chunks)" header, and toasts (including a clear "no must-reads" case).
+- Verified in a real browser with a mocked analyze flow: the copy contained only the must-read clause with the header and toast; zero console errors.
+- New smoke test "analyzer: reading list copies must-reads only" — 6 assertions (chip markup, handler, must-bucket source, header, success + empty toasts).
+- Full suite green (490 unit + 338 smoke + 1 integration = 829 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 212 of the autonomous loop (alternate add/polish): "give me the important parts" is one click — no filters, no hunting.
