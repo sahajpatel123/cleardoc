@@ -3468,3 +3468,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 26 of the autonomous loop (alternate add/polish): one-click side swap in the comparison tool.
+
+**2026-08-06 16:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #27 of the restarted autonomous loop (polish).
+- polish(ui): starting Voice mode while Focus mode was active read every block aloud while only the rewrite was visible. Voice mode now exits Focus mode first, so what's narrated matches what's on screen.
+- Added a source-pattern smoke test scoped to the voice-mode wiring.
+- Full suite green (490 unit + 241 smoke + 1 integration = 732 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 27 of the autonomous loop (alternate add/polish): keep voice narration in sync with the visible analysis.

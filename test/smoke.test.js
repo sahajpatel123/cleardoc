@@ -454,6 +454,19 @@ skip("compare panel: swap button exchanges the two documents", async () => {
   assert.match(themeSrc, /\.compare-actions \.cmp-swap\{/, "theme.css must style .cmp-swap");
 });
 
+skip("voice mode: exits focus mode so it reads what is visible", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const marker = "voice-mode reader — read every visible analysis";
+  const hStart = appSrc.indexOf(marker);
+  assert.ok(hStart > -1, "voice-mode wiring must exist");
+  const handler = appSrc.slice(hStart, hStart + 3000);
+  assert.match(handler, /setFocusMode\(false\);/, "voice mode must exit focus mode before reading");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

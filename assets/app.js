@@ -15029,6 +15029,9 @@
       if(voiceBtn){
         voiceBtn.addEventListener('click', () => {
           if(typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+          // Voice mode reads every analysis block — exit Focus mode first
+          // so what it reads is what the user can see.
+          setFocusMode(false);
           const segs = [];
           const grabText = (id) => {
             const el = id ? document.getElementById(id) : null;
