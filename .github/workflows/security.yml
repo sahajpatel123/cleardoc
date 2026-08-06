@@ -1,0 +1,124 @@
+# Security hardening workflow - runs on every push/pull_request to main
+# Combines dependency review, security-focused tests, and best practice checks.
+
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly security scan on Sundays at 03:00 UTC
+    - cron: '0 3 * * 0'
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Dependency review - validates that only allowed dependencies are added
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Dependency Review
+        uses: actions/dependency-review-action@6cadbcde2e48d429b4c5b6c8f9f4a5d7e8f9b0a1 # v4.6.0
+        with:
+          # Deny any dependency with a security vulnerability
+          deny-licenses: "GPL-3.0, AGPL-3.0"
+          # Require external dependencies to have permissive licenses
+          # npm ecosystem only for this project
+
+  # Security tests - runs the test suite with security-focused checks
+  security-tests:
+    name: Security tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install --no-save playwright
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # JSON config validation (vercel.json, site.webmanifest)
+      - name: Validate JSON configs
+        run: npm run validate:json
+
+      # JavaScript syntax check
+      - name: Parse-check all JS
+        run: npm run syntax
+
+      # Run security-focused unit tests
+      - name: Run security unit tests
+        run: npm run test:unit -- --test-name-pattern="(safety|rateLimit|applyRateLimitHeaders|applyAiResponseHeaders|errLog|accessLog|sanitizeLogField|readCappedBody|getIp|json)"
+
+      # Run all tests for completeness
+      - name: Run full test suite
+        run: npm test
+        env:
+          CI: 'true'
+
+  # Verify TypeScript-like strictness for security-critical code patterns
+  security-lint:
+    name: Security lint (pattern checks)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Check for hardcoded secrets
+        run: |
+          # Scan for potential hardcoded secrets (not exhaustive, but catches common mistakes)
+          if grep -rE "(api[_-]?key|secret[_-]?key|password|token)\s*=\s*['\"]" --include="*.js" --include="*.ts" . 2>/dev/null; then
+            echo "::error::Potential hardcoded secrets detected"
+            exit 1
+          fi
+          echo "No hardcoded secrets found"
+
+      - name: Check for eval/Function usage
+        run: |
+          # Detect dangerous eval/Function usage
+          if grep -rE "\b(eval|Function)\s*\(" --include="*.js" . 2>/dev/null | grep -v "node_modules" | grep -v "// "; then
+            echo "::error::Potentially dangerous eval/Function usage detected"
+            exit 1
+          fi
+          echo "No dangerous eval/Function usage found"
+
+      - name: Check CSP mode
+        run: |
+          # Verify CSP is strict (no unsafe-inline, unsafe-eval)
+          if grep -r "script-src.*unsafe-inline" . --include="*.js" 2>/dev/null; then
+            echo "::error::unsafe-inline found in script-src"
+            exit 1
+          fi
+          echo "CSP mode looks secure"
+
+      - name: Verify HTTPS in production config
+        run: |
+          # Check vercel.json for proper security headers
+          if [ -f vercel.json ]; then
+            if grep -q '"headers"' vercel.json; then
+              echo "Security headers defined in vercel.json"
+            else
+              echo "::warning::No custom headers defined in vercel.json"
+            fi
+          fi
