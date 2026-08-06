@@ -3558,3 +3558,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 35 of the autonomous loop (alternate add/polish): keep voice narration free of control labels.
+
+**2026-08-06 18:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #36 of the restarted autonomous loop (feature add).
+- feat(privacy): added a 🕶 Privacy toggle that blurs the document input + analysis (hover to peek), so sensitive legal/medical content stays private from onlookers. Exits on Clear, Forget, and sample-load; never blurs in print; respects reduced-motion.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 248 smoke + 1 integration = 739 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 36 of the autonomous loop (alternate add/polish): shoulder-surfing protection for sensitive documents.

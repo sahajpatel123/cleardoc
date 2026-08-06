@@ -552,6 +552,23 @@ skip("voice mode: deadline narration skips the per-row copy buttons", async () =
   assert.match(handler, /querySelector\('\.deadline-desc'\)/, "deadline narration must use the description element");
 });
 
+skip("privacy: blur toggle hides sensitive content from onlookers", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(analyzeHtml, /id="privacyBlurBtn"/, "result-actions must expose #privacyBlurBtn");
+  assert.match(appSrc, /function setPrivacyBlur\(/, "app.js must define setPrivacyBlur");
+  assert.match(appSrc, /privacyBlurBtn\.addEventListener\('click'/, "app.js must wire the privacy toggle");
+  assert.match(appSrc, /setPrivacyBlur\(false\)/, "Clear/Forget/sample-load must exit privacy blur");
+  assert.match(themeSrc, /body\.privacy-blur \.col\.out\{filter:blur\(7px\)/, "CSS must blur the results column");
+  assert.match(themeSrc, /body\.privacy-blur \.col\.out:hover\{filter:none\}/, "hover must reveal the blurred content");
+  assert.match(themeSrc, /@media print\{body\.privacy-blur/, "print must never blur");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

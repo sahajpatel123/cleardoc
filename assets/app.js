@@ -106,6 +106,19 @@
     return !!on;
   }
 
+  // Privacy blur — blurs the document input + results so onlookers can't
+  // read sensitive content over your shoulder. Hover reveals; exits on
+  // Clear / Forget / sample-load.
+  function setPrivacyBlur(on){
+    document.body.classList.toggle('privacy-blur', !!on);
+    const b = document.getElementById('privacyBlurBtn');
+    if(b){
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.textContent = on ? '🕶 Private' : '🕶 Privacy';
+    }
+    return !!on;
+  }
+
   // Next-steps tracking — each recommended step is a clickable checkbox that
   // toggles a .done state, shows a live "N of M done" progress line, and
   // persists per document fingerprint (falls back to 'latest' pre-analysis).
@@ -1974,9 +1987,10 @@
       }
     } catch(_) {}
 
-    // 3b. Exit focus mode — everything is being wiped, so a focused reading
-    // view would otherwise leave a blank-looking page behind.
+    // 3b. Exit focus + privacy-blur modes — everything is being wiped, so
+    // a focused/blurred view would otherwise leave a blank-looking page.
     setFocusMode(false);
+    setPrivacyBlur(false);
 
     // 4. Confirm with a green toast — exactly matches the privacy promise copy.
     showForgetToast('Cleared <b>localStorage</b> · <b>drafts</b> · <b>SW caches</b> · <b>URL fragment</b>');
@@ -14820,7 +14834,7 @@
     }
 
     if(btn) btn.addEventListener('click',analyze);
-    if(clearBtn) clearBtn.addEventListener('click',()=>{ setFocusMode(false); input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); clearDraft(); updateTextStats(); input.focus(); });
+    if(clearBtn) clearBtn.addEventListener('click',()=>{ setFocusMode(false); setPrivacyBlur(false); input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); clearDraft(); updateTextStats(); input.focus(); });
 
     /* ---- Live text stats (word/char count + estimated reading level) ---- */
     function updateTextStats(){
@@ -17266,7 +17280,7 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       if(restoreBanner) restoreBanner.hidden=true;
       if(msg){msg.textContent='Saved analysis dismissed. It will not be offered again until you run a new analysis.'; msg.className='analyze-msg';}
     });
-    $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ setFocusMode(false); input.value=q.dataset.fill; clearAttachments(); clearDraft(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} updateTextStats(); }));
+    $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ setFocusMode(false); setPrivacyBlur(false); input.value=q.dataset.fill; clearAttachments(); clearDraft(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} updateTextStats(); }));
     if(copyDraftBtn) copyDraftBtn.addEventListener('click',async()=>{ if(!draftOut||!draftOut.value)return; try{ await navigator.clipboard.writeText(draftOut.value); copyDraftBtn.textContent='Copied'; setTimeout(()=>copyDraftBtn.textContent='Copy draft',1400); }catch(_){ draftOut.focus(); draftOut.select(); } });
     if(verdictCopyBtn) verdictCopyBtn.addEventListener('click',async()=>{
       if(!verdictDisplay) return;
@@ -18017,6 +18031,11 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       const on = setFocusMode(!document.body.classList.contains('focus-mode'));
       if(typeof showAnalyzeToast === 'function') showAnalyzeToast(on ? '🧘 Focus mode — showing only the plain-English rewrite. Press Esc to exit.' : 'Focus mode off');
       try { window.scrollTo({top:0, behavior:'smooth'}); } catch(_){ window.scrollTo(0,0); }
+    });
+    const privacyBlurBtn = document.getElementById('privacyBlurBtn');
+    if(privacyBlurBtn) privacyBlurBtn.addEventListener('click', () => {
+      const on = setPrivacyBlur(!document.body.classList.contains('privacy-blur'));
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(on ? '🕶 Privacy mode on — hover to peek' : 'Privacy mode off');
     });
     // iter #217: copy-as-checklist button — pastes into Jira/Linear/Notion
     if(copyChecklistBtn) copyChecklistBtn.addEventListener('click', copyAnalysisChecklist);
