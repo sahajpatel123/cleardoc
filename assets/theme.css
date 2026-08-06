@@ -1319,6 +1319,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .steps-reset{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;background:none;border:1px solid var(--ink-soft);color:var(--ink-soft);cursor:pointer;padding:1px 6px;margin-left:8px;vertical-align:baseline}
 .steps-reset:hover{background:var(--ink);color:var(--paper)}
 .steps-reset:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.steps-copy{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;background:none;border:1px solid var(--ink-soft);color:var(--ink-soft);cursor:pointer;padding:1px 6px;margin-left:8px;vertical-align:baseline}
+.steps-copy:hover{background:var(--ink);color:var(--paper)}
+.steps-copy:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 
 @media(max-width:900px){.work{grid-template-columns:1fr}.work .col.in{border-right:none;border-bottom:var(--bd) solid var(--ink)}}
 

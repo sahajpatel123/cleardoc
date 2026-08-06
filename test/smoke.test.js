@@ -626,6 +626,22 @@ skip("risk rows: ⚡ button previews the score if that clause is fixed", async (
   assert.match(themeSrc, /\.rrow-fix\{/, "theme.css must style .rrow-fix");
 });
 
+skip("next steps: copy chip exports the checklist with progress", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(analyzeHtml, /id="stepsCopyBtn"/, "analyze.html must expose #stepsCopyBtn");
+  assert.match(appSrc, /'\[x\] ' \+ txt/, "done steps must export with [x]");
+  assert.match(appSrc, /'\[ \] ' \+ txt/, "pending steps must export with [ ]");
+  assert.match(appSrc, /'📋 Progress copied'/, "copy must toast on success");
+  assert.match(appSrc, /doneCount \+ ' of ' \+ total \+ ' done'/, "the export must include the progress summary");
+  assert.match(themeSrc, /\.steps-copy\{/, "theme.css must style .steps-copy");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

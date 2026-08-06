@@ -243,6 +243,38 @@
       paintStepsProgress();
       if(typeof showAnalyzeToast === 'function') showAnalyzeToast('↺ Next-step progress cleared');
     });
+    const copyBtn = document.getElementById('stepsCopyBtn');
+    if(copyBtn) copyBtn.addEventListener('click', async () => {
+      const lines = [];
+      list.querySelectorAll('li').forEach(li => {
+        const done = li.classList.contains('done');
+        const txt = (li.textContent || '').replace(/\s+/g, ' ').trim();
+        if(txt) lines.push((done ? '[x] ' : '[ ] ') + txt);
+      });
+      if(!lines.length){
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy yet — analyze first');
+        return;
+      }
+      const doneCount = list.querySelectorAll('li.done').length;
+      const total = list.querySelectorAll('li').length;
+      const text = 'Next steps · ' + doneCount + ' of ' + total + ' done\n' + lines.join('\n');
+      let ok = false;
+      try {
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok = document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      } catch(_){}
+      copyBtn.textContent = ok ? '✓ copied' : 'Copy failed';
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Progress copied' : '⚠ Couldn’t copy');
+      clearTimeout(copyBtn._flashTimer);
+      copyBtn._flashTimer = setTimeout(() => { copyBtn.textContent = '📋 copy'; }, 1400);
+    });
   }
   function refreshStepsUI(){
     wireStepsTracking();
