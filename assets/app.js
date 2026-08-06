@@ -1137,7 +1137,7 @@
     const page=(document.body.dataset.page)||'home';
     const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo,wireDocFingerprint];
     const byPage={
-      home:[heroClarifier,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
+      home:[heroClarifier,flagHunt,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,faq],
       pricing:[classifieds,faq]
     };
@@ -2595,6 +2595,31 @@
   }
 
   /* ---- FOG CANVAS (perf-tuned) ---- */
+  // Cycle #162 — "what ClearDoc hunts": interactive flag explainer on
+  // the landing page. Pure local, no API.
+  function flagHunt(){
+    const chips = document.getElementById('flagChips');
+    const readout = document.getElementById('flagReadout');
+    if(!chips || !readout) return;
+    const EXPLAIN = {
+      nonrefund: { plain: 'Once you pay, they keep the money — no refunds, no exceptions, even if the service is never delivered.', advice: 'Ask for a refund window tied to delivery, not to their whim.' },
+      autorenew: { plain: 'If you do nothing, the contract renews and you keep being charged — often silently.', advice: 'Strike auto-renewal, or require a 30-day notice before renewal.' },
+      jury: { plain: 'You give up the right to a jury trial and to join class actions — disputes get decided their way, alone.', advice: 'Ask for small-claims access; class waivers are rarely negotiable but worth flagging.' },
+      sole: { plain: 'They can change the terms at any time, in their sole discretion, without a reason.', advice: 'Replace with "30 days written notice plus your right to cancel without penalty".' },
+      late: { plain: 'Missing a payment can stack fees fast — sometimes more than the original charge.', advice: 'Cap the fee and ask for a grace period.' },
+      unlimited: { plain: 'Your liability has no dollar cap — if anything goes wrong, they can come after everything.', advice: 'Insist on a mutual liability cap tied to what you paid.' },
+    };
+    chips.addEventListener('click', (e) => {
+      const chip = e.target.closest && e.target.closest('.flag-chip');
+      if(!chip) return;
+      const key = chip.getAttribute('data-flag') || '';
+      const ex = EXPLAIN[key];
+      if(!ex) return;
+      chips.querySelectorAll('.flag-chip').forEach(c => c.classList.remove('flag-chip-active'));
+      chip.classList.add('flag-chip-active');
+      readout.innerHTML = '<b>' + esc(chip.textContent) + '</b> → ' + esc(ex.plain) + ' <span class="flag-advice">' + esc(ex.advice) + '</span>';
+    });
+  }
   function fogCanvas(){
     const cv=$('#fogcanvas');if(!cv)return;const ctx=cv.getContext('2d');let W,H,grads=[],raf=0,last=0,run=false;
     const puffs=Array.from({length:6},(_,i)=>({x:(i*97%100)/100,y:(i*53%100)/100,r:.3+(i%3)*.08,s:.0004+(i%3)*.0002,p:i}));

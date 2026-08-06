@@ -116,6 +116,41 @@ skip("home: loads without console errors and has expected landmarks", async () =
   assert.deepEqual(errors, [], "home: console errors");
 });
 
+// Cycle #162 — interactive "what ClearDoc hunts" flags section.
+test("home: the landing page explains the phrases ClearDoc flags", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(html, /id="flags" aria-labelledby="flagsTitle"/,
+    "index.html must include the flags section");
+  assert.match(html, /id="flagChips"/,
+    "the section must render the flag chips");
+  assert.match(html, /id="flagReadout" role="status" aria-live="polite"/,
+    "the readout must be a live status region");
+  for(const flag of ["nonrefund","autorenew","jury","sole","late","unlimited"]){
+    assert.match(html, new RegExp('data-flag="' + flag + '"'),
+      "a chip for '" + flag + "' must exist");
+  }
+  assert.match(appSrc, /function flagHunt\(\)\{/,
+    "flagHunt must exist in app.js");
+  assert.match(appSrc, /const EXPLAIN = \{/,
+    "flagHunt must carry the plain-English explainer map");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\.flag-chip'\)/,
+    "chip clicks must be delegated");
+  assert.match(appSrc, /flag-chip-active/,
+    "the active chip must be highlighted");
+  assert.match(appSrc, /flag-advice/,
+    "each readout must include advice");
+  assert.match(appSrc, /home:\[heroClarifier,flagHunt/,
+    "flagHunt must run on the home page init list");
+  assert.match(cssSrc, /\.flag-chip\{/, "chip styling must exist");
+  assert.match(cssSrc, /\.flag-readout\{/, "readout styling must exist");
+});
+
 skip("ticker: every public page rotates ≥6 distinct signals so the marquee feels like a news wire", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

@@ -4841,3 +4841,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 161 of the autonomous loop (alternate add/polish): three actions, three even buttons, no crowding.
+
+**2026-08-06 09:42 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #162 of the restarted autonomous loop (add).
+- feat(home): the landing page now has a "What ClearDoc hunts" section — six interactive `.flag-chip` buttons (non-refundable, auto-renewal, jury & class waiver, sole discretion, late fees, unlimited liability) that light up a live `#flagReadout` region with a plain-English explanation plus practical advice for each phrase, powered by `flagHunt()` (delegated chip clicks, `EXPLAIN` map, keyboard-friendly buttons) wired into the home init list.
+- New smoke test "home: the landing page explains the phrases ClearDoc flags" — 11 assertions covering the section markup, all six chips, the readout region, the JS map, and the delegation wiring.
+- Full suite green (490 unit + 317 smoke + 1 integration = 808 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 162 of the autonomous loop (alternate add/polish): before you even paste a document, know exactly which phrases ClearDoc hunts for.
