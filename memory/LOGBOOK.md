@@ -4102,3 +4102,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 89 of the autonomous loop (alternate add/polish): the dark mode should be complete on every page, native controls should match, and an explicit choice should override the OS for browser chrome.
+
+**2026-08-06 16:42 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #90 of the restarted autonomous loop (add).
+- feat(ui): the Questions-to-ask block is now one click from an answer — every question row renders a 💬 button that prefills the Ask panel with that exact question, re-enables the input, scrolls it into view, and announces it via toast (same interaction as the per-risk 💬 buttons, so an accidental tap never costs an API call).
+- `.ques-ask` shares the row-button styling with `.ques-copy`; the block note now documents the 💬 action.
+- New smoke test "Questions-to-ask rows can prefill the Ask panel with one click" — 9 source assertions covering the button markup, per-render wiring, prefill/focus/scroll/toast behavior, the note, and the CSS.
+- Full suite green (490 unit + 278 smoke + 1 integration = 769 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 90 of the autonomous loop (alternate add/polish): a suggested question should never require retyping — click it, ask it.

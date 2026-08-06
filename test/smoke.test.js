@@ -8742,6 +8742,40 @@ test("analyzer: Questions-to-ask lists bespoke questions specific to detected ri
   assert.match(cssSrc, /\.ques-done\b/, ".ques-done style must exist");
 });
 
+test("analyzer: Questions-to-ask rows can prefill the Ask panel with one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Each question row renders a 💬 ask button carrying the exact question.
+  assert.match(appSrc, /class="ques-ask ghost-btn ghost-btn-sm"/,
+    "each question row must render an ask button");
+  assert.match(appSrc, /data-ques-ask="' \+ esc\(o\.q\) \+ '"/,
+    "the ask button must carry the full question text");
+  assert.match(appSrc, /aria-label="Ask the document this question now"/,
+    "the ask button must expose an accessible name");
+  // The button is wired per render, like the per-risk 💬 buttons.
+  assert.match(appSrc, /\$\$\('\.ques-ask', quesList\)\.forEach/,
+    "ask buttons must be wired after each render");
+  // Clicking prefills the ask input, re-enables it, and brings it into view.
+  assert.match(appSrc, /qInput\.value = q;/,
+    "clicking must prefill the ask input with the question");
+  assert.match(appSrc, /qInput\.disabled = false;/,
+    "clicking must re-enable the ask input");
+  assert.match(appSrc, /qInput\.scrollIntoView/,
+    "clicking must scroll the Ask panel into view");
+  assert.match(appSrc, /showAnalyzeToast\('💬 Question ready — press Ask'\)/,
+    "clicking must announce the prefilled question via toast");
+  // The block note tells users the 💬 action exists.
+  assert.match(appSrc, /Click <b>💬<\/b> to ask the document that exact question/,
+    "the questions note must document the ask action");
+  // CSS: the ask button shares the row-button styling.
+  assert.match(cssSrc, /\.ques-copy,\.ques-ask\{/,
+    ".ques-ask must share the row-button style");
+});
+
 // Iter #128: negotiation playbook — ordered steps with impact +
 // effort, sorted by leverage.
 test("analyzer: Negotiation playbook builds prioritized steps from analyzer outputs", () => {

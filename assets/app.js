@@ -11633,6 +11633,7 @@
         return '<div class="ques-row ques-row-' + sevClass(o.sev) + (isAnswered ? ' ques-answered' : '') + '" data-ques-q="' + esc(o.q) + '">' +
           '<div class="ques-num">' + (i + 1) + '<span class="ques-pri qp-' + sevClass(o.sev) + '">' + esc(sevLabel[o.sev] || 'note') + '</span></div>' +
           '<div class="ques-text">' + esc(o.q) + '</div>' +
+          '<button type="button" class="ques-ask ghost-btn ghost-btn-sm" data-ques-ask="' + esc(o.q) + '" title="Ask the document this question now" aria-label="Ask the document this question now">💬</button>' +
           '<button type="button" class="ques-copy ghost-btn ghost-btn-sm" data-ques-copy="' + esc(o.q) + '" title="Copy this question">📋</button>' +
           '<button type="button" class="ques-done ghost-btn ghost-btn-sm" data-ques-done="' + esc(o.q) + '" title="Mark this question as answered">' + (isAnswered ? '✓' : '◯') + '</button>' +
         '</div>';
@@ -11640,7 +11641,7 @@
       quesBlock.hidden = false;
       if(quesNote){
         quesNote.innerHTML = '<span class="riskNote-lead">' + answeredCount + ' of ' + total + ' answered</span> ' +
-          'Ordered by priority (trap → watch → note). Click ◯ to mark answered, 📋 to copy, or copy the whole list.';
+          'Ordered by priority (trap → watch → note). Click <b>💬</b> to ask the document that exact question, ◯ to mark answered, 📋 to copy, or copy the whole list.';
       }
       if(quesCopyBtn){
         quesCopyBtn.addEventListener('click', async () => {
@@ -11680,6 +11681,25 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Question copied' : '⚠ Couldn’t copy');
           btn.textContent = copied ? '✓' : '📋';
           setTimeout(() => { if(btn.isConnected) btn.textContent = '📋'; }, 1500);
+        });
+      });
+      // Cycle #90 — one click from "questions to ask" to the Ask panel:
+      // prefill the ask input with the exact question and bring it into
+      // view (same interaction as the per-risk 💬 buttons). The user
+      // still presses Ask, so an accidental tap never costs an API call.
+      $$('.ques-ask', quesList).forEach(btn => {
+        btn.addEventListener('click', () => {
+          const q = btn.getAttribute('data-ques-ask') || '';
+          if(!q) return;
+          const qInput = document.getElementById('askInput');
+          const qBtn = document.getElementById('askBtn');
+          if(!qInput) return;
+          qInput.value = q;
+          qInput.disabled = false;
+          if(qBtn) qBtn.disabled = false;
+          try { qInput.focus({preventScroll:false}); } catch(_){ qInput.focus(); }
+          try { qInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
         });
       });
       // Iter #127 — per-row answered toggle
