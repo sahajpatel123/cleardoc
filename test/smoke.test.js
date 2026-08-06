@@ -2410,8 +2410,12 @@ skip("analyze: response draft copies as Markdown", async () => {
   const path = require("node:path");
   const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
-  assert.match(html, /id="copyDraftMdBtn"/,
+  assert.match(html, /id="copyDraftMdBtn" aria-label="Copy the response draft as Markdown"/,
     "analyze.html must expose the Markdown draft copy button");
+  assert.match(appSrc, /function buildDraftMarkdown\(\)\{/,
+    "app.js must define a shared Markdown draft builder");
+  assert.match(appSrc, /const md=buildDraftMarkdown\(\);/,
+    "the copy handler must use the shared Markdown builder");
   assert.match(appSrc, /const copyDraftMdBtn=document\.getElementById\('copyDraftMdBtn'\);/,
     "app.js must wire the Markdown draft copy button");
   assert.match(appSrc, /clipboard\.writeText\(md\)/,

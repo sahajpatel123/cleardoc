@@ -21653,11 +21653,16 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       execCopyBtn._flashTimer=setTimeout(()=>{ execCopyBtn.textContent=orig; },1400);
     });
     if(downloadDraftBtn) downloadDraftBtn.addEventListener('click',()=>{ if(!draftOut||!draftOut.value)return; const url=URL.createObjectURL(new Blob([draftOut.value],{type:'text/plain'})); const a=document.createElement('a'); a.href=url; a.download='cleardoc-response-draft.txt'; a.click(); URL.revokeObjectURL(url); });
+    function buildDraftMarkdown(){
+      if(!draftOut||!draftOut.value) return '';
+      const fp=(_fpState && _fpState.short) ? '-' + _fpState.short : '';
+      return '# ClearDoc response draft'+(fp ? ' · #'+_fpState.short : '')+'\n\n> Generated locally · not legal advice. Review before sending.\n\n' + draftOut.value;
+    }
     const downloadDraftMdBtn=document.getElementById('downloadDraftMdBtn');
     if(downloadDraftMdBtn) downloadDraftMdBtn.addEventListener('click',()=>{
       if(!draftOut||!draftOut.value) return;
       const fp=(_fpState && _fpState.short) ? '-' + _fpState.short : '';
-      const md='# ClearDoc response draft'+(fp ? ' · #'+_fpState.short : '')+'\n\n> Generated locally · not legal advice. Review before sending.\n\n' + draftOut.value;
+      const md=buildDraftMarkdown();
       const url=URL.createObjectURL(new Blob([md],{type:'text/markdown;charset=utf-8'}));
       const a=document.createElement('a');
       a.href=url; a.download='cleardoc-response-draft'+fp+'.md';
@@ -21670,8 +21675,7 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     const copyDraftMdBtn=document.getElementById('copyDraftMdBtn');
     if(copyDraftMdBtn) copyDraftMdBtn.addEventListener('click', async () => {
       if(!draftOut||!draftOut.value) return;
-      const fp=(_fpState && _fpState.short) ? '-' + _fpState.short : '';
-      const md='# ClearDoc response draft'+(fp ? ' · #'+_fpState.short : '')+'\n\n> Generated locally · not legal advice. Review before sending.\n\n' + draftOut.value;
+      const md=buildDraftMarkdown();
       let copied=false;
       try{
         if(navigator.clipboard && navigator.clipboard.writeText){
