@@ -12371,6 +12371,8 @@ test("analyzer: Contact extract pulls emails and phone numbers from the document
     "iter #265 must confirm when the contacts Markdown is copied");
   assert.match(appSrc, /\| Type \| Value \|/,
     "iter #265 must build a Markdown table header");
+  assert.match(appSrc, /filter === 'phones' \? \[\] : c\.emails/,
+    "iter #265 must respect the active email/phone filter");
   assert.match(cssSrc, /\.contact-filter-active\b/, ".contact-filter-active style must exist");
 });
 

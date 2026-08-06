@@ -12166,8 +12166,10 @@
       const copyMdBtn = document.getElementById('contactCopyMdBtn');
       if(copyMdBtn){
         copyMdBtn.addEventListener('click', async () => {
-          const rows = c.emails.map(e => '| ✉ Email | ' + String(e.value).replace(/\|/g, '\\|') + ' |')
-            .concat(c.phones.map(p => '| 📞 Phone | ' + String(p.value).replace(/\|/g, '\\|') + ' |'));
+          const emails = filter === 'phones' ? [] : c.emails;
+          const phones = filter === 'emails' ? [] : c.phones;
+          const rows = emails.map(e => '| ✉ Email | ' + String(e.value).replace(/\|/g, '\\|') + ' |')
+            .concat(phones.map(p => '| 📞 Phone | ' + String(p.value).replace(/\|/g, '\\|') + ' |'));
           const md = '| Type | Value |\n|---|---|\n' + rows.join('\n');
           let copied = false;
           try {
