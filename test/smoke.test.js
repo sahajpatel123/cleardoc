@@ -10087,6 +10087,26 @@ test("analyzer: reading list reset clears read marks", () => {
     "resetting must confirm with a toast");
 });
 
+// Cycle #195 — the reading copy-list respects the active filter so a
+// filtered view exports exactly what's visible.
+test("analyzer: reading copy list respects the active filter", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /const activeFilter = readingGrid\._readingFilter \|\| 'all';/,
+    "the copy-list builder must read the active bucket filter");
+  assert.match(appSrc, /const filterChunks = \(kind, chunks\) => \{/,
+    "the copy-list builder must filter chunks per bucket");
+  assert.match(appSrc, /if\(activeFilter !== 'all' && activeFilter !== kind\) return \[\];/,
+    "hidden buckets must be skipped in the copy");
+  assert.match(appSrc, /undoneOnly && isDone\(c\)\) return false;/,
+    "undone-only and signal filters must apply to the copy");
+  assert.match(appSrc, /' · filtered view'/,
+    "the copied header must note when the view is filtered");
+});
+
 // Iter #140: section risk map — aggregates risk patterns by
 // clause category and renders weighted horizontal bars.
 test("analyzer: Section risk map aggregates risk by clause category", () => {

@@ -5199,3 +5199,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 194 of the autonomous loop (alternate add/polish): a fresh read of a contract shouldn't carry yesterday's checkmarks — one tap should reset the progress.
+
+**2026-08-06 21:56 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #195 of the restarted autonomous loop (polish).
+- polish(reading): the reading list's "📋 copy list" now respects the active filter — bucket (🔴/🟡/🟢), undone-only, and signal filters all apply with the same predicate and per-bucket caps as the renderer, so a filtered view exports exactly what's visible. The copied header gains a "· filtered view" tag when any filter is active.
+- Verified in a real browser with a mocked analyze flow: the unfiltered copy contained MUST READ and SKIP buckets; after clicking "🔴 must only", the copy contained only the must-read item (no SKIM/SKIP) with the filtered-view tag; zero console errors.
+- New smoke test "analyzer: reading copy list respects the active filter" — 5 assertions (active-filter read, per-bucket filter helper, hidden-bucket skip, undone/signal predicates, filtered-view tag).
+- Full suite green (490 unit + 330 smoke + 1 integration = 821 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 195 of the autonomous loop (alternate add/polish): copy what you're looking at — a filtered reading view should export exactly that view.

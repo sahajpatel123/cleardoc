@@ -8722,11 +8722,29 @@
       if(copyBtn){
         copyBtn.addEventListener('click', async () => {
           const lines = [];
-          lines.push('Reading priority order · ' + r.totalSentences + ' sentences · ' + r.groups.length + ' chunks · ~' + totalMins + ' min · ' + mustDone + '/' + mustTotal + ' must-read done');
+          // Cycle #195 — respect the active filter: copy exactly what the
+          // user sees (bucket filter + undone-only + signal filter, same
+          // predicate and caps as the renderer).
+          const activeFilter = readingGrid._readingFilter || 'all';
+          const filterChunks = (kind, chunks) => {
+            if(activeFilter !== 'all' && activeFilter !== kind) return [];
+            return chunks.filter(c => {
+              if(undoneOnly && isDone(c)) return false;
+              if(signalFilter){
+                if(signalFilter === 'flagged' && !c.signalsAcc.flagged) return false;
+                if(signalFilter === 'moneyHit' && !c.signalsAcc.moneyHit) return false;
+                if(signalFilter === 'deadlineHit' && !c.signalsAcc.deadlineHit) return false;
+                if(signalFilter === 'rightsHit' && !c.signalsAcc.rightsHit) return false;
+                if(signalFilter === 'actionHit' && !c.signalsAcc.actionHit) return false;
+              }
+              return true;
+            }).slice(0, kind === 'skip' ? 6 : 12);
+          };
+          lines.push('Reading priority order · ' + r.totalSentences + ' sentences · ' + r.groups.length + ' chunks · ~' + totalMins + ' min · ' + mustDone + '/' + mustTotal + ' must-read done' + ((activeFilter !== 'all' || undoneOnly || signalFilter) ? ' · filtered view' : ''));
           lines.push('-'.repeat(40));
           for(const kind of ['must', 'skim', 'skip']){
             const lbl = kind === 'must' ? '🔴 MUST READ' : kind === 'skim' ? '🟡 SKIM' : '🟢 SKIP';
-            const chunks = r.buckets[kind];
+            const chunks = filterChunks(kind, r.buckets[kind]);
             if(!chunks.length) continue;
             lines.push('');
             lines.push(lbl + ' (' + chunks.length + ')');
