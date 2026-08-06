@@ -5067,3 +5067,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 182 of the autonomous loop (alternate add/polish): reading about a trap should be one click away from seeing it flagged on a real clause.
+
+**2026-08-06 21:06 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #183 of the restarted autonomous loop (polish).
+- polish(home→analyzer): the sample handoff now plays nicely with the draft autosave. The consumption block moved after the draft restore, so a user's in-progress draft always wins over a staged sample (no silent clobber), and the "Sample loaded — press Analyze." message only appears when the sample was actually applied — if the user's own text was kept, no misleading confirmation is shown. `updateTextStats()` refreshes after an applied sample.
+- Verified in a real browser with seeded localStorage: with only a sample staged, the analyzer pre-filled it and confirmed; with both a draft and a sample staged, the draft won ("Restored your in-progress draft…"), the sample was skipped, and the handoff key was still cleared; zero console errors.
+- Extended the cycle-#182 smoke test with 3 assertions (applied-tracking flag, gated confirmation, draft-before-sample ordering — window sized to the measured 959-char gap).
+- Full suite green (490 unit + 323 smoke + 1 integration = 814 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 183 of the autonomous loop (alternate add/polish): a sample is a suggestion — your half-written clause is the work, and the app should never confuse the two.

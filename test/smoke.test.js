@@ -171,6 +171,12 @@ test("home: the landing page explains the phrases ClearDoc flags", () => {
     "clicking must navigate to the analyzer");
   assert.match(appSrc, /localStorage\.getItem\('cleardoc:flagSample'\)/,
     "the analyzer must read the staged sample");
+  assert.match(appSrc, /let applied = false;/,
+    "the analyzer must track whether the sample was actually applied");
+  assert.match(appSrc, /if\(applied && msg\)\{/,
+    "the confirmation message must only appear when the sample was applied");
+  assert.match(appSrc, /const draft = loadDraft\(\);[\s\S]{0,1200}cleardoc:flagSample/,
+    "the sample handoff must run after the draft restore so drafts win");
   assert.match(appSrc, /Sample loaded — press Analyze\./,
     "the analyzer must confirm the loaded sample");
   assert.match(appSrc, /cleardoc:deadlineSnooze', 'cleardoc:flagSample'\]/,

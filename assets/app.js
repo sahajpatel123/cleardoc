@@ -3670,24 +3670,6 @@
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
     const sampleText=input.value.trim();
 
-    // Cycle #182 — a sample clause chosen from the home flags section
-    // pre-fills the analyzer (one-shot; consumed and cleared).
-    try {
-      const raw = localStorage.getItem('cleardoc:flagSample');
-      if(raw){
-        localStorage.removeItem('cleardoc:flagSample');
-        const fs = JSON.parse(raw);
-        if(fs && typeof fs.text === 'string' && fs.text.trim()){
-          if(!input.value.trim() || input.value.trim() === sampleText){
-            // Mirror the server cap (40000) — MAX_DOCUMENT_CHARS is
-            // declared later in this scope, so keep the literal here.
-            input.value = fs.text.slice(0, 40000);
-          }
-          if(msg){ msg.textContent = 'Sample loaded — press Analyze.'; msg.className = 'analyze-msg'; }
-        }
-      }
-    } catch(_){ /* ignore */ }
-
     // trap/risk patterns — severity g(note) a(watch) r(trap)
     const RISK=[
       {re:/in perpetuity|perpetual|survive (the )?termination/i, sev:'r', label:'Trap', why:'Never expires — there is no time limit.',
@@ -19755,6 +19737,31 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
         }
       }
     }
+    // Cycle #182 — a sample clause chosen from the home flags section
+    // pre-fills the analyzer (one-shot; consumed and cleared). Runs after
+    // the draft restore (cycle #183 polish) so a user's in-progress work
+    // always wins over the sample.
+    try {
+      const raw = localStorage.getItem('cleardoc:flagSample');
+      if(raw){
+        localStorage.removeItem('cleardoc:flagSample');
+        const fs = JSON.parse(raw);
+        let applied = false;
+        if(fs && typeof fs.text === 'string' && fs.text.trim()){
+          if(!input.value.trim() || input.value.trim() === sampleText){
+            // Mirror the server cap (40000) — MAX_DOCUMENT_CHARS is
+            // declared earlier in this scope, so keep the literal here.
+            input.value = fs.text.slice(0, 40000);
+            applied = true;
+            updateTextStats();
+          }
+        }
+        if(applied && msg){
+          msg.textContent = 'Sample loaded — press Analyze.';
+          msg.className = 'analyze-msg';
+        }
+      }
+    } catch(_){ /* ignore */ }
     // Restore / dismiss the auto-saved analysis banner
     if(restoreBtn) restoreBtn.addEventListener('click',()=>{
       const snap=loadStoredSnapshot();
