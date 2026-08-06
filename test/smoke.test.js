@@ -11263,6 +11263,10 @@ test("analyzer: Section risk map aggregates risk by clause category", () => {
     "iter #141 must include a high-only filter chip");
   assert.match(appSrc, /sectionCopyBtn/,
     "iter #264 must include a section-map Markdown copy button");
+  assert.match(appSrc, /aria-label="Copy the section risk map as Markdown"/,
+    "iter #264 must label the section-map copy button for assistive tech");
+  assert.match(appSrc, /Showing high-risk categories only/,
+    "iter #264 must note when the high-only filter is active");
   assert.match(appSrc, /'📋 Section map copied as Markdown'/,
     "iter #264 must confirm when the section map is copied");
   assert.match(appSrc, /\| Section \| Hits \| Risk \|/,

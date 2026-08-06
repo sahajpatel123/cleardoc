@@ -13067,7 +13067,7 @@
       const controls = '<div class="section-controls">' +
         '<span class="section-count">' + visible.length + ' of ' + cats.length + ' categories</span>' +
         '<button type="button" class="section-filter ghost-btn ghost-btn-sm" id="sectionFilterBtn">' + (highOnly ? 'show all' : 'high-only') + '</button>' +
-        '<button type="button" class="section-filter ghost-btn ghost-btn-sm" id="sectionCopyBtn" title="Copy the section risk map as Markdown">📋 copy .md</button>' +
+        '<button type="button" class="section-filter ghost-btn ghost-btn-sm" id="sectionCopyBtn" title="Copy the section risk map as Markdown" aria-label="Copy the section risk map as Markdown">📋 copy .md</button>' +
       '</div>';
       sectionGrid.innerHTML = rows + controls;
       sectionBlock.hidden = false;
@@ -13109,7 +13109,7 @@
             const risk = c.sev >= 3 ? 'High' : c.sev >= 1 ? 'Watch' : 'Low';
             return '| ' + String(c.label).replace(/\|/g, '\\|') + ' | ' + c.hits + ' | ' + risk + ' |';
           }).join('\n');
-          const md = '| Section | Hits | Risk |\n|---|---|---|\n' + rows;
+          const md = '| Section | Hits | Risk |\n|---|---|---|\n' + rows + (highOnly ? '\n\n_Showing high-risk categories only._' : '');
           let copied = false;
           try {
             if(navigator.clipboard && navigator.clipboard.writeText){
