@@ -3698,3 +3698,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 49 of the autonomous loop (alternate add/polish): make the size controls themselves accessible and stateful.
+
+**2026-08-06 20:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #50 of the restarted autonomous loop (feature add).
+- feat(ui): the result-panel deadlines block now has a "📊 CSV" chip that downloads every extracted deadline as a spreadsheet-ready .csv — Date, Type (obligated/scheduled), Countdown, and Context columns, RFC 4180 escaped, mirroring the existing risk CSV export.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 257 smoke + 1 integration = 748 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 50 of the autonomous loop (alternate add/polish): move the deadline list into Excel / Google Sheets / Numbers.

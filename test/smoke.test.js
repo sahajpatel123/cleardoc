@@ -8836,6 +8836,41 @@ test("analyzer: Deadline extractor polish — countdown + copy-all chip", () => 
     "iter #175 must compute past-day countdown");
 });
 
+// Cycle 50 feature: deadline CSV export — Date / Type / Countdown /
+// Context columns for spreadsheet import (mirrors the risk CSV).
+test("analyzer: Deadline block exports all deadlines as a CSV file", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // The chip renders inside renderDeadlineBlock's controls row
+  assert.match(appSrc, /id="deadlineCsvBtn" title="Download all deadlines as a \.csv file/,
+    "deadline controls must include a CSV export chip");
+  assert.match(appSrc, /deadlineCsvBtn\.addEventListener\(\s*['"]click['"]/,
+    "CSV chip must have a click handler");
+
+  // RFC 4180: quote-double internal quotes, flatten newlines
+  assert.match(appSrc, /csvCell = \(v\) => '"' \+ String\(v \|\| ''\)\.replace\(\/"\/g, '""'\)\.replace\(\/\[\\r\\n\]\+\/g, ' '\) \+ '"'/,
+    "CSV cells must be quoted with doubled internal quotes per RFC 4180");
+  assert.match(appSrc, /csvCell\('Date'\) \+ ',' \+ csvCell\('Type'\) \+ ',' \+ csvCell\('Countdown'\) \+ ',' \+ csvCell\('Context'\)/,
+    "CSV must have Date, Type, Countdown, Context columns in that order");
+  assert.match(appSrc, /'obligated' : 'scheduled'/,
+    "Type column must map obligated vs scheduled deadlines");
+  assert.match(appSrc, /countdown\(it\.date\)/,
+    "Countdown column must reuse the row countdown helper");
+
+  // Download path: Blob + CSV MIME + dated filename + toast
+  assert.match(appSrc, /new Blob\(\[text\], \{ type:'text\/csv;charset=utf-8' \}\)/,
+    "CSV must download as text/csv UTF-8");
+  assert.match(appSrc, /a\.download = 'cleardoc-deadlines-' \+ stamp \+ '\.csv'/,
+    "filename must be cleardoc-deadlines-<date>.csv");
+  assert.match(appSrc, /URL\.revokeObjectURL\(url\)/,
+    "object URL must be revoked after the download");
+  assert.match(appSrc, /'📊 Deadlines CSV downloaded \(' \+ items\.length/,
+    "download must toast with the deadline count");
+});
+
   // Iter #159 polish: sub-score tooltips + copy-as-JSON.
   assert.match(appSrc, /'How much text we have to analyze|'How many risk patterns matched|'How far the document/,
     "iter #159 must add sub-score tooltips");

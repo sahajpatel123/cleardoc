@@ -6290,6 +6290,7 @@
       const controls = '<div class="deadline-controls">' +
         '<span class="deadline-count">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + '</span>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCopyAllBtn" title="Copy all deadlines as plain text">📋 copy all</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCsvBtn" title="Download all deadlines as a .csv file for Excel, Google Sheets, or Numbers">📊 CSV</button>' +
       '</div>';
       deadlineList.innerHTML = rows + controls;
       deadlineBlock.hidden = false;
@@ -6317,6 +6318,31 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Deadlines copied (' + items.length + ')' : '⚠ Couldn’t copy');
           copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
           setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
+        });
+      }
+      // Iter #250 — deadline CSV export (RFC 4180): Date, Type, Countdown,
+      // Context columns for spreadsheet import, mirroring the risk CSV.
+      const deadlineCsvBtn = document.getElementById('deadlineCsvBtn');
+      if(deadlineCsvBtn){
+        deadlineCsvBtn.addEventListener('click', () => {
+          const csvCell = (v) => '"' + String(v || '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+          const header = csvCell('Date') + ',' + csvCell('Type') + ',' + csvCell('Countdown') + ',' + csvCell('Context');
+          const body = items.map(it => {
+            const type = /\(obligated\)/.test(it.verb) ? 'obligated' : 'scheduled';
+            return csvCell(it.date) + ',' + csvCell(type) + ',' + csvCell((countdown(it.date) || '').trim()) + ',' + csvCell((it.sentence || '').slice(0, 180));
+          }).join('\n');
+          const text = header + '\n' + body;
+          try{
+            const stamp = new Date().toISOString().slice(0,10);
+            const url = URL.createObjectURL(new Blob([text], { type:'text/csv;charset=utf-8' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-deadlines-' + stamp + '.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📊 Deadlines CSV downloaded (' + items.length + ')');
+          }catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create CSV file');
+          }
         });
       }
       // ICS export
