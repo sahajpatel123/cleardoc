@@ -3858,3 +3858,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 65 of the autonomous loop (alternate add/polish): imported templates must obey the same rules as saved ones.
+
+**2026-08-06 23:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #66 of the restarted autonomous loop (feature add).
+- feat(ui): the Next Steps block now has a "📊 CSV" chip that downloads the checklist as cleardoc-steps-<date>.csv with Status (done/todo, read live from the checkboxes) and Step columns — completing the export matrix alongside the risk and deadline CSVs. Hardened like the others: OWASP formula-injection guard on step text + UTF-8 BOM on download, plus an empty-state guard.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 265 smoke + 1 integration = 756 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 66 of the autonomous loop (alternate add/polish): every actionable list in the app now exports to a spreadsheet.

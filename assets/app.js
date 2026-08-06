@@ -275,6 +275,41 @@
       clearTimeout(copyBtn._flashTimer);
       copyBtn._flashTimer = setTimeout(() => { copyBtn.textContent = '📋 copy'; }, 1400);
     });
+    // Cycle 66 feature — Next Steps CSV export: Status (done/todo) + step
+    // text for spreadsheet trackers, hardened like the other exports
+    // (OWASP formula guard + UTF-8 BOM on download).
+    const csvBtn = document.getElementById('stepsCsvBtn');
+    if(csvBtn) csvBtn.addEventListener('click', () => {
+      const rows = [];
+      list.querySelectorAll('li').forEach(li => {
+        const done = li.classList.contains('done');
+        const txt = (li.textContent || '').replace(/\s+/g, ' ').trim();
+        if(txt) rows.push([done ? 'done' : 'todo', txt]);
+      });
+      if(!rows.length){
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to export yet — analyze first');
+        return;
+      }
+      const csvCell = (v) => {
+        let s = String(v || '');
+        if(/^[=+\-@]/.test(s)) s = "'" + s;
+        return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+      };
+      const header = csvCell('Status') + ',' + csvCell('Step');
+      const body = rows.map(r => csvCell(r[0]) + ',' + csvCell(r[1])).join('\n');
+      const text = '\uFEFF' + header + '\n' + body;
+      try{
+        const stamp = new Date().toISOString().slice(0,10);
+        const url = URL.createObjectURL(new Blob([text], { type:'text/csv;charset=utf-8' }));
+        const a = document.createElement('a');
+        a.href = url; a.download = 'cleardoc-steps-' + stamp + '.csv';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📊 Steps CSV downloaded (' + rows.length + ')');
+      }catch(_){
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create CSV file');
+      }
+    });
   }
   function refreshStepsUI(){
     wireStepsTracking();

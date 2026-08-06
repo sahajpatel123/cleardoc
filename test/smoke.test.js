@@ -648,6 +648,36 @@ skip("next steps: copy chip exports the checklist with progress", async () => {
   assert.match(themeSrc, /\.steps-copy\{/, "theme.css must style .steps-copy");
 });
 
+// Cycle 66 feature: next-steps CSV export for spreadsheet trackers.
+test("analyzer: Next Steps export a CSV with done/todo status", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(analyzeHtml, /id="stepsCsvBtn" title="Download next steps as a \.csv file for a tracker"/,
+    "analyze.html must expose #stepsCsvBtn with a descriptive title");
+  assert.match(appSrc, /csvBtn\.addEventListener\(\s*['"]click['"]/,
+    "steps CSV chip must have a click handler");
+  assert.match(appSrc, /done \? 'done' : 'todo'/,
+    "the Status column must reflect the live done state");
+  assert.match(appSrc, /csvCell\('Status'\) \+ ',' \+ csvCell\('Step'\)/,
+    "the CSV must have Status and Step columns in that order");
+  assert.match(appSrc, /if\(\/\^\[=\+\\-@\]\/\.test\(s\)\) s = "'" \+ s;/,
+    "step text must be guarded against formula injection per OWASP");
+  assert.match(appSrc, /const text = '\\uFEFF' \+ header \+ '\\n' \+ body;/,
+    "the download must start with a UTF-8 BOM");
+  assert.match(appSrc, /a\.download = 'cleardoc-steps-' \+ stamp \+ '\.csv'/,
+    "the filename must be cleardoc-steps-<date>.csv");
+  assert.match(appSrc, /'📊 Steps CSV downloaded \(' \+ rows\.length/,
+    "the export must toast with the row count");
+  assert.match(appSrc, /'⚠ Nothing to export yet — analyze first'/,
+    "the export must guard the empty state");
+  assert.match(themeSrc, /\.steps-csv\{/, "theme.css must style .steps-csv");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
