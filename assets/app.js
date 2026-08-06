@@ -234,6 +234,42 @@
   }
   wireAskCopy();
 
+  // Per-deadline copy — each deadline row gets a 📋 button that copies
+  // "📅 <date> — <description>" so a single deadline can be pasted into
+  // an email without exporting the whole list. Delegated on #deadlinesList.
+  function wireDeadlineCopy(){
+    const list = document.getElementById('deadlinesList');
+    if(!list || list._deadlineCopyWired) return;
+    list._deadlineCopyWired = true;
+    list.addEventListener('click', async (e) => {
+      const btn = e.target.closest && e.target.closest('[data-deadline-copy]');
+      if(!btn) return;
+      const row = btn.closest('.deadline-row');
+      if(!row) return;
+      const date = ((row.querySelector('.deadline-date') || {}).textContent || '').trim();
+      const desc = ((row.querySelector('.deadline-desc') || {}).textContent || '').trim();
+      const text = '📅 ' + date + (desc ? ' — ' + desc : '');
+      if(!text.replace(/\s/g, '').length) return;
+      let ok = false;
+      try {
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok = document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      } catch(_){}
+      btn.textContent = ok ? '✓' : '✕';
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📅 Deadline copied' : '⚠ Couldn’t copy');
+      clearTimeout(btn._flashTimer);
+      btn._flashTimer = setTimeout(() => { btn.textContent = '📋'; }, 1400);
+    });
+  }
+  wireDeadlineCopy();
+
   /* ---- shared clarify engine (offline) ---- */
   const JARGON=[
     [/\bnotwithstanding any provision herein(,? to the contrary)?\b/gi,'no matter what else this says'],
@@ -13099,7 +13135,8 @@
             const row=document.createElement('div');
             row.className='deadline-row';
             row.innerHTML='<span class="deadline-date">'+esc(String(d.date||'').slice(0,80))+'</span>'
-              +'<span class="deadline-desc">'+esc(String(d.description||'').slice(0,300))+'</span>';
+              +'<span class="deadline-desc">'+esc(String(d.description||'').slice(0,300))+'</span>'
+              +'<button type="button" class="deadline-copy no-print" data-deadline-copy="1" aria-label="Copy this deadline">📋</button>';
             deadlinesList.appendChild(row);
           });
           if(deadlinesBlock) deadlinesBlock.hidden=false;
@@ -13608,7 +13645,8 @@
           const row=document.createElement('div');
           row.className='deadline-row';
           row.innerHTML='<span class="deadline-date">'+esc(String(d.date||'').slice(0,80))+'</span>'
-            +'<span class="deadline-desc">'+esc(String(d.description||'').slice(0,300))+'</span>';
+            +'<span class="deadline-desc">'+esc(String(d.description||'').slice(0,300))+'</span>'
+            +'<button type="button" class="deadline-copy no-print" data-deadline-copy="1" aria-label="Copy this deadline">📋</button>';
           deadlinesList.appendChild(row);
         });
         if(deadlinesBlock) deadlinesBlock.hidden = dls.length===0;

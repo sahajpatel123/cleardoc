@@ -522,6 +522,21 @@ skip("last-analyzed: never renders 'Invalid Date' for corrupt timestamps", async
   assert.match(handler, /lastEl\.hidden = true;/, "invalid timestamps must hide the element");
 });
 
+skip("deadlines: each row has a copy button for a single deadline", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /data-deadline-copy="1"/, "deadline rows must render a copy button");
+  assert.match(appSrc, /function wireDeadlineCopy\(/, "app.js must define wireDeadlineCopy");
+  assert.match(appSrc, /'📅 Deadline copied'/, "deadline copy must toast on success");
+  assert.match(appSrc, /'📅 ' \+ date/, "deadline copy must export date + description");
+  assert.match(themeSrc, /\.deadline-copy\{/, "theme.css must style .deadline-copy");
+  assert.match(themeSrc, /\.deadline-copy:focus-visible\{/, "theme.css must give .deadline-copy a focus ring");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
