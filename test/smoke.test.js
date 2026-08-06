@@ -9559,6 +9559,13 @@ test("analyzer: Deadline rows can add the event to Google Calendar in one click"
     "the Google Calendar link must have row-button styling");
   assert.match(cssSrc, /\.deadline-gcal\{[^}]*text-decoration:none/,
     "the link must not underline like a body link");
+  // Cycle #93 polish — responsive rows so the actions never clip.
+  assert.match(cssSrc, /\.deadline-row\{[^}]*flex-wrap:wrap/,
+    "deadline rows must wrap instead of overflowing on narrow screens");
+  assert.match(cssSrc, /\.deadline-context\{[^}]*flex:1 1 220px/,
+    "the context line must wrap and share row space");
+  assert.match(cssSrc, /@media\(max-width:560px\)\{[^}]*\.deadline-row\{gap:var\(--s2\)\}[^}]*\.deadline-date\{min-width:0\}/,
+    "narrow screens must tighten the row and let the date shrink");
 });
 
 // Cycle 50 feature: deadline CSV export — Date / Type / Countdown /

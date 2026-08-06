@@ -4135,3 +4135,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 92 of the autonomous loop (alternate add/polish): a detected deadline should reach your calendar in one click, not one file download.
+
+**2026-08-06 17:24 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #93 of the restarted autonomous loop (polish).
+- polish(ui): deadline rows are now responsive — `.deadline-row` wraps (`flex-wrap:wrap`) and the context line gets a real layout rule (`flex:1 1 220px;min-width:0;line-height:1.45;color:var(--ink-soft)`) so the 📅 ics / 🌐 gcal action cluster can never be clipped on narrow screens (html/body stay `overflow-x:clip`). At ≤560px the row gap tightens and the date shrinks (`min-width:0`).
+- Extended the cycle-92 smoke test with 3 CSS assertions covering the wrap, the context flex rule, and the narrow-screen media block.
+- Full suite green (490 unit + 279 smoke + 1 integration = 770 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 93 of the autonomous loop (alternate add/polish): the calendar actions must stay reachable on every screen width.

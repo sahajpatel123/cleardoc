@@ -1366,8 +1366,12 @@ button.risk-preview:hover{filter:brightness(.96)}
 
 /* ---- deadlines list ---- */
 .deadlines-list{display:flex;flex-direction:column;gap:10px;margin-top:var(--s2)}
-.deadline-row{display:flex;gap:var(--s3);align-items:flex-start;padding:10px 14px;border:var(--bd-hair) solid var(--ink);background:#fff}
+.deadline-row{display:flex;gap:var(--s3);align-items:flex-start;flex-wrap:wrap;padding:10px 14px;border:var(--bd-hair) solid var(--ink);background:#fff}
 .deadline-gcal{display:inline-flex;align-items:center;text-decoration:none;white-space:nowrap}
+/* Cycle #93 — deadline-row layout polish: the context line wraps and
+   shares space, so the 📅 ics / 🌐 gcal actions never get clipped on
+   narrow screens (html/body stay overflow-x:clip). */
+.deadline-context{flex:1 1 220px;min-width:0;line-height:1.45;color:var(--ink-soft)}
 /* Cycle 54 — overdue deadline rows get a danger tint + tag so a missed
    deadline reads at a glance (print rules later force white bg). */
 .deadline-row.deadline-overdue{background:var(--danger-tint);border-color:var(--danger)}
@@ -2653,6 +2657,13 @@ mark.smoking-trigger{background:#ffe98a;color:var(--ink);padding:0 2px;font-weig
 .crossref-controls .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
 .crossref-count{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);text-transform:uppercase;margin-right:auto}
 @media(max-width:560px){.crossref-context{white-space:normal}.crossref-row{flex-wrap:wrap}}
+
+/* Cycle #93 — narrow screens: tighten the row gap and let the date
+   shrink so the action buttons stay reachable. */
+@media(max-width:560px){
+  .deadline-row{gap:var(--s2)}
+  .deadline-date{min-width:0}
+}
 
 /* Bait-and-switch detector (iter #180) */
 .chg-list{display:flex;flex-direction:column;gap:6px;margin-top:var(--s2);font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
