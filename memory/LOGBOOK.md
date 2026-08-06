@@ -5507,3 +5507,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 222 of the autonomous loop (alternate add/polish): a review started yesterday shouldn't make you re-export everything — copy only what's actually left.
+
+**2026-08-07 00:42 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #223 of the restarted autonomous loop (polish).
+- polish(reading): the reading list's view now persists — bucket filter (🔴/🟡/🟢/🌐), the "⏳ undone only" toggle, and the active signal filter are saved to `cleardoc:reading-view` and restored on re-analysis and page reload, mirroring the deadline-filter persistence from cycle #220. Done-state stays per-document; the view is a global preference.
+- polish(reading): the reading-note help text now documents the "⏳ left" chip ("copies only the unread chunks") so the new export is discoverable next to copy-list and resume.
+- Verified in a real browser with a mocked analyze flow: after switching to must-only, clicking a signal badge, and enabling undone-only, the stored JSON read `{filter:"must", undone:true, signal:"flagged"}`; a reload + re-analyze came back with the same chip states and only the must bucket rendered; zero console errors.
+- New smoke test "analyzer: reading view persists across re-analysis" — 7 assertions (restore-when-unset, storage read, bucket + signal validation, save helper, persist-on-change, note text).
+- Full suite green (490 unit + 343 smoke + 1 integration = 834 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 223 of the autonomous loop (alternate add/polish): the way you read a document is a preference too — don't reset your view every time you re-analyze.

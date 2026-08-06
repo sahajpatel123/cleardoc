@@ -8525,6 +8525,29 @@
       if(!readingBlock || !readingGrid || !raw){ return; }
       const r = buildReadingOrder(raw, ctx);
       if(!r || !r.groups.length){ readingBlock.hidden = true; return; }
+      // Cycle #223 — remember the reading view (bucket filter, undone-only
+      // toggle, signal filter) across re-analyses and reloads, mirroring
+      // the deadline-filter persistence. Done-state stays per-document;
+      // the view itself is a global preference.
+      if(readingGrid._readingFilter === undefined){
+        try {
+          const saved = JSON.parse(localStorage.getItem('cleardoc:reading-view') || 'null');
+          if(saved && typeof saved === 'object'){
+            if(saved.filter === 'all' || saved.filter === 'must' || saved.filter === 'skim' || saved.filter === 'skip') readingGrid._readingFilter = saved.filter;
+            if(saved.undone === true || saved.undone === false) readingGrid._readingUndoneOnly = saved.undone;
+            if(saved.signal === 'flagged' || saved.signal === 'moneyHit' || saved.signal === 'deadlineHit' || saved.signal === 'rightsHit' || saved.signal === 'actionHit') readingGrid._readingSignalFilter = saved.signal;
+          }
+        } catch(_){ /* ignore (privacy mode etc.) */ }
+      }
+      const saveReadingView = () => {
+        try {
+          localStorage.setItem('cleardoc:reading-view', JSON.stringify({
+            filter: readingGrid._readingFilter || 'all',
+            undone: !!readingGrid._readingUndoneOnly,
+            signal: readingGrid._readingSignalFilter || null,
+          }));
+        } catch(_){ /* ignore */ }
+      };
       const filter = readingGrid._readingFilter || 'all';
       // Reading-time estimate: average reader does ~250 wpm; informational
       // sentences are slower because of legalese. Use 200 wpm floor.
@@ -8701,7 +8724,7 @@
           'Pure-local: walks the doc sentence-by-sentence and scores each against risk, money, deadline, and rights signals. ' +
           '<b>🔴 must</b> = every red/orange dot (' + pctMust + '% of the doc). ' +
           'Click a chunk to jump to it; click <b>○</b> to mark it read (progress persists). ' +
-          'Click any signal badge (🚩/💰/⏰/✓) to filter chunks with that signal. <b>📋</b> per row copies a single chunk, <b>💬</b> asks about one, <b>🔊</b> reads one aloud, <b>📋 copy list</b> exports the priority order as a checklist, or <b>▶ resume</b> jumps to your first unfinished must-read.';
+          'Click any signal badge (🚩/💰/⏰/✓) to filter chunks with that signal. <b>📋</b> per row copies a single chunk, <b>💬</b> asks about one, <b>🔊</b> reads one aloud, <b>📋 copy list</b> exports the priority order as a checklist, <b>⏳ left</b> copies only the unread chunks, or <b>▶ resume</b> jumps to your first unfinished must-read.';
       }
       // Click-to-jump. Inner controls (done + signal badges) stop
       // propagation so they don't accidentally jump the input.
@@ -8795,12 +8818,13 @@
           const sig = btn.getAttribute('data-reading-signal') || '';
           if(!sig) return;
           readingGrid._readingSignalFilter = readingGrid._readingSignalFilter === sig ? null : sig;
+          saveReadingView();
           renderReadingBlock(raw, ctx);
         });
       });
       // Iter #187 — "✕ clear filter" chip when a signal is active.
       const clearSigBtn = document.getElementById('readingClearSignalBtn');
-      if(clearSigBtn) clearSigBtn.addEventListener('click', () => { readingGrid._readingSignalFilter = null; renderReadingBlock(raw, ctx); });
+      if(clearSigBtn) clearSigBtn.addEventListener('click', () => { readingGrid._readingSignalFilter = null; saveReadingView(); renderReadingBlock(raw, ctx); });
       // Iter #187 — reset button wipes the per-document done map.
       const clearDoneBtn = document.getElementById('readingClearDoneBtn');
       if(clearDoneBtn) clearDoneBtn.addEventListener('click', () => {
@@ -8810,6 +8834,7 @@
       // Filter chips.
       const setFilter = (next) => {
         readingGrid._readingFilter = readingGrid._readingFilter === next ? 'all' : next;
+        saveReadingView();
         renderReadingBlock(raw, ctx);
       };
       const fMust = document.getElementById('readingFilterMustBtn');
@@ -8825,6 +8850,7 @@
       const undoneBtn = document.getElementById('readingUndoneBtn');
       if(undoneBtn) undoneBtn.addEventListener('click', () => {
         readingGrid._readingUndoneOnly = !readingGrid._readingUndoneOnly;
+        saveReadingView();
         renderReadingBlock(raw, ctx);
       });
       if(readingGrid._readingFilter === 'must' && fMust) fMust.classList.add('reading-filter-active');

@@ -10280,6 +10280,30 @@ test("analyzer: reading copy list respects the active filter", () => {
     "the copied header must note when the view is filtered");
 });
 
+// Cycle #223 — the reading view (bucket filter, undone-only, signal)
+// persists across re-analyses and reloads.
+test("analyzer: reading view persists across re-analysis", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /if\(readingGrid\._readingFilter === undefined\)\{/,
+    "the reading view must be restored only when unset");
+  assert.match(appSrc, /localStorage\.getItem\('cleardoc:reading-view'\)/,
+    "the reading view must read the saved choice");
+  assert.match(appSrc, /saved\.filter === 'all' \|\| saved\.filter === 'must' \|\| saved\.filter === 'skim' \|\| saved\.filter === 'skip'/,
+    "a saved bucket filter must be validated before use");
+  assert.match(appSrc, /saved\.signal === 'flagged' \|\| saved\.signal === 'moneyHit'/,
+    "a saved signal filter must be validated before use");
+  assert.match(appSrc, /const saveReadingView = \(\) => \{/,
+    "the view must have a save helper");
+  assert.match(appSrc, /localStorage\.setItem\('cleardoc:reading-view'/,
+    "changing the view must persist it");
+  assert.match(appSrc, /⏳ left<\/b> copies only the unread chunks/,
+    "the reading note must document the left chip");
+});
+
 // Cycle #212 — one-click copy of just the must-read chunks.
 test("analyzer: reading list copies must-reads only", () => {
   if (!HAS_BROWSER) return;
