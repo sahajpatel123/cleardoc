@@ -180,9 +180,14 @@ skip("integration: analyze flow renders AI verdict, deadlines, and next steps fr
   // Click Analyze on the pre-filled sample
   await page.click("#analyzeBtn");
 
-  // Verify the button is disabled while in flight (double-click guard)
-  const isDisabledInFlight = await page.$eval("#analyzeBtn", (el) => el.disabled);
-  assert.equal(isDisabledInFlight, true, "analyze button should be disabled while in flight");
+  // Verify the button is disabled while in flight (double-click guard).
+  // The mock keeps the request open for 250ms, but the disabled state can
+  // land a tick after the click on slower machines — wait for it instead
+  // of racing it with an immediate read.
+  await page.waitForFunction(() => {
+    const el = document.getElementById("analyzeBtn");
+    return el && el.disabled === true;
+  }, { timeout: 2000 });
 
   // Wait for results panel to appear
   await page.waitForSelector("#resultPanel:not([hidden])", { timeout: 8000 });

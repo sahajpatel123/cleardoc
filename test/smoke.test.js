@@ -896,6 +896,25 @@ skip("keyboard: 'f' toggles focus mode when results are visible", async () => {
   assert.match(appSrc, /<kbd>f<\/kbd><span>Toggle Focus mode/, "the help modal must document the f shortcut");
 });
 
+// Cycle #221 — 'p' toggles Privacy blur when results are visible.
+test("keyboard: 'p' toggles privacy blur when results are visible", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /if\(k === 'p' \|\| k === 'P'\)\{/,
+    "the shortcut handler must branch on p/P");
+  assert.match(appSrc, /if\(k === 'p' \|\| k === 'P'\)\{[\s\S]{0,240}getElementById\('resultPanel'\)/,
+    "the p branch must only fire when the result panel is visible");
+  assert.match(appSrc, /setPrivacyBlur\(!document\.body\.classList\.contains\('privacy-blur'\)\)/,
+    "p must toggle the privacy-blur body class");
+  assert.match(appSrc, /showAnalyzeToast\(on \? '🕶 Privacy blur on/,
+    "the p branch must toast the new privacy state");
+  assert.match(appSrc, /<kbd>p<\/kbd><span>Toggle Privacy blur/,
+    "the help modal must document the p shortcut");
+});
+
 // Cycle #196 — 'q' focuses the Ask panel when results are visible.
 test("analyzer: 'q' focuses the Ask panel when results are visible", () => {
   if (!HAS_BROWSER) return;

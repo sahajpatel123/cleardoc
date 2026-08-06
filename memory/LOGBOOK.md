@@ -5484,3 +5484,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 220 of the autonomous loop (alternate add/polish): your deadline view is a preference, not a one-time click — remember it.
+
+**2026-08-07 00:01 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #221 of the restarted autonomous loop (polish).
+- polish(keyboard): Privacy blur now has a `p` shortcut that mirrors the existing `f` (Focus mode) toggle — it only fires when results are visible, toasts the new state ("🕶 Privacy blur on — press p or Esc to reveal"), and updates the button's label + `aria-pressed`. The help modal (`?`) documents the new row.
+- polish(tests): the integration test's "button disabled while in flight" check raced past the 250ms mock window on slow machines and flaked once; it now waits for the disabled state (2s timeout) instead of reading it immediately. This keeps the every-cycle green gate deterministic.
+- Verified in a real browser with a mocked analyze flow: `p` added the `privacy-blur` class and flipped the button to "🕶 Private" / `aria-pressed=true`, a second `p` restored it, and the help modal contained the new row; zero console errors.
+- New smoke test "keyboard: 'p' toggles privacy blur when results are visible" — 5 assertions (branch, result-panel guard, body-class toggle, toast, help-modal row).
+- Full suite green (490 unit + 341 smoke + 1 integration = 832 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 221 of the autonomous loop (alternate add/polish): shoulder-surfing protection deserved the same one-key treatment as Focus mode — and the suite should never be a coin flip.

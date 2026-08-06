@@ -2436,6 +2436,7 @@
             <div class="kb-row"><kbd>⌘</kbd><kbd>Enter</kbd><span>Run the analysis</span></div>
             <div class="kb-row"><kbd>c</kbd><span>Copy the plain-text summary</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
+            <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
             <div class="kb-row"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><span>Risk radar filter (all / traps / watches / notes)</span></div>
             <div class="kb-row"><kbd>?</kbd><span>Show this help</span></div>
             <div class="kb-row"><kbd>Esc</kbd><span>Close any modal / banner</span></div>
@@ -2579,6 +2580,18 @@
           e.preventDefault();
           const on = setFocusMode(!document.body.classList.contains('focus-mode'));
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(on ? '🧘 Focus mode on — press Esc or f to exit' : 'Focus mode off');
+          return;
+        }
+      }
+      // Cycle #221 — 'p' toggles Privacy blur (mirrors 'f' for Focus
+      // mode), so shoulder-surfing protection is one key away even on
+      // touch-first keyboards. Only fires when results are visible.
+      if(k === 'p' || k === 'P'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          e.preventDefault();
+          const on = setPrivacyBlur(!document.body.classList.contains('privacy-blur'));
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(on ? '🕶 Privacy blur on — press p or Esc to reveal' : 'Privacy blur off');
           return;
         }
       }
