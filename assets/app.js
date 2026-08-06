@@ -12464,8 +12464,11 @@
           '<div class="fresh-label">' + esc(it.label) + (it === official ? ' ✓' : '') + '</div>' +
           '<div class="fresh-when">' + esc(when) + '</div>' +
           '<div class="fresh-raw">' + esc(it.raw) + '</div>' +
-          (it.date ? '<button type="button" class="fresh-ics ghost-btn ghost-btn-sm" data-fresh-ics="' + esc(it.date.toISOString().slice(0, 10)) + '" title="Add this effective date to your calendar">📅 ics</button>' : '') +
-          '<button type="button" class="fresh-copy ghost-btn ghost-btn-sm" data-fresh-copy-text="' + esc(copyVal) + '" title="Copy this freshness marker" aria-label="Copy this freshness marker">📋</button>' +
+          // Cycle #141 — ics + copy hang together in one action row.
+          '<span class="fresh-actions">' +
+            (it.date ? '<button type="button" class="fresh-ics ghost-btn ghost-btn-sm" data-fresh-ics="' + esc(it.date.toISOString().slice(0, 10)) + '" title="Add this effective date to your calendar">📅 ics</button>' : '') +
+            '<button type="button" class="fresh-copy ghost-btn ghost-btn-sm" data-fresh-copy-text="' + esc(copyVal) + '" title="Copy this freshness marker" aria-label="Copy this freshness marker">📋</button>' +
+          '</span>' +
         '</div>';
       }).join('');
       const count = items.length;

@@ -8977,6 +8977,7 @@ test("analyzer: Freshness rows copy their marker in one click", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /const copyVal = '\[FRESHNESS · ' \+ it\.label \+ '\] "' \+ it\.raw \+ '"'/,
     "the citation must carry the label and the matched phrase");
@@ -8992,6 +8993,10 @@ test("analyzer: Freshness rows copy their marker in one click", () => {
     "copying must announce via toast");
   assert.match(appSrc, /copyBtn\.textContent = copied \? '✓' : '📋';/,
     "the button must flash its copied state");
+  assert.match(appSrc, /class="fresh-actions"/,
+    "the ics + copy buttons must be grouped into one action row");
+  assert.match(cssSrc, /\.fresh-actions\{[^}]*display:flex/,
+    "the action row must lay out horizontally");
 });
 
 // Iter #120: document simplifier — paste a confusing sentence and

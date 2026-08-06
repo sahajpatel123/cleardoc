@@ -1670,6 +1670,7 @@ button.risk-preview:hover{filter:brightness(.96)}
 /* Freshness stamp (iter #118) — date markers + version. */
 .fresh-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
 .fresh-row{border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);padding:8px 10px}
+.fresh-actions{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
 .fresh-row.fresh-old{border-color:var(--amber);background:var(--amber-tint)}
 .fresh-row.fresh-future{border-color:var(--green);background:var(--green-tint)}
 .fresh-label{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);text-transform:uppercase;color:var(--ink-soft);letter-spacing:.06em;font-weight:700}

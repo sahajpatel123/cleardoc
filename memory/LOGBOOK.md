@@ -4630,3 +4630,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 140 of the autonomous loop (alternate add/polish): the version date you're relying on should copy with its age in one click.
+
+**2026-08-06 04:48 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #141 of the restarted autonomous loop (polish).
+- polish(ui): the freshness row's 📅 ics and 📋 copy buttons now hang together in one horizontal `.fresh-actions` row (wrapping on narrow screens), instead of stacking as block-level buttons in the row.
+- Extended the cycle-140 smoke test with 2 assertions covering the group markup and the horizontal layout CSS.
+- Full suite green (490 unit + 305 smoke + 1 integration = 796 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 141 of the autonomous loop (alternate add/polish): the two freshness actions should read as one tidy row, not two stacked buttons.
