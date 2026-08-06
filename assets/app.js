@@ -3345,8 +3345,10 @@
   // Nothing is stored or sent — the scan runs entirely in the browser.
   function privacyGuard(){
     const ta = document.getElementById('docInput');
+    const taB = document.getElementById('docInputB');
     const box = document.getElementById('privacyGuard');
     const out = document.getElementById('privacyGuardText');
+    const dismiss = document.getElementById('privacyGuardDismiss');
     if(!ta || !box || !out) return;
     const EMAIL_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
     const PHONE_RE = /\b\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(?!\d)/g;
@@ -3364,6 +3366,7 @@
       counts.emails = (value.match(EMAIL_RE)||[]).length;
       counts.phones = (value.match(PHONE_RE)||[]).length;
       let rest = value.replace(EMAIL_RE,' ').replace(PHONE_RE,' ');
+      RUN_RE.lastIndex = 0;
       let m;
       while((m = RUN_RE.exec(rest))){
         const digits = (m[0].match(/\d/g)||[]).length;
@@ -3373,7 +3376,15 @@
       return counts;
     }
     function render(){
+      if(dismiss && dismiss._pgDismissed) return;
       const counts = scan(ta.value);
+      const countsB = taB ? scan(taB.value) : null;
+      if(countsB){
+        counts.emails += countsB.emails;
+        counts.phones += countsB.phones;
+        counts.cards += countsB.cards;
+        counts.ids += countsB.ids;
+      }
       const total = counts.emails + counts.phones + counts.cards + counts.ids;
       if(total === 0){ box.hidden = true; out.textContent = ''; return; }
       const parts = [];
@@ -3385,9 +3396,15 @@
       out.innerHTML = '<b>' + esc(parts.join(' · ')) + '</b> in your text — analyzed once, auto-purged within 24h, never used for training. This scan runs locally.';
       box.hidden = false;
     }
-    ta.addEventListener('input', () => {
+    function schedule(){ 
       clearTimeout(timer);
       timer = setTimeout(render, 250);
+    }
+    ta.addEventListener('input', schedule);
+    if(taB) taB.addEventListener('input', schedule);
+    if(dismiss) dismiss.addEventListener('click', () => {
+      dismiss._pgDismissed = true;
+      box.hidden = true;
     });
     render();
   }

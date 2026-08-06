@@ -4872,3 +4872,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 164 of the autonomous loop (alternate add/polish): before someone pastes a contract full of personal data, make the 24h auto-purge promise tangible with a scan that runs entirely in their browser.
+
+**2026-08-06 19:55 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #165 of the restarted autonomous loop (polish).
+- polish(privacy): the privacy guard now watches both paste surfaces — the primary `#docInput` and the compare `#docInputB` — and shows combined counts, with a ✕ dismiss button that hides the notice for the rest of the page load. A `RUN_RE.lastIndex = 0` reset fixes a real bug where the second textarea's card/ID counts could be skipped because the global regex's `exec()` loop carried `lastIndex` across scans.
+- Verified end to end in a real browser (probe waited out the preloader): boilerplate stays hidden; "a.j@x.com / 555-123-4567" shows "1 email · 1 phone number"; adding a card + account to the compare field shows "…1 card-like number · 1 ID-like number"; dismiss hides it; a later rescan stays hidden; zero console/page errors.
+- Extended the cycle-164 smoke test with 5 assertions: dismiss button markup, the compare-textarea lookup inside `privacyGuard`, the `taB` input wiring, the dismiss-stick flag, and the dismiss CSS.
+- Full suite green (490 unit + 318 smoke + 1 integration = 809 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 165 of the autonomous loop (alternate add/polish): the privacy guard should cover every paste box, stay dismissible, and count cards/IDs correctly on both textareas.

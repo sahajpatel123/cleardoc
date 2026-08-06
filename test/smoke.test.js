@@ -172,8 +172,12 @@ test("analyze: privacy guard scans pasted text for personal identifiers before A
     "analyze.html must include a live privacy-guard region");
   assert.match(html, /id="privacyGuardText"/,
     "the guard must have a text span for the scan result");
+  assert.match(html, /id="privacyGuardDismiss" aria-label="Dismiss the privacy notice"/,
+    "the guard must have a dismiss button");
   assert.match(appSrc, /function privacyGuard\(\)\{/,
     "privacyGuard must exist in app.js");
+  assert.match(appSrc, /function privacyGuard\(\)\{[\s\S]{0,700}getElementById\('docInputB'\)/,
+    "the guard must also watch the compare textarea");
   assert.match(appSrc, /const EMAIL_RE = \//,
     "the guard must scan for email addresses");
   assert.match(appSrc, /value\.match\(EMAIL_RE\)/,
@@ -190,10 +194,15 @@ test("analyze: privacy guard scans pasted text for personal identifiers before A
     "the guard must state that the scan is local");
   assert.match(appSrc, /setTimeout\(render, 250\)/,
     "the scan must be debounced while typing");
+  assert.match(appSrc, /taB\.addEventListener\('input', schedule\)/,
+    "the compare textarea must trigger a rescan");
+  assert.match(appSrc, /_pgDismissed/,
+    "dismissing must stick for the page load");
   assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,faq\]/,
     "privacyGuard must run on the analyze page init list");
   assert.match(cssSrc, /\.privacy-guard\{/, "guard styling must exist");
   assert.match(cssSrc, /\.privacy-guard b\{/, "the count summary must stand out");
+  assert.match(cssSrc, /\.pg-dismiss\{/, "the dismiss button must be styled");
 });
 
 skip("ticker: every public page rotates ≥6 distinct signals so the marquee feels like a news wire", async () => {
