@@ -8645,15 +8645,26 @@
       const resumeBtn = document.getElementById('readingResumeBtn');
       if(resumeBtn){
         resumeBtn.addEventListener('click', () => {
-          const target = readingGrid.querySelector('.reading-bucket-must .reading-row:not(.reading-row-done)') ||
-            readingGrid.querySelector('.reading-row:not(.reading-row-done)') ||
-            readingGrid.querySelector('.reading-row');
+          const all = [...readingGrid.querySelectorAll('.reading-row')];
+          const undone = all.filter(r => !r.classList.contains('reading-row-done'));
+          if(!undone.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✓ All chunks read — nice work');
+            return;
+          }
+          // Cycle #179 — prefer visible rows (respects the active filter),
+          // must-read first, then any undone chunk, then the first row.
+          const visible = (el) => el.offsetParent !== null;
+          const mustFirst = undone.filter(r => r.closest('.reading-bucket-must'));
+          const target =
+            mustFirst.find(visible) ||
+            undone.find(visible) ||
+            mustFirst[0] ||
+            undone[0];
           if(!target) return;
           try { target.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){}
           target.classList.add('reading-resume-flash');
           clearTimeout(resumeBtn._flashTimer);
           resumeBtn._flashTimer = setTimeout(() => target.classList.remove('reading-resume-flash'), 2200);
-          const all = [...readingGrid.querySelectorAll('.reading-row')];
           const pos = all.indexOf(target) + 1;
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('▶ Resuming: chunk ' + pos + ' of ' + all.length);
         });

@@ -9907,10 +9907,14 @@ test("analyzer: reading list resume button jumps to the first unfinished chunk",
     "reading controls must include a resume button");
   assert.match(appSrc, /const resumeBtn = document\.getElementById\('readingResumeBtn'\);/,
     "the resume button must have a click handler");
-  assert.match(appSrc, /\.reading-bucket-must \.reading-row:not\(\.reading-row-done\)/,
-    "resume must prefer the first unfinished must-read chunk");
-  assert.match(appSrc, /readingGrid\.querySelector\('\.reading-row:not\(\.reading-row-done\)'\)/,
-    "resume must fall back to any unfinished chunk");
+  assert.match(appSrc, /undone\.filter\(r => r\.closest\('\.reading-bucket-must'\)\)/,
+    "resume must group the unfinished must-read chunks first");
+  assert.match(appSrc, /mustFirst\.find\(visible\) \|\|[\s\S]{0,60}undone\.find\(visible\) \|\|[\s\S]{0,60}mustFirst\[0\] \|\|[\s\S]{0,60}undone\[0\]/,
+    "resume must prefer visible rows, then must-read, then any undone chunk");
+  assert.match(appSrc, /const visible = \(el\) => el\.offsetParent !== null;/,
+    "resume must ignore rows hidden by the active filter");
+  assert.match(appSrc, /'✓ All chunks read — nice work'/,
+    "resume must celebrate when every chunk is done");
   assert.match(appSrc, /target\.classList\.add\('reading-resume-flash'\)/,
     "the target chunk must be highlighted");
   assert.match(appSrc, /setTimeout\(\(\) => target\.classList\.remove\('reading-resume-flash'\), 2200\);/,

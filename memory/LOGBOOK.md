@@ -5023,3 +5023,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 178 of the autonomous loop (alternate add/polish): coming back to a long contract shouldn't mean re-reading from page one — one tap should put you exactly where you stopped.
+
+**2026-08-06 20:47 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #179 of the restarted autonomous loop (polish).
+- polish(reading): the resume button is now filter-aware and finish-aware. It prefers the first unfinished must-read chunk that is currently visible (respecting the active 🔴/🟡/🟢/⏳ filters via an `offsetParent` check), falls back to any visible unfinished chunk, then any hidden unfinished chunk, then the first row; and when every chunk is marked done it stops pretending — it toasts "✓ All chunks read — nice work" instead of jumping to an already-read row.
+- Verified in a real browser with a mocked analyze flow: with both chunks marked done, resume toasted the all-read message with no flash; after unmarking chunk 2, resume flashed chunk 2 and toasted "▶ Resuming: chunk 2 of 2"; zero console errors.
+- Updated the cycle-#178 smoke test: 2 assertions re-targeted to the visibility-preference logic and 2 added (offsetParent filter + all-done message).
+- Full suite green (490 unit + 323 smoke + 1 integration = 814 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 179 of the autonomous loop (alternate add/polish): resume should land on something you haven't read, respect the filter you're using, and know when the work is done.
