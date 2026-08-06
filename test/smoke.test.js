@@ -411,6 +411,21 @@ skip("ask: quick-question chips fill the input and ask immediately", async () =>
   assert.match(themeSrc, /\.ask-chip:focus-visible\{/, "theme.css must give chips a focus ring");
 });
 
+skip("ask: copy-thread button exports the whole Q&A as text", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(analyzeHtml, /id="askCopyThreadBtn"/, "analyze.html must expose #askCopyThreadBtn");
+  assert.match(appSrc, /askCopyThreadBtn\.addEventListener\('click'/, "app.js must wire the copy-thread button");
+  assert.match(appSrc, /'Q: ' \+ t\.q/, "the export must include each question");
+  assert.match(appSrc, /'A: ' \+ t\.answer/, "the export must include each answer");
+  assert.match(appSrc, /'Source: ' \+ t\.cite/, "the export must include each citation");
+  assert.match(appSrc, /askCopyThreadBtn\.hidden = askHistory\.length === 0/, "the button must hide when the thread is empty");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

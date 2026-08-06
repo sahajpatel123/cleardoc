@@ -13664,12 +13664,13 @@
      */
     let askHistory=[];
     let _askInFlight = false;
-    const askThread=$('#askThread'),askClearBtn=$('#askClearBtn');
+    const askThread=$('#askThread'),askClearBtn=$('#askClearBtn'),askCopyThreadBtn=$('#askCopyThreadBtn');
     function renderAskThread(){
       if(!askThread) return;
       if(!askHistory.length){
         askThread.innerHTML='';
         if(askClearBtn) askClearBtn.hidden=true;
+        if(askCopyThreadBtn) askCopyThreadBtn.hidden = askHistory.length === 0;
         return;
       }
       askThread.innerHTML = askHistory.map(turn => {
@@ -13682,6 +13683,7 @@
                '<div class="ask-a">'+aBody+'</div>';
       }).join('');
       if(askClearBtn) askClearBtn.hidden=false;
+      if(askCopyThreadBtn) askCopyThreadBtn.hidden = askHistory.length === 0;
       // Scroll the latest answer into view
       askThread.scrollTop = askThread.scrollHeight;
     }
@@ -13733,6 +13735,42 @@
       askHistory=[];
       renderAskThread();
       if(askOut) askOut.innerHTML='';
+    });
+    // Copy the whole Q&A thread as plain text (Q / A / Source per turn).
+    if(askCopyThreadBtn) askCopyThreadBtn.addEventListener('click', async () => {
+      const lines = [];
+      askHistory.forEach(t => {
+        if(t.q) lines.push('Q: ' + t.q);
+        if(t.answer) lines.push('A: ' + t.answer);
+        if(t.cite) lines.push('Source: ' + t.cite);
+        lines.push('');
+      });
+      const text = lines.join('\n').trim();
+      if(!text){
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy yet — ask a question first');
+        return;
+      }
+      let ok = false;
+      try {
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok = document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      } catch(_){}
+      const orig = '📋 Copy thread';
+      askCopyThreadBtn.textContent = ok ? '✓ copied' : 'Copy failed';
+      askCopyThreadBtn.setAttribute('aria-label', ok ? 'Ask thread copied to clipboard' : 'Copy failed — try again');
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Thread copied' : '⚠ Couldn’t copy');
+      clearTimeout(askCopyThreadBtn._flashTimer);
+      askCopyThreadBtn._flashTimer = setTimeout(() => {
+        askCopyThreadBtn.textContent = orig;
+        askCopyThreadBtn.setAttribute('aria-label', 'Copy the ask thread');
+      }, 1400);
     });
     function buildDraft(raw, flags){
       const firstRisk=flags[0];

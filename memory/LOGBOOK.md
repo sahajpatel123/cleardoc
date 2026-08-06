@@ -3438,3 +3438,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 23 of the autonomous loop (alternate add/polish): prevent stacked Ask requests.
+
+**2026-08-06 16:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #24 of the restarted autonomous loop (feature add).
+- feat(ui): added a "📋 Copy thread" button next to Clear thread that exports the entire Ask conversation as plain text — "Q: … / A: … / Source: …" per turn. The button only appears once a question has been asked, uses the flash + toast + dynamic aria-label pattern, and gives feedback when there's nothing to copy.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 238 smoke + 1 integration = 729 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 24 of the autonomous loop (alternate add/polish): let users save the Ask conversation.
