@@ -5565,3 +5565,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 227 of the autonomous loop (alternate add/polish): a test suite where one test silently owns fifty others is a landmine — every failure gets blamed on the wrong test. Close the paren, give each test its own scope.
+
+**2026-08-07 02:07 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #228 of the restructured autonomous loop (add).
+- feat(strategy): the negotiation strategy board now has a "📊 CSV" chip that downloads its current state (`cleardoc-strategy-<date>.csv`) — UTF-8 BOM, a "Strategy board · N counter-clauses" metadata row, a Status/Risk/Sample/Counter-clause header, and one row per card with its Backlog/Drafted/Sent status. Mirrors the obligations CSV: OWASP formula-injection guard on every cell, toast on success, "Nothing to export yet" when the board is empty.
+- Verified in a real browser via a new integration test (real Chromium + download capture over a two-risk document): filename pattern, BOM, metadata + header rows, ≥1 data row with Backlog status, zero console errors.
+- New smoke source test (6 assertions: chip markup, handler wiring, download filename, injection guard, header, toast) + new integration test.
+- Full suite green (490 unit + 345 smoke + 3 integration = 838 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 228 of the autonomous loop (alternate add/polish): a Kanban board you can't export is a board that stays inside the app — let the negotiation plan travel with the review.

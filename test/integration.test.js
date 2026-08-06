@@ -298,3 +298,63 @@ skip("integration: reading list downloads a CSV tracker file", async () => {
   await page.close();
   await ctx.close();
 });
+
+// Cycle #228 — the strategy board downloads its state as a CSV file.
+skip("integration: strategy board downloads a CSV tracker file", async () => {
+  const ctx = await browser.newContext({ acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+
+  await page.addInitScript(() => {
+    const MOCK = {
+      analysis: {
+        plainEnglishRewrite: "<b>This is a rewritten clause.</b> It says you must pay within 30 days.",
+        risks: [],
+        verdict: { label: "Suspicious", summary: "One clause deserves attention before signing." },
+        deadlines: [],
+        nextSteps: ["Calendar the cancellation deadline."],
+        readingLevel: { before: 14, after: 8 },
+        jargonFound: 7,
+      },
+    };
+    const origFetch = window.fetch.bind(window);
+    window.fetch = function patchedFetch(url, opts) {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (u.endsWith("/api/analyze")) {
+        return Promise.resolve(new Response(JSON.stringify(MOCK), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return origFetch(url, opts);
+    };
+  });
+
+  const doc = "Lessee shall indemnify the landlord in perpetuity. The Agreement shall automatically renew for successive one-year terms.";
+  await page.goto(`http://127.0.0.1:${PORT_WEB}/analyze.html`, { waitUntil: "networkidle" });
+  await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
+  await page.click("#analyzeBtn");
+  await page.waitForSelector("#boardBlock:not([hidden]) .board-card", { timeout: 8000 });
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download", { timeout: 8000 }),
+    page.click("#boardCsvBtn"),
+  ]);
+  const dlPath = await download.path();
+  const content = fs.readFileSync(dlPath, "utf8");
+  assert.match(download.suggestedFilename(), /^cleardoc-strategy-\d{4}-\d{2}-\d{2}\.csv$/,
+    "the CSV must download as cleardoc-strategy-<date>.csv");
+  assert.equal(content.charCodeAt(0), 0xFEFF, "the CSV must start with a UTF-8 BOM");
+  const lines = content.slice(1).split("\n");
+  assert.match(lines[0], /Strategy board/, "the CSV must open with a metadata row");
+  assert.match(lines[1], /Status.*Risk.*Counter-clause/, "the CSV must carry the column header");
+  const dataRows = lines.slice(2).filter((l) => l.trim().length > 0);
+  assert.ok(dataRows.length >= 1, "the CSV must include the board cards");
+  assert.ok(dataRows.some((l) => l.includes("Backlog")), "cards must start in Backlog");
+  assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+
+  await page.close();
+  await ctx.close();
+});

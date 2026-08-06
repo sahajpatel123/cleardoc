@@ -11412,6 +11412,7 @@
         '<span class="board-count">' + items.length + ' counter-clauses</span>' +
         '<button type="button" class="board-reset ghost-btn ghost-btn-sm" id="boardResetBtn" title="Reset all to backlog">↺ reset to backlog</button>' +
         '<button type="button" class="board-md ghost-btn ghost-btn-sm" id="boardCopyMdBtn" title="Copy the board as a markdown table">📋 markdown</button>' +
+        '<button type="button" class="board-csv ghost-btn ghost-btn-sm" id="boardCsvBtn" title="Download the board as a .csv file for a tracker">📊 CSV</button>' +
         '<button type="button" class="board-save ghost-btn ghost-btn-sm" id="boardSaveBtn" title="Persist state">💾 save</button>' +
       '</div>';
       boardGrid.innerHTML = cols + controls;
@@ -11512,6 +11513,40 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Board exported as markdown' : '⚠ Couldn’t copy');
           mdBtn.textContent = copied ? '✓ copied' : '📋 markdown';
           setTimeout(() => { if(mdBtn.isConnected) mdBtn.textContent = '📋 markdown'; }, 2500);
+        });
+      }
+      // Cycle #228 — CSV export: the board's current state (Backlog /
+      // Drafted / Sent) lands in a spreadsheet so negotiation prep can be
+      // tracked alongside the rest of the review. Same BOM + OWASP
+      // formula-injection guard as the obligations export.
+      const csvBtn = document.getElementById('boardCsvBtn');
+      if(csvBtn){
+        csvBtn.addEventListener('click', () => {
+          if(!items.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to export yet');
+            return;
+          }
+          const colLabel = (k) => { const c = COLUMNS.find(x => x.key === k); return c ? c.label : k; };
+          const csvCell = (v) => {
+            let s = String(v || '');
+            if(/^[=+\-@]/.test(s)) s = "'" + s;
+            return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+          };
+          const header = csvCell('Strategy board') + ',' + csvCell(items.length + ' counter-clauses') + '\n' +
+            csvCell('Status') + ',' + csvCell('Risk') + ',' + csvCell('Sample') + ',' + csvCell('Counter-clause');
+          const body = items.map(it => csvCell(colLabel(it.col)) + ',' + csvCell(it.label) + ',' + csvCell(it.sample) + ',' + csvCell(it.counter)).join('\n');
+          const text = '\uFEFF' + header + '\n' + body;
+          try{
+            const stamp = new Date().toISOString().slice(0,10);
+            const url = URL.createObjectURL(new Blob([text], { type:'text/csv;charset=utf-8' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-strategy-' + stamp + '.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📊 Strategy board CSV downloaded (' + items.length + ')');
+          }catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create CSV file');
+          }
         });
       }
     }

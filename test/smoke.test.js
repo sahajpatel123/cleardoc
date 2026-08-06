@@ -11664,6 +11664,20 @@ test("analyzer: Strategy board tracks counter-clauses across Backlog / Drafted /
     "iter #167 must include a copy-as-markdown button");
   assert.match(appSrc, /boardCopyMdBtn[\s\S]+?\\|.*\\|.*\\|/,
     "iter #167 must render a markdown table with three columns");
+
+  // Cycle #228 — CSV export of the board state.
+  assert.match(appSrc, /id="boardCsvBtn" title="Download the board as a .csv file for a tracker"/,
+    "cycle #228 must add a board CSV chip");
+  assert.match(appSrc, /const csvBtn = document\.getElementById\('boardCsvBtn'\);/,
+    "the CSV chip must have a click handler");
+  assert.match(appSrc, /a\.download = 'cleardoc-strategy-' \+ stamp \+ '\.csv';/,
+    "the export must download as cleardoc-strategy-<date>.csv");
+  assert.match(appSrc, /const csvCell = \(v\) => \{[\s\S]{0,220}\/\^\[=\+\\-\@\]/,
+    "CSV cells must carry the formula-injection guard");
+  assert.match(appSrc, /csvCell\('Status'\) \+ ',' \+ csvCell\('Risk'\)/,
+    "the CSV must lead with Status/Risk column headers");
+  assert.match(appSrc, /'📊 Strategy board CSV downloaded \(' \+ items\.length \+ '\)'/,
+    "downloading must toast the card count");
 });
 
 // Cycle #142 — per-board-card copy.
