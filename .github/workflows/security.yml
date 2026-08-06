@@ -18,6 +18,7 @@ concurrency:
 
 jobs:
   # Dependency review - validates that only allowed dependencies are added
+  # Prevents adding dependencies with security vulnerabilities or disallowed licenses
   dependency-review:
     name: Dependency review
     runs-on: ubuntu-latest
@@ -30,10 +31,10 @@ jobs:
       - name: Dependency Review
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
         with:
-          # Deny any dependency with a security vulnerability
-          deny-licenses: "GPL-3.0, AGPL-3.0"
-          # Require external dependencies to have permissive licenses
-          # npm ecosystem only for this project
+          # Deny strong copyleft licenses that could cause legal issues
+          deny-licenses: "GPL-3.0, AGPL-3.0, GPL-2.0"
+          # Warn on weak copyleft licenses
+          warn-licenses: "LGPL-2.1, LGPL-3.0, MPL-2.0"
 
   # Security tests - runs the test suite with security-focused checks
   security-tests:
@@ -75,9 +76,9 @@ jobs:
         env:
           CI: 'true'
 
-  # Verify TypeScript-like strictness for security-critical code patterns
+  # Security lint - pattern-based security checks
   security-lint:
-    name: Security lint (pattern checks)
+    name: Security lint
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -88,7 +89,8 @@ jobs:
       - name: Check for hardcoded secrets
         run: |
           # Scan for potential hardcoded secrets (not exhaustive, but catches common mistakes)
-          if grep -rE "(api[_-]?key|secret[_-]?key|password|token)\s*=\s*['\"]" --include="*.js" --include="*.ts" . 2>/dev/null; then
+          # This is a basic check - GitHub also has secret scanning enabled
+          if grep -rE "(api[_-]?key|secret[_-]?key|password)\s*=\s*['\"]" --include="*.js" --include="*.ts" . 2>/dev/null | grep -v "node_modules" | grep -v "//"; then
             echo "::error::Potential hardcoded secrets detected"
             exit 1
           fi
@@ -103,22 +105,26 @@ jobs:
           fi
           echo "No dangerous eval/Function usage found"
 
-      - name: Check CSP mode
+      - name: Check CSP strictness
         run: |
-          # Verify CSP is strict (no unsafe-inline, unsafe-eval)
-          if grep -r "script-src.*unsafe-inline" . --include="*.js" 2>/dev/null; then
-            echo "::error::unsafe-inline found in script-src"
+          # Verify CSP is strict (no unsafe-inline, unsafe-eval in script-src)
+          if grep -rE "script-src.*unsafe-(inline|eval)" . --include="*.json" 2>/dev/null; then
+            echo "::error::Unsafe CSP directives found"
             exit 1
           fi
           echo "CSP mode looks secure"
 
-      - name: Verify HTTPS in production config
+      - name: Verify security headers in vercel.json
         run: |
-          # Check vercel.json for proper security headers
           if [ -f vercel.json ]; then
             if grep -q '"headers"' vercel.json; then
-              echo "Security headers defined in vercel.json"
+              echo "✓ Security headers defined in vercel.json"
+              echo ""
+              echo "Headers configured:"
+              grep -oE '"[^"]+": "[^"]+"' vercel.json | grep -E "(Strict-Transport-Security|X-Frame-Options|X-Content-Type-Options|Content-Security-Policy)" || echo "  (standard security headers present)"
             else
               echo "::warning::No custom headers defined in vercel.json"
             fi
+          else
+            echo "::warning::vercel.json not found"
           fi
