@@ -1390,6 +1390,7 @@ button.risk-preview:hover{filter:brightness(.96)}
 /* ---- deadlines list ---- */
 .deadlines-list{display:flex;flex-direction:column;gap:10px;margin-top:var(--s2)}
 .deadline-row{display:flex;gap:var(--s3);align-items:flex-start;flex-wrap:wrap;padding:10px 14px;border:var(--bd-hair) solid var(--ink);background:#fff}
+.deadline-actions{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}
 .deadline-gcal{display:inline-flex;align-items:center;text-decoration:none;white-space:nowrap}
 /* Cycle #93 — deadline-row layout polish: the context line wraps and
    shares space, so the 📅 ics / 🌐 gcal actions never get clipped on
@@ -1398,7 +1399,7 @@ button.risk-preview:hover{filter:brightness(.96)}
 /* Cycle 54 — overdue deadline rows get a danger tint + tag so a missed
    deadline reads at a glance (print rules later force white bg). */
 .deadline-row.deadline-overdue{background:var(--danger-tint);border-color:var(--danger)}
-.deadline-overdue-tag{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--danger);border:1px solid var(--danger);padding:2px 6px;margin-left:auto;flex:0 0 auto;align-self:center;white-space:nowrap}
+.deadline-overdue-tag{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--danger);border:1px solid var(--danger);padding:2px 6px;flex:0 0 auto;align-self:center;white-space:nowrap}
 .deadline-date{font-family:'JetBrains Mono';font-size:var(--t-meta);font-weight:700;color:var(--danger);white-space:nowrap;flex:0 0 auto;min-width:120px}
 .deadline-desc{font-size:var(--t-card);line-height:1.4;color:var(--ink-soft)}
 .deadline-copy{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);background:none;border:1px solid var(--ink-soft);color:var(--ink-soft);cursor:pointer;margin-left:auto;flex:0 0 auto;padding:2px 8px;transition:background .15s,color .15s}

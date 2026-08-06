@@ -10028,6 +10028,7 @@ test("analyzer: Deadline rows copy their citation in one click", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /class="deadline-row-copy ghost-btn ghost-btn-sm"/,
     "each deadline row must render a copy button");
@@ -10043,6 +10044,13 @@ test("analyzer: Deadline rows copy their citation in one click", () => {
     "copying must fall back to execCommand");
   assert.match(appSrc, /📋 Deadline citation copied/,
     "copying must announce via toast");
+  // Cycle #121 — the actions hang together as one right-aligned group.
+  assert.match(appSrc, /class="deadline-actions"/,
+    "the row actions must be grouped into one cluster");
+  assert.match(cssSrc, /\.deadline-actions\{[^}]*margin-left:auto/,
+    "the action cluster must right-align in the row");
+  assert.doesNotMatch(cssSrc, /\.deadline-overdue-tag\{[^}]*margin-left:auto/,
+    "the overdue tag must not fight for its own margin");
 });
 
 // Cycle 50 feature: deadline CSV export — Date / Type / Countdown /

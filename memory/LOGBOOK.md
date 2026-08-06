@@ -4430,3 +4430,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 120 of the autonomous loop (alternate add/polish): one deadline, one click, one clean quote.
+
+**2026-08-06 00:08 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #121 of the restarted autonomous loop (polish).
+- polish(ui): the deadline row action cluster now hangs together — the overdue tag, 📅 ics, 🌐 gcal, 💬 ask, and 📋 copy buttons are wrapped in a right-aligned `.deadline-actions` group (`margin-left:auto`, inline-flex, wraps on narrow screens), and the overdue tag no longer fights for its own margin (its `margin-left:auto` was removed since the group owns the alignment).
+- Extended the cycle-120 smoke test with 3 assertions covering the group markup, the right-alignment CSS, and a guard that the overdue tag no longer self-margins (8 total in that test).
+- Full suite green (490 unit + 294 smoke + 1 integration = 785 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 121 of the autonomous loop (alternate add/polish): five actions should read as one cluster, not five loose siblings.
