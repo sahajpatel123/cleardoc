@@ -5462,3 +5462,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 218 of the autonomous loop (alternate add/polish): an explanation you can't keep is a lecture — make both explainers copyable.
+
+**2026-08-06 23:33 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #219 of the restarted autonomous loop (polish).
+- polish(deadlines): the filter chips (🌐 all / ⏰ next 7d / ⚠ overdue) now carry `aria-pressed="true|false"` so the active chip announces itself to screen readers instead of relying on the visual `.dl-filter-active` class alone.
+- Verified in a real browser with a mocked analyze flow: after clicking the overdue chip, the DOM read `{all:"false", soon:"false", overdue:"true"}` and a second click on "all" flipped it back; zero console errors.
+- Fixed two stale cycle-#204 assertions (soon + overdue chips) to the new aria-pressed markup and added two assertions for the all + overdue pressed states.
+- Full suite green (490 unit + 340 smoke + 1 integration = 831 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 219 of the autonomous loop (alternate add/polish): the deadline chips were visual-only — make the active one speak for itself.

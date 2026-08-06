@@ -3283,10 +3283,14 @@ test("analyzer: deadline block filters to next-7-days or overdue", () => {
     "the row list must be filtered by the active chip");
   assert.match(appSrc, /dlFilter === 'soon' \? \(d >= 0 && d <= 7\) : d < 0/,
     "soon must mean within the next 7 days, overdue must be past");
-  assert.match(appSrc, /data-dl-filter="soon" title="Show only deadlines within the next 7 days"/,
+  assert.match(appSrc, /data-dl-filter="soon" aria-pressed="' \+ \(dlFilter === 'soon' \? 'true' : 'false'\) \+ '" title="Show only deadlines within the next 7 days"/,
     "a next-7-days chip must exist");
-  assert.match(appSrc, /data-dl-filter="overdue" title="Show only overdue deadlines"/,
+  assert.match(appSrc, /data-dl-filter="overdue" aria-pressed="' \+ \(dlFilter === 'overdue' \? 'true' : 'false'\) \+ '" title="Show only overdue deadlines"/,
     "an overdue chip must exist");
+  assert.match(appSrc, /data-dl-filter="all" aria-pressed="' \+ \(dlFilter === 'all' \? 'true' : 'false'\) \+ '"/,
+    "the all chip must announce its pressed state");
+  assert.match(appSrc, /data-dl-filter="overdue" aria-pressed="' \+ \(dlFilter === 'overdue' \? 'true' : 'false'\) \+ '"/,
+    "the overdue chip must announce its pressed state");
   assert.match(appSrc, /deadlineList\._dlFilterWired = true;/,
     "the filter chips must wire once");
   assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-dl-filter\]'\)/,

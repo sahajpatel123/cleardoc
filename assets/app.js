@@ -7228,9 +7228,10 @@
       }).join('');
       const controls = '<div class="deadline-controls">' +
         '<span class="deadline-count">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + '</span>' +
-        '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'all' ? ' dl-filter-active' : '') + '" data-dl-filter="all" title="Show every deadline">🌐 all</button>' +
-        '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'soon' ? ' dl-filter-active' : '') + '" data-dl-filter="soon" title="Show only deadlines within the next 7 days">⏰ next 7d</button>' +
-        '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'overdue' ? ' dl-filter-active' : '') + '" data-dl-filter="overdue" title="Show only overdue deadlines">⚠ overdue</button>' +
+        // Cycle #219 — the active chip announces itself via aria-pressed.
+        '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'all' ? ' dl-filter-active' : '') + '" data-dl-filter="all" aria-pressed="' + (dlFilter === 'all' ? 'true' : 'false') + '" title="Show every deadline">🌐 all</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'soon' ? ' dl-filter-active' : '') + '" data-dl-filter="soon" aria-pressed="' + (dlFilter === 'soon' ? 'true' : 'false') + '" title="Show only deadlines within the next 7 days">⏰ next 7d</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'overdue' ? ' dl-filter-active' : '') + '" data-dl-filter="overdue" aria-pressed="' + (dlFilter === 'overdue' ? 'true' : 'false') + '" title="Show only overdue deadlines">⚠ overdue</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCopyAllBtn" title="Copy all deadlines as plain text">📋 copy all</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCsvBtn" title="Download all deadlines as a .csv file for Excel, Google Sheets, or Numbers">📊 CSV</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineIcsAllBtn" title="Download all deadlines as a single .ics calendar file">📅 all .ics</button>' +
