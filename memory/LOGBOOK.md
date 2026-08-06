@@ -3938,3 +3938,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 73 of the autonomous loop (alternate add/polish): say what happened after the copy, not just to the eyes.
+
+**2026-08-06 00:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #74 of the restarted autonomous loop (feature add).
+- feat(ui): the Ask panel now has a "⬇ Save .txt" button that downloads the whole Q&A thread (Q / A / Source per turn) as cleardoc-ask-<date>.txt — a records-ready export for consultations and sharing, complementing the existing Copy thread.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 269 smoke + 1 integration = 760 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 74 of the autonomous loop (alternate add/polish): keep the call-prep conversation as a file, not just a clipboard.

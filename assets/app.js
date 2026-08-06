@@ -14092,13 +14092,14 @@
      */
     let askHistory=[];
     let _askInFlight = false;
-    const askThread=$('#askThread'),askClearBtn=$('#askClearBtn'),askCopyThreadBtn=$('#askCopyThreadBtn');
+    const askThread=$('#askThread'),askClearBtn=$('#askClearBtn'),askCopyThreadBtn=$('#askCopyThreadBtn'),askSaveThreadBtn=$('#askSaveThreadBtn');
     function renderAskThread(){
       if(!askThread) return;
       if(!askHistory.length){
         askThread.innerHTML='';
         if(askClearBtn) askClearBtn.hidden=true;
         if(askCopyThreadBtn) askCopyThreadBtn.hidden = askHistory.length === 0;
+        if(askSaveThreadBtn) askSaveThreadBtn.hidden = askHistory.length === 0;
         return;
       }
       askThread.innerHTML = askHistory.map(turn => {
@@ -14112,6 +14113,7 @@
       }).join('');
       if(askClearBtn) askClearBtn.hidden=false;
       if(askCopyThreadBtn) askCopyThreadBtn.hidden = askHistory.length === 0;
+      if(askSaveThreadBtn) askSaveThreadBtn.hidden = askHistory.length === 0;
       // Scroll the latest answer into view
       askThread.scrollTop = askThread.scrollHeight;
     }
@@ -14199,6 +14201,38 @@
         askCopyThreadBtn.textContent = orig;
         askCopyThreadBtn.setAttribute('aria-label', 'Copy the ask thread');
       }, 1400);
+    });
+    // Cycle 74 feature — download the whole Q&A thread as a .txt file for
+    // records or sharing (mirrors the copy-thread line format).
+    if(askSaveThreadBtn) askSaveThreadBtn.addEventListener('click', () => {
+      const lines = [];
+      askHistory.forEach(t => {
+        if(t.q) lines.push('Q: ' + t.q);
+        if(t.answer) lines.push('A: ' + t.answer);
+        if(t.cite) lines.push('Source: ' + t.cite);
+        lines.push('');
+      });
+      const text = lines.join('\n').trim();
+      if(!text){
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to save yet — ask a question first');
+        return;
+      }
+      try{
+        const stamp = new Date().toISOString().slice(0,10);
+        const url = URL.createObjectURL(new Blob([text], { type:'text/plain;charset=utf-8' }));
+        const a = document.createElement('a');
+        a.href = url; a.download = 'cleardoc-ask-' + stamp + '.txt';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        askSaveThreadBtn.setAttribute('aria-label', 'Ask thread saved as text file');
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⬇ Ask thread saved');
+        clearTimeout(askSaveThreadBtn._flashTimer);
+        askSaveThreadBtn._flashTimer = setTimeout(() => {
+          if(askSaveThreadBtn.isConnected) askSaveThreadBtn.setAttribute('aria-label', 'Download the whole Q&A as a text file');
+        }, 1400);
+      }catch(_){
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t save thread');
+      }
     });
     function buildDraft(raw, flags){
       const firstRisk=flags[0];

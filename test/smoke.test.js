@@ -766,6 +766,47 @@ skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear but
   await ctx.close();
 });
 
+// Cycle 74 feature: download the Q&A thread as a text file.
+test("analyzer: Ask thread can be saved as a .txt file", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // analyze.html must carry the save button next to Copy thread
+  assert.match(html, /id="askSaveThreadBtn"[^>]*title="Download the whole Q&A as a text file"/,
+    "analyze.html must contain #askSaveThreadBtn with a descriptive title");
+
+  // Visibility: hidden until the thread has turns (mirrors Copy thread)
+  assert.match(appSrc, /if\(askSaveThreadBtn\) askSaveThreadBtn\.hidden = askHistory\.length === 0;/,
+    "the save button must appear only when the thread has turns");
+
+  // Line format mirrors the copy thread: Q / A / Source per turn
+  assert.match(appSrc, /'Q: ' \+ t\.q/,
+    "the file must include each question");
+  assert.match(appSrc, /'A: ' \+ t\.answer/,
+    "the file must include each answer");
+  assert.match(appSrc, /'Source: ' \+ t\.cite/,
+    "the file must include each citation");
+  assert.match(appSrc, /'⚠ Nothing to save yet — ask a question first'/,
+    "the save must guard the empty state");
+
+  // Download path
+  assert.match(appSrc, /new Blob\(\[text\], \{ type:'text\/plain;charset=utf-8' \}\)/,
+    "the thread must download as text/plain UTF-8");
+  assert.match(appSrc, /a\.download = 'cleardoc-ask-' \+ stamp \+ '\.txt'/,
+    "the filename must be cleardoc-ask-<date>.txt");
+  assert.match(appSrc, /URL\.revokeObjectURL\(url\)/,
+    "the object URL must be revoked after the download");
+  assert.match(appSrc, /'⬇ Ask thread saved'/,
+    "the save must toast on success");
+  assert.match(appSrc, /askSaveThreadBtn\.setAttribute\('aria-label', 'Ask thread saved as text file'\)/,
+    "the save must announce via aria-label");
+  assert.match(appSrc, /askSaveThreadBtn\.setAttribute\('aria-label', 'Download the whole Q&A as a text file'\)/,
+    "the save must restore the original aria-label");
+});
+
 skip("home: has OG / Twitter / canonical / favicon meta", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
