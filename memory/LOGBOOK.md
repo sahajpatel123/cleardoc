@@ -5264,3 +5264,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 200 of the autonomous loop (alternate add/polish): every dot on the timeline should be a door — click it and land on that exact deadline.
+
+**2026-08-06 22:16 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #201 of the restarted autonomous loop (polish).
+- polish(reading): the reading-list count line now shows time remaining once progress starts — after marking chunks done, the line reads "… · ~4 min at 200 wpm · ~1 min left", recomputed from the undone chunks' word counts at the same 200-wpm estimate. No clutter before progress (remaining only appears when it's below the total).
+- Verified in a real browser with a mocked analyze flow: a 30-sentence doc showed "~4 min at 200 wpm" with no "min left"; after marking the chunk done it showed "· ~1 min left"; zero console errors. (A tiny first probe doc rounded both to 1 min, so a longer doc was needed to observe the delta.)
+- New smoke test "analyzer: reading count shows time remaining after progress" — 3 assertions (undone-word computation, remaining estimate, conditional label).
+- Full suite green (490 unit + 334 smoke + 1 integration = 825 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 201 of the autonomous loop (alternate add/polish): "how much longer?" is the question every reader asks — the count should answer it.

@@ -8470,6 +8470,10 @@
         doneMap[String(chunk.offset)] = !!val;
         try { localStorage.setItem(doneKey, JSON.stringify(doneMap)); } catch(_){ /* ignore */ }
       };
+      // Cycle #201 — remaining reading time for the chunks still undone,
+      // shown once progress has started (remaining < total).
+      const undoneWords = r.groups.reduce((a, c) => a + (isDone(c) ? 0 : (c.signalsAcc.wordCount || 0)), 0);
+      const remainingMins = Math.max(1, Math.round(undoneWords / 200));
       const signalFilter = readingGrid._readingSignalFilter || null;
       const undoneOnly = readingGrid._readingUndoneOnly === true;
       // Progress numbers (must-read done %) drive both the progress bar
@@ -8585,7 +8589,7 @@
         'filter: <b>' + esc(signalFilter) + '</b> · <button type="button" id="readingClearSignalBtn" class="ghost-btn ghost-btn-sm">✕ clear filter</button>' +
       '</div>' : '';
       const controls = '<div class="reading-controls">' +
-        '<span class="reading-count">' + r.totalSentences + ' sentence' + (r.totalSentences === 1 ? '' : 's') + ' · ' + r.groups.length + ' chunk' + (r.groups.length === 1 ? '' : 's') + ' · ~' + totalMins + ' min at 200 wpm</span>' +
+        '<span class="reading-count">' + r.totalSentences + ' sentence' + (r.totalSentences === 1 ? '' : 's') + ' · ' + r.groups.length + ' chunk' + (r.groups.length === 1 ? '' : 's') + ' · ~' + totalMins + ' min at 200 wpm' + (remainingMins < totalMins ? ' · ~' + remainingMins + ' min left' : '') + '</span>' +
         '<button type="button" class="reading-filter ghost-btn" id="readingFilterMustBtn" title="Show only must-read chunks">🔴 must only</button>' +
         '<button type="button" class="reading-filter ghost-btn" id="readingFilterSkimBtn" title="Show only skim chunks">🟡 skim only</button>' +
         '<button type="button" class="reading-filter ghost-btn" id="readingFilterSkipBtn" title="Show only skippable chunks">🟢 skip only</button>' +

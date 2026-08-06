@@ -10183,6 +10183,21 @@ test("analyzer: reading copy list respects the active filter", () => {
     "the copied header must note when the view is filtered");
 });
 
+// Cycle #201 — the reading count shows time remaining once progress starts.
+test("analyzer: reading count shows time remaining after progress", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /const undoneWords = r\.groups\.reduce\(\(a, c\) => a \+ \(isDone\(c\) \? 0 : \(c\.signalsAcc\.wordCount \|\| 0\)\), 0\);/,
+    "the renderer must count words across the undone chunks");
+  assert.match(appSrc, /const remainingMins = Math\.max\(1, Math\.round\(undoneWords \/ 200\)\);/,
+    "the remaining minutes must reuse the 200-wpm estimate");
+  assert.match(appSrc, /remainingMins < totalMins \? ' · ~' \+ remainingMins \+ ' min left' : ''/,
+    "the count line must show remaining time once progress has started");
+});
+
 // Iter #140: section risk map — aggregates risk patterns by
 // clause category and renders weighted horizontal bars.
 test("analyzer: Section risk map aggregates risk by clause category", () => {
