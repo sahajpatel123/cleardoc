@@ -413,6 +413,46 @@ skip("ask: quick-question chips fill the input and ask immediately", async () =>
   assert.match(themeSrc, /\.ask-chip:focus-visible\{/, "theme.css must give chips a focus ring");
 });
 
+test("analyzer: Ask answers suggest deterministic per-answer follow-up questions", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // The follow-up builder derives chips from the answer + document.
+  assert.match(appSrc, /function buildFollowUps\(answer, cite\)\{/,
+    "the follow-up builder must exist");
+  assert.match(appSrc, /What happens if I miss the deadline\?/,
+    "a deadline follow-up must be offered when the document has deadlines");
+  assert.match(appSrc, /Explain that in simpler terms\./,
+    "a simpler-terms follow-up must always be available");
+  assert.match(appSrc, /return out\.slice\(0, 3\);/,
+    "the builder must cap suggestions at three chips");
+  // Chips render only on the latest answered turn, as an accessible group.
+  assert.match(appSrc, /const followUps = \(!pending && isLast\) \? buildFollowUps\(turn\.answer, turn\.cite\) : \[\];/,
+    "chips must attach to the newest answered turn only");
+  assert.match(appSrc, /role="group" aria-label="Suggested follow-up questions"/,
+    "chips must be an accessible group");
+  assert.match(appSrc, /data-ask-followup="' \+ esc\(f\) \+ '"/,
+    "each chip must carry its question text");
+  // Delegated click → prefill + immediate submit, guarded while in flight.
+  assert.match(appSrc, /askThread\.addEventListener\('click'/,
+    "chips must be wired once via delegation on the thread");
+  assert.match(appSrc, /\.closest\('\.ask-followup'\)/,
+    "the delegation must target chip clicks");
+  assert.match(appSrc, /if\(!q \|\| _askInFlight\) return;/,
+    "chip clicks must be ignored while a request is in flight");
+  assert.match(appSrc, /if\(askInput\)\{ askInput\.value = q; askInput\.disabled = false; \}/,
+    "clicking a chip must load the question into the ask input");
+  assert.match(appSrc, /if\(askBtn\) askBtn\.disabled = false;\s*ask\(\);/,
+    "clicking a chip must submit the question immediately");
+  // Chip styling.
+  assert.match(cssSrc, /\.ask-followups\{/, "follow-up row CSS must exist");
+  assert.match(cssSrc, /\.ask-followup\{/, "chip CSS must exist");
+  assert.match(cssSrc, /\.ask-followup:focus-visible\{/, "chips must have a focus ring");
+});
+
 skip("ask: copy-thread button exports the whole Q&A as text", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

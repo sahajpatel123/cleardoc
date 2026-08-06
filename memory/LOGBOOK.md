@@ -4145,3 +4145,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 93 of the autonomous loop (alternate add/polish): the calendar actions must stay reachable on every screen width.
+
+**2026-08-06 17:42 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #94 of the restarted autonomous loop (add).
+- feat(ui): every Ask answer now ends with up to three suggested follow-up questions — deterministic chips derived from the answer text + the document's own risk landscape (deadline → "What happens if I miss the deadline?", cancellation/renewal → "How do I end this agreement early?", liability/fees → "What are my options if this is enforced?", citation → "Show me the exact sentence…", with "Explain that in simpler terms." and "What should I do next?" as always-available fallbacks, de-duped and capped at 3).
+- Chips render only on the latest answered turn as an accessible `role="group"`; clicking one loads the question into the ask input and submits it immediately (guarded by `_askInFlight`), keeping the thread moving without typing. Delegated handler on `#askThread`, so re-renders never double-bind.
+- New `.ask-followups` / `.ask-followup` styles (wrap row, ghost chips, focus ring, dark-mode-safe via vars).
+- New smoke test "Ask answers suggest deterministic per-answer follow-up questions" — 13 assertions covering the builder, chip markup/group, delegation, in-flight guard, prefill + submit, latest-turn-only rendering, and CSS.
+- Full suite green (490 unit + 280 smoke + 1 integration = 771 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 94 of the autonomous loop (alternate add/polish): an answer should hand you the next question, not leave you staring at the input.

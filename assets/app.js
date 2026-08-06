@@ -14327,6 +14327,26 @@
     let askHistory=[];
     let _askInFlight = false;
     const askThread=$('#askThread'),askClearBtn=$('#askClearBtn'),askCopyThreadBtn=$('#askCopyThreadBtn'),askSaveThreadBtn=$('#askSaveThreadBtn');
+    // Cycle #94 — suggested follow-ups after each answer. Deterministic
+    // and local-only (no extra API round-trip until the user clicks):
+    // chips are derived from the answer text plus the document's own
+    // risk landscape, so the thread keeps moving without typing.
+    function buildFollowUps(answer, cite){
+      const lower = String(answer || '').toLowerCase();
+      const doc = String(lastRaw || '').toLowerCase();
+      const has = (re) => re.test(lower) || re.test(doc);
+      const chips = [];
+      if(has(/deadline|due|within\s+\d+\s+day|by\s+\w+\s+\d/)) chips.push('What happens if I miss the deadline?');
+      if(has(/cancel|terminate|renew|notice/)) chips.push('How do I end this agreement early?');
+      if(has(/liab|indemnif|penalt|fee|assess|forfeit|non[- ]?refundable/)) chips.push('What are my options if this is enforced?');
+      if(cite && cite.s) chips.push('Show me the exact sentence that answer is based on.');
+      else if(lastSentences.length) chips.push('Where exactly does the document say that?');
+      chips.push('Explain that in simpler terms.');
+      chips.push('What should I do next?');
+      const seen = new Set(), out = [];
+      for(const c of chips){ if(!seen.has(c)){ seen.add(c); out.push(c); } }
+      return out.slice(0, 3);
+    }
     function renderAskThread(){
       if(!askThread) return;
       if(!askHistory.length){
@@ -14336,12 +14356,15 @@
         if(askSaveThreadBtn) askSaveThreadBtn.hidden = askHistory.length === 0;
         return;
       }
-      askThread.innerHTML = askHistory.map(turn => {
+      askThread.innerHTML = askHistory.map((turn, idx) => {
         const pending = turn.pending;
+        const isLast = idx === askHistory.length - 1;
+        const followUps = (!pending && isLast) ? buildFollowUps(turn.answer, turn.cite) : [];
         const aBody = pending
           ? '<span class="think"><i></i><i></i><i></i></span> Asking…'
           : '<div class="ans-line">'+esc(turn.answer)+'</div>' + (turn.cite ? '<div class="cite" style="opacity:1">'+esc(turn.cite)+'</div>' : '') +
-            '<div class="ans-actions"><button type="button" class="ask-copy no-print" data-ask-copy="1" aria-label="Copy this answer to the clipboard">Copy</button></div>';
+            '<div class="ans-actions"><button type="button" class="ask-copy no-print" data-ask-copy="1" aria-label="Copy this answer to the clipboard">Copy</button></div>' +
+            (followUps.length ? '<div class="ask-followups" role="group" aria-label="Suggested follow-up questions">' + followUps.map(f => '<button type="button" class="ask-followup no-print" data-ask-followup="' + esc(f) + '">' + esc(f) + '</button>').join('') + '</div>' : '');
         return '<div class="ask-q">'+esc(turn.q)+'</div>' +
                '<div class="ask-a">'+aBody+'</div>';
       }).join('');
@@ -14350,6 +14373,20 @@
       if(askSaveThreadBtn) askSaveThreadBtn.hidden = askHistory.length === 0;
       // Scroll the latest answer into view
       askThread.scrollTop = askThread.scrollHeight;
+    }
+    if(askThread){
+      // Delegated so re-renders never double-bind. Clicking a chip loads
+      // the follow-up and submits it immediately (the user asked for it).
+      askThread.addEventListener('click', (e) => {
+        const btn = e.target && e.target.closest ? e.target.closest('.ask-followup') : null;
+        if(!btn) return;
+        e.preventDefault();
+        const q = btn.getAttribute('data-ask-followup') || '';
+        if(!q || _askInFlight) return;
+        if(askInput){ askInput.value = q; askInput.disabled = false; }
+        if(askBtn) askBtn.disabled = false;
+        ask();
+      });
     }
     async function ask(){
       const q=(askInput&&askInput.value||'').trim(); if(!q) return;

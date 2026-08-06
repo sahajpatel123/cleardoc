@@ -1152,6 +1152,10 @@ button.risk-preview:hover{filter:brightness(.96)}
 .ask-a .ans-line b{color:var(--green);background:var(--green-tint);padding:0 3px}
 .ask-a .cite{display:inline-block;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);background:var(--green-tint);color:var(--green);padding:3px 9px}
 .ask-a .think{display:inline-flex;gap:4px}
+.ask-followups{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ask-followup{background:transparent;border:1px solid var(--ink-soft);color:var(--ink-soft);font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);letter-spacing:.02em;padding:4px 9px;cursor:pointer;transition:background .15s,color .15s}
+.ask-followup:hover{background:var(--ink);color:var(--paper)}
+.ask-followup:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ask-a .think i{width:6px;height:6px;border-radius:50%;background:var(--ink-soft);animation:think 1s infinite}
 .ask-a .think i:nth-child(2){animation-delay:.15s}
 .ask-a .think i:nth-child(3){animation-delay:.3s}
