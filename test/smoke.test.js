@@ -11678,6 +11678,18 @@ test("analyzer: Strategy board tracks counter-clauses across Backlog / Drafted /
     "the CSV must lead with Status/Risk column headers");
   assert.match(appSrc, /'📊 Strategy board CSV downloaded \(' \+ items\.length \+ '\)'/,
     "downloading must toast the card count");
+
+  // Cycle #229 — keyboard parity for board cards (mirrors .clause-row).
+  assert.match(appSrc, /<div class="board-card" data-board-key="' \+ esc\(it\.key\) \+ '" tabindex="0" role="button"/,
+    "each board card must be a keyboard-focusable div with button semantics");
+  assert.match(appSrc, /const advance = \(card, back\) => \{/,
+    "card movement must live in a shared helper");
+  assert.match(appSrc, /const advance = \(card, back\) => \{[\s\S]{0,640}persistBoard\(items\);/,
+    "a move must be persisted so the rebuild does not snap the card back");
+  assert.match(appSrc, /card\.addEventListener\('keydown', \(e\) => \{[\s\S]{0,300}advance\(card, !!e\.shiftKey\)/,
+    "Enter/Space must advance the focused card and Shift+Enter must move it back");
+  assert.match(appSrc, /📊 CSV<\/b> to download the board as a tracker file/,
+    "the board note must document the CSV export");
 });
 
 // Cycle #142 — per-board-card copy.

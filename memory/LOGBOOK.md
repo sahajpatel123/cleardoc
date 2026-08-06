@@ -5576,3 +5576,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 228 of the autonomous loop (alternate add/polish): a Kanban board you can't export is a board that stays inside the app — let the negotiation plan travel with the review.
+
+**2026-08-07 02:24 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #229 of the restructured autonomous loop (polish).
+- polish(strategy): the strategy-board cards now carry keyboard parity — each card is a `div[role="button"]` (tabindex=0) and Enter/Space advance it to the next column while Shift+Enter moves it back, mirroring the shift-click behavior (and the `.clause-row` fix from cycle #225). The card-move logic moved into a shared `advance()` helper, and the board note now documents the "📊 CSV" chip.
+- fix(strategy): discovered and fixed a real pre-existing bug — click-to-advance mutated the in-memory item but never persisted it, and `renderBoardBlock` rebuilds items from `buildStrategyBoard` (localStorage-backed), so every move snapped straight back to Backlog while the toast claimed it moved. Moves are now persisted on click/keyboard, so the board behaves like an actual Kanban and survives re-analysis.
+- Verified in a real browser via the extended strategy-board integration test (real Chromium): cards expose role=button + tabindex=0, Enter moved a card to Drafted, Shift+Enter moved it back to Backlog, the CSV download still works, and there were zero console errors.
+- Extended the strategy-board smoke test with 4 assertions (div+role markup, shared advance helper, persist-on-move, keydown parity) plus a note-text assertion.
+- Full suite green (490 unit + 345 smoke + 3 integration = 838 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 229 of the autonomous loop (alternate add/polish): a board card that only moves in a toast is a bug wearing a feature's clothes — persist the move, then let the keyboard move it too.

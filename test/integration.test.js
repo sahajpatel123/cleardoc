@@ -353,6 +353,31 @@ skip("integration: strategy board downloads a CSV tracker file", async () => {
   const dataRows = lines.slice(2).filter((l) => l.trim().length > 0);
   assert.ok(dataRows.length >= 1, "the CSV must include the board cards");
   assert.ok(dataRows.some((l) => l.includes("Backlog")), "cards must start in Backlog");
+
+  // Cycle #229 — keyboard parity: cards are div[role=button] with
+  // tabindex=0; Enter advances, Shift+Enter moves back.
+  const cardAttrs = await page.$eval("#boardBlock .board-card", (el) => ({
+    role: el.getAttribute("role"),
+    tabindex: el.getAttribute("tabindex"),
+  }));
+  assert.equal(cardAttrs.role, "button", "board cards must carry button semantics");
+  assert.equal(cardAttrs.tabindex, "0", "board cards must be keyboard-focusable");
+  const firstKey = await page.$eval("#boardBlock .board-card", (el) => el.getAttribute("data-board-key"));
+  await page.focus("#boardBlock .board-card");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction((k) => {
+    const card = document.querySelector(`[data-board-key="${k}"]`);
+    return card && card.parentElement && card.parentElement.parentElement &&
+      card.parentElement.parentElement.getAttribute("data-board-col") === "drafted";
+  }, firstKey, { timeout: 4000 });
+  await page.focus(`[data-board-key="${firstKey}"]`);
+  await page.keyboard.press("Shift+Enter");
+  await page.waitForFunction((k) => {
+    const card = document.querySelector(`[data-board-key="${k}"]`);
+    return card && card.parentElement && card.parentElement.parentElement &&
+      card.parentElement.parentElement.getAttribute("data-board-col") === "backlog";
+  }, firstKey, { timeout: 4000 });
+
   assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
 
   await page.close();

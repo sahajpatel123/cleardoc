@@ -11398,7 +11398,10 @@
             colItems.map(it => {
               // Cycle #142 — per-card copy of the counter-clause.
               const copyVal = '[COUNTER-CLAUSE · ' + it.label + '] "' + it.sample + '" → "' + it.counter + '"';
-              return '<div class="board-card" data-board-key="' + esc(it.key) + '">' +
+              // Cycle #229 — the card is a div[role=button] (tabindex=0)
+              // with Enter/Space parity, mirroring .clause-row, so
+              // keyboard users can advance cards too.
+              return '<div class="board-card" data-board-key="' + esc(it.key) + '" tabindex="0" role="button" title="Click to move to the next column (Shift-click or Shift+Enter to move back)">' +
                 '<div class="board-card-label">' + esc(it.label) + '</div>' +
                 '<div class="board-card-sample">' + esc(it.sample) + '</div>' +
                 '<div class="board-card-counter">→ ' + esc(it.counter) + '</div>' +
@@ -11445,25 +11448,37 @@
         const backlog = items.filter(i => i.col === 'backlog').length;
         boardNote.innerHTML = '<span class="riskNote-lead">Strategy board</span> · ' +
           '<b>Backlog ' + backlog + '</b> · <b>Drafted ' + drafted + '</b> · <b>Sent ' + sent + '</b>. ' +
-          'Click a card to move it to the next column, <b>📋</b> to copy one, or <b>💾 save</b> to persist the state. Useful for tracking which counter-clauses you\'ve actually negotiated vs which you\'re still preparing.';
+          'Click a card (or focus it and press Enter) to move it to the next column, <b>📋</b> to copy one, <b>📊 CSV</b> to download the board as a tracker file, or <b>💾 save</b> to persist the state. Useful for tracking which counter-clauses you\'ve actually negotiated vs which you\'re still preparing.';
       }
-      // Iter #166 — click-to-advance
+      // Iter #166 — click-to-advance. Cycle #229 — keyboard parity:
+      // Enter/Space advance, Shift+Enter moves back (mirrors the
+      // shift-click behavior); the copy button keeps native keys.
+      const advance = (card, back) => {
+        const key = card.getAttribute('data-board-key');
+        if(!key) return;
+        const order = ['backlog', 'drafted', 'sent'];
+        const it = items.find(i => i.key === key);
+        if(!it) return;
+        const idx = order.indexOf(it.col);
+        it.col = back ? order[Math.max(idx - 1, 0)] : order[Math.min(idx + 1, order.length - 1)];
+        // Cycle #229 fix — the re-render rebuilds items from
+        // buildStrategyBoard (localStorage-backed), so a move that isn't
+        // persisted snaps straight back to its old column. Persist on
+        // move: the board now behaves like a real Kanban.
+        persistBoard(items);
+        renderBoardBlock(raw, ctx);
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('→ ' + it.col);
+      };
       $$('.board-card', boardGrid).forEach(card => {
         card.addEventListener('click', (e) => {
-          const key = card.getAttribute('data-board-key');
-          if(!key) return;
-          const order = ['backlog', 'drafted', 'sent'];
-          const it = items.find(i => i.key === key);
-          if(!it) return;
-          const idx = order.indexOf(it.col);
-          // Iter #167 — shift-click moves back; double-click jumps to last column
-          if(e.shiftKey){
-            it.col = order[Math.max(idx - 1, 0)];
-          } else {
-            it.col = order[Math.min(idx + 1, order.length - 1)];
-          }
-          renderBoardBlock(raw, ctx);
-          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('→ ' + it.col);
+          if(e.target.closest && e.target.closest('[data-board-copy-text]')) return;
+          advance(card, !!e.shiftKey);
+        });
+        card.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          if(e.target.closest && e.target.closest('[data-board-copy-text]')) return;
+          e.preventDefault();
+          advance(card, !!e.shiftKey);
         });
       });
       // Iter #166 — reset button
