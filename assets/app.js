@@ -1529,7 +1529,9 @@
     // Cycle #91 — question rows get the same 'a' shortcut as risk rows
     // (prefill the Ask panel with the row's 💬 action).
     const qrow = t && t.closest ? t.closest('.ques-row') : null;
-    if(!row && !qrow) return;
+    // Cycle #108 — deadline rows get it too.
+    const drow = t && t.closest ? t.closest('.deadline-row') : null;
+    if(!row && !qrow && !drow) return;
     if(row && (key === 'e' || key === 'E')){
       const counter = row.querySelector('.rrow-counter');
       if(!counter) return; // no counter-suggestion → nothing to expand
@@ -1544,7 +1546,8 @@
       return;
     }
     if(key === 'a' || key === 'A'){
-      const ask = row ? (row.querySelector && row.querySelector('.rrow-ask')) : (qrow ? qrow.querySelector('.ques-ask') : null);
+      const ask = row ? (row.querySelector && row.querySelector('.rrow-ask'))
+        : (qrow ? qrow.querySelector('.ques-ask') : (drow ? drow.querySelector('.deadline-ask') : null));
       if(!ask) return;
       e.preventDefault();
       ask.click();
@@ -6640,6 +6643,7 @@
           (isOverdue ? '<span class="deadline-overdue-tag">⚠ overdue</span>' : '') +
           '<button type="button" class="deadline-ics ghost-btn ghost-btn-sm" data-deadline-ics="' + esc(it.date) + '" title="Save to your calendar">📅 ics</button>' +
           '<a class="deadline-gcal ghost-btn ghost-btn-sm" href="' + esc(gcalHref) + '" target="_blank" rel="noopener noreferrer" title="Add this deadline to Google Calendar" aria-label="Add deadline ' + esc(it.date) + ' to Google Calendar">🌐 gcal</a>' +
+          '<button type="button" class="deadline-ask ghost-btn ghost-btn-sm" data-deadline-ask="' + esc(it.sentence || it.date || '') + '" data-deadline-date="' + esc(it.date || '') + '" title="Ask about this deadline" aria-label="Ask about this deadline">💬</button>' +
         '</div>';
       }).join('');
       const controls = '<div class="deadline-controls">' +
@@ -6653,7 +6657,7 @@
         const mandated = items.filter(it => /\(obligated\)/.test(it.verb)).length;
         deadlineNote.innerHTML = '<span class="riskNote-lead">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + ' extracted</span> · ' +
           '<b>' + mandated + ' mandatory</b> (shall deliver by / shall be made by) · rest are scheduled milestones. ' +
-          'Each row shows a countdown (in 7 days / today / 3 days ago). Click 📅 to save a calendar event, <b>🌐 gcal</b> to add it to Google Calendar, or <b>📋 copy all</b> to export the list.';
+          'Each row shows a countdown (in 7 days / today / 3 days ago). Click 📅 to save a calendar event, <b>🌐 gcal</b> to add it to Google Calendar, <b>💬</b> to ask about it, or <b>📋 copy all</b> to export the list.';
       }
       // Iter #175 — copy-all chip
       const copyAllBtn = document.getElementById('deadlineCopyAllBtn');
@@ -6728,6 +6732,27 @@
             setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 4000);
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📅 Deadline saved to calendar');
           } catch(_){ if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t generate calendar file'); }
+        });
+      });
+      // Cycle #108 — one-click "ask about this deadline": prefill the
+      // Ask panel with the date + the source sentence, same interaction
+      // as the per-risk and per-question 💬 buttons.
+      $$('.deadline-ask', deadlineList).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const sentence = btn.getAttribute('data-deadline-ask') || '';
+          const date = btn.getAttribute('data-deadline-date') || '';
+          const qInput = document.getElementById('askInput');
+          const qBtn = document.getElementById('askBtn');
+          if(!qInput) return;
+          const q = 'What happens if I miss the deadline' + (date ? ' on ' + date : '') + '?' +
+            (sentence ? '\n(Deadline context: "' + sentence.slice(0, 160) + '")' : '');
+          qInput.value = q;
+          qInput.disabled = false;
+          if(qBtn) qBtn.disabled = false;
+          try { qInput.focus({preventScroll:false}); } catch(_){ qInput.focus(); }
+          try { qInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
         });
       });
     }

@@ -4299,3 +4299,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 107 of the autonomous loop (alternate add/polish): one reminder at a time, and none that outlive the analysis it came from.
+
+**2026-08-06 21:06 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #108 of the restarted autonomous loop (add).
+- feat(ui): every deadline row now has a one-click 💬 ask button — it prefills the Ask panel with "What happens if I miss the deadline on {date}?" plus the source sentence as context, focuses and scrolls the panel into view, and announces via toast (same interaction as the per-risk and per-question 💬 buttons). The `a` keyboard shortcut now covers deadline rows too (`.deadline-row` joins `.rrow`/`.ques-row` in the row-shortcut handler), and the block note documents the action.
+- Updated the cycle-91 shortcut test for the three-row guard + ternary (182 patterns in that region verified), and added a new smoke test "Deadline rows can ask the document about the deadline in one click" — 11 assertions.
+- Full suite green (490 unit + 288 smoke + 1 integration = 779 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 108 of the autonomous loop (alternate add/polish): a deadline you don't understand should be one click away from an answer.

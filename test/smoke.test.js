@@ -9065,9 +9065,9 @@ test("analyzer: Questions-to-ask rows can prefill the Ask panel with one click",
   // Cycle #91 polish — the risk-row 'a' shortcut now also serves question rows.
   assert.match(appSrc, /const qrow = t && t\.closest \? t\.closest\('\.ques-row'\) : null;/,
     "the row-shortcut handler must detect question rows");
-  assert.match(appSrc, /if\(!row && !qrow\) return;/,
+  assert.match(appSrc, /if\(!row && !qrow && !drow\) return;/,
     "the handler must ignore keys outside risk and question rows");
-  assert.match(appSrc, /row \? \(row\.querySelector && row\.querySelector\('\.rrow-ask'\)\) : \(qrow \? qrow\.querySelector\('\.ques-ask'\) : null\)/,
+  assert.match(appSrc, /row \? \(row\.querySelector && row\.querySelector\('\.rrow-ask'\)\)\s*: \(qrow \? qrow\.querySelector\('\.ques-ask'\) : \(drow \? drow\.querySelector\('\.deadline-ask'\) : null\)\)/,
     "the a shortcut must target the ask button of whichever row is focused");
 });
 
@@ -9854,6 +9854,38 @@ test("analyzer: Deadline rows can add the event to Google Calendar in one click"
     "the context line must wrap and share row space");
   assert.match(cssSrc, /@media\(max-width:560px\)\{[^}]*\.deadline-row\{gap:var\(--s2\)\}[^}]*\.deadline-date\{min-width:0\}/,
     "narrow screens must tighten the row and let the date shrink");
+});
+
+// Cycle #108 — ask about a deadline in one click.
+test("analyzer: Deadline rows can ask the document about the deadline in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="deadline-ask ghost-btn ghost-btn-sm"/,
+    "each deadline row must render an ask button");
+  assert.match(appSrc, /data-deadline-ask="' \+ esc\(it\.sentence \|\| it\.date \|\| ''\) \+ '"/,
+    "the ask button must carry the deadline context");
+  assert.match(appSrc, /data-deadline-date="' \+ esc\(it\.date \|\| ''\) \+ '"/,
+    "the ask button must carry the deadline date");
+  assert.match(appSrc, /\$\$\('\.deadline-ask', deadlineList\)\.forEach/,
+    "ask buttons must be wired after each render");
+  assert.match(appSrc, /What happens if I miss the deadline/,
+    "clicking must ask what happens if the deadline is missed");
+  assert.match(appSrc, /qInput\.scrollIntoView/,
+    "clicking must bring the Ask panel into view");
+  assert.match(appSrc, /showAnalyzeToast\('💬 Question ready — press Ask'\)/,
+    "clicking must announce the prefilled question");
+  assert.match(appSrc, /<b>💬<\/b> to ask about it/,
+    "the block note must document the ask action");
+  // The a-shortcut now covers deadline rows too.
+  assert.match(appSrc, /const drow = t && t\.closest \? t\.closest\('\.deadline-row'\) : null;/,
+    "the row-shortcut handler must detect deadline rows");
+  assert.match(appSrc, /if\(!row && !qrow && !drow\) return;/,
+    "keys outside risk/question/deadline rows must be ignored");
+  assert.match(appSrc, /drow \? drow\.querySelector\('\.deadline-ask'\) : null/,
+    "the a shortcut must target the deadline ask button");
 });
 
 // Cycle 50 feature: deadline CSV export — Date / Type / Countdown /
