@@ -14212,7 +14212,9 @@
         if(t.cite) lines.push('Source: ' + t.cite);
         lines.push('');
       });
-      const text = lines.join('\n').trim();
+      // Cycle 75 polish — timestamp header makes each saved file a
+      // self-identifying record (the clipboard copy stays plain).
+      const text = 'ClearDoc Ask · ' + new Date().toLocaleString() + '\n\n' + lines.join('\n').trim();
       if(!text){
         if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to save yet — ask a question first');
         return;

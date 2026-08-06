@@ -3948,3 +3948,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 74 of the autonomous loop (alternate add/polish): keep the call-prep conversation as a file, not just a clipboard.
+
+**2026-08-06 01:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #75 of the restarted autonomous loop (polish).
+- polish(ui): the saved Ask-thread file now opens with a timestamp header ("ClearDoc Ask · 8/6/2026, 1:00:00 AM") so each file is a self-identifying record; the clipboard copy stays plain (no header) since it's for pasting into chat.
+- Extended the ask-thread save smoke test with the header + copy-stays-plain assertions.
+- Full suite green (490 unit + 269 smoke + 1 integration = 760 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 75 of the autonomous loop (alternate add/polish): a saved conversation should say when it happened.

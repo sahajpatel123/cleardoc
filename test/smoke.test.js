@@ -805,6 +805,11 @@ test("analyzer: Ask thread can be saved as a .txt file", () => {
     "the save must announce via aria-label");
   assert.match(appSrc, /askSaveThreadBtn\.setAttribute\('aria-label', 'Download the whole Q&A as a text file'\)/,
     "the save must restore the original aria-label");
+  // Cycle 75 polish — the saved file is a self-identifying record
+  assert.match(appSrc, /'ClearDoc Ask · ' \+ new Date\(\)\.toLocaleString\(\) \+ '\\n\\n' \+ lines\.join\('\\n'\)\.trim\(\)/,
+    "the saved file must open with a timestamp header");
+  assert.match(appSrc, /askCopyThreadBtn\.addEventListener[\s\S]+?const text = lines\.join\('\\n'\)\.trim\(\);/,
+    "the clipboard copy must stay plain (no header)");
 });
 
 skip("home: has OG / Twitter / canonical / favicon meta", async () => {
