@@ -4038,3 +4038,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 83 of the autonomous loop (alternate add/polish): the copy chip and the corner label should never collide.
+
+**2026-08-06 02:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #84 of the restarted autonomous loop (feature add).
+- feat(ui): the Gap detector now has a "📊 CSV" chip that downloads every missing clause as cleardoc-gaps-<date>.csv with Category (risk/financial/procedural), Gap, and Hint columns — plus a Missing metadata row, OWASP formula guard, and UTF-8 BOM, matching the other spreadsheet exports.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 274 smoke + 1 integration = 765 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 84 of the autonomous loop (alternate add/polish): track missing clauses in a spreadsheet, not just in the app.

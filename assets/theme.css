@@ -1584,6 +1584,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .gap-count{font-family:'JetBrains Mono',monospace;color:var(--ink);text-transform:uppercase;font-size:var(--t-micro);margin-right:auto}
 .gap-count b{font-weight:700}
 .gap-expand{margin-left:0;font-size:11px;padding:2px 8px}
+/* Cycle 84 — gap CSV chip, same family as expand. */
+.gap-csv{font-size:11px;padding:2px 8px}
 
 /* Tone analyzer (iter #112) — 3-axis bar cards. */
 .tone-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}

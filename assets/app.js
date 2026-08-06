@@ -12438,6 +12438,7 @@
             (tally.fin ? '<b style="color:var(--amber)">' + tally.fin + ' financial</b> · ' : '') +
             (tally.proc ? '<b>' + tally.proc + ' procedural</b>' : '') +
           '</span>' +
+          '<button type="button" class="gap-csv ghost-btn ghost-btn-sm" id="gapCsvBtn" title="Download missing clauses as a .csv file">📊 CSV</button>' +
           '<button type="button" class="gap-expand ghost-btn ghost-btn-sm" id="gapExpandBtn" title="Show every missing clause">show all ' + result.count + '</button>' +
         '</div>';
       gapList.innerHTML = rows + controls;
@@ -12479,6 +12480,40 @@
           }, 2500);
         });
       });
+      // Cycle 84 feature — gap CSV export: Category, Gap, and Hint columns
+      // for remediation tracking, hardened like the other exports.
+      const gapCsvBtn = document.getElementById('gapCsvBtn');
+      if(gapCsvBtn){
+        gapCsvBtn.addEventListener('click', () => {
+          const rows = result.items.map(it => {
+            const m = GAP_PATTERNS.find(p => p.key === it.key);
+            return [catLabel(m ? m.cat : 'proc'), it.label, it.hint || ''];
+          });
+          if(!rows.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to export yet');
+            return;
+          }
+          const csvCell = (v) => {
+            let s = String(v || '');
+            if(/^[=+\-@]/.test(s)) s = "'" + s;
+            return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+          };
+          const header = csvCell('Missing') + ',' + csvCell(result.count + ' clauses') + '\n' + csvCell('Category') + ',' + csvCell('Gap') + ',' + csvCell('Hint');
+          const body = rows.map(r => csvCell(r[0]) + ',' + csvCell(r[1]) + ',' + csvCell(r[2])).join('\n');
+          const text = '\uFEFF' + header + '\n' + body;
+          try{
+            const stamp = new Date().toISOString().slice(0,10);
+            const url = URL.createObjectURL(new Blob([text], { type:'text/csv;charset=utf-8' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-gaps-' + stamp + '.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📊 Gaps CSV downloaded (' + rows.length + ')');
+          }catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create CSV file');
+          }
+        });
+      }
     }
 
     function clearKeyClausePreview(){

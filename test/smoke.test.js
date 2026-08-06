@@ -8122,6 +8122,36 @@ test("analyzer: Gap detector polished with per-row copy + category tally", () =>
     ".gap-ask button style must exist");
 });
 
+// Cycle 84 feature: gap detector CSV export for remediation tracking.
+test("analyzer: Gap detector exports missing clauses as CSV", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /id="gapCsvBtn" title="Download missing clauses as a \.csv file"/,
+    "the gap controls must include a CSV chip");
+  assert.match(appSrc, /gapCsvBtn\.addEventListener\(\s*['"]click['"]/,
+    "the CSV chip must have a click handler");
+  assert.match(appSrc, /\[catLabel\(m \? m\.cat : 'proc'\), it\.label, it\.hint \|\| ''\]/,
+    "each row must carry category, gap label, and hint");
+  assert.match(appSrc, /csvCell\('Category'\) \+ ',' \+ csvCell\('Gap'\) \+ ',' \+ csvCell\('Hint'\)/,
+    "the CSV must have Category, Gap, and Hint columns in that order");
+  assert.match(appSrc, /csvCell\(result\.count \+ ' clauses'\)/,
+    "the CSV must open with a Missing metadata row");
+  assert.match(appSrc, /'⚠ Nothing to export yet'/,
+    "the export must guard the empty state");
+  assert.match(appSrc, /const text = '\\uFEFF' \+ header \+ '\\n' \+ body;/,
+    "the download must start with a UTF-8 BOM");
+  assert.match(appSrc, /a\.download = 'cleardoc-gaps-' \+ stamp \+ '\.csv'/,
+    "the filename must be cleardoc-gaps-<date>.csv");
+  assert.match(appSrc, /'📊 Gaps CSV downloaded \(' \+ rows\.length/,
+    "the export must toast with the row count");
+  assert.match(cssSrc, /\.gap-csv\{/,
+    "theme.css must style .gap-csv");
+});
+
 // Iter #106: voice-mode reader — plays each block aloud in order.
 // Big audio-UX win; toggles between "voice mode" and "stop" buttons.
 test("analyzer: Voice-mode reader plays every analysis block aloud in order", () => {
