@@ -4201,3 +4201,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 98 of the autonomous loop (alternate add/polish): deciding between $0 / $19 / $49 should take one glance, not three paragraphs.
+
+**2026-08-06 18:58 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #99 of the restarted autonomous loop (polish).
+- polish(pricing): the pricing FAQ grew from 3 to 6 questions with the three users actually ask — "Do you store or train on my documents?" (real-time processing, 24h auto-delete, never trained on; saved history/focus/Ask threads live only in browser localStorage), "Is ClearDoc legal advice?" (reading aid, not a lawyer; informational only), and "What counts as a read?" (one full analysis; 5/month on Reader, unlimited on Pro/Firm).
+- Visible FAQ and the FAQPage JSON-LD were updated together (6 questions, matching ids fa3–fa5 with correct aria-controls), so structured data and the page never drift.
+- Extended the JSON-LD pricing smoke test: exact count of 6, the three new question names, visible-page assertions for each new question, and the fa5 control id.
+- Full suite green (490 unit + 283 smoke + 1 integration = 774 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 99 of the autonomous loop (alternate add/polish): the three questions every pricing visitor asks should already be answered on the page.

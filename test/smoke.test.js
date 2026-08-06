@@ -1052,6 +1052,26 @@ skip("JSON-LD: pricing page has Product with 3 Offer tiers + FAQPage", async () 
   const faq = flat.find(n => n["@type"] === "FAQPage");
   assert.ok(Array.isArray(faq.mainEntity) && faq.mainEntity.length >= 3,
     "pricing FAQPage must list at least 3 questions");
+  // Cycle #99 polish — FAQ expanded to 6, covering privacy, legal scope,
+  // and read-count semantics, with the visible page matching JSON-LD.
+  assert.equal(faq.mainEntity.length, 6,
+    `pricing FAQPage must list exactly 6 questions, got ${faq.mainEntity.length}`);
+  const qNames = faq.mainEntity.map(q => q.name);
+  for (const expected of [
+    "Do you store or train on my documents?",
+    "Is ClearDoc legal advice?",
+    "What counts as a read?",
+  ]) {
+    assert.ok(qNames.includes(expected), `pricing FAQPage must include: ${expected}`);
+  }
+  assert.match(html, /qt serif">Do you store or train on my documents\?<\/span>/,
+    "the visible FAQ must show the privacy question");
+  assert.match(html, /qt serif">Is ClearDoc legal advice\?<\/span>/,
+    "the visible FAQ must show the legal-advice question");
+  assert.match(html, /qt serif">What counts as a read\?<\/span>/,
+    "the visible FAQ must show the read-count question");
+  assert.match(html, /aria-controls="fa5"/,
+    "the sixth FAQ item must be reachable");
 });
 
 test("pricing: plan cards are backed by a feature-comparison table", () => {
