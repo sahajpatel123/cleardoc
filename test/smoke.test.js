@@ -557,6 +557,10 @@ skip("ask thread: answered turns have a copy button that exports answer + citati
   assert.match(appSrc, /'📋 Answer copied'/, "answer copy must toast on success");
   assert.match(appSrc, /querySelector\('\.ans-line'\)/, "copy payload must read the answer line");
   assert.match(appSrc, /querySelector\('\.cite'\)/, "copy payload must include the citation");
+  assert.match(appSrc, /const qEl = \(a\.previousElementSibling && a\.previousElementSibling\.classList\.contains\('ask-q'\)\) \? a\.previousElementSibling : null;/,
+    "copy payload must find the question bubble beside the answer");
+  assert.match(appSrc, /Q: ' \+ qText \+ '\\n\\n'/,
+    "copy payload must lead with the question as a Q&A pair");
   assert.match(themeSrc, /\.ask-copy\{/, "theme.css must style .ask-copy");
   assert.match(themeSrc, /\.ask-copy:focus-visible\{/, "theme.css must give .ask-copy a focus ring");
 });

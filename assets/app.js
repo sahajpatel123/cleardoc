@@ -380,7 +380,11 @@
       if(!a) return;
       const line = a.querySelector('.ans-line');
       const cite = a.querySelector('.cite');
-      const text = ((line ? line.textContent : '') + (cite ? '\n\n' + cite.textContent : '')).trim();
+      // Cycle #191 — include the question that produced this answer so
+      // the copied artifact is a self-contained Q&A pair.
+      const qEl = (a.previousElementSibling && a.previousElementSibling.classList.contains('ask-q')) ? a.previousElementSibling : null;
+      const qText = qEl ? ((qEl.querySelector('.ask-q-text') || qEl).textContent || '').trim() : '';
+      const text = ((qText ? 'Q: ' + qText + '\n\n' : '') + (line ? line.textContent : '') + (cite ? '\n\n' + cite.textContent : '')).trim();
       if(!text) return;
       let ok = false;
       try {

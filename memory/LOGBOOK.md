@@ -5155,3 +5155,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 190 of the autonomous loop (alternate add/polish): the exact question you asked is worth keeping — now it's one click away, like the answer beside it.
+
+**2026-08-06 21:43 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #191 of the restarted autonomous loop (polish).
+- polish(ask): the answer-copy now leads with the question that produced it — copying an answer exports a self-contained Q&A pair (`Q: …` + answer + citation) instead of an orphaned answer. The builder finds the sibling `.ask-q` bubble (falling back to the old behavior when there's none, e.g. restored threads without a question element).
+- Verified in a real browser with mocked analyze + chat flows: the captured clipboard read `Q: Am I liable for their losses?` followed by the answer and its sentence citation; the toast fired; zero console errors.
+- Extended the iter-#369 ask-copy smoke test with 2 assertions (question-bubble lookup + `Q: ` prefix).
+- Full suite green (490 unit + 328 smoke + 1 integration = 819 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 191 of the autonomous loop (alternate add/polish): an answer pasted into notes should never leave the question behind.
