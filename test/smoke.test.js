@@ -2316,8 +2316,10 @@ skip("analyze: risk table copies as Markdown for Notion/GitHub/Linear", async ()
     "app.js must define buildRiskMarkdownTable");
   assert.match(appSrc, /async function copyAnalysisMdTable\(\)\{/,
     "app.js must define copyAnalysisMdTable");
-  assert.match(appSrc, /\| Severity \| Label \| Clause \| Why \|/,
+  assert.match(appSrc, /\| Done \| Severity \| Label \| Clause \| Why \|/,
     "the Markdown table must carry the expected header row");
+  assert.match(appSrc, /\| - \[ \] \| /,
+    "the Markdown table must include an unchecked Done column");
 
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
@@ -2346,8 +2348,9 @@ skip("analyze: risk table copies as Markdown for Notion/GitHub/Linear", async ()
     await page.click("#copyMdTableBtn");
     await page.waitForFunction(() => window.__copiedMdTable && window.__copiedMdTable.length > 0, { timeout: 8000 });
     const captured = await page.evaluate(() => window.__copiedMdTable);
-    assert.match(captured, /\| Severity \| Label \| Clause \| Why \|/, "the copied text must open with the Markdown table header");
-    assert.match(captured, /\|---\|---\|---\|---\|/, "the copied text must include the Markdown separator row");
+    assert.match(captured, /\| Done \| Severity \| Label \| Clause \| Why \|/, "the copied text must open with the Markdown table header");
+    assert.match(captured, /\|---\|---\|---\|---\|---\|/, "the copied text must include the Markdown separator row");
+    assert.match(captured, /\| - \[ \] \|/, "the copied text must include unchecked done checkboxes");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();

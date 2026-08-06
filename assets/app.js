@@ -17983,9 +17983,9 @@
         const label = String(f.rule.label || 'Risk').replace(/\|/g, '\\|');
         const clause = String(f.s || '').slice(0, 180).replace(/\|/g, '\\|');
         const why = String(f.rule.why || '').replace(/\|/g, '\\|');
-        return '| ' + sev + ' | ' + label + ' | ' + clause + ' | ' + why + ' |';
+        return '| - [ ] | ' + sev + ' | ' + label + ' | ' + clause + ' | ' + why + ' |';
       }).join('\n');
-      return '| Severity | Label | Clause | Why |\n|---|---|---|---|\n' + rows;
+      return '| Done | Severity | Label | Clause | Why |\n|---|---|---|---|---|\n' + rows;
     }
     async function copyAnalysisMdTable(){
       if(!lastFlags || !lastFlags.length){
