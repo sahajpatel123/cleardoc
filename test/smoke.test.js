@@ -9216,8 +9216,10 @@ test("analyzer: Obligation tracker exports a CSV with done status", () => {
     "the CSV chip must have a click handler");
   assert.match(appSrc, /doneMap\['ob-' \+ idx\] \? 'done' : 'todo'/,
     "the Status column must reflect the live done state");
-  assert.match(appSrc, /csvCell\('Status'\) \+ ',' \+ csvCell\('Verb'\) \+ ',' \+ csvCell\('Sentence'\)/,
-    "the CSV must have Status, Verb, and Sentence columns in that order");
+  assert.match(appSrc, /csvCell\('Status'\) \+ ',' \+ csvCell\('Verb'\) \+ ',' \+ csvCell\('Sentence'\) \+ ',' \+ csvCell\('Type'\)/,
+    "the CSV must have Status, Verb, Sentence, and Type columns in that order");
+  assert.match(appSrc, /isMandatory \? 'must' : 'may'/,
+    "the Type column must map the on-screen must/may tag");
   assert.match(appSrc, /csvCell\(doneCount \+ ' of ' \+ items\.length \+ ' done'\)/,
     "the CSV must open with a Progress metadata row");
   assert.match(appSrc, /'⚠ Nothing to export yet'/,

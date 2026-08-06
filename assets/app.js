@@ -6206,16 +6206,17 @@
           setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
         });
       }
-      // Cycle 78 feature — obligation CSV export: Status (done/todo),
-      // Verb, and Sentence columns for spreadsheet trackers, hardened
-      // like the other exports (OWASP guard + BOM + progress metadata).
+      // Cycle 78/79 — obligation CSV export: Status (done/todo), Verb,
+      // Sentence, and Type (must/may) columns — mirroring the on-screen
+      // ⚡ must / ✓ may tags — hardened like the other exports.
       const actionCsvBtn = document.getElementById('actionCsvBtn');
       if(actionCsvBtn){
         actionCsvBtn.addEventListener('click', () => {
           const rows = [];
           items.forEach((it, idx) => {
             const snip = (it.sentence || '').slice(0, 200);
-            rows.push([doneMap['ob-' + idx] ? 'done' : 'todo', it.verb, snip]);
+            const isMandatory = /^(shall|must|is required|are required|undertakes|warrants|covenants|is obligated|are obligated|is responsible|are responsible)/.test(it.verb);
+            rows.push([doneMap['ob-' + idx] ? 'done' : 'todo', it.verb, snip, isMandatory ? 'must' : 'may']);
           });
           if(!rows.length){
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to export yet');
@@ -6226,8 +6227,8 @@
             if(/^[=+\-@]/.test(s)) s = "'" + s;
             return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
           };
-          const header = csvCell('Progress') + ',' + csvCell(doneCount + ' of ' + items.length + ' done') + '\n' + csvCell('Status') + ',' + csvCell('Verb') + ',' + csvCell('Sentence');
-          const body = rows.map(r => csvCell(r[0]) + ',' + csvCell(r[1]) + ',' + csvCell(r[2])).join('\n');
+          const header = csvCell('Progress') + ',' + csvCell(doneCount + ' of ' + items.length + ' done') + '\n' + csvCell('Status') + ',' + csvCell('Verb') + ',' + csvCell('Sentence') + ',' + csvCell('Type');
+          const body = rows.map(r => csvCell(r[0]) + ',' + csvCell(r[1]) + ',' + csvCell(r[2]) + ',' + csvCell(r[3])).join('\n');
           const text = '\uFEFF' + header + '\n' + body;
           try{
             const stamp = new Date().toISOString().slice(0,10);

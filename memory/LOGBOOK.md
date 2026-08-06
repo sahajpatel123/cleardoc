@@ -3988,3 +3988,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 78 of the autonomous loop (alternate add/polish): every actionable list in the app now exports to a spreadsheet.
+
+**2026-08-06 01:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #79 of the restarted autonomous loop (polish).
+- polish(ui): the obligations CSV now includes a Type column (must/may) computed with the same regex as the on-screen ⚡ must / ✓ may tags — spreadsheet consumers get the mandatory/permissive signal without parsing the verb.
+- Extended the obligations-CSV smoke test with the Type column and mapping assertions.
+- Full suite green (490 unit + 271 smoke + 1 integration = 762 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 79 of the autonomous loop (alternate add/polish): the spreadsheet should carry the same must/may signal as the UI.
