@@ -3668,3 +3668,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 46 of the autonomous loop (alternate add/polish): export every deadline straight from the live preview.
+
+**2026-08-06 20:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #47 of the restarted autonomous loop (polish).
+- polish(a11y): the preview calendar button had a stale static aria-label ("Add soonest deadline to calendar") even though it exports ALL deadlines as a multi-event ICS. It now has an accurate static label plus a dynamic aria-label that scales with the count ("Add all 3 deadlines to your calendar"), and the click announces "All N deadlines added to your calendar" before restoring the label after the flash.
+- Extended the calendar-export smoke tests with the dynamic-label + announce + restore assertions.
+- Full suite green (490 unit + 255 smoke + 1 integration = 746 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 47 of the autonomous loop (alternate add/polish): make the calendar export's accessible name match what it actually does.

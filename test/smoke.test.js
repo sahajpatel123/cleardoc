@@ -2670,8 +2670,10 @@ test("analyzer: deadlines preview has an Add-to-Calendar button that exports the
   // analyze.html must have the calendar-export button
   assert.match(html, /id="deadlinesCalBtn"/,
     "analyze.html must contain #deadlinesCalBtn");
-  assert.match(html, /aria-label="Add soonest deadline to calendar"/,
-    "#deadlinesCalBtn must have an aria-label for screen readers");
+  assert.match(html, /aria-label="Add deadlines to your calendar"/,
+    "#deadlinesCalBtn must have an accurate static aria-label (it exports all deadlines, not just the soonest)");
+  assert.match(appSrc, /deadlinesCalBtn\.setAttribute\('aria-label', dls\.length === 1 \? 'Add this deadline to your calendar' : 'Add all ' \+ dls\.length \+ ' deadlines to your calendar'\)/,
+    "updateTextStats must announce the deadline count via a dynamic aria-label");
 
   // Click handler must wire up ICS download + Blob URL pattern
   assert.match(appSrc, /deadlinesCalBtn\.addEventListener\(\s*['"]click['"]/,
@@ -2730,6 +2732,10 @@ test("analyzer: calendar button exports ALL detected deadlines as a multi-event 
     "click handler must call buildIcs() (multi-event) to export all deadlines");
   assert.match(appSrc, /deadlinesCalBtn\.addEventListener\([\s\S]+?deadlinesCalBtn\._deadlines/,
     "click handler must read the stashed deadlines list from _deadlines");
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener\([\s\S]+?setAttribute\('aria-label', isMulti \? \('All ' \+ list\.length \+ ' deadlines added to your calendar'\) : 'Deadline added to your calendar'\)/,
+    "calendar export must announce the added count via aria-label");
+  assert.match(appSrc, /deadlinesCalBtn\.addEventListener\([\s\S]+?setAttribute\('aria-label', baseLabel\)/,
+    "calendar export must restore the dynamic aria-label after the flash");
 
   // Filename must use 'cleardoc-deadlines-' (plural) for multi-event files
   assert.match(appSrc, /deadlinesCalBtn\.addEventListener\([\s\S]+?'cleardoc-deadlines-'/,

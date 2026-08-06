@@ -15122,6 +15122,7 @@
             deadlinesCalBtn._deadlines = dls;
             deadlinesCalBtn.disabled = false;
             deadlinesCalBtn.title = (dls.length === 1) ? 'Add this deadline to your calendar' : 'Add all ' + dls.length + ' deadlines to your calendar';
+            deadlinesCalBtn.setAttribute('aria-label', dls.length === 1 ? 'Add this deadline to your calendar' : 'Add all ' + dls.length + ' deadlines to your calendar');
             const label = (dls.length === 1) ? '+ calendar' : ('+ ' + dls.length + ' calendar');
             deadlinesCalBtn._origText = label;
             deadlinesCalBtn.textContent = label;
@@ -16709,11 +16710,14 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
           URL.revokeObjectURL(url);
           // Flash feedback — 'added N ✓' if multiple, just 'added ✓' for 1
           const isMulti = list.length > 1;
+          const baseLabel = isMulti ? ('Add all ' + list.length + ' deadlines to your calendar') : 'Add this deadline to your calendar';
           const orig = deadlinesCalBtn._origText || (isMulti ? ('+ ' + list.length + ' calendar') : '+ calendar');
+          deadlinesCalBtn.setAttribute('aria-label', isMulti ? ('All ' + list.length + ' deadlines added to your calendar') : 'Deadline added to your calendar');
           deadlinesCalBtn.textContent = isMulti ? ('added ' + list.length + ' ✓') : 'added ✓';
           clearTimeout(deadlinesCalBtn._flashTimer);
           deadlinesCalBtn._flashTimer = setTimeout(() => {
             deadlinesCalBtn.textContent = orig;
+            deadlinesCalBtn.setAttribute('aria-label', baseLabel);
           }, 1400);
         });
       }
