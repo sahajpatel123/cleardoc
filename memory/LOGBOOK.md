@@ -4760,3 +4760,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 153 of the autonomous loop (alternate add/polish): amount, hear, and copy should read as one tidy header row.
+
+**2026-08-06 07:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #154 of the restarted autonomous loop (add).
+- feat(ui): every smoking-gun card now has a 🔊, speak button in its header — clicking it reads the flagged sentence aloud via SpeechSynthesis at the user's chosen pace (`getTtsRate()`), with a dedicated `[data-smoking-speak]` branch in the card handler so it never triggers copy or jump. The speak button owns the right-edge push with copy beside it (both shrink-proof, speak focus-ringed); the block note documents the action, completing the smoking-gun card's action set (hear / copy / share).
+- New smoke test "Smoking-gun cards read the smoking gun aloud in one click" — 6 assertions covering the button markup, sentence data, click-handler branch, utterance creation, reading-speed respect, and note; updated the cycle-122 copy test for the new speak+copy pair alignment.
+- Full suite green (490 unit + 312 smoke + 1 integration = 803 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 154 of the autonomous loop (alternate add/polish): the sentence most worth quoting should also be the one you hear first.

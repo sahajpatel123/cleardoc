@@ -8734,6 +8734,8 @@
             '<span class="smoking-rank">#' + rank + '</span>' +
             sevTag +
             '<span class="smoking-meta">sentence ' + (it.idx + 1) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + ' · risk score ' + it.score.toFixed(1) + '</span>' +
+            // Cycle #154 — hear the top concern aloud.
+            '<button type="button" class="smoking-speak ghost-btn ghost-btn-sm" data-smoking-speak="' + esc(it.sentence) + '" title="Read this smoking gun aloud" aria-label="Read this smoking gun aloud">🔊</button>' +
             '<button type="button" class="smoking-card-copy ghost-btn ghost-btn-sm" data-smoking-copy-text="' + esc(copyText) + '" title="Copy this smoking gun as a citation" aria-label="Copy this smoking gun as a citation">📋</button>' +
           '</div>' +
           '<div class="smoking-quote">"' + highlightQuote(it.sentence, it.pattern) + '"</div>' +
@@ -8771,11 +8773,27 @@
         const filterNote = sevFilter !== 'all' ? ' Showing only <b>' + sevLabel[sevFilter] + '</b> — switch to <b>🌐 all</b> to see the rest.' : '';
         smokingNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
           'Top concerns ranked. Each card quotes the sentence verbatim with the <mark class="smoking-trigger">trigger term</mark> highlighted, the reason it was flagged, and a counter-redline suggestion where one applies. ' +
-          'Tap any card to jump. <b>💾 .txt</b> downloads the share-card as a file. <b>📋 copy share-card</b> exports a plain-text block you can forward without exposing the rest of the document.' + filterNote;
+          'Tap any card to jump, <b>🔊</b> to hear one, or <b>💾 .txt</b> to download the share-card as a file. <b>📋 copy share-card</b> exports a plain-text block you can forward without exposing the rest of the document.' + filterNote;
       }
       // Click-to-jump.
       $$('.smoking-card', smokingGrid).forEach(card => {
         card.addEventListener('click', async (e) => {
+          // Cycle #154 — 🔊, reads the smoking gun aloud instead of jumping.
+          const speakBtn = e.target.closest && e.target.closest('[data-smoking-speak]');
+          if(speakBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = speakBtn.getAttribute('data-smoking-speak') || '';
+            if(text && typeof window !== 'undefined' && 'speechSynthesis' in window){
+              try {
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = getTtsRate();
+                window.speechSynthesis.speak(u);
+              } catch(_){ /* ignore */ }
+            }
+            return;
+          }
           // Cycle #122 — 📋 copies the card as a citation instead of jumping.
           const copyBtn = e.target.closest && e.target.closest('[data-smoking-copy-text]');
           if(copyBtn){

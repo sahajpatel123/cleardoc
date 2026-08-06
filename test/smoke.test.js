@@ -10855,8 +10855,31 @@ test("analyzer: Smoking-gun cards copy their citation in one click", () => {
     "the button must flash its copied state");
   assert.match(cssSrc, /\.smoking-card-head\{[^}]*flex-wrap:wrap/,
     "the card head must wrap with the new button on narrow screens");
-  assert.match(cssSrc, /\.smoking-card-copy\{[^}]*margin-left:auto/,
-    "the copy button must right-align in the head");
+  assert.match(cssSrc, /\.smoking-speak\{[^}]*margin-left:auto/,
+    "the speak button must push the action pair to the right edge");
+  assert.match(cssSrc, /\.smoking-card-copy\{[^}]*margin-left:4px/,
+    "the copy button must sit beside the speak button");
+});
+
+// Cycle #154 — hear any smoking gun aloud.
+test("analyzer: Smoking-gun cards read the smoking gun aloud in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="smoking-speak ghost-btn ghost-btn-sm"/,
+    "each smoking-gun card must render a speak button");
+  assert.match(appSrc, /data-smoking-speak="' \+ esc\(it\.sentence\) \+ '"/,
+    "the speak button must carry the flagged sentence");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-smoking-speak\]'\)/,
+    "the card click handler must catch speak-button clicks");
+  assert.match(appSrc, /new SpeechSynthesisUtterance\(text\)/,
+    "clicking must speak the smoking gun");
+  assert.match(appSrc, /u\.rate = getTtsRate\(\);/,
+    "the reading must respect the chosen speed");
+  assert.match(appSrc, /🔊<\/b> to hear one/,
+    "the block note must document the speak action");
 });
 
 // Cycle #123 — per-exposure-card copy citation.
