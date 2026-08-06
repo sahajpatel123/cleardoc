@@ -13888,7 +13888,14 @@
       const tldrCopyMdBtn = document.getElementById('tldrCopyMdBtn');
       if(tldrCopyMdBtn){
         tldrCopyMdBtn.addEventListener('click', async () => {
-          const md = '## TL;DR\n\n1. ' + built.s1 + '\n2. ' + built.s2 + '\n3. ' + built.s3 + '\n\n**Next step:** ' + built.nextStep;
+          const vLabel = verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-label');
+          const verdict = vLabel ? vLabel.textContent.trim() : '';
+          const rl = levelFrom && levelTo && levelFrom.textContent && levelTo.textContent
+            ? levelFrom.textContent + ' → ' + levelTo.textContent : '';
+          const header = '## TL;DR' +
+            (verdict ? ' · Verdict: ' + verdict : '') +
+            (rl ? ' · Reading level: ' + rl : '');
+          const md = header + '\n\n1. ' + built.s1 + '\n2. ' + built.s2 + '\n3. ' + built.s3 + '\n\n**Next step:** ' + built.nextStep;
           let copied = false;
           try {
             if(navigator.clipboard && navigator.clipboard.writeText){

@@ -10244,6 +10244,10 @@ test("analyzer: TL;DR generator assembles a three-sentence summary from analyzer
     "tldrCopyMdBtn must be wired in the TL;DR block");
   assert.match(appSrc, /'📋 TL;DR copied as Markdown'/,
     "TL;DR Markdown copy must confirm with a toast");
+  assert.match(appSrc, /' · Verdict: ' \+ verdict/,
+    "TL;DR Markdown copy must include the verdict when available");
+  assert.match(appSrc, /' · Reading level: ' \+ rl/,
+    "TL;DR Markdown copy must include the reading level when available");
   assert.match(html, /id="tldrCopyMdBtn"/,
     "analyze.html must expose the TL;DR Markdown copy button");
   assert.match(appSrc, /tldrSpeakBtn[\s\S]+?SpeechSynthesisUtterance|speechSynthesis\.speak/,
@@ -10310,6 +10314,8 @@ skip("analyze: TL;DR copies as Markdown", async () => {
     await page.waitForFunction(() => window.__copiedTldrMd && window.__copiedTldrMd.length > 0, { timeout: 8000 });
     const captured = await page.evaluate(() => window.__copiedTldrMd);
     assert.match(captured, /^## TL;DR/, "the copied TL;DR must start with a Markdown heading");
+    assert.match(captured, /Verdict:/, "the copied TL;DR must include the verdict");
+    assert.match(captured, /Reading level:/, "the copied TL;DR must include the reading level");
     assert.match(captured, /\*\*Next step:\*\*/, "the copied TL;DR must include the next step");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
