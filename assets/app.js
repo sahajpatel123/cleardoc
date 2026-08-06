@@ -14335,7 +14335,7 @@
           '</ul>' +
         '</div>'
       )).join('');
-      const controls = '<div class="act-controls"><span class="act-count"><b>' + doneCount + '</b> of ' + totalForCounter + ' done</span><button type="button" class="act-copy ghost-btn ghost-btn-sm" id="actCopyBtn" title="Copy the signing checklist with your progress">📋 copy</button><button type="button" class="act-reset ghost-btn ghost-btn-sm" id="actResetBtn">reset all</button></div>';
+      const controls = '<div class="act-controls"><span class="act-count"><b>' + doneCount + '</b> of ' + totalForCounter + ' done</span><button type="button" class="act-copy ghost-btn ghost-btn-sm" id="actCopyBtn" title="Copy the signing checklist with your progress">📋 copy</button><button type="button" class="act-csv ghost-btn ghost-btn-sm" id="actCsvBtn" title="Download the signing checklist as a .csv file">📊 CSV</button><button type="button" class="act-reset ghost-btn ghost-btn-sm" id="actResetBtn">reset all</button></div>';
       actionGrid.innerHTML = cells + controls;
       actionBlock.hidden = false;
       // Cycle 68 feature — copy the signing checklist with progress, so it
@@ -14383,6 +14383,38 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Checklist copied' : '⚠ Couldn’t copy');
           clearTimeout(actCopyBtn._flashTimer);
           actCopyBtn._flashTimer = setTimeout(() => { if(actCopyBtn.isConnected) actCopyBtn.textContent = '📋 copy'; }, 1400);
+        });
+      }
+      // Cycle #252 — CSV export of the signing checklist with progress,
+      // mirroring the obligations CSV (BOM + OWASP guard + Status column).
+      const actCsvBtn = document.getElementById('actCsvBtn');
+      if(actCsvBtn && !actCsvBtn._actCsvWired){
+        actCsvBtn._actCsvWired = true;
+        actCsvBtn.addEventListener('click', () => {
+          const rows = result.items.map(it => {
+            const role = (labels[it.who] || it.who || '').replace(/^[^\s]+\s*/, '');
+            return [completed[it.key] ? 'done' : 'todo', role, it.label, it.hint];
+          });
+          const csvCell = (v) => {
+            let s = String(v || '');
+            if(/^[=+\-@]/.test(s)) s = "'" + s;
+            return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+          };
+          const header = csvCell('Signing checklist') + ',' + csvCell(doneCount + ' of ' + totalForCounter + ' done') + '\n' +
+            csvCell('Status') + ',' + csvCell('Who') + ',' + csvCell('Action') + ',' + csvCell('Hint');
+          const body = rows.map(r2 => csvCell(r2[0]) + ',' + csvCell(r2[1]) + ',' + csvCell(r2[2]) + ',' + csvCell(r2[3])).join('\n');
+          const text = '\uFEFF' + header + '\n' + body;
+          try{
+            const stamp = new Date().toISOString().slice(0,10);
+            const url = URL.createObjectURL(new Blob([text], { type:'text/csv;charset=utf-8' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-signing-' + stamp + '.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📊 Signing checklist CSV downloaded (' + rows.length + ')');
+          }catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create CSV file');
+          }
         });
       }
     }

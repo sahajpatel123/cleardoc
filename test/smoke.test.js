@@ -9019,6 +9019,25 @@ test("analyzer: Signing checklist copies with checked progress", () => {
     "each copied line must append the role");
 });
 
+// Cycle #252 — the signing checklist exports as a tracker CSV.
+test("analyzer: Signing checklist exports a CSV tracker file", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="actCsvBtn" title="Download the signing checklist as a .csv file"/,
+    "the checklist controls must include a CSV chip");
+  assert.match(appSrc, /const actCsvBtn = document\.getElementById\('actCsvBtn'\);/,
+    "the CSV chip must have a click handler");
+  assert.match(appSrc, /a\.download = 'cleardoc-signing-' \+ stamp \+ '\.csv';/,
+    "the export must download as cleardoc-signing-<date>.csv");
+  assert.match(appSrc, /const csvCell = \(v\) => \{[\s\S]{0,220}\/\^\[=\+\\-\@\]/,
+    "CSV cells must carry the formula-injection guard");
+  assert.match(appSrc, /'📊 Signing checklist CSV downloaded \(' \+ rows\.length \+ '\)'/,
+    "downloading must toast the row count");
+});
+
 // Iter #104: gap detector — surfaces clauses the document is missing
 // (termination / refund / cancellation / privacy / force majeure /
 // liability cap / warranty / auto-renewal / payment / etc.).

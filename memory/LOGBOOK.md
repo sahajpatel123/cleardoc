@@ -5832,3 +5832,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 251 of the autonomous loop (alternate add/polish): a block's note is its instruction manual — when the block grows a new export, the note should grow the sentence that points to it.
+
+**2026-08-07 07:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #252 of the restructured autonomous loop (add).
+- feat(signing): the signing checklist now has a "📊 CSV" chip that downloads every pre-signing task as `cleardoc-signing-<date>.csv` — BOM, a "Signing checklist · N of M done" metadata row, Status/Who/Action/Hint columns, and the OWASP formula-injection guard (mirrors the obligations CSV). The Status column carries the per-item done state, so progress travels with the file.
+- Verified in a real browser via a new integration test (fresh origin, notary + arbitration + counterparts doc): the file downloaded with the right name, BOM, header, and one row per item (all todo on a fresh doc); zero console errors.
+- New smoke source test (5 assertions: chip markup, handler wiring, filename, injection guard, count toast).
+- Full suite green (490 unit + 356 smoke + 14 integration = 860 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 252 of the autonomous loop (alternate add/polish): the to-do list standing between you and a signature belongs in the same tracker as everything else — export it with its progress.
