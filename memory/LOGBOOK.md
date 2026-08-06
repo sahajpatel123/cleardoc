@@ -3358,3 +3358,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 15 of the autonomous loop (alternate add/polish): keep the filter count pill honest across re-analyses.
+
+**2026-08-06 15:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #16 of the restarted autonomous loop (feature add).
+- feat(keys): Ctrl/Cmd+Enter now runs the analysis from anywhere on the page — including while typing in the document textarea (bare Enter still edits). No-ops while an analysis is in flight. Documented in the Analyze button hint and the keyboard-shortcuts help modal.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 234 smoke + 1 integration = 725 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 16 of the autonomous loop (alternate add/polish): add a global keyboard shortcut to run the analysis.

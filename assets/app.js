@@ -1949,6 +1949,7 @@
             <div class="kb-row"><kbd>g</kbd><kbd>a</kbd><span>Open the analyzer</span></div>
             <div class="kb-row"><kbd>g</kbd><kbd>p</kbd><span>See pricing</span></div>
             <div class="kb-row"><kbd>/</kbd><span>Focus the document input</span></div>
+            <div class="kb-row"><kbd>⌘</kbd><kbd>Enter</kbd><span>Run the analysis</span></div>
             <div class="kb-row"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><span>Risk radar filter (all / traps / watches / notes)</span></div>
             <div class="kb-row"><kbd>?</kbd><span>Show this help</span></div>
             <div class="kb-row"><kbd>Esc</kbd><span>Close any modal / banner</span></div>
@@ -2006,6 +2007,13 @@
         }
         if(setFocusMode(false)){ e.preventDefault(); }
         return;
+      }
+
+      // Ctrl/Cmd+Enter runs the analysis from anywhere — including while
+      // typing in the document textarea (Enter alone keeps editing).
+      if((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.key === 'NumpadEnter')){
+        const ab = document.getElementById('analyzeBtn');
+        if(ab && !ab.disabled){ e.preventDefault(); ab.click(); return; }
       }
 
       // From here on, ignore shortcuts when the user is typing into a form field

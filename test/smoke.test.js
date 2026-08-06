@@ -346,6 +346,20 @@ skip("ask thread: answered turns have a copy button that exports answer + citati
   assert.match(themeSrc, /\.ask-copy:focus-visible\{/, "theme.css must give .ask-copy a focus ring");
 });
 
+skip("keyboard: Ctrl/Cmd+Enter runs the analysis from anywhere", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(appSrc, /\(e\.ctrlKey \|\| e\.metaKey\) && \(e\.key === 'Enter' \|\| e\.key === 'NumpadEnter'\)/, "global keydown must handle Ctrl/Cmd+Enter");
+  assert.match(appSrc, /ab\.click\(\)/, "Ctrl/Cmd+Enter must trigger the Analyze button");
+  assert.match(appSrc, /ab && !ab\.disabled/, "the shortcut must no-op while an analysis is in flight");
+  assert.match(analyzeHtml, /Ctrl\/Cmd\+Enter to analyze/, "the Analyze button hint must document the shortcut");
+  assert.match(appSrc, /<kbd>⌘<\/kbd><kbd>Enter<\/kbd><span>Run the analysis<\/span>/, "the help modal must document the shortcut");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
