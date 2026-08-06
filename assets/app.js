@@ -10972,10 +10972,13 @@
         // Iter #155 polish — click-to-jump + per-date .ics
         const jumpAttr = ' data-party-jump="' + (it.type === 'date' ? '' : esc(it.value)) + '" data-party-offset="' + (it.offset || 0) + '"';
         const icsBtn = it.type === 'date' ? '<button type="button" class="party-ics ghost-btn ghost-btn-sm" data-party-ics="' + esc(it.value) + '" title="Save this date to your calendar">📅</button>' : '';
+        // Cycle #136 — per-cell copy (name or date + role/title).
+        const copyVal = (it.type === 'name' ? '👤 party: ' : '📅 date: ') + it.value + (it.title ? ' (' + it.title + ')' : '');
         return '<div class="party-cell ' + cls + '"' + jumpAttr + ' title="Click to jump to this in the source">' +
           '<div class="party-type">' + (it.type === 'name' ? '👤 party' : '📅 date') + '</div>' +
           '<div class="party-value">' + esc(it.value) + (it.title ? ' · ' + esc(it.title) : '') + '</div>' +
           icsBtn +
+          '<button type="button" class="party-copy ghost-btn ghost-btn-sm" data-party-copy="' + esc(copyVal) + '" title="Copy this party detail" aria-label="Copy this party detail">📋</button>' +
         '</div>';
       }).join('');
       partyGrid.innerHTML = cells +
@@ -10985,8 +10988,30 @@
         const nameCount = p.items.filter(i => i.type === 'name').length;
         const dateCount = p.items.filter(i => i.type === 'date').length;
         partyNote.innerHTML = '<span class="riskNote-lead">' + nameCount + ' party name' + (nameCount === 1 ? '' : 's') + ' · ' + dateCount + ' date' + (dateCount === 1 ? '' : 's') + (p.hasSignature ? ' · signature clause found' : '') + '</span> ' +
-          'Regex-extracted from the analyzed text. Click any row to jump. Use 📅 to save a date to your calendar. Helpful for sending a counter-letter to the right person at the right time.';
+          'Regex-extracted from the analyzed text. Click any row to jump, 📋 to copy one, or use 📅 to save a date to your calendar. Helpful for sending a counter-letter to the right person at the right time.';
       }
+      // Cycle #136 — per-cell copy. stopPropagation keeps the name rows'
+      // click-to-jump from firing when the copy button is pressed.
+      $$('.party-copy', partyGrid).forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const text = btn.getAttribute('data-party-copy') || '';
+          if(!text) return;
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Party detail copied' : '⚠ Couldn’t copy');
+          btn.textContent = copied ? '✓' : '📋';
+          if(copied) setTimeout(() => { if(btn.isConnected) btn.textContent = '📋'; }, 1500);
+        });
+      });
       // Iter #155 polish — click-to-jump for names
       $$('.party-name', partyGrid).forEach(row => {
         row.addEventListener('click', () => {

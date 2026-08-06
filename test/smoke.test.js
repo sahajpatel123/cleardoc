@@ -9818,6 +9818,31 @@ test("analyzer: Party audit extracts parties + dates + signatures from the docum
   assert.match(cssSrc, /\.party-ics\b/, ".party-ics button style must exist");
 });
 
+// Cycle #136 — per-party-cell copy.
+test("analyzer: Party cells copy their detail in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /const copyVal = \(it\.type === 'name' \? '👤 party: ' : '📅 date: '\) \+ it\.value \+ \(it\.title \? ' \(' \+ it\.title \+ '\)' : ''\);/,
+    "the citation must carry the type, value, and role/title");
+  assert.match(appSrc, /class="party-copy ghost-btn ghost-btn-sm"/,
+    "each party cell must render a copy button");
+  assert.match(appSrc, /data-party-copy="' \+ esc\(copyVal\) \+ '"/,
+    "the copy button must carry the prebuilt citation");
+  assert.match(appSrc, /\$\$\('\.party-copy', partyGrid\)\.forEach/,
+    "copy buttons must be wired after each render");
+  assert.match(appSrc, /e\.stopPropagation\(\);/,
+    "copying must not trigger the row's jump-to-source");
+  assert.match(appSrc, /📋 Party detail copied/,
+    "copying must announce via toast");
+  assert.match(appSrc, /copyBtn\.textContent = copied \? '✓' : '📋';/,
+    "the button must flash its copied state");
+  assert.match(appSrc, /📋 to copy one/,
+    "the block note must document the copy action");
+});
+
 // Iter #156: glossary quick-reference — extracts legal terms + plain-English.
 test("analyzer: Glossary quick-reference extracts legal terms with plain-English meanings", () => {
   if (!HAS_BROWSER) return;

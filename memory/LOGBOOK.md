@@ -4580,3 +4580,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 135 of the autonomous loop (alternate add/polish): the copy button should sit calmly at the row's right edge at every width.
+
+**2026-08-06 03:38 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #136 of the restarted autonomous loop (add).
+- feat(ui): every party-audit cell now has a one-click 📋 copy button — it copies "👤 party: {name} ({title})" or "📅 date: {date}", with clipboard API + `execCommand` fallback, toast, and a ✓ flash. The copy button's own listener calls `stopPropagation`, so it never triggers the name rows' click-to-jump; the block note documents the action.
+- New smoke test "Party cells copy their detail in one click" — 8 assertions covering the citation shape, button markup/data, per-render wiring, the stopPropagation guard, toast, flash, and note.
+- Full suite green (490 unit + 303 smoke + 1 integration = 794 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 136 of the autonomous loop (alternate add/polish): the name you're about to address a counter-letter to should copy in one click.
