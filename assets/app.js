@@ -9904,8 +9904,12 @@
           '</div>' +
           '<div class="scenario-detail">' + esc(s.detail) + '</div>' +
           suggestionHtml +
-          '<button type="button" class="scenario-ask ghost-btn ghost-btn-sm" data-scenario-ask="' + esc((s.ifText || '') + ' → ' + (s.thenText || '')) + '" data-scenario-sev="' + esc(s.severity) + '" title="Ask about this scenario" aria-label="Ask about this scenario">💬</button>' +
-          '<button type="button" class="scenario-copy ghost-btn ghost-btn-sm" data-scenario-copy-text="' + esc(copyText) + '" title="Copy this scenario as a citation" aria-label="Copy this scenario as a citation">📋</button>' +
+          // Cycle #131 — the ask + copy actions hang together in a
+          // right-aligned corner, like the other card action clusters.
+          '<span class="scenario-actions">' +
+            '<button type="button" class="scenario-ask ghost-btn ghost-btn-sm" data-scenario-ask="' + esc((s.ifText || '') + ' → ' + (s.thenText || '')) + '" data-scenario-sev="' + esc(s.severity) + '" title="Ask about this scenario" aria-label="Ask about this scenario">💬</button>' +
+            '<button type="button" class="scenario-copy ghost-btn ghost-btn-sm" data-scenario-copy-text="' + esc(copyText) + '" title="Copy this scenario as a citation" aria-label="Copy this scenario as a citation">📋</button>' +
+          '</span>' +
         '</div>';
       }).join('');
       const badCount = ordered.filter(s => s.severity === 'bad').length;

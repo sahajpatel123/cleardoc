@@ -144,6 +144,7 @@ skip("ask: citation in local-fallback includes the matched sentence + a quote", 
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // Source-pattern: localAnswer returns a citeFmt string built from
   // the matched sentence + a 140-char truncated quote.
@@ -9454,6 +9455,10 @@ test("analyzer: Scenario cards copy their citation in one click", () => {
     "the button must flash its copied state");
   assert.match(appSrc, /<b>📋<\/b> copies one as a citation\./,
     "the block note must document the copy action");
+  assert.match(appSrc, /class="scenario-actions"/,
+    "the ask + copy buttons must be grouped into one cluster");
+  assert.match(cssSrc, /\.scenario-actions\{[^}]*justify-content:flex-end/,
+    "the action cluster must right-align in the card");
 });
 
 // Iter #140: section risk map — aggregates risk patterns by

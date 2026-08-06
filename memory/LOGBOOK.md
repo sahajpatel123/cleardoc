@@ -4530,3 +4530,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 130 of the autonomous loop (alternate add/polish): a predicted "if this, then that" should copy with its counter-suggestion in one click.
+
+**2026-08-06 02:28 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #131 of the restarted autonomous loop (polish).
+- polish(ui): the scenario card's 💬 ask and 📋 copy buttons now hang together in a right-aligned `.scenario-actions` cluster (`justify-content:flex-end`), matching the action-corner treatment used by the deadline, smoking-gun, exposure, and pressure cards.
+- Extended the cycle-130 smoke test with 2 assertions covering the group markup and the right-alignment CSS (10 total in that test).
+- Full suite green (490 unit + 300 smoke + 1 integration = 791 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 131 of the autonomous loop (alternate add/polish): every card's actions belong in the same predictable corner.
