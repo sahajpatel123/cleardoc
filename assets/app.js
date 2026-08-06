@@ -352,9 +352,13 @@
         }
       } catch(_){}
       btn.textContent = ok ? '✓' : '✕';
+      btn.setAttribute('aria-label', ok ? 'Deadline copied to clipboard' : 'Copy failed — try again');
       if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📅 Deadline copied' : '⚠ Couldn’t copy');
       clearTimeout(btn._flashTimer);
-      btn._flashTimer = setTimeout(() => { btn.textContent = '📋'; }, 1400);
+      btn._flashTimer = setTimeout(() => {
+        btn.textContent = '📋';
+        btn.setAttribute('aria-label', 'Copy this deadline');
+      }, 1400);
     });
   }
   wireDeadlineCopy();

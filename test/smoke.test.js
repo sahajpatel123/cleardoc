@@ -533,6 +533,8 @@ skip("deadlines: each row has a copy button for a single deadline", async () => 
   assert.match(appSrc, /function wireDeadlineCopy\(/, "app.js must define wireDeadlineCopy");
   assert.match(appSrc, /'📅 Deadline copied'/, "deadline copy must toast on success");
   assert.match(appSrc, /'📅 ' \+ date/, "deadline copy must export date + description");
+  assert.match(appSrc, /btn\.setAttribute\('aria-label', ok \? 'Deadline copied to clipboard' : 'Copy failed — try again'\)/, "deadline copy must announce success via aria-label");
+  assert.match(appSrc, /btn\.setAttribute\('aria-label', 'Copy this deadline'\)/, "deadline copy must restore the original aria-label");
   assert.match(themeSrc, /\.deadline-copy\{/, "theme.css must style .deadline-copy");
   assert.match(themeSrc, /\.deadline-copy:focus-visible\{/, "theme.css must give .deadline-copy a focus ring");
 });
