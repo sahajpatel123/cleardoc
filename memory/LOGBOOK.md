@@ -5352,3 +5352,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 208 of the autonomous loop (alternate add/polish): before you commit the time, know how much of it the important parts will take.
+
+**2026-08-06 22:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #209 of the restarted autonomous loop (polish).
+- polish(reading): the "min left" chip no longer lies when the work is done — the remaining-time computation splits the raw estimate from the `Math.max(1, …)` floor, and the label only appears when `undoneWords > 0` AND the remaining estimate is below the total. Previously, finishing every chunk still showed "~1 min left" because of the floor.
+- Verified in a real browser with a mocked analyze flow (two-bucket document): one chunk done → "… · ~2 min left"; both chunks done → no "min left"; zero console errors. (A bulk-click probe raced the re-renders and produced a misleading intermediate state; sequential clicks confirmed the real behavior.)
+- Updated the cycle-#201 smoke test: 2 assertions re-targeted to the split raw/floor computation and 1 to the `undoneWords > 0` guard.
+- Full suite green (490 unit + 337 smoke + 1 integration = 828 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 209 of the autonomous loop (alternate add/polish): "done" should mean done — no phantom minutes left after the last checkbox.

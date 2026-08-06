@@ -10232,9 +10232,11 @@ test("analyzer: reading count shows time remaining after progress", () => {
 
   assert.match(appSrc, /const undoneWords = r\.groups\.reduce\(\(a, c\) => a \+ \(isDone\(c\) \? 0 : \(c\.signalsAcc\.wordCount \|\| 0\)\), 0\);/,
     "the renderer must count words across the undone chunks");
-  assert.match(appSrc, /const remainingMins = Math\.max\(1, Math\.round\(undoneWords \/ 200\)\);/,
+  assert.match(appSrc, /const remainingRaw = Math\.round\(undoneWords \/ 200\);/,
     "the remaining minutes must reuse the 200-wpm estimate");
-  assert.match(appSrc, /remainingMins < totalMins \? ' · ~' \+ remainingMins \+ ' min left' : ''/,
+  assert.match(appSrc, /const remainingMins = Math\.max\(1, remainingRaw\);/,
+    "the remaining minutes must floor at 1");
+  assert.match(appSrc, /undoneWords > 0 && remainingMins < totalMins \? ' · ~' \+ remainingMins \+ ' min left' : ''/,
     "the count line must show remaining time once progress has started");
   // Cycle #208 — the lead shows the must-reads' share of total time.
   assert.match(appSrc, /const mustWords = r\.buckets\.must\.reduce\(\(a, c\) => a \+ \(c\.signalsAcc\.wordCount \|\| 0\), 0\);/,
