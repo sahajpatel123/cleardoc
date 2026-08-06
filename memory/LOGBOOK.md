@@ -4113,3 +4113,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 90 of the autonomous loop (alternate add/polish): a suggested question should never require retyping — click it, ask it.
+
+**2026-08-06 16:56 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #91 of the restarted autonomous loop (polish).
+- polish(ui): the Questions-to-ask 💬 flow now has keyboard parity with the risk rows — pressing `a` while focus is on any `.ques-row` (e.g. after using its copy/done buttons) prefills the Ask panel with that row's question, same as the per-risk `a` shortcut. The row-shortcut keydown handler now detects both `.rrow` and `.ques-row` and only claims keys for the row that is actually focused; the `e` expand shortcut stays risk-row-only.
+- The questions note documents the shortcut: "Click 💬 (shortcut: a) to ask the document that exact question".
+- Extended the cycle-90 smoke test with 3 assertions covering the `.ques-row` detection, the combined early-return, and the row-targeted ask-button lookup; updated the note-text assertion to the new wording.
+- Full suite green (490 unit + 278 smoke + 1 integration = 769 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 91 of the autonomous loop (alternate add/polish): the one-click question flow should work from the keyboard too.

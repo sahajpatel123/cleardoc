@@ -8769,11 +8769,18 @@ test("analyzer: Questions-to-ask rows can prefill the Ask panel with one click",
   assert.match(appSrc, /showAnalyzeToast\('💬 Question ready — press Ask'\)/,
     "clicking must announce the prefilled question via toast");
   // The block note tells users the 💬 action exists.
-  assert.match(appSrc, /Click <b>💬<\/b> to ask the document that exact question/,
+  assert.match(appSrc, /Click <b>💬<\/b> \(shortcut: a\) to ask the document that exact question/,
     "the questions note must document the ask action");
   // CSS: the ask button shares the row-button styling.
   assert.match(cssSrc, /\.ques-copy,\.ques-ask\{/,
     ".ques-ask must share the row-button style");
+  // Cycle #91 polish — the risk-row 'a' shortcut now also serves question rows.
+  assert.match(appSrc, /const qrow = t && t\.closest \? t\.closest\('\.ques-row'\) : null;/,
+    "the row-shortcut handler must detect question rows");
+  assert.match(appSrc, /if\(!row && !qrow\) return;/,
+    "the handler must ignore keys outside risk and question rows");
+  assert.match(appSrc, /row \? \(row\.querySelector && row\.querySelector\('\.rrow-ask'\)\) : \(qrow \? qrow\.querySelector\('\.ques-ask'\) : null\)/,
+    "the a shortcut must target the ask button of whichever row is focused");
 });
 
 // Iter #128: negotiation playbook — ordered steps with impact +

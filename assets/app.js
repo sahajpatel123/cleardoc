@@ -1454,8 +1454,11 @@
     if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || (t.isContentEditable === true))) return;
     const key = e.key;
     const row = t && t.closest ? t.closest('.rrow') : null;
-    if(!row) return;
-    if(key === 'e' || key === 'E'){
+    // Cycle #91 — question rows get the same 'a' shortcut as risk rows
+    // (prefill the Ask panel with the row's 💬 action).
+    const qrow = t && t.closest ? t.closest('.ques-row') : null;
+    if(!row && !qrow) return;
+    if(row && (key === 'e' || key === 'E')){
       const counter = row.querySelector('.rrow-counter');
       if(!counter) return; // no counter-suggestion → nothing to expand
       e.preventDefault();
@@ -1469,7 +1472,7 @@
       return;
     }
     if(key === 'a' || key === 'A'){
-      const ask = row.querySelector && row.querySelector('.rrow-ask');
+      const ask = row ? (row.querySelector && row.querySelector('.rrow-ask')) : (qrow ? qrow.querySelector('.ques-ask') : null);
       if(!ask) return;
       e.preventDefault();
       ask.click();
@@ -11641,7 +11644,7 @@
       quesBlock.hidden = false;
       if(quesNote){
         quesNote.innerHTML = '<span class="riskNote-lead">' + answeredCount + ' of ' + total + ' answered</span> ' +
-          'Ordered by priority (trap → watch → note). Click <b>💬</b> to ask the document that exact question, ◯ to mark answered, 📋 to copy, or copy the whole list.';
+          'Ordered by priority (trap → watch → note). Click <b>💬</b> (shortcut: a) to ask the document that exact question, ◯ to mark answered, 📋 to copy, or copy the whole list.';
       }
       if(quesCopyBtn){
         quesCopyBtn.addEventListener('click', async () => {
