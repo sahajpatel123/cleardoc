@@ -4710,3 +4710,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 148 of the autonomous loop (alternate add/polish): a predicted outcome should be hearable while you weigh it.
+
+**2026-08-06 06:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #149 of the restarted autonomous loop (polish).
+- polish(ui): the scenario action cluster's buttons (speak / ask / copy) are now shrink-proof (`flex-shrink:0` on the cluster's ghost buttons), and the speak button gets a proper focus ring.
+- Extended the cycle-148 smoke test with 2 CSS assertions covering the shrink guard and the focus ring.
+- Full suite green (490 unit + 309 smoke + 1 integration = 800 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 149 of the autonomous loop (alternate add/polish): the three scenario actions should hold their corner at every width.

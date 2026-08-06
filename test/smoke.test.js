@@ -9551,6 +9551,7 @@ test("analyzer: Scenario cards read the scenario aloud in one click", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /class="scenario-speak ghost-btn ghost-btn-sm"/,
     "each scenario card must render a speak button");
@@ -9564,6 +9565,10 @@ test("analyzer: Scenario cards read the scenario aloud in one click", () => {
     "the reading must respect the chosen speed");
   assert.match(appSrc, /🔊<\/b> reads it aloud\./,
     "the block note must document the speak action");
+  assert.match(cssSrc, /\.scenario-actions \.ghost-btn\{[^}]*flex-shrink:0/,
+    "the action buttons must never shrink");
+  assert.match(cssSrc, /\.scenario-speak:focus-visible\{/,
+    "the speak button must have a focus ring");
 });
 
 // Cycle #132 — ask about any risk-allocation row.
