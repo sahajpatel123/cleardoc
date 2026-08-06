@@ -3798,3 +3798,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 59 of the autonomous loop (alternate add/polish): one clear button per search field, not two.
+
+**2026-08-06 22:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #60 of the restarted autonomous loop (feature add).
+- feat(ui): the history panel now has an ⬇ Export button that downloads every saved analysis as a JSON backup (cleardoc-history-<date>.json) — exportedAt timestamp + count + full entries — so localStorage history survives browser clears and device swaps. Empty history toasts instead of exporting, and the button uses a non-destructive ink hover (unlike Clear history).
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 262 smoke + 1 integration = 753 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 60 of the autonomous loop (alternate add/polish): history should be backed up, not just cleared.

@@ -4009,6 +4009,48 @@ test("analyzer: history panel searches past analyses by keyword", () => {
     "native WebKit cancel must be hidden on the find input (custom ✕ exists)");
 });
 
+// Cycle 60 feature: one-tap JSON backup of all saved analyses.
+test("analyzer: History panel exports a JSON backup of all analyses", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html must carry the export button in the history actions row
+  assert.match(html, /id="historyExportBtn" title="Download all past analyses as a JSON backup"/,
+    "analyze.html must contain #historyExportBtn with a descriptive title");
+  assert.match(html, /id="historyExportBtn"[^>]*>⬇ Export</,
+    "export button must show a download affordance");
+
+  // Wiring: once-only guard + read from the live history store
+  assert.match(appSrc, /historyExportBtn\._historyExportWired/,
+    "export wiring must be guarded so it is attached only once");
+  assert.match(appSrc, /readHistoryRaw\(\)/,
+    "export must read the current history store");
+  assert.match(appSrc, /'⚠ No history to export yet'/,
+    "export must toast when history is empty");
+
+  // Payload + download path
+  assert.match(appSrc, /JSON\.stringify\(\{ exportedAt:/,
+    "export must wrap the entries with an exportedAt timestamp");
+  assert.match(appSrc, /new Blob\(\[text\], \{ type:'application\/json;charset=utf-8' \}\)/,
+    "export must download as application/json UTF-8");
+  assert.match(appSrc, /a\.download = 'cleardoc-history-' \+ stamp \+ '\.json'/,
+    "filename must be cleardoc-history-<date>.json");
+  assert.match(appSrc, /URL\.revokeObjectURL\(url\)/,
+    "object URL must be revoked after the download");
+  assert.match(appSrc, /'⬇ History exported \(' \+ items\.length/,
+    "export must toast with the exported count");
+
+  // CSS: non-destructive action style (ink hover, not danger)
+  assert.match(cssSrc, /\.history-panel \.hp-export\{/,
+    "theme.css must style .hp-export within the history panel");
+  assert.match(cssSrc, /\.history-panel \.hp-export:hover\{[^}]*background:var\(--ink\)/,
+    "export hover must use the ink hover, not the destructive danger hover");
+});
+
 test("analyzer: voice picker dropdown lets users choose a specific TTS voice", () => {
   // New feature — dropdown populated with available SpeechSynthesis
   // voices, preferring the detected language. User pick is persisted

@@ -3170,6 +3170,7 @@
           micBtn=$('#micBtn'),
           historyBtn=$('#historyBtn'),historyPanel=$('#historyPanel'),
           historyList=$('#historyList'),historyClearBtn=$('#historyClearBtn'),
+          historyExportBtn=$('#historyExportBtn'),
           historySearch=$('#historySearch'),
           historySearchClear=$('#historySearchClear'),
           historyFilter=$('#historyFilter'),
@@ -16188,6 +16189,30 @@
           historyClearBtn.addEventListener('click', () => {
             if(typeof clearHistory === 'function') clearHistory();
             renderHistory();
+          });
+        }
+        // Cycle 60 feature — one-tap JSON backup of all saved analyses so
+        // localStorage history survives browser clears and device swaps.
+        if(historyExportBtn && !historyExportBtn._historyExportWired){
+          historyExportBtn._historyExportWired = true;
+          historyExportBtn.addEventListener('click', () => {
+            const items = (typeof readHistoryRaw === 'function') ? readHistoryRaw() : [];
+            if(!items.length){
+              if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No history to export yet');
+              return;
+            }
+            try{
+              const stamp = new Date().toISOString().slice(0,10);
+              const text = JSON.stringify({ exportedAt: new Date().toISOString(), count: items.length, items: items }, null, 2);
+              const url = URL.createObjectURL(new Blob([text], { type:'application/json;charset=utf-8' }));
+              const a = document.createElement('a');
+              a.href = url; a.download = 'cleardoc-history-' + stamp + '.json';
+              document.body.appendChild(a); a.click(); document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⬇ History exported (' + items.length + ')');
+            }catch(_){
+              if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t export history');
+            }
           });
         }
       }
