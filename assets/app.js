@@ -9312,11 +9312,17 @@
           '<input type="range" class="exposure-prob" data-exposure-prob="' + it.offset + '" min="' + (it.unbounded ? 1 : 1) + '" max="100" value="' + Math.round(p * 100) + '" aria-label="probability">' +
           '<span class="exposure-prob-value" data-exposure-prob-val="' + it.offset + '">' + Math.round(p * 100) + '%</span>' +
         '</div>';
+        // Cycle #123 — per-card copy citation (mirrors the risk/deadline/
+        // smoking-gun copy buttons).
+        const copyText = '[EXPOSURE · ' + (it.unbounded ? 'unbounded' : (it.kind === 'amount' ? 'payable' : it.kind)) + '] ' + worstDisplay + ' — "' + trunc(it.sentence, 220) + '"' +
+          (it.why ? '\nWhy: ' + it.why : '') +
+          '\n— ClearDoc exposure citation';
         return '<div class="exposure-card ' + cardCls + '" data-exposure-offset="' + it.offset + '" data-exposure-len="' + it.length + '" title="Click anywhere except the slider to jump">' +
           '<div class="exposure-card-head">' +
             '<span class="exposure-kind">' + esc(kindLabel) + '</span>' +
             '<span class="exposure-meta">' + esc(it.label) + '</span>' +
             '<span class="exposure-amount ' + amountCls + '">' + worstDisplay + '</span>' +
+            '<button type="button" class="exposure-card-copy ghost-btn ghost-btn-sm" data-exposure-copy-text="' + esc(copyText) + '" title="Copy this exposure as a citation" aria-label="Copy this exposure as a citation">📋</button>' +
           '</div>' +
           '<div class="exposure-quote">"' + esc(trunc(it.sentence, 220)) + '"</div>' +
           '<div class="exposure-worst-line">' + esc(it.why) + '</div>' +
@@ -9393,7 +9399,28 @@
       }
       // Click-to-jump, ignoring slider.
       $$('.exposure-card', exposureGrid).forEach(card => {
-        card.addEventListener('click', (e) => {
+        card.addEventListener('click', async (e) => {
+          // Cycle #123 — 📋 copies the card as a citation instead of jumping.
+          const copyBtn = e.target.closest && e.target.closest('[data-exposure-copy-text]');
+          if(copyBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = copyBtn.getAttribute('data-exposure-copy-text') || '';
+            if(!text) return;
+            let copied = false;
+            try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+            if(!copied){
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                copied = true;
+              } catch(_){ /* ignore */ }
+            }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Exposure citation copied' : '⚠ Couldn’t copy');
+            copyBtn.textContent = copied ? '✓' : '📋';
+            if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋'; }, 1500);
+            return;
+          }
           if(e.target && (e.target.classList.contains('exposure-prob') || e.target.classList.contains('exposure-prob-value'))) return;
           if(!input) return;
           const off = parseInt(card.getAttribute('data-exposure-offset') || '-1', 10);

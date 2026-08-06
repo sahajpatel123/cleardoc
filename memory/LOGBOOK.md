@@ -4450,3 +4450,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 122 of the autonomous loop (alternate add/polish): the single most important quote in your document should copy as one click, not one screenshot.
+
+**2026-08-06 00:36 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #123 of the restarted autonomous loop (polish).
+- polish(ui): exposure cards now have a one-click 📋 copy-citation button in the header — "[EXPOSURE · payable/unbounded/{kind}] {amount} — \"{sentence}\"" plus the why-line, with clipboard API + `execCommand` fallback, toast, and a ✓ flash. The card click handler has a dedicated `[data-exposure-copy-text]` branch so copying never triggers the jump-to-source behavior, and the slider-ignore guard still applies to everything else.
+- New smoke test "Exposure cards copy their citation in one click" — 8 assertions covering the button markup, citation shape (tag, amount, sentence), prebuilt data attribute, click-handler branch, clipboard API, toast, and flash.
+- Full suite green (490 unit + 296 smoke + 1 integration = 787 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 123 of the autonomous loop (alternate add/polish): a dollar figure worth quoting should copy with its source in one click.
