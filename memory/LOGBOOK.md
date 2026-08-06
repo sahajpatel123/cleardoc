@@ -4359,3 +4359,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 113 of the autonomous loop (alternate add/polish): copy and save should be two buttons backed by one Markdown builder.
+
+**2026-08-06 22:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #114 of the restarted autonomous loop (add).
+- feat(ui): the browser tab title now carries the risk tally — after an analysis with flagged risks, the tab reads "⚠ N risks · {Level} · ClearDoc" (singular "risk" for 1, level from `computeThreatScore`), so the count survives tab-switching without reopening the page. Clean documents restore the default title; clearing the analysis (`resetRiskTitle` in the clear handler) and "Forget me" both reset it.
+- Painted on both the analysis render path and the restore/re-render path, next to `paintTopConcern`.
+- New smoke test "Risk tally is surfaced in the browser tab title and reset on clear/forget" — 9 assertions covering the default-title constant, painter, count+level title shape, clean-doc restore, both paint call sites, the reset helper, the clear-handler reset, and the forget reset.
+- Full suite green (490 unit + 291 smoke + 1 integration = 782 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 114 of the autonomous loop (alternate add/polish): the risk count should be visible even when the page isn't.

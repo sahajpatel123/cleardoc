@@ -2211,6 +2211,8 @@
       if(askInput) askInput.disabled = true;
       const askBtn = document.getElementById('askBtn');
       if(askBtn) askBtn.disabled = true;
+      // Cycle #114 — wipe the risk tally from the tab title too.
+      try { document.title = 'ClearDoc — Read what you sign. Finally.'; } catch(_){ /* ignore */ }
     } catch(_) {}
 
     // 4. Drop the service worker + clear its caches so the offline shell
@@ -3737,6 +3739,24 @@
       else if(score < 100)         { level = 'High';     tone = 'high'; }
       else                         { level = 'Critical'; tone = 'critical'; }
       return { score: score, level: level, tone: tone, traps: traps, watches: watches, notes: notes, total: list.length };
+    }
+    // Cycle #114 — surface the risk tally in the browser tab title so
+    // the count survives tab-switching without reopening the page.
+    const DEFAULT_TITLE = 'ClearDoc — Read what you sign. Finally.';
+    function paintRiskTitle(flags){
+      try {
+        const t = (typeof computeThreatScore === 'function') ? computeThreatScore(flags) : null;
+        const total = t && t.total ? t.total : 0;
+        if(total > 0){
+          const label = t.level ? ' · ' + t.level : '';
+          document.title = '⚠ ' + total + ' risk' + (total === 1 ? '' : 's') + label + ' · ClearDoc';
+        } else {
+          document.title = DEFAULT_TITLE;
+        }
+      } catch(_){ /* ignore */ }
+    }
+    function resetRiskTitle(){
+      try { document.title = DEFAULT_TITLE; } catch(_){ /* ignore */ }
     }
     // Render the threat score block from the current `lastFlags` array.
     // Hidden when there are zero flags so the verdict block doesn't grow
@@ -13723,6 +13743,7 @@
       wireRiskRowExpand();
       paintRiskFilter(flags);
       paintTopConcern(flags);
+      paintRiskTitle(flags);
       wireAskPerRisk();
       wireCopyPerRisk();
       paintSectionNav();
@@ -14338,6 +14359,7 @@
         wireRiskRowExpand();
         paintRiskFilter(lastFlags);
         paintTopConcern(lastFlags);
+        paintRiskTitle(lastFlags);
         wireAskPerRisk();
         wireCopyPerRisk();
         paintSectionNav();
@@ -15802,7 +15824,7 @@
     }
 
     if(btn) btn.addEventListener('click',analyze);
-    if(clearBtn) clearBtn.addEventListener('click',()=>{ setFocusMode(false); setPrivacyBlur(false); input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); clearDraft(); updateTextStats(); input.focus(); });
+    if(clearBtn) clearBtn.addEventListener('click',()=>{ setFocusMode(false); setPrivacyBlur(false); input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); clearDraft(); updateTextStats(); resetRiskTitle(); input.focus(); });
 
     /* ---- Live text stats (word/char count + estimated reading level) ---- */
     function updateTextStats(){

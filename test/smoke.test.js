@@ -10652,6 +10652,33 @@ test("analyzer: RISK array detects Intellectual Property / Work for Hire trap", 
     "IP Assignment rule must explain why IP transfer is a trap");
 });
 
+// Cycle #114 — the risk tally lives in the tab title too.
+test("analyzer: Risk tally is surfaced in the browser tab title and reset on clear/forget", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /const DEFAULT_TITLE = 'ClearDoc — Read what you sign\. Finally\.';/,
+    "the default title must be preserved for the reset path");
+  assert.match(appSrc, /function paintRiskTitle\(flags\)\{/,
+    "a tab-title painter must exist");
+  assert.match(appSrc, /document\.title = '⚠ ' \+ total \+ ' risk' \+ \(total === 1 \? '' : 's'\) \+ label \+ ' · ClearDoc';/,
+    "the title must carry the risk count and level");
+  assert.match(appSrc, /document\.title = DEFAULT_TITLE;/,
+    "clean documents must restore the default title");
+  assert.match(appSrc, /paintRiskTitle\(flags\);/,
+    "the painter must run on the analysis render path");
+  assert.match(appSrc, /paintRiskTitle\(lastFlags\);/,
+    "the painter must run on the restore/re-render path");
+  assert.match(appSrc, /function resetRiskTitle\(\)\{/,
+    "a reset helper must exist");
+  assert.match(appSrc, /updateTextStats\(\); resetRiskTitle\(\);/,
+    "clearing the analysis must reset the tab title");
+  assert.match(appSrc, /document\.title = 'ClearDoc — Read what you sign\. Finally\.'; \} catch\(_\)\{ \/\* ignore \*\/ \}/,
+    "Forget me must reset the tab title");
+});
+
 skip("dark mode: toggle applies, persists, and survives reload without console errors", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
