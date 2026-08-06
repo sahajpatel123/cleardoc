@@ -10617,6 +10617,7 @@ test("analyzer: Strategy-board cards copy their counter-clause in one click", ()
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /const copyVal = '\[COUNTER-CLAUSE · ' \+ it\.label \+ '\] "' \+ it\.sample \+ '" → "' \+ it\.counter \+ '"';/,
     "the citation must carry label, sample, and counter-clause");
@@ -10632,6 +10633,10 @@ test("analyzer: Strategy-board cards copy their counter-clause in one click", ()
     "copying must announce via toast");
   assert.match(appSrc, /<b>📋<\/b> to copy one/,
     "the block note must document the copy action");
+  assert.match(cssSrc, /\.board-card-copy\{[^}]*align-self:flex-end/,
+    "the copy button must right-align in the card");
+  assert.match(cssSrc, /\.board-card-copy:focus-visible\{/,
+    "the copy button must have a focus ring");
 });
 
 // Iter #168: risk priority matrix — 2x2 quadrants.
