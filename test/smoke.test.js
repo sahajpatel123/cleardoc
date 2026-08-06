@@ -593,6 +593,19 @@ skip("keyboard: Escape clears results when the Clear hint promises it", async ()
   assert.match(handler, /cl\.click\(\); return;/, "Escape must trigger the Clear button");
   assert.match(handler, /!isTypingTarget\(e\.target\)/, "Escape must not clear while typing");
   assert.match(handler, /rp && !rp\.hidden/, "Escape must only clear when results are visible");
+  assert.match(handler, /if\(e\.defaultPrevented\) return;/, "Escape must not clear when an overlay already consumed it");
+});
+
+skip("confirm modal: Escape closes without triggering the clear shortcut", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const hStart = appSrc.indexOf("function showConfirmModal");
+  assert.ok(hStart > -1, "showConfirmModal must exist");
+  const handler = appSrc.slice(hStart, hStart + 500);
+  assert.match(handler, /if\(e\.key === 'Escape'\)\{ e\.preventDefault\(\); close\(false\); \}/, "confirm modal must preventDefault before closing");
 });
 
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {

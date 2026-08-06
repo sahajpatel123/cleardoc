@@ -3588,3 +3588,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 38 of the autonomous loop (alternate add/polish): make Escape honor the Clear button's documented shortcut.
+
+**2026-08-06 18:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #39 of the restarted autonomous loop (polish).
+- polish(keys): the new Esc-clears behavior could stack on top of overlays — pressing Esc while a risk row, compare panel, jargon preview, or the Apply confirm modal was open would close that overlay AND clear the analysis. The global Escape handler now bails when a descendant already consumed the key (`e.defaultPrevented`), and the confirm modal now preventDefaults like every other overlay.
+- Extended the Escape-clears smoke test + added a confirm-modal test.
+- Full suite green (490 unit + 251 smoke + 1 integration = 742 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 39 of the autonomous loop (alternate add/polish): never clear the analysis when Escape was meant for an overlay.

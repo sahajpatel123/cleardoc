@@ -2095,6 +2095,10 @@
     document.addEventListener('keydown', e => {
       // Always honor Escape, even while typing — to close any open modal/banner
       if(e.key === 'Escape'){
+        // A descendant handler (risk rows, compare, jargon preview, find,
+        // confirm modal) already consumed this Escape — never stack the
+        // clear-results behavior on top of it.
+        if(e.defaultPrevented) return;
         if(isModalOpen()){ e.preventDefault(); closeHelp(); return; }
         const rb = document.getElementById('restoreBanner');
         const sb = document.getElementById('shareBanner');
@@ -2984,7 +2988,7 @@
         else if(e.target.matches('[data-acm-bg]')) close(false);
       });
       m.addEventListener('keydown', (e) => {
-        if(e.key === 'Escape') close(false);
+        if(e.key === 'Escape'){ e.preventDefault(); close(false); }
         else if(e.key === 'Enter' && document.activeElement && document.activeElement.matches('.acm-confirm')) close(true);
       });
       if(typeof opts.onRender === 'function'){
