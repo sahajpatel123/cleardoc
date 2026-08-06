@@ -5336,6 +5336,7 @@
           '<span class="cur-count">' + result.hits.length + ' of ' + result.hits.length + ' amounts</span>' +
           '<button type="button" class="cur-only-big ghost-btn ghost-btn-sm" id="curOnlyBigBtn" title="Hide amounts under $100,000">only $100k+</button>' +
           '<button type="button" class="cur-why ghost-btn ghost-btn-sm" id="curWhyBtn" title="Why do these numbers matter?">why?</button>' +
+          '<button type="button" class="cur-copy-all ghost-btn ghost-btn-sm" id="curCopyAllBtn" title="Copy the visible amounts as plain text">📋 copy all</button>' +
         '</div>';
       currencyBlock.hidden = false;
       if(currencyNote){
@@ -5478,6 +5479,30 @@
               confirmLabel: 'Got it',
             });
           }
+        });
+      }
+      // Cycle #240 — copy-all: exports the visible amounts (respects the
+      // only-$100k+ filter) with the same citation format as per-row copy.
+      const curCopyAllBtn = document.getElementById('curCopyAllBtn');
+      if(curCopyAllBtn){
+        curCopyAllBtn.addEventListener('click', async () => {
+          const only = currencyList.classList.contains('cur-only-big');
+          const visible = result.hits.filter(h => !only || h.value >= 100000);
+          if(!visible.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No amounts to copy');
+            return;
+          }
+          const text = visible.map(h => h.code + ' ' + h.value.toLocaleString('en-US') + ' — "' + h.raw + '"' +
+            (h.context ? ' · in: "' + trunc(h.context, 80) + '"' : '')).join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); copied = true; } catch(_){}
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Amounts copied (' + visible.length + ')' + (only ? ' · filtered' : '') : '⚠ Couldn’t copy');
+          curCopyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
+          setTimeout(() => { if(curCopyAllBtn.isConnected) curCopyAllBtn.textContent = '📋 copy all'; }, 2500);
         });
       }
     }

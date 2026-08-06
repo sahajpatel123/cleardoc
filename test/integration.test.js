@@ -759,6 +759,10 @@ skip("integration: currency only-big filter persists", async () => {
       }
       return origFetch(url, opts);
     };
+    window.__clipboardCapture = [];
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText = (t) => { window.__clipboardCapture.push(t); return Promise.resolve(); };
+    }
   });
 
   const doc = "The license fee is $250,000 and the annual maintenance fee is $50.";
@@ -787,6 +791,13 @@ skip("integration: currency only-big filter persists", async () => {
     assert.match(countAfter, /^1 of 2 amounts$/, `the count must reflect the visible rows, got "${countAfter}"`);
     assert.match(noteText, /only \$100k\+/, "the currency note must document the filter chip");
 
+    // Cycle #240 — copy-all respects the active filter.
+    await page.click("#curCopyAllBtn");
+    await page.waitForTimeout(200);
+    const filteredCopy = await page.evaluate(() => window.__clipboardCapture[window.__clipboardCapture.length - 1] || "");
+    assert.match(filteredCopy, /250,000/, "the filtered copy must include the big amount");
+    assert.equal(filteredCopy.split("\n").length, 1, "the filtered copy must carry exactly one row");
+
     // Reload + re-analyze: the restored view must come back on.
     await page.reload({ waitUntil: "networkidle" });
     await analyze();
@@ -798,6 +809,17 @@ skip("integration: currency only-big filter persists", async () => {
     assert.equal(labelRestored, "show all amounts", "the restored chip must carry the active label");
     const countRestored = await page.$eval(".cur-controls .cur-count", (el) => el.textContent.trim());
     assert.match(countRestored, /^1 of 2 amounts$/, `the restored view must show the accurate count, got "${countRestored}"`);
+
+    // Toggle back to all amounts and copy again (full set).
+    await page.click("#curOnlyBigBtn");
+    await page.waitForTimeout(200);
+    const storedOff = await page.evaluate(() => localStorage.getItem("cleardoc:money-onlybig"));
+    assert.equal(storedOff, "0", "toggling back must persist the off state");
+    await page.click("#curCopyAllBtn");
+    await page.waitForTimeout(200);
+    const allCopy = await page.evaluate(() => window.__clipboardCapture[window.__clipboardCapture.length - 1] || "");
+    assert.ok(allCopy.includes("$50"), "the full copy must include the small amount");
+    assert.equal(allCopy.split("\n").length, 2, "the full copy must carry both rows");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();

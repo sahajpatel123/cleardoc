@@ -8697,6 +8697,25 @@ test("analyzer: currency only-big filter persists", () => {
     "the currency note must document the filter chip");
 });
 
+// Cycle #240 — bulk copy of the visible currency amounts.
+test("analyzer: currency block copies the visible amounts", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="curCopyAllBtn" title="Copy the visible amounts as plain text"/,
+    "the currency controls must include a copy-all chip");
+  assert.match(appSrc, /const curCopyAllBtn = document\.getElementById\('curCopyAllBtn'\);/,
+    "the copy-all chip must have a click handler");
+  assert.match(appSrc, /const visible = result\.hits\.filter\(h => !only \|\| h\.value >= 100000\);/,
+    "the export must respect the only-big filter");
+  assert.match(appSrc, /'📋 Amounts copied \(' \+ visible\.length \+ '\)' \+ \(only \? ' · filtered' : ''\)/,
+    "copying must toast the count with a filtered tag");
+  assert.match(appSrc, /'⚠ No amounts to copy'/,
+    "an empty visible set must be reported");
+});
+
 // Iter #100: key-clause highlighter — picks the 3-4 most consequential
 // sentences in the analyzed document and surfaces them in a "read
 // twice" preview block above the textarea. Pure local.

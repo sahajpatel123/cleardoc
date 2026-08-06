@@ -5700,3 +5700,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 239 of the autonomous loop (alternate add/polish): a filter that lies about its count ("2 of 2" while one row is hidden) undermines the whole view — count what's actually visible, and tell the note what the chip does.
+
+**2026-08-07 05:12 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #240 of the restructured autonomous loop (add).
+- feat(currency): the currency block now has a "📋 copy all" chip that exports the visible amounts as plain text (same citation format as per-row copy: `USD 250,000 — "raw" · in: "context"`), respecting the "only $100k+" filter and tagging filtered exports in the toast. Empty visible sets say "No amounts to copy".
+- Verified in a real browser via the extended currency integration test (fresh origin + clipboard stub): with the filter on, copy-all captured exactly the $250,000 row; a reload + re-analyze restored the filtered view; toggling back to all amounts and copying again captured both rows; zero console errors.
+- New smoke source test (5 assertions: chip markup, handler wiring, filter-respecting selection, count toast with filtered tag, empty state).
+- Full suite green (490 unit + 349 smoke + 8 integration = 847 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 240 of the autonomous loop (alternate add/polish): every block in the app can export what it found except the money block — give amounts the same one-click copy treatment, filtered view and all.
