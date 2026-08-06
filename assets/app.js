@@ -15121,6 +15121,8 @@
             '<p id="dtm-meta" class="dtm-meta mono">Detected with ' + esc(dt.confidence) + ' confidence (' + dt.matches + ' signal' + (dt.matches === 1 ? '' : 's') + ').</p>' +
             (tip ? '<p class="dtm-tip"><b>Watch for:</b> ' + esc(tip) + '.</p>' : '') +
             '<p class="dtm-foot mono">ClearDoc flags these phrases in the analysis and suggests what to ask for instead.</p>' +
+            // Cycle #218 — export the explainer.
+            '<button type="button" class="dtm-copy" data-dtm-copy="1" title="Copy this explanation">📋 copy</button>' +
           '</div>';
         document.body.appendChild(m);
         // Cycle #203 — move focus into the dialog and return it on close.
@@ -15133,7 +15135,25 @@
             try { returnFocus.focus({preventScroll:true}); } catch(_){ returnFocus.focus(); }
           }
         };
-        m.addEventListener('click', (e) => {
+        m.addEventListener('click', async (e) => {
+          const copyBtn = e.target.closest && e.target.closest('[data-dtm-copy]');
+          if(copyBtn){
+            const copyText = 'Detected as ' + dt.label + ' (' + dt.confidence + ' confidence, ' + dt.matches + ' signal' + (dt.matches === 1 ? '' : 's') + ')' + (tip ? ' — Watch for: ' + tip : '');
+            let copied = false;
+            try { if(navigator.clipboard){ await navigator.clipboard.writeText(copyText); copied = true; } }
+            catch(_){ /* fall through */ }
+            if(!copied){
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = copyText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                copied = true;
+              } catch(_){ /* ignore */ }
+            }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Explanation copied' : '⚠ Couldn’t copy');
+            copyBtn.textContent = copied ? '✓' : '📋 copy';
+            if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 1500);
+            return;
+          }
           if(e.target.closest('[data-dtm-bg], [data-dtm-close], .kb-modal-close')) close();
         });
         document.addEventListener('keydown', function onEsc(e){
@@ -15190,6 +15210,8 @@
             '<h2 id="dtm-title" class="kb-modal-title mono">' + esc(label) + ' verdict</h2>' +
             '<p class="dtm-tip">' + esc(text) + '</p>' +
             '<p class="dtm-foot mono">ClearDoc’s verdict is a readability signal, not legal advice.</p>' +
+            // Cycle #218 — export the explainer.
+            '<button type="button" class="dtm-copy" data-dtm-copy="1" title="Copy this explanation">📋 copy</button>' +
           '</div>';
         document.body.appendChild(m);
         const closeBtn = m.querySelector('.kb-modal-close');
@@ -15201,7 +15223,25 @@
             try { returnFocus.focus({preventScroll:true}); } catch(_){ returnFocus.focus(); }
           }
         };
-        m.addEventListener('click', (e) => {
+        m.addEventListener('click', async (e) => {
+          const copyBtn = e.target.closest && e.target.closest('[data-dtm-copy]');
+          if(copyBtn){
+            const copyText = 'Verdict: ' + label + ' — ' + text;
+            let copied = false;
+            try { if(navigator.clipboard){ await navigator.clipboard.writeText(copyText); copied = true; } }
+            catch(_){ /* fall through */ }
+            if(!copied){
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = copyText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                copied = true;
+              } catch(_){ /* ignore */ }
+            }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Explanation copied' : '⚠ Couldn’t copy');
+            copyBtn.textContent = copied ? '✓' : '📋 copy';
+            if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 1500);
+            return;
+          }
           if(e.target.closest('[data-dtm-bg], [data-dtm-close], .kb-modal-close')) close();
         });
         document.addEventListener('keydown', function onEsc(e){

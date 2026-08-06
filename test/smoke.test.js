@@ -12104,6 +12104,14 @@ test("analyzer: contract type badge opens a plain-English explainer", () => {
     "the visible badge must read as clickable");
   assert.match(cssSrc, /\.contract-type-badge\.visible::after\{[^}]*content:' ⓘ'/,
     "the badge must show a ⓘ affordance without touching its text");
+  // Cycle #218 — the explainer modal exports itself.
+  assert.match(appSrc, /data-dtm-copy="1"/,
+    "the explainer modal must offer a copy action");
+  assert.match(appSrc, /'Detected as ' \+ dt\.label \+ ' \(' \+ dt\.confidence \+ ' confidence/,
+    "the copied text must lead with the detected type and confidence");
+  assert.match(appSrc, /'📋 Explanation copied'/,
+    "copying must toast on success");
+  assert.match(cssSrc, /\.dtm-copy\{/, "the copy button must be styled");
 });
 
 // Cycle #206 — the verdict label explains itself.
@@ -12136,6 +12144,10 @@ test("analyzer: verdict label opens a plain-English explainer", () => {
   assert.match(cssSrc, /\.verdict-label:focus-visible\{/, "the verdict label must have a focus ring");
   assert.match(cssSrc, /\.verdict-label::after\{[^}]*content:' ⓘ'/,
     "the verdict label must show a ⓘ affordance without touching its text");
+  // Cycle #218 — the verdict explainer exports itself.
+  assert.match(appSrc, /'Verdict: ' \+ label \+ ' — ' \+ text/,
+    "the copied verdict text must lead with the label and explanation");
+  assert.match(cssSrc, /\.dtm-copy:focus-visible\{/, "the copy button must have a focus ring");
 });
 
 // Iter #224: Contract Readiness Score — single 0-100 number for quick decisions.

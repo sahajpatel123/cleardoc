@@ -5451,3 +5451,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 217 of the autonomous loop (alternate add/polish): an empty must-bucket deserves an honest message, not a claim that the work is done.
+
+**2026-08-06 23:28 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #218 of the restarted autonomous loop (add).
+- feat(explainers): both explainer modals (contract-type badge and verdict label) now carry a "📋 copy" button that exports their plain-text explanation — the type modal copies "Detected as Lease (high confidence, 6 signals) — Watch for: …", the verdict modal copies "Verdict: Suspicious — <explanation>". Clipboard API + execCommand fallback, ✓ flash, and a shared toast.
+- Verified in a real browser with a mocked analyze flow: both modals' copies captured the exact expected text; zero console errors.
+- Extended the cycle-#202 and cycle-#206 smoke tests with 5 assertions total (copy action, both payload formats, shared toast, CSS ×2).
+- Full suite green (490 unit + 340 smoke + 1 integration = 831 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 218 of the autonomous loop (alternate add/polish): an explanation you can't keep is a lecture — make both explainers copyable.

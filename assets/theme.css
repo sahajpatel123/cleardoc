@@ -1451,6 +1451,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 .dtm-meta{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);color:var(--ink-soft)}
 .dtm-tip b{color:var(--accent-text)}
 .dtm-foot{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);margin-top:12px}
+.dtm-copy{margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--ink);background:var(--paper);color:var(--ink);padding:6px 12px;cursor:pointer}
+.dtm-copy:hover{background:var(--ink);color:var(--paper)}
+.dtm-copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* ---- deadlines list ---- */
 .deadlines-list{display:flex;flex-direction:column;gap:10px;margin-top:var(--s2)}
