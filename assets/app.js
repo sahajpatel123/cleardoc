@@ -12110,8 +12110,40 @@
       // Iter #133 polish — clear-history chip (per-document)
       trendGrid.insertAdjacentHTML('beforeend',
         '<div class="trend-cell trend-controls-cell">' +
+          '<button type="button" class="ghost-btn ghost-btn-sm" id="trendCopyBtn" title="Copy the trend summary as plain text">📋 copy</button>' +
           '<button type="button" class="ghost-btn ghost-btn-sm" id="trendClearBtn" title="Remove all prior runs from localStorage">🗑 clear history</button>' +
         '</div>');
+      // Cycle #156 — copy the trend summary for a lawyer, team, or notes.
+      const copyTrendBtn = document.getElementById('trendCopyBtn');
+      if(copyTrendBtn){
+        copyTrendBtn.addEventListener('click', async () => {
+          const lines = ['ClearDoc risk trend · ' + history.length + ' run' + (history.length === 1 ? '' : 's')];
+          lines.push('Latest: maturity ' + mletter + ' (' + (mnum || 0) + '/100) · ' + total + ' risks (' + tal.r + ' trap / ' + tal.a + ' watch / ' + tal.g + ' note)' + (exposure ? ' · exposure ' + exposure : ''));
+          const last10 = history.slice(0, 10).reverse();
+          if(last10.length >= 2){
+            const nums = last10.map(h => h.num || 0);
+            const min = Math.min.apply(null, nums);
+            const max = Math.max.apply(null, nums);
+            const range = Math.max(1, max - min);
+            const spark = nums.map(n => { const t = (n - min) / range; const hh = Math.round(t * 5); return '▁▂▃▄▅▆'[hh] || '▁'; }).join('');
+            lines.push('Sparkline (last ' + last10.length + '): ' + spark + ' (' + min + '–' + max + '/100)');
+          }
+          const text = lines.join('\n');
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Trend copied' : '⚠ Couldn’t copy');
+          copyTrendBtn.textContent = copied ? '✓ copied' : '📋 copy';
+          clearTimeout(copyTrendBtn._flashTimer);
+          copyTrendBtn._flashTimer = setTimeout(() => { if(copyTrendBtn.isConnected) copyTrendBtn.textContent = '📋 copy'; }, 1800);
+        });
+      }
       const clearBtn = document.getElementById('trendClearBtn');
       if(clearBtn){
         clearBtn.addEventListener('click', () => {
@@ -12121,7 +12153,7 @@
       }
       if(trendNote){
         trendNote.innerHTML = '<span class="riskNote-lead">' + history.length + ' analysis run' + (history.length === 1 ? '' : 's') + ' logged</span> ' +
-          'Fingerprint + score saved locally on this device. Sparkline above (·) shows last 10 scores. Clear if you want a fresh history.';
+          'Fingerprint + score saved locally on this device. Sparkline above (·) shows last 10 scores. <b>📋 copy</b> exports the summary, 🗑 clears the history.';
       }
     }
     function letterIndex(s){

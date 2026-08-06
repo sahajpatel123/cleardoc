@@ -6159,6 +6159,29 @@ test("analyzer: risk-trend chart shows a sparkline of recent risk counts", () =>
     "trend modal must show the latest value + delta vs the previous one");
 });
 
+// Cycle #156 — copy the trend summary.
+test("analyzer: Trend block copies its summary in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="trendCopyBtn" title="Copy the trend summary as plain text"/,
+    "the trend controls must include a copy button");
+  assert.match(appSrc, /ClearDoc risk trend · ' \+ history\.length/,
+    "the export must open with the run count");
+  assert.match(appSrc, /Latest: maturity ' \+ mletter/,
+    "the export must carry the latest maturity + risk tally");
+  assert.match(appSrc, /Sparkline \(last ' \+ last10\.length \+ '\)/,
+    "the export must include the sparkline");
+  assert.match(appSrc, /📋 Trend copied/,
+    "copying must announce via toast");
+  assert.match(appSrc, /copyTrendBtn\._flashTimer/,
+    "the button label must flash and restore");
+  assert.match(appSrc, /<b>📋 copy<\/b> exports the summary/,
+    "the block note must document the copy action");
+});
+
 test("analyzer: Negotiation playbook export opens a printable window with suggestions + tips + versions", () => {
   // New feature — exports the full negotiation workflow
   // (suggestions + tips + saved versions) as a printable

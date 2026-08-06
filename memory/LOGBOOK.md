@@ -4780,3 +4780,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 155 of the autonomous loop (alternate add/polish): the sentence you're told to read twice should be hearable too.
+
+**2026-08-06 08:18 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #156 of the restarted autonomous loop (add).
+- feat(ui): the risk-trend block now has a "📋 copy" button that exports the whole trend summary as plain text — run count, latest maturity + risk tally (traps/watches/notes), exposure when present, and the last-10 sparkline with its min–max range — with clipboard API + `execCommand` fallback, toast, and a flash-restore label. The block note documents the action.
+- New smoke test "Trend block copies its summary in one click" — 7 assertions covering the button markup, run-count header, latest-maturity line, sparkline inclusion, toast, flash timer, and note.
+- Full suite green (490 unit + 314 smoke + 1 integration = 805 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 156 of the autonomous loop (alternate add/polish): a trend worth watching should be worth pasting into the conversation.
