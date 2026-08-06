@@ -15897,8 +15897,10 @@
           if(historyFilter) historyFilter.hidden = true;
           if(historySearch) historySearch.hidden = true;
           if(historySearchClear) historySearchClear.hidden = true;
+          if(historyExportBtn){ historyExportBtn.disabled = true; historyExportBtn.title = 'No history to export yet'; }
           return;
         }
+        if(historyExportBtn){ historyExportBtn.disabled = false; historyExportBtn.title = 'Download all past analyses as a JSON backup'; }
         if(historySearch) historySearch.hidden = false;
         if(historySearchClear) historySearchClear.hidden = !(historySearch && (historySearch.value || '').trim());
         // Update the filter row — show count per language so users

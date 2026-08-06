@@ -3808,3 +3808,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 60 of the autonomous loop (alternate add/polish): history should be backed up, not just cleared.
+
+**2026-08-06 22:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #61 of the restarted autonomous loop (polish).
+- polish(ui): the history Export button now disables itself with a "No history to export yet" title while the history store is empty, and re-enables with its normal title as soon as entries exist — the empty state is visible before clicking, not discovered via a toast after.
+- Extended the history-export smoke test with the disabled-state, title-swap, and CSS assertions.
+- Full suite green (490 unit + 262 smoke + 1 integration = 753 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 61 of the autonomous loop (alternate add/polish): say "nothing to export" before the click, not after.

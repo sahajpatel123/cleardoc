@@ -4049,6 +4049,15 @@ test("analyzer: History panel exports a JSON backup of all analyses", () => {
     "theme.css must style .hp-export within the history panel");
   assert.match(cssSrc, /\.history-panel \.hp-export:hover\{[^}]*background:var\(--ink\)/,
     "export hover must use the ink hover, not the destructive danger hover");
+  // Cycle 61 polish — export disables itself while history is empty
+  assert.match(appSrc, /if\(historyExportBtn\)\{ historyExportBtn\.disabled = true; historyExportBtn\.title = 'No history to export yet'; \}/,
+    "export must disable with an explanatory title when history is empty");
+  assert.match(appSrc, /if\(historyExportBtn\)\{ historyExportBtn\.disabled = false; historyExportBtn\.title = 'Download all past analyses as a JSON backup'; \}/,
+    "export must re-enable with the normal title when history has entries");
+  assert.match(cssSrc, /\.history-panel \.hp-export:disabled\{[^}]*cursor:not-allowed/,
+    "disabled export must show a not-allowed cursor");
+  assert.match(cssSrc, /\.history-panel \.hp-export:disabled:hover\{[^}]*background:transparent/,
+    "disabled export must not show the hover fill");
 });
 
 test("analyzer: voice picker dropdown lets users choose a specific TTS voice", () => {
