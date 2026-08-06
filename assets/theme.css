@@ -1550,6 +1550,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .act-count{font-family:'JetBrains Mono',monospace;color:var(--ink);text-transform:uppercase;font-size:var(--t-micro);margin-right:auto}
 .act-count b{font-weight:700;color:var(--green)}
 .act-reset{margin-left:0;font-size:11px;padding:2px 8px}
+/* Cycle 68 — signing checklist copy chip, same family as reset. */
+.act-copy{font-size:11px;padding:2px 8px}
 
 /* Gap detector (iter #104) — what's missing from the document. */
 .gap-list{display:flex;flex-direction:column;gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.45}

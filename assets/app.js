@@ -12241,9 +12241,46 @@
           '</ul>' +
         '</div>'
       )).join('');
-      const controls = '<div class="act-controls"><span class="act-count"><b>' + doneCount + '</b> of ' + totalForCounter + ' done</span><button type="button" class="act-reset ghost-btn ghost-btn-sm" id="actResetBtn">reset all</button></div>';
+      const controls = '<div class="act-controls"><span class="act-count"><b>' + doneCount + '</b> of ' + totalForCounter + ' done</span><button type="button" class="act-copy ghost-btn ghost-btn-sm" id="actCopyBtn" title="Copy the signing checklist with your progress">📋 copy</button><button type="button" class="act-reset ghost-btn ghost-btn-sm" id="actResetBtn">reset all</button></div>';
       actionGrid.innerHTML = cells + controls;
       actionBlock.hidden = false;
+      // Cycle 68 feature — copy the signing checklist with progress, so it
+      // can be pasted into an email, checklist app, or shared with counsel.
+      const actCopyBtn = document.getElementById('actCopyBtn');
+      if(actCopyBtn && !actCopyBtn._actCopyWired){
+        actCopyBtn._actCopyWired = true;
+        actCopyBtn.addEventListener('click', async () => {
+          const lines = [];
+          actionGrid.querySelectorAll('.act-item').forEach(li => {
+            const done = li.classList.contains('act-checked');
+            const label = ((li.querySelector('.act-label') || {}).textContent || '').replace(/\s+/g, ' ').trim();
+            if(label) lines.push((done ? '[✓] ' : '[ ] ') + label);
+          });
+          if(!lines.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy yet');
+            return;
+          }
+          const doneCountCopy = actionGrid.querySelectorAll('.act-item.act-checked').length;
+          const totalCopy = actionGrid.querySelectorAll('.act-item').length;
+          const text = 'Signing checklist · ' + doneCountCopy + ' of ' + totalCopy + ' done\n' + lines.join('\n');
+          let ok = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(text);
+              ok = true;
+            } else {
+              const ta = document.createElement('textarea');
+              ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+              document.body.appendChild(ta); ta.select();
+              ok = document.execCommand('copy'); document.body.removeChild(ta);
+            }
+          } catch(_){ /* ignore */ }
+          actCopyBtn.textContent = ok ? '✓ copied' : 'Copy failed';
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Checklist copied' : '⚠ Couldn’t copy');
+          clearTimeout(actCopyBtn._flashTimer);
+          actCopyBtn._flashTimer = setTimeout(() => { if(actCopyBtn.isConnected) actCopyBtn.textContent = '📋 copy'; }, 1400);
+        });
+      }
     }
 
     function renderGapBlock(result){

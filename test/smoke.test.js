@@ -7831,6 +7831,33 @@ test("analyzer: Signing checklist polished with per-item toggle + persistence + 
     ".act-reset style must exist");
 });
 
+// Cycle 68 feature: copy the signing checklist with progress.
+test("analyzer: Signing checklist copies with checked progress", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // The copy chip lives in the checklist controls row
+  assert.match(appSrc, /id="actCopyBtn" title="Copy the signing checklist with your progress"/,
+    "the checklist controls must include a copy chip");
+  assert.match(appSrc, /actCopyBtn\._actCopyWired/,
+    "copy wiring must be guarded so it is attached only once");
+  assert.match(appSrc, /\(done \? '\[✓\] ' : '\[ \] '\) \+ label/,
+    "done items must export with [✓] and pending with [ ]");
+  assert.match(appSrc, /li\.classList\.contains\('act-checked'\)/,
+    "the done state must be read live from the checked class");
+  assert.match(appSrc, /'Signing checklist · ' \+ doneCountCopy/,
+    "the export must include a progress header");
+  assert.match(appSrc, /'📋 Checklist copied'/,
+    "copy must toast on success");
+  assert.match(appSrc, /actCopyBtn\._flashTimer = setTimeout\(\(\) => \{ if\(actCopyBtn\.isConnected\) actCopyBtn\.textContent = '📋 copy'; \}, 1400\);/,
+    "the chip must flash and restore its label");
+  assert.match(cssSrc, /\.act-copy\{/,
+    "theme.css must style .act-copy");
+});
+
 // Iter #104: gap detector — surfaces clauses the document is missing
 // (termination / refund / cancellation / privacy / force majeure /
 // liability cap / warranty / auto-renewal / payment / etc.).
