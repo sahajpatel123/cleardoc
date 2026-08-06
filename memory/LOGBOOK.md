@@ -5330,3 +5330,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 206 of the autonomous loop (alternate add/polish): a verdict word should never be a mystery — tap it and know what it means before you act on it.
+
+**2026-08-06 22:43 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #207 of the restarted autonomous loop (polish).
+- polish(discoverability): the clickable verdict label and contract-type badge now show a subtle ⓘ glyph via CSS `::after` — a pure-visual affordance that never pollutes `textContent`, so copy actions (verdict copy, badge print) still read clean. The tooltips and keyboard affordances from cycles 202/206 are unchanged.
+- Verified in a real browser with a mocked analyze flow: the verdict label's text stayed exactly "Suspicious", the computed `::after` content was " ⓘ" on both the label and the badge, and clicking still opened the explainer; zero console errors.
+- Extended the cycle-#202 and cycle-#206 smoke tests with 1 CSS assertion each for the ⓘ affordance.
+- Full suite green (490 unit + 337 smoke + 1 integration = 828 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 207 of the autonomous loop (alternate add/polish): if it's clickable, it should look clickable — a quiet ⓘ that stays out of the data.

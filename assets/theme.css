@@ -1299,6 +1299,7 @@ button.risk-preview:hover{filter:brightness(.96)}
 .verdict-label.illegal{background:var(--danger);color:#fff;border:2px solid var(--danger)}
 .verdict-label{cursor:pointer}
 .verdict-label:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.verdict-label::after{content:' ⓘ';font-size:.72em;opacity:.75}
 .verdict-summary{font-size:var(--t-body);line-height:1.5;color:var(--ink-soft);flex:1}
 
 /* Threat score (iter #216) — at-a-glance weighted severity score
@@ -1440,6 +1441,7 @@ button.risk-preview:hover{filter:brightness(.96)}
 .contract-type-badge.visible{display:inline-block}
 .contract-type-badge.visible{cursor:pointer}
 .contract-type-badge.visible:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.contract-type-badge.visible::after{content:' ⓘ';opacity:.7}
 .dtm-meta{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);color:var(--ink-soft)}
 .dtm-tip b{color:var(--accent-text)}
 .dtm-foot{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);margin-top:12px}

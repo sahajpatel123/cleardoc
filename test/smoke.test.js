@@ -12007,6 +12007,8 @@ test("analyzer: contract type badge opens a plain-English explainer", () => {
     "the print badge must still be populated for printed copies");
   assert.match(cssSrc, /\.contract-type-badge\.visible\{cursor:pointer\}/,
     "the visible badge must read as clickable");
+  assert.match(cssSrc, /\.contract-type-badge\.visible::after\{[^}]*content:' ⓘ'/,
+    "the badge must show a ⓘ affordance without touching its text");
 });
 
 // Cycle #206 — the verdict label explains itself.
@@ -12037,6 +12039,8 @@ test("analyzer: verdict label opens a plain-English explainer", () => {
   assert.match(cssSrc, /\.verdict-label\{cursor:pointer\}/,
     "the verdict label must read as clickable");
   assert.match(cssSrc, /\.verdict-label:focus-visible\{/, "the verdict label must have a focus ring");
+  assert.match(cssSrc, /\.verdict-label::after\{[^}]*content:' ⓘ'/,
+    "the verdict label must show a ⓘ affordance without touching its text");
 });
 
 // Iter #224: Contract Readiness Score — single 0-100 number for quick decisions.
