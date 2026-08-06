@@ -9630,6 +9630,29 @@ test("analyzer: Bearer rows can ask the document about the risk in one click", (
     "the a shortcut must target the bearer ask button");
 });
 
+// Cycle #158 — per-bearer-row copy citation.
+test("analyzer: Bearer rows copy their risk allocation in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /const copyVal = '\[BEARER · ' \+ \(it\.side === 'you' \? 'you' : it\.side === 'them' \? 'them' : 'shared'\) \+ '\] ' \+ it\.label \+ ': "' \+ trunc\(it\.quote, 200\) \+ '"'/,
+    "the citation must carry the side, label, and quoted clause");
+  assert.match(appSrc, /class="bearer-row-copy ghost-btn ghost-btn-sm"/,
+    "each bearer row must render a copy button");
+  assert.match(appSrc, /data-bearer-copy-text="' \+ esc\(copyVal\) \+ '"/,
+    "the copy button must carry the prebuilt citation");
+  assert.match(appSrc, /\$\$\('\.bearer-row-copy', bearerGrid\)\.forEach/,
+    "copy buttons must be wired after each render");
+  assert.match(appSrc, /e\.stopPropagation\(\);/,
+    "copying must not trigger the row's jump or ask");
+  assert.match(appSrc, /📋 Risk allocation copied/,
+    "copying must announce via toast");
+  assert.match(appSrc, /<b>📋<\/b> to copy one/,
+    "the block note must document the copy action");
+});
+
 // Cycle #134 — per-chunk copy in the reading list.
 test("analyzer: Reading-list chunks copy their quote in one click", () => {
   if (!HAS_BROWSER) return;

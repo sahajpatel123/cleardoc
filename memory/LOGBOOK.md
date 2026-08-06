@@ -4800,3 +4800,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 157 of the autonomous loop (alternate add/polish): the trend's two actions should sit comfortably in their corner.
+
+**2026-08-06 08:46 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #158 of the restarted autonomous loop (add).
+- feat(ui): every bearer (risk-allocation) row now has a one-click 📋 copy button — "[BEARER · you/them/shared] {label}: \"{quote}\"" plus the why-line, with clipboard API + `execCommand` fallback, toast, and a ✓ flash. The copy button's own listener calls `stopPropagation`, so copying never triggers the row's jump or ask; the block note documents the action, completing the bearer row's action set (ask / copy).
+- New smoke test "Bearer rows copy their risk allocation in one click" — 7 assertions covering the citation shape, button markup/data, per-render wiring, the stopPropagation guard, toast, and note.
+- Full suite green (490 unit + 315 smoke + 1 integration = 806 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 158 of the autonomous loop (alternate add/polish): the risk that lands on you should copy with its who-pays answer in one click.

@@ -7815,6 +7815,28 @@
         });
       });
       // Filter chips — also persist the choice across analyses.
+      // Cycle #158 — per-row copy. stopPropagation keeps the row's
+      // click-to-jump and ask from firing when the button is pressed.
+      $$('.bearer-row-copy', bearerGrid).forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const text = btn.getAttribute('data-bearer-copy-text') || '';
+          if(!text) return;
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Risk allocation copied' : '⚠ Couldn’t copy');
+          btn.textContent = copied ? '✓' : '📋';
+          if(copied) setTimeout(() => { if(btn.isConnected) btn.textContent = '📋'; }, 1500);
+        });
+      });
       const setFilter = (next) => {
         moneyGrid._moneyFilter = moneyGrid._moneyFilter === next ? 'all' : next;
         try { localStorage.setItem('cleardoc:money-filter', moneyGrid._moneyFilter); } catch(_){ /* ignore */ }
@@ -10324,12 +10346,15 @@
         : '';
       const cards = visible.map(it => {
         const tag = '<span class="bearer-tag bearer-tag-' + it.side + '">' + (it.side === 'you' ? '🔴 you bear' : it.side === 'them' ? '🟢 they bear' : '🟡 shared') + '</span>';
+        // Cycle #158 — per-row copy citation.
+        const copyVal = '[BEARER · ' + (it.side === 'you' ? 'you' : it.side === 'them' ? 'them' : 'shared') + '] ' + it.label + ': "' + trunc(it.quote, 200) + '"' + (it.why ? '\nWhy: ' + it.why : '');
         return '<div class="bearer-row" data-bearer-offset="' + it.offset + '" data-bearer-len="' + it.length + '" title="Click to jump to the clause in the source">' +
           '<div class="bearer-row-head">' + tag + '<span class="bearer-row-name">' + esc(it.label) + '</span></div>' +
           '<div class="bearer-quote">"' + esc(trunc(it.quote, 240)) + '"</div>' +
           '<div class="bearer-explain">' + esc(it.why) + '</div>' +
           // Cycle #132 — one-click ask about this risk allocation.
           '<button type="button" class="bearer-ask ghost-btn ghost-btn-sm" data-bearer-ask="' + esc(trunc(it.quote, 160)) + '" data-bearer-side="' + esc(it.side) + '" title="Ask about this risk" aria-label="Ask about this risk">💬</button>' +
+          '<button type="button" class="bearer-row-copy ghost-btn ghost-btn-sm" data-bearer-copy-text="' + esc(copyVal) + '" title="Copy this risk allocation" aria-label="Copy this risk allocation">📋</button>' +
         '</div>';
       }).join('');
       const filterChips = '<div class="bearer-filter-row">' +
@@ -10348,7 +10373,7 @@
         const lead = r.counts.you + ' you · ' + r.counts.them + ' them · ' + r.counts.shared + ' shared';
         const tone = r.skew >= 2 ? ' <b>⚠ This contract is one-sided in their favor.</b> Ask to make indemnification mutual, the liability cap reciprocal, and the jury-trial waiver optional.' : '';
         bearerNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
-          'Pure-local. For every flagged clause, we ask the question most people do not: <b>who actually pays?</b> The bar shows red where you bear risk, green where they bear risk, and amber where both sides do. ' + tone + ' Click any row to jump to the clause, <b>💬</b> to ask about a risk, or <b>📋 copy</b> to export the list.';
+          'Pure-local. For every flagged clause, we ask the question most people do not: <b>who actually pays?</b> The bar shows red where you bear risk, green where they bear risk, and amber where both sides do. ' + tone + ' Click any row to jump to the clause, <b>💬</b> to ask about a risk, <b>📋</b> to copy one, or <b>📋 copy</b> to export the list.';
       }
       $$('.bearer-row', bearerGrid).forEach(row => {
         row.addEventListener('click', (e) => {
