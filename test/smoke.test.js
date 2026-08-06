@@ -8377,6 +8377,36 @@ test("analyzer: Tone analyzer measures trust / pressure / clarity across the doc
   assert.match(cssSrc, /\.tone-ex\b/, ".tone-ex style must exist");
 });
 
+// Cycle 86 feature: copy the tone summary as plain text.
+test("analyzer: Tone analyzer copies its summary as plain text", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // The copy chip lives in the tone note next to read-verdict
+  assert.match(appSrc, /id="toneCopyBtn" title="Copy the tone summary as plain text"/,
+    "the tone block must include a copy chip");
+  assert.match(appSrc, /toneCopyBtn\.addEventListener\(\s*['"]click['"]/,
+    "the copy chip must have a click handler");
+  assert.match(appSrc, /'Tone analyzer · ' \+ tone\.words\.toLocaleString\('en-US'\)/,
+    "the summary must open with the analyzed word count");
+  assert.match(appSrc, /'Overall tone: ' \+ verdict/,
+    "the summary must include the overall verdict");
+  assert.match(appSrc, /'Trust signals: ' \+ tone\.trust \+ '\/100/,
+    "the summary must include the trust axis score");
+  assert.match(appSrc, /'Pressure signals: ' \+ tone\.pressure \+ '\/100/,
+    "the summary must include the pressure axis score");
+  assert.match(appSrc, /'Plain-language clarity: ' \+ tone\.clarity \+ '\/100/,
+    "the summary must include the clarity axis score");
+  assert.match(appSrc, /'📋 Tone summary copied'/,
+    "copy must toast on success");
+  assert.match(appSrc, /toneCopyBtn\.setAttribute\('aria-label', ok \? 'Tone summary copied to clipboard' : 'Copy failed — try again'\)/,
+    "copy must announce success/failure via aria-label");
+  assert.match(appSrc, /toneCopyBtn\.setAttribute\('aria-label', 'Copy the tone summary'\)/,
+    "copy must restore the original aria-label");
+});
+
 // Iter #114: date timeline — surfaces the next 12 upcoming dates
 // extracted from the analyzed document. Pure local regex extraction.
 test("analyzer: Date timeline surfaces the next 12 upcoming deadlines", () => {

@@ -4058,3 +4058,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 85 of the autonomous loop (alternate add/polish): the spreadsheet should carry the request, not just the diagnosis.
+
+**2026-08-06 02:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #86 of the restarted autonomous loop (feature add).
+- feat(ui): the Tone analyzer now has a "📋 copy" chip that exports the full summary as plain text — word count, overall verdict, and all three axis scores with their meaning hints — ready to paste into notes or share.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 275 smoke + 1 integration = 766 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 86 of the autonomous loop (alternate add/polish): the tone readout should leave the app with you.

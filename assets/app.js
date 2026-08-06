@@ -12234,7 +12234,8 @@
         const verdict = sum >= 70 ? '👍 gentle + fair' : sum >= 50 ? '😐 mixed' : '⚠ hostile or confusing';
         toneNote.innerHTML = '<span class="riskNote-lead">' + tone.words.toLocaleString('en-US') + ' words analyzed</span> ' +
           'Overall tone: <b>' + verdict + '</b> · Three axes measured locally over a hand-tuned legalese lexicon. ' +
-          '<button type="button" class="ghost-btn ghost-btn-sm" id="toneSpeakBtn" title="Speak the verdict aloud">🔊 read verdict</button>';
+          '<button type="button" class="ghost-btn ghost-btn-sm" id="toneSpeakBtn" title="Speak the verdict aloud">🔊 read verdict</button>' +
+          '<button type="button" class="ghost-btn ghost-btn-sm" id="toneCopyBtn" title="Copy the tone summary as plain text">📋 copy</button>';
       }
       // Iter #113: click-to-jump on each example + verdict read-aloud
       $$('.tone-ex', toneGrid).forEach(btn => {
@@ -12266,6 +12267,45 @@
             u.rate = 0.95;
             window.speechSynthesis.speak(u);
           } catch(_){ /* ignore */ }
+        });
+      }
+      // Cycle 86 feature — copy the tone summary as plain text.
+      const toneCopyBtn = document.getElementById('toneCopyBtn');
+      if(toneCopyBtn){
+        toneCopyBtn.addEventListener('click', async () => {
+          const sum = (tone.trust + (100 - tone.pressure) + tone.clarity) / 3;
+          const verdict = sum >= 70 ? '👍 gentle + fair' : sum >= 50 ? '😐 mixed' : '⚠ hostile or confusing';
+          const lines = [
+            'Tone analyzer · ' + tone.words.toLocaleString('en-US') + ' words analyzed',
+            'Overall tone: ' + verdict,
+            '',
+            'Trust signals: ' + tone.trust + '/100 — Mutual language, good-faith, fair-mind; higher is healthier.',
+            'Pressure signals: ' + tone.pressure + '/100 — Forfeit, waive, must, sole discretion; higher is more aggressive.',
+            'Plain-language clarity: ' + tone.clarity + '/100 — Defined terms and examples raise it; notwithstanding/hereto lower it.',
+          ];
+          const text = lines.join('\n');
+          let ok = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(text);
+              ok = true;
+            } else {
+              const ta = document.createElement('textarea');
+              ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+              document.body.appendChild(ta); ta.select();
+              ok = document.execCommand('copy'); document.body.removeChild(ta);
+            }
+          } catch(_){ /* ignore */ }
+          toneCopyBtn.textContent = ok ? '✓ copied' : 'Copy failed';
+          toneCopyBtn.setAttribute('aria-label', ok ? 'Tone summary copied to clipboard' : 'Copy failed — try again');
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Tone summary copied' : '⚠ Couldn’t copy');
+          clearTimeout(toneCopyBtn._flashTimer);
+          toneCopyBtn._flashTimer = setTimeout(() => {
+            if(toneCopyBtn.isConnected){
+              toneCopyBtn.textContent = '📋 copy';
+              toneCopyBtn.setAttribute('aria-label', 'Copy the tone summary');
+            }
+          }, 1400);
         });
       }
     }
