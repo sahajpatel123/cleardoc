@@ -3448,3 +3448,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 24 of the autonomous loop (alternate add/polish): let users save the Ask conversation.
+
+**2026-08-06 16:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #25 of the restarted autonomous loop (polish).
+- polish(ui): "Forget my data" now exits Focus mode after wiping storage — previously, running it while Focus mode was active left the page in a blank-looking focused state (input column hidden, results cleared). Matches the Clear and sample-load behaviors.
+- Added a source-pattern smoke test scoped to wireForgetMe.
+- Full suite green (490 unit + 239 smoke + 1 integration = 730 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 25 of the autonomous loop (alternate add/polish): keep the wiped page usable after Forget.

@@ -1893,6 +1893,10 @@
       }
     } catch(_) {}
 
+    // 3b. Exit focus mode — everything is being wiped, so a focused reading
+    // view would otherwise leave a blank-looking page behind.
+    setFocusMode(false);
+
     // 4. Confirm with a green toast — exactly matches the privacy promise copy.
     showForgetToast('Cleared <b>localStorage</b> · <b>drafts</b> · <b>SW caches</b> · <b>URL fragment</b>');
 

@@ -426,6 +426,18 @@ skip("ask: copy-thread button exports the whole Q&A as text", async () => {
   assert.match(appSrc, /askCopyThreadBtn\.hidden = askHistory\.length === 0/, "the button must hide when the thread is empty");
 });
 
+skip("forget-me: exits focus mode so the wiped page is not left blank", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const hStart = appSrc.indexOf("function wireForgetMe");
+  assert.ok(hStart > -1, "wireForgetMe must exist");
+  const handler = appSrc.slice(hStart, hStart + 4000);
+  assert.match(handler, /setFocusMode\(false\);/, "forget-me must exit focus mode after wiping data");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
