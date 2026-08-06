@@ -989,6 +989,10 @@
     if(!Array.isArray(items) || items.length === 0) return '';
     const valid = items.filter(it => it && it.date && !isNaN(it.date.getTime())).slice(0, 50);
     if(valid.length === 0) return '';
+    // Cycle #167 polish — chronological order: calendar apps import
+    // events in file order, so sort ascending by date before building
+    // the VEVENT blocks (stable for equal dates).
+    valid.sort((a, b) => a.date.getTime() - b.date.getTime());
     const stamp = _icsDateStamp(new Date());
     const pad = (n) => String(n).padStart(2, '0');
     const safeText = (s) => String(s || 'Document deadline')
@@ -6963,6 +6967,7 @@
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No valid dates to export');
             return;
           }
+          const vevents = (ics.match(/BEGIN:VEVENT/g) || []).length;
           try{
             const stamp = new Date().toISOString().slice(0,10);
             const url = URL.createObjectURL(new Blob([ics], { type:'text/calendar;charset=utf-8' }));
@@ -6970,7 +6975,7 @@
             a.href = url; a.download = 'cleardoc-deadlines-' + stamp + '.ics';
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
             setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 4000);
-            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📅 ' + events.length + ' deadlines saved to one calendar file');
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📅 ' + vevents + ' deadline' + (vevents === 1 ? '' : 's') + ' saved to one calendar file');
           }catch(_){
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create calendar file');
           }

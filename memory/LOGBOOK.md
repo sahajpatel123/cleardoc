@@ -4893,3 +4893,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 166 of the autonomous loop (alternate add/polish): when a contract has ten deadlines, saving them one by one is drudgery — one tap should put them all on your calendar.
+
+**2026-08-06 19:59 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #167 of the restarted autonomous loop (polish).
+- polish(deadlines): the multi-event ICS builder now sorts events chronologically before writing VEVENT blocks (calendar apps import in file order; equal dates keep their original order), and the batch "📅 all .ics" toast now reports the number of events actually written to the file (`BEGIN:VEVENT` count) instead of the raw input length — so unparseable dates can no longer inflate the confirmation message. Both `buildIcs` callers (the deadline block and the preview strip's calendar chip) inherit the sort.
+- Extended the cycle-166 smoke test with 2 assertions: the chronological `sort` in `buildIcs` and the accurate `vevents` toast count, plus updated the toast regex to the new pluralized format.
+- Full suite green (490 unit + 319 smoke + 1 integration = 810 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 167 of the autonomous loop (alternate add/polish): a calendar file should arrive in the order the deadlines happen, and its confirmation should count only the events that actually made it in.

@@ -10604,11 +10604,15 @@ test("analyzer: Deadline block exports all deadlines as one .ics calendar file",
     "each deadline must become a UTC-midnight all-day event");
   assert.match(appSrc, /const ics = buildIcs\(events\);/,
     "the batch export must reuse the multi-event builder");
+  assert.match(appSrc, /valid\.sort\(\(a, b\) => a\.date\.getTime\(\) - b\.date\.getTime\(\)\)/,
+    "buildIcs must emit events in chronological order");
+  assert.match(appSrc, /const vevents = \(ics\.match\(\/BEGIN:VEVENT\/g\) \|\| \[\]\)\.length;/,
+    "the toast count must reflect the events actually in the file");
   assert.match(appSrc, /new Blob\(\[ics\], \{ type:'text\/calendar;charset=utf-8' \}\)/,
     "the .ics must download as text/calendar UTF-8");
   assert.match(appSrc, /a\.download = 'cleardoc-deadlines-' \+ stamp \+ '\.ics'/,
     "the .ics filename must be cleardoc-deadlines-<date>.ics");
-  assert.match(appSrc, /'📅 ' \+ events\.length \+ ' deadlines saved to one calendar file'/,
+  assert.match(appSrc, /'📅 ' \+ vevents \+ ' deadline' \+ \(vevents === 1 \? '' : 's'\) \+ ' saved to one calendar file'/,
     "the .ics download must toast with the deadline count");
   assert.match(appSrc, /'⚠ No valid dates to export'/,
     "unparseable dates must fail with a clear toast");
