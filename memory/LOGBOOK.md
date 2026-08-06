@@ -4510,3 +4510,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 128 of the autonomous loop (alternate add/polish): a word you can't pronounce should be one click away from hearing it.
+
+**2026-08-06 02:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #129 of the restarted autonomous loop (polish).
+- polish(ui): the glossary row now lays out around the 🔊 button — rows switched from a strict column to a wrapping flex row where the term, hit-count, and speak button share the top line (button right-aligned with a focus ring) and the plain-English meaning owns its own full-width line below.
+- Extended the cycle-128 smoke test with 4 CSS assertions covering the wrap, the meaning's full-width line, the right-alignment, and the focus ring.
+- Full suite green (490 unit + 299 smoke + 1 integration = 790 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 129 of the autonomous loop (alternate add/polish): term, count, and speaker on one line; meaning below — no stacking surprises.

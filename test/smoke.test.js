@@ -9769,6 +9769,7 @@ test("analyzer: Glossary rows can pronounce the legal term in one click", () => 
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /class="gloss-speak ghost-btn ghost-btn-sm"/,
     "each glossary row must render a speak button");
@@ -9782,6 +9783,14 @@ test("analyzer: Glossary rows can pronounce the legal term in one click", () => 
     "the pronunciation must respect the chosen reading speed");
   assert.match(appSrc, /🔊<\/b> to hear the term/,
     "the block note must document the speak action");
+  assert.match(cssSrc, /\.gloss-row\{[^}]*flex-wrap:wrap/,
+    "the row must wrap with the new button");
+  assert.match(cssSrc, /\.gloss-meaning\{[^}]*flex:1 1 100%/,
+    "the meaning must own its own line");
+  assert.match(cssSrc, /\.gloss-speak\{[^}]*margin-left:auto/,
+    "the speak button must right-align in the row");
+  assert.match(cssSrc, /\.gloss-speak:focus-visible\{/,
+    "the speak button must have a focus ring");
 });
 
 // Iter #172: obligation tracker — extracts action verbs and obligations.
