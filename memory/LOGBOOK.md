@@ -3648,3 +3648,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 44 of the autonomous loop (alternate add/polish): complete the comparison export with the diff.
+
+**2026-08-06 20:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #45 of the restarted autonomous loop (polish).
+- polish(ui): the main Copy button now advertises the 'c' shortcut in its title/hint, so keyboard discoverability matches the help modal.
+- Extended the c-shortcut smoke test with the title assertion.
+- Full suite green (490 unit + 254 smoke + 1 integration = 745 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 45 of the autonomous loop (alternate add/polish): make the c shortcut discoverable on the button itself.
