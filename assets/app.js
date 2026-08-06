@@ -2079,6 +2079,23 @@
     }, 4000);
   }
 
+  // Cycle #97 — purge every saved Ask thread (per-document conversations).
+  // "Forget me" and "Clear history" call this so privacy-clearing actions
+  // remove the conversations, not just the analysis snapshots. The
+  // in-memory thread reset is delegated through __resetAskThread so the
+  // analyzePage closure owns its state.
+  function purgeStoredAskThreads(){
+    try {
+      const doomed = [];
+      for(let i = 0; i < localStorage.length; i++){
+        const k = localStorage.key(i);
+        if(k && k.indexOf('cleardoc:askThread:') === 0) doomed.push(k);
+      }
+      for(const k of doomed){ localStorage.removeItem(k); }
+    } catch(_){ /* best effort */ }
+  }
+  let __resetAskThread = null;
+
   async function forgetMyData(){
     const btn = $('#forgetBtn');
     if(btn) btn.disabled = true;
@@ -2087,6 +2104,8 @@
     try {
       const ownKeys = ['cleardoc:lastAnalysis', 'cleardoc:draftInput'];
       for(const k of ownKeys){ localStorage.removeItem(k); }
+      purgeStoredAskThreads();
+      if(typeof __resetAskThread === 'function') __resetAskThread();
     } catch(_) {}
 
     // 2. Strip the share fragment so a refresh doesn't re-show the banner.
@@ -4102,6 +4121,13 @@
     }
     function clearHistory(){
       try { localStorage.removeItem(HISTORY_KEY); } catch(_){}
+      // Cycle #97 — clearing history also purges the saved Ask
+      // conversations (they belong to those documents) and resets the
+      // in-memory thread so nothing stale resurfaces.
+      purgeStoredAskThreads();
+      askHistory = [];
+      _threadRestored = false;
+      if(askThread) askThread.innerHTML = '';
     }
 
     /* ── Document templates (iter #57) ───────────────────────────
@@ -13836,7 +13862,7 @@
       // document changed since the in-memory thread was loaded.
       if(typeof restoreAskThread === 'function'){
         const curFp = (_fpState && _fpState.short) || null;
-        if(curFp && _threadFp !== curFp) askHistory = [];
+        if(curFp && _threadFp !== curFp){ askHistory = []; _threadRestored = false; }
         restoreAskThread(curFp);
         _threadFp = curFp;
       }
@@ -14335,6 +14361,7 @@
      */
     let askHistory=[];
     let _threadFp = null; // fingerprint the in-memory thread belongs to
+    let _threadRestored = false; // show the restored-from-last-visit note
     let _askInFlight = false;
     const askThread=$('#askThread'),askClearBtn=$('#askClearBtn'),askCopyThreadBtn=$('#askCopyThreadBtn'),askSaveThreadBtn=$('#askSaveThreadBtn');
     // Cycle #96 — Ask-thread persistence: the conversation survives a
@@ -14363,7 +14390,9 @@
       const turns = saved.filter(t => t && t.q).map(t => ({ q: String(t.q), answer: String(t.answer || ''), cite: String(t.cite || ''), pending: false }));
       if(!turns.length) return;
       askHistory = turns;
+      _threadRestored = true;
       renderAskThread();
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Restored ' + turns.length + ' question' + (turns.length === 1 ? '' : 's') + ' from your last visit');
     }
     // Cycle #94 — suggested follow-ups after each answer. Deterministic
     // and local-only (no extra API round-trip until the user clicks):
@@ -14401,7 +14430,10 @@
         if(askSaveThreadBtn) askSaveThreadBtn.hidden = askHistory.length === 0;
         return;
       }
-      askThread.innerHTML = askHistory.map((turn, idx) => {
+      const restoredNote = (_threadRestored && askHistory.length)
+        ? '<div class="ask-restored-note">↩ Restored from your last visit to this document</div>'
+        : '';
+      askThread.innerHTML = restoredNote + askHistory.map((turn, idx) => {
         const pending = turn.pending;
         const isLast = idx === askHistory.length - 1;
         const followUps = (!pending && isLast) ? buildFollowUps(turn.answer, turn.cite, askHistory.map(t => t.q)) : [];
@@ -14433,6 +14465,13 @@
         ask();
       });
     }
+    // Cycle #97 — "Forget me" reaches into this closure to reset the
+    // in-memory thread (the localStorage purge happens at IIFE level).
+    __resetAskThread = () => {
+      askHistory = [];
+      _threadRestored = false;
+      if(askThread) askThread.innerHTML = '';
+    };
     async function ask(){
       const q=(askInput&&askInput.value||'').trim(); if(!q) return;
       if(_askInFlight) return; // never stack requests while one is pending
@@ -14480,6 +14519,7 @@
     }
     if(askClearBtn) askClearBtn.addEventListener('click',()=>{
       askHistory=[];
+      _threadRestored = false;
       renderAskThread();
       persistAskThread((_fpState && _fpState.short) || null);
       if(askOut) askOut.innerHTML='';

@@ -4179,3 +4179,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 96 of the autonomous loop (alternate add/polish): your research conversation should still be there when you come back to the document.
+
+**2026-08-06 18:28 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #97 of the restarted autonomous loop (polish).
+- polish(ui): saved Ask threads now respect the app's privacy-clearing actions — a shared IIFE-level `purgeStoredAskThreads()` wipes every `cleardoc:askThread:*` key from both "Forget me" and "Clear history", and both flows also reset the in-memory thread (forget reaches into the analyzePage closure via a small `__resetAskThread` bridge; history-clear resets `askHistory` directly). Clearing the thread and analyzing a different document reset the restored-notice flag too.
+- Restored conversations now announce themselves: a toast reports "💬 Restored N questions from your last visit", and the thread shows a persistent inline note ("↩ Restored from your last visit to this document", styled `.ask-restored-note` with a green dashed border) that survives re-renders until the thread is cleared or the document changes.
+- New smoke test "Forget-me and history-clear purge saved Ask threads; restores announce themselves" — 13 assertions covering the purge helper + key targeting, both callers, the memory-reset bridge, the restored flag, toast, inline note, and CSS.
+- Full suite green (490 unit + 282 smoke + 1 integration = 773 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 97 of the autonomous loop (alternate add/polish): if you ask it to forget, the conversations go too — and when a conversation comes back, you should know it did.

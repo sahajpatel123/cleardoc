@@ -488,12 +488,50 @@ test("analyzer: Ask thread persists per document and restores on reload", () => 
   // On analysis render: restore for the current document, wipe on change.
   assert.match(appSrc, /if\(typeof restoreAskThread === 'function'\)\{/,
     "render must call the restore helper when present");
-  assert.match(appSrc, /if\(curFp && _threadFp !== curFp\) askHistory = \[\];/,
+  assert.match(appSrc, /if\(curFp && _threadFp !== curFp\)\{ askHistory = \[\]; _threadRestored = false; \}/,
     "a changed document must start a fresh in-memory thread");
   assert.match(appSrc, /restoreAskThread\(curFp\);/,
     "the current document's thread must be restored");
   assert.match(appSrc, /let _threadFp = null;/,
     "the thread-fingerprint tracker must exist");
+});
+
+test("analyzer: Forget-me and history-clear purge saved Ask threads; restores announce themselves", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Shared purge helper + per-thread key detection.
+  assert.match(appSrc, /function purgeStoredAskThreads\(\)\{/,
+    "a shared purge helper must exist");
+  assert.match(appSrc, /k\.indexOf\('cleardoc:askThread:'\) === 0/,
+    "purge must target only saved thread keys");
+  assert.match(appSrc, /purgeStoredAskThreads\(\);/,
+    "forget-me and history-clear must call the purge helper");
+  assert.match(appSrc, /function clearHistory\(\)\{[\s\S]{0,260}purgeStoredAskThreads\(\);/,
+    "clearHistory must purge threads inside its body");
+  // In-memory reset bridge for the IIFE-level forget flow.
+  assert.match(appSrc, /let __resetAskThread = null;/,
+    "the forget bridge must exist");
+  assert.match(appSrc, /__resetAskThread = \(\) => \{/,
+    "analyzePage must register the memory reset");
+  assert.match(appSrc, /if\(typeof __resetAskThread === 'function'\) __resetAskThread\(\);/,
+    "forget-me must invoke the memory reset");
+  // Restore notice: toast + persistent inline note.
+  assert.match(appSrc, /let _threadRestored = false;/,
+    "the restored flag must exist");
+  assert.match(appSrc, /_threadRestored = true;/,
+    "restoring must set the flag");
+  assert.match(appSrc, /showAnalyzeToast\('💬 Restored '/,
+    "restoring must announce the restored count");
+  assert.match(appSrc, /↩ Restored from your last visit to this document/,
+    "the thread must show a persistent restored note");
+  assert.match(appSrc, /if\(curFp && _threadFp !== curFp\)\{ askHistory = \[\]; _threadRestored = false; \}/,
+    "a changed document must also reset the restored note");
+  assert.match(cssSrc, /\.ask-restored-note\{/,
+    "the restored note must be styled");
 });
 
 skip("ask: copy-thread button exports the whole Q&A as text", async () => {
