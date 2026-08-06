@@ -8875,6 +8875,47 @@ test("analyzer: Deadline block exports all deadlines as a CSV file", () => {
     "download must toast with the deadline count");
 });
 
+// Cycle 52 feature: deadline-urgency alert pinned to the top of the results.
+test("analyzer: Deadline alert surfaces deadlines due within 7 days", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // analyze.html must carry the alert at the top of the result panel
+  assert.match(html, /id="deadlineAlert" hidden role="status" aria-live="polite"/,
+    "analyze.html must contain #deadlineAlert as a live status region");
+
+  // renderDeadlineBlock must hide the alert when no deadlines exist
+  assert.match(appSrc, /if\(!items\.length\)\{[\s\S]+?deadlineAlert\.hidden = true;/,
+    "alert must hide when the deadline block is empty");
+  // Urgency window: 0–7 days from today
+  assert.match(appSrc, /urgent = items\.filter\(it => \{/,
+    "renderDeadlineBlock must compute the urgent deadline subset");
+  assert.match(appSrc, /days >= 0 && days <= 7/,
+    "urgency window must be the next 7 days");
+  assert.match(appSrc, /within the next 7 days/,
+    "alert copy must state the 7-day window");
+  assert.match(appSrc, /esc\(urgent\.map\(it => it\.date\)\.join\(', '\)\)/,
+    "alert must list the urgent deadline dates");
+
+  // Jump affordance: click scrolls to the deadlines block
+  assert.match(appSrc, /deadlineAlert\._jumpWired/,
+    "alert jump wiring must be attached only once");
+  assert.match(appSrc, /lenis\.scrollTo\(deadlineBlock[\s\S]+?scrollIntoView/,
+    "alert click must scroll to the deadlines block via lenis or scrollIntoView");
+
+  // CSS: danger-tinted banner + hidden-state + focus ring
+  assert.match(cssSrc, /\.deadline-alert\{[^}]*var\(--danger-tint\)/,
+    "theme.css must style .deadline-alert with the danger tint");
+  assert.match(cssSrc, /\.deadline-alert\[hidden\]\{display:none\}/,
+    "the flex display must not override the hidden attribute");
+  assert.match(cssSrc, /\.deadline-alert:focus-visible\{/,
+    "the alert must have a visible focus ring");
+});
+
   // Iter #159 polish: sub-score tooltips + copy-as-JSON.
   assert.match(appSrc, /'How much text we have to analyze|'How many risk patterns matched|'How far the document/,
     "iter #159 must add sub-score tooltips");

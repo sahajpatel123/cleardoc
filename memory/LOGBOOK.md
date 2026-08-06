@@ -3718,3 +3718,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 51 of the autonomous loop (alternate add/polish): make the CSV export safe and correct for spreadsheet consumers.
+
+**2026-08-06 21:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #52 of the restarted autonomous loop (feature add).
+- feat(ui): a deadline-urgency alert now pins to the top of the results whenever any deadline lands within the next 7 days — "⏰ 2 deadlines within the next 7 days — Jan 15, Jan 20" — as an aria-live status region that also jumps to the deadlines block on click. Hidden entirely when nothing is urgent.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 258 smoke + 1 integration = 749 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 52 of the autonomous loop (alternate add/polish): make time pressure visible before the user scrolls to the deadlines.

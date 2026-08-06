@@ -3074,6 +3074,7 @@
           readinessBlock=$('#readinessBlock'),readinessScoreEl=$('#readinessScore'),readinessLabelEl=$('#readinessLabel'),readinessOutOfEl=$('#readinessOutOf'),readinessBar=$('#readinessBar'),readinessBarFill=$('#readinessBarFill'),readinessDetailEl=$('#readinessDetail'),readinessCopyBtn=$('#readinessCopyBtn'),readinessInfo=$('#readinessInfo'),docFpBtn=$('#docFpBtn'),fpInfo=$('#fpInfo'),lastAnalyzed=$('#lastAnalyzed'),
           tagsInput=$('#tagsInput'),tagsList=$('#tagsList'),
           deadlinesBlock=$('#deadlinesBlock'),deadlinesList=$('#deadlinesList'),
+          deadlineAlert=$('#deadlineAlert'),
           nextStepsBlock=$('#nextStepsBlock'),nextStepsList=$('#nextStepsList'),
           printBtn=$('#printBtn'),saveBtn=$('#saveBtn'),copyBtn=$('#copyBtn'),copyChecklistBtn=$('#copyChecklistBtn'),copyJsonBtn=$('#copyJsonBtn'),copyCsvBtn=$('#copyCsvBtn'),downloadCsvBtn=$('#downloadCsvBtn'),downloadJsonBtn=$('#downloadJsonBtn'),printDate=$('#printDate'),printDateStamp=$('#printDateStamp'),
           shareBtn=$('#shareBtn'),speakBtn=$('#speakBtn'),
@@ -6264,7 +6265,11 @@
     function renderDeadlineBlock(raw, ctx){
       if(!deadlineBlock || !deadlineList || !raw){ return; }
       const items = extractDeadlines(raw, ctx);
-      if(!items.length){ deadlineBlock.hidden = true; return; }
+      if(!items.length){
+        deadlineBlock.hidden = true;
+        if(deadlineAlert) deadlineAlert.hidden = true;
+        return;
+      }
       // Iter #175 — per-row countdown from today
       const now = new Date();
       const countdown = (dateStr) => {
@@ -6276,6 +6281,35 @@
         if(days < 0) return ' ' + (-days) + ' day' + (-days === 1 ? '' : 's') + ' ago';
         return ' today';
       };
+      // Cycle 52 feature — deadline-urgency alert pinned to the top of the
+      // results: surfaces any deadline landing within the next 7 days so
+      // users see time pressure before they even scroll to the block.
+      const urgent = items.filter(it => {
+        const dt = new Date((it.date || '') + 'T00:00:00Z');
+        if(isNaN(dt.getTime())) return false;
+        const days = Math.round((dt.getTime() - now.getTime()) / 86400000);
+        return days >= 0 && days <= 7;
+      });
+      if(deadlineAlert){
+        if(urgent.length){
+          deadlineAlert.innerHTML = '<span class="da-icon" aria-hidden="true">⏰</span> <b>' + urgent.length + ' deadline' + (urgent.length === 1 ? '' : 's') + ' within the next 7 days</b> — ' +
+            esc(urgent.map(it => it.date).join(', ')) +
+            ' <span class="da-jump-hint">click to jump ⤓</span>';
+          deadlineAlert.hidden = false;
+          if(!deadlineAlert._jumpWired){
+            deadlineAlert._jumpWired = true;
+            deadlineAlert.addEventListener('click', () => {
+              if(!deadlineBlock) return;
+              try {
+                if(typeof lenis !== 'undefined' && lenis) lenis.scrollTo(deadlineBlock, { offset: -10 });
+                else deadlineBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              } catch(_){ deadlineBlock.scrollIntoView(); }
+            });
+          }
+        } else {
+          deadlineAlert.hidden = true;
+        }
+      }
       const rows = items.map(it => {
         const isM = /\(obligated\)/.test(it.verb);
         const cls = isM ? 'deadline-mandatory' : 'deadline-optional';

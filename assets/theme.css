@@ -753,6 +753,15 @@ button.risk-preview:hover{filter:brightness(.96)}
 .deadlines-preview .dp-cal:hover{background:currentColor;color:var(--paper)}
 .deadlines-preview .dp-cal:hover span,.deadlines-preview .dp-cal:hover b{color:var(--paper)}
 .deadlines-preview .dp-cal:disabled{opacity:.4;cursor:not-allowed}
+/* Cycle 52 — deadline-urgency alert pinned to the top of the results.
+   Danger-tinted so time pressure reads before scrolling to the block. */
+.deadline-alert{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:var(--s4);padding:9px 12px;border:1px solid var(--danger);border-left:4px solid var(--danger);background:var(--danger-tint);color:var(--danger);font-family:'JetBrains Mono',monospace;font-size:var(--t-meta-sm);letter-spacing:.04em;cursor:pointer;transition:filter .15s}
+.deadline-alert b{font-weight:800}
+.deadline-alert .da-icon{font-size:1.2em}
+.deadline-alert .da-jump-hint{opacity:.75;text-decoration:underline;text-underline-offset:2px}
+.deadline-alert:hover{filter:brightness(.97)}
+.deadline-alert:focus-visible{outline:2px solid var(--danger);outline-offset:2px}
+.deadline-alert[hidden]{display:none}
 /* Inline urgency-dot timeline — one dot per detected deadline, color-
  * coded by urgency. Reads at-a-glance: a row of red dots = "lots of
  * urgency", mostly grey = "plenty of time". Title attribute holds the
