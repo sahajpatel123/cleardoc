@@ -5275,3 +5275,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 201 of the autonomous loop (alternate add/polish): "how much longer?" is the question every reader asks — the count should answer it.
+
+**2026-08-06 22:23 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #202 of the restarted autonomous loop (add).
+- feat(analyzer): the contract-type badge is now interactive — a live badge (`#contractTypeBadgeLive`) appears at the top of the results panel (the old badge lived only in the print-only header, so it was invisible on screen), and clicking it (or pressing Enter/Space) opens a plain-English explainer modal: the detected label, confidence + signal count, the per-type "Watch for:" list from `DOC_TYPE_TIPS`, and a footer note. The print badge is still populated for printed copies, and both render paths (analysis + snapshot restore) share `wireDocTypeBadge()`.
+- Verified in a real browser with a mocked analyze flow: a lease doc surfaced the live "Lease" badge (role=button, tabindex=0, print badge also filled), clicking opened the modal with the watch list and confidence, and Escape closed it; zero console errors. The modal's missing `.show` class (the kb-modal pattern) was caught by the probe and fixed.
+- New smoke test "analyzer: contract type badge opens a plain-English explainer" — 10 assertions (explainer, per-type tips, watch line, wirer, role/tabindex, Enter/Space, once-guard, live badge markup, print-badge population, clickable CSS).
+- Full suite green (490 unit + 335 smoke + 1 integration = 826 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 202 of the autonomous loop (alternate add/polish): knowing it's a lease is a start — knowing what leases hide is the point, and the badge should teach it.

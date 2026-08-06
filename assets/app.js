@@ -14971,22 +14971,74 @@
         }
       }
 
+      // Cycle #202 — the contract-type badge opens a plain-English
+      // explainer: what the detected type is and what to watch for.
+      function showDocTypeExplain(dt){
+        const m = document.createElement('div');
+        m.className = 'kb-modal doc-type-modal show';
+        m.setAttribute('role','dialog');
+        m.setAttribute('aria-modal','true');
+        m.setAttribute('aria-hidden','false');
+        m.setAttribute('aria-labelledby','dtm-title');
+        const tip = (typeof getDocTypeTip === 'function') ? getDocTypeTip(dt.name) : null;
+        m.innerHTML =
+          '<div class="kb-modal-bg" data-dtm-bg="1"></div>' +
+          '<div class="kb-modal-card">' +
+            '<button type="button" class="kb-modal-close" data-dtm-close="1" aria-label="Close">✕</button>' +
+            '<h2 id="dtm-title" class="kb-modal-title mono">' + esc(dt.label) + '</h2>' +
+            '<p class="dtm-meta mono">Detected with ' + esc(dt.confidence) + ' confidence (' + dt.matches + ' signal' + (dt.matches === 1 ? '' : 's') + ').</p>' +
+            (tip ? '<p class="dtm-tip"><b>Watch for:</b> ' + esc(tip) + '.</p>' : '') +
+            '<p class="dtm-foot mono">ClearDoc flags these phrases in the analysis and suggests what to ask for instead.</p>' +
+          '</div>';
+        document.body.appendChild(m);
+        const close = () => m.remove();
+        m.addEventListener('click', (e) => {
+          if(e.target.closest('[data-dtm-bg], [data-dtm-close], .kb-modal-close')) close();
+        });
+        document.addEventListener('keydown', function onEsc(e){
+          if(e.key === 'Escape'){ close(); document.removeEventListener('keydown', onEsc); }
+        });
+      }
+      function wireDocTypeBadge(dt){
+        // The print-header badge carries the type into printed copies; the
+        // live badge (in the results panel) is the interactive one.
+        const printBadge = document.getElementById('contractTypeBadge');
+        if(printBadge){
+          printBadge.textContent = dt.label;
+          printBadge.className = 'contract-type-badge mono no-print visible';
+          printBadge.hidden = false;
+        }
+        const badge = document.getElementById('contractTypeBadgeLive');
+        if(!badge) return;
+        badge.textContent = dt.label;
+        badge.title = 'Detected as ' + dt.label.toLowerCase() +
+          ' · ' + dt.matches + ' signal' + (dt.matches===1?'':'s') +
+          ' · confidence: ' + dt.confidence + ' — click for a plain-English explainer';
+        badge.className = 'contract-type-badge mono no-print visible';
+        badge.hidden = false;
+        if(!badge._dtExplainWired){
+          badge._dtExplainWired = true;
+          badge.setAttribute('role','button');
+          badge.setAttribute('tabindex','0');
+          badge.addEventListener('click', () => showDocTypeExplain(dt));
+          badge.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); showDocTypeExplain(dt); }
+          });
+        }
+      }
       // Contract type badge — show the detected document type
       // in the result panel so users immediately know the
-      // contract category (e.g. "SaaS Agreement", "Lease").
+      // contract category (e.g. "Lease", "Subscription").
       const contractTypeBadge = document.getElementById('contractTypeBadge');
       if(contractTypeBadge){
         const dt = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
         if(dt && dt.label){
-          contractTypeBadge.textContent = dt.label;
-          contractTypeBadge.title = 'Detected as ' + dt.label.toLowerCase() +
-            ' · ' + dt.matches + ' signal' + (dt.matches===1?'':'s') +
-            ' · confidence: ' + dt.confidence;
-          contractTypeBadge.className = 'contract-type-badge mono no-print visible';
-          contractTypeBadge.hidden = false;
+          wireDocTypeBadge(dt);
         } else {
           contractTypeBadge.hidden = true;
           contractTypeBadge.className = 'contract-type-badge mono no-print';
+          const liveBadge = document.getElementById('contractTypeBadgeLive');
+          if(liveBadge){ liveBadge.hidden = true; liveBadge.className = 'contract-type-badge mono no-print'; }
         }
       }
 
@@ -15552,11 +15604,11 @@
       if(contractTypeBadge && snap.raw){
         const dt = (typeof detectDocType === 'function') ? detectDocType(snap.raw) : null;
         if(dt && dt.label){
-          contractTypeBadge.textContent = dt.label;
-          contractTypeBadge.className = 'contract-type-badge mono no-print visible';
-          contractTypeBadge.hidden = false;
+          wireDocTypeBadge(dt);
         } else {
           contractTypeBadge.hidden = true;
+          const liveBadge = document.getElementById('contractTypeBadgeLive');
+          if(liveBadge){ liveBadge.hidden = true; }
         }
       }
 

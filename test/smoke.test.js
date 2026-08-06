@@ -11923,6 +11923,39 @@ test("analyzer: Contract type badge renders when doc type is detected", () => {
     "contract badge must use mono and no-print classes");
 });
 
+// Cycle #202 — the contract type badge opens a plain-English explainer.
+test("analyzer: contract type badge opens a plain-English explainer", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+
+  assert.match(appSrc, /function showDocTypeExplain\(dt\)\{/,
+    "a badge explainer must exist");
+  assert.match(appSrc, /getDocTypeTip\(dt\.name\)/,
+    "the explainer must pull the per-type watch list");
+  assert.match(appSrc, /'<p class="dtm-tip"><b>Watch for:<\/b> ' \+ esc\(tip\)/,
+    "the explainer must show what to watch for");
+  assert.match(appSrc, /function wireDocTypeBadge\(dt\)\{/,
+    "a badge wirer must exist");
+  assert.match(appSrc, /badge\.setAttribute\('role','button'\)/,
+    "the badge must be announced as a button");
+  assert.match(appSrc, /badge\.setAttribute\('tabindex','0'\)/,
+    "the badge must be keyboard-focusable");
+  assert.match(appSrc, /e\.key === 'Enter' \|\| e\.key === ' '/,
+    "Enter and Space must open the explainer");
+  assert.match(appSrc, /badge\._dtExplainWired/,
+    "the badge wiring must happen once");
+  assert.match(html, /id="contractTypeBadgeLive"/,
+    "a live badge must exist in the results panel");
+  assert.match(appSrc, /const printBadge = document\.getElementById\('contractTypeBadge'\);/,
+    "the print badge must still be populated for printed copies");
+  assert.match(cssSrc, /\.contract-type-badge\.visible\{cursor:pointer\}/,
+    "the visible badge must read as clickable");
+});
+
 // Iter #224: Contract Readiness Score — single 0-100 number for quick decisions.
 test("analyzer: Readiness Score computes 0-100 from threat data with four tone levels", () => {
   if (!HAS_BROWSER) return;
