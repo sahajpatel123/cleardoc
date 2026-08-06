@@ -1,0 +1,16 @@
+# Contact information for security disclosures
+# Please read SECURITY.md for full disclosure policy
+Contact: security@cleardoc.app
+Contact: mailto:security@cleardoc.app
+
+# Preferred encryption
+PGP: https://sahajpatel.com/pgpkeys.asc
+
+# Policy
+Policy: https://github.com/sahajpatel123/cleardoc/blob/main/SECURITY.md
+
+# Acknowledgments
+Thank you to all security researchers who have reported vulnerabilities responsibly.
+
+# This file follows the security.txt standard (RFC 9116)
+# https://datatracker.ietf.org/doc/html/rfc9116
