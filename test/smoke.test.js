@@ -3268,6 +3268,35 @@ test("analyzer: deadline timeline dots jump to their deadline row", () => {
   assert.match(cssSrc, /\.deadlines-preview \.dp-dot:focus-visible\{/, "dots must have a focus ring");
 });
 
+// Cycle #204 — the results deadline block filters to all / next-7-days /
+// overdue without touching exports or the title badge.
+test("analyzer: deadline block filters to next-7-days or overdue", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /const dlFilter = deadlineList\._dlFilter \|\| 'all';/,
+    "the block renderer must read the active filter");
+  assert.match(appSrc, /const visibleItems = dlFilter === 'all' \? items : items\.filter/,
+    "the row list must be filtered by the active chip");
+  assert.match(appSrc, /dlFilter === 'soon' \? \(d >= 0 && d <= 7\) : d < 0/,
+    "soon must mean within the next 7 days, overdue must be past");
+  assert.match(appSrc, /data-dl-filter="soon" title="Show only deadlines within the next 7 days"/,
+    "a next-7-days chip must exist");
+  assert.match(appSrc, /data-dl-filter="overdue" title="Show only overdue deadlines"/,
+    "an overdue chip must exist");
+  assert.match(appSrc, /deadlineList\._dlFilterWired = true;/,
+    "the filter chips must wire once");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-dl-filter\]'\)/,
+    "the handler must catch filter-chip clicks");
+  assert.match(appSrc, /No deadlines match this filter\./,
+    "an empty filtered view must say so");
+  assert.match(cssSrc, /\.deadline-controls \.dl-filter-active\{/, "the active chip must be styled");
+  assert.match(cssSrc, /\.deadline-empty\{/, "the empty state must be styled");
+});
+
 // Cycle #189 — the section quick-jump nav's Deadlines entry must resolve
 // to whichever deadline block is visible (full 📅 or AI-only ⏰), never a
 // hidden one.

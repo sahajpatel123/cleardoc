@@ -5297,3 +5297,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 203 of the autonomous loop (alternate add/polish): a modal you can't escape with the keyboard isn't a modal — focus should enter, and leave, by the same hands.
+
+**2026-08-06 22:31 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #204 of the restarted autonomous loop (add).
+- feat(deadlines): the results deadline block now has filter chips — 🌐 all / ⏰ next 7d / ⚠ overdue — that narrow the visible rows (same day-diff math as the block) without touching exports, counts, or the tab-title badge. A filtered-empty state says "No deadlines match this filter." The chips wire once (`_dlFilterWired`) and re-render the block on click.
+- Verified in a real browser with a mocked analyze flow: all → both dates; overdue → only Aug 1; next 7d → only Aug 10; all → both again; zero console errors.
+- New smoke test "analyzer: deadline block filters to next-7-days or overdue" — 10 assertions (filter read, filtered items, soon/overdue predicates, both chips, once-wiring, handler selector, empty state, CSS ×2).
+- Full suite green (490 unit + 336 smoke + 1 integration = 827 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 204 of the autonomous loop (alternate add/polish): ten deadlines is a list — "what's due this week" is an answer, and one click should get it.

@@ -7139,7 +7139,15 @@
           try { localStorage.removeItem('cleardoc:deadlineSnooze'); } catch(_){ /* ignore */ }
         }
       } catch(_){ /* ignore */ }
-      const rows = items.map(it => {
+      // Cycle #204 — filter chips (all / next 7d / overdue) narrow the
+      // rows without touching the export/title data.
+      const dlFilter = deadlineList._dlFilter || 'all';
+      const visibleItems = dlFilter === 'all' ? items : items.filter(it => {
+        const d = dayDiff(it.date);
+        if(d === null) return false;
+        return dlFilter === 'soon' ? (d >= 0 && d <= 7) : d < 0;
+      });
+      const rows = visibleItems.map(it => {
         const isM = /\(obligated\)/.test(it.verb);
         const cls = isM ? 'deadline-mandatory' : 'deadline-optional';
         const tag = isM ? '⚡ obligated' : '📅 scheduled';
@@ -7181,13 +7189,25 @@
       }).join('');
       const controls = '<div class="deadline-controls">' +
         '<span class="deadline-count">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + '</span>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'all' ? ' dl-filter-active' : '') + '" data-dl-filter="all" title="Show every deadline">🌐 all</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'soon' ? ' dl-filter-active' : '') + '" data-dl-filter="soon" title="Show only deadlines within the next 7 days">⏰ next 7d</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'overdue' ? ' dl-filter-active' : '') + '" data-dl-filter="overdue" title="Show only overdue deadlines">⚠ overdue</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCopyAllBtn" title="Copy all deadlines as plain text">📋 copy all</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCsvBtn" title="Download all deadlines as a .csv file for Excel, Google Sheets, or Numbers">📊 CSV</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineIcsAllBtn" title="Download all deadlines as a single .ics calendar file">📅 all .ics</button>' +
       '</div>';
-      deadlineList.innerHTML = rows + controls;
+      deadlineList.innerHTML = (rows || '<div class="deadline-empty">No deadlines match this filter.</div>') + controls;
       deadlineBlock.hidden = false;
       paintDeadlineTitle(items);
+      if(deadlineList && !deadlineList._dlFilterWired){
+        deadlineList._dlFilterWired = true;
+        deadlineList.addEventListener('click', (e) => {
+          const chip = e.target.closest && e.target.closest('[data-dl-filter]');
+          if(!chip) return;
+          deadlineList._dlFilter = chip.getAttribute('data-dl-filter') || 'all';
+          renderDeadlineBlock(raw, ctx);
+        });
+      }
       if(deadlineNote){
         const mandated = items.filter(it => /\(obligated\)/.test(it.verb)).length;
         deadlineNote.innerHTML = '<span class="riskNote-lead">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + ' extracted</span> · ' +
