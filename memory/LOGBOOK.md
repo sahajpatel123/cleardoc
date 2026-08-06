@@ -4903,3 +4903,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 167 of the autonomous loop (alternate add/polish): a calendar file should arrive in the order the deadlines happen, and its confirmation should count only the events that actually made it in.
+
+**2026-08-06 20:05 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #168 of the restarted autonomous loop (add).
+- feat(keyboard): `j` and `k` now hop between risk rows whenever results are visible — `j` moves focus to the next row's action button, `k` to the previous, wrapping at both ends; when focus is already inside a row it steps from that exact row, and from anywhere else it jumps to the first (`j`) or last (`k`) row. It lives in the existing row-aware keydown handler (same typing-target guard), refuses to run with the help modal open, and scrolls the target row into view (smooth, unless reduced motion). The help modal documents it under RISK ROW ACTIONS.
+- Verified in a real browser with real keystrokes: j → ask1, j → ask2, j → ask3, k → ask2, k → ask1; typing in the document input never triggers it; with a modal open focus stays put; zero console errors.
+- Extended the cycle-#204 risk-shortcut smoke test with 6 assertions (j/k branch, result-panel guard, modulo wrap, modal guard, scrollIntoView, help-modal row) and widened two fixed-window regexes whose gaps grew because the new branch sits between the row matcher and the `!row` guard (measured: 1411 chars, windows set to 1800).
+- Full suite green (490 unit + 319 smoke + 1 integration = 810 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 168 of the autonomous loop (alternate add/polish): keyboard-first readers shouldn't have to Tab through a whole risk list — j and k should take them trap by trap.

@@ -1553,6 +1553,32 @@
     // Cycle #111 — one generic row matcher for every per-row ask button
     // (risk, question, deadline, key clause — and anything added later).
     const row = t && t.closest ? t.closest('.rrow, .ques-row, .deadline-row, .kc-row, .scenario-card, .action-row, .bearer-row') : null;
+    // Cycle #168 — j/k risk-row navigation. Works from anywhere while
+    // results are visible: j moves focus to the next risk row's action,
+    // k to the previous (wrapping at both ends); when focus is already
+    // inside a row, it steps from that row. Never hijacks typing targets
+    // (guarded above) or an open help modal.
+    if(key === 'j' || key === 'J' || key === 'k' || key === 'K'){
+      const rp = document.getElementById('resultPanel');
+      if(!rp || rp.hidden) return;
+      if(document.querySelector('.kb-modal.show')) return;
+      e.preventDefault();
+      const rows = Array.from(document.querySelectorAll('#riskList .rrow')).filter(r => r.offsetParent !== null);
+      if(rows.length === 0) return;
+      let target = null;
+      if(row){
+        const i = rows.indexOf(row.closest('.rrow'));
+        if(i !== -1){
+          const step = (key === 'j' || key === 'J') ? 1 : -1;
+          target = rows[(i + step + rows.length) % rows.length];
+        }
+      }
+      if(!target) target = (key === 'j' || key === 'J') ? rows[0] : rows[rows.length - 1];
+      const btn = target.querySelector('.rrow-ask, .rrow-copy, .rrow-speak, .rrow-expand, .rrow-fix, button, [tabindex]');
+      const el = btn || target;
+      try { el.focus({ preventScroll: true }); } catch(_){ el.focus(); }
+      target.scrollIntoView({ block: 'nearest', behavior: noMotion ? 'auto' : 'smooth' });
+    }
     if(!row) return;
     if(row.classList.contains('rrow') && (key === 'e' || key === 'E')){
       const counter = row.querySelector('.rrow-counter');
@@ -2339,6 +2365,7 @@
           <div class="kb-modal-grid">
             <div class="kb-row"><kbd>a</kbd><span>Ask about flagged risk (when focused on risk row)</span></div>
             <div class="kb-row"><kbd>e</kbd><span>Expand counter-suggestion (when focused on risk row)</span></div>
+            <div class="kb-row"><kbd>j</kbd><kbd>k</kbd><span>Next / previous risk row (when results are visible)</span></div>
           </div>
           <p class="kb-modal-foot mono">Shortcuts are disabled while typing in a field. Threat level &amp; health check appear automatically after analysis.</p>
         </div>`;

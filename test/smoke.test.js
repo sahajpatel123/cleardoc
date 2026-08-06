@@ -272,7 +272,7 @@ skip("risk rows: advertised 'e' expand + 'a' ask shortcuts both work (no dead gu
   const marker = "keyboard shortcuts on a focused risk row";
   const hStart = appSrc.indexOf(marker);
   assert.ok(hStart > -1, "rrow keydown handler must exist");
-  const handler = appSrc.slice(hStart, hStart + 1600);
+  const handler = appSrc.slice(hStart, hStart + 3600);
 
   // The old code guarded with `if(e.key !== 'a' && e.key !== 'A') return;`
   // BEFORE the e/E branch, so the advertised Expand shortcut was dead code.
@@ -281,6 +281,18 @@ skip("risk rows: advertised 'e' expand + 'a' ask shortcuts both work (no dead gu
   assert.match(handler, /if\(key === 'a' \|\| key === 'A'\)\{/, "handler must branch on a/A to ask");
   assert.match(handler, /rrow-counter/, "expand must target the counter-suggestion panel");
   assert.match(handler, /rrow-ask/, "ask must trigger the per-risk ask button");
+  assert.match(handler, /if\(key === 'j' \|\| key === 'J' \|\| key === 'k' \|\| key === 'K'\)\{/,
+    "handler must branch on j/J/k/K");
+  assert.match(handler, /getElementById\('resultPanel'\)/,
+    "j/k must require visible results");
+  assert.match(handler, /\(i \+ step \+ rows\.length\) % rows\.length/,
+    "j/k must wrap around the risk list");
+  assert.match(handler, /kb-modal\.show/,
+    "j/k must not fire with the help modal open");
+  assert.match(handler, /scrollIntoView\(\{ block: 'nearest'/,
+    "j/k must scroll the target row into view");
+  assert.match(appSrc, /<kbd>j<\/kbd><kbd>k<\/kbd><span>Next \/ previous risk row/,
+    "the help modal must document the j/k shortcut");
 });
 
 skip("risk detail: Escape collapses the expanded panel and returns focus to the pill", async () => {
@@ -10512,8 +10524,10 @@ test("analyzer: Deadline rows can ask the document about the deadline in one cli
   assert.match(appSrc, /<b>💬<\/b> to ask about it/,
     "the block note must document the ask action");
   // The a-shortcut now covers deadline rows too.
-  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row'\) : null;[\s\S]{0,80}if\(!row\) return;/,
+  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row'\) : null;[\s\S]{0,1800}if\(!row\) return;/,
     "the row-shortcut handler must include deadline rows and ignore other keys");
+  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row'\) : null;[\s\S]{0,800}if\(key === 'j' \|\| key === 'J' \|\| key === 'k' \|\| key === 'K'\)\{/,
+    "the j/k branch must live inside the same row-aware handler");
   assert.match(appSrc, /\.deadline-ask, \.kc-ask, \.scenario-ask, \.act-ask, \.bearer-ask'\)/,
     "the a shortcut must target the deadline ask button");
 });
