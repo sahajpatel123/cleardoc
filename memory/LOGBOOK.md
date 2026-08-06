@@ -3928,3 +3928,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 72 of the autonomous loop (alternate add/polish): track the shape of a document without a screenshot.
+
+**2026-08-06 00:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #73 of the restarted autonomous loop (polish).
+- polish(a11y): the document-stats copy chip now announces its result through a dynamic aria-label ("Document stats copied to clipboard" / "Copy failed — try again") and restores the original label with the flash — mirroring the deadline copy pattern so screen-reader users hear the outcome.
+- Extended the doc-stats copy smoke test with the announce + restore assertions.
+- Full suite green (490 unit + 268 smoke + 1 integration = 759 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 73 of the autonomous loop (alternate add/polish): say what happened after the copy, not just to the eyes.

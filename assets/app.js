@@ -352,9 +352,17 @@
         }
       } catch(_){ /* ignore */ }
       dsCopyBtn.textContent = ok ? '✓' : '✕';
+      // Cycle 73 polish — announce the copy result via aria-label so screen
+      // readers hear it (mirrors the deadline copy pattern), then restore.
+      dsCopyBtn.setAttribute('aria-label', ok ? 'Document stats copied to clipboard' : 'Copy failed — try again');
       if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Document stats copied' : '⚠ Couldn’t copy');
       clearTimeout(dsCopyBtn._flashTimer);
-      dsCopyBtn._flashTimer = setTimeout(() => { if(dsCopyBtn.isConnected) dsCopyBtn.textContent = '📋 copy'; }, 1400);
+      dsCopyBtn._flashTimer = setTimeout(() => {
+        if(dsCopyBtn.isConnected){
+          dsCopyBtn.textContent = '📋 copy';
+          dsCopyBtn.setAttribute('aria-label', 'Copy document stats');
+        }
+      }, 1400);
     });
   }
 

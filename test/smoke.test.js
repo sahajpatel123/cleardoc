@@ -3030,7 +3030,12 @@ test("analyzer: document summary line can copy its live stats", () => {
     "copy must prefix the line with 'Doc stats ·'");
   assert.match(appSrc, /'📋 Document stats copied'/,
     "copy must toast on success");
-  assert.match(appSrc, /dsCopyBtn\.textContent = '📋 copy'; \}, 1400\);/,
+  // Cycle 73 polish — announce via aria-label + restore it with the label
+  assert.match(appSrc, /dsCopyBtn\.setAttribute\('aria-label', ok \? 'Document stats copied to clipboard' : 'Copy failed — try again'\)/,
+    "copy must announce success/failure via aria-label");
+  assert.match(appSrc, /dsCopyBtn\.setAttribute\('aria-label', 'Copy document stats'\)/,
+    "copy must restore the original aria-label after the flash");
+  assert.match(appSrc, /dsCopyBtn\.textContent = '📋 copy';[\s\S]+?\}, 1400\)/,
     "the chip must flash and restore its label");
 
   // CSS: chip styled within the doc-summary line + focus ring
