@@ -2459,6 +2459,7 @@
             <div class="kb-row"><kbd>e</kbd><span>Expand counter-suggestion (when focused on risk row)</span></div>
             <div class="kb-row"><kbd>j</kbd><kbd>k</kbd><span>Next / previous risk row (when results are visible)</span></div>
             <div class="kb-row"><kbd>q</kbd><span>Focus the Ask panel (when results are visible)</span></div>
+            <div class="kb-row"><kbd>r</kbd><span>Resume the reading list (first unread chunk)</span></div>
           </div>
           <p class="kb-modal-foot mono">Shortcuts are disabled while typing in a field. Threat level &amp; health check appear automatically after analysis.</p>
         </div>`;
@@ -2608,6 +2609,18 @@
             e.preventDefault();
             try { ai.focus({preventScroll:false}); } catch(_){ ai.focus(); }
             try { ai.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+          }
+        }
+      }
+      // Cycle #248 — 'r' resumes the reading list, reusing the ▶ resume
+      // chip's logic (first unfinished must-read, filtered-aware).
+      if(k === 'r' || k === 'R'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const rb = document.getElementById('readingResumeBtn');
+          if(rb && rb.isConnected){
+            e.preventDefault();
+            rb.click();
           }
         }
       }

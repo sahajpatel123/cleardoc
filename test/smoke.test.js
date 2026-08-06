@@ -915,6 +915,23 @@ test("keyboard: 'p' toggles privacy blur when results are visible", () => {
     "the help modal must document the p shortcut");
 });
 
+// Cycle #248 — 'r' resumes the reading list.
+test("keyboard: 'r' resumes the reading list when results are visible", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /if\(k === 'r' \|\| k === 'R'\)\{/,
+    "the shortcut handler must branch on r/R");
+  assert.match(appSrc, /if\(k === 'r' \|\| k === 'R'\)\{[\s\S]{0,260}getElementById\('readingResumeBtn'\)/,
+    "the r branch must target the resume chip");
+  assert.match(appSrc, /rb && rb\.isConnected\)\{[\s\S]{0,80}e\.preventDefault\(\);[\s\S]{0,60}rb\.click\(\);/,
+    "the r branch must click the resume chip");
+  assert.match(appSrc, /<kbd>r<\/kbd><span>Resume the reading list/,
+    "the help modal must document the r shortcut");
+});
+
 // Cycle #196 — 'q' focuses the Ask panel when results are visible.
 test("analyzer: 'q' focuses the Ask panel when results are visible", () => {
   if (!HAS_BROWSER) return;
