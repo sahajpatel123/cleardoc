@@ -9370,6 +9370,31 @@ test("analyzer: Cost predictor shows expected / 90th / worst-case scenarios", ()
   assert.match(cssSrc, /\.cost-sliders\b/, ".cost-sliders style must exist");
 });
 
+// Cycle #116 — ask the document about any "what-if" scenario.
+test("analyzer: Scenario cards can ask the document about the scenario in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="scenario-ask ghost-btn ghost-btn-sm"/,
+    "each scenario card must render an ask button");
+  assert.match(appSrc, /data-scenario-ask="' \+ esc\(\(s\.ifText \|\| ''\) \+ ' → ' \+ \(s\.thenText \|\| ''\)\) \+ '"/,
+    "the ask button must carry the IF … THEN scenario");
+  assert.match(appSrc, /data-scenario-sev="' \+ esc\(s\.severity\) \+ '"/,
+    "the ask button must carry the scenario severity");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-scenario-ask\]'\)/,
+    "the card click handler must catch ask-button clicks");
+  assert.match(appSrc, /How likely is this scenario and what should I do if it happens\?/,
+    "clicking must ask about likelihood and next steps");
+  assert.match(appSrc, /qInput\.scrollIntoView/,
+    "clicking must bring the Ask panel into view");
+  assert.match(appSrc, /showAnalyzeToast\('💬 Question ready — press Ask'\)/,
+    "clicking must announce the prefilled question");
+  assert.match(appSrc, /💬<\/b> asks the document about a scenario\./,
+    "the block note must document the ask action");
+});
+
 // Iter #140: section risk map — aggregates risk patterns by
 // clause category and renders weighted horizontal bars.
 test("analyzer: Section risk map aggregates risk by clause category", () => {

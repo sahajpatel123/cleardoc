@@ -9730,6 +9730,7 @@
           '</div>' +
           '<div class="scenario-detail">' + esc(s.detail) + '</div>' +
           suggestionHtml +
+          '<button type="button" class="scenario-ask ghost-btn ghost-btn-sm" data-scenario-ask="' + esc((s.ifText || '') + ' → ' + (s.thenText || '')) + '" data-scenario-sev="' + esc(s.severity) + '" title="Ask about this scenario" aria-label="Ask about this scenario">💬</button>' +
         '</div>';
       }).join('');
       const badCount = ordered.filter(s => s.severity === 'bad').length;
@@ -9774,11 +9775,30 @@
         const filterNote = sevFilter !== 'all' ? ' Showing only <b>' + (sevFilter === 'bad' ? '🔴 bad' : sevFilter === 'warn' ? '🟡 caution' : '🟢 favorable') + '</b>.' : '';
         scenarioNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
           'Pure-local. Each scenario composes existing analyzer signals into a concrete <b>IF … THEN …</b> prediction, plus a counter-suggestion showing what to negotiate. ' + tone + ' Click any card to jump to the source clause. <b>📋 markdown</b> exports a checklist you can bring to a lawyer.' + filterNote;
+        scenarioNote.innerHTML += ' <b>💬</b> asks the document about a scenario.';
       }
       // Iter #197 — click-to-jump on each card using the captured
       // source offset.
       $$('.scenario-card', scenarioGrid).forEach(card => {
-        card.addEventListener('click', () => {
+        card.addEventListener('click', (e) => {
+          // Cycle #116 — 💬 ask about this scenario: prefill the Ask
+          // panel instead of jumping to source.
+          const askBtn = e.target.closest && e.target.closest('[data-scenario-ask]');
+          if(askBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const scenario = askBtn.getAttribute('data-scenario-ask') || '';
+            const qInput = document.getElementById('askInput');
+            const qBtn = document.getElementById('askBtn');
+            if(!qInput) return;
+            qInput.value = 'How likely is this scenario and what should I do if it happens? "' + scenario.slice(0, 120) + '"';
+            qInput.disabled = false;
+            if(qBtn) qBtn.disabled = false;
+            try { qInput.focus({preventScroll:false}); } catch(_){ qInput.focus(); }
+            try { qInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
+            return;
+          }
           if(!input) return;
           const off = parseInt(card.getAttribute('data-scenario-offset') || '-1', 10);
           if(off >= 0 && off < input.value.length){

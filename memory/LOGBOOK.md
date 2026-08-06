@@ -4380,3 +4380,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 115 of the autonomous loop (alternate add/polish): a restored or shared analysis should badge the tab exactly like a fresh one.
+
+**2026-08-06 22:58 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #116 of the restarted autonomous loop (add).
+- feat(ui): every "what-if" scenario card now has a one-click 💬 ask button — it prefills the Ask panel with "How likely is this scenario and what should I do if it happens? \"IF … THEN …\"" (scenario truncated to 120 chars), focuses and scrolls the panel into view, and announces via toast, matching the per-risk/question/deadline/key-clause interaction. The card click handler has a dedicated `[data-scenario-ask]` branch so it never triggers the jump-to-source behavior; the block note documents the action.
+- New smoke test "Scenario cards can ask the document about the scenario in one click" — 8 assertions covering the button markup, IF…THEN + severity data, the click-handler branch, the question shape, scroll, toast, and note.
+- Full suite green (490 unit + 292 smoke + 1 integration = 783 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 116 of the autonomous loop (alternate add/polish): a predicted outcome you're worried about should be one click away from a question.
