@@ -3238,3 +3238,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 3 of the autonomous loop (alternate add/polish): keyboard polish for the risk-detail panel.
+
+**2026-08-06 13:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #4 of the restarted autonomous loop (feature add).
+- feat(ui): added a Copy button to the Plain-English rewrite block — the core deliverable was the only result block without its own per-block copy control. Copies just the rewrite text (textContent, so jargon annotations don't leak markup), flashes 'Copied ✓', fires the app-wide toast, and is styled to match verdict-copy with a focus ring; hidden in print.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 226 smoke + 1 integration = 717 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 4 of the autonomous loop (alternate add/polish): add the missing per-block copy button for the plain-English rewrite.

@@ -2682,7 +2682,7 @@
           jargonCount=$('#jargonCount'),askInput=$('#askInput'),askBtn=$('#askBtn'),askOut=$('#askOut'),msg=$('#analyzeMsg'),
           attachTray=$('#attachTray'),draftOut=$('#draftOut'),draftNote=$('#draftNote'),copyDraftBtn=$('#copyDraftBtn'),
           downloadDraftBtn=$('#downloadDraftBtn'),
-          analyzeLoading=$('#analyzeLoading'),verdictBlock=$('#verdictBlock'),verdictDisplay=$('#verdictDisplay'),verdictCopyBtn=$('#verdictCopyBtn'),
+          analyzeLoading=$('#analyzeLoading'),verdictBlock=$('#verdictBlock'),verdictDisplay=$('#verdictDisplay'),verdictCopyBtn=$('#verdictCopyBtn'),rewriteCopyBtn=$('#rewriteCopyBtn'),
           threatScore=$('#threatScore'),threatScoreNum=$('#threatScoreNum'),threatScoreLbl=$('#threatScoreLbl'),threatScoreMeta=$('#threatScoreMeta'),threatCopyBtn=$('#threatCopyBtn'),
           healthCheck=$('#healthCheck'),healthCheckIcon=$('#healthCheckIcon'),healthCheckLabel=$('#healthCheckLabel'),healthCheckScore=$('#healthCheckScore'),healthCheckDetail=$('#healthCheckDetail'),healthCheckRec=$('#healthCheckRec'),healthCopyBtn=$('#healthCopyBtn'),
           execSummary=$('#execSummary'),execSummaryBody=$('#execSummaryBody'),execCopyBtn=$('#execCopyBtn'),
@@ -16871,6 +16871,31 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       verdictCopyBtn.textContent=ok ? 'Copied ✓' : 'Copy failed';
       clearTimeout(verdictCopyBtn._flashTimer);
       verdictCopyBtn._flashTimer=setTimeout(()=>{ verdictCopyBtn.textContent=orig; },1400);
+    });
+    // Rewrite block copy — copies just the plain-English rewrite so users
+    // can paste the plain version into an email/chat without the extras.
+    if(rewriteCopyBtn) rewriteCopyBtn.addEventListener('click',async()=>{
+      const el=document.getElementById('plainOut');
+      if(!el) return;
+      const text=(el.textContent||'').trim();
+      if(!text) return;
+      let ok=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok=true;
+        } else {
+          const ta=document.createElement('textarea');
+          ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok=document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      }catch(_){}
+      const orig='Copy';
+      rewriteCopyBtn.textContent=ok ? 'Copied ✓' : 'Copy failed';
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Rewrite copied' : '⚠ Couldn’t copy');
+      clearTimeout(rewriteCopyBtn._flashTimer);
+      rewriteCopyBtn._flashTimer=setTimeout(()=>{ rewriteCopyBtn.textContent=orig; },1400);
     });
     // iter #216 polish: copy threat score to clipboard — mirrors verdictCopyBtn pattern.
     if(threatCopyBtn) threatCopyBtn.addEventListener('click',async()=>{

@@ -214,6 +214,24 @@ skip("risk detail: Escape collapses the expanded panel and returns focus to the 
   assert.match(handler, /e\.key !== 'Enter' && e\.key !== ' '/, "Enter/Space locate parity must be preserved");
 });
 
+skip("rewrite block: has a Copy button that copies just the plain-English rewrite", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(analyzeHtml, /id="rewriteCopyBtn"/, "analyze.html must expose #rewriteCopyBtn on the rewrite block");
+  assert.match(analyzeHtml, /class="rewrite-copy no-print"/, "rewrite copy button must use rewrite-copy styling and hide in print");
+  assert.match(appSrc, /rewriteCopyBtn=\$\('#rewriteCopyBtn'\)/, "app.js must look up #rewriteCopyBtn");
+  assert.match(appSrc, /rewriteCopyBtn\.addEventListener\('click'/, "app.js must wire the rewrite copy button");
+  assert.match(appSrc, /getElementById\('plainOut'\)/, "rewrite copy must read #plainOut");
+  assert.match(appSrc, /'📋 Rewrite copied'/, "rewrite copy must toast on success");
+  assert.match(themeSrc, /\.rewrite-copy\{/, "theme.css must style .rewrite-copy");
+  assert.match(themeSrc, /\.rewrite-copy:focus-visible\{/, "theme.css must give .rewrite-copy a focus ring");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
