@@ -879,8 +879,10 @@
     // filter is active, so the all-severities view stays uncluttered.
     const countEl = document.getElementById('riskFilterCount');
     if(countEl){
-      const visibleCount = list ? list.querySelectorAll('.rrow:not([style*="display: none"])').length : 0;
       const totalCount = list ? list.querySelectorAll('.rrow').length : 0;
+      // Rows are hidden by the CSS filter selectors (.rrow[data-risk="…"]),
+      // never by inline styles — count exactly what the active filter reveals.
+      const visibleCount = (which && which !== 'all' && list) ? list.querySelectorAll('.rrow[data-risk="' + which + '"]').length : 0;
       if(which && which !== 'all' && totalCount > 0){
         countEl.textContent = 'showing ' + visibleCount + ' of ' + totalCount;
         countEl.hidden = false;

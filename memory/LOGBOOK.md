@@ -3248,3 +3248,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 4 of the autonomous loop (alternate add/polish): add the missing per-block copy button for the plain-English rewrite.
+
+**2026-08-06 13:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #5 of the restarted autonomous loop (polish).
+- polish(ui): fixed the risk-radar filter "showing X of Y" pill — it counted rows via `[style*="display: none"]`, but rows are hidden by CSS class selectors on `data-risk`, so the pill always reported "showing N of N" under any filter. It now counts `.rrow[data-risk="<filter>"]`, matching exactly what the CSS reveals.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 227 smoke + 1 integration = 718 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 5 of the autonomous loop (alternate add/polish): fix the inaccurate risk-filter count pill.

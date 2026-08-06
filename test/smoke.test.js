@@ -232,6 +232,18 @@ skip("rewrite block: has a Copy button that copies just the plain-English rewrit
   assert.match(themeSrc, /\.rewrite-copy:focus-visible\{/, "theme.css must give .rewrite-copy a focus ring");
 });
 
+skip("risk filter: 'showing X of Y' pill counts rows the CSS actually reveals", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // The pill must count rows by their data-risk attribute (what the CSS
+  // filter selectors reveal), not inline display styles.
+  assert.match(appSrc, /\.rrow\[data-risk="' \+ which \+ '"\]/, "visible count must use data-risk matching the active filter");
+  assert.doesNotMatch(appSrc, /querySelectorAll\('\.rrow:not\(\[style\*="display: none"\]\)'\)/, "count must not rely on inline display styles");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
