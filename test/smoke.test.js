@@ -2186,6 +2186,10 @@ skip("analyze: HTML report downloads a standalone analysis file", async () => {
     "the download must use text/html UTF-8");
   assert.match(appSrc, /a\.download = 'cleardoc-analysis-' \+ stamp \+ '\.html'/,
     "the filename must be cleardoc-analysis-<date>.html");
+  assert.match(appSrc, /report-summary/,
+    "the report must include a summary header style and block");
+  assert.ok(appSrc.includes("'<b>Verdict:</b> ' + esc(vLabel.textContent.trim())"),
+    "the report summary must include the verdict when available");
 
   const ctx = await browser.newContext({ acceptDownloads: true });
   const page = await ctx.newPage();
@@ -2207,6 +2211,8 @@ skip("analyze: HTML report downloads a standalone analysis file", async () => {
       "the download must be named cleardoc-analysis-<date>.html");
     assert.match(content, /^<!doctype html>/, "the report must be a full HTML document");
     assert.match(content, /ClearDoc Analysis/, "the report must include the ClearDoc header");
+    assert.match(content, /class="report-summary"/, "the report must include the summary header");
+    assert.match(content, /Verdict:/, "the report summary must include the verdict");
     assert.match(content, /NOT LEGAL ADVICE/, "the report must carry the disclaimer");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {

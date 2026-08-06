@@ -17513,6 +17513,27 @@
       clone.querySelectorAll('.no-print, button, select, input, textarea, script, style, [hidden]').forEach(el => el.remove());
       const stamp = new Date().toLocaleString();
       const source = (attachedFile && attachedFile.name) ? 'Source file: '+esc(attachedFile.name) : '';
+      let summaryHtml = '';
+      try {
+        const vLabel = verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-label');
+        const vSummary = verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-summary');
+        const parts = [];
+        if(vLabel && vLabel.textContent.trim()) parts.push('<b>Verdict:</b> '+esc(vLabel.textContent.trim()));
+        if(vSummary && vSummary.textContent.trim()) parts.push(esc(vSummary.textContent.trim()));
+        if(lastFlags && lastFlags.length){
+          const cnt = { r:0, a:0, g:0 };
+          lastFlags.forEach(f => { if(f && f.rule && f.rule.sev) cnt[f.rule.sev]++; });
+          const tally = [];
+          if(cnt.r) tally.push(cnt.r + ' trap' + (cnt.r > 1 ? 's' : ''));
+          if(cnt.a) tally.push(cnt.a + ' watch' + (cnt.a > 1 ? 'es' : ''));
+          if(cnt.g) tally.push(cnt.g + ' note' + (cnt.g > 1 ? 's' : ''));
+          if(tally.length) parts.push('<b>Risks:</b> '+tally.join(' · '));
+        }
+        if(levelFrom && levelTo && levelFrom.textContent && levelTo.textContent){
+          parts.push('<b>Reading level:</b> '+esc(levelFrom.textContent)+' → '+esc(levelTo.textContent));
+        }
+        if(parts.length) summaryHtml = '<div class="report-summary">'+parts.join(' · ')+'</div>';
+      } catch(_){ /* keep the report without a summary line */ }
       return '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
         '<meta name="viewport" content="width=device-width, initial-scale=1">' +
         '<title>ClearDoc Analysis</title>' +
@@ -17520,6 +17541,7 @@
           'body{font-family:Georgia,serif;max-width:820px;margin:0 auto;padding:28px 18px;color:#14120E;line-height:1.55}' +
           '.rh{display:block;font-family:"Courier New",monospace;font-weight:bold;letter-spacing:.08em;text-transform:uppercase;margin:26px 0 8px;border-bottom:2px solid #14120E;padding-bottom:4px}' +
           '.mono{font-family:"Courier New",monospace}' +
+          '.report-summary{font-family:"Courier New",monospace;font-size:13px;border:1px solid #14120E;padding:10px 12px;margin:14px 0 18px;background:#EDE7D8}' +
           'blockquote,pre{white-space:pre-wrap;background:#f4ecd3;border-left:4px solid #9A6A00;padding:10px 12px}' +
           '.decision-card,.health-check,.readiness-score,.riskNote-lead{border:1px solid #14120E;padding:10px 12px;background:#EDE7D8}' +
           'table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:6px;vertical-align:top}' +
@@ -17529,6 +17551,7 @@
         '<h1>ClearDoc Analysis</h1>' +
         '<p class="mono">Generated: '+esc(stamp)+'</p>' +
         (source ? '<p class="mono">'+source+'</p>' : '') +
+        summaryHtml +
         clone.innerHTML +
         '<p class="report-foot">NOT LEGAL ADVICE — for informational purposes only. cleardoc.app</p>' +
         '</body></html>';
