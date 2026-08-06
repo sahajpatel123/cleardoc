@@ -10943,6 +10943,8 @@ test("analyzer: Risk rows read the risk aloud in one click", () => {
     "the speak button must sit beside the copy button");
   assert.match(cssSrc, /\.rrow-speak:focus-visible\{/,
     "the speak button must have a focus ring");
+  assert.match(cssSrc, /\.risk-built \.rrow \.rrow-ask,\.risk-built \.rrow \.rrow-copy,\.risk-built \.rrow \.rrow-speak\{[^}]*min-width:26px/,
+    "the action trio must share consistent tap targets");
 });
 
 // Cycle #122 — per-smoking-gun copy citation.
