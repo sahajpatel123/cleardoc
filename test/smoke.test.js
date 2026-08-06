@@ -8695,6 +8695,8 @@ test("analyzer: currency only-big filter persists", () => {
     "a restored only-big view must show the accurate visible count");
   assert.match(appSrc, /Toggle <b>only \$100k\+<\/b> to hide small amounts/,
     "the currency note must document the filter chip");
+  assert.match(appSrc, /📋 copy all<\/b> to export the visible list/,
+    "the currency note must document the copy-all chip");
 });
 
 // Cycle #240 — bulk copy of the visible currency amounts.

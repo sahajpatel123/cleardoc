@@ -5345,7 +5345,7 @@
           Object.keys(result.totals).length + ' currenc' + (Object.keys(result.totals).length === 1 ? 'y' : 'ies') + '</span> ' +
           'Subtotal (rough FX): <b style="color:var(--ink)">~$' +
           Math.round(result.totalUSD).toLocaleString('en-US') + ' USD</b> · ' + breakdown +
-          '. Toggle <b>only $100k+</b> to hide small amounts; click <b>📋</b> on a row to copy it.';
+          '. Toggle <b>only $100k+</b> to hide small amounts; click <b>📋</b> on a row to copy it, or <b>📋 copy all</b> to export the visible list.';
       }
       // Append controls below the list so they sit between list and footer.
       currencyList.insertAdjacentHTML('afterend', controls);

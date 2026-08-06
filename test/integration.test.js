@@ -790,6 +790,7 @@ skip("integration: currency only-big filter persists", async () => {
     assert.equal(hiddenSmall, true, "small amounts must be hidden by the filter");
     assert.match(countAfter, /^1 of 2 amounts$/, `the count must reflect the visible rows, got "${countAfter}"`);
     assert.match(noteText, /only \$100k\+/, "the currency note must document the filter chip");
+    assert.match(noteText, /copy all/, "the currency note must document the copy-all chip");
 
     // Cycle #240 — copy-all respects the active filter.
     await page.click("#curCopyAllBtn");

@@ -5711,3 +5711,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 240 of the autonomous loop (alternate add/polish): every block in the app can export what it found except the money block — give amounts the same one-click copy treatment, filtered view and all.
+
+**2026-08-07 05:24 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #241 of the restructured autonomous loop (polish).
+- polish(currency): the currency note now documents the cycle-#240 "📋 copy all" chip ("…or 📋 copy all to export the visible list") so the newest export is discoverable next to the filter and per-row copy.
+- Verified in a real browser via the extended currency integration test: the rendered `#currencyNote` mentions "copy all"; zero console errors.
+- Extended the cycle-#238/#240 smoke tests with 1 note-text assertion.
+- Full suite green (490 unit + 349 smoke + 8 integration = 847 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 241 of the autonomous loop (alternate add/polish): the note that explains a block should explain all of it — a copy-all nobody knows about is a copy-all nobody uses.
