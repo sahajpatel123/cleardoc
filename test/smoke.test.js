@@ -12181,6 +12181,30 @@ test("analyzer: Exposure cards read the exposure aloud in one click", () => {
     "the speak button must have a focus ring");
 });
 
+// Cycle #244 — ask about an exposure, completing the card trio.
+test("analyzer: Exposure cards ask about the exposure in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /class="exposure-ask ghost-btn ghost-btn-sm"/,
+    "each exposure card must render an ask button");
+  assert.match(appSrc, /data-exposure-ask="' \+ esc\(it\.sentence\) \+ '"/,
+    "the ask button must carry the flagged sentence");
+  assert.match(appSrc, /const askBtn2 = e\.target\.closest && e\.target\.closest\('\[data-exposure-ask\]'\);/,
+    "the card click handler must catch ask-button clicks");
+  assert.match(appSrc, /qInput\.value = 'What does this exposure mean: "' \+ text\.slice\(0, 220\) \+ '"';/,
+    "clicking must prefill the Ask panel with the sentence");
+  assert.match(appSrc, /'💬 Question ready — press Ask'/,
+    "asking must announce via toast");
+  assert.match(cssSrc, /\.exposure-ask\{[^}]*margin-left:4px/,
+    "the ask button must sit beside the copy button");
+  assert.match(cssSrc, /\.exposure-ask:focus-visible\{/,
+    "the ask button must have a focus ring");
+});
+
 // Cycle #126 — per-pressure-card copy citation.
 test("analyzer: Pressure cards copy their citation in one click", () => {
   if (!HAS_BROWSER) return;

@@ -2328,6 +2328,8 @@ mark.smoking-trigger{background:#ffe98a;color:var(--ink);padding:0 2px;font-weig
 .exposure-speak{flex-shrink:0}
 .exposure-speak:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .exposure-card-copy{margin-left:4px;flex-shrink:0}
+.exposure-ask{margin-left:4px;flex-shrink:0}
+.exposure-ask:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .exposure-amount{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--ink);margin-left:auto;padding:2px 8px;border:1px solid var(--ink-soft);background:#fff}
 .exposure-amount.exposure-amount-unbounded{color:var(--danger);border-color:var(--danger);background:#fff8e6}
 .exposure-amount.exposure-amount-worst{color:var(--danger);background:#fff;border-color:var(--danger)}

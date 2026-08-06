@@ -898,3 +898,66 @@ skip("integration: smoking-gun cards ask about the sentence", async () => {
     await new Promise((r) => web2.close(r));
   }
 });
+
+// Cycle #244 — exposure cards prefill the Ask panel.
+skip("integration: exposure cards ask about the exposure", async () => {
+  const WEB2 = 4341;
+  const web2 = staticServer();
+  await new Promise((r) => web2.listen(WEB2, r));
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+
+  await page.addInitScript(() => {
+    const MOCK = {
+      analysis: {
+        plainEnglishRewrite: "<b>This is a rewritten clause.</b> It says you must pay within 30 days.",
+        risks: [],
+        verdict: { label: "Suspicious", summary: "One clause deserves attention before signing." },
+        deadlines: [],
+        nextSteps: ["Calendar the cancellation deadline."],
+        readingLevel: { before: 14, after: 8 },
+        jargonFound: 7,
+      },
+    };
+    const origFetch = window.fetch.bind(window);
+    window.fetch = function patchedFetch(url, opts) {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (u.endsWith("/api/analyze")) {
+        return Promise.resolve(new Response(JSON.stringify(MOCK), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return origFetch(url, opts);
+    };
+  });
+
+  try {
+    const doc = "The tenant shall be liable for $500,000 in damages and the company shall indemnify all claims without limit.";
+    await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
+    await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#exposureGrid .exposure-card", { timeout: 8000 });
+
+    const sentence = await page.$eval("#exposureGrid .exposure-card [data-exposure-ask]", (el) => el.getAttribute("data-exposure-ask"));
+    await page.click("#exposureGrid .exposure-card [data-exposure-ask]");
+    await page.waitForTimeout(200);
+    const askState = await page.evaluate(() => {
+      const ai = document.getElementById("askInput");
+      return { value: ai ? ai.value : "", disabled: ai ? ai.disabled : null };
+    });
+    assert.match(askState.value, /^What does this exposure mean: "/,
+      "the Ask panel must be prefilled with the exposure question");
+    assert.ok(askState.value.includes(sentence.slice(0, 40)),
+      "the prefilled question must carry the flagged sentence");
+    assert.equal(askState.disabled, false, "the Ask input must be enabled");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+    await new Promise((r) => web2.close(r));
+  }
+});

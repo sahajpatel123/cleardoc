@@ -5744,3 +5744,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 243 of the autonomous loop (alternate add/polish): a third button that crowds its siblings is a UI bug wearing a feature's clothes — give the newcomer the same spacing and shrink-resistance as the family.
+
+**2026-08-07 06:06 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #244 of the restructured autonomous loop (add).
+- feat(exposure): exposure cards now have a 💬 ask button that prefills the Ask panel with "What does this exposure mean: "<sentence> — completing the copy / speak / ask trio (smoking guns got theirs in cycle #242). Styling was included up front this time (margin-left + focus ring), so no follow-up CSS cycle is needed.
+- Verified in a real browser via a new integration test (fresh origin, liability + $500,000 doc): the exposure card rendered, the ask button prefilled the Ask panel with the exposure question and enabled the input; zero console errors.
+- New smoke source test (7 assertions: ask button markup, sentence attribute, delegated handler, prefill format, toast, layout CSS, focus ring).
+- Full suite green (490 unit + 351 smoke + 10 integration = 851 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 244 of the autonomous loop (alternate add/polish): a six-figure exposure you can't interrogate is just a scary number — let users ask the document what it actually means.

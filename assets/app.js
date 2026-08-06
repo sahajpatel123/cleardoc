@@ -10517,6 +10517,9 @@
             // Cycle #152 — hear the money quote aloud.
             '<button type="button" class="exposure-speak ghost-btn ghost-btn-sm" data-exposure-speak="' + esc('Worst case ' + worstDisplay + '. ' + (it.sentence || '')) + '" title="Read this exposure aloud" aria-label="Read this exposure aloud">🔊</button>' +
             '<button type="button" class="exposure-card-copy ghost-btn ghost-btn-sm" data-exposure-copy-text="' + esc(copyText) + '" title="Copy this exposure as a citation" aria-label="Copy this exposure as a citation">📋</button>' +
+            // Cycle #244 — 💬 ask about the exposure, completing the
+            // copy / speak / ask trio on exposure cards.
+            '<button type="button" class="exposure-ask ghost-btn ghost-btn-sm" data-exposure-ask="' + esc(it.sentence) + '" title="Ask about this exposure" aria-label="Ask about this exposure">💬</button>' +
           '</div>' +
           '<div class="exposure-quote">"' + esc(trunc(it.sentence, 220)) + '"</div>' +
           '<div class="exposure-worst-line">' + esc(it.why) + '</div>' +
@@ -10629,6 +10632,23 @@
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Exposure citation copied' : '⚠ Couldn’t copy');
             copyBtn.textContent = copied ? '✓' : '📋';
             if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋'; }, 1500);
+            return;
+          }
+          // Cycle #244 — 💬 prefills the Ask panel with the sentence.
+          const askBtn2 = e.target.closest && e.target.closest('[data-exposure-ask]');
+          if(askBtn2){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = askBtn2.getAttribute('data-exposure-ask') || '';
+            const qInput = document.getElementById('askInput');
+            if(!qInput || !text) return;
+            qInput.value = 'What does this exposure mean: "' + text.slice(0, 220) + '"';
+            qInput.disabled = false;
+            const qBtn = document.getElementById('askBtn');
+            if(qBtn) qBtn.disabled = false;
+            try { qInput.focus({preventScroll:false}); } catch(_){ qInput.focus(); }
+            try { qInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
             return;
           }
           if(e.target && (e.target.classList.contains('exposure-prob') || e.target.classList.contains('exposure-prob-value'))) return;
