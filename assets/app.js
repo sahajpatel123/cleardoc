@@ -1112,9 +1112,29 @@
     const why = String(top.rule.why || '').trim();
     const copyText = 'Top concern (' + sevLabel + '): “' + quote + '”' + (why ? ' — Why it matters: ' + why : '');
     el.innerHTML =
-      '<span class="tc-kicker">' + sevGlyph + ' Top concern · ' + esc(sevLabel) + esc(ordinal) + ' <button type="button" class="tc-copy no-print" data-tc-copy="1" aria-label="Copy the top concern to the clipboard">Copy</button></span>' +
+      '<span class="tc-kicker">' + sevGlyph + ' Top concern · ' + esc(sevLabel) + esc(ordinal) +
+        ' <button type="button" class="tc-copy no-print" data-tc-copy="1" aria-label="Copy the top concern to the clipboard">Copy</button>' +
+        ' <button type="button" class="tc-fix no-print" data-tc-fix="1" title="Preview your readiness score if this clause is fixed">What if fixed?</button></span>' +
       '<span class="tc-quote">“' + esc(quote) + '”</span>' +
-      '<span class="tc-why"><b>Why it matters:</b> ' + esc(why) + '</span>';
+      '<span class="tc-why"><b>Why it matters:</b> ' + esc(why) + '</span>' +
+      '<span class="tc-fixed no-print" data-tc-fixed="1" hidden aria-live="polite"></span>';
+    // Self-contained readiness math (mirrors computeThreatScore +
+    // computeReadinessScore so this stays usable outside analyzePage).
+    const scoreOf = (arr) => {
+      let score = 0, traps = 0;
+      (Array.isArray(arr) ? arr : []).forEach(f => {
+        if(!f || !f.rule) return;
+        const sev = f.rule.sev;
+        if(sev === 'r'){ score += 10; traps++; }
+        else if(sev === 'a'){ score += 4; }
+        else if(sev === 'g'){ score += 1; }
+      });
+      const total = (Array.isArray(arr) ? arr : []).length;
+      if(!total) return 100;
+      const base = Math.max(0, 100 - (score * 0.6));
+      const densityPenalty = Math.min(15, (total - traps) * 0.5);
+      return Math.max(0, Math.min(100, Math.round(base - densityPenalty)));
+    };
     const copyBtn = el.querySelector('[data-tc-copy]');
     if(copyBtn) copyBtn.addEventListener('click', async () => {
       let ok = false;
@@ -1138,6 +1158,14 @@
         copyBtn.textContent = orig;
         copyBtn.setAttribute('aria-label', 'Copy the top concern to the clipboard');
       }, 1400);
+    });
+    const fixBtn = el.querySelector('[data-tc-fix]');
+    const fixedNote = el.querySelector('[data-tc-fixed]');
+    if(fixBtn && fixedNote) fixBtn.addEventListener('click', () => {
+      const cur = scoreOf(flags);
+      const sim = scoreOf(flags.filter(f => f !== top));
+      fixedNote.textContent = '✨ If you fix this clause: ' + sim + '/100' + (sim !== cur ? ' (up from ' + cur + ')' : '');
+      fixedNote.hidden = false;
     });
     el.hidden = false;
   }

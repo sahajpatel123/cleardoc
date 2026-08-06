@@ -3498,3 +3498,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 29 of the autonomous loop (alternate add/polish): keep focus on something visible when Focus mode turns on.
+
+**2026-08-06 17:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #30 of the restarted autonomous loop (feature add).
+- feat(ui): added a "What if fixed?" action to the Top Concern callout that previews the Readiness score without that clause — e.g. "If you fix this clause: 61/100 (up from 34)". Mirrors the app's threat + readiness math self-contained, so negotiation planning is one click away.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 243 smoke + 1 integration = 734 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 30 of the autonomous loop (alternate add/polish): show the score impact of fixing the top clause.

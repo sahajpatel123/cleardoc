@@ -480,6 +480,21 @@ skip("keyboard: 'f' toggles focus mode when results are visible", async () => {
   assert.match(appSrc, /<kbd>f<\/kbd><span>Toggle Focus mode/, "the help modal must document the f shortcut");
 });
 
+skip("top concern: 'What if fixed?' previews the readiness score without the clause", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /data-tc-fix="1"/, "paintTopConcern must render a What-if-fixed button");
+  assert.match(appSrc, /flags\.filter\(f => f !== top\)/, "the preview must drop the top concern from the flags");
+  assert.match(appSrc, /\(total - traps\) \* 0\.5/, "the preview must use the readiness density penalty");
+  assert.match(appSrc, /'✨ If you fix this clause: '/, "the preview must report the simulated score");
+  assert.match(themeSrc, /\.tc-fix\{/, "theme.css must style .tc-fix");
+  assert.match(themeSrc, /\.tc-fixed\{/, "theme.css must style the preview note");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

@@ -951,6 +951,11 @@ button.risk-preview:hover{filter:brightness(.96)}
 .tc-copy{background:none;border:none;font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);cursor:pointer;border-bottom:1px dotted transparent;padding:0 0 0 8px;margin-left:8px;vertical-align:baseline;transition:color .15s,border-color .15s}
 .tc-copy:hover{color:var(--accent);border-bottom-color:var(--accent)}
 .tc-copy:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.tc-fix{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);letter-spacing:.06em;text-transform:uppercase;background:none;border:1px solid var(--ink-soft);color:var(--ink-soft);cursor:pointer;padding:1px 6px;margin-left:8px;vertical-align:baseline}
+.tc-fix:hover{background:var(--ink);color:var(--paper)}
+.tc-fix:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tc-fixed{display:block;margin-top:8px;font-size:var(--t-meta-sm);color:var(--green);font-weight:700;letter-spacing:.02em}
+.tc-fixed[hidden]{display:none}
 /* iter #204: per-risk "Ask about this" button — sits at the right of
    each risk row, copies a pre-filled chat question on click. Stays
    subdued so it doesn't fight the risk text for attention. */
