@@ -1054,6 +1054,49 @@ skip("JSON-LD: pricing page has Product with 3 Offer tiers + FAQPage", async () 
     "pricing FAQPage must list at least 3 questions");
 });
 
+test("pricing: plan cards are backed by a feature-comparison table", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "pricing.html"), "utf8");
+  const css = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(html, /<section class="compare-plans"/,
+    "pricing.html must include the comparison section");
+  assert.match(html, /id="compareTitle"/,
+    "the section must have a heading anchor");
+  assert.match(html, /<table class="compare-table">/,
+    "the comparison must be a semantic table");
+  assert.match(html, /<caption>All plans — feature comparison<\/caption>/,
+    "the table must have a caption");
+  assert.match(html, /scope="col" class="cp-feature">Feature<\/th>/,
+    "the feature column header must exist");
+  assert.match(html, /scope="col">Reader<\/th>/,
+    "the Reader column must exist");
+  assert.match(html, /scope="col" class="cp-pick">Professional ★<\/th>/,
+    "the Professional column must be highlighted as the pick");
+  assert.match(html, /scope="col">The Firm<\/th>/,
+    "the Firm column must exist");
+  assert.match(html, /scope="row">Reads per month<\/th>/,
+    "the reads row must exist");
+  assert.match(html, /scope="row">AI chat cited to the line<\/th>/,
+    "the AI-chat row must exist");
+  assert.match(html, /scope="row">API access<\/th>/,
+    "a firm-only row must exist");
+  assert.match(html, /class="cp-yes">✓/,
+    "included features must show a checkmark");
+  assert.match(html, /class="cp-no">—/,
+    "missing features must show a dash");
+  assert.match(css, /\.compare-table-wrap\{[^}]*overflow-x:auto/,
+    "the wrap must scroll horizontally instead of overflowing");
+  assert.match(css, /\.compare-table thead th\{/,
+    "table headers must be styled");
+  assert.match(css, /\.compare-table td\.cp-no\{/,
+    "dash cells must be styled");
+  assert.match(css, /\.compare-table \.cp-yes\{/,
+    "checkmarks must be styled");
+});
+
 skip("JSON-LD: every public page declares a BreadcrumbList with valid positions", async () => {
   const fs = require("node:fs");
   const path = require("node:path");

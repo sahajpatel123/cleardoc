@@ -4190,3 +4190,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 97 of the autonomous loop (alternate add/polish): if you ask it to forget, the conversations go too — and when a conversation comes back, you should know it did.
+
+**2026-08-06 18:44 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #98 of the restarted autonomous loop (add).
+- feat(pricing): the pricing page now has a feature-comparison table ("Which plan fits?") — a semantic `<table>` with real column headers (Reader / Professional ★ / The Firm), 9 rows faithful to the plan-card copy (reads per month, rewrites, risk flags, AI chat, file uploads, shared workspace, API access, priority desk, cancel anytime), green ✓ checkmarks for included features and — dashes for firm-only ones.
+- Accessibility: `<caption>`, `scope="col"` / `scope="row"` headers, section `aria-labelledby`. Responsive: the table wrap scrolls horizontally on small screens (`overflow-x:auto`) so the page itself never overflows; dark-mode-safe via CSS variables; print-friendly (print.css unaffected).
+- New smoke test "pricing: plan cards are backed by a feature-comparison table" — 17 assertions covering the section/heading, semantic table + caption + scope headers, highlighted pick column, checkmark/dash cells, and the CSS (wrap scroll, header, dash, checkmark styles).
+- Full suite green (490 unit + 283 smoke + 1 integration = 774 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 98 of the autonomous loop (alternate add/polish): deciding between $0 / $19 / $49 should take one glance, not three paragraphs.
