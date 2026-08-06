@@ -4820,3 +4820,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 159 of the autonomous loop (alternate add/polish): ask and copy should share one tidy corner of every risk row.
+
+**2026-08-06 09:14 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #160 of the restarted autonomous loop (add) — milestone cycle (807 tests).
+- feat(ui): every risk row now has a 🔊, speak button — reading the flagged sentence aloud at the user's chosen pace (`getTtsRate()`), with `stopPropagation` so it never triggers the row's expand/ask/copy, and excluded from the click-to-expand handler.
+- Regression caught in-process: the first patch landed the speak block inside `wireAskPerRisk` (which scopes `clause`, not `sentence`), breaking the analyze flow with a ReferenceError — the integration test caught it, the block was moved into `wireCopyPerRisk` (where `sentence` is defined), the browser probe confirmed zero errors + the panel renders, and the smoke test was hardened with placement guards (speak must live inside `wireCopyPerRisk`, must not leak into `wireAskPerRisk`).
+- New smoke test "Risk rows read the risk aloud in one click" — 9 assertions covering the button markup, sentence data, TTS + rate, stopPropagation, expand-ignore, placement guards, and CSS.
+- Full suite green (490 unit + 316 smoke + 1 integration = 807 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 160 of the autonomous loop (alternate add/polish): hear it, copy it, ask it — the flagged sentence gets the full trio.

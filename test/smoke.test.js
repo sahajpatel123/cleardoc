@@ -10915,6 +10915,36 @@ test("analyzer: Every risk row can copy its citation in one click", () => {
     "the copy button must have a focus ring");
 });
 
+// Cycle #160 — per-risk-row speak.
+test("analyzer: Risk rows read the risk aloud in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /speakBtn\.className = 'rrow-speak ghost-btn ghost-btn-sm';/,
+    "each risk row must render a speak button");
+  assert.match(appSrc, /function wireCopyPerRisk\(\)\{[\s\S]{0,3000}rrow-speak/,
+    "the speak wiring must live inside wireCopyPerRisk (where sentence is defined)");
+  assert.doesNotMatch(appSrc, /function wireAskPerRisk\(\)\{[\s\S]{0,300}rrow-speak/,
+    "the speak wiring must not leak into wireAskPerRisk");
+  assert.match(appSrc, /speakBtn\.dataset\.rrowSpeak = sentence\.slice\(0, 240\);/,
+    "the speak button must carry the flagged sentence");
+  assert.match(appSrc, /new SpeechSynthesisUtterance\(text\)/,
+    "clicking must speak the risk");
+  assert.match(appSrc, /u\.rate = getTtsRate\(\);/,
+    "the reading must respect the chosen speed");
+  assert.match(appSrc, /e\.stopPropagation\(\);/,
+    "speaking must not trigger the row's other actions");
+  assert.match(appSrc, /\.rrow-copy'\) \|\| e\.target\.closest\('\.rrow-speak'\)/,
+    "clicking speak must not expand the row");
+  assert.match(cssSrc, /\.risk-built \.rrow \.rrow-speak\{/,
+    "the speak button must sit beside the copy button");
+  assert.match(cssSrc, /\.rrow-speak:focus-visible\{/,
+    "the speak button must have a focus ring");
+});
+
 // Cycle #122 — per-smoking-gun copy citation.
 test("analyzer: Smoking-gun cards copy their citation in one click", () => {
   if (!HAS_BROWSER) return;

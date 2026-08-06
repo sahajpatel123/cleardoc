@@ -1484,6 +1484,27 @@
         setTimeout(() => { if(btn.isConnected) btn.textContent = '📋'; }, 1500);
       });
       row.appendChild(btn);
+      // Cycle #160 — per-risk speak: read the flagged sentence aloud.
+      const speakBtn = document.createElement('button');
+      speakBtn.type = 'button';
+      speakBtn.className = 'rrow-speak ghost-btn ghost-btn-sm';
+      speakBtn.setAttribute('aria-label', 'Read this ' + sev.toLowerCase() + ' aloud');
+      speakBtn.title = 'Read this risk aloud';
+      speakBtn.textContent = '🔊';
+      speakBtn.dataset.rrowSpeak = sentence.slice(0, 240);
+      speakBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const text = speakBtn.dataset.rrowSpeak || '';
+        if(text && typeof window !== 'undefined' && 'speechSynthesis' in window){
+          try {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = getTtsRate();
+            window.speechSynthesis.speak(u);
+          } catch(_){ /* ignore */ }
+        }
+      });
+      row.appendChild(speakBtn);
     });
   }
   // iter #207: click-to-expand risk row — toggles the inline counter-
@@ -1500,7 +1521,7 @@
     list.addEventListener('click', e => {
       // Don't toggle when clicking the existing 💬 ask button or the
       // expand ▾ toggle (those have their own handlers).
-      if(e.target.closest && (e.target.closest('.rrow-ask') || e.target.closest('.rrow-expand') || e.target.closest('.rrow-fix') || e.target.closest('.rrow-copy'))) return;
+      if(e.target.closest && (e.target.closest('.rrow-ask') || e.target.closest('.rrow-expand') || e.target.closest('.rrow-fix') || e.target.closest('.rrow-copy') || e.target.closest('.rrow-speak'))) return;
       const row = e.target.closest && e.target.closest('.rrow');
       if(!row) return;
       const counter = row.querySelector('.rrow-counter');
