@@ -10068,6 +10068,25 @@ test("analyzer: reading list resume button jumps to the first unfinished chunk",
   assert.match(cssSrc, /\.reading-resume-flash\{/, "the resume highlight must be styled");
 });
 
+// Cycle #194 — reset all read marks for the current document.
+test("analyzer: reading list reset clears read marks", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="readingResetBtn" title="Clear all read marks for this document"/,
+    "reading controls must include a reset button");
+  assert.match(appSrc, /const readingResetBtn = document\.getElementById\('readingResetBtn'\);/,
+    "the reset button must have a click handler");
+  assert.match(appSrc, /doneMap = \{\};[\s\S]{0,80}localStorage\.removeItem\(doneKey\)/,
+    "resetting must clear the in-memory and persisted done map");
+  assert.match(appSrc, /localStorage\.removeItem\(doneKey\); \} catch\(_\)\{ \/\* ignore \*\/ \}[\s\S]{0,60}renderReadingBlock\(raw, ctx\);/,
+    "resetting must re-render the reading list");
+  assert.match(appSrc, /'↺ Read marks cleared for this document'/,
+    "resetting must confirm with a toast");
+});
+
 // Iter #140: section risk map — aggregates risk patterns by
 // clause category and renders weighted horizontal bars.
 test("analyzer: Section risk map aggregates risk by clause category", () => {

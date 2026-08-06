@@ -5188,3 +5188,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 193 of the autonomous loop (alternate add/polish): when the whole list is copied, every deadline should carry its countdown — not just the single rows.
+
+**2026-08-06 21:53 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #194 of the restarted autonomous loop (add).
+- feat(reading): the reading list now has a "↺ reset" button that clears every read mark for the current document — in-memory map wiped, the persisted `cleardoc:reading-done:<fp>` key removed, the list re-rendered (progress bar + strip overlay included), and a toast confirms. Mirrors the obligations tracker's reset affordance.
+- Verified in a real browser with a mocked analyze flow: marking a chunk done showed 1 done; reset returned 0 with the confirmation toast; zero console errors.
+- New smoke test "analyzer: reading list reset clears read marks" — 5 assertions (button markup, handler, in-memory + persisted wipe, re-render, toast).
+- Full suite green (490 unit + 329 smoke + 1 integration = 820 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 194 of the autonomous loop (alternate add/polish): a fresh read of a contract shouldn't carry yesterday's checkmarks — one tap should reset the progress.

@@ -8576,6 +8576,7 @@
         '<button type="button" class="reading-filter ghost-btn' + (undoneOnly ? ' reading-filter-active' : '') + '" id="readingUndoneBtn" title="Show only chunks you have not yet marked done">⏳ undone only</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyListBtn" title="Copy the reading priority list as plain text">📋 copy list</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingResumeBtn" title="Jump to your first unfinished must-read chunk">▶ resume</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="readingResetBtn" title="Clear all read marks for this document">↺ reset</button>' +
       '</div>' + signalChipHtml;
       readingGrid.innerHTML = stripHtml + progressBar + buckets + controls;
       readingBlock.hidden = false;
@@ -8780,6 +8781,16 @@
           resumeBtn._flashTimer = setTimeout(() => target.classList.remove('reading-resume-flash'), 2200);
           const pos = all.indexOf(target) + 1;
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('▶ Resuming: chunk ' + pos + ' of ' + all.length);
+        });
+      }
+      // Cycle #194 — reset all read marks for this document (fresh re-read).
+      const readingResetBtn = document.getElementById('readingResetBtn');
+      if(readingResetBtn){
+        readingResetBtn.addEventListener('click', () => {
+          doneMap = {};
+          try { localStorage.removeItem(doneKey); } catch(_){ /* ignore */ }
+          renderReadingBlock(raw, ctx);
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('↺ Read marks cleared for this document');
         });
       }
     }
