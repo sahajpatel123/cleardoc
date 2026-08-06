@@ -20074,6 +20074,35 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     if(rewriteToggleBtn) rewriteToggleBtn.addEventListener('click', () => {
       setRewriteToggle(!rewriteShowOriginal);
     });
+    // Cycle #198 — paste from the clipboard: one click reads the system
+    // clipboard into the analyzer (mirrors the 40,000-char server cap),
+    // with clear fallbacks when the browser doesn't allow clipboard reads.
+    const pasteBtn = document.getElementById('pasteBtn');
+    if(pasteBtn){
+      pasteBtn.addEventListener('click', async () => {
+        try {
+          if(!navigator.clipboard || !navigator.clipboard.readText){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Clipboard reading isn’t supported here — use Ctrl/Cmd+V');
+            return;
+          }
+          const text = await navigator.clipboard.readText();
+          if(!text || !text.trim()){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📋 Clipboard is empty');
+            return;
+          }
+          input.value = text.slice(0, 40000);
+          clearAttachments();
+          clearDraft();
+          if(panel) panel.hidden = true;
+          if(emptyEl) emptyEl.hidden = false;
+          updateTextStats();
+          if(msg){ msg.textContent = '📋 Pasted ' + text.length + ' characters. Press Analyze when ready.'; msg.className = 'analyze-msg'; }
+          try { input.focus({preventScroll:false}); } catch(_){ input.focus(); }
+        } catch(_){
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t read the clipboard — press Ctrl/Cmd+V instead');
+        }
+      });
+    }
     // Cycle #188 — the live deadlines preview's "↓ all" jumps to the full
     // deadlines list in the results (flashing it); before analysis runs,
     // it guides the user to the Analyze button instead.

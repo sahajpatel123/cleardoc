@@ -915,6 +915,34 @@ test("analyzer: 'q' focuses the Ask panel when results are visible", () => {
     "the help modal must document the q shortcut");
 });
 
+// Cycle #198 — one-click paste from the system clipboard.
+test("analyzer: paste button reads the clipboard into the input", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(html, /id="pasteBtn" title="Paste text from your clipboard into the analyzer"/,
+    "analyze.html must expose the paste button");
+  assert.match(appSrc, /const pasteBtn = document\.getElementById\('pasteBtn'\);/,
+    "the paste button must be wired");
+  assert.match(appSrc, /pasteBtn\.addEventListener\('click', async \(\) => \{/,
+    "the paste handler must be async");
+  assert.match(appSrc, /navigator\.clipboard\.readText\(\)/,
+    "the handler must read the clipboard");
+  assert.match(appSrc, /text\.slice\(0, 40000\)/,
+    "the paste must respect the 40,000-char server cap");
+  assert.match(appSrc, /'📋 Pasted ' \+ text\.length \+ ' characters\. Press Analyze when ready\.'/,
+    "the handler must confirm the paste");
+  assert.match(appSrc, /'⚠ Clipboard reading isn’t supported here — use Ctrl\/Cmd\+V'/,
+    "unsupported browsers must get a clear fallback hint");
+  assert.match(appSrc, /'📋 Clipboard is empty'/,
+    "an empty clipboard must be reported");
+  assert.match(appSrc, /'⚠ Couldn’t read the clipboard — press Ctrl\/Cmd\+V instead'/,
+    "permission failures must fall back gracefully");
+});
+
 skip("top concern: 'What if fixed?' previews the readiness score without the clause", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
