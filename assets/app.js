@@ -1956,6 +1956,7 @@
             <div class="kb-row"><kbd>g</kbd><kbd>p</kbd><span>See pricing</span></div>
             <div class="kb-row"><kbd>/</kbd><span>Focus the document input</span></div>
             <div class="kb-row"><kbd>⌘</kbd><kbd>Enter</kbd><span>Run the analysis</span></div>
+            <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><span>Risk radar filter (all / traps / watches / notes)</span></div>
             <div class="kb-row"><kbd>?</kbd><span>Show this help</span></div>
             <div class="kb-row"><kbd>Esc</kbd><span>Close any modal / banner</span></div>
@@ -2056,6 +2057,18 @@
           navTo('analyze.html');
         }
         return;
+      }
+
+      // 'f' toggles Focus mode — but only when the result panel is visible,
+      // so the key stays free on other pages.
+      if(k === 'f' || k === 'F'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          e.preventDefault();
+          const on = setFocusMode(!document.body.classList.contains('focus-mode'));
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(on ? '🧘 Focus mode on — press Esc or f to exit' : 'Focus mode off');
+          return;
+        }
       }
 
       // 'g' starts a 2-key navigation sequence

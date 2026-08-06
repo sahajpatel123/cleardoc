@@ -467,6 +467,18 @@ skip("voice mode: exits focus mode so it reads what is visible", async () => {
   assert.match(handler, /setFocusMode\(false\);/, "voice mode must exit focus mode before reading");
 });
 
+skip("keyboard: 'f' toggles focus mode when results are visible", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /k === 'f' \|\| k === 'F'/, "the global keydown handler must branch on f/F");
+  assert.match(appSrc, /setFocusMode\(!document\.body\.classList\.contains\('focus-mode'\)\)/, "f must toggle the focus-mode body class");
+  assert.match(appSrc, /resultPanel/, "f must only fire when the result panel is visible");
+  assert.match(appSrc, /<kbd>f<\/kbd><span>Toggle Focus mode/, "the help modal must document the f shortcut");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

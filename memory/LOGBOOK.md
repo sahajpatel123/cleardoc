@@ -3478,3 +3478,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 27 of the autonomous loop (alternate add/polish): keep voice narration in sync with the visible analysis.
+
+**2026-08-06 17:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #28 of the restarted autonomous loop (feature add).
+- feat(keys): added an 'f' shortcut that toggles Focus mode — but only when the result panel is visible, so the key stays free elsewhere. Documented in the keyboard-shortcuts help modal and announced via toast.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 242 smoke + 1 integration = 733 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 28 of the autonomous loop (alternate add/polish): keyboard toggle for Focus mode.
