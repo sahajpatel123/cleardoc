@@ -14338,6 +14338,41 @@
       const controls = '<div class="act-controls"><span class="act-count"><b>' + doneCount + '</b> of ' + totalForCounter + ' done</span><button type="button" class="act-copy ghost-btn ghost-btn-sm" id="actCopyBtn" title="Copy the signing checklist with your progress">📋 copy</button><button type="button" class="act-csv ghost-btn ghost-btn-sm" id="actCsvBtn" title="Download the signing checklist as a .csv file">📊 CSV</button><button type="button" class="act-reset ghost-btn ghost-btn-sm" id="actResetBtn">reset all</button></div>';
       actionGrid.innerHTML = cells + controls;
       actionBlock.hidden = false;
+      actionGrid._actResult = result;
+      // Cycle #253 — the ☑ toggle and click-to-jump were only wired by a
+      // second, not-always-reachable renderer, leaving the checklist inert
+      // in the browser. Wire them here (once) so the block always works.
+      if(!actionGrid._actToggleWired){
+        actionGrid._actToggleWired = true;
+        actionGrid.addEventListener('click', (e) => {
+          const checkBtn = e.target.closest && e.target.closest('[data-act-check]');
+          if(checkBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const key = checkBtn.getAttribute('data-act-check') || '';
+            let done = {};
+            try { done = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch(_){ done = {}; }
+            done[key] = !done[key];
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(done)); } catch(_){ /* quota? */ }
+            if(actionGrid._actResult) renderActionsBlock(actionGrid._actResult);
+            return;
+          }
+          const li = e.target.closest && e.target.closest('.act-item');
+          if(!li || !input) return;
+          const matched = li.getAttribute('data-act-matched') || '';
+          if(matched && input){
+            const idx2 = input.value.indexOf(matched);
+            if(idx2 >= 0){
+              try { input.focus(); input.setSelectionRange(idx2, idx2 + matched.length); } catch(_){ /* ignore */ }
+              if(typeof input.scrollIntoView === 'function'){
+                try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
+              }
+            } else if(typeof showAnalyzeToast === 'function'){
+              showAnalyzeToast('⚠ No longer in input');
+            }
+          }
+        });
+      }
       // Cycle 68 feature — copy the signing checklist with progress, so it
       // can be pasted into an email, checklist app, or shared with counsel.
       const actCopyBtn = document.getElementById('actCopyBtn');

@@ -8963,6 +8963,12 @@ test("analyzer: Signing checklist polished with per-item toggle + persistence + 
   // Toggle button + persistence in localStorage
   assert.match(appSrc, /data-act-check=/,
     "per-item check button markup must carry data-act-check");
+  assert.match(appSrc, /actionGrid\._actResult = result;/,
+    "each render must capture the latest result for the delegated toggle");
+  assert.match(appSrc, /actionGrid\._actToggleWired = true;/,
+    "the toggle handler must be wired once on the checklist grid");
+  assert.match(appSrc, /actionGrid\._actToggleWired = true;[\s\S]{0,240}\[data-act-check\]/,
+    "the once-wired handler must catch check-button clicks");
   assert.match(appSrc, /localStorage\.setItem.*STORAGE_KEY|cstorageKey|localStorage\.getItem.*signing-checklist/,
     "check state must be persisted to localStorage");
   assert.match(appSrc, /act-checked|text-decoration[\s\S]*?line-through/,

@@ -5843,3 +5843,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 252 of the autonomous loop (alternate add/polish): the to-do list standing between you and a signature belongs in the same tracker as everything else — export it with its progress.
+
+**2026-08-07 08:04 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #253 of the restructured autonomous loop (polish).
+- fix(signing): discovered during cycle #252 that the signing checklist's ☑ toggle and click-to-jump were only wired by a second renderer that isn't always reachable — the pipeline-called `renderActionsBlock` rendered inert items in the browser (clicking ☑ did nothing, despite the smoke test only asserting the markup). The block now wires a once-guarded delegated handler on `actionGrid` that toggles the item in `cleardoc:signing-checklist`, re-renders from the latest captured result, and jumps to the matched source text on body clicks.
+- Verified in a real browser via the extended signing-checklist integration test: clicking ☑ marked the item done (`.act-checked`) and persisted to localStorage; the CSV download still works; zero console errors.
+- Extended the cycle-#103 smoke test with 3 assertions (result capture, once-guard wiring, check-button catching).
+- Full suite green (490 unit + 356 smoke + 14 integration = 860 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 253 of the autonomous loop (alternate add/polish): a checklist whose ☑ does nothing is a poster, not a tool — the toggle that ships must be the toggle that works.

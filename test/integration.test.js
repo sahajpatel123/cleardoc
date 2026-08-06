@@ -1241,6 +1241,14 @@ skip("integration: signing checklist downloads a CSV tracker file", async () => 
     assert.ok(dataRows.length >= 2, `the CSV must include the checklist items (${itemCount})`);
     assert.ok(dataRows.some((l) => l.includes('"todo"')), "the CSV must mark the rest todo");
     assert.ok(dataRows.every((l) => l.includes('"todo"')), "unchecked items must all be todo");
+
+    // Cycle #253 — the ☑ toggle must actually work in the browser.
+    await page.evaluate(() => document.querySelector("#actionGrid .act-glyph-btn").click());
+    await page.waitForSelector("#actionGrid .act-item.act-checked", { timeout: 4000 });
+    const checkedCount = await page.$$eval("#actionGrid .act-item.act-checked", (els) => els.length);
+    const storedAfter = await page.evaluate(() => JSON.parse(localStorage.getItem("cleardoc:signing-checklist") || "{}"));
+    assert.ok(checkedCount >= 1, "clicking ☑ must mark an item done");
+    assert.ok(Object.keys(storedAfter).length >= 1, "the toggle must persist to localStorage");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
