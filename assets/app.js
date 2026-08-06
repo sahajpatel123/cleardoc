@@ -1197,40 +1197,50 @@
   function initServiceStatus(){
     const el=document.getElementById('serviceStatus');
     if(!el) return;
+    let inflight=false;
+    const TIMEOUT_MS=4000;
+    const RE_CHECK_MS=60000;
+    const timeNow=()=>{
+      try { return new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }); }
+      catch(_){ return ''; }
+    };
     const setState=(label, cls, title)=>{
       el.textContent=label;
       el.className='service-status mono no-print '+cls;
-      if(title) el.title=title;
+      el.title=title;
     };
-    setState('… checking', 'off', 'Checking ClearDoc API status');
-    let done=false;
-    const TIMEOUT_MS=4000;
-    const timer=setTimeout(()=>{
-      if(done) return;
-      done=true;
-      setState('○ status offline', 'off', 'Could not reach the status endpoint');
-    }, TIMEOUT_MS);
-    const fail=()=>{
-      if(done) return;
-      done=true;
-      clearTimeout(timer);
-      setState('○ status offline', 'off', 'Could not reach the status endpoint');
+    const check=()=>{
+      if(!document.getElementById('serviceStatus')) return false;
+      if(inflight) return true;
+      inflight=true;
+      if(!el.getAttribute('data-checked')){
+        setState('… checking', 'off', 'Checking ClearDoc API status');
+      }
+      const settle=(label, cls, detail)=>{
+        if(!inflight) return;
+        inflight=false;
+        clearTimeout(timer);
+        el.setAttribute('data-checked','1');
+        const when=timeNow();
+        setState(label, cls, detail + (when ? ' · Last checked ' + when : ''));
+      };
+      const timer=setTimeout(()=>settle('○ status offline', 'off', 'Could not reach the status endpoint'), TIMEOUT_MS);
+      try{
+        fetch('/api/health', { headers:{ 'Accept':'application/json' }, cache:'no-store' })
+          .then(r=>r.json())
+          .then(data=>{
+            if(data && data.ok && data.status==='ok'){
+              settle('● operational', 'ok', 'ClearDoc API is operational');
+            } else {
+              settle('● degraded', 'warn', (data && data.reason) || 'ClearDoc API is degraded');
+            }
+          })
+          .catch(()=>settle('○ status offline', 'off', 'Could not reach the status endpoint'));
+      }catch(_){ settle('○ status offline', 'off', 'Could not reach the status endpoint'); }
+      return true;
     };
-    try{
-      fetch('/api/health', { headers:{ 'Accept':'application/json' }, cache:'no-store' })
-        .then(r=>r.json())
-        .then(data=>{
-          if(done) return;
-          done=true;
-          clearTimeout(timer);
-          if(data && data.ok && data.status==='ok'){
-            setState('● operational', 'ok', 'ClearDoc API is operational');
-          } else {
-            setState('● degraded', 'warn', (data && data.reason) || 'ClearDoc API is degraded');
-          }
-        })
-        .catch(fail);
-    }catch(_){ fail(); }
+    check();
+    const interval=setInterval(()=>{ if(check()===false) clearInterval(interval); }, RE_CHECK_MS);
   }
 
   /* ---- CTAs ---- */
