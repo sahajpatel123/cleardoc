@@ -724,3 +724,78 @@ skip("integration: templates can be duplicated", async () => {
     await new Promise((r) => web2.close(r));
   }
 });
+
+// Cycle #238 — the "only $100k+" currency view persists across reloads.
+skip("integration: currency only-big filter persists", async () => {
+  const WEB2 = 4341;
+  const web2 = staticServer();
+  await new Promise((r) => web2.listen(WEB2, r));
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+
+  await page.addInitScript(() => {
+    const MOCK = {
+      analysis: {
+        plainEnglishRewrite: "<b>This is a rewritten clause.</b> It says you must pay within 30 days.",
+        risks: [],
+        verdict: { label: "Suspicious", summary: "One clause deserves attention before signing." },
+        deadlines: [],
+        nextSteps: ["Calendar the cancellation deadline."],
+        readingLevel: { before: 14, after: 8 },
+        jargonFound: 7,
+      },
+    };
+    const origFetch = window.fetch.bind(window);
+    window.fetch = function patchedFetch(url, opts) {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (u.endsWith("/api/analyze")) {
+        return Promise.resolve(new Response(JSON.stringify(MOCK), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return origFetch(url, opts);
+    };
+  });
+
+  const doc = "The license fee is $250,000 and the annual maintenance fee is $50.";
+  const analyze = async () => {
+    await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#curOnlyBigBtn", { timeout: 8000 });
+  };
+
+  try {
+    await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
+    await analyze();
+    const classBefore = await page.$eval(".currency-list", (el) => el.classList.contains("cur-only-big"));
+    assert.equal(classBefore, false, "the only-big view must start off");
+
+    await page.click("#curOnlyBigBtn");
+    await page.waitForTimeout(200);
+    const classAfter = await page.$eval(".currency-list", (el) => el.classList.contains("cur-only-big"));
+    const stored = await page.evaluate(() => localStorage.getItem("cleardoc:money-onlybig"));
+    const hiddenSmall = await page.$$eval(".currency-list .cur-row:not(.cur-big)", (els) => els.every((e) => e.offsetParent === null));
+    assert.equal(classAfter, true, "clicking must apply the only-big class");
+    assert.equal(stored, "1", "the choice must persist");
+    assert.equal(hiddenSmall, true, "small amounts must be hidden by the filter");
+
+    // Reload + re-analyze: the restored view must come back on.
+    await page.reload({ waitUntil: "networkidle" });
+    await analyze();
+    const classRestored = await page.$eval(".currency-list", (el) => el.classList.contains("cur-only-big"));
+    const pressedRestored = await page.$eval("#curOnlyBigBtn", (el) => el.getAttribute("aria-pressed"));
+    const labelRestored = await page.$eval("#curOnlyBigBtn", (el) => el.textContent.trim());
+    assert.equal(classRestored, true, "the only-big view must restore after reload");
+    assert.equal(pressedRestored, "true", "the restored chip must announce its pressed state");
+    assert.equal(labelRestored, "show all amounts", "the restored chip must carry the active label");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+    await new Promise((r) => web2.close(r));
+  }
+});

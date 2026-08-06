@@ -8673,6 +8673,24 @@ test("analyzer: Currency rows copy their amount in one click", () => {
     "the div row must have a focus ring");
 });
 
+// Cycle #238 — the "only $100k+" currency view persists like the
+// pay/receive direction filter.
+test("analyzer: currency only-big filter persists", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /localStorage\.getItem\('cleardoc:money-onlybig'\)/,
+    "the only-big view must read the saved choice");
+  assert.match(appSrc, /currencyList\.classList\.toggle\('cur-only-big', curOnlyBig\)/,
+    "the restored view must apply the only-big class at render");
+  assert.match(appSrc, /localStorage\.setItem\('cleardoc:money-onlybig', on \? '1' : '0'\)/,
+    "toggling must persist the choice");
+  assert.match(appSrc, /onlyBtn\.setAttribute\('aria-pressed', curOnlyBig \? 'true' : 'false'\)/,
+    "the restored view must announce the pressed state");
+});
+
 // Iter #100: key-clause highlighter — picks the 3-4 most consequential
 // sentences in the analyzed document and surfaces them in a "read
 // twice" preview block above the textarea. Pure local.

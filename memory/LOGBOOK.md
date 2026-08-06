@@ -5678,3 +5678,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 237 of the autonomous loop (alternate add/polish): a button that looks like a browser default is a feature wearing a placeholder — style the newcomer like the family it joined.
+
+**2026-08-07 04:45 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #238 of the restructured autonomous loop (add).
+- feat(currency): the "only $100k+" toggle in the currency block now persists to `cleardoc:money-onlybig` and restores on re-analysis and reload — mirroring the money direction filter from earlier cycles. The restored view re-applies the filter class, the chip's active label, and `aria-pressed`.
+- Verified in a real browser via a new integration test (fresh origin, doc with $250,000 + $50): clicking the chip applied the class, stored `1`, and hid the small amount; a reload + re-analyze came back with the class applied, `aria-pressed="true"`, and the "show all amounts" label; zero console errors.
+- New smoke source test (4 assertions: saved-choice read, class restore at render, persist-on-toggle, pressed-state restore).
+- Full suite green (490 unit + 348 smoke + 8 integration = 846 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 238 of the autonomous loop (alternate add/polish): if the pay/receive view remembers itself, the "only big numbers" view should too — preferences that reset on every render aren't preferences, they're chores.

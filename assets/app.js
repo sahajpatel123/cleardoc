@@ -5321,6 +5321,12 @@
         return '<span class="cur-total-pill">' + esc(c) + ' ' + result.totals[c].toLocaleString('en-US') + '</span>';
       }).join(' ');
       currencyList.innerHTML = rows;
+      // Cycle #238 — remember the "only $100k+" view across re-analysis
+      // and reloads (mirrors the money direction filter).
+      const curOnlyBig = (function(){
+        try { return localStorage.getItem('cleardoc:money-onlybig') === '1'; } catch(_){ return false; }
+      })();
+      currencyList.classList.toggle('cur-only-big', curOnlyBig);
       // Iter #99: small-amount filter chip + currency count + sort.
       // Also clean up any controls row from a previous render so a second
       // analysis never ends up with two "only $100k+" chips.
@@ -5392,8 +5398,11 @@
       });
       const onlyBtn = document.getElementById('curOnlyBigBtn');
       if(onlyBtn){
+        onlyBtn.textContent = curOnlyBig ? 'show all amounts' : 'only $100k+';
+        onlyBtn.setAttribute('aria-pressed', curOnlyBig ? 'true' : 'false');
         onlyBtn.addEventListener('click', () => {
           const on = currencyList.classList.toggle('cur-only-big');
+          try { localStorage.setItem('cleardoc:money-onlybig', on ? '1' : '0'); } catch(_){ /* ignore */ }
           onlyBtn.textContent = on ? 'show all amounts' : 'only $100k+';
           onlyBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
           // Update the count chip
