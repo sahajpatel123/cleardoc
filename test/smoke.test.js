@@ -375,6 +375,22 @@ skip("samples: eviction + debt-collection demo documents are offered", async () 
   assert.match(appSrc, /setFocusMode\(false\); input\.value=q\.dataset\.fill/, "loading a sample must exit focus mode so the document is visible");
 });
 
+skip("compare panel: copy button exports verdict + stats as plain text", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(analyzeHtml, /id="compareCopyBtn"/, "compare-actions must expose #compareCopyBtn");
+  assert.match(appSrc, /compareCopyBtn\.addEventListener\('click'/, "app.js must wire the compare copy button");
+  assert.match(appSrc, /'📋 Comparison copied'/, "compare copy must toast on success");
+  assert.match(appSrc, /'⚠ Nothing to copy yet — compare two clauses first'/, "compare copy must give feedback when there is nothing to copy");
+  assert.match(appSrc, /vals\.join\(' \| '\)/, "compare copy must export Original | Compare rows");
+  assert.match(themeSrc, /\.compare-actions \.cmp-copy\{/, "theme.css must style .cmp-copy");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

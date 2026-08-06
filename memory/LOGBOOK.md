@@ -3398,3 +3398,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 19 of the autonomous loop (alternate add/polish): make sample loading work correctly inside Focus mode.
+
+**2026-08-06 15:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #20 of the restarted autonomous loop (feature add).
+- feat(ui): added a 📋 Copy button to the side-by-side Compare panel that exports the verdict + stats table as plain text ("risks: 2 (1 trap) | 5 (2 traps)" per row, verdict first). Uses the flash + toast + dynamic aria-label pattern; gives feedback when there's nothing to compare yet.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 236 smoke + 1 integration = 727 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 20 of the autonomous loop (alternate add/polish): make comparison results copyable as text.

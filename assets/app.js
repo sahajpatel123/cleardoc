@@ -16024,6 +16024,52 @@
         });
       }
 
+      /* Compare copy — exports the verdict + stats table as plain text
+       * (one "label: Original | Compare" line per row). Mirrors the PNG
+       * button's flash feedback and the app-wide toast pattern. */
+      const compareCopyBtn = document.getElementById('compareCopyBtn');
+      if(compareCopyBtn) compareCopyBtn.addEventListener('click', async () => {
+        if(!compareStats || !compareVerdict) return;
+        const verdictText = (compareVerdict.textContent || '').trim();
+        const lines = [verdictText || 'Comparison'];
+        const table = compareStats.querySelector('table');
+        if(table){
+          table.querySelectorAll('tbody tr').forEach(row => {
+            const th = row.querySelector('th');
+            const tds = row.querySelectorAll('td');
+            const label = th ? (th.textContent || '').trim() : '';
+            const vals = Array.from(tds).map(td => (td.textContent || '').replace(/\s+/g, ' ').trim());
+            if(label) lines.push(label + ': ' + vals.join(' | '));
+          });
+        }
+        const text = lines.join('\n');
+        if(!text.replace(/\n/g, '').trim()){
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy yet — compare two clauses first');
+          return;
+        }
+        let ok = false;
+        try {
+          if(navigator.clipboard && navigator.clipboard.writeText){
+            await navigator.clipboard.writeText(text);
+            ok = true;
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+            document.body.appendChild(ta); ta.select();
+            ok = document.execCommand('copy'); document.body.removeChild(ta);
+          }
+        } catch(_){}
+        const orig = '📋 Copy';
+        compareCopyBtn.textContent = ok ? '✓ copied' : 'Copy failed';
+        compareCopyBtn.setAttribute('aria-label', ok ? 'Comparison copied to clipboard' : 'Copy failed — try again');
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Comparison copied' : '⚠ Couldn’t copy');
+        clearTimeout(compareCopyBtn._flashTimer);
+        compareCopyBtn._flashTimer = setTimeout(() => {
+          compareCopyBtn.textContent = orig;
+          compareCopyBtn.setAttribute('aria-label', 'Copy the comparison verdict and stats');
+        }, 1400);
+      });
+
       /* Side-by-side comparison stats — fires on input changes to
        * either textarea. Renders a 2-column row (Original | Compare)
        * showing type, level, risks, deadlines. The riskier side is
