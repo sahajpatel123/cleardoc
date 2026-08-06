@@ -5144,3 +5144,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 189 of the autonomous loop (alternate add/polish): a quick-jump link is only quick if it lands on something real — point Deadlines at the block that actually exists.
+
+**2026-08-06 21:41 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #190 of the restarted autonomous loop (add).
+- feat(ask): every question bubble in the Ask thread now has a one-click 📋 copy button — the exact question text, mirroring the per-answer copy. The bubble becomes a flex row (text + button), the handler is delegated once on `#askThread` (`_askQuestionCopyWired`), and it toasts "📋 Question copied" with a ✓ flash.
+- Verified in a real browser with mocked analyze + chat flows: asking "Am I liable for their losses?" rendered the bubble with a copy button; clicking it put the exact question text on the clipboard (captured via a writeText probe), flashed ✓, and toasted; zero console errors.
+- New smoke test "analyzer: ask question bubbles copy in one click" — 9 assertions (markup, delegated wiring, once-guard, handler selector, text read, toast, flash, CSS ×2).
+- Full suite green (490 unit + 328 smoke + 1 integration = 819 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 190 of the autonomous loop (alternate add/polish): the exact question you asked is worth keeping — now it's one click away, like the answer beside it.

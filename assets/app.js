@@ -406,6 +406,40 @@
     });
   }
   wireAskCopy();
+  // Cycle #190 — copy the question bubble: each ask-q gets a 📋 button
+  // that exports the exact question text (mirrors the answer copy).
+  function wireAskQuestionCopy(){
+    const thread = document.getElementById('askThread');
+    if(!thread || thread._askQuestionCopyWired) return;
+    thread._askQuestionCopyWired = true;
+    thread.addEventListener('click', async (e) => {
+      const btn = e.target.closest && e.target.closest('[data-ask-q-copy]');
+      if(!btn) return;
+      const q = btn.getAttribute('data-ask-q-copy') || '';
+      if(!q.trim()) return;
+      let ok = false;
+      try {
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(q);
+          ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = q; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok = document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      } catch(_){}
+      btn.textContent = ok ? '✓' : '⚠';
+      btn.setAttribute('aria-label', ok ? 'Question copied to clipboard' : 'Copy failed — try again');
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Question copied' : '⚠ Couldn’t copy');
+      clearTimeout(btn._flashTimer);
+      btn._flashTimer = setTimeout(() => {
+        btn.textContent = '📋';
+        btn.setAttribute('aria-label', 'Copy this question to the clipboard');
+      }, 1400);
+    });
+  }
+  wireAskQuestionCopy();
 
   // Per-deadline copy — each deadline row gets a 📋 button that copies
   // "📅 <date> — <description>" so a single deadline can be pasted into
@@ -15733,7 +15767,7 @@
           : '<div class="ans-line">'+esc(turn.answer)+'</div>' + (turn.cite ? '<div class="cite" style="opacity:1">'+esc(turn.cite)+'</div>' : '') +
             '<div class="ans-actions"><button type="button" class="ask-copy no-print" data-ask-copy="1" aria-label="Copy this answer to the clipboard">Copy</button></div>' +
             (followUps.length ? '<div class="ask-followups" role="group" aria-label="Suggested follow-up questions">' + followUps.map(f => '<button type="button" class="ask-followup no-print" data-ask-followup="' + esc(f) + '">' + esc(f) + '</button>').join('') + '</div>' : '');
-        return '<div class="ask-q">'+esc(turn.q)+'</div>' +
+        return '<div class="ask-q"><span class="ask-q-text">'+esc(turn.q)+'</span><button type="button" class="ask-q-copy no-print" data-ask-q-copy="'+esc(turn.q)+'" title="Copy this question" aria-label="Copy this question">📋</button></div>' +
                '<div class="ask-a">'+aBody+'</div>';
       }).join('');
       if(askClearBtn) askClearBtn.hidden=false;

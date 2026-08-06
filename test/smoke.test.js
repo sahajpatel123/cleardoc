@@ -561,6 +561,33 @@ skip("ask thread: answered turns have a copy button that exports answer + citati
   assert.match(themeSrc, /\.ask-copy:focus-visible\{/, "theme.css must give .ask-copy a focus ring");
 });
 
+// Cycle #190 — copy the question bubble: each ask-q gets a 📋 button that
+// exports the exact question text (mirrors the answer copy).
+test("analyzer: ask question bubbles copy in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /class="ask-q-copy no-print" data-ask-q-copy="/,
+    "each question bubble must render a copy button");
+  assert.match(appSrc, /function wireAskQuestionCopy\(\)\{/,
+    "a delegated question-copy handler must exist");
+  assert.match(appSrc, /thread\._askQuestionCopyWired = true;/,
+    "the question-copy handler must wire once");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-ask-q-copy\]'\)/,
+    "the handler must catch question-copy clicks");
+  assert.match(appSrc, /btn\.getAttribute\('data-ask-q-copy'\) \|\| ''/,
+    "the handler must read the question text");
+  assert.match(appSrc, /'📋 Question copied'/,
+    "copying must toast on success");
+  assert.match(appSrc, /btn\.textContent = ok \? '✓' : '⚠';/,
+    "the button must flash confirmation");
+  assert.match(cssSrc, /\.ask-q-copy\{/, "the question-copy button must be styled");
+  assert.match(cssSrc, /\.ask-q-copy:focus-visible\{/, "the question-copy button must have a focus ring");
+});
+
 skip("keyboard: Ctrl/Cmd+Enter runs the analysis from anywhere", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
