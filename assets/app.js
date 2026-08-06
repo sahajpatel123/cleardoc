@@ -8658,6 +8658,7 @@
         '<button type="button" class="reading-filter ghost-btn' + (undoneOnly ? ' reading-filter-active' : '') + '" id="readingUndoneBtn" title="Show only chunks you have not yet marked done">⏳ undone only</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyListBtn" title="Copy the reading priority list as plain text">📋 copy list</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyMustBtn" title="Copy only the must-read chunks">🔴 must list</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="readingMustDoneBtn" title="Mark every must-read chunk as done">✓ must done</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingResumeBtn" title="Jump to your first unfinished must-read chunk">▶ resume</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingResetBtn" title="Clear all read marks for this document">↺ reset</button>' +
       '</div>' + signalChipHtml;
@@ -8901,6 +8902,23 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '🔴 Must-read list copied' : '⚠ Couldn’t copy');
           copyMustBtn.textContent = copied ? '✓ copied' : '🔴 must list';
           setTimeout(() => { if(copyMustBtn.isConnected) copyMustBtn.textContent = '🔴 must list'; }, 2500);
+        });
+      }
+      // Cycle #216 — bulk "✓ must done": mark every must-read chunk read
+      // in one click (the reset button is the undo).
+      const mustDoneBtn = document.getElementById('readingMustDoneBtn');
+      if(mustDoneBtn){
+        mustDoneBtn.addEventListener('click', () => {
+          let marked = 0;
+          r.buckets.must.forEach(c => {
+            if(!isDone(c)){ markDone(c, true); marked++; }
+          });
+          if(marked === 0){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✓ Must-reads already done');
+            return;
+          }
+          renderReadingBlock(raw, ctx);
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✓ Marked ' + marked + ' must-read' + (marked === 1 ? '' : 's') + ' done');
         });
       }
       // Cycle #178 — resume: jump to the first unfinished must-read chunk

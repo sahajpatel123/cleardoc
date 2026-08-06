@@ -10270,6 +10270,27 @@ test("analyzer: reading list copies must-reads only", () => {
     "an empty must bucket must be reported");
 });
 
+// Cycle #216 — bulk mark every must-read chunk done in one click.
+test("analyzer: reading list marks all must-reads done in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="readingMustDoneBtn" title="Mark every must-read chunk as done"/,
+    "reading controls must include a must-done chip");
+  assert.match(appSrc, /const mustDoneBtn = document\.getElementById\('readingMustDoneBtn'\);/,
+    "the must-done chip must have a click handler");
+  assert.match(appSrc, /r\.buckets\.must\.forEach\(c => \{/,
+    "the handler must iterate the must bucket");
+  assert.match(appSrc, /if\(!isDone\(c\)\)\{ markDone\(c, true\); marked\+\+; \}/,
+    "unread must chunks must be marked done");
+  assert.match(appSrc, /'✓ Marked ' \+ marked \+ ' must-read'/,
+    "marking must toast the count");
+  assert.match(appSrc, /'✓ Must-reads already done'/,
+    "already-done must-reads must be acknowledged");
+});
+
 // Cycle #201 — the reading count shows time remaining once progress starts.
 test("analyzer: reading count shows time remaining after progress", () => {
   if (!HAS_BROWSER) return;

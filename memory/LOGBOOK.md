@@ -5429,3 +5429,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 215 of the autonomous loop (alternate add/polish): a template should load into a clean slate — yesterday's half-written draft has no say.
+
+**2026-08-06 23:21 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #216 of the restarted autonomous loop (add).
+- feat(reading): a "✓ must done" chip marks every must-read chunk as read in one click — the per-document progress bar and strip update, unread chunks get the done class, and the reset button remains the undo. Already-done must-reads toast "✓ Must-reads already done" instead of re-rendering.
+- Verified in a real browser with a mocked analyze flow: the must chunk became done while the skip chunk stayed untouched, the toast counted the mark, and a second click acknowledged already-done; zero console errors. A source-assertion lesson surfaced in-process (the `)` closing the `forEach` lives on the next line, so the assertion shouldn't include it).
+- New smoke test "analyzer: reading list marks all must-reads done in one click" — 6 assertions (chip markup, handler, bucket iteration, marking call, count toast, already-done toast).
+- Full suite green (490 unit + 340 smoke + 1 integration = 831 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 216 of the autonomous loop (alternate add/polish): the must-reads are the priority — one click should clear them off the list.
