@@ -81,7 +81,36 @@ The site loads three categories of external resources:
 
 All CDN scripts ship with **Subresource Integrity (SRI) hashes** so any CDN compromise that tampers with the script bytes is rejected by the browser. The CSP `connect-src` directive whitelists only the two AI provider hosts; no other origin can receive fetch/XHR from the page.
 
-### Bug Bounty
+### CI/CD Security
+
+ClearDoc uses GitHub Actions with security best practices:
+
+- **SHA-pinned actions**: All actions in workflow files use SHA-pinned references (not version tags) to prevent supply-chain attacks. See `.github/workflows/` for details.
+- **Minimal permissions**: Each workflow job requests only the permissions it needs:
+  - `test.yml`: `contents: read`
+  - `codeql.yml`: `security-events: write, actions: read`
+  - `security.yml`: `contents: read, pull-requests: read`
+- **Concurrency groups**: Prevent stale CI runs from executing after new pushes
+- **CodeQL analysis**: Automated security scanning on every push/PR + weekly scans
+- **Dependabot**: Automated dependency updates with security priority
+
+#### Running Security Checks Locally
+
+```bash
+# Validate JSON configs
+npm run validate:json
+
+# Check JavaScript syntax
+npm run syntax
+
+# Run full test suite
+npm run test
+
+# Run all validation
+npm run check
+```
+
+## Bug Bounty
 
 ClearDoc is an independent product; we do not currently run a paid bug bounty program. We will, however:
 
@@ -92,3 +121,9 @@ ClearDoc is an independent product; we do not currently run a paid bug bounty pr
 ## Acknowledgments
 
 We thank the following researchers for responsible disclosures (none to date — this list is ready for first entries).
+
+## Additional Resources
+
+- **security.txt**: `/.well-known/security.txt` — Contact info for security researchers (RFC 9116)
+- **CODEOWNERS**: `.github/CODEOWNERS` — Defines code ownership for PR review requirements
+- **Dependabot**: `.github/dependabot.yml` — Automated dependency updates with security priority
