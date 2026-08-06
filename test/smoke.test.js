@@ -12102,6 +12102,27 @@ test("analyzer: Smoking-gun cards read the smoking gun aloud in one click", () =
     "the block note must document the speak action");
 });
 
+// Cycle #242 — ask about a smoking gun, completing the copy/speak/ask trio.
+test("analyzer: Smoking-gun cards ask about the sentence in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="smoking-ask ghost-btn ghost-btn-sm"/,
+    "each smoking-gun card must render an ask button");
+  assert.match(appSrc, /data-smoking-ask="' \+ esc\(it\.sentence\) \+ '"/,
+    "the ask button must carry the flagged sentence");
+  assert.match(appSrc, /const askBtn2 = e\.target\.closest && e\.target\.closest\('\[data-smoking-ask\]'\);/,
+    "the card click handler must catch ask-button clicks");
+  assert.match(appSrc, /qInput\.value = 'What does this smoking-gun sentence mean: "' \+ text\.slice\(0, 220\) \+ '"';/,
+    "clicking must prefill the Ask panel with the sentence");
+  assert.match(appSrc, /'💬 Question ready — press Ask'/,
+    "asking must announce via toast");
+  assert.match(appSrc, /💬<\/b> to ask about one/,
+    "the block note must document the ask action");
+});
+
 // Cycle #123 — per-exposure-card copy citation.
 test("analyzer: Exposure cards copy their citation in one click", () => {
   if (!HAS_BROWSER) return;

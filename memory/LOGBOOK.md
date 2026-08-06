@@ -5722,3 +5722,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 241 of the autonomous loop (alternate add/polish): the note that explains a block should explain all of it — a copy-all nobody knows about is a copy-all nobody uses.
+
+**2026-08-07 05:39 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #242 of the restructured autonomous loop (add).
+- feat(smoking-guns): smoking-gun cards now have a 💬 ask button that prefills the Ask panel with "What does this smoking-gun sentence mean: "<sentence> — completing the copy / speak / ask trio that risk rows and reading chunks already had. The card click handler catches the ask button (no accidental jump), enables the Ask input, focuses + scrolls to it, and toasts "Question ready — press Ask". The block note documents the new action.
+- Verified in a real browser via a new integration test (fresh origin, indemnity-in-perpetuity doc): clicking the ask button prefilled the Ask panel with the sentence question and enabled the input; zero console errors.
+- New smoke source test (6 assertions: ask button markup, sentence attribute, delegated handler, prefill format, toast, note text).
+- Full suite green (490 unit + 350 smoke + 9 integration = 849 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 242 of the autonomous loop (alternate add/polish): the most alarming sentence in the document deserved the same question button as every risk and reading chunk — one click from "what does this even mean?" to an answer.

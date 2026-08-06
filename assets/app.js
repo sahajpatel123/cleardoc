@@ -9763,6 +9763,9 @@
             // Cycle #154 — hear the top concern aloud.
             '<button type="button" class="smoking-speak ghost-btn ghost-btn-sm" data-smoking-speak="' + esc(it.sentence) + '" title="Read this smoking gun aloud" aria-label="Read this smoking gun aloud">🔊</button>' +
             '<button type="button" class="smoking-card-copy ghost-btn ghost-btn-sm" data-smoking-copy-text="' + esc(copyText) + '" title="Copy this smoking gun as a citation" aria-label="Copy this smoking gun as a citation">📋</button>' +
+            // Cycle #242 — 💬 ask about the sentence, completing the
+            // copy / speak / ask trio on smoking-gun cards.
+            '<button type="button" class="smoking-ask ghost-btn ghost-btn-sm" data-smoking-ask="' + esc(it.sentence) + '" title="Ask about this smoking gun" aria-label="Ask about this smoking gun">💬</button>' +
           '</div>' +
           '<div class="smoking-quote">"' + highlightQuote(it.sentence, it.pattern) + '"</div>' +
           '<div class="smoking-why">' + whyHtml + '</div>' +
@@ -9799,7 +9802,7 @@
         const filterNote = sevFilter !== 'all' ? ' Showing only <b>' + sevLabel[sevFilter] + '</b> — switch to <b>🌐 all</b> to see the rest.' : '';
         smokingNote.innerHTML = '<span class="riskNote-lead">' + lead + '</span> · ' +
           'Top concerns ranked. Each card quotes the sentence verbatim with the <mark class="smoking-trigger">trigger term</mark> highlighted, the reason it was flagged, and a counter-redline suggestion where one applies. ' +
-          'Tap any card to jump, <b>🔊</b> to hear one, or <b>💾 .txt</b> to download the share-card as a file. <b>📋 copy share-card</b> exports a plain-text block you can forward without exposing the rest of the document.' + filterNote;
+          'Tap any card to jump, <b>🔊</b> to hear one, <b>💬</b> to ask about one, or <b>💾 .txt</b> to download the share-card as a file. <b>📋 copy share-card</b> exports a plain-text block you can forward without exposing the rest of the document.' + filterNote;
       }
       // Click-to-jump.
       $$('.smoking-card', smokingGrid).forEach(card => {
@@ -9839,6 +9842,23 @@
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Smoking-gun citation copied' : '⚠ Couldn’t copy');
             copyBtn.textContent = copied ? '✓' : '📋';
             if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋'; }, 1500);
+            return;
+          }
+          // Cycle #242 — 💬 prefills the Ask panel with the sentence.
+          const askBtn2 = e.target.closest && e.target.closest('[data-smoking-ask]');
+          if(askBtn2){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = askBtn2.getAttribute('data-smoking-ask') || '';
+            const qInput = document.getElementById('askInput');
+            if(!qInput || !text) return;
+            qInput.value = 'What does this smoking-gun sentence mean: "' + text.slice(0, 220) + '"';
+            qInput.disabled = false;
+            const qBtn = document.getElementById('askBtn');
+            if(qBtn) qBtn.disabled = false;
+            try { qInput.focus({preventScroll:false}); } catch(_){ qInput.focus(); }
+            try { qInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
             return;
           }
           if(!input) return;
