@@ -12858,6 +12858,7 @@
           '<span class="kc-sev kc-tag-' + it.sev + '">' + (it.sev === 'r' ? 'trap' : it.sev === 'a' ? 'watch' : 'note') + '</span>' +
           '<span class="kc-text">' + esc(it.s.length > 220 ? it.s.slice(0, 217) + '…' : it.s) + '</span>' +
           '<button type="button" class="kc-speak ghost-btn ghost-btn-sm" data-kc-speak="' + esc(it.s.slice(0, 200)) + '" title="Speak this clause aloud">🔊</button>' +
+          '<button type="button" class="kc-ask ghost-btn ghost-btn-sm" data-kc-ask="' + esc(it.s.slice(0, 240)) + '" data-kc-sev="' + esc(it.sev) + '" title="Ask about this clause" aria-label="Ask about this clause">💬</button>' +
         '</li>'
       )).join('') + counterHtml;
       preview.hidden = false;
@@ -12879,6 +12880,26 @@
                 window.speechSynthesis.speak(u);
               } catch(_){ /* ignore */ }
             }
+            return;
+          }
+          // Cycle #110 — 💬 ask about this key clause: prefill the Ask
+          // panel, same interaction as risk/question/deadline rows.
+          const askBtnEl = e.target.closest && e.target.closest('[data-kc-ask]');
+          if(askBtnEl){
+            e.preventDefault();
+            e.stopPropagation();
+            const clause = askBtnEl.getAttribute('data-kc-ask') || '';
+            const sev = askBtnEl.getAttribute('data-kc-sev') || 'note';
+            const sevWord = sev === 'r' ? 'trap' : sev === 'a' ? 'watch' : 'note';
+            const qInput = document.getElementById('askInput');
+            const qBtn = document.getElementById('askBtn');
+            if(!qInput) return;
+            qInput.value = 'Why is "' + clause.slice(0, 100) + '" a ' + sevWord + '?';
+            qInput.disabled = false;
+            if(qBtn) qBtn.disabled = false;
+            try { qInput.focus({preventScroll:false}); } catch(_){ qInput.focus(); }
+            try { qInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
             return;
           }
           const snippet = row.getAttribute('data-kc-snippet') || '';

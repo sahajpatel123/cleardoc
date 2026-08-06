@@ -8126,6 +8126,29 @@ test("analyzer: Key clauses copy as a numbered list with severity", () => {
     "theme.css must style .kc-copy");
 });
 
+// Cycle #110 — ask about any key clause in one click.
+test("analyzer: Key-clause rows can ask the document about the clause in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="kc-ask ghost-btn ghost-btn-sm"/,
+    "each key-clause row must render an ask button");
+  assert.match(appSrc, /data-kc-ask="' \+ esc\(it\.s\.slice\(0, 240\)\) \+ '"/,
+    "the ask button must carry the clause text");
+  assert.match(appSrc, /data-kc-sev="' \+ esc\(it\.sev\) \+ '"/,
+    "the ask button must carry the clause severity");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-kc-ask\]'\)/,
+    "the row click handler must catch ask-button clicks");
+  assert.match(appSrc, /'Why is "' \+ clause\.slice\(0, 100\) \+ '" a ' \+ sevWord \+ '\?'/,
+    "clicking must ask why the clause is flagged at its severity");
+  assert.match(appSrc, /qInput\.scrollIntoView/,
+    "clicking must bring the Ask panel into view");
+  assert.match(appSrc, /showAnalyzeToast\('💬 Question ready — press Ask'\)/,
+    "clicking must announce the prefilled question");
+});
+
 // Iter #102: signing checklist — surfaces marker-phrase clauses
 // that need explicit action (notarize / witness / counsel /
 // arbitration / wire / etc.) grouped by who needs to act. Pure

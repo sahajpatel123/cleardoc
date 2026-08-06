@@ -4319,3 +4319,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 109 of the autonomous loop (alternate add/polish): the question should fit the deadline — obligated deadlines are missed, milestones are met.
+
+**2026-08-06 21:34 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #110 of the restarted autonomous loop (add).
+- feat(ui): every key-clause row (the "read twice" list) now has a one-click 💬 ask button — it prefills the Ask panel with "Why is \"{clause}\" a trap/watch/note?" (clause truncated to 100 chars, severity from the row), focuses and scrolls the panel into view, and announces via toast, matching the per-risk/question/deadline interaction. Click handling sits inside the row's existing click handler with a dedicated `[data-kc-ask]` branch so it never triggers the jump-to-source behavior.
+- New smoke test "Key-clause rows can ask the document about the clause in one click" — 7 assertions covering the button markup, clause + severity data, the click-handler branch, the question shape, scroll, and toast.
+- Full suite green (490 unit + 289 smoke + 1 integration = 780 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 110 of the autonomous loop (alternate add/polish): the clauses you're told to read twice are the ones you should be able to question with one click.
