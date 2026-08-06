@@ -2301,6 +2301,60 @@ skip("analyze: HTML report copies as rich text to the clipboard", async () => {
   }
 });
 
+// Cycle #261 — Markdown risk-table copy.
+skip("analyze: risk table copies as Markdown for Notion/GitHub/Linear", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="copyMdTableBtn"/,
+    "analyze.html must expose the Markdown table copy button");
+  assert.match(html, /title="Copy the risk table as Markdown/,
+    "the button must be labelled for a Markdown risk table");
+  assert.match(appSrc, /function buildRiskMarkdownTable\(\)\{/,
+    "app.js must define buildRiskMarkdownTable");
+  assert.match(appSrc, /async function copyAnalysisMdTable\(\)\{/,
+    "app.js must define copyAnalysisMdTable");
+  assert.match(appSrc, /\| Severity \| Label \| Clause \| Why \|/,
+    "the Markdown table must carry the expected header row");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedMdTable = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedMdTable = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedMdTable = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#resultPanel:not([hidden])", { timeout: 8000 });
+    await page.click("#copyMdTableBtn");
+    await page.waitForFunction(() => window.__copiedMdTable && window.__copiedMdTable.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedMdTable);
+    assert.match(captured, /\| Severity \| Label \| Clause \| Why \|/, "the copied text must open with the Markdown table header");
+    assert.match(captured, /\|---\|---\|---\|---\|/, "the copied text must include the Markdown separator row");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 skip("share: opening a #share= URL offers the shared analysis banner with a View button", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await browser.newContext();

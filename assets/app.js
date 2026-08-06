@@ -17970,6 +17970,49 @@
       }
       flashButton(copyChecklistBtn, ok?'✓ Checklist copied':'Copy failed', ok?1400:1800);
     }
+    // Cycle #261 — Markdown risk-table copy for Notion/GitHub/Linear users.
+    function buildRiskMarkdownTable(){
+      const order = { r:0, a:1, g:2 };
+      const sorted = (lastFlags || []).slice().sort((x, y) => {
+        const ox = order[(x && x.rule && x.rule.sev)] ?? 3;
+        const oy = order[(y && y.rule && y.rule.sev)] ?? 3;
+        return ox - oy;
+      });
+      const rows = sorted.map(f => {
+        const sev = f.rule.sev === 'r' ? '🔴 Trap' : f.rule.sev === 'a' ? '🟡 Watch' : '🟢 Note';
+        const label = String(f.rule.label || 'Risk').replace(/\|/g, '\\|');
+        const clause = String(f.s || '').slice(0, 180).replace(/\|/g, '\\|');
+        const why = String(f.rule.why || '').replace(/\|/g, '\\|');
+        return '| ' + sev + ' | ' + label + ' | ' + clause + ' | ' + why + ' |';
+      }).join('\n');
+      return '| Severity | Label | Clause | Why |\n|---|---|---|---|\n' + rows;
+    }
+    async function copyAnalysisMdTable(){
+      if(!lastFlags || !lastFlags.length){
+        if(msg){msg.textContent='No risks found — copy a Markdown table when the analysis has flagged items.'; msg.className='analyze-msg';}
+        return;
+      }
+      const text = buildRiskMarkdownTable();
+      const btn = document.getElementById('copyMdTableBtn');
+      let ok = false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta);
+          ta.select();
+          ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+      }catch(e){
+        console.warn('[copy-md-table] clipboard failed', e);
+      }
+      if(btn){ flashButton(btn, ok ? '✓ MD copied' : 'Copy failed', ok ? 1400 : 1800); }
+    }
     // iter #218: export the full analysis result as structured JSON
     // so it can be consumed by APIs, scripts, or other tooling.
     // Omits DOM references and circular objects; serializes the
@@ -22184,6 +22227,8 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     });
     // iter #217: copy-as-checklist button — pastes into Jira/Linear/Notion
     if(copyChecklistBtn) copyChecklistBtn.addEventListener('click', copyAnalysisChecklist);
+    const copyMdTableBtn = document.getElementById('copyMdTableBtn');
+    if(copyMdTableBtn) copyMdTableBtn.addEventListener('click', copyAnalysisMdTable);
     // iter #218: copy-as-JSON button — exports the full analysis as structured
     // JSON for APIs, scripts, and tooling consumption.
     if(copyJsonBtn) copyJsonBtn.addEventListener('click', copyAnalysisJson);
