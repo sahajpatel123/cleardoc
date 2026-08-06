@@ -896,6 +896,23 @@ skip("keyboard: 'f' toggles focus mode when results are visible", async () => {
   assert.match(appSrc, /<kbd>f<\/kbd><span>Toggle Focus mode/, "the help modal must document the f shortcut");
 });
 
+// Cycle #196 — 'q' focuses the Ask panel when results are visible.
+test("analyzer: 'q' focuses the Ask panel when results are visible", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /if\(k === 'q' \|\| k === 'Q'\)\{/,
+    "the shortcut handler must branch on q/Q");
+  assert.match(appSrc, /if\(k === 'q' \|\| k === 'Q'\)\{[\s\S]{0,220}getElementById\('askInput'\)/,
+    "the q branch must target the Ask input");
+  assert.match(appSrc, /if\(k === 'q' \|\| k === 'Q'\)\{[\s\S]{0,260}ai\.focus\(\{preventScroll:false\}\)/,
+    "the q branch must focus the Ask input");
+  assert.match(appSrc, /<kbd>q<\/kbd><span>Focus the Ask panel/,
+    "the help modal must document the q shortcut");
+});
+
 skip("top concern: 'What if fixed?' previews the readiness score without the clause", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

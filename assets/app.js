@@ -2457,6 +2457,7 @@
             <div class="kb-row"><kbd>a</kbd><span>Ask about flagged risk (when focused on risk row)</span></div>
             <div class="kb-row"><kbd>e</kbd><span>Expand counter-suggestion (when focused on risk row)</span></div>
             <div class="kb-row"><kbd>j</kbd><kbd>k</kbd><span>Next / previous risk row (when results are visible)</span></div>
+            <div class="kb-row"><kbd>q</kbd><span>Focus the Ask panel (when results are visible)</span></div>
           </div>
           <p class="kb-modal-foot mono">Shortcuts are disabled while typing in a field. Threat level &amp; health check appear automatically after analysis.</p>
         </div>`;
@@ -2579,6 +2580,19 @@
           const on = setFocusMode(!document.body.classList.contains('focus-mode'));
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(on ? '🧘 Focus mode on — press Esc or f to exit' : 'Focus mode off');
           return;
+        }
+      }
+      // Cycle #196 — 'q' focuses the Ask panel when results are visible
+      // (the '/' shortcut already covers the document input).
+      if(k === 'q' || k === 'Q'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const ai = document.getElementById('askInput');
+          if(ai){
+            e.preventDefault();
+            try { ai.focus({preventScroll:false}); } catch(_){ ai.focus(); }
+            try { ai.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+          }
         }
       }
 

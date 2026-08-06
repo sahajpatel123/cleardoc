@@ -5210,3 +5210,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 195 of the autonomous loop (alternate add/polish): copy what you're looking at — a filtered reading view should export exactly that view.
+
+**2026-08-06 21:59 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #196 of the restarted autonomous loop (add).
+- feat(keyboard): pressing `q` now focuses the Ask panel when results are visible — complementing `/` (document input) so both text entry points are one key away. It respects the global typing-target and modifier-key guards (never hijacks typing), scrolls the panel into view, and the help modal documents it under RISK ROW ACTIONS.
+- Verified in a real browser with a mocked analyze flow: `q` from the page body focused the Ask input, and `q` while typing in the document input left focus alone; zero console errors.
+- New smoke test "analyzer: 'q' focuses the Ask panel when results are visible" — 4 assertions (q/Q branch, Ask-input targeting, focus call, help-modal row).
+- Full suite green (490 unit + 331 smoke + 1 integration = 822 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 196 of the autonomous loop (alternate add/polish): the fastest question is the one you never had to reach for — one key to the Ask panel.
