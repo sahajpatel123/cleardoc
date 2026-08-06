@@ -4124,3 +4124,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 91 of the autonomous loop (alternate add/polish): the one-click question flow should work from the keyboard too.
+
+**2026-08-06 17:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #92 of the restarted autonomous loop (add).
+- feat(ui): every deadline row now has a one-click <b>🌐 gcal</b> link that opens Google Calendar with a pre-filled all-day template event — title "Contract deadline {date}", description carrying the source sentence (truncated to 200 chars), dates as `YYYYMMDD/YYYYMMDD`. Pure URL (no API key), `target="_blank" rel="noopener noreferrer"`, accessible `aria-label` with the date, HTML-escaped href, and a `#` fallback for unparseable dates. Sits alongside the existing 📅 ics download.
+- `.deadline-gcal` shares the row-button ghost style with no link underline; the block note now documents the action.
+- New smoke test "Deadline rows can add the event to Google Calendar in one click" — 10 assertions covering the template URL, title/date/description construction, all-day dates, safe-new-tab attributes, aria-label, note text, and CSS.
+- Full suite green (490 unit + 279 smoke + 1 integration = 770 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 92 of the autonomous loop (alternate add/polish): a detected deadline should reach your calendar in one click, not one file download.

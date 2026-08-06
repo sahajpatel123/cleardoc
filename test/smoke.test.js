@@ -9531,6 +9531,36 @@ test("analyzer: Deadline extractor polish — countdown + copy-all chip", () => 
     "iter #175 must compute past-day countdown");
 });
 
+test("analyzer: Deadline rows can add the event to Google Calendar in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // Each row renders an "Add to Google Calendar" link.
+  assert.match(appSrc, /class="deadline-gcal ghost-btn ghost-btn-sm"/,
+    "each deadline row must render a Google Calendar link");
+  assert.match(appSrc, /calendar\.google\.com\/calendar\/render\?action=TEMPLATE/,
+    "the link must use Google's template event flow");
+  assert.match(appSrc, /&text=' \+ encodeURIComponent\('Contract deadline ' \+ it\.date\)/,
+    "the event title must carry the detected date");
+  assert.match(appSrc, /&dates=' \+ day \+ '\/' \+ day/,
+    "the event must be all-day on the detected date");
+  assert.match(appSrc, /&details=' \+ encodeURIComponent\('Detected by ClearDoc: '/,
+    "the event description must carry the source sentence");
+  assert.match(appSrc, /target="_blank" rel="noopener noreferrer"/,
+    "the link must open safely in a new tab");
+  assert.match(appSrc, /aria-label="Add deadline ' \+ esc\(it\.date\) \+ ' to Google Calendar"/,
+    "the link must expose an accessible name with the date");
+  assert.match(appSrc, /<b>🌐 gcal<\/b> to add it to Google Calendar/,
+    "the block note must document the Google Calendar action");
+  assert.match(cssSrc, /\.deadline-gcal\{/,
+    "the Google Calendar link must have row-button styling");
+  assert.match(cssSrc, /\.deadline-gcal\{[^}]*text-decoration:none/,
+    "the link must not underline like a body link");
+});
+
 // Cycle 50 feature: deadline CSV export — Date / Type / Countdown /
 // Context columns for spreadsheet import (mirrors the risk CSV).
 test("analyzer: Deadline block exports all deadlines as a CSV file", () => {

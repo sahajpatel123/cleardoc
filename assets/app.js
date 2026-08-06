@@ -6495,6 +6495,18 @@
         const isM = /\(obligated\)/.test(it.verb);
         const cls = isM ? 'deadline-mandatory' : 'deadline-optional';
         const tag = isM ? '⚡ obligated' : '📅 scheduled';
+        // Cycle #92 — one-click "Add to Google Calendar": an all-day
+        // template event with the detected date and the source sentence
+        // as the description. Pure URL, no API key, works everywhere.
+        const gcalHref = (() => {
+          const dt = new Date((it.date || '') + 'T00:00:00Z');
+          if(isNaN(dt.getTime())) return '#';
+          const day = dt.toISOString().slice(0, 10).replace(/-/g, '');
+          return 'https://calendar.google.com/calendar/render?action=TEMPLATE' +
+            '&text=' + encodeURIComponent('Contract deadline ' + it.date) +
+            '&dates=' + day + '/' + day +
+            '&details=' + encodeURIComponent('Detected by ClearDoc: ' + (it.sentence || '').slice(0, 200));
+        })();
         // Cycle 54 — overdue rows are flagged visually so a missed
         // deadline reads at a glance (mirrors the alert + dp-past band).
         const d = dayDiff(it.date);
@@ -6506,6 +6518,7 @@
           '<div class="deadline-context">' + esc((it.sentence || '').slice(0, 180)) + '</div>' +
           (isOverdue ? '<span class="deadline-overdue-tag">⚠ overdue</span>' : '') +
           '<button type="button" class="deadline-ics ghost-btn ghost-btn-sm" data-deadline-ics="' + esc(it.date) + '" title="Save to your calendar">📅 ics</button>' +
+          '<a class="deadline-gcal ghost-btn ghost-btn-sm" href="' + esc(gcalHref) + '" target="_blank" rel="noopener noreferrer" title="Add this deadline to Google Calendar" aria-label="Add deadline ' + esc(it.date) + ' to Google Calendar">🌐 gcal</a>' +
         '</div>';
       }).join('');
       const controls = '<div class="deadline-controls">' +
@@ -6519,7 +6532,7 @@
         const mandated = items.filter(it => /\(obligated\)/.test(it.verb)).length;
         deadlineNote.innerHTML = '<span class="riskNote-lead">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + ' extracted</span> · ' +
           '<b>' + mandated + ' mandatory</b> (shall deliver by / shall be made by) · rest are scheduled milestones. ' +
-          'Each row shows a countdown (in 7 days / today / 3 days ago). Click 📅 to save a calendar event, or <b>📋 copy all</b> to export the list.';
+          'Each row shows a countdown (in 7 days / today / 3 days ago). Click 📅 to save a calendar event, <b>🌐 gcal</b> to add it to Google Calendar, or <b>📋 copy all</b> to export the list.';
       }
       // Iter #175 — copy-all chip
       const copyAllBtn = document.getElementById('deadlineCopyAllBtn');

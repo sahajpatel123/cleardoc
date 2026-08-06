@@ -1367,6 +1367,7 @@ button.risk-preview:hover{filter:brightness(.96)}
 /* ---- deadlines list ---- */
 .deadlines-list{display:flex;flex-direction:column;gap:10px;margin-top:var(--s2)}
 .deadline-row{display:flex;gap:var(--s3);align-items:flex-start;padding:10px 14px;border:var(--bd-hair) solid var(--ink);background:#fff}
+.deadline-gcal{display:inline-flex;align-items:center;text-decoration:none;white-space:nowrap}
 /* Cycle 54 — overdue deadline rows get a danger tint + tag so a missed
    deadline reads at a glance (print rules later force white bg). */
 .deadline-row.deadline-overdue{background:var(--danger-tint);border-color:var(--danger)}
