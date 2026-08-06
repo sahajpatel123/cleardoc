@@ -3993,22 +3993,39 @@
     }
     // Cycle #114 — surface the risk tally in the browser tab title so
     // the count survives tab-switching without reopening the page.
+    // Cycle #174 — deadlines join the badge: the soonest upcoming
+    // deadline's countdown (⏳ 3d / ⏳ today) is appended after the risk
+    // tally so an approaching date stays visible even in another tab.
     const DEFAULT_TITLE = 'ClearDoc — Read what you sign. Finally.';
-    function paintRiskTitle(flags){
+    let titleFlags = null;
+    let titleDeadlines = [];
+    function titleDeadlineDays(dateStr){
+      const dt = new Date((dateStr || '') + 'T00:00:00Z');
+      if(isNaN(dt.getTime())) return null;
+      return Math.round((dt.getTime() - Date.now()) / 86400000);
+    }
+    function composeTitle(){
       try {
-        const t = (typeof computeThreatScore === 'function') ? computeThreatScore(flags) : null;
+        const parts = [];
+        const t = (typeof computeThreatScore === 'function' && Array.isArray(titleFlags)) ? computeThreatScore(titleFlags) : null;
         const total = t && t.total ? t.total : 0;
         if(total > 0){
-          const label = t.level ? ' · ' + t.level : '';
-          document.title = '⚠ ' + total + ' risk' + (total === 1 ? '' : 's') + label + ' · ClearDoc';
-        } else {
-          document.title = DEFAULT_TITLE;
+          parts.push('⚠ ' + total + ' risk' + (total === 1 ? '' : 's') + (t.level ? ' · ' + t.level : ''));
         }
+        if(Array.isArray(titleDeadlines) && titleDeadlines.length){
+          const soonest = titleDeadlines
+            .map(it => ({ d: titleDeadlineDays(it.date), s: it.date }))
+            .filter(x => x.d !== null && x.d >= 0)
+            .sort((a, b) => a.d - b.d)[0];
+          if(soonest) parts.push('⏳ ' + (soonest.d === 0 ? 'today' : soonest.d + 'd'));
+        }
+        document.title = parts.length ? parts.join(' · ') + ' · ClearDoc' : DEFAULT_TITLE;
       } catch(_){ /* ignore */ }
     }
-    function resetRiskTitle(){
-      try { document.title = DEFAULT_TITLE; } catch(_){ /* ignore */ }
-    }
+    function paintRiskTitle(flags){ titleFlags = Array.isArray(flags) ? flags : null; composeTitle(); }
+    function paintDeadlineTitle(items){ titleDeadlines = Array.isArray(items) ? items : []; composeTitle(); }
+    function resetRiskTitle(){ titleFlags = null; composeTitle(); }
+    function resetDeadlineTitle(){ titleDeadlines = []; composeTitle(); }
     // Render the threat score block from the current `lastFlags` array.
     // Hidden when there are zero flags so the verdict block doesn't grow
     // an empty "Threat level: 0" pill for clean documents. Idempotent —
@@ -6881,6 +6898,7 @@
     if(!items.length){
       deadlineBlock.hidden = true;
       if(deadlineAlert) deadlineAlert.hidden = true;
+      paintDeadlineTitle([]);
       // Cycle #106 — no deadlines in this analysis, so a stale reminder
       // from an earlier document must not linger.
       try { localStorage.removeItem('cleardoc:upcomingDeadlines'); } catch(_){ /* ignore */ }
@@ -7004,6 +7022,7 @@
       '</div>';
       deadlineList.innerHTML = rows + controls;
       deadlineBlock.hidden = false;
+      paintDeadlineTitle(items);
       if(deadlineNote){
         const mandated = items.filter(it => /\(obligated\)/.test(it.verb)).length;
         deadlineNote.innerHTML = '<span class="riskNote-lead">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + ' extracted</span> · ' +
@@ -16724,7 +16743,7 @@
     }
 
     if(btn) btn.addEventListener('click',analyze);
-    if(clearBtn) clearBtn.addEventListener('click',()=>{ setFocusMode(false); setPrivacyBlur(false); input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); clearDraft(); updateTextStats(); resetRiskTitle(); input.focus(); });
+    if(clearBtn) clearBtn.addEventListener('click',()=>{ setFocusMode(false); setPrivacyBlur(false); input.value=''; lastSentences=[]; lastFlags=[]; lastRaw=''; if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='';msg.className='analyze-msg';} clearAttachments(); clearStoredSnapshot(); clearDraft(); updateTextStats(); resetRiskTitle(); resetDeadlineTitle(); input.focus(); });
 
     /* ---- Live text stats (word/char count + estimated reading level) ---- */
     function updateTextStats(){

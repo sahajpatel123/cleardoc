@@ -4968,3 +4968,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 173 of the autonomous loop (alternate add/polish): the reading list should work on a phone — and the LOI letter should never again stretch the whole analysis sideways.
+
+**2026-08-06 20:32 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #174 of the restarted autonomous loop (add).
+- feat(deadlines): the browser tab title now carries the soonest upcoming deadline's countdown alongside the risk badge — e.g. `⚠ 1 risk · Low · ⏳ 3d · ClearDoc` (or `⏳ today`). The old `paintRiskTitle` was refactored into a composed `composeTitle()` fed by `titleFlags` + `titleDeadlines` state: `paintRiskTitle` / `paintDeadlineTitle` set their half and repaint, overdue or unparseable dates are filtered out, the deadline block paints after every render (and clears on a deadline-free analysis), and Clear resets both halves.
+- Verified in a real browser with a mocked analyze flow: an August 10 deadline produced `⚠ 1 risk · Low · ⏳ 3d · ClearDoc`, and Clear restored the default title; zero console errors.
+- Extended the cycle-#114 tab-title smoke test with 6 deadline-badge assertions (painter, day-count helper, ⏳ formatting, overdue filter, render/clear wiring) and updated 4 assertions to the new composed-title implementation.
+- Full suite green (490 unit + 321 smoke + 1 integration = 812 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 174 of the autonomous loop (alternate add/polish): a deadline you can't see from another tab is a deadline you can miss — the tab title should nag gently.

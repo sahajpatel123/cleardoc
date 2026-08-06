@@ -11594,10 +11594,23 @@ test("analyzer: Risk tally is surfaced in the browser tab title and reset on cle
     "the default title must be preserved for the reset path");
   assert.match(appSrc, /function paintRiskTitle\(flags\)\{/,
     "a tab-title painter must exist");
-  assert.match(appSrc, /document\.title = '⚠ ' \+ total \+ ' risk' \+ \(total === 1 \? '' : 's'\) \+ label \+ ' · ClearDoc';/,
+  assert.match(appSrc, /parts\.push\('⚠ ' \+ total \+ ' risk' \+ \(total === 1 \? '' : 's'\)/,
     "the title must carry the risk count and level");
-  assert.match(appSrc, /document\.title = DEFAULT_TITLE;/,
+  assert.match(appSrc, /document\.title = parts\.length \? parts\.join\(' · '\) \+ ' · ClearDoc' : DEFAULT_TITLE;/,
     "clean documents must restore the default title");
+  // Cycle #174 — the deadline countdown joins the tab-title badge.
+  assert.match(appSrc, /function paintDeadlineTitle\(items\)\{/,
+    "a deadline title painter must exist");
+  assert.match(appSrc, /function titleDeadlineDays\(dateStr\)\{/,
+    "the painter must parse deadline dates into day counts");
+  assert.match(appSrc, /parts\.push\('⏳ ' \+ \(soonest\.d === 0 \? 'today' : soonest\.d \+ 'd'\)\);/,
+    "the soonest upcoming deadline must render as ⏳ Nd / ⏳ today");
+  assert.match(appSrc, /\.filter\(x => x\.d !== null && x\.d >= 0\)/,
+    "overdue and unparseable deadlines must not appear in the badge");
+  assert.match(appSrc, /paintDeadlineTitle\(items\);/,
+    "the deadline block must paint the badge after rendering");
+  assert.match(appSrc, /paintDeadlineTitle\(\[\]\);/,
+    "a deadline-free analysis must clear the badge");
   assert.match(appSrc, /paintRiskTitle\(flags\);/,
     "the painter must run on the analysis render path");
   assert.match(appSrc, /paintRiskTitle\(lastFlags\);/,
@@ -11606,10 +11619,10 @@ test("analyzer: Risk tally is surfaced in the browser tab title and reset on cle
     "shared/restored snapshot paints must also update the tab title");
   assert.match(appSrc, /function resetRiskTitle\(\)\{/,
     "a reset helper must exist");
-  assert.match(appSrc, /updateTextStats\(\); resetRiskTitle\(\);/,
-    "clearing the analysis must reset the tab title");
-  assert.match(appSrc, /document\.title = 'ClearDoc — Read what you sign\. Finally\.'; \} catch\(_\)\{ \/\* ignore \*\/ \}/,
-    "Forget me must reset the tab title");
+  assert.match(appSrc, /function resetDeadlineTitle\(\)\{/,
+    "a deadline reset helper must exist");
+  assert.match(appSrc, /updateTextStats\(\); resetRiskTitle\(\); resetDeadlineTitle\(\);/,
+    "clearing the analysis must reset both badge parts");
 });
 
 skip("dark mode: toggle applies, persists, and survives reload without console errors", async () => {
