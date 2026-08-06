@@ -884,6 +884,13 @@ skip("integration: smoking-gun cards ask about the sentence", async () => {
     assert.ok(askState.value.includes(sentence.slice(0, 40)),
       "the prefilled question must carry the flagged sentence");
     assert.equal(askState.disabled, false, "the Ask input must be enabled");
+    const askStyle = await page.evaluate(() => {
+      const btn = document.querySelector(".smoking-ask");
+      const cs = getComputedStyle(btn);
+      return { marginLeft: cs.marginLeft, flexShrink: cs.flexShrink };
+    });
+    assert.equal(askStyle.marginLeft, "4px", "the ask button must be laid out beside the copy button");
+    assert.equal(askStyle.flexShrink, "0", "the ask button must not shrink in the card head");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();

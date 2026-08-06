@@ -12121,6 +12121,11 @@ test("analyzer: Smoking-gun cards ask about the sentence in one click", () => {
     "asking must announce via toast");
   assert.match(appSrc, /💬<\/b> to ask about one/,
     "the block note must document the ask action");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  assert.match(cssSrc, /\.smoking-ask\{[^}]*margin-left:4px/,
+    "the ask button must sit beside the copy button");
+  assert.match(cssSrc, /\.smoking-ask:focus-visible\{/,
+    "the ask button must have a focus ring");
 });
 
 // Cycle #123 — per-exposure-card copy citation.
