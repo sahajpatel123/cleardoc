@@ -8177,22 +8177,50 @@
       // Cycle #254 — hear the bottom line: tier + headline + rationale.
       const decisionSpeakBtn = document.getElementById('decisionSpeakBtn');
       if(decisionSpeakBtn){
-        decisionSpeakBtn.onclick = () => {
-          if(!('speechSynthesis' in window)) return;
-          if(window.speechSynthesis.speaking){
+        if(!('speechSynthesis' in window)){
+          decisionSpeakBtn.style.display = 'none';
+        } else {
+          const setSpeaking = (speaking) => {
+            decisionSpeakBtn.textContent = speaking ? '◼ Stop' : '🔊 hear';
+            decisionSpeakBtn.setAttribute('aria-pressed', speaking ? 'true' : 'false');
+          };
+          decisionSpeakBtn.onclick = () => {
+            if(window.speechSynthesis.speaking){
+              try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
+              setSpeaking(false);
+              return;
+            }
             try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
-            decisionSpeakBtn.textContent = '🔊 hear';
-            return;
-          }
-          try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
-          const text = 'Recommendation: ' + m.k + '. ' + d.headline + '. ' + d.rationale;
-          const u = new SpeechSynthesisUtterance(text);
-          u.rate = getTtsRate();
-          window.speechSynthesis.speak(u);
-          decisionSpeakBtn.textContent = '◼ Stop';
-          u.onend = () => { decisionSpeakBtn.textContent = '🔊 hear'; };
-          u.onerror = () => { decisionSpeakBtn.textContent = '🔊 hear'; };
-        };
+            const text = 'Recommendation: ' + m.k + '. ' + d.headline + '. ' + d.rationale;
+            const u = new SpeechSynthesisUtterance(text);
+            // Voice priority matches the main read-aloud: explicit pick →
+            // detected language → English-preferring default.
+            let stored = '';
+            try { stored = localStorage.getItem('cleardoc:ttsVoice') || ''; } catch(_){ /* ignore */ }
+            const allVoices = (typeof window.speechSynthesis.getVoices === 'function')
+              ? window.speechSynthesis.getVoices() : [];
+            const detectedLang = (input && input._detectedLang) || null;
+            const explicit = stored && allVoices.find(v => v && v.name === stored);
+            const byLang = (tag) => {
+              if(!tag) return null;
+              const prefix = String(tag).toLowerCase().split('-')[0];
+              return allVoices.find(v => v && v.lang && v.lang.toLowerCase() === String(tag).toLowerCase())
+                || allVoices.find(v => v && v.lang && v.lang.toLowerCase().startsWith(prefix));
+            };
+            const enDefault = allVoices.find(v => v && v.lang && /^en[-_]/.test(v.lang)) || allVoices[0] || null;
+            const voice = explicit || (detectedLang && detectedLang.tts ? byLang(detectedLang.tts) : null) || enDefault;
+            if(voice) u.voice = voice;
+            if(detectedLang && detectedLang.tts) u.lang = detectedLang.tts;
+            u.rate = getTtsRate();
+            u.pitch = 1.0;
+            u.onend = () => setSpeaking(false);
+            u.onerror = () => setSpeaking(false);
+            try {
+              window.speechSynthesis.speak(u);
+              setSpeaking(true);
+            } catch(_){ /* ignore */ }
+          };
+        }
       }
     }
 

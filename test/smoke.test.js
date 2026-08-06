@@ -12711,16 +12711,22 @@ test("analyzer: Decision block hears the recommendation aloud", () => {
   const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
 
-  assert.match(html, /id="decisionSpeakBtn" title="Hear the recommendation aloud"/,
+  assert.match(html, /id="decisionSpeakBtn" title="Hear the recommendation aloud" aria-label="Hear the recommendation aloud" aria-pressed="false"/,
     "analyze.html must contain a decision speak button");
   assert.match(appSrc, /const decisionSpeakBtn = document\.getElementById\('decisionSpeakBtn'\);/,
     "the speak button must be wired in app.js");
   assert.match(appSrc, /const text = 'Recommendation: ' \+ m\.k \+ '\. ' \+ d\.headline \+ '\. ' \+ d\.rationale;/,
     "the utterance must carry tier + headline + rationale");
-  assert.match(appSrc, /decisionSpeakBtn\.textContent = '◼ Stop';/,
+  assert.match(appSrc, /setSpeaking\(true\);/,
     "the button must become a stop button while speaking");
+  assert.match(appSrc, /setSpeaking\(false\);/,
+    "the button must restore after the utterance ends");
   assert.match(appSrc, /u\.rate = getTtsRate\(\);/,
     "the reading must respect the chosen speed");
+  assert.match(appSrc, /localStorage\.getItem\('cleardoc:ttsVoice'\)/,
+    "the reading must respect the selected TTS voice");
+  assert.match(appSrc, /decisionSpeakBtn\.style\.display = 'none';/,
+    "the button must hide when speech synthesis is unsupported");
 });
 
 test("analyzer: RISK array detects Intellectual Property / Work for Hire trap", () => {
