@@ -10848,8 +10848,8 @@ test("analyzer: Returning users get an upcoming-deadline reminder banner", () =>
     "the dismiss button must be wired");
   assert.match(appSrc, /_reminderEl\) _reminderEl\.hidden = true;/,
     "a fresh analysis must hide the reminder");
-  assert.match(appSrc, /cleardoc:upcomingDeadlines'\]/,
-    "Forget me must purge the reminder record");
+  assert.match(appSrc, /cleardoc:upcomingDeadlines', 'cleardoc:deadlineSnooze'\]/,
+    "Forget me must purge the reminder record and its snooze");
   // Cycle #107 — no stacked banners, and stale records get purged.
   assert.match(appSrc, /if\(restoreBanner && !restoreBanner\.hidden\)\{ banner\.hidden = true; return; \}/,
     "the reminder must yield to the restore banner instead of stacking");
@@ -10861,6 +10861,24 @@ test("analyzer: Returning users get an upcoming-deadline reminder banner", () =>
     "the reminder banner must be styled");
   assert.match(cssSrc, /\.deadline-reminder\.overdue\{/,
     "an overdue reminder must get the danger accent");
+  // Cycle #180 — snooze the reminder until tomorrow.
+  assert.match(html, /id="deadlineReminderSnoozeBtn" type="button" aria-label="Snooze the deadline reminder until tomorrow"/,
+    "the banner must offer a snooze action");
+  assert.match(appSrc, /localStorage\.getItem\('cleardoc:deadlineSnooze'\)/,
+    "the show function must consult the snooze record");
+  assert.match(appSrc, /String\(snooze\.until\) > localDay\(\)/,
+    "a snoozed reminder must stay hidden until the next day");
+  assert.match(appSrc, /deadlineReminderSnoozeBtn\) deadlineReminderSnoozeBtn\.addEventListener\('click'/,
+    "the snooze button must be wired");
+  assert.match(appSrc, /localStorage\.setItem\('cleardoc:deadlineSnooze', JSON\.stringify\(\{ until, ts: Date\.now\(\) \}\)\)/,
+    "snooze must persist the until-date");
+  assert.match(appSrc, /'😴 Reminder snoozed until tomorrow'/,
+    "snooze must confirm with a toast");
+  const snoozeClears = (appSrc.match(/cleardoc:deadlineSnooze'\); \} catch\(_\)\{ \/\* ignore \*\/ \}/g) || []).length;
+  assert.ok(snoozeClears >= 4,
+    "a fresh analysis, no-deadline analysis, history clear, and restore dismissal must all reset the snooze");
+  assert.match(appSrc, /cleardoc:upcomingDeadlines', 'cleardoc:deadlineSnooze'\]/,
+    "Forget me must purge the snooze record too");
 });
 
 // Cycle 54 feature: overdue deadline rows are visually flagged in the list.

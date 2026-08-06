@@ -2230,7 +2230,7 @@
 
     // 1. Wipe our own localStorage keys (don't touch unrelated keys — be polite).
     try {
-      const ownKeys = ['cleardoc:lastAnalysis', 'cleardoc:draftInput', 'cleardoc:upcomingDeadlines'];
+      const ownKeys = ['cleardoc:lastAnalysis', 'cleardoc:draftInput', 'cleardoc:upcomingDeadlines', 'cleardoc:deadlineSnooze'];
       for(const k of ownKeys){ localStorage.removeItem(k); }
       purgeStoredAskThreads();
       if(typeof __resetAskThread === 'function') __resetAskThread();
@@ -4527,6 +4527,7 @@
       // Cycle #107 — clearing history also drops the load-time deadline
       // reminder (its deadlines belong to those past analyses).
       try { localStorage.removeItem('cleardoc:upcomingDeadlines'); } catch(_){ /* ignore */ }
+      try { localStorage.removeItem('cleardoc:deadlineSnooze'); } catch(_){ /* ignore */ }
       askHistory = [];
       _threadRestored = false;
       if(askThread) askThread.innerHTML = '';
@@ -6942,6 +6943,7 @@
       // Cycle #106 — no deadlines in this analysis, so a stale reminder
       // from an earlier document must not linger.
       try { localStorage.removeItem('cleardoc:upcomingDeadlines'); } catch(_){ /* ignore */ }
+      try { localStorage.removeItem('cleardoc:deadlineSnooze'); } catch(_){ /* ignore */ }
       return;
     }
       // Iter #175 — per-row countdown from today
@@ -7015,6 +7017,9 @@
             docName: (attachedFile && attachedFile.name) || 'last analysis',
             items: soon,
           }));
+          // Cycle #180 — a fresh analysis resets any snooze: the new
+          // deadlines deserve to be seen.
+          try { localStorage.removeItem('cleardoc:deadlineSnooze'); } catch(_){ /* ignore */ }
         }
       } catch(_){ /* ignore */ }
       const rows = items.map(it => {
@@ -15474,6 +15479,18 @@
     function showDeadlineReminder(){
       const banner = document.getElementById('deadlineReminder');
       if(!banner) return;
+      // Cycle #180 — a snoozed reminder stays quiet until the next day.
+      const localDay = () => {
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      };
+      try {
+        const snooze = JSON.parse(localStorage.getItem('cleardoc:deadlineSnooze') || 'null');
+        if(snooze && snooze.until && String(snooze.until) > localDay()){
+          banner.hidden = true;
+          return;
+        }
+      } catch(_){ /* ignore */ }
       // Cycle #107 — the restore banner already offers the last analysis
       // (which re-renders the deadline alert), so never stack two banners.
       if(restoreBanner && !restoreBanner.hidden){ banner.hidden = true; return; }
@@ -19714,6 +19731,7 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       // Cycle #107 — dismissing the restore offer also drops its
       // deadline-reminder record so nothing stale resurfaces.
       try { localStorage.removeItem('cleardoc:upcomingDeadlines'); } catch(_){ /* ignore */ }
+      try { localStorage.removeItem('cleardoc:deadlineSnooze'); } catch(_){ /* ignore */ }
       if(restoreBanner) restoreBanner.hidden=true;
       const dr = document.getElementById('deadlineReminder');
       if(dr) dr.hidden = true;
@@ -19729,6 +19747,20 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     if(deadlineReminderDismissBtn) deadlineReminderDismissBtn.addEventListener('click', () => {
       const dr = document.getElementById('deadlineReminder');
       if(dr) dr.hidden = true;
+    });
+    // Cycle #180 — snooze the deadline reminder until tomorrow (persisted,
+    // unlike the visit-only Dismiss).
+    const deadlineReminderSnoozeBtn = document.getElementById('deadlineReminderSnoozeBtn');
+    if(deadlineReminderSnoozeBtn) deadlineReminderSnoozeBtn.addEventListener('click', () => {
+      try {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        const until = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        localStorage.setItem('cleardoc:deadlineSnooze', JSON.stringify({ until, ts: Date.now() }));
+      } catch(_){ /* ignore */ }
+      const dr = document.getElementById('deadlineReminder');
+      if(dr) dr.hidden = true;
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast('😴 Reminder snoozed until tomorrow');
     });
     $$('.qf[data-fill]').forEach(q=>q.addEventListener('click',()=>{ setFocusMode(false); setPrivacyBlur(false); input.value=q.dataset.fill; clearAttachments(); clearDraft(); if(panel)panel.hidden=true; if(emptyEl)emptyEl.hidden=false; if(msg){msg.textContent='Sample loaded. Press Analyze when ready.';msg.className='analyze-msg';} updateTextStats(); }));
     if(copyDraftBtn) copyDraftBtn.addEventListener('click',async()=>{ if(!draftOut||!draftOut.value)return; try{ await navigator.clipboard.writeText(draftOut.value); copyDraftBtn.textContent='Copied'; setTimeout(()=>copyDraftBtn.textContent='Copy draft',1400); }catch(_){ draftOut.focus(); draftOut.select(); } });

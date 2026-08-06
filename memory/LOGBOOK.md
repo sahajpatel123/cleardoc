@@ -5034,3 +5034,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 179 of the autonomous loop (alternate add/polish): resume should land on something you haven't read, respect the filter you're using, and know when the work is done.
+
+**2026-08-06 20:52 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #180 of the restarted autonomous loop (add).
+- feat(deadlines): the returning-user deadline reminder now has a "😴 Snooze" button alongside Restore and Dismiss — it persists an until-date (`cleardoc:deadlineSnooze`) so the banner stays quiet until tomorrow, unlike the visit-only Dismiss. The show function checks the snooze before rendering (local-date comparison), and the snooze resets automatically on any fresh analysis, a deadline-free analysis, a history clear, a restore-offer dismissal, and Forget me (ownKeys extended).
+- Verified in a real browser by seeding the reminder record: the banner appeared with the deadline text, Snooze hid it and wrote tomorrow's date, a reload stayed quiet, and a stale (yesterday) snooze let the banner reappear; zero console errors.
+- Extended the cycle-#106 reminder smoke test with 8 snooze assertions (markup, gate, until-comparison, wiring, persistence, toast, ≥4 reset sites, Forget-me purge) and updated the Forget-me purge assertion for the extended ownKeys list.
+- Full suite green (490 unit + 323 smoke + 1 integration = 814 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 180 of the autonomous loop (alternate add/polish): "I know, I know" should be a button — snooze the nag until tomorrow, not just this tab.
