@@ -6165,6 +6165,7 @@ test("analyzer: Trend block copies its summary in one click", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(appSrc, /id="trendCopyBtn" title="Copy the trend summary as plain text"/,
     "the trend controls must include a copy button");
@@ -6180,6 +6181,10 @@ test("analyzer: Trend block copies its summary in one click", () => {
     "the button label must flash and restore");
   assert.match(appSrc, /<b>📋 copy<\/b> exports the summary/,
     "the block note must document the copy action");
+  assert.match(cssSrc, /\.trend-controls-cell\{[^}]*gap:6px/,
+    "the copy and clear buttons must have breathing room");
+  assert.match(cssSrc, /\.trend-controls-cell \.ghost-btn\{[^}]*flex-shrink:0/,
+    "the control buttons must never shrink");
 });
 
 test("analyzer: Negotiation playbook export opens a printable window with suggestions + tips + versions", () => {

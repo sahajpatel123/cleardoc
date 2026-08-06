@@ -1786,6 +1786,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .trend-spark-glyph{font-family:'JetBrains Mono',monospace;font-size:18px;letter-spacing:1px;color:var(--ink);line-height:1}
 .trend-spark-nums{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);color:var(--ink-soft);text-transform:uppercase;margin-left:8px;letter-spacing:.06em}
 .trend-controls-cell{justify-content:flex-end;background:var(--paper)}
+.trend-controls-cell{gap:6px}
+.trend-controls-cell .ghost-btn{flex-shrink:0}
 
 /* Style profile (iter #134) — voice/style KPI cards. */
 .style-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
