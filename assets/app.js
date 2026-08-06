@@ -6885,6 +6885,7 @@
         '<span class="deadline-count">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + '</span>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCopyAllBtn" title="Copy all deadlines as plain text">📋 copy all</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCsvBtn" title="Download all deadlines as a .csv file for Excel, Google Sheets, or Numbers">📊 CSV</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineIcsAllBtn" title="Download all deadlines as a single .ics calendar file">📅 all .ics</button>' +
       '</div>';
       deadlineList.innerHTML = rows + controls;
       deadlineBlock.hidden = false;
@@ -6892,7 +6893,7 @@
         const mandated = items.filter(it => /\(obligated\)/.test(it.verb)).length;
         deadlineNote.innerHTML = '<span class="riskNote-lead">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + ' extracted</span> · ' +
           '<b>' + mandated + ' mandatory</b> (shall deliver by / shall be made by) · rest are scheduled milestones. ' +
-          'Each row shows a countdown (in 7 days / today / 3 days ago). Click 📅 to save a calendar event, <b>🌐 gcal</b> to add it to Google Calendar, <b>💬</b> to ask about it, or <b>📋 copy all</b> to export the list.';
+          'Each row shows a countdown (in 7 days / today / 3 days ago). Click 📅 to save a calendar event, <b>🌐 gcal</b> to add it to Google Calendar, <b>💬</b> to ask about it, or <b>📋 copy all</b> / <b>📊 CSV</b> / <b>📅 all .ics</b> to export the list.';
       }
       // Iter #175 — copy-all chip
       const copyAllBtn = document.getElementById('deadlineCopyAllBtn');
@@ -6945,6 +6946,33 @@
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📊 Deadlines CSV downloaded (' + items.length + ')');
           }catch(_){
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create CSV file');
+          }
+        });
+      }
+      // Cycle #166 — batch .ics export: one calendar file with every
+      // deadline as an all-day event, reusing the multi-event builder.
+      const deadlineIcsAllBtn = document.getElementById('deadlineIcsAllBtn');
+      if(deadlineIcsAllBtn){
+        deadlineIcsAllBtn.addEventListener('click', () => {
+          const events = items.map(it => {
+            const dt = new Date((it.date || '') + 'T00:00:00Z');
+            return { date: dt, label: 'Contract deadline ' + (it.date || '') };
+          });
+          const ics = buildIcs(events);
+          if(!ics){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No valid dates to export');
+            return;
+          }
+          try{
+            const stamp = new Date().toISOString().slice(0,10);
+            const url = URL.createObjectURL(new Blob([ics], { type:'text/calendar;charset=utf-8' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-deadlines-' + stamp + '.ics';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 4000);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📅 ' + events.length + ' deadlines saved to one calendar file');
+          }catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create calendar file');
           }
         });
       }

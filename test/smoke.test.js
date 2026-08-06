@@ -10588,6 +10588,34 @@ test("analyzer: Deadline block exports all deadlines as a CSV file", () => {
     "download must toast with the deadline count");
 });
 
+// Cycle 166 feature: batch .ics export — every detected deadline as one
+// all-day-event calendar file, complementing the per-row 📅 buttons.
+test("analyzer: Deadline block exports all deadlines as one .ics calendar file", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="deadlineIcsAllBtn" title="Download all deadlines as a single \.ics calendar file"/,
+    "deadline controls must include a batch .ics chip");
+  assert.match(appSrc, /deadlineIcsAllBtn\.addEventListener\(\s*['"]click['"]/,
+    "the batch .ics chip must have a click handler");
+  assert.match(appSrc, /const events = items\.map\(it => \{[\s\S]+?new Date\(\(it\.date \|\| ''\) \+ 'T00:00:00Z'\)/,
+    "each deadline must become a UTC-midnight all-day event");
+  assert.match(appSrc, /const ics = buildIcs\(events\);/,
+    "the batch export must reuse the multi-event builder");
+  assert.match(appSrc, /new Blob\(\[ics\], \{ type:'text\/calendar;charset=utf-8' \}\)/,
+    "the .ics must download as text/calendar UTF-8");
+  assert.match(appSrc, /a\.download = 'cleardoc-deadlines-' \+ stamp \+ '\.ics'/,
+    "the .ics filename must be cleardoc-deadlines-<date>.ics");
+  assert.match(appSrc, /'📅 ' \+ events\.length \+ ' deadlines saved to one calendar file'/,
+    "the .ics download must toast with the deadline count");
+  assert.match(appSrc, /'⚠ No valid dates to export'/,
+    "unparseable dates must fail with a clear toast");
+  assert.match(appSrc, /📊 CSV<\/b> \/ <b>📅 all \.ics<\/b> to export/,
+    "the block note must mention the new export chip");
+});
+
 // Cycle 52/53: deadline-urgency alert pinned to the top of the results.
 // Cycle 53 polish adds overdue deadlines to the alert alongside the
 // next-7-days window (a missed deadline is the loudest signal).

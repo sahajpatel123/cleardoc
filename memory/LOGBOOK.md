@@ -4883,3 +4883,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 165 of the autonomous loop (alternate add/polish): the privacy guard should cover every paste box, stay dismissible, and count cards/IDs correctly on both textareas.
+
+**2026-08-06 19:58 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #166 of the restarted autonomous loop (add).
+- feat(deadlines): the deadlines block now has a "📅 all .ics" chip that downloads every detected deadline as one RFC-5545 calendar file — each deadline becomes an all-day event (UTC midnight, matching the existing gcal link), reusing the multi-event `buildIcs()` builder (capped at 50 events). Per-row 📅 buttons still cover single deadlines; the batch chip complements 📋 copy all and 📊 CSV. The block note now lists all three export chips.
+- New smoke test "analyzer: Deadline block exports all deadlines as one .ics calendar file" — 9 assertions covering the chip markup, the click handler, the UTC-midnight event mapping, reuse of `buildIcs`, the text/calendar MIME + dated filename, the count toast, the no-valid-dates fallback toast, and the note update.
+- Full suite green (490 unit + 319 smoke + 1 integration = 810 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 166 of the autonomous loop (alternate add/polish): when a contract has ten deadlines, saving them one by one is drudgery — one tap should put them all on your calendar.
