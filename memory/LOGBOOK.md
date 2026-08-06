@@ -5407,3 +5407,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 213 of the autonomous loop (alternate add/polish): a copied list should say when it's a filtered view — provenance in every paste.
+
+**2026-08-06 23:13 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #214 of the restarted autonomous loop (add).
+- feat(templates): every saved template row now has a "⚡ analyze" quick action — one click loads the template text into the input and runs the analysis, no second step. If the analyzer is already busy, it falls back to loading with a "⚡ Template loaded — press Analyze" toast. The button is styled green with a focus ring.
+- Verified in a real browser with a seeded template + mocked analyze flow: the row rendered the button, clicking loaded the template and produced the result panel with the verdict; zero console errors.
+- New smoke test "analyzer: saved templates offer one-click analyze" — 8 assertions (row markup, action title, handler selector, load, run, busy-fallback toast, CSS ×2).
+- Full suite green (490 unit + 339 smoke + 1 integration = 830 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 214 of the autonomous loop (alternate add/polish): a saved template should be one click from its analysis — load-and-run, not load-then-run.

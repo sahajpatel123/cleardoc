@@ -18361,6 +18361,8 @@
             '<span class="tpl-when">' + esc(ago) + '</span></button>' +
             '<button type="button" class="tpl-edit" data-tpl-edit="' + i +
             '" title="Edit this template">✏️</button>' +
+            '<button type="button" class="tpl-run" data-tpl-run="' + i +
+            '" title="Load and analyze this template">⚡ analyze</button>' +
           '</li>';
         }).join('');
   }
@@ -18448,8 +18450,25 @@
             const removed = items.splice(idx, 1);
             try { localStorage.setItem(TPL_KEY, JSON.stringify(items)); } catch(_){}
             renderTemplates();
-            if(removed.length) showAnalyzeToast('🗑 Template deleted');
+          if(removed.length) showAnalyzeToast('🗑 Template deleted');
             return;
+          }
+          // Cycle #214 — "⚡ analyze": load the template and run it in
+          // one click.
+          const runBtn = e.target.closest && e.target.closest('[data-tpl-run]');
+          if(runBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const idx = parseInt(runBtn.getAttribute('data-tpl-run') || '0', 10);
+            const items = (typeof readTemplates === 'function') ? readTemplates() : [];
+            const t = items[idx];
+            if(!t || !t.text) return;
+            input.value = t.text;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            if(tplPanel) tplPanel.hidden = true;
+            const ab = document.getElementById('analyzeBtn');
+            if(ab && !ab.disabled) ab.click();
+            else if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚡ Template loaded — press Analyze');
           }
           // Default: load the template into the input
           const btn = e.target.closest && e.target.closest('[data-tpl-idx]');

@@ -5011,6 +5011,30 @@ test("analyzer: Template panel exports and imports a JSON backup", () => {
     "imported type must be normalized to a string or null");
 });
 
+// Cycle #214 — saved templates offer a one-click analyze action.
+test("analyzer: saved templates offer one-click analyze", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /data-tpl-run="' \+ i \+/,
+    "each template row must render an analyze button");
+  assert.match(appSrc, /title="Load and analyze this template"/,
+    "the analyze button must describe its action");
+  assert.match(appSrc, /const runBtn = e\.target\.closest && e\.target\.closest\('\[data-tpl-run\]'\);/,
+    "the template handler must catch analyze clicks");
+  assert.match(appSrc, /if\(runBtn\)\{[\s\S]{0,500}input\.value = t\.text;/,
+    "the analyze action must load the template text");
+  assert.match(appSrc, /if\(ab && !ab\.disabled\) ab\.click\(\);/,
+    "the analyze action must trigger the analysis");
+  assert.match(appSrc, /'⚡ Template loaded — press Analyze'/,
+    "a busy analyzer must fall back to a load-only toast");
+  assert.match(cssSrc, /\.tpl-run\{/, "the analyze button must be styled");
+  assert.match(cssSrc, /\.tpl-run:focus-visible\{/, "the analyze button must have a focus ring");
+});
+
 test("analyzer: voice picker dropdown lets users choose a specific TTS voice", () => {
   // New feature — dropdown populated with available SpeechSynthesis
   // voices, preferring the detected language. User pick is persisted

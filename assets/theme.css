@@ -884,6 +884,9 @@ button.risk-preview:hover{filter:brightness(.96)}
 /* Template edit form (iter #59) — inline edit mode that replaces
  * the row with a name input + text textarea + Save / Cancel / Delete. */
 .tpl-edit{font:inherit;font-size:var(--t-micro);padding:2px 6px;margin-left:4px;border:var(--bd-hair) solid var(--ink-soft);background:transparent;color:var(--ink-soft);cursor:pointer;flex-shrink:0}
+.tpl-run{font:inherit;font-size:var(--t-micro);padding:2px 6px;margin-left:4px;border:var(--bd-hair) solid var(--ink);background:transparent;color:var(--green);cursor:pointer;flex-shrink:0}
+.tpl-run:hover{background:var(--green);color:#fff}
+.tpl-run:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tpl-edit:hover{background:var(--ink-soft);color:var(--paper)}
 .tpl-panel .tpl-edit-form{display:flex;flex-direction:column;gap:6px;padding:6px;border:var(--bd-hair) solid var(--ink);background:var(--paper2);width:100%}
 .tpl-panel .tpl-edit-form .tpl-edit-name,.tpl-panel .tpl-edit-form .tpl-edit-text{font:inherit;width:100%;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper);padding:4px 6px;text-transform:none;letter-spacing:0;font-size:var(--t-meta);font-family:inherit}
