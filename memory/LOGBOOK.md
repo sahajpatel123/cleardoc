@@ -5056,3 +5056,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 181 of the autonomous loop (alternate add/polish): a shared-analysis link is sacred — browsing clauses must never erase it from the URL.
+
+**2026-08-06 21:02 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #182 of the restarted autonomous loop (add).
+- feat(home→analyzer): every "What ClearDoc hunts" phrase now ships with a realistic sample clause, and picking a chip reveals a "→ analyze a sample" button. Clicking it stages the clause via a one-shot localStorage handoff (`cleardoc:flagSample`) and navigates to the analyzer, which pre-fills the textarea (mirroring the 40,000-char server cap), confirms with "Sample loaded — press Analyze.", and clears the key. Forget me purges the handoff key too.
+- Verified end to end in a real browser: home chip → try button → navigation → pre-filled textarea + confirmation message + key cleared; zero console errors. A TDZ bug was caught in-process — the first version called `updateTextStats()` before `MAX_DOCUMENT_CHARS` was declared in the scope, silently swallowing the message; removing the redundant call (init paints stats later anyway) fixed it.
+- Extended the cycle-#162 flags smoke test with 8 assertions (≥6 samples, try-button markup, staging, navigation, analyzer read + confirmation, Forget-me purge, CSS) and updated two ownKeys assertions for the new key.
+- Full suite green (490 unit + 323 smoke + 1 integration = 814 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 182 of the autonomous loop (alternate add/polish): reading about a trap should be one click away from seeing it flagged on a real clause.

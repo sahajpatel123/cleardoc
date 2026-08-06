@@ -2234,7 +2234,7 @@
 
     // 1. Wipe our own localStorage keys (don't touch unrelated keys — be polite).
     try {
-      const ownKeys = ['cleardoc:lastAnalysis', 'cleardoc:draftInput', 'cleardoc:upcomingDeadlines', 'cleardoc:deadlineSnooze'];
+      const ownKeys = ['cleardoc:lastAnalysis', 'cleardoc:draftInput', 'cleardoc:upcomingDeadlines', 'cleardoc:deadlineSnooze', 'cleardoc:flagSample'];
       for(const k of ownKeys){ localStorage.removeItem(k); }
       purgeStoredAskThreads();
       if(typeof __resetAskThread === 'function') __resetAskThread();
@@ -2652,12 +2652,12 @@
     if(!chips || !readout) return;
     const PROMPT = 'Pick a phrase to see what it really means.';
     const EXPLAIN = {
-      nonrefund: { plain: 'Once you pay, they keep the money — no refunds, no exceptions, even if the service is never delivered.', advice: 'Ask for a refund window tied to delivery, not to their whim.' },
-      autorenew: { plain: 'If you do nothing, the contract renews and you keep being charged — often silently.', advice: 'Strike auto-renewal, or require a 30-day notice before renewal.' },
-      jury: { plain: 'You give up the right to a jury trial and to join class actions — disputes get decided their way, alone.', advice: 'Ask for small-claims access; class waivers are rarely negotiable but worth flagging.' },
-      sole: { plain: 'They can change the terms at any time, in their sole discretion, without a reason.', advice: 'Replace with "30 days written notice plus your right to cancel without penalty".' },
-      late: { plain: 'Missing a payment can stack fees fast — sometimes more than the original charge.', advice: 'Cap the fee and ask for a grace period.' },
-      unlimited: { plain: 'Your liability has no dollar cap — if anything goes wrong, they can come after everything.', advice: 'Insist on a mutual liability cap tied to what you paid.' },
+      nonrefund: { plain: 'Once you pay, they keep the money — no refunds, no exceptions, even if the service is never delivered.', advice: 'Ask for a refund window tied to delivery, not to their whim.', sample: 'This Agreement is non-refundable: once paid, the full amount shall be retained by the Company regardless of whether the services are ever delivered.' },
+      autorenew: { plain: 'If you do nothing, the contract renews and you keep being charged — often silently.', advice: 'Strike auto-renewal, or require a 30-day notice before renewal.', sample: 'This subscription shall automatically renew for successive one-year terms unless the Subscriber provides written notice at least thirty days prior to the renewal date.' },
+      jury: { plain: 'You give up the right to a jury trial and to join class actions — disputes get decided their way, alone.', advice: 'Ask for small-claims access; class waivers are rarely negotiable but worth flagging.', sample: 'Subscriber hereby waives the right to trial by jury and the right to participate in any class action against the Company.' },
+      sole: { plain: 'They can change the terms at any time, in their sole discretion, without a reason.', advice: 'Replace with "30 days written notice plus your right to cancel without penalty".', sample: 'The Company may modify these Terms at any time, in its sole discretion, without prior notice to you.' },
+      late: { plain: 'Missing a payment can stack fees fast — sometimes more than the original charge.', advice: 'Cap the fee and ask for a grace period.', sample: 'A late fee of $25 or 5% of the overdue amount, whichever is greater, shall accrue on any payment received after the due date.' },
+      unlimited: { plain: 'Your liability has no dollar cap — if anything goes wrong, they can come after everything.', advice: 'Insist on a mutual liability cap tied to what you paid.', sample: 'Contractor shall be liable for all damages arising from any breach of this Agreement, with no limit on liability.' },
     };
     function clearPick(){
       chips.querySelectorAll('.flag-chip').forEach(c => {
@@ -2680,7 +2680,18 @@
         c.setAttribute('aria-pressed', c === chip ? 'true' : 'false');
       });
       chip.classList.add('flag-chip-active');
-      readout.innerHTML = '<b>' + esc(chip.textContent) + '</b> → ' + esc(ex.plain) + ' <span class="flag-advice">' + esc(ex.advice) + '</span>';
+      readout.innerHTML = '<b>' + esc(chip.textContent) + '</b> → ' + esc(ex.plain) + ' <span class="flag-advice">' + esc(ex.advice) + '</span>' +
+        (ex.sample ? '<button type="button" class="flag-try no-print" id="flagTryBtn" data-flag-sample="' + esc(ex.sample) + '">→ analyze a sample</button>' : '');
+    });
+    // Cycle #182 — "analyze a sample": one click ships the phrase's sample
+    // clause to the analyzer via a one-shot localStorage handoff.
+    readout.addEventListener('click', (e) => {
+      const btn = e.target.closest && e.target.closest('.flag-try');
+      if(!btn) return;
+      const sample = btn.getAttribute('data-flag-sample') || '';
+      if(!sample) return;
+      try { localStorage.setItem('cleardoc:flagSample', JSON.stringify({ text: sample, ts: Date.now() })); } catch(_){ /* ignore */ }
+      try { window.location.href = 'analyze.html'; } catch(_){ /* ignore */ }
     });
     document.addEventListener('keydown', (e) => {
       if(e.key !== 'Escape') return;
@@ -3658,6 +3669,24 @@
           watchWrap=$('#watchWrap'),watchCount=$('#watchCount'),watchS=$('#watchS'),
           noteWrap=$('#noteWrap'),noteCount=$('#noteCount'),noteS=$('#noteS');
     const sampleText=input.value.trim();
+
+    // Cycle #182 — a sample clause chosen from the home flags section
+    // pre-fills the analyzer (one-shot; consumed and cleared).
+    try {
+      const raw = localStorage.getItem('cleardoc:flagSample');
+      if(raw){
+        localStorage.removeItem('cleardoc:flagSample');
+        const fs = JSON.parse(raw);
+        if(fs && typeof fs.text === 'string' && fs.text.trim()){
+          if(!input.value.trim() || input.value.trim() === sampleText){
+            // Mirror the server cap (40000) — MAX_DOCUMENT_CHARS is
+            // declared later in this scope, so keep the literal here.
+            input.value = fs.text.slice(0, 40000);
+          }
+          if(msg){ msg.textContent = 'Sample loaded — press Analyze.'; msg.className = 'analyze-msg'; }
+        }
+      }
+    } catch(_){ /* ignore */ }
 
     // trap/risk patterns — severity g(note) a(watch) r(trap)
     const RISK=[

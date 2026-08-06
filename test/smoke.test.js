@@ -158,6 +158,24 @@ test("home: the landing page explains the phrases ClearDoc flags", () => {
   assert.match(cssSrc, /\.flag-chip\{/, "chip styling must exist");
   assert.match(cssSrc, /\.flag-chip-active:hover\{/, "the active chip must keep its accent on hover");
   assert.match(cssSrc, /\.flag-readout\{/, "readout styling must exist");
+  // Cycle #182 — every phrase ships with a sample clause the user can
+  // analyze in one click.
+  const sampleCount = (appSrc.match(/sample: '/g) || []).length;
+  assert.ok(sampleCount >= 6,
+    "every flag phrase must carry a sample clause");
+  assert.match(appSrc, /class="flag-try no-print" id="flagTryBtn" data-flag-sample="/,
+    "the readout must offer an analyze-a-sample button");
+  assert.match(appSrc, /localStorage\.setItem\('cleardoc:flagSample', JSON\.stringify\(\{ text: sample, ts: Date\.now\(\) \}\)\)/,
+    "clicking must stage the sample for the analyzer");
+  assert.match(appSrc, /window\.location\.href = 'analyze\.html'/,
+    "clicking must navigate to the analyzer");
+  assert.match(appSrc, /localStorage\.getItem\('cleardoc:flagSample'\)/,
+    "the analyzer must read the staged sample");
+  assert.match(appSrc, /Sample loaded — press Analyze\./,
+    "the analyzer must confirm the loaded sample");
+  assert.match(appSrc, /cleardoc:deadlineSnooze', 'cleardoc:flagSample'\]/,
+    "Forget me must purge the staged sample too");
+  assert.match(cssSrc, /\.flag-try\{/, "the sample button must be styled");
 });
 
 test("analyze: privacy guard scans pasted text for personal identifiers before Analyze", () => {
@@ -10848,7 +10866,7 @@ test("analyzer: Returning users get an upcoming-deadline reminder banner", () =>
     "the dismiss button must be wired");
   assert.match(appSrc, /_reminderEl\) _reminderEl\.hidden = true;/,
     "a fresh analysis must hide the reminder");
-  assert.match(appSrc, /cleardoc:upcomingDeadlines', 'cleardoc:deadlineSnooze'\]/,
+  assert.match(appSrc, /cleardoc:deadlineSnooze', 'cleardoc:flagSample'\]/,
     "Forget me must purge the reminder record and its snooze");
   // Cycle #107 — no stacked banners, and stale records get purged.
   assert.match(appSrc, /if\(restoreBanner && !restoreBanner\.hidden\)\{ banner\.hidden = true; return; \}/,
@@ -10877,7 +10895,7 @@ test("analyzer: Returning users get an upcoming-deadline reminder banner", () =>
   const snoozeClears = (appSrc.match(/cleardoc:deadlineSnooze'\); \} catch\(_\)\{ \/\* ignore \*\/ \}/g) || []).length;
   assert.ok(snoozeClears >= 4,
     "a fresh analysis, no-deadline analysis, history clear, and restore dismissal must all reset the snooze");
-  assert.match(appSrc, /cleardoc:upcomingDeadlines', 'cleardoc:deadlineSnooze'\]/,
+  assert.match(appSrc, /cleardoc:deadlineSnooze', 'cleardoc:flagSample'\]/,
     "Forget me must purge the snooze record too");
 });
 
