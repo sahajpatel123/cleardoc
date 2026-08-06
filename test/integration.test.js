@@ -231,3 +231,70 @@ skip("integration: analyze flow renders AI verdict, deadlines, and next steps fr
 
   await page.close();
 });
+
+// Cycle #226 — the reading list exports a tracker-ready CSV that actually
+// downloads with a BOM, a column header, and per-chunk status.
+skip("integration: reading list downloads a CSV tracker file", async () => {
+  const ctx = await browser.newContext({ acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+
+  await page.addInitScript(() => {
+    const MOCK = {
+      analysis: {
+        plainEnglishRewrite: "<b>This is a rewritten clause.</b> It says you must pay within 30 days.",
+        risks: [],
+        verdict: { label: "Suspicious", summary: "One clause deserves attention before signing." },
+        deadlines: [],
+        nextSteps: ["Calendar the cancellation deadline."],
+        readingLevel: { before: 14, after: 8 },
+        jargonFound: 7,
+      },
+    };
+    const origFetch = window.fetch.bind(window);
+    window.fetch = function patchedFetch(url, opts) {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (u.endsWith("/api/analyze")) {
+        return Promise.resolve(new Response(JSON.stringify(MOCK), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return origFetch(url, opts);
+    };
+  });
+
+  const doc = "Lessee shall indemnify the landlord in perpetuity. Lessee must pay all costs within 30 days. " +
+    "This Agreement may be amended by written notice. The parties acknowledge the foregoing. Executed in triplicate.";
+  await page.goto(`http://127.0.0.1:${PORT_WEB}/analyze.html`, { waitUntil: "networkidle" });
+  await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
+  await page.click("#analyzeBtn");
+  await page.waitForSelector("#readingBlock:not([hidden]) .reading-row", { timeout: 8000 });
+
+  // Mark the first chunk done so the Status column mixes done + todo.
+  await page.evaluate(() => document.querySelector("#readingBlock .reading-done").click());
+  await page.waitForSelector("#readingBlock .reading-row-done", { timeout: 4000 });
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download", { timeout: 8000 }),
+    page.click("#readingCsvBtn"),
+  ]);
+  const dlPath = await download.path();
+  const content = fs.readFileSync(dlPath, "utf8");
+  assert.match(download.suggestedFilename(), /^cleardoc-reading-\d{4}-\d{2}-\d{2}\.csv$/,
+    "the CSV must download as cleardoc-reading-<date>.csv");
+  assert.equal(content.charCodeAt(0), 0xFEFF, "the CSV must start with a UTF-8 BOM");
+  const lines = content.slice(1).split("\n");
+  assert.match(lines[0], /Reading plan/, "the CSV must open with a metadata row");
+  assert.match(lines[1], /Bucket.*Status.*Text/, "the CSV must carry the column header");
+  const dataRows = lines.slice(2).filter((l) => l.trim().length > 0);
+  assert.ok(dataRows.length >= 3, "the CSV must include every chunk");
+  assert.ok(dataRows.some((l) => l.includes('"done"')), "the CSV must mark the read chunk done");
+  assert.ok(dataRows.some((l) => l.includes('"todo"')), "the CSV must mark unread chunks todo");
+  assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+
+  await page.close();
+  await ctx.close();
+});

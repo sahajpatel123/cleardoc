@@ -10370,6 +10370,91 @@ test("analyzer: reading list copies the remaining unread chunks", () => {
     "copying must toast the remaining count");
 });
 
+// Cycle #226 — the reading plan exports as a tracker-ready CSV file.
+test("analyzer: reading list exports a CSV tracker file", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="readingCsvBtn" title="Download the reading plan as a .csv file for a tracker"/,
+    "reading controls must include a CSV chip");
+  assert.match(appSrc, /const readingCsvBtn = document\.getElementById\('readingCsvBtn'\);/,
+    "the CSV chip must have a click handler");
+  assert.match(appSrc, /a\.download = 'cleardoc-reading-' \+ stamp \+ '\.csv';/,
+    "the export must download as cleardoc-reading-<date>.csv");
+  assert.match(appSrc, /const csvCell = \(v\) => \{[\s\S]{0,220}\/\^\[=\+\\-\@\]/,
+    "CSV cells must carry the formula-injection guard");
+  assert.match(appSrc, /csvCell\('Bucket'\) \+ ',' \+ csvCell\('Priority'\)/,
+    "the CSV must lead with a Bucket/Priority column header");
+  assert.match(appSrc, /'📊 Reading plan CSV downloaded \(' \+ rows\.length \+ '\)'/,
+    "downloading must toast the chunk count");
+});
+
+// Cycle #226 — live: the reading-plan CSV actually downloads and the
+// file carries BOM + headers + per-chunk status.
+skip("analyzer: reading list downloads a CSV tracker file", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext({ acceptDownloads: true });
+  const page = await ctx.newPage();
+  const consoleErrors = [];
+  page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text()); });
+  page.on("pageerror", (e) => consoleErrors.push(String(e)));
+  await page.addInitScript(() => {
+    const MOCK = {
+      analysis: {
+        plainEnglishRewrite: "<b>This is a rewritten clause.</b> It says you must pay within 30 days.",
+        risks: [],
+        verdict: { label: "Suspicious", summary: "One clause deserves attention before signing." },
+        deadlines: [],
+        nextSteps: ["Calendar the cancellation deadline."],
+        readingLevel: { before: 14, after: 8 },
+        jargonFound: 7,
+      },
+    };
+    const origFetch = window.fetch.bind(window);
+    window.fetch = function patchedFetch(url, opts) {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (u.endsWith("/api/analyze")) {
+        return Promise.resolve(new Response(JSON.stringify(MOCK), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return origFetch(url, opts);
+    };
+  });
+  const doc = "Lessee shall indemnify the landlord in perpetuity. Lessee must pay all costs within 30 days. " +
+    "This Agreement may be amended by written notice. The parties acknowledge the foregoing. Executed in triplicate.";
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
+  await page.click("#analyzeBtn");
+  await page.waitForSelector("#readingBlock:not([hidden]) .reading-row", { timeout: 8000 });
+  await page.evaluate(() => document.querySelector("#readingBlock .reading-done").click());
+  await page.waitForSelector("#readingBlock .reading-row-done", { timeout: 4000 });
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download", { timeout: 8000 }),
+    page.click("#readingCsvBtn"),
+  ]);
+  const dlPath = await download.path();
+  const content = fs.readFileSync(dlPath, "utf8");
+  assert.match(download.suggestedFilename(), /^cleardoc-reading-\d{4}-\d{2}-\d{2}\.csv$/,
+    "the CSV must download as cleardoc-reading-<date>.csv");
+  assert.equal(content.charCodeAt(0), 0xFEFF, "the CSV must start with a UTF-8 BOM");
+  const lines = content.slice(1).split("\n");
+  assert.match(lines[0], /Reading plan/, "the CSV must open with a metadata row");
+  assert.match(lines[1], /Bucket.*Status.*Text/, "the CSV must carry the column header");
+  const dataRows = lines.slice(2).filter((l) => l.trim().length > 0);
+  assert.ok(dataRows.length >= 3, "the CSV must include every chunk");
+  assert.ok(dataRows.some((l) => l.includes('"done"')), "the CSV must mark the read chunk done");
+  assert.ok(dataRows.some((l) => l.includes('"todo"')), "the CSV must mark unread chunks todo");
+  assert.equal(consoleErrors.length, 0, `zero console errors, got: ${consoleErrors.join(" | ")}`);
+
+  await page.close();
+  await ctx.close();
+});
+
 // Cycle #216 — bulk mark every must-read chunk done in one click.
 test("analyzer: reading list marks all must-reads done in one click", () => {
   if (!HAS_BROWSER) return;

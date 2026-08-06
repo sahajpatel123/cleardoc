@@ -8706,6 +8706,7 @@
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyListBtn" title="Copy the reading priority list as plain text">📋 copy list</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyMustBtn" title="Copy only the must-read chunks">🔴 must list</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCopyLeftBtn" title="Copy only the chunks you have not marked done">⏳ left</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="readingCsvBtn" title="Download the reading plan as a .csv file for a tracker">📊 CSV</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingMustDoneBtn" title="Mark every must-read chunk as done">✓ must done</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingResumeBtn" title="Jump to your first unfinished must-read chunk">▶ resume</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="readingResetBtn" title="Clear all read marks for this document">↺ reset</button>' +
@@ -9006,6 +9007,71 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '⏳ ' + remaining.length + ' chunk' + (remaining.length === 1 ? '' : 's') + ' left copied' : '⚠ Couldn’t copy');
           copyLeftBtn.textContent = copied ? '✓ copied' : '⏳ left';
           setTimeout(() => { if(copyLeftBtn.isConnected) copyLeftBtn.textContent = '⏳ left'; }, 2500);
+        });
+      }
+      // Cycle #226 — CSV export: the whole reading plan (or the filtered
+      // view) lands in a spreadsheet so progress can be tracked offline.
+      // No display caps — a tracker wants every chunk, with a Status
+      // column so done-state travels with the plan.
+      const readingCsvBtn = document.getElementById('readingCsvBtn');
+      if(readingCsvBtn){
+        readingCsvBtn.addEventListener('click', () => {
+          const activeFilter = readingGrid._readingFilter || 'all';
+          const rows = [];
+          for(const kind of ['must', 'skim', 'skip']){
+            if(activeFilter !== 'all' && activeFilter !== kind) continue;
+            r.buckets[kind].forEach(c => {
+              if(undoneOnly && isDone(c)) return;
+              if(signalFilter){
+                if(signalFilter === 'flagged' && !c.signalsAcc.flagged) return;
+                if(signalFilter === 'moneyHit' && !c.signalsAcc.moneyHit) return;
+                if(signalFilter === 'deadlineHit' && !c.signalsAcc.deadlineHit) return;
+                if(signalFilter === 'rightsHit' && !c.signalsAcc.rightsHit) return;
+                if(signalFilter === 'actionHit' && !c.signalsAcc.actionHit) return;
+              }
+              const signals = [];
+              if(c.signalsAcc.flagged) signals.push('risk');
+              if(c.signalsAcc.moneyHit) signals.push('money');
+              if(c.signalsAcc.deadlineHit) signals.push('deadline');
+              if(c.signalsAcc.rightsHit) signals.push('rights');
+              if(!signals.length) signals.push('factual');
+              const mins = Math.max(1, Math.round((c.signalsAcc.wordCount || 0) / 200));
+              rows.push({
+                bucket: c.bucket === 'must' ? 'MUST' : c.bucket === 'skim' ? 'SKIM' : 'SKIP',
+                priority: Math.round(c.score * 100),
+                signals: signals.join(','),
+                status: isDone(c) ? 'done' : 'todo',
+                mins: mins,
+                sentences: c.sentences.length,
+                text: (c.sentences[0] || '').slice(0, 200),
+              });
+            });
+          }
+          if(!rows.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to export yet');
+            return;
+          }
+          const csvCell = (v) => {
+            let s = String(v || '');
+            if(/^[=+\-@]/.test(s)) s = "'" + s;
+            return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+          };
+          const doneCount = rows.filter(x => x.status === 'done').length;
+          const header = csvCell('Reading plan') + ',' + csvCell(doneCount + ' of ' + rows.length + ' chunks done') + '\n' +
+            csvCell('Bucket') + ',' + csvCell('Priority') + ',' + csvCell('Signals') + ',' + csvCell('Status') + ',' + csvCell('Min') + ',' + csvCell('Sentences') + ',' + csvCell('Text');
+          const body = rows.map(r2 => csvCell(r2.bucket) + ',' + csvCell(r2.priority) + ',' + csvCell(r2.signals) + ',' + csvCell(r2.status) + ',' + csvCell(r2.mins) + ',' + csvCell(r2.sentences) + ',' + csvCell(r2.text)).join('\n');
+          const text = '\uFEFF' + header + '\n' + body;
+          try{
+            const stamp = new Date().toISOString().slice(0,10);
+            const url = URL.createObjectURL(new Blob([text], { type:'text/csv;charset=utf-8' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-reading-' + stamp + '.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📊 Reading plan CSV downloaded (' + rows.length + ')');
+          }catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create CSV file');
+          }
         });
       }
       // Cycle #216 — bulk "✓ must done": mark every must-read chunk read

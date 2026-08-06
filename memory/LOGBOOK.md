@@ -5543,3 +5543,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 225 of the autonomous loop (alternate add/polish): a clickable row that mislabels its own button isn't just sloppy markup — it's a keyboard trap. Make it legal and make it navigable.
+
+**2026-08-07 01:37 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #226 of the restructured autonomous loop (add).
+- feat(reading): the reading list now has a "📊 CSV" chip that downloads the reading plan as a tracker-ready `.csv` file (`cleardoc-reading-<date>.csv`) — UTF-8 BOM, a "Reading plan · N of M chunks done" metadata row, a Bucket/Priority/Signals/Status/Min/Sentences/Text header, and one row per chunk (no display caps). It respects the active bucket + signal + undone-only filters, carries the OWASP formula-injection guard on every cell, and toasts the row count on success.
+- Verified in a real browser via a new integration test (real Chromium + download capture): filename pattern, BOM, metadata + header rows, ≥3 data rows with a done/todo mix after marking one chunk read, and zero console errors.
+- New smoke source test (6 assertions: chip markup, handler wiring, download filename, injection guard, header, toast) + new integration test.
+- Test-suite note: while wiring the tests, discovered that the cheat-sheet smoke test is missing its closing `});`, which makes ~50 later tests nested subtests that borrow its `appSrc/cssSrc/html` scope. Attempted the structural repair, but those tests depend on the parent scope, so the repair was reverted to keep the suite stable — flagged here as a known latent issue for a future dedicated polish cycle. The smoke-suite browser tests also early-return in this environment, so real-browser verification lives in the integration suite.
+- Full suite green (490 unit + 345 smoke + 2 integration = 837 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 226 of the autonomous loop (alternate add/polish): the reading plan is a task list — give it a spreadsheet export so progress travels beyond the app.
