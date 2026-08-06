@@ -1534,6 +1534,8 @@ button.risk-preview:hover{filter:brightness(.96)}
  * monetary amount grouped by currency; subtotal in rough USD. */
 .currency-list{display:flex;flex-direction:column;gap:4px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
 .cur-row{display:flex;align-items:baseline;gap:8px;padding:4px 8px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2);font-size:var(--t-meta)}
+.cur-row{cursor:pointer}
+.cur-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .cur-row.cur-big{border-color:var(--amber);background:var(--amber-tint)}
 .cur-row .cur-sym{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;color:var(--ink)}
 .cur-row .cur-val{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--ink);min-width:8ch;text-align:right}

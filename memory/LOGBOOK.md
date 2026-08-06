@@ -4460,3 +4460,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 123 of the autonomous loop (alternate add/polish): a dollar figure worth quoting should copy with its source in one click.
+
+**2026-08-06 00:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #124 of the restarted autonomous loop (add).
+- feat(ui): every currency row now has a one-click 📋 copy button — it copies "{CODE} {value} — \"{raw amount}\"" (e.g. `USD 1,250 — "$1,250"`), with clipboard API + `execCommand` fallback, toast, and a ✓ flash. Because buttons can't nest buttons, the rows became focusable `<div role="button" tabindex="0">` elements with restored Enter/Space activation (guarded so the keydown never fires when the copy button itself is focused) plus cursor + focus-ring styling.
+- New smoke test "Currency rows copy their amount in one click" — 10 assertions covering the focusable-div conversion, citation shape, copy-button markup/data, click-handler branch, toast, Enter/Space activation, the keyboard guard, and both CSS additions.
+- Full suite green (490 unit + 297 smoke + 1 integration = 788 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 124 of the autonomous loop (alternate add/polish): the number that matters should copy with its currency and source in one click.

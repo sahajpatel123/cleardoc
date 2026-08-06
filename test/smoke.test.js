@@ -8077,6 +8077,36 @@ test("analyzer: Currency block copy button exports amounts as plain text", () =>
     "copy handler must reference cur-val class");
 });
 
+// Cycle #124 — per-currency-row copy citation.
+test("analyzer: Currency rows copy their amount in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /role="button" tabindex="0"/,
+    "currency rows must become focusable divs to host a nested button");
+  assert.match(appSrc, /const copyVal = h\.code \+ ' ' \+ h\.value\.toLocaleString\('en-US'\) \+ ' — "' \+ h\.raw \+ '"';/,
+    "the citation must carry code, value, and the raw amount");
+  assert.match(appSrc, /class="cur-row-copy ghost-btn ghost-btn-sm"/,
+    "each currency row must render a copy button");
+  assert.match(appSrc, /data-cur-copy-text="' \+ esc\(copyVal\) \+ '"/,
+    "the copy button must carry the prebuilt citation");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-cur-copy-text\]'\)/,
+    "the row click handler must catch copy-button clicks");
+  assert.match(appSrc, /📋 Amount copied/,
+    "copying must announce via toast");
+  assert.match(appSrc, /e\.key === 'Enter' \|\| e\.key === ' '/,
+    "the focusable row must restore Enter/Space activation");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-cur-copy-text\]'\)\) return;/,
+    "keyboard activation must not fire when the copy button is focused");
+  assert.match(cssSrc, /\.cur-row\{[^}]*cursor:pointer/,
+    "the div row must look clickable");
+  assert.match(cssSrc, /\.cur-row:focus-visible\{/,
+    "the div row must have a focus ring");
+});
+
 // Iter #100: key-clause highlighter — picks the 3-4 most consequential
 // sentences in the analyzed document and surfaces them in a "read
 // twice" preview block above the textarea. Pure local.

@@ -4860,14 +4860,19 @@
       if(!result.hasAmounts){ currencyBlock.hidden = true; return; }
       const rows = result.hits.map((h, i) => {
         const isBig = h.value >= 100000;
-        return '<button type="button" class="cur-row' + (isBig ? ' cur-big' : '') + '"' +
+        // Cycle #124 — per-row copy: the row becomes a focusable div so it
+        // can host a nested 📋 button (buttons can't nest buttons).
+        const copyVal = h.code + ' ' + h.value.toLocaleString('en-US') + ' — "' + h.raw + '"';
+        return '<div class="cur-row' + (isBig ? ' cur-big' : '') + '"' +
+          ' role="button" tabindex="0"' +
           ' data-cur-idx="' + i + '" data-cur-raw="' + esc(h.raw) + '"' +
           ' title="Click to jump to this amount in the source">' +
           '<span class="cur-sym">' + esc(h.sym) + '</span>' +
           '<span class="cur-val">' + h.value.toLocaleString('en-US') + '</span>' +
           '<span class="cur-code">' + esc(h.code) + '</span>' +
           '<code class="cur-snippet">' + esc(h.raw) + '</code>' +
-        '</button>';
+          '<button type="button" class="cur-row-copy ghost-btn ghost-btn-sm" data-cur-copy-text="' + esc(copyVal) + '" title="Copy this amount" aria-label="Copy this amount">📋</button>' +
+        '</div>';
       }).join('');
       const breakdown = Object.keys(result.totals).sort((a, b) => result.totals[b] - result.totals[a]).map(c => {
         return '<span class="cur-total-pill">' + esc(c) + ' ' + result.totals[c].toLocaleString('en-US') + '</span>';
@@ -4895,7 +4900,28 @@
       currencyList.insertAdjacentHTML('afterend', controls);
       // Iter #99: wire row click → jump to source, filter chip, why modal.
       $$('.cur-row', currencyList).forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async (e) => {
+          // Cycle #124 — 📋 copies the amount instead of jumping.
+          const copyBtn = e.target.closest && e.target.closest('[data-cur-copy-text]');
+          if(copyBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = copyBtn.getAttribute('data-cur-copy-text') || '';
+            if(!text) return;
+            let copied = false;
+            try { if(navigator.clipboard){ await navigator.clipboard.writeText(text); copied = true; } } catch(_){ /* fall through */ }
+            if(!copied){
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                copied = true;
+              } catch(_){ /* ignore */ }
+            }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Amount copied' : '⚠ Couldn’t copy');
+            copyBtn.textContent = copied ? '✓' : '📋';
+            if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋'; }, 1500);
+            return;
+          }
           if(!input) return;
           const raw = btn.getAttribute('data-cur-raw') || '';
           if(!raw) return;
@@ -4913,6 +4939,12 @@
               try { input.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){ /* ignore */ }
             }
           }
+        });
+        // The rows are focusable divs now — restore Enter/Space activation,
+        // but never when focus is on the nested copy button.
+        btn.addEventListener('keydown', (e) => {
+          if(e.target && e.target.closest && e.target.closest('[data-cur-copy-text]')) return;
+          if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); btn.click(); }
         });
       });
       const onlyBtn = document.getElementById('curOnlyBigBtn');
