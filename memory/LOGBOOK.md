@@ -4309,3 +4309,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 108 of the autonomous loop (alternate add/polish): a deadline you don't understand should be one click away from an answer.
+
+**2026-08-06 21:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #109 of the restarted autonomous loop (polish).
+- polish(ui): the deadline 💬 question now adapts to the row's type — the ask button carries `data-deadline-type` (obligated vs scheduled), and clicking it asks "What happens if I miss the deadline on {date}?" for obligated deadlines but "What happens on {date}?" for scheduled milestones, so a renewal date never gets framed as something you "miss". Both branches keep the source-sentence context line.
+- Extended the cycle-108 smoke test with 4 assertions covering the type attribute, the type read, and both question branches (15 total in that test).
+- Full suite green (490 unit + 288 smoke + 1 integration = 779 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 109 of the autonomous loop (alternate add/polish): the question should fit the deadline — obligated deadlines are missed, milestones are met.

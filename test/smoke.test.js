@@ -9869,8 +9869,16 @@ test("analyzer: Deadline rows can ask the document about the deadline in one cli
     "the ask button must carry the deadline context");
   assert.match(appSrc, /data-deadline-date="' \+ esc\(it\.date \|\| ''\) \+ '"/,
     "the ask button must carry the deadline date");
+  assert.match(appSrc, /data-deadline-type="' \+ \(isM \? 'obligated' : 'scheduled'\) \+ '"/,
+    "the ask button must carry the deadline type");
   assert.match(appSrc, /\$\$\('\.deadline-ask', deadlineList\)\.forEach/,
     "ask buttons must be wired after each render");
+  assert.match(appSrc, /const type = btn\.getAttribute\('data-deadline-type'\) \|\| 'scheduled';/,
+    "the handler must read the deadline type");
+  assert.match(appSrc, /type === 'obligated'/,
+    "obligated deadlines must ask about missing them");
+  assert.match(appSrc, /What happens on '/,
+    "scheduled milestones must ask what happens on the date");
   assert.match(appSrc, /What happens if I miss the deadline/,
     "clicking must ask what happens if the deadline is missed");
   assert.match(appSrc, /qInput\.scrollIntoView/,

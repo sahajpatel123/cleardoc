@@ -6643,7 +6643,7 @@
           (isOverdue ? '<span class="deadline-overdue-tag">⚠ overdue</span>' : '') +
           '<button type="button" class="deadline-ics ghost-btn ghost-btn-sm" data-deadline-ics="' + esc(it.date) + '" title="Save to your calendar">📅 ics</button>' +
           '<a class="deadline-gcal ghost-btn ghost-btn-sm" href="' + esc(gcalHref) + '" target="_blank" rel="noopener noreferrer" title="Add this deadline to Google Calendar" aria-label="Add deadline ' + esc(it.date) + ' to Google Calendar">🌐 gcal</a>' +
-          '<button type="button" class="deadline-ask ghost-btn ghost-btn-sm" data-deadline-ask="' + esc(it.sentence || it.date || '') + '" data-deadline-date="' + esc(it.date || '') + '" title="Ask about this deadline" aria-label="Ask about this deadline">💬</button>' +
+          '<button type="button" class="deadline-ask ghost-btn ghost-btn-sm" data-deadline-ask="' + esc(it.sentence || it.date || '') + '" data-deadline-date="' + esc(it.date || '') + '" data-deadline-type="' + (isM ? 'obligated' : 'scheduled') + '" title="Ask about this deadline" aria-label="Ask about this deadline">💬</button>' +
         '</div>';
       }).join('');
       const controls = '<div class="deadline-controls">' +
@@ -6742,10 +6742,15 @@
           e.preventDefault(); e.stopPropagation();
           const sentence = btn.getAttribute('data-deadline-ask') || '';
           const date = btn.getAttribute('data-deadline-date') || '';
+          const type = btn.getAttribute('data-deadline-type') || 'scheduled';
           const qInput = document.getElementById('askInput');
           const qBtn = document.getElementById('askBtn');
           if(!qInput) return;
-          const q = 'What happens if I miss the deadline' + (date ? ' on ' + date : '') + '?' +
+          // Cycle #109 — a scheduled milestone isn't something you "miss",
+          // so the question adapts to the row's type.
+          const q = (type === 'obligated'
+            ? 'What happens if I miss the deadline' + (date ? ' on ' + date : '') + '?'
+            : 'What happens on ' + (date || 'this date') + '?') +
             (sentence ? '\n(Deadline context: "' + sentence.slice(0, 160) + '")' : '');
           qInput.value = q;
           qInput.disabled = false;
