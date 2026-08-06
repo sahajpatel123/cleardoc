@@ -5440,3 +5440,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 216 of the autonomous loop (alternate add/polish): the must-reads are the priority — one click should clear them off the list.
+
+**2026-08-06 23:24 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #217 of the restarted autonomous loop (polish).
+- polish(reading): the "✓ must done" chip now tells the truth when there's nothing to do — a document with zero must-reads toasts "No must-read chunks to mark" instead of the misleading "already done".
+- Verified in a real browser with a mocked analyze flow using only plain factual sentences: the chip toasted "No must-read chunks to mark"; zero console errors.
+- Extended the cycle-#216 smoke test with 1 assertion for the no-must-reads toast.
+- Full suite green (490 unit + 340 smoke + 1 integration = 831 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 217 of the autonomous loop (alternate add/polish): an empty must-bucket deserves an honest message, not a claim that the work is done.

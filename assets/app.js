@@ -8914,7 +8914,8 @@
             if(!isDone(c)){ markDone(c, true); marked++; }
           });
           if(marked === 0){
-            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✓ Must-reads already done');
+            // Cycle #217 — distinguish "nothing to do" from "already done".
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(r.buckets.must.length === 0 ? 'No must-read chunks to mark' : '✓ Must-reads already done');
             return;
           }
           renderReadingBlock(raw, ctx);

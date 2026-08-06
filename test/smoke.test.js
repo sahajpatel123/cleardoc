@@ -10289,6 +10289,8 @@ test("analyzer: reading list marks all must-reads done in one click", () => {
     "marking must toast the count");
   assert.match(appSrc, /'✓ Must-reads already done'/,
     "already-done must-reads must be acknowledged");
+  assert.match(appSrc, /'No must-read chunks to mark'/,
+    "a document with no must-reads must say so");
 });
 
 // Cycle #201 — the reading count shows time remaining once progress starts.
