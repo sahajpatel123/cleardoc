@@ -15400,6 +15400,14 @@
           const add = (label, text) => {
             if(text && text.length > 4) segs.push(label + ': ' + text);
           };
+          // Cycle 58 — voice mode announces the deadline-urgency alert
+          // first so listeners hear time pressure even without reading.
+          // Guard on visibility: the banner keeps stale markup when hidden.
+          const deadlineAlertEl = document.getElementById('deadlineAlert');
+          if(deadlineAlertEl && !deadlineAlertEl.hidden){
+            const alertText = (deadlineAlertEl.innerText || deadlineAlertEl.textContent || '').replace(/\s+/g, ' ').replace(/click to jump\s*⤓/g, '').trim();
+            add('deadline alert', alertText);
+          }
           add('rewrite', grabText('plainOut'));
           grabRows('riskList', 6).forEach((t, i) => add('risk ' + (i + 1), t));
           add('verdict', grabText('verdictDisplay'));

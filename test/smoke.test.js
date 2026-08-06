@@ -7746,6 +7746,25 @@ test("analyzer: Voice-mode reader plays every analysis block aloud in order", ()
     "iter #107 must use pause/resume for the play/pause toggle");
 });
 
+// Cycle 58 feature: voice mode announces the deadline-urgency alert first.
+test("analyzer: Voice mode announces the deadline-urgency alert first", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /const deadlineAlertEl = document\.getElementById\('deadlineAlert'\);/,
+    "voice builder must look up the deadline alert");
+  assert.match(appSrc, /deadlineAlertEl && !deadlineAlertEl\.hidden/,
+    "voice must skip the alert when hidden (no stale reads)");
+  assert.match(appSrc, /add\('deadline alert', alertText\);/,
+    "voice must push a 'deadline alert' segment");
+  assert.match(appSrc, /click to jump\\s\*⤓/,
+    "voice must strip the 'click to jump' hint from the alert text");
+  assert.match(appSrc, /add\('deadline alert', alertText\);[\s\S]+?add\('rewrite', grabText\('plainOut'\)\);/,
+    "the alert must be the first segment read, before the rewrite");
+});
+
 // Iter #108: cheat-sheet modal — printable single-page summary of
 // the analysis for meetings / lawyer hand-off. Pure local; built
 // from already-rendered DOM.

@@ -3778,3 +3778,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 57 of the autonomous loop (alternate add/polish): make the search easy to start over.
+
+**2026-08-06 22:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #58 of the restarted autonomous loop (feature add).
+- feat(a11y): voice mode now announces the deadline-urgency alert as its first segment — listeners hear "deadline alert: 2 deadlines within the next 7 days — Jan 15, Jan 20" before the rewrite. The segment is guarded on banner visibility (no stale reads from the hidden state) and strips the "click to jump" hint from the narration.
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 261 smoke + 1 integration = 752 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 58 of the autonomous loop (alternate add/polish): don't let voice listeners miss time pressure.
