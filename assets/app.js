@@ -15881,6 +15881,11 @@
       // Read-aloud button). Self-contained here so the two readers
       // can't clobber each other's cached spans.
       let voiceSpans = [];
+      // Cycle #101 — the narration text is whitespace-normalized by
+      // grabText, so boundaries are mapped against the normalized
+      // sentences (exact by construction) while the visible spans keep
+      // the document's original spacing.
+      let voiceSpokenParts = [];
       const voiceWrapRewrite = () => {
         if(!plainOut) return [];
         const text = plainOut.textContent || '';
@@ -15888,11 +15893,15 @@
         const parts = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
         if(parts.length <= 1) return [];
         plainOut.innerHTML = parts.map(s => '<span class="spoken">' + esc(s.trim()) + '</span>').join(' ');
-        return Array.from(plainOut.querySelectorAll('.spoken'));
+        voiceSpans = Array.from(plainOut.querySelectorAll('.spoken'));
+        const spoken = text.replace(/\s+/g, ' ').trim();
+        voiceSpokenParts = spoken.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+        return voiceSpans;
       };
       const voiceClearSpans = () => {
         voiceSpans.forEach(s => { if(s.classList) s.classList.remove('spoken-active'); });
         voiceSpans = [];
+        voiceSpokenParts = [];
       };
       const voiceSetActive = (idx) => {
         if(!voiceSpans.length) return;
@@ -15957,8 +15966,8 @@
             if(charPos < 0) return;
             let found = 0;
             let pos = 0;
-            for(let i = 0; i < voiceSpans.length; i++){
-              pos += (voiceSpans[i].textContent || '').length + 1; // +1 for the space
+            for(let i = 0; i < voiceSpokenParts.length; i++){
+              pos += voiceSpokenParts[i].length + 1; // +1 for the space
               if(charPos < pos){ found = i; break; }
               found = i;
             }

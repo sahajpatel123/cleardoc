@@ -8418,6 +8418,20 @@ test("analyzer: Voice mode highlights the rewrite sentence being read aloud", ()
     "boundary events must drive the highlight");
   assert.match(appSrc, /const charPos = ev\.charIndex - base;/,
     "char indexes must be offset for the rewrite: label prefix");
+  // Cycle #101 — mapping uses the whitespace-normalized narration text,
+  // so the highlight stays exact even on documents with odd spacing.
+  assert.match(appSrc, /let voiceSpokenParts = \[\];/,
+    "the normalized-sentence cache must exist");
+  assert.match(appSrc, /const spoken = text\.replace\(\/\\s\+\/g, ' '\)\.trim\(\);/,
+    "the narration text must be normalized before splitting");
+  assert.match(appSrc, /voiceSpokenParts = spoken\.split\(/,
+    "boundary mapping must use the normalized sentences");
+  assert.match(appSrc, /for\(let i = 0; i < voiceSpokenParts\.length; i\+\+\)\{/,
+    "the boundary walk must iterate the normalized parts");
+  assert.match(appSrc, /pos \+= voiceSpokenParts\[i\]\.length \+ 1;/,
+    "cumulative positions must come from the normalized parts");
+  assert.match(appSrc, /voiceSpokenParts = \[\];/,
+    "clearing must drop the normalized parts too");
   assert.match(appSrc, /voiceSetActive\(found\);/,
     "the active sentence must be highlighted");
   assert.match(appSrc, /voiceSetActive\(0\);/,

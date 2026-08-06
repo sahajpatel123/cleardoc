@@ -4223,3 +4223,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 100 of the autonomous loop (alternate add/polish): listeners should follow the rewrite with their eyes while the voice reads it.
+
+**2026-08-06 19:28 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #101 of the restarted autonomous loop (polish).
+- polish(ui): the voice-mode read-along highlight is now exact on any document — boundary `charIndex` values are mapped against the whitespace-normalized narration sentences (`voiceSpokenParts`, built with the same `replace(/\s+/g,' ')` normalization the voice builder applies), while the visible `.spoken` spans keep the document's original spacing. On documents with double spaces, tabs, or newlines inside the rewrite, the highlight no longer drifts as it reads into the later sentences.
+- The normalized-parts cache is reset with the spans on clear/stop/finish, and the first sentence still lights up immediately.
+- Extended the cycle-100 smoke test with 6 assertions covering the normalized-parts cache, the normalization line, the split, the boundary walk, the cumulative-position source, and the clear-reset.
+- Full suite green (490 unit + 284 smoke + 1 integration = 775 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 101 of the autonomous loop (alternate add/polish): the highlight should track the voice exactly, even on messy formatting.
