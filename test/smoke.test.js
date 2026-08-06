@@ -10211,6 +10211,13 @@ test("analyzer: Every risk row can copy its citation in one click", () => {
     "the citation must quote the exact sentence");
   assert.match(appSrc, /'\\nCounter: ' \+ counter/,
     "the citation must include the counter-suggestion when present");
+  // Cycle #105 — cite to the line, like the Ask thread.
+  assert.match(appSrc, /const sentIdx = flag && typeof flag\.i === 'number' && flag\.i >= 0 \? flag\.i : -1;/,
+    "the citation must read the flag's sentence index");
+  assert.match(appSrc, /of ' \+ lastSentences\.length/,
+    "the citation must count the document's sentences");
+  assert.match(appSrc, /sentRef \+\s*'\\n— ClearDoc risk citation';/,
+    "the sentence reference must be part of the copied block");
   assert.match(appSrc, /showAnalyzeToast\(copied \? '📋 Risk citation copied'/,
     "copying must announce via toast");
   assert.match(appSrc, /execCommand\('copy'\)/,

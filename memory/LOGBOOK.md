@@ -4267,3 +4267,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 104 of the autonomous loop (alternate add/polish): quoting a single risk to a lawyer or into notes should take one click, not a copy-paste of the whole report.
+
+**2026-08-06 20:24 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #105 of the restarted autonomous loop (polish).
+- polish(ui): the per-risk citation now cites to the line — each flag carries its sentence index, so the copied block ends with "Sentence N of M" (using `lastSentences.length`), matching the Ask thread's citation format and the product's "cited to the exact line" promise. Rows without an index (defensive) simply omit the line.
+- Extended the cycle-104 smoke test with 3 assertions covering the sentence-index read, the total-sentence count, and the reference being part of the copied block (14 total in that test).
+- Full suite green (490 unit + 286 smoke + 1 integration = 777 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 105 of the autonomous loop (alternate add/polish): a copied risk should carry its exact place in the document, the way every answer does.

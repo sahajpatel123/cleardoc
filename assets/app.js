@@ -1450,6 +1450,12 @@
       const sevLabel = sev === 'r' ? 'TRAP' : sev === 'a' ? 'WATCH' : 'NOTE';
       const why = flag && flag.rule && flag.rule.why ? String(flag.rule.why).trim() : '';
       const counter = flag && flag.rule && flag.rule.counter ? String(flag.rule.counter).trim() : '';
+      // Cycle #105 — cite to the line: the flag carries the sentence
+      // index, so the citation says "Sentence N of M" like the Ask thread.
+      const sentIdx = flag && typeof flag.i === 'number' && flag.i >= 0 ? flag.i : -1;
+      const sentRef = (sentIdx >= 0 && typeof lastSentences !== 'undefined' && lastSentences && lastSentences.length)
+        ? '\nSentence ' + (sentIdx + 1) + ' of ' + lastSentences.length
+        : '';
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'rrow-copy ghost-btn ghost-btn-sm';
@@ -1459,6 +1465,7 @@
       btn.dataset.rrowCopyText = '[' + sevLabel + '] "' + sentence + '"' +
         (why ? '\nWhy: ' + why : '') +
         (counter ? '\nCounter: ' + counter : '') +
+        sentRef +
         '\n— ClearDoc risk citation';
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
