@@ -8481,6 +8481,12 @@ test("analyzer: Reading speed is adjustable, persisted, and applied to every spe
     "the picker must be looked up when the speak button appears");
   assert.match(appSrc, /voiceRatePickerEl\) voiceRatePickerEl\.hidden = false;/,
     "the picker must be visible whenever reading is possible");
+  // Cycle #103 — when there's nothing to read, the whole audio row hides.
+  assert.match(appSrc, /speakBtn\.hidden = true;[\s\S]{0,160}voiceRatePickerEl\) voiceRatePickerEl\.hidden = true;/,
+    "no rewrite / no SpeechSynthesis must hide the pickers too");
+  // Voice mode's meter reports the active speed.
+  assert.match(appSrc, /voiceMeter\) voiceMeter\.textContent = '🎙 ' \+ \(voiceIndex \+ 1\) \+ ' \/ ' \+ voiceQueue\.length \+ ' · ' \+ getTtsRate\(\) \+ '×';/,
+    "the voice-mode meter must show the current reading speed");
   // Every TTS utterance reads the chosen speed (no hardcoded rates).
   const rateSites = (appSrc.match(/u\.rate = getTtsRate\(\);/g) || []).length;
   assert.ok(rateSites >= 10, `every speak site must use getTtsRate(), found ${rateSites}`);

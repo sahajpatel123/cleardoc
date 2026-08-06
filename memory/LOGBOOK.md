@@ -4245,3 +4245,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 102 of the autonomous loop (alternate add/polish): listeners should control the pace, not just the voice.
+
+**2026-08-06 19:56 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #103 of the restarted autonomous loop (polish).
+- polish(ui): the audio row now hides as a unit — when a re-analysis produces no rewrite (or SpeechSynthesis is unavailable), the Read-aloud button, voice picker, reading-speed picker, and preview button all hide together instead of leaving stale pickers from a previous analysis.
+- The voice-mode meter now shows the active reading speed ("🎙 2 / 8 · 1.25×"), so listeners see the pace while they hear it.
+- Extended the cycle-102 smoke test with 2 assertions covering the hide-else branch and the meter's speed display (15 total in that test).
+- Full suite green (490 unit + 285 smoke + 1 integration = 776 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 103 of the autonomous loop (alternate add/polish): the audio controls should appear and disappear as one coherent unit, and the current pace should be visible while listening.

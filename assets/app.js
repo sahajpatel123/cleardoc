@@ -13855,6 +13855,7 @@
       // AND there's a rewrite to speak (avoids a broken button when the
       // local fallback produced no rewrite text).
       if(speakBtn){
+        const voiceRatePickerEl = document.getElementById('voiceRatePicker');
         if(typeof window !== 'undefined' && 'speechSynthesis' in window && plainOut && plainOut.textContent && plainOut.textContent.trim().length > 0){
           speakBtn.hidden = false;
           // Voice picker: only show if there are actual voices to
@@ -13867,7 +13868,6 @@
           }
           // Cycle #102 — reading-speed picker: always available when the
           // Read-aloud button is (speed works even with 0 voices).
-          const voiceRatePickerEl = document.getElementById('voiceRatePicker');
           if(voiceRatePickerEl) voiceRatePickerEl.hidden = false;
           // Preview button follows the picker (or shows alone if
           // SpeechSynthesis exists but picker has 0 voices — at least
@@ -13875,6 +13875,14 @@
           if(voicePreviewBtn){
             voicePreviewBtn.hidden = !voicePicker || voicePicker.hidden;
           }
+        } else {
+          // Cycle #103 — hide the whole audio row when there's nothing
+          // to read (re-analysis with no rewrite, or no SpeechSynthesis),
+          // so stale pickers never linger from a previous analysis.
+          speakBtn.hidden = true;
+          if(voicePicker) voicePicker.hidden = true;
+          if(voiceRatePickerEl) voiceRatePickerEl.hidden = true;
+          if(voicePreviewBtn) voicePreviewBtn.hidden = true;
         }
       }
       if(!noMotion && window.gsap) gsap.fromTo(panel,{opacity:0,y:14},{opacity:1,y:0,duration:DUR.base,ease:EASE.enter});
@@ -15966,7 +15974,7 @@
         if(voiceIndex < 0) voiceIndex = 0;
         if(voiceIndex >= voiceQueue.length) return;
         try { window.speechSynthesis.cancel(); } catch(_){ /* ignore */ }
-        if(voiceMeter) voiceMeter.textContent = '🎙 ' + (voiceIndex + 1) + ' / ' + voiceQueue.length;
+        if(voiceMeter) voiceMeter.textContent = '🎙 ' + (voiceIndex + 1) + ' / ' + voiceQueue.length + ' · ' + getTtsRate() + '×';
         const u = new SpeechSynthesisUtterance(voiceQueue[voiceIndex]);
         u.rate = getTtsRate();
         // Cycle #100 — follow along with the rewrite while it's read.
