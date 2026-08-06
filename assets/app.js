@@ -21653,6 +21653,19 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       execCopyBtn._flashTimer=setTimeout(()=>{ execCopyBtn.textContent=orig; },1400);
     });
     if(downloadDraftBtn) downloadDraftBtn.addEventListener('click',()=>{ if(!draftOut||!draftOut.value)return; const url=URL.createObjectURL(new Blob([draftOut.value],{type:'text/plain'})); const a=document.createElement('a'); a.href=url; a.download='cleardoc-response-draft.txt'; a.click(); URL.revokeObjectURL(url); });
+    const downloadDraftMdBtn=document.getElementById('downloadDraftMdBtn');
+    if(downloadDraftMdBtn) downloadDraftMdBtn.addEventListener('click',()=>{
+      if(!draftOut||!draftOut.value) return;
+      const md='# ClearDoc response draft\n\n> Generated locally · not legal advice. Review before sending.\n\n' + draftOut.value;
+      const url=URL.createObjectURL(new Blob([md],{type:'text/markdown;charset=utf-8'}));
+      const a=document.createElement('a');
+      a.href=url; a.download='cleardoc-response-draft.md';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⬇ Draft saved as Markdown');
+    });
     if(printBtn) printBtn.addEventListener('click',printAnalysis);
     if(saveBtn) saveBtn.addEventListener('click',saveAnalysis);
 

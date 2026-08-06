@@ -2358,6 +2358,51 @@ skip("analyze: risk table copies as Markdown for Notion/GitHub/Linear", async ()
   }
 });
 
+// Cycle #262 — download the generated response draft as Markdown.
+skip("analyze: response draft downloads as Markdown", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="downloadDraftMdBtn"/,
+    "analyze.html must expose the Markdown draft download button");
+  assert.match(appSrc, /cleardoc-response-draft\.md/,
+    "the Markdown draft download must use a .md filename");
+  assert.match(appSrc, /type:'text\/markdown;charset=utf-8'/,
+    "the Markdown draft download must use text/markdown UTF-8");
+  assert.match(appSrc, /'⬇ Draft saved as Markdown'/,
+    "the Markdown draft download must confirm with a toast");
+
+  const ctx = await browser.newContext({ acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#draftOut", { timeout: 8000 });
+    await page.waitForFunction(() => (document.getElementById("draftOut") || {}).value && document.getElementById("draftOut").value.length > 10,
+      { timeout: 8000 });
+    const [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 8000 }),
+      page.click("#downloadDraftMdBtn"),
+    ]);
+    const dlPath = await download.path();
+    const content = fs.readFileSync(dlPath, "utf8");
+    assert.match(download.suggestedFilename(), /^cleardoc-response-draft\.md$/,
+      "the download must be named cleardoc-response-draft.md");
+    assert.match(content, /^# ClearDoc response draft/, "the Markdown draft must start with the title");
+    assert.match(content, /not legal advice/, "the Markdown draft must carry the disclaimer");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 skip("share: opening a #share= URL offers the shared analysis banner with a View button", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await browser.newContext();
