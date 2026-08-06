@@ -12183,8 +12183,10 @@
       const rsSent=document.getElementById('rewriteSentences');
       const rsMins=document.getElementById('rewriteMins');
       const rsS=document.getElementById('rewriteSentenceS');
+      const rsWords=document.getElementById('rewriteWords');
+      const rsWordS=document.getElementById('rewriteWordS');
       const rsWrap=document.getElementById('rewriteStats');
-      if(rsSent && rsMins && rsWrap){
+      if(rsSent && rsMins && rsWords && rsWordS && rsWrap){
         const rw=(plainOut.textContent||'').trim();
         const words = rw ? rw.split(/\s+/).filter(Boolean).length : 0;
         if(words > 0){
@@ -12195,6 +12197,8 @@
           const mins = rawMins >= 1 ? Math.round(rawMins) : null; // null ⇒ "< 1"
           rsSent.textContent = String(sCount);
           rsS.textContent = sCount === 1 ? '' : 's';
+          rsWords.textContent = String(words);
+          rsWordS.textContent = words === 1 ? '' : 's';
           rsMins.textContent = mins === null ? '< 1' : String(mins);
           rsWrap.hidden = false;
         } else {

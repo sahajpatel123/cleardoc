@@ -244,6 +244,20 @@ skip("risk filter: 'showing X of Y' pill counts rows the CSS actually reveals", 
   assert.doesNotMatch(appSrc, /querySelectorAll\('\.rrow:not\(\[style\*="display: none"\]\)'\)/, "count must not rely on inline display styles");
 });
 
+skip("rewrite stats: word count is computed and displayed next to sentences + read time", async () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(analyzeHtml, /id="rewriteWords"/, "analyze.html must expose #rewriteWords in the rewrite stats line");
+  assert.match(analyzeHtml, /id="rewriteWordS"/, "analyze.html must expose #rewriteWordS for pluralization");
+  assert.match(appSrc, /rsWords=document\.getElementById\('rewriteWords'\)/, "app.js must look up #rewriteWords");
+  assert.match(appSrc, /rsWords\.textContent = String\(words\)/, "app.js must render the computed word count");
+  assert.match(appSrc, /rsWordS\.textContent = words === 1 \? '' : 's'/, "app.js must pluralize 'word/words'");
+});
+
 skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

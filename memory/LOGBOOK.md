@@ -3258,3 +3258,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 5 of the autonomous loop (alternate add/polish): fix the inaccurate risk-filter count pill.
+
+**2026-08-06 13:20 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #6 of the restarted autonomous loop (feature add).
+- feat(ui): surfaced the rewrite word count in the Plain-English rewrite stats line — the count was already computed for the read-time estimate but never displayed. The line now reads "N sentences · M words · ~K min read" with correct singular/plural handling ("1 word" / "N words").
+- Added a source-pattern smoke test.
+- Full suite green (490 unit + 228 smoke + 1 integration = 719 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 6 of the autonomous loop (alternate add/polish): expose the already-computed rewrite word count to users.
