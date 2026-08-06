@@ -9763,6 +9763,27 @@ test("analyzer: Glossary quick-reference extracts legal terms with plain-English
   assert.match(cssSrc, /\.gloss-filter-active\b/, ".gloss-filter-active style must exist");
 });
 
+// Cycle #128 — pronounce any glossary term.
+test("analyzer: Glossary rows can pronounce the legal term in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /class="gloss-speak ghost-btn ghost-btn-sm"/,
+    "each glossary row must render a speak button");
+  assert.match(appSrc, /data-gloss-speak="' \+ esc\(g\.term\) \+ '"/,
+    "the speak button must carry the term");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-gloss-speak\]'\)/,
+    "the row click handler must catch speak-button clicks");
+  assert.match(appSrc, /new SpeechSynthesisUtterance\(term\)/,
+    "clicking must speak the term");
+  assert.match(appSrc, /u\.rate = getTtsRate\(\);/,
+    "the pronunciation must respect the chosen reading speed");
+  assert.match(appSrc, /🔊<\/b> to hear the term/,
+    "the block note must document the speak action");
+});
+
 // Iter #172: obligation tracker — extracts action verbs and obligations.
 test("analyzer: Obligation tracker extracts action verbs from the document", () => {
   if (!HAS_BROWSER) return;

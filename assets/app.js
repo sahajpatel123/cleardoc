@@ -10791,16 +10791,33 @@
           '<div class="gloss-term">' + esc(g.term) + '</div>' +
           '<div class="gloss-meaning">' + esc(g.plain) + '</div>' +
           '<div class="gloss-hits">' + g.hits + ' hit' + (g.hits === 1 ? '' : 's') + '</div>' +
+          '<button type="button" class="gloss-speak ghost-btn ghost-btn-sm" data-gloss-speak="' + esc(g.term) + '" title="Pronounce this legal term" aria-label="Pronounce this legal term">🔊</button>' +
         '</div>'
       )).join('') + controls;
       glossBlock.hidden = false;
       if(glossNote){
         glossNote.innerHTML = '<span class="riskNote-lead">' + all.length + ' legal term' + (all.length === 1 ? '' : 's') + ' found</span> · ' +
-          'Sorted by frequency. Click to copy the meaning, or use <b>📋 copy all</b> to grab the whole list.';
+          'Sorted by frequency. Click to copy the meaning, <b>🔊</b> to hear the term, or use <b>📋 copy all</b> to grab the whole list.';
       }
       // Iter #157 — click-to-copy + shift-click to jump
       $$('.gloss-row', glossGrid).forEach(row => {
         row.addEventListener('click', async (e) => {
+          // Cycle #128 — 🔊 pronounces the term instead of copying.
+          const speakBtn = e.target.closest && e.target.closest('[data-gloss-speak]');
+          if(speakBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const term = speakBtn.getAttribute('data-gloss-speak') || '';
+            if(term && typeof window !== 'undefined' && 'speechSynthesis' in window){
+              try {
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(term);
+                u.rate = getTtsRate();
+                window.speechSynthesis.speak(u);
+              } catch(_){ /* ignore */ }
+            }
+            return;
+          }
           const term = row.getAttribute('data-gloss-term') || '';
           const plain = row.getAttribute('data-gloss-plain') || '';
           // Iter #157 — shift-click jumps to the source

@@ -4500,3 +4500,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 127 of the autonomous loop (alternate add/polish): the copy button should sit in a predictable corner on every card, at every width.
+
+**2026-08-06 01:46 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #128 of the restarted autonomous loop (add).
+- feat(ui): every glossary row now has a one-click 🔊 pronounce button — clicking it speaks the legal term via SpeechSynthesis (respecting the user's chosen reading speed via `getTtsRate()`), with a dedicated `[data-gloss-speak]` branch in the row handler so it never triggers the click-to-copy or shift-click-to-jump behavior. The block note documents the action.
+- New smoke test "Glossary rows can pronounce the legal term in one click" — 6 assertions covering the button markup, term data, click-handler branch, utterance creation, reading-speed respect, and note.
+- Full suite green (490 unit + 299 smoke + 1 integration = 790 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 128 of the autonomous loop (alternate add/polish): a word you can't pronounce should be one click away from hearing it.
