@@ -4946,3 +4946,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 171 of the autonomous loop (alternate add/polish): a floating helper should never be an Escape hazard or cover the very text you selected.
+
+**2026-08-06 20:22 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #172 of the restarted autonomous loop (add).
+- feat(reading): every reading-list chunk now has a 💬 ask button, completing the copy / ask / speak trio for the priority reading list. Clicking prefills the Ask panel with `What does this <must-read|skim|skip> passage mean: "<chunk>"` (capped at 220 chars), re-enables the input, scrolls the panel into view, and toasts "💬 Question ready — press Ask" — the same interaction as every other per-row ask button. The generic row-aware `a` shortcut now also covers `.reading-row` (matcher + ask lookup extended), and the block note documents the new action. CSS adds matching flex-shrink + focus-ring rules.
+- Verified end to end in a real browser with a mocked analyze flow: the must-read chunk's button prefills the quoted question, the Ask button re-enables, the `a` shortcut works from a focused reading row, and there are zero console errors.
+- New smoke test "analyzer: Reading-list chunks ask about the chunk in one click" — 10 assertions (markup, data attributes, handler, bucket mapping, prefill shape, no-op guard, toast, note, CSS). Seven pre-existing assertions across four tests were updated for the extended matcher / ask-lookup strings.
+- Full suite green (490 unit + 321 smoke + 1 integration = 812 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 172 of the autonomous loop (alternate add/polish): the reading list tells you what to read — now any chunk can be asked about in one click, like every other flagged surface.

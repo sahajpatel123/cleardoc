@@ -2115,6 +2115,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 .reading-progress-label b{color:var(--green)}
 .reading-copy{flex-shrink:0;align-self:center}
 .reading-copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.reading-ask{flex-shrink:0;align-self:center}
+.reading-ask:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .reading-speak{flex-shrink:0;align-self:center}
 .reading-speak:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .reading-clear{padding:2px 6px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink-soft)}

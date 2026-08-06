@@ -8435,7 +8435,7 @@ test("analyzer: Key-clause rows can ask the document about the clause in one cli
     "clicking must bring the Ask panel into view");
   assert.match(appSrc, /showAnalyzeToast\('💬 Question ready — press Ask'\)/,
     "clicking must announce the prefilled question");
-  assert.match(appSrc, /\.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row'\) : null;/,
+  assert.match(appSrc, /\.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row, \.reading-row'\) : null;/,
     "the a shortcut must also cover key-clause, scenario, obligation, and bearer rows");
 });
 
@@ -9432,11 +9432,11 @@ test("analyzer: Questions-to-ask rows can prefill the Ask panel with one click",
   assert.match(cssSrc, /\.ques-copy,\.ques-ask\{/,
     ".ques-ask must share the row-button style");
   // Cycle #91 polish — the risk-row 'a' shortcut now also serves question rows.
-  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row'\) : null;/,
+  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row, \.reading-row'\) : null;/,
     "the row-shortcut handler must match every per-row ask surface");
   assert.match(appSrc, /if\(!row\) return;[\s\S]{0,120}row\.classList\.contains\('rrow'\) && \(key === 'e' \|\| key === 'E'\)/,
     "keys outside supported rows must be ignored and e must stay risk-only");
-  assert.match(appSrc, /row\.querySelector && row\.querySelector\('\.rrow-ask, \.ques-ask, \.deadline-ask, \.kc-ask, \.scenario-ask, \.act-ask, \.bearer-ask'\)/,
+  assert.match(appSrc, /row\.querySelector && row\.querySelector\('\.rrow-ask, \.ques-ask, \.deadline-ask, \.kc-ask, \.scenario-ask, \.act-ask, \.bearer-ask, \.reading-ask'\)/,
     "the a shortcut must target whichever ask button the row has");
 });
 
@@ -9688,7 +9688,7 @@ test("analyzer: Scenario cards can ask the document about the scenario in one cl
     "clicking must announce the prefilled question");
   assert.match(appSrc, /💬<\/b> asks the document about a scenario\./,
     "the block note must document the ask action");
-  assert.match(appSrc, /\.kc-ask, \.scenario-ask, \.act-ask, \.bearer-ask'\)/,
+  assert.match(appSrc, /\.kc-ask, \.scenario-ask, \.act-ask, \.bearer-ask, \.reading-ask'\)/,
     "the a shortcut must also cover scenario cards");
 });
 
@@ -9772,9 +9772,9 @@ test("analyzer: Bearer rows can ask the document about the risk in one click", (
     "clicking must announce the prefilled question");
   assert.match(appSrc, /<b>💬<\/b> to ask about a risk/,
     "the block note must document the ask action");
-  assert.match(appSrc, /\.action-row, \.bearer-row'\) : null;/,
+  assert.match(appSrc, /\.action-row, \.bearer-row, \.reading-row'\) : null;/,
     "the a shortcut must also cover bearer rows");
-  assert.match(appSrc, /\.act-ask, \.bearer-ask'\)/,
+  assert.match(appSrc, /\.act-ask, \.bearer-ask, \.reading-ask'\)/,
     "the a shortcut must target the bearer ask button");
 });
 
@@ -9860,6 +9860,37 @@ test("analyzer: Reading-list chunks read the chunk aloud in one click", () => {
     "the speak button must never get crushed beside the content");
   assert.match(cssSrc, /\.reading-speak:focus-visible\{/,
     "the speak button must have a focus ring");
+});
+
+// Cycle #172 — ask about any reading-list chunk, completing the per-row
+// copy / ask / speak trio for the reading list.
+test("analyzer: Reading-list chunks ask about the chunk in one click", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(appSrc, /class="reading-ask ghost-btn ghost-btn-sm"/,
+    "each reading chunk must render an ask button");
+  assert.match(appSrc, /data-reading-ask="' \+ esc\(c\.sentences\.join\(' '\)\.slice\(0, 300\)\) \+ '" data-reading-bucket="' \+ c\.bucket \+ '"/,
+    "the ask button must carry the chunk sentences and its bucket");
+  assert.match(appSrc, /e\.target\.closest && e\.target\.closest\('\[data-reading-ask\]'\)/,
+    "the row click handler must catch ask-button clicks");
+  assert.match(appSrc, /const bucketWord = bucket === 'must' \? 'must-read' : bucket === 'skim' \? 'skim' : 'skip';/,
+    "the bucket must map to a plain-English label");
+  assert.match(appSrc, /qInput\.value = 'What does this ' \+ bucketWord \+ ' passage mean: "' \+ text\.slice\(0, 220\) \+ '"';/,
+    "clicking must prefill a question quoting the chunk");
+  assert.match(appSrc, /if\(!qInput \|\| !text\) return;/,
+    "missing input or empty text must no-op");
+  assert.match(appSrc, /'💬 Question ready — press Ask'/,
+    "clicking must announce the prefilled question");
+  assert.match(appSrc, /<b>💬<\/b> asks about one/,
+    "the block note must document the ask action");
+  assert.match(cssSrc, /\.reading-ask\{[^}]*flex-shrink:0/,
+    "the ask button must never get crushed beside the content");
+  assert.match(cssSrc, /\.reading-ask:focus-visible\{/,
+    "the ask button must have a focus ring");
 });
 
 // Iter #140: section risk map — aggregates risk patterns by
@@ -10354,7 +10385,7 @@ test("analyzer: Obligation rows can ask the document about the obligation in one
     "clicking must announce the prefilled question");
   assert.match(appSrc, /<b>💬<\/b> to ask about an obligation/,
     "the block note must document the ask action");
-  assert.match(appSrc, /\.scenario-ask, \.act-ask, \.bearer-ask'\)/,
+  assert.match(appSrc, /\.scenario-ask, \.act-ask, \.bearer-ask, \.reading-ask'\)/,
     "the a shortcut must also cover obligation rows");
 });
 
@@ -10571,11 +10602,11 @@ test("analyzer: Deadline rows can ask the document about the deadline in one cli
   assert.match(appSrc, /<b>💬<\/b> to ask about it/,
     "the block note must document the ask action");
   // The a-shortcut now covers deadline rows too.
-  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row'\) : null;[\s\S]{0,1800}if\(!row\) return;/,
+  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row, \.reading-row'\) : null;[\s\S]{0,1800}if\(!row\) return;/,
     "the row-shortcut handler must include deadline rows and ignore other keys");
-  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row'\) : null;[\s\S]{0,800}if\(key === 'j' \|\| key === 'J' \|\| key === 'k' \|\| key === 'K'\)\{/,
+  assert.match(appSrc, /const row = t && t\.closest \? t\.closest\('\.rrow, \.ques-row, \.deadline-row, \.kc-row, \.scenario-card, \.action-row, \.bearer-row, \.reading-row'\) : null;[\s\S]{0,800}if\(key === 'j' \|\| key === 'J' \|\| key === 'k' \|\| key === 'K'\)\{/,
     "the j/k branch must live inside the same row-aware handler");
-  assert.match(appSrc, /\.deadline-ask, \.kc-ask, \.scenario-ask, \.act-ask, \.bearer-ask'\)/,
+  assert.match(appSrc, /\.deadline-ask, \.kc-ask, \.scenario-ask, \.act-ask, \.bearer-ask, \.reading-ask'\)/,
     "the a shortcut must target the deadline ask button");
 });
 

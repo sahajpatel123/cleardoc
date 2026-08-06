@@ -1552,7 +1552,7 @@
     const key = e.key;
     // Cycle #111 — one generic row matcher for every per-row ask button
     // (risk, question, deadline, key clause — and anything added later).
-    const row = t && t.closest ? t.closest('.rrow, .ques-row, .deadline-row, .kc-row, .scenario-card, .action-row, .bearer-row') : null;
+    const row = t && t.closest ? t.closest('.rrow, .ques-row, .deadline-row, .kc-row, .scenario-card, .action-row, .bearer-row, .reading-row') : null;
     // Cycle #168 — j/k risk-row navigation. Works from anywhere while
     // results are visible: j moves focus to the next risk row's action,
     // k to the previous (wrapping at both ends); when focus is already
@@ -1594,7 +1594,7 @@
       return;
     }
     if(key === 'a' || key === 'A'){
-      const ask = row.querySelector && row.querySelector('.rrow-ask, .ques-ask, .deadline-ask, .kc-ask, .scenario-ask, .act-ask, .bearer-ask');
+      const ask = row.querySelector && row.querySelector('.rrow-ask, .ques-ask, .deadline-ask, .kc-ask, .scenario-ask, .act-ask, .bearer-ask, .reading-ask');
       if(!ask) return;
       e.preventDefault();
       ask.click();
@@ -8371,6 +8371,8 @@
               '<div class="reading-meta">' + sigHtml + ' · ' + c.sentences.length + ' sentence' + (c.sentences.length === 1 ? '' : 's') + (done ? ' · <b class="reading-done-flag">✓ done</b>' : '') + '</div>' +
             '</div>' +
             '<button type="button" class="reading-copy ghost-btn ghost-btn-sm" data-reading-copy-text="' + esc(copyText) + '" title="Copy this chunk as a quote" aria-label="Copy this chunk as a quote">📋</button>' +
+            // Cycle #172 — ask about the whole chunk, completing the trio.
+            '<button type="button" class="reading-ask ghost-btn ghost-btn-sm" data-reading-ask="' + esc(c.sentences.join(' ').slice(0, 300)) + '" data-reading-bucket="' + c.bucket + '" title="Ask about this chunk" aria-label="Ask about this chunk">💬</button>' +
             // Cycle #155 — hear the chunk aloud at the chosen pace.
             '<button type="button" class="reading-speak ghost-btn ghost-btn-sm" data-reading-speak="' + esc(c.sentences.join(' ').slice(0, 300)) + '" title="Read this chunk aloud" aria-label="Read this chunk aloud">🔊</button>' +
           '</div>';
@@ -8411,7 +8413,7 @@
           'Pure-local: walks the doc sentence-by-sentence and scores each against risk, money, deadline, and rights signals. ' +
           '<b>🔴 must</b> = every red/orange dot (' + pctMust + '% of the doc). ' +
           'Click a chunk to jump to it; click <b>○</b> to mark it read (progress persists). ' +
-          'Click any signal badge (🚩/💰/⏰/✓) to filter chunks with that signal. <b>📋</b> per row copies a single chunk, <b>🔊</b> reads one aloud, <b>📋 copy list</b> exports the priority order as a checklist.';
+          'Click any signal badge (🚩/💰/⏰/✓) to filter chunks with that signal. <b>📋</b> per row copies a single chunk, <b>💬</b> asks about one, <b>🔊</b> reads one aloud, <b>📋 copy list</b> exports the priority order as a checklist.';
       }
       // Click-to-jump. Inner controls (done + signal badges) stop
       // propagation so they don't accidentally jump the input.
@@ -8452,6 +8454,25 @@
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Reading chunk copied' : '⚠ Couldn’t copy');
             copyBtn.textContent = copied ? '✓' : '📋';
             if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋'; }, 1500);
+            return;
+          }
+          // Cycle #172 — 💬 asks about the chunk instead of jumping.
+          const askBtn = e.target.closest && e.target.closest('[data-reading-ask]');
+          if(askBtn){
+            e.preventDefault();
+            e.stopPropagation();
+            const text = askBtn.getAttribute('data-reading-ask') || '';
+            const bucket = askBtn.getAttribute('data-reading-bucket') || '';
+            const qInput = document.getElementById('askInput');
+            const qBtn = document.getElementById('askBtn');
+            if(!qInput || !text) return;
+            const bucketWord = bucket === 'must' ? 'must-read' : bucket === 'skim' ? 'skim' : 'skip';
+            qInput.value = 'What does this ' + bucketWord + ' passage mean: "' + text.slice(0, 220) + '"';
+            qInput.disabled = false;
+            if(qBtn) qBtn.disabled = false;
+            try { qInput.focus({preventScroll:false}); } catch(_){ qInput.focus(); }
+            try { qInput.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
             return;
           }
           if(e.target && (e.target.closest('.reading-done') || e.target.closest('.reading-sig'))) return;
