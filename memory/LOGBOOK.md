@@ -3428,3 +3428,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 22 of the autonomous loop (alternate add/polish): one-tap starter questions for the Ask panel.
+
+**2026-08-06 16:10 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #23 of the restarted autonomous loop (polish).
+- polish(keys/robustness): the Ask flow had no re-entry guard — clicking a quick-question chip (or double-pressing Enter) while a question was in flight could stack a second request. Added an `_askInFlight` flag: ask() now no-ops while one request is pending and clears the flag when the answer lands (AI or local fallback).
+- Extended the quick-question smoke test with the in-flight guard assertion.
+- Full suite green (490 unit + 238 smoke + 1 integration = 729 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 23 of the autonomous loop (alternate add/polish): prevent stacked Ask requests.

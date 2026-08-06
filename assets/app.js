@@ -13663,6 +13663,7 @@
      * answer (with citation) when the network response lands.
      */
     let askHistory=[];
+    let _askInFlight = false;
     const askThread=$('#askThread'),askClearBtn=$('#askClearBtn');
     function renderAskThread(){
       if(!askThread) return;
@@ -13686,11 +13687,13 @@
     }
     async function ask(){
       const q=(askInput&&askInput.value||'').trim(); if(!q) return;
+      if(_askInFlight) return; // never stack requests while one is pending
       if(!lastSentences.length){
         if(askThread) askThread.innerHTML='<div class="ask-a">Analyze a document first, then ask about it.</div>';
         return;
       }
       // Reserve a pending slot so the thinking dots render immediately
+      _askInFlight = true;
       const turn = { q, pending:true, answer:'', cite:'' };
       askHistory.push(turn);
       renderAskThread();
@@ -13723,6 +13726,7 @@
         turn.pending=false;
         renderAskThread();
       }
+      _askInFlight = false;
       if(askBtn) askBtn.disabled=false;
     }
     if(askClearBtn) askClearBtn.addEventListener('click',()=>{

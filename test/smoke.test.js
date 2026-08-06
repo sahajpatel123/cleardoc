@@ -406,6 +406,7 @@ skip("ask: quick-question chips fill the input and ask immediately", async () =>
   assert.match(appSrc, /askChips\.addEventListener\('click'/, "app.js must wire the chips");
   assert.match(appSrc, /askInput\.value = q/, "clicking a chip must fill the ask input");
   assert.match(appSrc, /typeof ask === 'function'\) ask\(\)/, "clicking a chip must send the question");
+  assert.match(appSrc, /if\(_askInFlight\) return;/, "ask must not stack requests while one is in flight");
   assert.match(themeSrc, /\.ask-chip\{/, "theme.css must style .ask-chip");
   assert.match(themeSrc, /\.ask-chip:focus-visible\{/, "theme.css must give chips a focus ring");
 });
