@@ -5645,3 +5645,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 234 of the autonomous loop (alternate add/polish): filtering deadlines is only half the job — once you've narrowed them, you should be able to see which one is actually next.
+
+**2026-08-07 04:05 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #235 of the restructured autonomous loop (polish).
+- polish(deadlines): the "⇅" sort chip from cycle #234 now carries `aria-pressed="true|false"` so the active sort state announces itself to screen readers (mirrors the filter chips from cycle #219), and the deadline note documents the chip ("⇅ to sort by date (soonest first)") so it's discoverable next to the exports.
+- Verified in a real browser via the extended deadline-sort integration test: after toggling to date sort, the chip read `aria-pressed="true"`; after toggling back, `"false"` — alongside the existing order + persistence assertions; zero console errors.
+- Extended the cycle-#204 smoke test with 2 assertions (pressed state, note text) and adjusted the sort-chip markup assertion.
+- Full suite green (490 unit + 346 smoke + 6 integration = 842 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 235 of the autonomous loop (alternate add/polish): a toggle that doesn't announce itself is a toggle only the mouse can hear — press it out loud, and tell the note where it lives.

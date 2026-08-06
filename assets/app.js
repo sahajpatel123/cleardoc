@@ -7271,7 +7271,9 @@
         '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'all' ? ' dl-filter-active' : '') + '" data-dl-filter="all" aria-pressed="' + (dlFilter === 'all' ? 'true' : 'false') + '" title="Show every deadline">🌐 all</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'soon' ? ' dl-filter-active' : '') + '" data-dl-filter="soon" aria-pressed="' + (dlFilter === 'soon' ? 'true' : 'false') + '" title="Show only deadlines within the next 7 days">⏰ next 7d</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm' + (dlFilter === 'overdue' ? ' dl-filter-active' : '') + '" data-dl-filter="overdue" aria-pressed="' + (dlFilter === 'overdue' ? 'true' : 'false') + '" title="Show only overdue deadlines">⚠ overdue</button>' +
-        '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineSortBtn" title="' + (dlSort === 'date' ? 'Restore document order' : 'Sort soonest first (overdue at the top)') + '">' + (dlSort === 'date' ? '⇅ by date' : '⇅ doc order') + '</button>' +
+        // Cycle #235 — the sort toggle announces its state via aria-pressed
+        // (mirrors the filter chips).
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineSortBtn" aria-pressed="' + (dlSort === 'date' ? 'true' : 'false') + '" title="' + (dlSort === 'date' ? 'Restore document order' : 'Sort soonest first (overdue at the top)') + '">' + (dlSort === 'date' ? '⇅ by date' : '⇅ doc order') + '</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCopyAllBtn" title="Copy all deadlines as plain text">📋 copy all</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCsvBtn" title="Download all deadlines as a .csv file for Excel, Google Sheets, or Numbers">📊 CSV</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineIcsAllBtn" title="Download all deadlines as a single .ics calendar file">📅 all .ics</button>' +
@@ -7293,7 +7295,7 @@
         const mandated = items.filter(it => /\(obligated\)/.test(it.verb)).length;
         deadlineNote.innerHTML = '<span class="riskNote-lead">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + ' extracted</span> · ' +
           '<b>' + mandated + ' mandatory</b> (shall deliver by / shall be made by) · rest are scheduled milestones. ' +
-          'Each row shows a countdown (in 7 days / today / 3 days ago). Click 📅 to save a calendar event, <b>🌐 gcal</b> to add it to Google Calendar, <b>💬</b> to ask about it, or <b>📋 copy all</b> / <b>📊 CSV</b> / <b>📅 all .ics</b> to export the list.';
+          'Each row shows a countdown (in 7 days / today / 3 days ago). Click 📅 to save a calendar event, <b>🌐 gcal</b> to add it to Google Calendar, <b>💬</b> to ask about it, <b>⇅</b> to sort by date (soonest first), or <b>📋 copy all</b> / <b>📊 CSV</b> / <b>📅 all .ics</b> to export the list.';
       }
       // Cycle #234 — sort toggle (persisted like the filter).
       const sortBtn = document.getElementById('deadlineSortBtn');

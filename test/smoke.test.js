@@ -3322,8 +3322,10 @@ test("analyzer: deadline block filters to next-7-days or overdue", () => {
     "date mode must sort a copy of the visible rows");
   assert.match(appSrc, /return da - db;/,
     "the sort must order by day difference (soonest first)");
-  assert.match(appSrc, /id="deadlineSortBtn" title=/,
-    "the controls must include a sort chip");
+  assert.match(appSrc, /id="deadlineSortBtn" aria-pressed="' \+ \(dlSort === 'date' \? 'true' : 'false'\) \+ '"/,
+    "the controls must include a sort chip that announces its pressed state");
+  assert.match(appSrc, /⇅<\/b> to sort by date \(soonest first\)/,
+    "the deadline note must document the sort chip");
   assert.match(appSrc, /localStorage\.setItem\('cleardoc:deadline-sort', deadlineList\._dlSort\)/,
     "a sort toggle must persist the choice");
   assert.match(appSrc, /data-dl-filter="all" aria-pressed="' \+ \(dlFilter === 'all' \? 'true' : 'false'\) \+ '"/,

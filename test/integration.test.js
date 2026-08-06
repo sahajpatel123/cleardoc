@@ -629,15 +629,19 @@ skip("integration: deadline list sorts by date and persists the choice", async (
     await page.waitForTimeout(200);
     const firstDateAfter = await page.$eval("#deadlineList .deadline-row .deadline-date", (el) => el.textContent.trim().slice(0, 10));
     const stored = await page.evaluate(() => localStorage.getItem("cleardoc:deadline-sort"));
+    const pressedAfter = await page.$eval("#deadlineSortBtn", (el) => el.getAttribute("aria-pressed"));
     assert.equal(firstDateAfter, overdueStr, "date sort must put the overdue deadline first");
     assert.equal(stored, "date", "the sort choice must persist");
+    assert.equal(pressedAfter, "true", "the sort chip must announce its pressed state");
 
     await page.click("#deadlineSortBtn");
     await page.waitForTimeout(200);
     const firstDateRestored = await page.$eval("#deadlineList .deadline-row .deadline-date", (el) => el.textContent.trim().slice(0, 10));
     const storedRestored = await page.evaluate(() => localStorage.getItem("cleardoc:deadline-sort"));
+    const pressedRestored = await page.$eval("#deadlineSortBtn", (el) => el.getAttribute("aria-pressed"));
     assert.equal(firstDateRestored, soonStr, "toggling again must restore document order");
     assert.equal(storedRestored, "doc", "restoring must persist doc order");
+    assert.equal(pressedRestored, "false", "the sort chip must clear its pressed state");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
