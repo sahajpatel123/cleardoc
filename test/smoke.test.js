@@ -261,6 +261,8 @@ test("analyze: privacy guard scans pasted text for personal identifiers before A
     "the guard must have a text span for the scan result");
   assert.match(html, /id="privacyGuardDismiss" aria-label="Dismiss the privacy notice"/,
     "the guard must have a dismiss button");
+  assert.match(html, /id="privacyMaskBtn" title="Replace emails, phones, and card\/ID-like numbers with placeholders"/,
+    "the guard must offer a mask-PII action");
   assert.match(appSrc, /function privacyGuard\(\)\{/,
     "privacyGuard must exist in app.js");
   assert.match(appSrc, /function privacyGuard\(\)\{[\s\S]{0,700}getElementById\('docInputB'\)/,
@@ -285,11 +287,51 @@ test("analyze: privacy guard scans pasted text for personal identifiers before A
     "the compare textarea must trigger a rescan");
   assert.match(appSrc, /_pgDismissed/,
     "dismissing must stick for the page load");
+  assert.match(appSrc, /const maskBtn = document\.getElementById\('privacyMaskBtn'\);/,
+    "the mask button must be wired in privacyGuard");
+  assert.match(appSrc, /const maskPii = \(value\) => \{/,
+    "the guard must define a maskPii helper");
+  assert.match(appSrc, /'🙈 Personal info masked'/,
+    "masking must confirm with a toast");
   assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,wireSelectionAsk,faq\]/,
     "privacyGuard must run on the analyze page init list");
   assert.match(cssSrc, /\.privacy-guard\{/, "guard styling must exist");
   assert.match(cssSrc, /\.privacy-guard b\{/, "the count summary must stand out");
   assert.match(cssSrc, /\.pg-dismiss\{/, "the dismiss button must be styled");
+  assert.match(cssSrc, /\.pg-mask\{/, "the mask button must be styled");
+});
+
+// Cycle #257 — mask personal info before Analyze: one click replaces
+// emails, phones, card-like numbers, and ID-like numbers in the input.
+skip("analyze: privacy mask button redacts personal identifiers", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    const doc = "Contact jane@example.com or call 415-555-0199. Card 4111 1111 1111 1111 and ID 123-45-6789.";
+    await page.fill("#docInput", doc);
+    await page.waitForSelector("#privacyGuard:not([hidden]) #privacyMaskBtn", { timeout: 4000 });
+    await page.click("#privacyMaskBtn");
+    await page.waitForFunction(() => {
+      const v = document.getElementById("docInput").value;
+      return v.includes("[email]") && v.includes("[phone]") && v.includes("[card]") && v.includes("[id]");
+    }, { timeout: 4000 });
+    const val = await page.inputValue("#docInput");
+    assert.doesNotMatch(val, /jane@example\.com|415-555-0199|4111 1111 1111 1111|123-45-6789/,
+      "personal identifiers must be replaced");
+    assert.match(val, /\[email\]/, "email must be masked");
+    assert.match(val, /\[phone\]/, "phone must be masked");
+    assert.match(val, /\[card\]/, "card number must be masked");
+    assert.match(val, /\[id\]/, "ID number must be masked");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
 });
 
 // Cycle 170 feature: select any passage in the results and ask about it —

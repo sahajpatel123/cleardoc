@@ -3591,10 +3591,22 @@
     const box = document.getElementById('privacyGuard');
     const out = document.getElementById('privacyGuardText');
     const dismiss = document.getElementById('privacyGuardDismiss');
+    const maskBtn = document.getElementById('privacyMaskBtn');
     if(!ta || !box || !out) return;
     const EMAIL_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
     const PHONE_RE = /\b\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(?!\d)/g;
     const RUN_RE = /\b\d[\d\s.-]*\d\b/g;
+    const maskPii = (value) => {
+      if(!value) return value;
+      let masked = String(value).replace(EMAIL_RE, '[email]').replace(PHONE_RE, '[phone]');
+      masked = masked.replace(RUN_RE, (m) => {
+        const digits = (m.match(/\d/g) || []).length;
+        if(digits >= 13 && digits <= 19) return '[card]';
+        if(digits >= 9) return '[id]';
+        return m;
+      });
+      return masked;
+    };
     const LABELS = [
       { key:'emails', one:'email', many:'emails' },
       { key:'phones', one:'phone number', many:'phone numbers' },
@@ -3647,6 +3659,23 @@
     if(dismiss) dismiss.addEventListener('click', () => {
       dismiss._pgDismissed = true;
       box.hidden = true;
+    });
+    if(maskBtn) maskBtn.addEventListener('click', () => {
+      let changed = false;
+      [ta, taB].forEach(t => {
+        if(!t) return;
+        const masked = maskPii(t.value);
+        if(masked !== t.value){
+          t.value = masked;
+          changed = true;
+          try { t.dispatchEvent(new Event('input', { bubbles:true })); } catch(_){ /* fall through */ }
+        }
+      });
+      if(!changed) return;
+      if(typeof showAnalyzeToast === 'function'){
+        showAnalyzeToast('🙈 Personal info masked');
+      }
+      render();
     });
     render();
   }
