@@ -4339,3 +4339,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 111 of the autonomous loop (alternate add/polish): one keyboard shortcut, one generic handler — every row that can ask, asks with `a`.
+
+**2026-08-06 22:02 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #112 of the restarted autonomous loop (add).
+- feat(ui): the Ask thread now copies as Markdown — a new "📋 Copy .md" button next to the plain-text copy and .txt save formats each turn as `## Q: …`, the answer, `> Source: …` blockquote, and a `---` rule, ready for Obsidian, Notion, Coda, or any note app. Clipboard API with `execCommand` fallback, toast, aria-label success/failure, and a flash-restore label; the button hides with the thread like its siblings.
+- New smoke test "Ask thread copies as Markdown for note apps" — 11 assertions covering the button markup/label, lookup, hide-with-empty-thread, heading/blockquote/rule formatting, aria-label, toast, flash, and the detached-button guard.
+- Full suite green (490 unit + 290 smoke + 1 integration = 781 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 112 of the autonomous loop (alternate add/polish): a conversation worth keeping should paste cleanly into your notes app.

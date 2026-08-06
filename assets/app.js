@@ -14550,6 +14550,7 @@
     let _threadRestored = false; // show the restored-from-last-visit note
     let _askInFlight = false;
     const askThread=$('#askThread'),askClearBtn=$('#askClearBtn'),askCopyThreadBtn=$('#askCopyThreadBtn'),askSaveThreadBtn=$('#askSaveThreadBtn');
+    const askCopyMdBtn = document.getElementById('askCopyMdBtn');
     // Cycle #96 — Ask-thread persistence: the conversation survives a
     // reload for the same document, keyed by its SHA-256 fingerprint
     // (same localStorage pattern as history/focus memory). Capped to the
@@ -14613,6 +14614,7 @@
         askThread.innerHTML='';
         if(askClearBtn) askClearBtn.hidden=true;
         if(askCopyThreadBtn) askCopyThreadBtn.hidden = askHistory.length === 0;
+        if(askCopyMdBtn) askCopyMdBtn.hidden = askHistory.length === 0;
         if(askSaveThreadBtn) askSaveThreadBtn.hidden = askHistory.length === 0;
         return;
       }
@@ -14633,6 +14635,7 @@
       }).join('');
       if(askClearBtn) askClearBtn.hidden=false;
       if(askCopyThreadBtn) askCopyThreadBtn.hidden = askHistory.length === 0;
+      if(askCopyMdBtn) askCopyMdBtn.hidden = askHistory.length === 0;
       if(askSaveThreadBtn) askSaveThreadBtn.hidden = askHistory.length === 0;
       // Scroll the latest answer into view
       askThread.scrollTop = askThread.scrollHeight;
@@ -14745,6 +14748,45 @@
         askCopyThreadBtn.textContent = orig;
         askCopyThreadBtn.setAttribute('aria-label', 'Copy the ask thread');
       }, 1400);
+    });
+    // Cycle #112 — copy the whole Q&A thread as Markdown (## Q / answer /
+    // > Source per turn) for note apps like Obsidian, Notion, or Coda.
+    if(askCopyMdBtn) askCopyMdBtn.addEventListener('click', async () => {
+      const parts = [];
+      askHistory.forEach(t => {
+        if(t.q) parts.push('## Q: ' + t.q + '\n');
+        if(t.answer) parts.push(t.answer + '\n');
+        if(t.cite) parts.push('\n> Source: ' + t.cite + '\n');
+        parts.push('---\n');
+      });
+      const text = parts.join('\n').trim();
+      if(!text){
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy yet — ask a question first');
+        return;
+      }
+      let ok = false;
+      try {
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok = document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      } catch(_){}
+      const origMd = '📋 Copy .md';
+      askCopyMdBtn.textContent = ok ? '✓ copied' : 'Copy failed';
+      askCopyMdBtn.setAttribute('aria-label', ok ? 'Ask thread copied as Markdown' : 'Copy failed — try again');
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Markdown copied' : '⚠ Couldn’t copy');
+      clearTimeout(askCopyMdBtn._flashTimer);
+      askCopyMdBtn._flashTimer = setTimeout(() => {
+        if(askCopyMdBtn.isConnected){
+          askCopyMdBtn.textContent = origMd;
+          askCopyMdBtn.setAttribute('aria-label', 'Copy the whole Q&A as Markdown');
+        }
+      }, 1800);
     });
     // Cycle 74 feature — download the whole Q&A thread as a .txt file for
     // records or sharing (mirrors the copy-thread line format).

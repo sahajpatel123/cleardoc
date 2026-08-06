@@ -549,6 +549,38 @@ skip("ask: copy-thread button exports the whole Q&A as text", async () => {
   assert.match(appSrc, /askCopyThreadBtn\.hidden = askHistory\.length === 0/, "the button must hide when the thread is empty");
 });
 
+// Cycle #112 — Markdown export of the Ask thread for note apps.
+test("analyzer: Ask thread copies as Markdown for note apps", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(html, /id="askCopyMdBtn"/,
+    "analyze.html must expose the Markdown copy button");
+  assert.match(html, /title="Copy the whole Q&A as Markdown"/,
+    "the button must be labelled for Markdown");
+  assert.match(appSrc, /const askCopyMdBtn = document\.getElementById\('askCopyMdBtn'\);/,
+    "app.js must look up the Markdown button");
+  assert.match(appSrc, /if\(askCopyMdBtn\) askCopyMdBtn\.hidden = askHistory\.length === 0;/,
+    "the button must hide when the thread is empty");
+  assert.match(appSrc, /'## Q: ' \+ t\.q/,
+    "each question must be a markdown heading");
+  assert.match(appSrc, /\\n> Source: ' \+ t\.cite/,
+    "each citation must be a blockquote");
+  assert.match(appSrc, /parts\.push\('---\\n'\);/,
+    "turns must be separated by a horizontal rule");
+  assert.match(appSrc, /askCopyMdBtn\.setAttribute\('aria-label', ok \? 'Ask thread copied as Markdown' : 'Copy failed — try again'\)/,
+    "copy must announce success/failure via aria-label");
+  assert.match(appSrc, /📋 Markdown copied/,
+    "copy must toast on success");
+  assert.match(appSrc, /askCopyMdBtn\._flashTimer/,
+    "the button label must flash and restore");
+  assert.match(appSrc, /if\(askCopyMdBtn\.isConnected\)\{/,
+    "the label restore must skip detached buttons");
+});
+
 skip("forget-me: exits focus mode so the wiped page is not left blank", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
