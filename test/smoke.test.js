@@ -4104,6 +4104,15 @@ test("analyzer: History panel imports a JSON backup and merges entries", () => {
   // CSS: non-destructive import button
   assert.match(cssSrc, /\.history-panel \.hp-import\{/,
     "theme.css must style .hp-import within the history panel");
+  // Cycle 63 polish — harden the import path
+  assert.match(appSrc, /const MAX_IMPORT_BYTES = 1024 \* 1024;/,
+    "import must enforce a 1MB file-size cap");
+  assert.match(appSrc, /file\.size > MAX_IMPORT_BYTES/,
+    "oversized backups must be rejected before parsing");
+  assert.match(appSrc, /'⚠ That backup is too large'/,
+    "oversized backups must toast an explanatory error");
+  assert.match(appSrc, /typeof e\.ts === 'number' && typeof e\.snippet === 'string' && typeof e\.text === 'string'/,
+    "entries without a text payload must be rejected (restore needs it)");
 });
 
 test("analyzer: voice picker dropdown lets users choose a specific TTS voice", () => {

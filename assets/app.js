@@ -16230,13 +16230,23 @@
           historyImportInput.addEventListener('change', () => {
             const file = historyImportInput.files && historyImportInput.files[0];
             if(!file) return;
+            // Cycle 63 polish — cap the file size (history realistically tops
+            // out near 200KB) so a huge or malformed backup can't freeze the
+            // tab during JSON.parse.
+            const MAX_IMPORT_BYTES = 1024 * 1024;
+            if(file.size > MAX_IMPORT_BYTES){
+              if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ That backup is too large');
+              return;
+            }
             const reader = new FileReader();
             reader.onload = () => {
               try{
                 const data = JSON.parse(String(reader.result || ''));
                 const arr = Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : []);
                 const cutoff = Date.now() - HISTORY_TTL_MS;
-                const valid = arr.filter(e => e && typeof e === 'object' && typeof e.ts === 'number' && typeof e.snippet === 'string' && e.ts >= cutoff);
+                // text is required too — restoring an entry loads it into the
+                // textarea, so an entry without it would be un-usable.
+                const valid = arr.filter(e => e && typeof e === 'object' && typeof e.ts === 'number' && typeof e.snippet === 'string' && typeof e.text === 'string' && e.ts >= cutoff);
                 if(!valid.length){
                   if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No valid history entries in that file');
                   return;

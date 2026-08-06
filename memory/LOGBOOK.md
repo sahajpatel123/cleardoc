@@ -3828,3 +3828,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 62 of the autonomous loop (alternate add/polish): a backup is only useful if you can restore it.
+
+**2026-08-06 23:00 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #63 of the restarted autonomous loop (polish).
+- polish(sec): the history import path is hardened — files over 1MB are rejected with a "That backup is too large" toast before parsing (history realistically tops out near 200KB), and entries must now include a text payload, not just a snippet, since restoring an entry loads its full text into the textarea.
+- Extended the history-import smoke test with the size-cap and text-field assertions.
+- Full suite green (490 unit + 263 smoke + 1 integration = 754 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 63 of the autonomous loop (alternate add/polish): only import backups that are safe to parse and usable when restored.
