@@ -4935,3 +4935,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 170 of the autonomous loop (alternate add/polish): the most natural question a reader has is about the exact sentence they're looking at — let them select it and ask.
+
+**2026-08-06 20:17 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #171 of the restarted autonomous loop (polish).
+- polish(ask): two rough edges on the floating selection-ask button are gone. (1) Escape now dismisses the button instead of falling through to the global "clear results" shortcut — the Escape branch checks for `.sel-ask` first, removes it, and returns, so a stray Esc never wipes an analysis while the floating button is up. (2) When the selection sits near the top edge of the viewport (no room for the button above), the button flips below the selection instead of overlapping it, clamped to the viewport bottom.
+- Verified in a real browser: a selection pinned at viewport top places the button below the selection; a mid-viewport selection keeps it above; Escape removes the button while `#resultPanel` stays visible; zero console errors.
+- Extended the cycle-170 smoke test with 4 assertions: the Escape check placement ahead of the clear-results path, the `selAsk.remove()` call, and the flip-below expression.
+- Full suite green (490 unit + 320 smoke + 1 integration = 811 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 171 of the autonomous loop (alternate add/polish): a floating helper should never be an Escape hazard or cover the very text you selected.

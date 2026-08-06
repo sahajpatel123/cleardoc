@@ -235,6 +235,12 @@ test("analyze: selecting a passage offers a floating ask button that prefills th
     "selection changes must show/hide the button");
   assert.match(appSrc, /document\.addEventListener\('scroll',/,
     "scrolling must dismiss the button");
+  assert.match(appSrc, /const selAsk = document\.querySelector\('\.sel-ask'\);[\s\S]{0,80}if\(selAsk\)\{/,
+    "Escape must dismiss the floating button before the clear-results path");
+  assert.match(appSrc, /selAsk\.remove\(\);/,
+    "the Escape handler must remove the floating button");
+  assert.match(appSrc, /rect\.top - 46 >= 8 \? rect\.top - 46 : Math\.min\(window\.innerHeight - 46, rect\.bottom \+ 8\)/,
+    "the button must flip below the selection when there is no room above");
   assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,wireSelectionAsk,faq\]/,
     "wireSelectionAsk must run on the analyze page init list");
   assert.match(cssSrc, /\.sel-ask\{/, "the floating button must be styled");

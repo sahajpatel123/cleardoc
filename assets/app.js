@@ -2405,6 +2405,14 @@
           e.preventDefault();
           return;
         }
+        // Cycle #171 — a floating selection-ask button gets first dibs on
+        // Escape: dismiss it instead of clearing the whole analysis.
+        const selAsk = document.querySelector('.sel-ask');
+        if(selAsk){
+          e.preventDefault();
+          selAsk.remove();
+          return;
+        }
         if(setFocusMode(false)){ e.preventDefault(); }
         setPrivacyBlur(false);
         // The Clear button advertises "Press Escape to clear results" —
@@ -3479,7 +3487,9 @@
       });
       const w = btn.offsetWidth || 150;
       const x = Math.min(Math.max(8, rect.left + rect.width / 2 - w / 2), Math.max(8, window.innerWidth - w - 8));
-      const y = Math.max(8, rect.top - 46);
+      // Cycle #171 — flip below the selection when there isn't room above
+      // (selection near the top edge), clamped to the viewport.
+      const y = rect.top - 46 >= 8 ? rect.top - 46 : Math.min(window.innerHeight - 46, rect.bottom + 8);
       btn.style.left = x + 'px';
       btn.style.top = y + 'px';
     }
