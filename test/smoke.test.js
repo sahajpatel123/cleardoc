@@ -267,6 +267,7 @@ skip("risk rows: advertised 'e' expand + 'a' ask shortcuts both work (no dead gu
   const fs = require("node:fs");
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   // Locate the delegated risk-row keydown listener (iter #204 v2).
   const marker = "keyboard shortcuts on a focused risk row";
@@ -293,6 +294,10 @@ skip("risk rows: advertised 'e' expand + 'a' ask shortcuts both work (no dead gu
     "j/k must scroll the target row into view");
   assert.match(appSrc, /<kbd>j<\/kbd><kbd>k<\/kbd><span>Next \/ previous risk row/,
     "the help modal must document the j/k shortcut");
+  assert.match(cssSrc, /\.rrow-ask:focus-visible,\.rrow-expand:focus-visible\{outline:2px solid var\(--accent\);outline-offset:2px\}/,
+    "ask and expand must get the same focus ring as copy/speak");
+  assert.match(cssSrc, /\.rrow-ask:focus-visible,[\s\S]{0,40}\.rrow-copy:focus-visible,[\s\S]{0,40}\.rrow-speak:focus-visible,[\s\S]{0,40}\.rrow-expand:focus-visible\{opacity:1\}/,
+    "every focused row action must be fully opaque");
 });
 
 skip("risk detail: Escape collapses the expanded panel and returns focus to the pill", async () => {

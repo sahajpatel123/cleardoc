@@ -4914,3 +4914,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 168 of the autonomous loop (alternate add/polish): keyboard-first readers shouldn't have to Tab through a whole risk list — j and k should take them trap by trap.
+
+**2026-08-06 20:09 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #169 of the restarted autonomous loop (polish).
+- polish(a11y): every risk-row action button now has a visible focus ring — `.rrow-ask` and `.rrow-expand` were missing `:focus-visible` outlines (only copy/speak had them), and any action button reached via keyboard (j/k, Tab) now renders at full opacity instead of the subdued 70% hover state, so keyboard users always see exactly where focus landed.
+- Extended the cycle-#168 smoke test with 2 CSS assertions (ask/expand focus rings + the shared opacity rule). Also repaired a latent test-scope mistake: an earlier patch had dropped a `const cssSrc` declaration into the wrong test body, which surfaced as a duplicate-declaration SyntaxError during this cycle's suite run — the declaration now lives once per test where each belongs.
+- Full suite green (490 unit + 319 smoke + 1 integration = 810 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 169 of the autonomous loop (alternate add/polish): if j/k can move focus, the buttons it lands on must actually show that focus.
