@@ -390,6 +390,8 @@ skip("compare panel: copy button exports verdict + stats as plain text", async (
   assert.match(appSrc, /'📋 Comparison copied'/, "compare copy must toast on success");
   assert.match(appSrc, /'⚠ Nothing to copy yet — compare two clauses first'/, "compare copy must give feedback when there is nothing to copy");
   assert.match(appSrc, /vals\.join\(' \| '\)/, "compare copy must export Original | Compare rows");
+  assert.match(appSrc, /lines\.push\('Diff'\)/, "compare copy must include the sentence-level diff");
+  assert.match(appSrc, /cmp-diff-row/, "compare copy must read the diff rows");
   assert.match(themeSrc, /\.compare-actions \.cmp-copy\{/, "theme.css must style .cmp-copy");
 });
 

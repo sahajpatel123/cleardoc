@@ -16311,6 +16311,16 @@
             if(label) lines.push(label + ': ' + vals.join(' | '));
           });
         }
+        // Include the sentence-level diff when it's visible — the most
+        // useful part for a side-by-side review.
+        if(compareDiff && !compareDiff.hidden){
+          const dRows = compareDiff.querySelectorAll('.cmp-diff-row');
+          if(dRows.length){
+            lines.push('');
+            lines.push('Diff');
+            dRows.forEach(r => lines.push('• ' + (r.textContent || '').replace(/\s+/g, ' ').trim()));
+          }
+        }
         const text = lines.join('\n');
         if(!text.replace(/\n/g, '').trim()){
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy yet — compare two clauses first');

@@ -3638,3 +3638,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 43 of the autonomous loop (alternate add/polish): announce per-deadline copy results to assistive tech.
+
+**2026-08-06 19:40 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #44 of the restarted autonomous loop (feature add).
+- feat(ui): the Compare panel's copy export now includes the sentence-level diff (each "only in Original/Compare" row) alongside the verdict + stats table, making the clipboard payload a complete side-by-side review.
+- Extended the compare-copy smoke test with the diff assertions.
+- Full suite green (490 unit + 254 smoke + 1 integration = 745 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 44 of the autonomous loop (alternate add/polish): complete the comparison export with the diff.
