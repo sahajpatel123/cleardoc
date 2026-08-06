@@ -3348,3 +3348,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 14 of the autonomous loop (alternate add/polish): make Ask answers copyable with their citations.
+
+**2026-08-06 14:50 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #15 of the restarted autonomous loop (polish).
+- polish(ui): the risk-filter "showing X of Y" pill could go stale after a re-analysis — paintRiskFilter updated the counts and disabled states but never re-applied the active filter, so the pill kept the previous run's numbers. It now re-applies the current filter whenever counts change (still auto-resets to 'all' when the active bucket becomes empty).
+- Extended the risk-filter smoke test with the re-apply assertion.
+- Full suite green (490 unit + 234 smoke + 1 integration = 725 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 15 of the autonomous loop (alternate add/polish): keep the filter count pill honest across re-analyses.

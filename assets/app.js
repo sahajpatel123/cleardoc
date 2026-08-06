@@ -991,6 +991,11 @@
     const cur = list && list.dataset ? (list.dataset.riskFilter || 'all') : 'all';
     if((cur === 'r' && tCount === 0) || (cur === 'a' && aCount === 0) || (cur === 'g' && nCount === 0)){
       applyRiskFilter('all');
+    } else {
+      // Re-apply the active filter so the "showing X of Y" pill and button
+      // states refresh after a re-analysis with the same filter selected
+      // (counts may have changed even when the bucket isn't empty).
+      applyRiskFilter(cur);
     }
   }
   function applyRiskFilter(which){

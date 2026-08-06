@@ -243,6 +243,7 @@ skip("risk filter: 'showing X of Y' pill counts rows the CSS actually reveals", 
   // filter selectors reveal), not inline display styles.
   assert.match(appSrc, /\.rrow\[data-risk="' \+ which \+ '"\]/, "visible count must use data-risk matching the active filter");
   assert.doesNotMatch(appSrc, /querySelectorAll\('\.rrow:not\(\[style\*="display: none"\]\)'\)/, "count must not rely on inline display styles");
+  assert.match(appSrc, /applyRiskFilter\(cur\);/, "paintRiskFilter must re-apply the active filter so the pill refreshes after re-analysis");
 });
 
 skip("rewrite stats: word count is computed and displayed next to sentences + read time", async () => {
