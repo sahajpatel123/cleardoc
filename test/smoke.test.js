@@ -11171,6 +11171,36 @@ test("analyzer: Risk rows read the risk aloud in one click", () => {
     "the action trio must share consistent tap targets");
 });
 
+// Cycle #176 — per-risk deep links: rows carry #risk-N ids, clicking a
+// row updates the URL hash, and loading with a #risk-N hash scrolls to
+// and highlights that exact clause.
+test("analyzer: risk rows carry deep-link ids and the page honors #risk-N", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  const idCount = (appSrc.match(/row\.id='risk-'\+i;/g) || []).length;
+  assert.ok(idCount >= 2,
+    "both the local and AI risk render paths must assign row ids");
+  assert.match(appSrc, /function paintRiskDeepLink\(\)\{/,
+    "a deep-link painter must exist");
+  assert.match(appSrc, /location\.hash \|\| ''/,
+    "the painter must read the URL hash");
+  assert.match(appSrc, /row\.classList\.add\('rrow-deeplink'\)/,
+    "the target row must be highlighted");
+  assert.match(appSrc, /setTimeout\(\(\) => row\.classList\.remove\('rrow-deeplink'\), 2600\);/,
+    "the highlight must fade after a couple of seconds");
+  assert.match(appSrc, /function wireRiskDeepLinkHash\(\)\{/,
+    "a hash-updater must exist");
+  assert.match(appSrc, /history\.replaceState\(null, '', '#' \+ row\.id\)/,
+    "clicking a row must update the URL without adding history entries");
+  assert.match(appSrc, /paintRiskDeepLink\(\);/,
+    "the painter must run after risk rows render");
+  assert.match(cssSrc, /\.rrow-deeplink\{/, "the deep-link highlight must be styled");
+});
+
 // Cycle #122 — per-smoking-gun copy citation.
 test("analyzer: Smoking-gun cards copy their citation in one click", () => {
   if (!HAS_BROWSER) return;

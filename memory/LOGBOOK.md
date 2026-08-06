@@ -4990,3 +4990,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 175 of the autonomous loop (alternate add/polish): a missed deadline is the loudest signal in a contract — the tab badge should say so first.
+
+**2026-08-06 20:38 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- Iteration #176 of the restarted autonomous loop (add).
+- feat(risks): every risk row now carries a stable deep-link id (`#risk-N`) — clicking a row updates the URL hash via `history.replaceState` (no history spam), and loading (or re-rendering) with `#risk-N` in the URL scrolls to that exact clause and flashes an accent outline for ~2.6s. Both the local-RISK and AI risk render paths assign ids, and `paintRiskDeepLink()` runs after each render; a one-time delegated `wireRiskDeepLinkHash()` keeps button clicks from hijacking the hash.
+- Verified in a real browser with a mocked analyze flow: rows rendered as `risk-0`/`risk-1`, clicking a row set `#risk-0`, and re-analyzing with that hash highlighted the target row; zero console errors.
+- New smoke test "analyzer: risk rows carry deep-link ids and the page honors #risk-N" — 9 assertions (ids in both render paths, painter, hash read, highlight add/remove timing, replaceState updater, render wiring, CSS).
+- Full suite green (490 unit + 322 smoke + 1 integration = 813 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 176 of the autonomous loop (alternate add/polish): "that indemnity clause on page 4" should be a link you can paste — one click, one exact clause.

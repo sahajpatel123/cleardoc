@@ -1157,6 +1157,7 @@ button.risk-preview:hover{filter:brightness(.96)}
 .risk-built{display:flex;flex-direction:column;gap:12px;border:none;margin-top:var(--s3)}
 .risk-built .rrow{border:var(--bd) solid var(--ink);box-shadow:var(--shadow-sm)}
 .risk-built .rrow:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink)}
+.rrow-deeplink{outline:3px solid var(--accent);outline-offset:2px}
 .risk-built .rrow .rbar{flex:0 0 12px}
 .risk-built .rrow .ro{padding:16px 18px;font-size:var(--t-body)}
 .risk-built .rrow .ro b{font-size:var(--t-card);margin-top:9px}

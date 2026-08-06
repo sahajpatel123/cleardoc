@@ -3526,6 +3526,7 @@
 
   function analyzePage(){
     const input=$('#docInput'); if(!input) return;
+    wireRiskDeepLinkHash();
     const btn=$('#analyzeBtn'),clearBtn=$('#clearBtn'),fileInput=$('#fileInput'),
           emptyEl=$('#resultEmpty'),panel=$('#resultPanel'),plainOut=$('#plainOut'),
           riskList=$('#riskList'),riskNote=$('#riskNote'),levelFrom=$('#levelFrom'),levelTo=$('#levelTo'),
@@ -4031,6 +4032,34 @@
     function paintDeadlineTitle(items){ titleDeadlines = Array.isArray(items) ? items : []; composeTitle(); }
     function resetRiskTitle(){ titleFlags = null; composeTitle(); }
     function resetDeadlineTitle(){ titleDeadlines = []; composeTitle(); }
+    // Cycle #176 — per-risk deep links: every row carries #risk-N and the
+    // page scrolls to + highlights it when the URL asks for one, so a
+    // specific flagged clause can be shared or revisited directly.
+    function paintRiskDeepLink(){
+      try {
+        const h = location.hash || '';
+        if(h.indexOf('#risk-') !== 0) return;
+        const row = document.getElementById(h.slice(1));
+        if(!row) return;
+        setTimeout(() => {
+          try { row.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){}
+          row.classList.add('rrow-deeplink');
+          setTimeout(() => row.classList.remove('rrow-deeplink'), 2600);
+        }, noMotion ? 0 : 350);
+      } catch(_){ /* ignore */ }
+    }
+    function wireRiskDeepLinkHash(){
+      const rl = document.getElementById('riskList');
+      if(!rl || rl._riskDeepWired) return;
+      rl._riskDeepWired = true;
+      rl.addEventListener('click', (e) => {
+        if(e.target.closest && e.target.closest('button')) return;
+        const row = e.target.closest && e.target.closest('.rrow');
+        if(row && row.id && row.id.indexOf('risk-') === 0){
+          try { history.replaceState(null, '', '#' + row.id); } catch(_){ /* ignore */ }
+        }
+      });
+    }
     // Render the threat score block from the current `lastFlags` array.
     // Hidden when there are zero flags so the verdict block doesn't grow
     // an empty "Threat level: 0" pill for clean documents. Idempotent —
@@ -14589,7 +14618,7 @@
         if(cnt.g) tally.push('<span class="rk-tally rk-tally--g">'+cnt.g+' note'+(cnt.g>1?'s':'')+'</span>');
         riskNote.innerHTML='<span class="riskNote-lead">'+flags.length+' flagged</span> '+tally.join('');
       }
-      flags.forEach(f=>{ const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev;
+      flags.forEach((f, i)=>{ const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev; row.id='risk-'+i;
         const counter = f && f.rule && f.rule.counter;
         // iter #207: inline counter-suggestion panel — collapses by
         // default, expands on row click. Local RISK rules ship with a
@@ -14602,6 +14631,7 @@
           (counter ? '<button type="button" class="rrow-expand" aria-expanded="false" title="Show counter-suggestion">▾</button>' : '');
           row.innerHTML += '<button type="button" class="rrow-fix no-print" data-rrow-fix="1" title="Preview your readiness score if this clause is fixed" aria-label="Preview score if this clause is fixed">⚡</button>';
         riskList.appendChild(row); });
+        paintRiskDeepLink();
       riskList._rrowFlags = flags;
       // iter #209: multi-flag sentence indicator — sentences that
       // triggered 2+ local RISK patterns get a small "🔗 N in same
@@ -15244,8 +15274,8 @@
       }
       if(riskList){
         riskList.innerHTML='';
-        lastFlags.forEach(f=>{
-          const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev;
+        lastFlags.forEach((f, i)=>{
+          const row=document.createElement('div'); row.className='rrow'; row.dataset.risk=f.rule.sev; row.id='risk-'+i;
           const counter = f && f.rule && f.rule.counter;
           const counterHtml = counter
             ? '<div class="rrow-counter no-print" hidden><span class="rrow-counter-lbl">Counter-suggestion · ask for this instead</span><span class="rrow-counter-text">'+esc(counter)+'</span></div>'
@@ -15255,6 +15285,7 @@
           row.innerHTML += '<button type="button" class="rrow-fix no-print" data-rrow-fix="1" title="Preview your readiness score if this clause is fixed" aria-label="Preview score if this clause is fixed">⚡</button>';
           riskList.appendChild(row);
         });
+        paintRiskDeepLink();
         riskList._rrowFlags = flags;
         // iter #209: multi-flag sentence indicator — same logic as the
         // local-render path above.
