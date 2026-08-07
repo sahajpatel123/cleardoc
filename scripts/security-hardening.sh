@@ -602,6 +602,11 @@ if [ -f "robots.txt" ] && grep -q "^User-agent:" robots.txt 2>/dev/null && grep 
 else
     check_fail "robots.txt is missing user-agent or sitemap directive"
 fi
+if [ -f "robots.txt" ] && grep -q "^Sitemap: https://cleardoc.app/sitemap.xml$" robots.txt 2>/dev/null; then
+    check_pass "robots.txt points to the canonical sitemap URL"
+else
+    check_fail "robots.txt sitemap URL is missing or incorrect"
+fi
 
 # 12. Verify sitemap.xml contains the core URLs
 echo ""
