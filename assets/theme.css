@@ -2250,6 +2250,10 @@ button.risk-preview:hover{filter:brightness(.96)}
 .scoreboard-chip{background:transparent;border:1px solid var(--bd-hair);color:var(--ink);padding:1px 6px;border-radius:999px;font-size:10px;cursor:pointer;transition:filter .15s ease}
 .scoreboard-chip:hover,.scoreboard-chip:focus-visible{filter:brightness(.9);outline:2px solid var(--ink);outline-offset:1px}
 
+/* Cycle #278 — risk keyword filter */
+.risk-filter input[type="text"]{width:120px;min-width:90px;padding:2px 6px;font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--paper2);border:1px solid var(--bd-hair);color:var(--ink)}
+.rrow.risk-kw-hidden{display:none !important}
+
 /* Cycle #267 — risk balance bar */
 .risk-balance{margin-top:8px;display:flex;flex-direction:column;gap:4px}
 .risk-balance-bar{display:flex;height:6px;border-radius:999px;overflow:hidden;background:var(--paper2);border:var(--bd-hair) solid var(--ink-soft)}

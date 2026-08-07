@@ -718,6 +718,32 @@ skip("risk filter: 'showing X of Y' pill counts rows the CSS actually reveals", 
   assert.match(appSrc, /applyRiskFilter\(cur\);/, "paintRiskFilter must re-apply the active filter so the pill refreshes after re-analysis");
 });
 
+// Cycle #278 — risk keyword filter.
+skip("analyzer: risk filter by keyword narrows the list", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="riskFilterKeyword"/, "analyze.html must expose the keyword filter input");
+  assert.match(appSrc, /risk-kw-hidden/, "app.js must hide non-matching risk rows");
+
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  await page.evaluate(() => {
+    document.getElementById("docInput").value =
+      "This subscription shall automatically renew for successive terms. " +
+      "Lessee shall indemnify the landlord in perpetuity. " +
+      "The provider may change terms at its sole discretion.";
+  });
+  await page.click("#analyzeBtn");
+  await page.waitForSelector("#riskFilter:not([hidden]) #riskFilterKeyword", { timeout: 8000 });
+  const before = await page.$$eval("#riskList .rrow", (els) => els.length);
+  await page.fill("#riskFilterKeyword", "renew");
+  const visible = await page.$$eval("#riskList .rrow:not(.risk-kw-hidden)", (els) => els.length);
+  assert.ok(before >= 2, `sample should render multiple risks, got ${before}`);
+  assert.ok(visible >= 1 && visible < before, "keyword filter must narrow the visible risk rows");
+  await page.close();
+});
+
 // Cycle #267 — risk balance bar: stacked severity mix so the risk
 // summary reads at a glance (mostly traps vs mostly notes).
 skip("analyzer: risk balance bar renders severity proportions after analysis", async () => {

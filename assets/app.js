@@ -2295,6 +2295,31 @@
       if(!b) return;
       b.addEventListener('click', () => applyRiskFilter(b.dataset.riskFilter || 'all'));
     });
+    // Cycle #278 — keyword filter on the risk list. Complements the
+    // severity chips: type "indemnity" or "renewal" to hide everything
+    // that doesn't mention it. Combines with the active severity filter.
+    const kwInput = document.getElementById('riskFilterKeyword');
+    if(kwInput && !kwInput._kwWired){
+      kwInput._kwWired = true;
+      kwInput.addEventListener('input', () => {
+        const list = document.getElementById('riskList');
+        if(!list) return;
+        const q = kwInput.value.trim().toLowerCase();
+        const rows = list.querySelectorAll('.rrow');
+        rows.forEach(row => {
+          const text = (row.textContent || '').toLowerCase();
+          row.classList.toggle('risk-kw-hidden', q.length > 0 && text.indexOf(q) === -1);
+        });
+        const visible = [...rows].filter(r => !r.classList.contains('risk-kw-hidden'));
+        const countEl = document.getElementById('riskFilterCount');
+        if(countEl){
+          const sev = list.dataset.riskFilter || 'all';
+          const total = sev === 'all' ? rows.length : rows.length; // keyword only; severity already applied via CSS
+          countEl.textContent = q.length ? visible.length + ' of ' + rows.length + ' match' : '';
+          countEl.hidden = !q.length;
+        }
+      });
+    }
     // iter #201 v2: keyboard shortcuts for the filter — 1/2/3/4 map
     // to the four buttons. Only fire when the strip is visible
     // (so the keys don't get hijacked on other pages or when there's
