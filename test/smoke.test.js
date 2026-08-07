@@ -2447,6 +2447,55 @@ skip("analyze: risk table copies as Markdown for Notion/GitHub/Linear", async ()
   }
 });
 
+// Cycle #268 — chat-friendly risk digest copy.
+skip("analyzer: risk digest copies severity, clause, why, and counter for chat apps", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="riskChatDigestBtn"/, "analyze.html must expose the chat digest button");
+  assert.match(html, /title="Copy a chat-friendly risk digest/, "the button must be labelled as a chat-friendly digest");
+  assert.match(appSrc, /function buildRiskChatDigest\(\)\{/, "app.js must define buildRiskChatDigest");
+  assert.match(appSrc, /async function copyRiskChatDigest\(\)\{/, "app.js must define copyRiskChatDigest");
+  assert.match(appSrc, /RISK DIGEST —/, "the digest must carry a clear header");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedDigest = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedDigest = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedDigest = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#riskChatDigestBtn", { timeout: 8000 });
+    await page.click("#riskChatDigestBtn");
+    await page.waitForFunction(() => window.__copiedDigest && window.__copiedDigest.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedDigest);
+    assert.match(captured, /RISK DIGEST —/, "the copied digest must carry the header");
+    assert.match(captured, /TRAP|WATCH|NOTE/, "the copied digest must include severity labels");
+    assert.match(captured, /Why:/, "the copied digest must include the why line");
+    assert.match(captured, /_ClearDoc · informational only, not legal advice_/, "the copied digest must carry the disclaimer");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #262 — download the generated response draft as Markdown.
 skip("analyze: response draft downloads as Markdown", async () => {
   if (!HAS_BROWSER) return;
