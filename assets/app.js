@@ -12273,7 +12273,9 @@
       if(copyMdBtn){
         copyMdBtn.addEventListener('click', async () => {
           const rows = c.list.map(s => '| ' + String(s.label).replace(/\|/g, '\\|') + ' | ' + (s.present ? '✓ present' : '○ missing') + ' |').join('\n');
-          const md = '| Section | Status |\n|---|---|\n' + rows + '\n\nCoverage score: ' + c.score + '/100';
+          const md = '| Section | Status |\n|---|---|\n' + rows +
+            '\n\nCoverage score: ' + c.score + '/100' +
+            (missing.length ? '\n**Missing:** ' + missing.map(s => s.label).join(', ') : '');
           let copied = false;
           try {
             if(navigator.clipboard && navigator.clipboard.writeText){

@@ -12346,6 +12346,8 @@ test("analyzer: Coverage index measures presence of standard contract sections",
     "iter #266 must confirm when the coverage index is copied");
   assert.match(appSrc, /\| Section \| Status \|/,
     "iter #266 must build a Markdown table header");
+  assert.match(appSrc, /\*\*Missing:\*\*/,
+    "iter #266 must include a missing-sections line when present");
 });
 
 skip("analyze: coverage index copies as Markdown", async () => {
@@ -12380,6 +12382,7 @@ skip("analyze: coverage index copies as Markdown", async () => {
     assert.match(captured, /^\| Section \| Status \|/, "the copied coverage index must start with the Markdown header");
     assert.match(captured, /\|---\|---\|/, "the copied coverage index must include the separator row");
     assert.match(captured, /Coverage score:/, "the copied coverage index must include the score");
+    assert.match(captured, /Missing:/, "the copied coverage index must include a missing-sections line");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
