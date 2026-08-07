@@ -439,6 +439,20 @@ process.exit(0);
     else
         check_fail "security.txt missing Contact header (RFC 9116 requirement)"
     fi
+    # Check Vercel routes the well-known file directly
+    if command -v node &> /dev/null; then
+        if node -e "
+const j=JSON.parse(require('fs').readFileSync('vercel.json','utf8'));
+if(!(j.rewrites||[]).some(r=>r.source==='/.well-known/security.txt')) process.exit(1);
+process.exit(0);
+" 2>/dev/null; then
+            check_pass "vercel.json rewrites security.txt"
+        else
+            check_fail "vercel.json does not rewrite security.txt"
+        fi
+    else
+        check_warn "Node.js not available for security.txt rewrite check"
+    fi
 else
     check_fail "security.txt not found"
 fi
