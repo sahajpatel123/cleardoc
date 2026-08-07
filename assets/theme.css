@@ -2244,6 +2244,10 @@ button.risk-preview:hover{filter:brightness(.96)}
 .keyfacts-chip{background:transparent;border:1px solid var(--bd-hair);color:var(--ink);padding:1px 6px;border-radius:999px;font-size:10px;cursor:pointer;transition:filter .15s ease}
 .keyfacts-chip:hover,.keyfacts-chip:focus-visible{filter:brightness(.9);outline:2px solid var(--ink);outline-offset:1px}
 
+/* Cycle #275 — analysis scoreboard */
+.scoreboard{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:var(--ink-soft)}
+.scoreboard .ghost-btn{padding:1px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink)}
+
 /* Cycle #267 — risk balance bar */
 .risk-balance{margin-top:8px;display:flex;flex-direction:column;gap:4px}
 .risk-balance-bar{display:flex;height:6px;border-radius:999px;overflow:hidden;background:var(--paper2);border:var(--bd-hair) solid var(--ink-soft)}

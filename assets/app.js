@@ -4572,6 +4572,64 @@
       el.hidden = false;
     }
 
+    // Cycle #275 — analysis scoreboard: readiness, maturity, difficulty,
+    // tone, and risk count in one compact shareable row.
+    function renderScoreBoard(raw, ctx){
+      const el = document.getElementById('scoreBoard');
+      const textEl = document.getElementById('scoreBoardText');
+      const copyBtn = document.getElementById('scoreBoardCopyBtn');
+      if(!el || !textEl || !raw){ if(el) el.hidden = true; return; }
+      const scores = [];
+      const readiness = document.getElementById('readinessScore');
+      if(readiness && readiness.textContent.trim()) scores.push('readiness ' + readiness.textContent.trim() + '/100');
+      const matGlyph = document.querySelector('.mat-letter-glyph');
+      const matNum = document.querySelector('.mat-letter-num');
+      if(matGlyph && matGlyph.textContent.trim()){
+        scores.push('maturity ' + matGlyph.textContent.trim() + (matNum && matNum.textContent.trim() ? ' (' + matNum.textContent.trim() + '/100)' : ''));
+      }
+      const diffBlock = document.getElementById('difficultyBlock');
+      if(diffBlock && !diffBlock.hidden){
+        const d = diffBlock.querySelector('.diff-main-num');
+        if(d && d.textContent.trim()) scores.push('difficulty ' + d.textContent.trim());
+      }
+      const toneBlock = document.getElementById('toneBlock');
+      if(toneBlock && !toneBlock.hidden){
+        const t = toneBlock.textContent.replace(/\s+/g, ' ').trim().slice(0, 60);
+        if(t) scores.push('tone ' + t);
+      }
+      const riskRows = (document.getElementById('riskList') || { querySelectorAll: () => [] }).querySelectorAll('.rrow');
+      if(riskRows.length) scores.push('risks ' + riskRows.length);
+      if(!scores.length){ el.hidden = true; return; }
+      const text = 'SCOREBOARD — ' + scores.join(' · ');
+      textEl.textContent = text;
+      el.hidden = false;
+      if(copyBtn && !copyBtn._scoreWired){
+        copyBtn._scoreWired = true;
+        copyBtn.addEventListener('click', async () => {
+          let ok = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(text);
+              ok = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!ok){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text;
+              document.body.appendChild(ta);
+              ta.select();
+              ok = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ ok = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Scoreboard copied' : '⚠ Couldn’t copy');
+          copyBtn.textContent = ok ? '✓ copied' : '📋 copy';
+          setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 2500);
+        });
+      }
+    }
+
     // iter #219: Contract Health Check — synthesizes the analysis
     // into a single readiness verdict (Ready / Review / Negotiate /
     // Do Not Sign) with a concrete recommendation.
@@ -16215,6 +16273,7 @@
       lastFlags=flags;
       renderThreatScore();
       renderKeyFacts(raw, ctx);
+      renderScoreBoard(raw, ctx);
       renderHealthCheck();
       renderReadinessScore();
       renderExecSummary();
@@ -16503,6 +16562,13 @@
         renderDiffBlock(raw, ctx);
       } else if(diffBlock && !raw) {
         diffBlock.hidden = true;
+      }
+      // Cycle #275 — re-render the scoreboard after the maturity,
+      // difficulty, and tone blocks have all been painted.
+      if(typeof renderScoreBoard === 'function' && raw){
+        renderScoreBoard(raw, ctx);
+      } else if(document.getElementById('scoreBoard')){
+        document.getElementById('scoreBoard').hidden = true;
       }
       // Iter #152: letter of intent (LOI) draft.
       if(loiBlock && typeof renderLoiBlock === 'function' && raw){
@@ -17468,6 +17534,7 @@
       // so a shared/reloaded analysis shows the same severity pill.
       renderThreatScore();
       renderKeyFacts(lastRaw, null);
+      renderScoreBoard(lastRaw, null);
       // iter #219: also paint the health check so a restored snapshot
       // shows the same readiness verdict.
       renderHealthCheck();
