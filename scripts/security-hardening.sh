@@ -501,6 +501,11 @@ process.exit(0);
     else
         check_warn "Node.js not available for security.txt rewrite check"
     fi
+    if grep -q "^Canonical:" .well-known/security.txt 2>/dev/null && grep -q "^Preferred-Languages:" .well-known/security.txt 2>/dev/null; then
+        check_pass "security.txt has canonical and language directives"
+    else
+        check_fail "security.txt is missing canonical or preferred-language directive"
+    fi
 else
     check_fail "security.txt not found"
 fi
