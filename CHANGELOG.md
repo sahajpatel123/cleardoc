@@ -141,6 +141,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #266 v2):* the care plan now also pulls the top unfulfilled **mandatory obligations** from the obligation tracker (`shall` / `must` / `undertakes` …) so the copied watch-list covers “what I still have to do” as well as renewal windows and deadlines.
 - **Risk balance bar** (cycle #267) — the risk summary now renders a stacked severity bar (trap / watch / note) with a percentage legend, so a document that is mostly traps reads differently from a mostly-notes document at a glance. Hidden when no risks are flagged.
   - *Polish (cycle #267 v2):* each segment is now a focusable button with an accessible label — click (or activate with the keyboard) to filter the risk list to that severity, the same behavior as the existing filter chips. The bar also carries a full `aria-label` describing the trap / watch / note mix for screen-reader users.
+- **Chat-friendly risk digest** (cycle #268) — a new `💬 Risk digest` copy button in the risk panel exports a compact plain-text table (severity, clause, why, and counter-suggestion where one exists) ready to paste into Slack, Discord, iMessage, or a ticket. Complements the existing Markdown and CSV exports for people who just want the risks in a chat thread.
 
 ### Documentation
 
