@@ -119,6 +119,11 @@ test.before(async () => {
   geminiServer = geminiMock(); geminiServer.listen(PORT_GEMINI); geminiServer.unref();
   browser = await chromium.launch({ headless: true });
   context = await browser.newContext();
+  // Make the suite hermetic: external CDN/font requests can hang or race
+  // in restricted network environments and stall `networkidle`. The
+  // analyzer doesn't depend on these for behavior tests, so abort them
+  // immediately instead of waiting on the network.
+  await context.route(/^https:\/\/(cdnjs\.cloudflare\.com|unpkg\.com|fonts\.(googleapis|gstatic)\.com|cleardoc\.app)\//, (route) => route.abort());
 });
 
 test.after(async () => {
