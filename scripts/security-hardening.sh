@@ -218,6 +218,25 @@ else
     check_fail "robots.txt must disallow /api/"
 fi
 
+# 12. Verify sitemap.xml contains the core URLs
+echo ""
+echo "--- Checking sitemap.xml core URLs ---"
+if [ -f "sitemap.xml" ]; then
+    missing=""
+    for url in "https://cleardoc.app/" "https://cleardoc.app/analyze.html" "https://cleardoc.app/pricing.html"; do
+        if ! grep -q "<loc>$url</loc>" sitemap.xml 2>/dev/null; then
+            missing="$missing $url"
+        fi
+    done
+    if [ -z "$missing" ]; then
+        check_pass "sitemap.xml contains core URLs"
+    else
+        check_fail "sitemap.xml missing:$missing"
+    fi
+else
+    check_fail "sitemap.xml not found"
+fi
+
 # Summary
 echo ""
 echo "=== Summary ==="
