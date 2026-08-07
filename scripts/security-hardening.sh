@@ -391,6 +391,11 @@ echo ""
 echo "--- Checking CODEOWNERS ---"
 if [ -f ".github/CODEOWNERS" ]; then
     check_pass "CODEOWNERS exists"
+    if grep -Ev '^[[:space:]]*#' .github/CODEOWNERS 2>/dev/null | grep -q '@'; then
+        check_pass "CODEOWNERS declares an owner"
+    else
+        check_fail "CODEOWNERS has no owner assignments"
+    fi
 else
     check_fail "CODEOWNERS not found"
 fi
