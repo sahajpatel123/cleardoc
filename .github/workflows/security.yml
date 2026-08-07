@@ -23,6 +23,11 @@ on:
     # Weekly security scan on Sundays at 03:00 UTC
     - cron: '0 3 * * 0'
   workflow_dispatch:
+    inputs:
+      node-version:
+        description: 'Node.js version to run the security suite against'
+        required: false
+        default: '22'
 
 concurrency:
   group: security-${{ github.ref }}
@@ -63,7 +68,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
-          node-version: '22'
+          node-version: ${{ inputs.node-version || '22' }}
           cache: npm
 
       - name: Install dependencies (reproducible from committed lockfile)
