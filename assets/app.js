@@ -12146,7 +12146,8 @@
             '| Risk-pattern coverage | ' + c.riskScore + ' |\n' +
             '| Tone signal strength | ' + c.toneScore + ' |\n' +
             '| AI / fallback usage | ' + c.aiUsed + ' |' +
-            (c.caveats.length ? '\n\n**Notes:** ' + c.caveats.join(' · ') : '');
+            (c.caveats.length ? '\n\n**Notes:** ' + c.caveats.join(' · ') : '') +
+            '\n\n_Generated ' + new Date().toLocaleString() + ((_fpState && _fpState.short) ? ' · #' + _fpState.short : '') + '_';
           let copied = false;
           try {
             if(navigator.clipboard && navigator.clipboard.writeText){

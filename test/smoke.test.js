@@ -12030,6 +12030,10 @@ test("analyzer: Analysis confidence rates how reliable the result is", () => {
     "iter #269 must confirm when the confidence Markdown is copied");
   assert.match(appSrc, /\| Metric \| Score \|/,
     "iter #269 must build a Markdown table header");
+  assert.match(appSrc, /_Generated ' \+ new Date\(\)\.toLocaleString/,
+    "iter #269 must include a generated timestamp");
+  assert.match(appSrc, /_fpState && _fpState\.short\) \? ' · #' \+ _fpState\.short/,
+    "iter #269 must include the document fingerprint when available");
 
 
 skip("analyze: confidence summary copies as Markdown", async () => {
@@ -12063,6 +12067,7 @@ skip("analyze: confidence summary copies as Markdown", async () => {
     const captured = await page.evaluate(() => window.__copiedConfMd);
     assert.match(captured, /^## Confidence: /, "the copied confidence must start with a heading");
     assert.match(captured, /\| Metric \| Score \|/, "the copied confidence must include the metric table");
+    assert.match(captured, /_Generated/, "the copied confidence must include a generated line");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
