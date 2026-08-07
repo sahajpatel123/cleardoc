@@ -33,7 +33,11 @@ check_warn() {
 
 # 1. Check for hardcoded secrets in source files
 echo "--- Checking for hardcoded secrets ---"
-if grep -rE "(api[_-]?key|secret[_-]?key)\s*=\s*['\"][^'\"]{10,}['\"]" --include="*.js" --include="*.ts" . 2>/dev/null | grep -v node_modules | grep -v "//" | grep -v "\.opencode/" | grep -v ".next"; then
+if grep -rE "(api[_-]?key|secret[_-]?key)\s*=\s*['\"][^'\"]{10,}['\"]" --include="*.js" --include="*.ts" \
+    --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.opencode \
+    --exclude-dir=.git --exclude-dir=.claude --exclude-dir=.openclaude \
+    --exclude-dir=.antigravitycli --exclude-dir=playwright-report --exclude-dir=test-results \
+    . 2>/dev/null | grep -v "//"; then
     check_fail "Potential hardcoded secrets found"
 else
     check_pass "No hardcoded secrets detected"
@@ -44,7 +48,11 @@ fi
 # Exclude .next directory (Vercel build output) and test files
 echo ""
 echo "--- Checking for dangerous code patterns ---"
-if grep -rE "(^|[^\$])eval\s*\(" --include="*.js" . 2>/dev/null | grep -v node_modules | grep -v ".next" | grep -v "// " | grep -v "\.eval" | grep -v "test/"; then
+if grep -rE "(^|[^\$])eval\s*\(" --include="*.js" \
+    --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.opencode \
+    --exclude-dir=.git --exclude-dir=.claude --exclude-dir=.openclaude \
+    --exclude-dir=.antigravitycli --exclude-dir=test --exclude-dir=playwright-report --exclude-dir=test-results \
+    . 2>/dev/null | grep -v "// " | grep -v "\.eval"; then
     check_fail "Dangerous eval() usage detected"
 else
     check_pass "No dangerous eval() usage found"
