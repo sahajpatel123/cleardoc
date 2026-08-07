@@ -306,6 +306,10 @@ test("analyze: privacy guard scans pasted text for personal identifiers before A
     "the mask button must be wired in privacyGuard");
   assert.match(appSrc, /const maskUndoBtn = document\.getElementById\('privacyMaskUndoBtn'\);/,
     "the undo button must be wired in privacyGuard");
+  assert.match(html, /id="privacyCopyRedactedBtn"/,
+    "analyze.html must expose the copy-redacted action");
+  assert.match(appSrc, /const copyRedactedBtn = document\.getElementById\('privacyCopyRedactedBtn'\);/,
+    "the copy-redacted button must be wired in privacyGuard");
   assert.match(appSrc, /const maskPii = \(value\) => \{/,
     "the guard must define a maskPii helper");
   assert.match(appSrc, /'🙈 Personal info masked'/,
@@ -354,6 +358,50 @@ skip("analyze: privacy mask button redacts personal identifiers", async () => {
     assert.match(restored, /415-555-0199/, "undo must restore the phone number");
     assert.match(restored, /4111 1111 1111 1111/, "undo must restore the card number");
     assert.match(restored, /123-45-6789/, "undo must restore the ID number");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
+// Cycle #269 — copy the document with PII redacted without mutating the
+// textarea (safe to paste into a lawyer chat, ticket, or notes).
+skip("analyzer: copy redacted pastes a masked copy while leaving the original intact", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedRedacted = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedRedacted = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedRedacted = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    const doc = "Contact jane@example.com or call 415-555-0199. Card 4111 1111 1111 1111.";
+    await page.fill("#docInput", doc);
+    await page.waitForSelector("#privacyGuard:not([hidden]) #privacyCopyRedactedBtn", { timeout: 4000 });
+    await page.click("#privacyCopyRedactedBtn");
+    await page.waitForFunction(() => window.__copiedRedacted && window.__copiedRedacted.length > 0, { timeout: 4000 });
+    const copied = await page.evaluate(() => window.__copiedRedacted);
+    assert.match(copied, /\[email\]/, "the copied text must mask the email");
+    assert.match(copied, /\[phone\]/, "the copied text must mask the phone");
+    assert.match(copied, /\[card\]/, "the copied text must mask the card number");
+    assert.doesNotMatch(copied, /jane@example\.com|415-555-0199|4111 1111 1111 1111/, "the copied text must not leak identifiers");
+    const original = await page.inputValue("#docInput");
+    assert.match(original, /jane@example\.com/, "the textarea must keep the original text untouched");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
