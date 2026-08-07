@@ -145,6 +145,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Chat-friendly risk digest** (cycle #268) — a new `💬 Risk digest` copy button in the risk panel exports a compact plain-text table (severity, clause, why, and counter-suggestion where one exists) ready to paste into Slack, Discord, iMessage, or a ticket. Complements the existing Markdown and CSV exports for people who just want the risks in a chat thread.
   - *Polish (cycle #268 v2):* the copied digest now appends a **share link** to the full analysis so a chat recipient can open the underlying document in one tap, and the `d` keyboard shortcut copies the digest when results are visible (documented in the `?` help modal alongside the `c` summary shortcut).
 - **Copy redacted document** (cycle #269) — the privacy guard now offers a `📋 copy redacted` button that copies the document with emails, phones, card-like numbers, and ID-like numbers replaced by placeholders — without mutating the original textarea. Safe to paste into a lawyer chat, ticket, or notes while keeping the real document intact locally.
+  - *Polish (cycle #269 v2):* the redacted copy now also includes the **compare textarea** when it has content (as a `Compare text:` section), so a side-by-side comparison stays just as safe to share.
 
 ### Documentation
 
