@@ -2537,6 +2537,7 @@
             <div class="kb-row"><kbd>d</kbd><span>Copy the chat-friendly risk digest</span></div>
             <div class="kb-row"><kbd>o</kbd><span>Copy the obligations digest</span></div>
             <div class="kb-row"><kbd>n</kbd><span>Copy the key facts snapshot</span></div>
+            <div class="kb-row"><kbd>m</kbd><span>Copy the key facts as Markdown</span></div>
             <div class="kb-row"><kbd>t</kbd><span>Copy the care plan next-dates digest</span></div>
             <div class="kb-row"><kbd>s</kbd><span>Copy the one-line document summary</span></div>
             <div class="kb-row"><kbd>w</kbd><span>Copy the clean draft (counter-suggestions applied)</span></div>
@@ -2736,6 +2737,16 @@
         if(p && !p.hidden){
           const db = document.getElementById('cleanDraftBtn');
           if(db && db.isConnected){ e.preventDefault(); db.click(); return; }
+        }
+      }
+
+      // Cycle #290 v2 — 'm' copies the key facts as Markdown when results
+      // are visible (mirrors the other copy shortcuts).
+      if(k === 'm' || k === 'M'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const mb = document.getElementById('keyFactsMdBtn');
+          if(mb && !mb.hidden){ e.preventDefault(); mb.click(); return; }
         }
       }
 

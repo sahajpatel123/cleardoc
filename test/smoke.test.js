@@ -2184,6 +2184,12 @@ skip("analyzer: key facts snapshot renders after analysis", async () => {
   const copiedMd = await page.evaluate(() => window.__copiedKeyFactsMd);
   assert.match(copiedMd, /# Key facts/, "key facts Markdown must carry a header");
   assert.match(copiedMd, /http.*#share=/, "key facts Markdown must include a share link");
+  // Cycle #290 v2 — 'm' shortcut copies key facts as Markdown.
+  await page.evaluate(() => { window.__copiedKeyFactsMd = null; });
+  await page.keyboard.press("m");
+  await page.waitForFunction(() => window.__copiedKeyFactsMd && window.__copiedKeyFactsMd.length > 0, { timeout: 4000 });
+  const viaKeyMd = await page.evaluate(() => window.__copiedKeyFactsMd);
+  assert.match(viaKeyMd, /# Key facts/, "the m shortcut must copy key facts as Markdown");
   // Cycle #280 v2 — 'n' shortcut copies key facts too.
   await page.evaluate(() => { window.__copiedKeyFacts = null; });
   await page.keyboard.press("n");
