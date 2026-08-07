@@ -159,6 +159,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #274 v2):* the `o` keyboard shortcut now copies the obligations digest when results are visible (documented in the `?` help modal alongside the `c` summary and `d` risk-digest shortcuts).
 - **Analysis scoreboard** (cycle #275) — after analysis, a compact `SCOREBOARD` row consolidates readiness, maturity, negotiation difficulty, tone, and risk count in one line with a `📋 copy` button, so the headline numbers are shareable without opening each block.
   - *Polish (cycle #275 v2):* each score is now a **clickable chip** that smooth-scrolls to the matching block (readiness, maturity, difficulty, tone, or risks), with keyboard focus styling and a toast confirmation.
+- **Care plan share link** (cycle #276) — the contract care plan copy now appends a **share link** to the full analysis (mirroring the risk/deadline/obligation digests), so a chat recipient can open the underlying document in one tap.
 
 ### Documentation
 
