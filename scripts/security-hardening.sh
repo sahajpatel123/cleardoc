@@ -123,6 +123,8 @@ const required={
   'x-download-options':'noopen',
   'x-frame-options':'DENY',
   'referrer-policy':'no-referrer',
+  'strict-transport-security':'max-age=63072000; includesubdomains; preload',
+  'permissions-policy':'camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(), usb=()',
   'cross-origin-opener-policy':'same-origin',
   'cross-origin-resource-policy':'same-origin',
   'x-permitted-cross-domain-policies':'none',

@@ -609,6 +609,12 @@ skip("analyzer: risk balance bar renders severity proportions after analysis", a
   const legend = await page.$eval("#riskBalance .risk-balance-legend", (el) => el.textContent || "");
   assert.ok(segs >= 2, `risk balance should render at least 2 segments, got ${segs}`);
   assert.match(legend, /traps|watches|notes/, "risk balance legend must describe the mix");
+  // Cycle #267 v2 — clicking a segment filters the risk list to that
+  // severity (same behavior as the filter chips).
+  await page.click("#riskBalance .risk-balance-seg[data-filter='r']");
+  const filtered = await page.$$eval("#riskList .rrow:not(.risk-hidden)", (els) => els.map((e) => e.getAttribute("data-risk")));
+  assert.ok(filtered.length > 0, "filtering to traps must still show rows");
+  assert.ok(filtered.every((v) => v === "r"), "after clicking the trap segment, every visible row must be a trap");
   await page.close();
 });
 
@@ -8129,6 +8135,8 @@ test("vercel.json: emits a strict Content-Security-Policy on every page", async 
     ["x-download-options", "noopen"],
     ["x-frame-options", "DENY"],
     ["referrer-policy", "no-referrer"],
+    ["strict-transport-security", "max-age=63072000; includesubdomains; preload"],
+    ["permissions-policy", "camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(), usb=()"],
     ["cross-origin-opener-policy", "same-origin"],
     ["cross-origin-resource-policy", "same-origin"],
     ["x-permitted-cross-domain-policies", "none"],
