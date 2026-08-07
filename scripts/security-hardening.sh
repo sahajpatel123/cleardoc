@@ -228,6 +228,21 @@ else
     check_fail "persist-credentials false missing in:$MISSING_PERSIST"
 fi
 
+# 3k. Verify setup-node caches npm dependencies
+echo ""
+echo "--- Checking GitHub Actions npm cache ---"
+MISSING_CACHE=""
+for file in .github/workflows/test.yml .github/workflows/security.yml; do
+    if [ -f "$file" ] && ! grep -q "cache: npm" "$file"; then
+        MISSING_CACHE="$MISSING_CACHE $file"
+    fi
+done
+if [ -z "$MISSING_CACHE" ]; then
+    check_pass "npm cache is enabled in test and security workflows"
+else
+    check_fail "npm cache missing in:$MISSING_CACHE"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""
