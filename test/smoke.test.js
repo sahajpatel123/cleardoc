@@ -2006,6 +2006,25 @@ skip("analyzer: key facts snapshot renders after analysis", async () => {
   await page.close();
 });
 
+// Cycle #275 — analysis scoreboard: readiness, maturity, difficulty, tone.
+skip("analyzer: scoreboard renders headline scores and copies them", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="scoreBoard"/, "analyze.html must expose the scoreboard");
+  assert.match(appSrc, /function renderScoreBoard\(raw, ctx\)\{/, "app.js must define renderScoreBoard");
+
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  await page.click(".qf[data-fill]:first-of-type");
+  await page.click("#analyzeBtn");
+  await page.waitForSelector("#scoreBoard:not([hidden])", { timeout: 8000 });
+  const text = await page.$eval("#scoreBoardText", (el) => el.textContent);
+  assert.match(text, /SCOREBOARD —/, "scoreboard must carry a clear header");
+  assert.match(text, /readiness|maturity|difficulty|risks/, "scoreboard must include at least one score");
+  await page.close();
+});
+
 skip("mobile viewport (375px): analyze renders without horizontal overflow", async () => {
   if (!HAS_BROWSER) return;
   const mobile = await browser.newContext({ viewport: { width: 375, height: 812 } });
