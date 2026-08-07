@@ -174,6 +174,12 @@ if [ -f ".well-known/security.txt" ]; then
     else
         check_warn "security.txt missing Expires header (RFC 9116 requirement)"
     fi
+    # Check for Contact header (also required by RFC 9116)
+    if grep -q "^Contact:" .well-known/security.txt 2>/dev/null; then
+        check_pass "security.txt has Contact header"
+    else
+        check_fail "security.txt missing Contact header (RFC 9116 requirement)"
+    fi
 else
     check_fail "security.txt not found"
 fi
@@ -183,6 +189,11 @@ echo ""
 echo "--- Checking SECURITY.md ---"
 if [ -f "SECURITY.md" ]; then
     check_pass "SECURITY.md exists"
+    if grep -Eq "security@cleardoc\.app|/security/advisories/new" SECURITY.md 2>/dev/null; then
+        check_pass "SECURITY.md includes a vulnerability reporting channel"
+    else
+        check_fail "SECURITY.md has no vulnerability reporting channel"
+    fi
 else
     check_fail "SECURITY.md not found"
 fi
