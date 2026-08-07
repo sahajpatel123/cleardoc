@@ -3,8 +3,18 @@ name: Tests
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'design-concepts/**'
+      - 'memory/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'design-concepts/**'
+      - 'memory/**'
   workflow_dispatch:
 
 # Cancel any in-flight runs for the same ref when a new commit lands.

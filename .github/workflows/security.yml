@@ -6,8 +6,18 @@ name: "Security checks"
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'design-concepts/**'
+      - 'memory/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'design-concepts/**'
+      - 'memory/**'
   schedule:
     # Weekly security scan on Sundays at 03:00 UTC
     - cron: '0 3 * * 0'
