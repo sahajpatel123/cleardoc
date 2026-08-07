@@ -3854,6 +3854,8 @@ test("analyzer: deadline block filters to next-7-days or overdue", () => {
     "the Markdown deadline copy must confirm with a toast");
   assert.match(appSrc, /\| Date \| Countdown \| Type \| Clause \|/,
     "the Markdown deadline copy must build a table header");
+  assert.match(appSrc, /_Scoped to ' \+ dlFilter \+ ' deadlines\._/,
+    "the Markdown deadline copy must note the active scope");
   assert.match(cssSrc, /\.deadline-controls \.dl-filter-active\{/, "the active chip must be styled");
   assert.match(cssSrc, /\.deadline-empty\{/, "the empty state must be styled");
 });

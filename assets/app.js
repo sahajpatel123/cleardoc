@@ -7533,7 +7533,8 @@
             return '| ' + it.date + ' | ' + ((countdown(it.date) || '').trim()) + ' | ' + type + ' | ' +
               String(it.sentence || '').slice(0, 120).replace(/\|/g, '\\|') + ' |';
           }).join('\n');
-          const md = '| Date | Countdown | Type | Clause |\n|---|---|---|---|\n' + rows + filteredNote;
+          const md = '| Date | Countdown | Type | Clause |\n|---|---|---|---|\n' + rows +
+            (dlFilter !== 'all' ? '\n\n_Scoped to ' + dlFilter + ' deadlines._' : '');
           let copied = false;
           try {
             if(navigator.clipboard && navigator.clipboard.writeText){
