@@ -571,13 +571,31 @@ skip("integration: reading list speaks the remaining unread chunks", async () =>
       const u = window.__ttsPending[window.__ttsPending.length - 1];
       if (u && u.onend) u.onend();
     });
-    await page.waitForTimeout(100);
+    await page.waitForFunction(() => {
+      const el = document.getElementById("readingSpeakLeftBtn");
+      return el && el.textContent === "🔊 read left" && !window.speechSynthesis.speaking;
+    }, { timeout: 3000 });
     const labelAfterDone = await page.$eval("#readingSpeakLeftBtn", (el) => el.textContent);
     assert.equal(labelAfterDone, "🔊 read left", "the chip must restore after the final chunk");
 
-    // Click again while speaking — cancel + label restore.
+    // Start a fresh queue, then click while speaking — cancel + label restore.
     await page.click("#readingSpeakLeftBtn");
-    await page.waitForTimeout(100);
+    await page.waitForFunction(() => {
+      const el = document.getElementById("readingSpeakLeftBtn");
+      return el && el.textContent === "◼ Stop" && window.speechSynthesis.speaking;
+    }, { timeout: 3000 });
+    const started = await page.evaluate(() => ({
+      label: document.getElementById("readingSpeakLeftBtn").textContent,
+      speaking: window.speechSynthesis.speaking,
+    }));
+    assert.equal(started.label, "◼ Stop", "the chip must become a stop button while speaking");
+    assert.equal(started.speaking, true, "speechSynthesis must be speaking");
+
+    await page.click("#readingSpeakLeftBtn");
+    await page.waitForFunction(() => {
+      const el = document.getElementById("readingSpeakLeftBtn");
+      return el && el.textContent === "🔊 read left" && !window.speechSynthesis.speaking;
+    }, { timeout: 3000 });
     const state2 = await page.evaluate(() => ({
       label: document.getElementById("readingSpeakLeftBtn").textContent,
       speaking: window.speechSynthesis.speaking,
