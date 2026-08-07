@@ -414,6 +414,41 @@ skip("analyzer: copy redacted pastes a masked copy while leaving the original in
   }
 });
 
+// Cycle #270 — download the same redacted document as a .txt file.
+skip("analyzer: download redacted saves a masked .txt file", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="privacyDownloadRedactedBtn"/, "analyze.html must expose the download-redacted button");
+  assert.match(appSrc, /buildRedactedText/, "app.js must reuse a shared redacted-text builder");
+  assert.match(appSrc, /cleardoc-redacted-/, "the downloaded file must carry the redacted filename prefix");
+
+  const ctx = await browser.newContext({ acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.fill("#docInput", "Email jane@example.com or call 415-555-0199.");
+    await page.waitForSelector("#privacyGuard:not([hidden]) #privacyDownloadRedactedBtn", { timeout: 4000 });
+    const [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 8000 }),
+      page.click("#privacyDownloadRedactedBtn"),
+    ]);
+    assert.match(download.suggestedFilename(), /^cleardoc-redacted-\d{4}-\d{2}-\d{2}\.txt$/, "the download must be cleardoc-redacted-<date>.txt");
+    const path = await download.path();
+    const content = require("node:fs").readFileSync(path, "utf8");
+    assert.match(content, /\[email\]/, "the downloaded text must mask the email");
+    assert.match(content, /\[phone\]/, "the downloaded text must mask the phone");
+    assert.doesNotMatch(content, /jane@example\.com|415-555-0199/, "the downloaded text must not leak identifiers");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle 170 feature: select any passage in the results and ask about it —
 // a floating 💬 button appears above the selection and prefills the Ask
 // panel with the same interaction as the per-row ask buttons.

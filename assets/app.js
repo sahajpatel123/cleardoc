@@ -3713,22 +3713,25 @@
       }
       render();
     });
+    // Shared redacted-text builder for the copy + download actions.
+    const buildRedactedText = () => {
+      const raw = ta ? ta.value : '';
+      if(!raw) return null;
+      const parts = [maskPii(raw)];
+      if(taB && taB.value && taB.value.trim()){
+        parts.push('---\nCompare text:\n' + maskPii(taB.value));
+      }
+      return parts.join('\n\n');
+    };
     // Cycle #269 — copy the document with PII redacted, without mutating
     // the textareas. Lets users paste a safe version into a lawyer chat,
     // ticket, or notes while keeping the originals intact.
     if(copyRedactedBtn) copyRedactedBtn.addEventListener('click', async () => {
-      const raw = ta ? ta.value : '';
-      if(!raw){
+      const redacted = buildRedactedText();
+      if(!redacted){
         if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy — add text first');
         return;
       }
-      const parts = [maskPii(raw)];
-      // Cycle #269 v2 — also redact the compare textarea so a side-by-side
-      // comparison stays just as safe to share.
-      if(taB && taB.value && taB.value.trim()){
-        parts.push('---\nCompare text:\n' + maskPii(taB.value));
-      }
-      const redacted = parts.join('\n\n');
       let ok = false;
       try{
         if(navigator.clipboard && navigator.clipboard.writeText){
@@ -3743,6 +3746,38 @@
       if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Redacted copy — personal info removed' : '⚠ Couldn’t copy');
       if(copyRedactedBtn) copyRedactedBtn.textContent = ok ? '✓ copied' : '📋 copy redacted';
       if(copyRedactedBtn) setTimeout(() => { if(copyRedactedBtn.isConnected) copyRedactedBtn.textContent = '📋 copy redacted'; }, 2500);
+    });
+    // Cycle #270 — download the same redacted document as a .txt file.
+    const downloadRedactedBtn = document.getElementById('privacyDownloadRedactedBtn');
+    if(downloadRedactedBtn) downloadRedactedBtn.addEventListener('click', () => {
+      const redacted = buildRedactedText();
+      if(!redacted){
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to download — add text first');
+        return;
+      }
+      let exported = false;
+      try {
+        const stamp = new Date().toISOString().slice(0, 10);
+        const blob = new Blob([redacted], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'cleardoc-redacted-' + stamp + '.txt';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        exported = true;
+      } catch(_){ /* fall through to data URL */ }
+      if(!exported){
+        try {
+          const a = document.createElement('a');
+          a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(redacted);
+          a.download = 'cleardoc-redacted-' + new Date().toISOString().slice(0, 10) + '.txt';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          exported = true;
+        } catch(_){ /* ignore */ }
+      }
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(exported ? '⬇ Redacted copy downloaded' : '⚠ Couldn’t download');
+      if(downloadRedactedBtn) downloadRedactedBtn.textContent = exported ? '✓ downloaded' : '⬇ download redacted';
+      if(downloadRedactedBtn) setTimeout(() => { if(downloadRedactedBtn.isConnected) downloadRedactedBtn.textContent = '⬇ download redacted'; }, 2500);
     });
     render();
   }
