@@ -8041,6 +8041,21 @@ test("vercel.json: emits a strict Content-Security-Policy on every page", async 
   assert.ok(apiCsp, "/api/ header block must include Content-Security-Policy");
   assert.match(apiCsp.value, /default-src 'none'/, "API CSP must deny all default sources");
   assert.match(apiCsp.value, /frame-ancestors 'none'/, "API CSP must forbid embedding");
+
+  // API responses must stay strictly scoped: no caching, no referrer,
+  // no embedding, no indexing, and no cross-origin resource sharing.
+  const apiHeaders = Object.fromEntries(apiBlock.headers.map((h) => [h.key.toLowerCase(), h.value]));
+  for (const [key, value] of [
+    ["cache-control", "no-store"],
+    ["x-content-type-options", "nosniff"],
+    ["x-frame-options", "DENY"],
+    ["referrer-policy", "no-referrer"],
+    ["cross-origin-opener-policy", "same-origin"],
+    ["cross-origin-resource-policy", "same-origin"],
+    ["x-robots-tag", "noindex, nofollow"],
+  ]) {
+    assert.equal(apiHeaders[key]?.toLowerCase(), value.toLowerCase(), `API header ${key} must be ${value}`);
+  }
 });
 
 test("HTML pages ship zero inline <script> blocks (CSP enforcer)", () => {
