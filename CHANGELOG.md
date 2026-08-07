@@ -165,6 +165,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #278 v2):* pressing **Escape** clears the keyword and restores the full list, the filter re-applies automatically after a re-analysis, and switching a severity chip clears any active keyword so the two filters don’t silently stack.
 - **Copy-all analysis bundle** (cycle #279) — a new `📋 Copy all` button in the result actions copies a single paste-ready bundle combining the key facts, scoreboard, risk digest, deadlines, obligations, care plan, and next steps — for a lawyer, team thread, or meeting notes.
   - *Polish (cycle #279 v2):* the bundle now opens with a `CLEARDOC ANALYSIS BUNDLE` header and generation timestamp, and appends a **share link** to the full analysis (mirroring the other digests).
+- **Copy key facts** (cycle #280) — the key-facts snapshot now has its own `📋 copy key facts` button that copies the headline row (doc type, jurisdiction, amounts, risk tally, readiness, deadlines) plus a share link — a quick snapshot to paste into chat or notes.
 
 ### Documentation
 

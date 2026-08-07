@@ -4572,7 +4572,8 @@
     // risk tally, readiness, and deadline count in one glanceable row.
     function renderKeyFacts(raw, ctx){
       const el = document.getElementById('keyFacts');
-      if(!el || !raw){ if(el) el.hidden = true; return; }
+      const copyBtn = document.getElementById('keyFactsCopyBtn');
+      if(!el || !raw){ if(el) el.hidden = true; if(copyBtn) copyBtn.hidden = true; return; }
       const facts = [];
       const chip = (text, target) => '<button type="button" class="keyfacts-chip" data-target="' + target + '" title="Jump to ' + target + '">' + text + '</button>';
       const dt = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
@@ -4594,7 +4595,7 @@
       if(readiness && readiness.textContent.trim()) facts.push(chip('📊 readiness ' + readiness.textContent.trim() + '/100', 'readinessBlock'));
       const dlRows = (document.getElementById('deadlinesList') || { querySelectorAll: () => [] }).querySelectorAll('.deadline-row');
       if(dlRows.length) facts.push(chip('⏰ ' + dlRows.length + ' deadline' + (dlRows.length === 1 ? '' : 's'), 'deadlinesBlock'));
-      if(!facts.length){ el.hidden = true; return; }
+      if(!facts.length){ el.hidden = true; if(copyBtn) copyBtn.hidden = true; return; }
       el.innerHTML = facts.join('<span class="keyfacts-sep" aria-hidden="true"> · </span>');
       // Cycle #273 v2 — clickable chips jump to the source block.
       if(!el._keyFactsWired){
@@ -4611,6 +4612,43 @@
         });
       }
       el.hidden = false;
+      // Cycle #280 — copy key facts: one-click snapshot with share link.
+      const keyFactsCopy = document.getElementById('keyFactsCopyBtn');
+      if(keyFactsCopy){
+        keyFactsCopy.hidden = false;
+        if(!keyFactsCopy._keyFactsCopyWired){
+          keyFactsCopy._keyFactsCopyWired = true;
+          keyFactsCopy.addEventListener('click', async () => {
+            let text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+            try {
+              if(typeof buildShareUrl === 'function'){
+                const shareUrl = await buildShareUrl();
+                if(shareUrl) text += '\n' + shareUrl;
+              }
+            } catch(_){ /* keep the copy working even if the link fails */ }
+            let ok = false;
+            try {
+              if(navigator.clipboard && navigator.clipboard.writeText){
+                await navigator.clipboard.writeText(text);
+                ok = true;
+              }
+            } catch(_){ /* fall through */ }
+            if(!ok){
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+              } catch(_2){ ok = false; }
+            }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Key facts copied' : '⚠ Couldn’t copy');
+            keyFactsCopy.textContent = ok ? '✓ copied' : '📋 copy key facts';
+            setTimeout(() => { if(keyFactsCopy.isConnected) keyFactsCopy.textContent = '📋 copy key facts'; }, 2500);
+          });
+        }
+      }
     }
 
     // Cycle #275 — analysis scoreboard: readiness, maturity, difficulty,

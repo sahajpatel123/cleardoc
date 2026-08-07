@@ -2017,6 +2017,7 @@ skip("analyzer: key facts snapshot renders after analysis", async () => {
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
   assert.match(html, /id="keyFacts"/, "analyze.html must expose the key-facts row");
+  assert.match(html, /id="keyFactsCopyBtn"/, "analyze.html must expose the key-facts copy button");
   assert.match(appSrc, /function renderKeyFacts\(raw, ctx\)\{/, "app.js must define renderKeyFacts");
 
   const page = await context.newPage();
@@ -2026,6 +2027,17 @@ skip("analyzer: key facts snapshot renders after analysis", async () => {
   await page.waitForSelector("#keyFacts:not([hidden])", { timeout: 8000 });
   const text = await page.$eval("#keyFacts", (el) => el.textContent);
   assert.match(text, /risks?|readiness|deadline/, "key facts must surface at least one headline metric");
+  // Cycle #280 — copy key facts with share link.
+  await page.evaluate(() => {
+    window.__copiedKeyFacts = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { window.__copiedKeyFacts = t; }, write: async () => {} } });
+    } catch (_) { try { navigator.clipboard = { writeText: async (t) => { window.__copiedKeyFacts = t; }, write: async () => {} }; } catch (_2) {} }
+  });
+  await page.click("#keyFactsCopyBtn");
+  await page.waitForFunction(() => window.__copiedKeyFacts && window.__copiedKeyFacts.length > 0, { timeout: 4000 });
+  const copied = await page.evaluate(() => window.__copiedKeyFacts);
+  assert.match(copied, /http.*#share=/, "key facts copy must include a share link");
   // Cycle #273 v2 — chips are clickable and jump to their source block.
   const chip = await page.$("#keyFacts .keyfacts-chip[data-target]");
   assert.ok(chip, "key facts must render clickable chips");
