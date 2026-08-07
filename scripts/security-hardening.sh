@@ -206,6 +206,15 @@ else
     check_pass "No tracked env secret files"
 fi
 
+# 11. Verify robots.txt disallows /api/
+echo ""
+echo "--- Checking robots.txt API exclusion ---"
+if [ -f "robots.txt" ] && grep -q "^Disallow: /api/$" robots.txt 2>/dev/null; then
+    check_pass "robots.txt disallows /api/"
+else
+    check_fail "robots.txt must disallow /api/"
+fi
+
 # Summary
 echo ""
 echo "=== Summary ==="

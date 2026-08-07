@@ -127,6 +127,14 @@ jobs:
           fi
           echo "No tracked env secret files"
 
+      - name: Verify robots.txt disallows /api/
+        run: |
+          if ! grep -q "^Disallow: /api/$" robots.txt; then
+            echo "::error::robots.txt must disallow /api/"
+            exit 1
+          fi
+          echo "robots.txt disallows /api/"
+
       - name: Check for eval/Function usage
         run: |
           # Detect dangerous eval/Function usage
