@@ -166,6 +166,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Copy-all analysis bundle** (cycle #279) — a new `📋 Copy all` button in the result actions copies a single paste-ready bundle combining the key facts, scoreboard, risk digest, deadlines, obligations, care plan, and next steps — for a lawyer, team thread, or meeting notes.
   - *Polish (cycle #279 v2):* the bundle now opens with a `CLEARDOC ANALYSIS BUNDLE` header and generation timestamp, and appends a **share link** to the full analysis (mirroring the other digests).
 - **Copy key facts** (cycle #280) — the key-facts snapshot now has its own `📋 copy key facts` button that copies the headline row (doc type, jurisdiction, amounts, risk tally, readiness, deadlines) plus a share link — a quick snapshot to paste into chat or notes.
+  - *Polish (cycle #280 v2):* the `n` keyboard shortcut now copies the key facts snapshot when results are visible (documented in the `?` help modal alongside the other copy shortcuts).
 
 ### Documentation
 

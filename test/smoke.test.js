@@ -2038,6 +2038,12 @@ skip("analyzer: key facts snapshot renders after analysis", async () => {
   await page.waitForFunction(() => window.__copiedKeyFacts && window.__copiedKeyFacts.length > 0, { timeout: 4000 });
   const copied = await page.evaluate(() => window.__copiedKeyFacts);
   assert.match(copied, /http.*#share=/, "key facts copy must include a share link");
+  // Cycle #280 v2 — 'n' shortcut copies key facts too.
+  await page.evaluate(() => { window.__copiedKeyFacts = null; });
+  await page.keyboard.press("n");
+  await page.waitForFunction(() => window.__copiedKeyFacts && window.__copiedKeyFacts.length > 0, { timeout: 4000 });
+  const viaKey = await page.evaluate(() => window.__copiedKeyFacts);
+  assert.match(viaKey, /http.*#share=/, "the n shortcut must copy key facts");
   // Cycle #273 v2 — chips are clickable and jump to their source block.
   const chip = await page.$("#keyFacts .keyfacts-chip[data-target]");
   assert.ok(chip, "key facts must render clickable chips");

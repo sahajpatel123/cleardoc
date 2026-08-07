@@ -2536,6 +2536,7 @@
             <div class="kb-row"><kbd>c</kbd><span>Copy the plain-text summary</span></div>
             <div class="kb-row"><kbd>d</kbd><span>Copy the chat-friendly risk digest</span></div>
             <div class="kb-row"><kbd>o</kbd><span>Copy the obligations digest</span></div>
+            <div class="kb-row"><kbd>n</kbd><span>Copy the key facts snapshot</span></div>
             <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
@@ -2692,6 +2693,16 @@
         if(p && !p.hidden){
           const ob = document.getElementById('actionDigestBtn');
           if(ob && ob.isConnected){ e.preventDefault(); ob.click(); return; }
+        }
+      }
+
+      // Cycle #280 v2 — 'n' copies the key facts snapshot when results
+      // are visible (mirrors the other copy shortcuts).
+      if(k === 'n' || k === 'N'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const kb = document.getElementById('keyFactsCopyBtn');
+          if(kb && !kb.hidden){ e.preventDefault(); kb.click(); return; }
         }
       }
 
