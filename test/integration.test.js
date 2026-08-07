@@ -85,7 +85,6 @@ function staticServer() {
     if (p === "/") p = "/index.html";
     const fp = path.join(ROOT, p);
     if (!fp.startsWith(ROOT) || !fs.existsSync(fp) || !fs.statSync(fp).isFile()) {
-      console.error(`[integration-test] 404 path: ${p}`);
       res.writeHead(404); res.end("Not Found"); return;
     }
     res.writeHead(200, { "Content-Type": MIME[path.extname(fp)] || "application/octet-stream" });
@@ -511,7 +510,14 @@ skip("integration: reading list speaks the remaining unread chunks", async () =>
     const stub = {
       speaking: false,
       pending: window.__ttsPending,
-      speak(u) { this.speaking = true; this.pending.push(u); },
+      speak(u) {
+        this.speaking = true;
+        this.pending.push(u);
+        const originalEnd = u && u.onend;
+        if (u && typeof originalEnd === "function") {
+          u.onend = () => { this.speaking = false; originalEnd.call(u); };
+        }
+      },
       cancel() { this.speaking = false; },
       getVoices() { return []; },
     };
@@ -1282,7 +1288,14 @@ skip("integration: decision block hears the recommendation", async () => {
     const stub = {
       speaking: false,
       pending: window.__ttsPending,
-      speak(u) { this.speaking = true; this.pending.push(u); },
+      speak(u) {
+        this.speaking = true;
+        this.pending.push(u);
+        const originalEnd = u && u.onend;
+        if (u && typeof originalEnd === "function") {
+          u.onend = () => { this.speaking = false; originalEnd.call(u); };
+        }
+      },
       cancel() { this.speaking = false; },
       getVoices() { return []; },
     };
@@ -1334,7 +1347,10 @@ skip("integration: decision block hears the recommendation", async () => {
       const u = window.__ttsPending[0];
       if (u && u.onend) u.onend();
     });
-    await page.waitForTimeout(100);
+    await page.waitForFunction(() => {
+      const el = document.getElementById("decisionSpeakBtn");
+      return el && el.textContent.trim() === "🔊 hear" && !window.speechSynthesis.speaking;
+    }, { timeout: 3000 });
     const labelAfter = await page.$eval("#decisionSpeakBtn", (el) => el.textContent.trim());
     assert.equal(labelAfter, "🔊 hear", "the button must restore after the utterance ends");
 
