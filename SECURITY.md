@@ -91,9 +91,11 @@ ClearDoc uses GitHub Actions with security best practices:
   - `test.yml`: `contents: read`
   - `codeql.yml`: `security-events: write, actions: read`
   - `security.yml`: `contents: read, pull-requests: read`
+- **Top-level read-only defaults**: All workflows also set `permissions: contents: read` at the workflow level, so any future job that forgets its own block still starts with no write access.
 - **Concurrency groups**: Prevent stale CI runs from executing after new pushes
 - **CodeQL analysis**: Automated security scanning on every push/PR + weekly scans
 - **Dependabot**: Automated dependency updates with security priority
+- **Hardening script gates**: `scripts/security-hardening.sh` fails if CSP `report-uri`, `frame-ancestors`, `object-src`, or `base-uri` regress; it also verifies workflow actions are SHA-pinned, workflow permissions default to read-only, `security.txt` has the RFC 9116 `Contact` field, and `SECURITY.md` exposes a reporting channel.
 
 #### Running Security Checks Locally
 
