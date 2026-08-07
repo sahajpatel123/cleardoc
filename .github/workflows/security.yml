@@ -23,6 +23,7 @@ jobs:
   dependency-review:
     name: Dependency review
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
@@ -85,6 +86,7 @@ jobs:
   security-lint:
     name: Security lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
