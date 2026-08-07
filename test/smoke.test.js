@@ -2173,6 +2173,50 @@ skip("analyzer: scoreboard renders headline scores and copies them", async () =>
   await page.close();
 });
 
+// Cycle #285 — one-line document summary copy.
+skip("analyzer: document summary button copies a one-line summary", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="docSummaryBtn"/, "analyze.html must expose the document summary button");
+  assert.match(appSrc, /Cycle #285 — one-line document summary copy/, "app.js must wire the document summary button");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedDocSummary = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedDocSummary = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedDocSummary = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#docSummaryBtn", { timeout: 8000 });
+    await page.click("#docSummaryBtn");
+    await page.waitForFunction(() => window.__copiedDocSummary && window.__copiedDocSummary.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedDocSummary);
+    assert.match(captured, /word/, "document summary must include the word count");
+    assert.match(captured, /http.*#share=/, "document summary must include a share link");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 skip("mobile viewport (375px): analyze renders without horizontal overflow", async () => {
   if (!HAS_BROWSER) return;
   const mobile = await browser.newContext({ viewport: { width: 375, height: 812 } });

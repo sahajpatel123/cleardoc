@@ -4027,7 +4027,7 @@
           jargonCount=$('#jargonCount'),askInput=$('#askInput'),askBtn=$('#askBtn'),askOut=$('#askOut'),msg=$('#analyzeMsg'),
           attachTray=$('#attachTray'),draftOut=$('#draftOut'),draftNote=$('#draftNote'),copyDraftBtn=$('#copyDraftBtn'),
           downloadDraftBtn=$('#downloadDraftBtn'),
-          analyzeLoading=$('#analyzeLoading'),verdictBlock=$('#verdictBlock'),verdictDisplay=$('#verdictDisplay'),verdictCopyBtn=$('#verdictCopyBtn'),rewriteCopyBtn=$('#rewriteCopyBtn'),
+          analyzeLoading=$('#analyzeLoading'),verdictBlock=$('#verdictBlock'),verdictDisplay=$('#verdictDisplay'),verdictCopyBtn=$('#verdictCopyBtn'),docSummaryBtn=$('#docSummaryBtn'),rewriteCopyBtn=$('#rewriteCopyBtn'),
           threatScore=$('#threatScore'),threatScoreNum=$('#threatScoreNum'),threatScoreLbl=$('#threatScoreLbl'),threatScoreMeta=$('#threatScoreMeta'),threatCopyBtn=$('#threatCopyBtn'),
           healthCheck=$('#healthCheck'),healthCheckIcon=$('#healthCheckIcon'),healthCheckLabel=$('#healthCheckLabel'),healthCheckScore=$('#healthCheckScore'),healthCheckDetail=$('#healthCheckDetail'),healthCheckRec=$('#healthCheckRec'),healthCopyBtn=$('#healthCopyBtn'),
           execSummary=$('#execSummary'),execSummaryBody=$('#execSummaryBody'),execCopyBtn=$('#execCopyBtn'),
@@ -22722,6 +22722,45 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       verdictCopyBtn.textContent=ok ? 'Copied ✓' : 'Copy failed';
       clearTimeout(verdictCopyBtn._flashTimer);
       verdictCopyBtn._flashTimer=setTimeout(()=>{ verdictCopyBtn.textContent=orig; },1400);
+    });
+    // Cycle #285 — one-line document summary copy.
+    if(docSummaryBtn) docSummaryBtn.addEventListener('click',async()=>{
+      const parts=[];
+      const raw = lastRaw || (document.getElementById('docInput') || {}).value || '';
+      const words = (String(raw).match(/\b[\w'-]+\b/g) || []).length;
+      if(words) parts.push(words.toLocaleString() + ' word' + (words === 1 ? '' : 's'));
+      const dt = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
+      if(dt && dt.label) parts.push(dt.label);
+      const riskRows = (document.getElementById('riskList') || { querySelectorAll: () => [] }).querySelectorAll('.rrow');
+      if(riskRows.length) parts.push(riskRows.length + ' risk' + (riskRows.length === 1 ? '' : 's'));
+      const dlRows = (document.getElementById('deadlinesList') || { querySelectorAll: () => [] }).querySelectorAll('.deadline-row');
+      if(dlRows.length) parts.push(dlRows.length + ' deadline' + (dlRows.length === 1 ? '' : 's'));
+      const kf = document.getElementById('keyFacts');
+      if(kf && !kf.hidden && kf.textContent.trim()){
+        parts.push((kf.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 160));
+      }
+      let text = '📄 ' + parts.join(' · ');
+      try {
+        if(typeof buildShareUrl === 'function'){
+          const shareUrl = await buildShareUrl();
+          if(shareUrl) text += '\n' + shareUrl;
+        }
+      } catch(_){ /* keep the copy working even if the link fails */ }
+      let ok=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok=true;
+        } else {
+          const ta=document.createElement('textarea');
+          ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok=document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      }catch(_){}
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📄 Summary copied' : '⚠ Couldn’t copy');
+      docSummaryBtn.textContent = ok ? '✓ copied' : '📄 summary';
+      setTimeout(() => { if(docSummaryBtn.isConnected) docSummaryBtn.textContent = '📄 summary'; }, 2500);
     });
     // Rewrite block copy — copies just the plain-English rewrite so users
     // can paste the plain version into an email/chat without the extras.
