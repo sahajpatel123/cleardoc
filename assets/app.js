@@ -2494,6 +2494,7 @@
             <div class="kb-row"><kbd>⌘</kbd><kbd>Enter</kbd><span>Run the analysis</span></div>
             <div class="kb-row"><kbd>c</kbd><span>Copy the plain-text summary</span></div>
             <div class="kb-row"><kbd>d</kbd><span>Copy the chat-friendly risk digest</span></div>
+            <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
             <div class="kb-row"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><span>Risk radar filter (all / traps / watches / notes)</span></div>
@@ -3814,6 +3815,7 @@
     const input = document.getElementById('sourceFindInput');
     const countEl = document.getElementById('sourceFindCount');
     const nextBtn = document.getElementById('sourceFindNextBtn');
+    const prevBtn = document.getElementById('sourceFindPrevBtn');
     const ta = document.getElementById('docInput');
     if(!input || !ta) return;
     let matches = [];
@@ -3857,8 +3859,9 @@
     };
     input.addEventListener('input', scan);
     if(nextBtn) nextBtn.addEventListener('click', () => jumpTo(idx + 1));
+    if(prevBtn) prevBtn.addEventListener('click', () => jumpTo(idx - 1));
     input.addEventListener('keydown', (e) => {
-      if(e.key === 'Enter'){ e.preventDefault(); jumpTo(idx + 1); }
+      if(e.key === 'Enter'){ e.preventDefault(); jumpTo(e.shiftKey ? idx - 1 : idx + 1); }
       if(e.key === 'Escape'){ input.value = ''; clearState(); }
     });
     // Re-scan after the document changes so the count stays accurate.

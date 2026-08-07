@@ -421,6 +421,7 @@ skip("analyzer: find in source counts matches and jumps between them", async () 
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
   assert.match(html, /id="sourceFindInput"/, "analyze.html must expose the source-find input");
   assert.match(html, /id="sourceFindNextBtn"/, "analyze.html must expose the source-find next button");
+  assert.match(html, /id="sourceFindPrevBtn"/, "analyze.html must expose the source-find prev button");
   assert.match(appSrc, /function wireSourceFind\(\)\{/, "app.js must define wireSourceFind");
   assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,wireSourceFind/, "wireSourceFind must run on the analyze page");
 
@@ -439,6 +440,9 @@ skip("analyzer: find in source counts matches and jumps between them", async () 
     await page.click("#sourceFindNextBtn");
     const after = await page.evaluate(() => document.getElementById("docInput").selectionStart);
     assert.ok(after !== before, "clicking next must move the selection to the next match");
+    await page.click("#sourceFindPrevBtn");
+    const back = await page.evaluate(() => document.getElementById("docInput").selectionStart);
+    assert.equal(back, before, "clicking prev must return to the previous match");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
