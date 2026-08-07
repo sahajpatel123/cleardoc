@@ -1177,7 +1177,7 @@
   /* ================= INIT ================= */
   function initAll(){
     const page=(document.body.dataset.page)||'home';
-    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo,wireDocFingerprint,initServiceStatus];
+    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo,wireDocFingerprint,initServiceStatus,initHomeDeadline];
     const byPage={
       home:[heroClarifier,flagHunt,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,privacyGuard,wireSourceFind,wireSelectionAsk,faq],
@@ -1244,6 +1244,28 @@
     document.addEventListener('visibilitychange', () => {
       if(!document.hidden) check();
     });
+  }
+
+  // Cycle #292 — home page next-deadline chip. Reads the same
+  // cleardoc:upcomingDeadlines store the analyzer writes, and shows the
+  // soonest upcoming deadline (within 14 days) so returning users see
+  // what's next without opening the analyzer.
+  function initHomeDeadline(){
+    const el = document.getElementById('homeDeadline');
+    if(!el) return;
+    let rec = null;
+    try { rec = JSON.parse(localStorage.getItem('cleardoc:upcomingDeadlines') || 'null'); } catch(_){ rec = null; }
+    if(!rec || !Array.isArray(rec.items) || !rec.items.length){ el.hidden = true; return; }
+    const soon = rec.items
+      .map(it => ({ date: it.date, days: (typeof dayDiff === 'function') ? dayDiff(it.date) : null, label: String(it.label || it.date || '') }))
+      .filter(it => it.days !== null && it.days >= 0 && it.days <= 14)
+      .sort((a, b) => a.days - b.days)[0];
+    if(!soon){ el.hidden = true; return; }
+    const when = soon.days === 0 ? 'today' : soon.days === 1 ? 'tomorrow' : 'in ' + soon.days + ' days';
+    el.textContent = '⏰ ' + when + ' · ' + soon.label.slice(0, 60) + ' — open analyzer';
+    el.title = 'Soonest deadline from your last analysis: ' + soon.date;
+    el.hidden = false;
+    el.addEventListener('click', () => { try { navTo('analyze.html'); } catch(_){ window.location.href = 'analyze.html'; } });
   }
 
   /* ---- CTAs ---- */

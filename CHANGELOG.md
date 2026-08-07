@@ -186,6 +186,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #290 v2):* the `m` keyboard shortcut now copies the key facts as Markdown when results are visible (documented in the `?` help modal alongside the other copy shortcuts).
 - **Care plan deadline digest** (cycle #291) — a `⏰ deadline digest` button in the contract care plan copies just the deadlines (not obligations) with countdowns and a share link, for a focused calendar check.
   - *Polish (cycle #291 v2):* the `e` keyboard shortcut now copies the care plan deadline digest when results are visible and no risk row is focused (documented in the `?` help modal).
+- **Home next-deadline chip** (cycle #292) — returning visitors with a saved analysis now see the soonest upcoming deadline (within 14 days) in the home page footer, with a countdown and a click-through to the analyzer.
 
 ### Documentation
 

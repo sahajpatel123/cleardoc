@@ -181,6 +181,32 @@ skip("home: service status chip reports API health", async () => {
   }
 });
 
+// Cycle #292 — home page next-deadline chip.
+skip("home: next-deadline chip shows soonest upcoming deadline", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "index.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="homeDeadline"/, "index.html must expose the home deadline chip");
+  assert.match(appSrc, /function initHomeDeadline\(\)\{/, "app.js must define initHomeDeadline");
+  assert.match(appSrc, /initHomeDeadline/, "initHomeDeadline must run on the home page");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    const d = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+    localStorage.setItem('cleardoc:upcomingDeadlines', JSON.stringify({ ts: Date.now(), items: [{ date: d, label: 'Renewal notice', days: 3 }] }));
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
+    await page.waitForSelector("#homeDeadline:not([hidden])", { timeout: 4000 });
+    const text = await page.$eval("#homeDeadline", (el) => el.textContent);
+    assert.match(text, /in 3 days|tomorrow|today/, "the chip must show a countdown");
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 test("all pages: footer includes the service status chip", () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
