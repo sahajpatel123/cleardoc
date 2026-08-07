@@ -612,6 +612,12 @@ skip("analyzer: risk balance bar renders severity proportions after analysis", a
   // Cycle #267 v2 — clicking a segment filters the risk list to that
   // severity (same behavior as the filter chips).
   await page.click("#riskBalance .risk-balance-seg[data-filter='r']");
+  const state = await page.evaluate(() => ({
+    filter: document.getElementById("riskList").dataset.riskFilter || null,
+    pressed: document.getElementById("riskFilterTrapBtn").getAttribute("aria-pressed"),
+  }));
+  assert.equal(state.filter, "r", "clicking the trap segment must set the risk list filter to traps");
+  assert.equal(state.pressed, "true", "the trap filter chip must be marked pressed");
   const filtered = await page.$$eval("#riskList .rrow:not(.risk-hidden)", (els) => els.map((e) => e.getAttribute("data-risk")));
   assert.ok(filtered.length > 0, "filtering to traps must still show rows");
   assert.ok(filtered.every((v) => v === "r"), "after clicking the trap segment, every visible row must be a trap");

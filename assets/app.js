@@ -15951,10 +15951,10 @@
             const pct = (n) => Math.round((n / flags.length) * 100);
             const trapPct = pct(tCount), watchPct = pct(wCount), notePct = pct(nCount);
             riskBar.innerHTML =
-              '<div class="risk-balance-bar" role="presentation">' +
-                (tCount ? '<span class="risk-balance-seg risk-balance-trap" style="flex:' + tCount + '" title="' + tCount + ' trap' + (tCount === 1 ? '' : 's') + ' — ' + trapPct + '%"></span>' : '') +
-                (wCount ? '<span class="risk-balance-seg risk-balance-watch" style="flex:' + wCount + '" title="' + wCount + ' watch' + (wCount === 1 ? '' : 'es') + ' — ' + watchPct + '%"></span>' : '') +
-                (nCount ? '<span class="risk-balance-seg risk-balance-note" style="flex:' + nCount + '" title="' + nCount + ' note' + (nCount === 1 ? '' : 's') + ' — ' + notePct + '%"></span>' : '') +
+              '<div class="risk-balance-bar" role="group" aria-label="' + esc(tCount + ' traps, ' + wCount + ' watches, ' + nCount + ' notes') + '">' +
+                (tCount ? '<button type="button" class="risk-balance-seg risk-balance-trap" data-filter="r" style="flex:' + tCount + '" title="' + tCount + ' trap' + (tCount === 1 ? '' : 's') + ' — ' + trapPct + '% — click to filter" aria-label="' + tCount + ' trap' + (tCount === 1 ? '' : 's') + ' (' + trapPct + '%) — filter to traps"></button>' : '') +
+                (wCount ? '<button type="button" class="risk-balance-seg risk-balance-watch" data-filter="a" style="flex:' + wCount + '" title="' + wCount + ' watch' + (wCount === 1 ? '' : 'es') + ' — ' + watchPct + '% — click to filter" aria-label="' + wCount + ' watch' + (wCount === 1 ? '' : 'es') + ' (' + watchPct + '%) — filter to watches"></button>' : '') +
+                (nCount ? '<button type="button" class="risk-balance-seg risk-balance-note" data-filter="g" style="flex:' + nCount + '" title="' + nCount + ' note' + (nCount === 1 ? '' : 's') + ' — ' + notePct + '% — click to filter" aria-label="' + nCount + ' note' + (nCount === 1 ? '' : 's') + ' (' + notePct + '%) — filter to notes"></button>' : '') +
               '</div>' +
               '<div class="risk-balance-legend">' +
                 (tCount ? '<span class="risk-balance-key risk-balance-key-trap">🔴 ' + trapPct + '% traps</span>' : '') +
@@ -15962,6 +15962,19 @@
                 (nCount ? '<span class="risk-balance-key risk-balance-key-note">⚪ ' + notePct + '% notes</span>' : '') +
               '</div>';
             riskBar.hidden = false;
+            // Cycle #267 v2 — clickable segments: filter the risk list to
+            // the chosen severity (mirrors the existing filter chips).
+            const list = document.getElementById('riskList');
+            if(list && !list._riskBarWired){
+              list._riskBarWired = true;
+              riskBar.addEventListener('click', (e) => {
+                const btn = e.target && e.target.closest ? e.target.closest('[data-filter]') : null;
+                if(!btn) return;
+                const want = btn.getAttribute('data-filter');
+                if(typeof applyRiskFilter === 'function') applyRiskFilter(want);
+                if(typeof showAnalyzeToast === 'function') showAnalyzeToast('🔍 Filtered to ' + (want === 'r' ? 'traps' : want === 'a' ? 'watches' : 'notes'));
+              });
+            }
           }
           riskSumWrap.hidden = false;
         } else {
