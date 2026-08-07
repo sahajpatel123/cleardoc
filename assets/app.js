@@ -7119,7 +7119,7 @@
           const rows = items.map((it, idx) => {
             const snip = (it.sentence || '').slice(0, 180).replace(/\|/g, '\\|');
             const isMandatory = /^(shall|must|is required|are required|undertakes|warrants|covenants|is obligated|are obligated|is responsible|are responsible)/.test(it.verb);
-            return '| ' + (isMandatory ? '⚡ must' : '✓ may') + ' | ' + (doneMap['ob-' + idx] ? 'done' : 'todo') + ' | ' + snip + ' |';
+            return '| ' + (isMandatory ? '⚡ must' : '✓ may') + ' | ' + (doneMap['ob-' + idx] ? '[x]' : '[ ]') + ' | ' + snip + ' |';
           }).join('\n');
           const md = '| Type | Progress | Obligation |\n|---|---|---|\n' + rows;
           let copied = false;

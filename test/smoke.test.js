@@ -11806,6 +11806,8 @@ test("analyzer: Obligation tracker exports a CSV with done status", () => {
     "the Markdown obligation copy must confirm with a toast");
   assert.match(appSrc, /\| Type \| Progress \| Obligation \|/,
     "the Markdown obligation copy must build a table header");
+  assert.match(appSrc, /doneMap\['ob-' \+ idx\] \? '\[x\]' : '\[ \]'/,
+    "the Markdown obligation copy must use checkbox-style progress");
 });
 
 skip("analyze: obligations copy as Markdown", async () => {
@@ -11839,6 +11841,7 @@ skip("analyze: obligations copy as Markdown", async () => {
     const captured = await page.evaluate(() => window.__copiedOblMd);
     assert.match(captured, /^\| Type \| Progress \| Obligation \|/, "the copied obligations must start with the Markdown header");
     assert.match(captured, /\|---\|---\|---\|/, "the copied obligations must include the separator row");
+    assert.match(captured, /\| \[ \] \|/, "the copied obligations must include unchecked checkboxes");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
