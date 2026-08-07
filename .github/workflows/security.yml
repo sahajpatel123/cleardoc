@@ -1,7 +1,7 @@
 # Security hardening workflow - runs on every push/pull_request to main
 # Combines dependency review, security-focused tests, and best practice checks.
 
-name: Security
+name: '✅ Security: ${{ github.event_name == 'push' && 'Push' || 'PR' }} Check'
 
 on:
   push:
