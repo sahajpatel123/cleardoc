@@ -7806,7 +7806,8 @@
       if(copyMdBtn){
         copyMdBtn.addEventListener('click', async () => {
           const rows = visible.map(g => '| ' + String(g.term).replace(/\|/g, '\\|') + ' | ' + String(g.plain).replace(/\|/g, '\\|') + ' | ' + g.hits + ' |').join('\n');
-          const md = '| Term | Meaning | Hits |\n|---|---|---|\n' + rows;
+          const md = '| Term | Meaning | Hits |\n|---|---|---|\n' + rows +
+            (filter === 'multi' ? '\n\n_Showing multi-hit terms only._' : '');
           let copied = false;
           try {
             if(navigator.clipboard && navigator.clipboard.writeText){

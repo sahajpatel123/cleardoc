@@ -11700,6 +11700,8 @@ test("analyzer: Glossary quick-reference extracts legal terms with plain-English
     "iter #267 must confirm when the glossary Markdown is copied");
   assert.match(appSrc, /\| Term \| Meaning \| Hits \|/,
     "iter #267 must build a Markdown table header");
+  assert.match(appSrc, /_Showing multi-hit terms only\._/,
+    "iter #267 must note when the multi-hit filter is active");
   assert.match(cssSrc, /\.gloss-filter-active\b/, ".gloss-filter-active style must exist");
 });
 
