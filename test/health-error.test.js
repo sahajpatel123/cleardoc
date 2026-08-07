@@ -34,29 +34,37 @@ test("health handler: returns 200 JSON for GET happy path (smoke)", async () => 
     process.env.OPENROUTER_API_KEY = "test-stub-key-health";
   }
   const handler = require("../api/health.js");
-  const res = {
-    statusCode: 200,
-    _body: null,
-    headers: {},
-    headersSent: false,
-    setHeader(k, v) { this.headers[k] = v; },
-    end(s) { this._body = s; this.headersSent = true; },
-  };
-  const req = {
-    method: "GET",
-    headers: {},
-    socket: { remoteAddress: "127.0.0.1" },
-  };
-  await handler(req, res);
-  assert.equal(res.statusCode, 200);
-  const body = JSON.parse(res._body);
-  assert.equal(body.status, "ok");
-  assert.equal(body.ok, true);
-  // Summary rollup (iter #39) — bottom-line numbers ops dashboards can
-  // consume without walking the nested providers object.
-  assert.ok(body.summary, "200 payload must include a summary rollup");
-  assert.equal(typeof body.summary.providersConfigured, "number");
-  assert.equal(typeof body.summary.providersReachable, "number");
+  // Deterministic happy path: mock fetch so AI provider reachability
+  // probes succeed without depending on live network state.
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200 });
+  try {
+    const res = {
+      statusCode: 200,
+      _body: null,
+      headers: {},
+      headersSent: false,
+      setHeader(k, v) { this.headers[k] = v; },
+      end(s) { this._body = s; this.headersSent = true; },
+    };
+    const req = {
+      method: "GET",
+      headers: {},
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    await handler(req, res);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res._body);
+    assert.equal(body.status, "ok");
+    assert.equal(body.ok, true);
+    // Summary rollup (iter #39) — bottom-line numbers ops dashboards can
+    // consume without walking the nested providers object.
+    assert.ok(body.summary, "200 payload must include a summary rollup");
+    assert.equal(typeof body.summary.providersConfigured, "number");
+    assert.equal(typeof body.summary.providersReachable, "number");
+  } finally {
+    globalThis.fetch = origFetch;
+  }
 });
 
 // ── source-pattern checks ──────────────────────────────────────────
@@ -455,29 +463,37 @@ test("health handler: 200 payload's process info is reachable via the rendered e
     process.env.OPENROUTER_API_KEY = "test-stub-key-health-proc";
   }
   const handler = require("../api/health.js");
-  const res = {
-    statusCode: 200, _body: null, headers: {}, headersSent: false,
-    setHeader(k, v) { this.headers[k] = v; },
-    end(s) { this._body = s; this.headersSent = true; },
-  };
-  const req = {
-    method: "GET", headers: {}, socket: { remoteAddress: "127.0.0.1" },
-  };
-  await handler(req, res);
-  assert.equal(res.statusCode, 200);
-  const body = JSON.parse(res._body);
-  assert.ok(body.process, "200 payload must expose a process object");
-  // Shape
-  assert.equal(typeof body.process.nodeVersion, "string");
-  assert.match(body.process.nodeVersion, /^v\d+\.\d+\.\d+/, "nodeVersion should look like a Node version string");
-  assert.equal(typeof body.process.platform, "string");
-  assert.equal(typeof body.process.arch, "string");
-  assert.equal(typeof body.process.pid, "number");
-  assert.equal(typeof body.process.processUptimeSec, "number");
-  assert.ok(body.process.processUptimeSec >= 0, "process uptime should be non-negative");
-  assert.ok(body.process.memory, "memory block must exist");
-  for (const k of ["rssMb", "heapTotalMb", "heapUsedMb", "externalMb", "arrayBuffersMb"]) {
-    assert.equal(typeof body.process.memory[k], "number", `memory.${k} must be a number`);
+  // Deterministic happy path: mock fetch so AI provider reachability
+  // probes succeed without depending on live network state.
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200 });
+  try {
+    const res = {
+      statusCode: 200, _body: null, headers: {}, headersSent: false,
+      setHeader(k, v) { this.headers[k] = v; },
+      end(s) { this._body = s; this.headersSent = true; },
+    };
+    const req = {
+      method: "GET", headers: {}, socket: { remoteAddress: "127.0.0.1" },
+    };
+    await handler(req, res);
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res._body);
+    assert.ok(body.process, "200 payload must expose a process object");
+    // Shape
+    assert.equal(typeof body.process.nodeVersion, "string");
+    assert.match(body.process.nodeVersion, /^v\d+\.\d+\.\d+/, "nodeVersion should look like a Node version string");
+    assert.equal(typeof body.process.platform, "string");
+    assert.equal(typeof body.process.arch, "string");
+    assert.equal(typeof body.process.pid, "number");
+    assert.equal(typeof body.process.processUptimeSec, "number");
+    assert.ok(body.process.processUptimeSec >= 0, "process uptime should be non-negative");
+    assert.ok(body.process.memory, "memory block must exist");
+    for (const k of ["rssMb", "heapTotalMb", "heapUsedMb", "externalMb", "arrayBuffersMb"]) {
+      assert.equal(typeof body.process.memory[k], "number", `memory.${k} must be a number`);
+    }
+  } finally {
+    globalThis.fetch = origFetch;
   }
 });
 
