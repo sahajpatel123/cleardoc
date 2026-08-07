@@ -37,13 +37,10 @@ jobs:
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: '22'
-          # No `cache: npm` — this repo has package.json but no lockfile
-          # (static site; serverless code uses Node built-ins, only
-          # playwright is installed via `npm install --no-save` below).
-          # Without a lockfile setup-node hard-fails the cache step.
+          cache: npm
 
-      - name: Install dependencies (playwright only — serverless code uses built-ins)
-        run: npm install --no-save playwright
+      - name: Install dependencies (reproducible from committed lockfile)
+        run: npm ci --no-audit --no-fund
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium

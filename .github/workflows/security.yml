@@ -51,9 +51,10 @@ jobs:
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: '22'
+          cache: npm
 
-      - name: Install dependencies
-        run: npm install --no-save playwright
+      - name: Install dependencies (reproducible from committed lockfile)
+        run: npm ci --no-audit --no-fund
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
