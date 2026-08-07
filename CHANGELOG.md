@@ -146,6 +146,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #268 v2):* the copied digest now appends a **share link** to the full analysis so a chat recipient can open the underlying document in one tap, and the `d` keyboard shortcut copies the digest when results are visible (documented in the `?` help modal alongside the `c` summary shortcut).
 - **Copy redacted document** (cycle #269) — the privacy guard now offers a `📋 copy redacted` button that copies the document with emails, phones, card-like numbers, and ID-like numbers replaced by placeholders — without mutating the original textarea. Safe to paste into a lawyer chat, ticket, or notes while keeping the real document intact locally.
   - *Polish (cycle #269 v2):* the redacted copy now also includes the **compare textarea** when it has content (as a `Compare text:` section), so a side-by-side comparison stays just as safe to share.
+- **Download redacted document** (cycle #270) — the privacy guard also offers a `⬇ download redacted` button that saves the same masked document (and compare text, when present) as a `cleardoc-redacted-<date>.txt` file, for keeping an offline copy or attaching to a secure channel.
 
 ### Documentation
 
