@@ -13422,6 +13422,7 @@
         '<span class="clause-count">' + visible.length + ' of ' + total + ' clauses</span>' +
         '<button type="button" class="clause-filter ghost-btn ghost-btn-sm" id="clauseFilterBtn" title="Show only clauses that overlap detected risks">' + (showFlaggedOnly ? 'show all' : 'flagged only') + '</button>' +
         '<button type="button" class="clause-copy-all ghost-btn ghost-btn-sm" id="clauseCopyAllBtn" title="Copy the clause index as plain text">📋 copy list</button>' +
+        '<button type="button" class="clause-copy-all ghost-btn ghost-btn-sm" id="clauseCopyMdBtn" title="Copy the clause index as a Markdown table"># MD</button>' +
       '</div>';
       // Cycle #224 — rebuild the controls row instead of stacking it: the
       // flagged-only toggle re-renders, and an orphaned sibling would
@@ -13512,6 +13513,37 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Clause index copied (' + visible.length + ')' : '⚠ Couldn’t copy');
           copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy list';
           setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy list'; }, 2500);
+        });
+      }
+      const copyMdBtn = document.getElementById('clauseCopyMdBtn');
+      if(copyMdBtn){
+        copyMdBtn.addEventListener('click', async () => {
+          if(!visible.length){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('No clauses to copy');
+            return;
+          }
+          const rows = visible.map(h => '| ' + String(h.raw).replace(/\|/g, '\\|') + ' | ' + String(h.snippet || '').replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|') + (isInRiskedClause(h.offset) ? ' | ⚠ flagged |' : ' | — |')).join('\n');
+          const md = '| Clause | Snippet | Flagged |\n|---|---|---|\n' + rows;
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Clause index copied as Markdown' : '⚠ Couldn’t copy');
+          copyMdBtn.textContent = copied ? '✓ copied' : '# MD';
+          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '# MD'; }, 2500);
         });
       }
     }

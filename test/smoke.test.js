@@ -10696,6 +10696,12 @@ test("analyzer: Clause index extracts numbered clauses with click-to-jump", () =
     "the copied index must lead with a count header");
   assert.match(appSrc, /'📋 Clause index copied \(' \+ visible\.length \+ '\)'/,
     "copying must toast the clause count");
+  assert.match(appSrc, /clauseCopyMdBtn/,
+    "iter #268 must include a clause-index Markdown copy button");
+  assert.match(appSrc, /'📋 Clause index copied as Markdown'/,
+    "iter #268 must confirm when the clause index Markdown is copied");
+  assert.match(appSrc, /\| Clause \| Snippet \| Flagged \|/,
+    "iter #268 must build a Markdown table header");
 
   // Cycle #225 — valid HTML + keyboard parity: the row is a
   // div[role=button] (tabindex=0) so the inner copy button is legal,
@@ -10708,6 +10714,44 @@ test("analyzer: Clause index extracts numbered clauses with click-to-jump", () =
     "clause rows must handle Enter/Space for keyboard parity");
   assert.match(cssSrc, /\.clause-row\{[^}]*font:inherit;color:inherit/,
     "the row div must inherit font and color like a native control");
+});
+
+skip("analyze: clause index copies as Markdown", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedClauseMd = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedClauseMd = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedClauseMd = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#indexBlock:not([hidden]) #clauseCopyMdBtn", { timeout: 8000 });
+    await page.click("#clauseCopyMdBtn");
+    await page.waitForFunction(() => window.__copiedClauseMd && window.__copiedClauseMd.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedClauseMd);
+    assert.match(captured, /^\| Clause \| Snippet \| Flagged \|/, "the copied clause index must start with the Markdown header");
+    assert.match(captured, /\|---\|---\|---\|/, "the copied clause index must include the separator row");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
 });
 
 // Iter #138: cost predictor — expected vs 90th-percentile vs worst.
