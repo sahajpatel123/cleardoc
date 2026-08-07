@@ -4515,6 +4515,37 @@
       threatScoreMeta.textContent = '· ' + parts.join(' · ');
       if(threatCopyBtn){ threatCopyBtn.hidden = false; threatCopyBtn.textContent = 'Copy'; }
     }
+
+    // Cycle #273 — key facts snapshot: doc type, jurisdiction, currency,
+    // risk tally, readiness, and deadline count in one glanceable row.
+    function renderKeyFacts(raw, ctx){
+      const el = document.getElementById('keyFacts');
+      if(!el || !raw){ if(el) el.hidden = true; return; }
+      const facts = [];
+      const dt = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
+      if(dt && dt.label) facts.push('📄 ' + esc(dt.label));
+      const juris = document.getElementById('jurisRow');
+      if(juris && !juris.hidden){
+        const jl = juris.querySelector('.juris-label');
+        if(jl && jl.textContent.trim()) facts.push('🌍 ' + esc(jl.textContent.trim()));
+      }
+      const curBlock = document.getElementById('currencyBlock');
+      if(curBlock && !curBlock.hidden){
+        const curList = document.getElementById('currencyList');
+        const rows = curList ? curList.querySelectorAll('.cur-row') : [];
+        if(rows.length) facts.push('💰 ' + rows.length + ' amount' + (rows.length === 1 ? '' : 's'));
+      }
+      const riskRows = (document.getElementById('riskList') || { querySelectorAll: () => [] }).querySelectorAll('.rrow');
+      if(riskRows.length) facts.push('⚠ ' + riskRows.length + ' risk' + (riskRows.length === 1 ? '' : 's'));
+      const readiness = document.getElementById('readinessScore');
+      if(readiness && readiness.textContent.trim()) facts.push('📊 readiness ' + readiness.textContent.trim() + '/100');
+      const dlRows = (document.getElementById('deadlinesList') || { querySelectorAll: () => [] }).querySelectorAll('.deadline-row');
+      if(dlRows.length) facts.push('⏰ ' + dlRows.length + ' deadline' + (dlRows.length === 1 ? '' : 's'));
+      if(!facts.length){ el.hidden = true; return; }
+      el.innerHTML = facts.join('<span class="keyfacts-sep" aria-hidden="true"> · </span>');
+      el.hidden = false;
+    }
+
     // iter #219: Contract Health Check — synthesizes the analysis
     // into a single readiness verdict (Ready / Review / Negotiate /
     // Do Not Sign) with a concrete recommendation.
@@ -16113,6 +16144,7 @@
       }
       lastFlags=flags;
       renderThreatScore();
+      renderKeyFacts(raw, ctx);
       renderHealthCheck();
       renderReadinessScore();
       renderExecSummary();
@@ -17365,6 +17397,7 @@
       // iter #216: paint the threat score from the restored snapshot
       // so a shared/reloaded analysis shows the same severity pill.
       renderThreatScore();
+      renderKeyFacts(lastRaw, null);
       // iter #219: also paint the health check so a restored snapshot
       // shows the same readiness verdict.
       renderHealthCheck();

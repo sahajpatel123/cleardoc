@@ -1976,6 +1976,25 @@ skip("analyzer: contract care plan copies renewal + upcoming deadlines", async (
   await page.close();
 });
 
+// Cycle #273 — key facts snapshot: type, jurisdiction, currency, risks,
+// readiness, deadlines in one glanceable row.
+skip("analyzer: key facts snapshot renders after analysis", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="keyFacts"/, "analyze.html must expose the key-facts row");
+  assert.match(appSrc, /function renderKeyFacts\(raw, ctx\)\{/, "app.js must define renderKeyFacts");
+
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  await page.click(".qf[data-fill]:first-of-type");
+  await page.click("#analyzeBtn");
+  await page.waitForSelector("#keyFacts:not([hidden])", { timeout: 8000 });
+  const text = await page.$eval("#keyFacts", (el) => el.textContent);
+  assert.match(text, /risks?|readiness|deadline/, "key facts must surface at least one headline metric");
+  await page.close();
+});
+
 skip("mobile viewport (375px): analyze renders without horizontal overflow", async () => {
   if (!HAS_BROWSER) return;
   const mobile = await browser.newContext({ viewport: { width: 375, height: 812 } });
