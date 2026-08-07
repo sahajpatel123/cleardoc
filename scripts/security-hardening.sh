@@ -125,6 +125,7 @@ const required={
   'referrer-policy':'no-referrer',
   'cross-origin-opener-policy':'same-origin',
   'cross-origin-resource-policy':'same-origin',
+  'x-permitted-cross-domain-policies':'none',
   'x-robots-tag':'noindex, nofollow'
 };
 for (const [k,v] of Object.entries(required)) {

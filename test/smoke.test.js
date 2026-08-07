@@ -8110,6 +8110,7 @@ test("vercel.json: emits a strict Content-Security-Policy on every page", async 
     ["referrer-policy", "no-referrer"],
     ["cross-origin-opener-policy", "same-origin"],
     ["cross-origin-resource-policy", "same-origin"],
+    ["x-permitted-cross-domain-policies", "none"],
     ["x-robots-tag", "noindex, nofollow"],
   ]) {
     assert.equal(apiHeaders[key]?.toLowerCase(), value.toLowerCase(), `API header ${key} must be ${value}`);

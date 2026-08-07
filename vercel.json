@@ -35,6 +35,7 @@
         { "key": "Referrer-Policy", "value": "no-referrer" },
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
         { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" },
+        { "key": "X-Permitted-Cross-Domain-Policies", "value": "none" },
         { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
         { "key": "Content-Security-Policy", "value": "default-src 'none'; frame-ancestors 'none'" }
       ]
