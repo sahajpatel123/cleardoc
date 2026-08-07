@@ -4744,17 +4744,26 @@
       if(copyBtn && !copyBtn._scoreWired){
         copyBtn._scoreWired = true;
         copyBtn.addEventListener('click', async () => {
+          // Cycle #288 — append a share link so a recipient can open the
+          // full analysis in one tap (mirrors the other copy actions).
+          let textToCopy = text;
+          try {
+            if(typeof buildShareUrl === 'function'){
+              const shareUrl = await buildShareUrl();
+              if(shareUrl) textToCopy += '\n' + shareUrl;
+            }
+          } catch(_){ /* keep the copy working even if the link fails */ }
           let ok = false;
           try {
             if(navigator.clipboard && navigator.clipboard.writeText){
-              await navigator.clipboard.writeText(text);
+              await navigator.clipboard.writeText(textToCopy);
               ok = true;
             }
           } catch(_){ /* fall through */ }
           if(!ok){
             try {
               const ta = document.createElement('textarea');
-              ta.value = text;
+              ta.value = textToCopy;
               document.body.appendChild(ta);
               ta.select();
               ok = document.execCommand('copy');

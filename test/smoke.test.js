@@ -2159,6 +2159,18 @@ skip("analyzer: scoreboard renders headline scores and copies them", async () =>
   const text = await page.$eval("#scoreBoardText", (el) => el.textContent);
   assert.match(text, /SCOREBOARD —/, "scoreboard must carry a clear header");
   assert.match(text, /readiness|maturity|difficulty|risks/, "scoreboard must include at least one score");
+  // Cycle #288 — scoreboard copy includes a share link.
+  await page.evaluate(() => {
+    window.__copiedScore = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { window.__copiedScore = t; }, write: async () => {} } });
+    } catch (_) { try { navigator.clipboard = { writeText: async (t) => { window.__copiedScore = t; }, write: async () => {} }; } catch (_2) {} }
+  });
+  await page.click("#scoreBoardCopyBtn");
+  await page.waitForFunction(() => window.__copiedScore && window.__copiedScore.length > 0, { timeout: 4000 });
+  const copiedScore = await page.evaluate(() => window.__copiedScore);
+  assert.match(copiedScore, /SCOREBOARD —/, "scoreboard copy must include the scoreboard line");
+  assert.match(copiedScore, /http.*#share=/, "scoreboard copy must include a share link");
   // Cycle #275 v2 — chips are clickable and jump to their source block.
   const chip = await page.$("#scoreBoardText .scoreboard-chip[data-target]");
   assert.ok(chip, "scoreboard must render clickable chips");
