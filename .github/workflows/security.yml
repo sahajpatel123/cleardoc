@@ -56,6 +56,9 @@ jobs:
       - name: Install dependencies (reproducible from committed lockfile)
         run: npm ci --no-audit --no-fund
 
+      - name: Audit dependencies for vulnerabilities
+        run: npm audit --audit-level=high --no-fund
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
@@ -96,6 +99,16 @@ jobs:
             exit 1
           fi
           echo "No hardcoded secrets found"
+
+      - name: Ensure no .env secret files are tracked
+        run: |
+          tracked=$(git ls-files | grep -E '(^|/)(\.env|\.env\.)' | grep -v '\.env\.example$' || true)
+          if [ -n "$tracked" ]; then
+            echo "::error::Tracked env files may leak secrets:"
+            echo "$tracked"
+            exit 1
+          fi
+          echo "No tracked env secret files"
 
       - name: Check for eval/Function usage
         run: |
