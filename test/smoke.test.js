@@ -2924,6 +2924,53 @@ skip("analyzer: risk digest copies severity, clause, why, and counter for chat a
   }
 });
 
+// Cycle #286 — compact risk summary copy.
+skip("analyzer: risk summary button copies a compact summary", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="riskSummaryCopyBtn"/, "analyze.html must expose the risk summary button");
+  assert.match(html, /title="Copy a compact risk summary"/, "the button must be labelled as a compact summary");
+  assert.match(appSrc, /Cycle #286 — compact risk summary copy/, "app.js must wire the risk summary button");
+  assert.match(appSrc, /RISK SUMMARY —/, "the summary must carry a clear header");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedRiskSummary = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedRiskSummary = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedRiskSummary = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#riskSummaryCopyBtn", { timeout: 8000 });
+    await page.click("#riskSummaryCopyBtn");
+    await page.waitForFunction(() => window.__copiedRiskSummary && window.__copiedRiskSummary.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedRiskSummary);
+    assert.match(captured, /RISK SUMMARY —/, "the copied summary must carry the header");
+    assert.match(captured, /risk/, "the copied summary must mention risks");
+    assert.match(captured, /http.*#share=/, "the copied summary must include a share link");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #262 — download the generated response draft as Markdown.
 skip("analyze: response draft downloads as Markdown", async () => {
   if (!HAS_BROWSER) return;
@@ -4457,6 +4504,50 @@ skip("analyze: deadlines copy as Markdown", async () => {
     const captured = await page.evaluate(() => window.__copiedDeadlineMd);
     assert.match(captured, /^\| Date \| Countdown \| Type \| Clause \|/, "the copied deadlines must start with the Markdown header");
     assert.match(captured, /\|---\|---\|---\|---\|/, "the copied deadlines must include the separator row");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
+// Cycle #286 — compact risk summary copy.
+skip("analyzer: risk summary copy exports tally + top concern", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="riskSummaryCopyBtn"/, "analyze.html must expose the risk summary button");
+  assert.match(appSrc, /RISK SUMMARY —/, "app.js must build a risk summary line");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedRiskSummary = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedRiskSummary = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedRiskSummary = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#riskSummaryCopyBtn", { timeout: 8000 });
+    await page.click("#riskSummaryCopyBtn");
+    await page.waitForFunction(() => window.__copiedRiskSummary && window.__copiedRiskSummary.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedRiskSummary);
+    assert.match(captured, /RISK SUMMARY —/, "risk summary must carry a clear header");
+    assert.match(captured, /http.*#share=/, "risk summary must include a share link");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
