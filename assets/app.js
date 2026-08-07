@@ -2493,6 +2493,7 @@
             <div class="kb-row"><kbd>/</kbd><span>Focus the document input</span></div>
             <div class="kb-row"><kbd>⌘</kbd><kbd>Enter</kbd><span>Run the analysis</span></div>
             <div class="kb-row"><kbd>c</kbd><span>Copy the plain-text summary</span></div>
+            <div class="kb-row"><kbd>d</kbd><span>Copy the chat-friendly risk digest</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
             <div class="kb-row"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><span>Risk radar filter (all / traps / watches / notes)</span></div>
@@ -2628,6 +2629,16 @@
         if(p && !p.hidden){
           const cb = document.getElementById('copyBtn');
           if(cb){ e.preventDefault(); cb.click(); return; }
+        }
+      }
+
+      // Cycle #268 v2 — 'd' copies the chat-friendly risk digest when
+      // results are visible (mirrors the 'c' summary shortcut).
+      if(k === 'd' || k === 'D'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const db = document.getElementById('riskChatDigestBtn');
+          if(db){ e.preventDefault(); db.click(); return; }
         }
       }
 
@@ -18719,7 +18730,14 @@
         if(msg){msg.textContent='No risks found — copy a digest when the analysis has flagged items.'; msg.className='analyze-msg';}
         return;
       }
-      const text = buildRiskChatDigest();
+      // Cycle #268 v2 — include a share link so the chat digest is
+      // actionable: recipients can open the full analysis in one tap.
+      let shareUrl = null;
+      try {
+        if(typeof buildShareUrl === 'function') shareUrl = await buildShareUrl();
+      } catch(_){ /* keep the digest copyable even if the link fails */ }
+      let text = buildRiskChatDigest();
+      if(shareUrl) text += '\n' + shareUrl;
       let ok = false;
       try{
         if(navigator.clipboard && navigator.clipboard.writeText){
