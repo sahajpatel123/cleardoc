@@ -18688,6 +18688,53 @@
       }
       if(btn){ flashButton(btn, ok ? '✓ MD copied' : 'Copy failed', ok ? 1400 : 1800); }
     }
+    // Cycle #268 — chat-friendly risk digest. Compact plain-text table
+    // for Slack/Discord/iMessage that carries severity, clause, why, and
+    // counter (when one exists) without Markdown or CSV boilerplate.
+    function buildRiskChatDigest(){
+      if(!lastFlags || !lastFlags.length) return '';
+      const order = { r:0, a:1, g:2 };
+      const sorted = (lastFlags || []).slice().sort((x, y) => {
+        const ox = order[(x && x.rule && x.rule.sev)] ?? 3;
+        const oy = order[(y && y.rule && y.rule.sev)] ?? 3;
+        return ox - oy;
+      });
+      const lines = [];
+      lines.push('RISK DIGEST — ' + lastFlags.length + ' risk' + (lastFlags.length === 1 ? '' : 's') + ' (ClearDoc)');
+      sorted.forEach((f, i) => {
+        const sev = f.rule.sev === 'r' ? '🔴 TRAP' : f.rule.sev === 'a' ? '🟡 WATCH' : '🟢 NOTE';
+        const label = String(f.rule.label || 'Risk');
+        const clause = String(f.s || '').slice(0, 160).replace(/\s+/g, ' ').trim();
+        const why = String(f.rule.why || '').slice(0, 160).replace(/\s+/g, ' ').trim();
+        lines.push((i + 1) + '. ' + sev + ' — ' + label + (clause ? '\n   "' + clause + '"' : '') + (why ? '\n   Why: ' + why : ''));
+        const counter = String((f.rule && f.rule.counter) || '').slice(0, 180).replace(/\s+/g, ' ').trim();
+        if(counter) lines.push('   Counter: ' + counter);
+      });
+      lines.push('_ClearDoc · informational only, not legal advice_');
+      return lines.join('\n');
+    }
+    async function copyRiskChatDigest(){
+      const btn = document.getElementById('riskChatDigestBtn');
+      if(!lastFlags || !lastFlags.length){
+        if(msg){msg.textContent='No risks found — copy a digest when the analysis has flagged items.'; msg.className='analyze-msg';}
+        return;
+      }
+      const text = buildRiskChatDigest();
+      let ok = false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text); ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok = document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      }catch(e){
+        console.warn('[copy-risk-digest] clipboard failed', e);
+      }
+      if(btn){ flashButton(btn, ok ? '✓ Digest copied' : 'Copy failed', ok ? 1400 : 1800); }
+    }
     // iter #218: export the full analysis result as structured JSON
     // so it can be consumed by APIs, scripts, or other tooling.
     // Omits DOM references and circular objects; serializes the
@@ -22959,6 +23006,9 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     // or download as a .csv file for Excel / Google Sheets / Numbers.
     if(copyCsvBtn) copyCsvBtn.addEventListener('click', copyAnalysisCsv);
     if(downloadCsvBtn) downloadCsvBtn.addEventListener('click', downloadAnalysisCsv);
+    // Cycle #268 — chat-friendly risk digest copy.
+    const riskChatDigestBtn = document.getElementById('riskChatDigestBtn');
+    if(riskChatDigestBtn) riskChatDigestBtn.addEventListener('click', copyRiskChatDigest);
     // iter #202: export full analysis as Markdown (.md) — mirrors the
     // .txt path (buildAnalysisSummary → saveAnalysis) but with markdown
     // formatting so users can drop the result into Obsidian/Notion/email
