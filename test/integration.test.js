@@ -85,6 +85,7 @@ function staticServer() {
     if (p === "/") p = "/index.html";
     const fp = path.join(ROOT, p);
     if (!fp.startsWith(ROOT) || !fs.existsSync(fp) || !fs.statSync(fp).isFile()) {
+      console.error(`[integration-test] 404 path: ${p}`);
       res.writeHead(404); res.end("Not Found"); return;
     }
     res.writeHead(200, { "Content-Type": MIME[path.extname(fp)] || "application/octet-stream" });
