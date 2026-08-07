@@ -2151,6 +2151,7 @@ skip("analyzer: key facts snapshot renders after analysis", async () => {
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
   assert.match(html, /id="keyFacts"/, "analyze.html must expose the key-facts row");
   assert.match(html, /id="keyFactsCopyBtn"/, "analyze.html must expose the key-facts copy button");
+  assert.match(html, /id="keyFactsMdBtn"/, "analyze.html must expose the key-facts Markdown button");
   assert.match(appSrc, /function renderKeyFacts\(raw, ctx\)\{/, "app.js must define renderKeyFacts");
 
   const page = await context.newPage();
@@ -2171,6 +2172,18 @@ skip("analyzer: key facts snapshot renders after analysis", async () => {
   await page.waitForFunction(() => window.__copiedKeyFacts && window.__copiedKeyFacts.length > 0, { timeout: 4000 });
   const copied = await page.evaluate(() => window.__copiedKeyFacts);
   assert.match(copied, /http.*#share=/, "key facts copy must include a share link");
+  // Cycle #290 — key facts Markdown export.
+  await page.evaluate(() => { window.__copiedKeyFactsMd = null; });
+  await page.evaluate(() => {
+    try {
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { window.__copiedKeyFactsMd = t; }, write: async () => {} } });
+    } catch (_) {}
+  });
+  await page.click("#keyFactsMdBtn");
+  await page.waitForFunction(() => window.__copiedKeyFactsMd && window.__copiedKeyFactsMd.length > 0, { timeout: 4000 });
+  const copiedMd = await page.evaluate(() => window.__copiedKeyFactsMd);
+  assert.match(copiedMd, /# Key facts/, "key facts Markdown must carry a header");
+  assert.match(copiedMd, /http.*#share=/, "key facts Markdown must include a share link");
   // Cycle #280 v2 — 'n' shortcut copies key facts too.
   await page.evaluate(() => { window.__copiedKeyFacts = null; });
   await page.keyboard.press("n");
