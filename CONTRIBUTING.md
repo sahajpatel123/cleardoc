@@ -88,13 +88,41 @@ Client-side state lives in `localStorage`:
 Before requesting review, please confirm:
 
 - [ ] `npm run check` passes locally (JSON valid, syntax clean, all tests green)
+- [ ] `scripts/security-hardening.sh` passes locally (no hardcoded secrets, SHA-pinned actions, CSP secure)
 - [ ] For API changes: source-pattern test added or updated in `test/*-error.test.js`
 - [ ] For schema changes: new test cases in `test/*-schema.test.js`
 - [ ] For new helpers: new test cases in `test/safety.test.js`
 - [ ] For client-visible changes: smoke test added in `test/smoke.test.js`
 - [ ] LOGBOOK.md updated (append a new entry per RULES.md, do not edit existing entries)
 - [ ] If you touched the security headers, also re-validate the smoke-test CSP assertions
-- [ ] Commit message follows conventional commit format
+- [ ] Commit message follows conventional commit format, using `sec()` prefix for security changes
+
+## CI/CD Security
+
+ClearDoc uses GitHub Actions with security best practices:
+
+| Workflow | Purpose | Required Check |
+|----------|---------|----------------|
+| `test.yml` | Unit, smoke, integration tests | ✅ Required for merge |
+| `security.yml` | Dependency review + security lint | ✅ Required for merge |
+| `codeql.yml` | CodeQL security analysis | ✅ Required for merge |
+
+### Running Security Checks Locally
+
+```bash
+# Quick security validation
+bash scripts/security-hardening.sh
+
+# Full pre-deploy check (includes security)
+npm run check
+```
+
+### Security Best Practices
+
+- All GitHub Actions are SHA-pinned for supply-chain security
+- Workflows use minimal permissions
+- CodeQL runs on every push/PR
+- Dependabot handles dependency updates
 
 ## Reporting Security Issues
 
