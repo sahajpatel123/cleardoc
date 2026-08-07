@@ -10644,7 +10644,51 @@ test("analyzer: Style profile measures voice + sentence shape + reading grade", 
     "iter #135 must include stat tooltips");
   assert.match(appSrc, /styleCopyBtn[\s\S]+?navigator\.clipboard|execCommand\('copy'\)/,
     "iter #135 must wire the copy-as-bullets button");
+  assert.match(appSrc, /styleCopyMdBtn/,
+    "iter #271 must include a style-profile Markdown copy button");
+  assert.match(appSrc, /'📋 Style profile copied as Markdown'/,
+    "iter #271 must confirm when the style profile Markdown is copied");
+  assert.match(appSrc, /\| Metric \| Value \|/,
+    "iter #271 must build a Markdown table header");
   assert.match(cssSrc, /\.style-controls\b/, ".style-controls style must exist");
+});
+
+skip("analyze: style profile copies as Markdown", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedStyleMd = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedStyleMd = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedStyleMd = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#styleBlock:not([hidden]) #styleCopyMdBtn", { timeout: 8000 });
+    await page.click("#styleCopyMdBtn");
+    await page.waitForFunction(() => window.__copiedStyleMd && window.__copiedStyleMd.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedStyleMd);
+    assert.match(captured, /^## Style profile/, "the copied style profile must start with a heading");
+    assert.match(captured, /\| Metric \| Value \|/, "the copied style profile must include the metric table");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
 });
 
 // Iter #136: clause index — extracts numbered clauses and

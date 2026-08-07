@@ -13652,6 +13652,7 @@
       // Iter #135 polish — copy-as-bullets chip + a tip footer
       const controls = '<div class="style-controls">' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="styleCopyBtn" title="Copy profile as bullet points">📋 copy as bullets</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="styleCopyMdBtn" title="Copy profile as a Markdown table"># MD</button>' +
       '</div>';
       styleGrid.insertAdjacentHTML('afterend', controls);
       styleBlock.hidden = false;
@@ -13686,6 +13687,40 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Style profile copied' : '⚠ Couldn’t copy');
           copyBtn.textContent = copied ? '✓ copied' : '📋 copy as bullets';
           setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy as bullets'; }, 2500);
+        });
+      }
+      const copyMdBtn = document.getElementById('styleCopyMdBtn');
+      if(copyMdBtn){
+        copyMdBtn.addEventListener('click', async () => {
+          const md = '## Style profile\n\n' +
+            '| Metric | Value |\n|---|---|\n' +
+            '| Sentences | ' + p.totalSent.toLocaleString('en-US') + ' |\n' +
+            '| Avg words/sentence | ' + p.avgWords + ' |\n' +
+            '| Longest sentence | ' + p.longest + ' words |\n' +
+            '| Top 10% avg | ' + p.longestTenth + ' words |\n' +
+            '| Passive voice | ' + p.passiveRate + '% |\n' +
+            '| Reading grade | ' + p.grade + ' (' + p.verdict + ') |\n' +
+            '| Style verdict | ' + String(v).replace(/\|/g, '\\|') + ' |';
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Style profile copied as Markdown' : '⚠ Couldn’t copy');
+          copyMdBtn.textContent = copied ? '✓ copied' : '# MD';
+          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '# MD'; }, 2500);
         });
       }
     }
