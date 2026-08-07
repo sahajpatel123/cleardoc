@@ -439,6 +439,9 @@ skip("analyzer: download redacted saves a masked .txt file", async () => {
     assert.match(download.suggestedFilename(), /^cleardoc-redacted-\d{4}-\d{2}-\d{2}\.txt$/, "the download must be cleardoc-redacted-<date>.txt");
     const path = await download.path();
     const content = require("node:fs").readFileSync(path, "utf8");
+    assert.match(content, /CLEARDOC REDACTED DOCUMENT/, "the downloaded file must carry a summary header");
+    assert.match(content, /Personal info replaced: 1 email, 1 phone/, "the summary must describe what was redacted");
+    assert.match(content, /Original text was not modified\./, "the summary must confirm the original was untouched");
     assert.match(content, /\[email\]/, "the downloaded text must mask the email");
     assert.match(content, /\[phone\]/, "the downloaded text must mask the phone");
     assert.doesNotMatch(content, /jane@example\.com|415-555-0199/, "the downloaded text must not leak identifiers");

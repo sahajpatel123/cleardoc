@@ -3723,6 +3723,30 @@
       }
       return parts.join('\n\n');
     };
+    // Cycle #270 v2 — summary header for the downloaded file so the
+    // artifact is self-identifying (when it was redacted and what was
+    // replaced).
+    const buildRedactionSummary = (redactedText) => {
+      const counts = {
+        emails: (redactedText.match(/\[email\]/g) || []).length,
+        phones: (redactedText.match(/\[phone\]/g) || []).length,
+        cards:  (redactedText.match(/\[card\]/g) || []).length,
+        ids:    (redactedText.match(/\[id\]/g) || []).length,
+      };
+      const parts = [];
+      if(counts.emails) parts.push(counts.emails + ' email' + (counts.emails === 1 ? '' : 's'));
+      if(counts.phones) parts.push(counts.phones + ' phone' + (counts.phones === 1 ? '' : 's'));
+      if(counts.cards) parts.push(counts.cards + ' card-like number' + (counts.cards === 1 ? '' : 's'));
+      if(counts.ids) parts.push(counts.ids + ' ID-like number' + (counts.ids === 1 ? '' : 's'));
+      return [
+        'CLEARDOC REDACTED DOCUMENT',
+        'Generated: ' + new Date().toISOString(),
+        'Personal info replaced: ' + (parts.length ? parts.join(', ') : 'none'),
+        'Original text was not modified.',
+        '-'.repeat(48),
+        '',
+      ].join('\n');
+    };
     // Cycle #269 — copy the document with PII redacted, without mutating
     // the textareas. Lets users paste a safe version into a lawyer chat,
     // ticket, or notes while keeping the originals intact.
@@ -3755,10 +3779,11 @@
         if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to download — add text first');
         return;
       }
+      const fileText = buildRedactionSummary(redacted) + redacted;
       let exported = false;
       try {
         const stamp = new Date().toISOString().slice(0, 10);
-        const blob = new Blob([redacted], { type: 'text/plain;charset=utf-8' });
+        const blob = new Blob([fileText], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = 'cleardoc-redacted-' + stamp + '.txt';
@@ -3769,7 +3794,7 @@
       if(!exported){
         try {
           const a = document.createElement('a');
-          a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(redacted);
+          a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(fileText);
           a.download = 'cleardoc-redacted-' + new Date().toISOString().slice(0, 10) + '.txt';
           document.body.appendChild(a); a.click(); document.body.removeChild(a);
           exported = true;
