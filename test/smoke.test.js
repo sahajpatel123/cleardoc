@@ -201,6 +201,8 @@ skip("home: next-deadline chip shows soonest upcoming deadline", async () => {
     await page.waitForSelector("#homeDeadline:not([hidden])", { timeout: 4000 });
     const text = await page.$eval("#homeDeadline", (el) => el.textContent);
     assert.match(text, /in 3 days|tomorrow|today/, "the chip must show a countdown");
+    const href = await page.getAttribute("#homeDeadline", "href");
+    assert.ok(href && href.includes("analyze.html"), "the chip must link to the analyzer");
   } finally {
     await page.close();
     await ctx.close();

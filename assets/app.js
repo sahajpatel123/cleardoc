@@ -1262,10 +1262,9 @@
       .sort((a, b) => a.days - b.days)[0];
     if(!soon){ el.hidden = true; return; }
     const when = soon.days === 0 ? 'today' : soon.days === 1 ? 'tomorrow' : 'in ' + soon.days + ' days';
-    el.textContent = '⏰ ' + when + ' · ' + soon.label.slice(0, 60) + ' — open analyzer';
+    el.textContent = '⏰ ' + when + ' · ' + soon.label.slice(0, 60);
     el.title = 'Soonest deadline from your last analysis: ' + soon.date;
     el.hidden = false;
-    el.addEventListener('click', () => { try { navTo('analyze.html'); } catch(_){ window.location.href = 'analyze.html'; } });
   }
 
   /* ---- CTAs ---- */
