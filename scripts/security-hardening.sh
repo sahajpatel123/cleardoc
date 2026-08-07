@@ -161,14 +161,14 @@ echo ""
 echo "--- Checking GitHub Actions npm audit gates ---"
 MISSING_AUDIT=""
 for file in .github/workflows/test.yml .github/workflows/security.yml; do
-    if [ -f "$file" ] && ! grep -q "npm audit" "$file"; then
+    if [ -f "$file" ] && ! grep -q "npm audit --audit-level=high" "$file"; then
         MISSING_AUDIT="$MISSING_AUDIT $file"
     fi
 done
 if [ -z "$MISSING_AUDIT" ]; then
-    check_pass "npm audit gate is present in test and security workflows"
+    check_pass "npm audit --audit-level=high is present in test and security workflows"
 else
-    check_fail "npm audit gate missing in:$MISSING_AUDIT"
+    check_fail "npm audit --audit-level=high missing in:$MISSING_AUDIT"
 fi
 
 # 3f. Verify CI uses npm ci for reproducible installs
