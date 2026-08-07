@@ -224,7 +224,22 @@ else
     check_warn "Node.js not available for CSP directive check"
 fi
 
-# 4b. Verify API security headers
+# 4d. Verify production HTML has no inline event-handler attributes
+echo ""
+echo "--- Checking HTML inline event handlers ---"
+INLINE_HANDLER=""
+for page in *.html; do
+    if [ -f "$page" ] && grep -Eqn '\son(click|change|input|submit|keydown|keyup|load|error|focus|blur|mouseover|mouseout|mousemove)=' "$page"; then
+        INLINE_HANDLER="$INLINE_HANDLER $page"
+    fi
+done
+if [ -z "$INLINE_HANDLER" ]; then
+    check_pass "No inline event handlers in production HTML"
+else
+    check_fail "Inline event handlers found in:$INLINE_HANDLER"
+fi
+
+# 4e. Verify API security headers
 echo ""
 echo "--- Checking API security headers ---"
 if command -v node &> /dev/null; then
