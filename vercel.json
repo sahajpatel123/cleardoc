@@ -29,6 +29,8 @@
       "headers": [
         { "key": "Cache-Control", "value": "no-store" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-DNS-Prefetch-Control", "value": "off" },
+        { "key": "X-Download-Options", "value": "noopen" },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "Referrer-Policy", "value": "no-referrer" },
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },

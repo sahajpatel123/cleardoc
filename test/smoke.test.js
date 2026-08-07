@@ -8076,6 +8076,8 @@ test("vercel.json: emits a strict Content-Security-Policy on every page", async 
   for (const [key, value] of [
     ["cache-control", "no-store"],
     ["x-content-type-options", "nosniff"],
+    ["x-dns-prefetch-control", "off"],
+    ["x-download-options", "noopen"],
     ["x-frame-options", "DENY"],
     ["referrer-policy", "no-referrer"],
     ["cross-origin-opener-policy", "same-origin"],

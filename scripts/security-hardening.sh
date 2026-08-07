@@ -119,6 +119,8 @@ const hs=Object.fromEntries(block.headers.map(h=>[h.key.toLowerCase(), h.value])
 const required={
   'cache-control':'no-store',
   'x-content-type-options':'nosniff',
+  'x-dns-prefetch-control':'off',
+  'x-download-options':'noopen',
   'x-frame-options':'DENY',
   'referrer-policy':'no-referrer',
   'cross-origin-opener-policy':'same-origin',
