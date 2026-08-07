@@ -13375,12 +13375,15 @@
       const copyMdBtn = document.getElementById('costCopyMdBtn');
       if(copyMdBtn){
         copyMdBtn.addEventListener('click', async () => {
+          const live = buildCostPrediction(raw, ctx, loadCostProbs()) || c;
+          const liveSavings = Math.max(0, live.worst - live.expected);
           const md = '## Cost predictor\n\n' +
             '| Scenario | Amount |\n|---|---|\n' +
-            '| Expected | ' + fmt(c.expected) + ' |\n' +
-            '| 90th percentile | ' + fmt(c.pct90) + ' |\n' +
-            '| Worst case | ' + (c.worst > 0 ? fmt(c.worst) : '—') + ' |\n\n' +
-            '**Potential savings:** ' + fmt(savings);
+            '| Expected | ' + fmt(live.expected) + ' |\n' +
+            '| 90th percentile | ' + fmt(live.pct90) + ' |\n' +
+            '| Worst case | ' + (live.worst > 0 ? fmt(live.worst) : '—') + ' |\n\n' +
+            '**Potential savings:** ' + fmt(liveSavings) +
+            '\n\n_Generated ' + new Date().toLocaleString() + ((_fpState && _fpState.short) ? ' · #' + _fpState.short : '') + '_';
           let copied = false;
           try {
             if(navigator.clipboard && navigator.clipboard.writeText){

@@ -10801,6 +10801,10 @@ test("analyzer: Cost predictor shows expected / 90th / worst-case scenarios", ()
     "iter #270 must confirm when the cost predictor Markdown is copied");
   assert.match(appSrc, /\| Scenario \| Amount \|/,
     "iter #270 must build a Markdown table header");
+  assert.match(appSrc, /const live = buildCostPrediction\(raw, ctx, loadCostProbs\(\)\) \|\| c;/,
+    "iter #270 must read live slider-adjusted values when copied");
+  assert.match(appSrc, /_Generated ' \+ new Date\(\)\.toLocaleString/,
+    "iter #270 must include a generated timestamp");
   assert.match(cssSrc, /\.cost-sliders\b/, ".cost-sliders style must exist");
 });
 
@@ -10835,6 +10839,7 @@ skip("analyze: cost predictor copies as Markdown", async () => {
     const captured = await page.evaluate(() => window.__copiedCostMd);
     assert.match(captured, /^## Cost predictor/, "the copied cost predictor must start with a heading");
     assert.match(captured, /\| Scenario \| Amount \|/, "the copied cost predictor must include the scenario table");
+    assert.match(captured, /_Generated/, "the copied cost predictor must include a generated line");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
