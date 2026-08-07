@@ -2,6 +2,7 @@
 # Combines dependency review, security-focused tests, and best practice checks.
 
 name: "Security checks"
+run-name: "Security checks"
 
 on:
   push:
