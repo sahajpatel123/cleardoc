@@ -15054,6 +15054,7 @@
             (tally.proc ? '<b>' + tally.proc + ' procedural</b>' : '') +
           '</span>' +
           '<button type="button" class="gap-csv ghost-btn ghost-btn-sm" id="gapCsvBtn" title="Download missing clauses as a .csv file">📊 CSV</button>' +
+          '<button type="button" class="gap-csv ghost-btn ghost-btn-sm" id="gapCopyMdBtn" title="Copy missing clauses as Markdown"># MD</button>' +
           '<button type="button" class="gap-expand ghost-btn ghost-btn-sm" id="gapExpandBtn" title="Show every missing clause">show all ' + result.count + '</button>' +
         '</div>';
       gapList.innerHTML = rows + controls;
@@ -15128,6 +15129,33 @@
           }catch(_){
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create CSV file');
           }
+        });
+      }
+      const copyMdBtn = document.getElementById('gapCopyMdBtn');
+      if(copyMdBtn){
+        copyMdBtn.addEventListener('click', async () => {
+          const rows = result.items.map(it => '| ' + String(it.label).replace(/\|/g, '\\|') + ' | ' + String(it.hint || '').replace(/\|/g, '\\|') + ' |').join('\n');
+          const md = '| Missing clause | Why it matters |\n|---|---|\n' + rows;
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Missing clauses copied as Markdown' : '⚠ Couldn’t copy');
+          copyMdBtn.textContent = copied ? '✓ copied' : '# MD';
+          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '# MD'; }, 2500);
         });
       }
     }
