@@ -1348,6 +1348,16 @@
       if(which && which !== 'all') list.classList.add('risk-filter-' + which);
       try { list.dataset.riskFilter = which || 'all'; } catch(_) {}
     }
+    // Cycle #278 v2 — switching severity clears any active keyword so the
+    // two filters don't silently stack in a confusing way.
+    const kwInput = document.getElementById('riskFilterKeyword');
+    if(kwInput && kwInput.value){
+      kwInput.value = '';
+      const rows = list ? list.querySelectorAll('.rrow') : [];
+      rows.forEach(row => row.classList.remove('risk-kw-hidden'));
+      const countEl = document.getElementById('riskFilterCount');
+      if(countEl){ countEl.textContent = ''; countEl.hidden = true; }
+    }
     const map = [
       ['all', 'riskFilterAllBtn'],
       ['r',   'riskFilterTrapBtn'],
@@ -2301,7 +2311,7 @@
     const kwInput = document.getElementById('riskFilterKeyword');
     if(kwInput && !kwInput._kwWired){
       kwInput._kwWired = true;
-      kwInput.addEventListener('input', () => {
+      const applyKw = () => {
         const list = document.getElementById('riskList');
         if(!list) return;
         const q = kwInput.value.trim().toLowerCase();
@@ -2313,10 +2323,16 @@
         const visible = [...rows].filter(r => !r.classList.contains('risk-kw-hidden'));
         const countEl = document.getElementById('riskFilterCount');
         if(countEl){
-          const sev = list.dataset.riskFilter || 'all';
-          const total = sev === 'all' ? rows.length : rows.length; // keyword only; severity already applied via CSS
           countEl.textContent = q.length ? visible.length + ' of ' + rows.length + ' match' : '';
           countEl.hidden = !q.length;
+        }
+      };
+      kwInput.addEventListener('input', applyKw);
+      kwInput._applyKw = applyKw;
+      kwInput.addEventListener('keydown', (e) => {
+        if(e.key === 'Escape'){
+          kwInput.value = '';
+          applyKw();
         }
       });
     }
@@ -16843,6 +16859,9 @@
         riskList.appendChild(row); });
         paintRiskDeepLink();
       riskList._rrowFlags = flags;
+      // Cycle #278 v2 — re-apply the active keyword filter after re-render.
+      const kwAfterRender = document.getElementById('riskFilterKeyword');
+      if(kwAfterRender && kwAfterRender._applyKw) kwAfterRender._applyKw();
       // iter #209: multi-flag sentence indicator — sentences that
       // triggered 2+ local RISK patterns get a small "🔗 N in same
       // sentence" badge on each affected row so users can spot dense
@@ -17661,6 +17680,9 @@
         });
         paintRiskDeepLink();
         riskList._rrowFlags = flags;
+        // Cycle #278 v2 — re-apply the active keyword filter after re-render.
+        const kwAfterRender = document.getElementById('riskFilterKeyword');
+        if(kwAfterRender && kwAfterRender._applyKw) kwAfterRender._applyKw();
         // iter #209: multi-flag sentence indicator — same logic as the
         // local-render path above.
         try {

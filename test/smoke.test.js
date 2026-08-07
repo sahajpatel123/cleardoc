@@ -741,6 +741,12 @@ skip("analyzer: risk filter by keyword narrows the list", async () => {
   const visible = await page.$$eval("#riskList .rrow:not(.risk-kw-hidden)", (els) => els.length);
   assert.ok(before >= 2, `sample should render multiple risks, got ${before}`);
   assert.ok(visible >= 1 && visible < before, "keyword filter must narrow the visible risk rows");
+  // Cycle #278 v2 — Escape clears the keyword.
+  await page.press("#riskFilterKeyword", "Escape");
+  const cleared = await page.inputValue("#riskFilterKeyword");
+  assert.equal(cleared, "", "Escape must clear the keyword input");
+  const allBack = await page.$$eval("#riskList .rrow:not(.risk-kw-hidden)", (els) => els.length);
+  assert.equal(allBack, before, "clearing the keyword must restore all rows");
   await page.close();
 });
 

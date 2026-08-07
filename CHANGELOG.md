@@ -162,6 +162,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Care plan share link** (cycle #276) — the contract care plan copy now appends a **share link** to the full analysis (mirroring the risk/deadline/obligation digests), so a chat recipient can open the underlying document in one tap.
   - *Polish (cycle #276 v2):* the **pre-sign brief** copy now appends the same **share link**, completing the family of shareable copy actions (risk, deadline, obligations, care plan, and pre-sign brief all carry a `#share=` URL).
 - **Risk keyword filter** (cycle #278) — the risk radar now has a small `filter risks by keyword…` input that hides every risk row that doesn’t mention the typed term (e.g. `renew` or `indemnity`), combining with the existing severity chips so users can find the specific clause type fast.
+  - *Polish (cycle #278 v2):* pressing **Escape** clears the keyword and restores the full list, the filter re-applies automatically after a re-analysis, and switching a severity chip clears any active keyword so the two filters don’t silently stack.
 
 ### Documentation
 
