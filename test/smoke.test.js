@@ -2867,6 +2867,51 @@ skip("analyzer: copy-all bundle combines key facts, digests, and next steps", as
   }
 });
 
+// Cycle #287 — clean draft: copy the document with counter-suggestions applied.
+skip("analyzer: clean draft copies revised document without mutating the original", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="cleanDraftBtn"/, "analyze.html must expose the clean draft button");
+  assert.match(appSrc, /function buildCleanDraft\(\)\{/, "app.js must define buildCleanDraft");
+  assert.match(appSrc, /function copyCleanDraft\(\)\{/, "app.js must define copyCleanDraft");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedCleanDraft = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedCleanDraft = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedCleanDraft = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#cleanDraftBtn", { timeout: 8000 });
+    await page.click("#cleanDraftBtn");
+    await page.waitForFunction(() => window.__copiedCleanDraft && window.__copiedCleanDraft.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedCleanDraft);
+    assert.match(captured, /CLEANDRAFT —/, "clean draft must carry a clear header");
+    assert.match(captured, /Original text was not modified/, "clean draft must confirm the original was untouched");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #268 — chat-friendly risk digest copy.
 skip("analyzer: risk digest copies severity, clause, why, and counter for chat apps", async () => {
   if (!HAS_BROWSER) return;
@@ -2964,6 +3009,53 @@ skip("analyzer: risk summary button copies a compact summary", async () => {
     assert.match(captured, /RISK SUMMARY —/, "the copied summary must carry the header");
     assert.match(captured, /risk/, "the copied summary must mention risks");
     assert.match(captured, /http.*#share=/, "the copied summary must include a share link");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
+// Cycle #287 — clean draft copy.
+skip("analyzer: clean draft button copies a revised document", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="cleanDraftBtn"/, "analyze.html must expose the clean draft button");
+  assert.match(html, /title="Copy a clean draft with the top counter-suggestions applied/, "the button must be labelled as a clean draft");
+  assert.match(appSrc, /function buildCleanDraft\(\)\{/, "app.js must define buildCleanDraft");
+  assert.match(appSrc, /CLEANDRAFT — revised document with top counter-suggestions applied/, "the draft must carry a clear header");
+  assert.match(appSrc, /Original text was not modified/, "the draft must state the original was not modified");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedCleanDraft = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedCleanDraft = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedCleanDraft = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#cleanDraftBtn", { timeout: 8000 });
+    await page.click("#cleanDraftBtn");
+    await page.waitForFunction(() => window.__copiedCleanDraft && window.__copiedCleanDraft.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedCleanDraft);
+    assert.match(captured, /CLEANDRAFT —/, "the copied draft must carry the header");
+    assert.match(captured, /Original text was not modified/, "the copied draft must carry the disclaimer");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
