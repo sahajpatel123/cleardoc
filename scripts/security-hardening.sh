@@ -214,11 +214,13 @@ const csp=c.headers.find(h=>h.key==='Content-Security-Policy').value;
 if(!csp.includes(\"frame-ancestors 'none'\")) throw new Error('frame-ancestors is not none');
 if(!csp.includes(\"object-src 'none'\")) throw new Error('object-src is not none');
 if(!csp.includes(\"base-uri 'self'\")) throw new Error('base-uri is not self');
+if(!csp.includes(\"default-src 'self'\")) throw new Error('default-src is not self');
+if(!csp.includes('upgrade-insecure-requests')) throw new Error('upgrade-insecure-requests is missing');
 process.exit(0);
 " 2>/dev/null; then
-        check_pass "CSP frame-ancestors/object-src/base-uri are locked down"
+        check_pass "CSP frame-ancestors/object-src/base-uri/default-src are locked down"
     else
-        check_fail "CSP frame-ancestors/object-src/base-uri are not locked down"
+        check_fail "CSP frame-ancestors/object-src/base-uri/default-src/upgrade are not locked down"
     fi
 else
     check_warn "Node.js not available for CSP directive check"
