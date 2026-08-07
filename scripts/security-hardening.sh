@@ -154,6 +154,28 @@ else
     check_warn "Node.js not available for CSP report-uri check"
 fi
 
+# 4c. Verify the remaining high-value CSP directives are locked down
+echo ""
+echo "--- Checking CSP frame/object/base lockdown ---"
+if command -v node &> /dev/null; then
+    if node -e "
+const j=JSON.parse(require('fs').readFileSync('vercel.json','utf8'));
+const c=j.headers.find(h=>h.headers.some(h=>h.key==='Content-Security-Policy'));
+if(!c) throw new Error('No CSP');
+const csp=c.headers.find(h=>h.key==='Content-Security-Policy').value;
+if(!csp.includes(\"frame-ancestors 'none'\")) throw new Error('frame-ancestors is not none');
+if(!csp.includes(\"object-src 'none'\")) throw new Error('object-src is not none');
+if(!csp.includes(\"base-uri 'self'\")) throw new Error('base-uri is not self');
+process.exit(0);
+" 2>/dev/null; then
+        check_pass "CSP frame-ancestors/object-src/base-uri are locked down"
+    else
+        check_fail "CSP frame-ancestors/object-src/base-uri are not locked down"
+    fi
+else
+    check_warn "Node.js not available for CSP directive check"
+fi
+
 # 4b. Verify API security headers
 echo ""
 echo "--- Checking API security headers ---"
