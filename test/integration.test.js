@@ -74,6 +74,14 @@ function readBody(req) {
 function staticServer() {
   return http.createServer((req, res) => {
     let p = req.url.split("?")[0];
+    // The footer service-status chip pings /api/health on every page load.
+    // Serve a healthy mock so tests are deterministic and don't log a 404
+    // (same shape the smoke suite returns in its page-level fetch stub).
+    if (p === "/api/health") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, status: "ok", providers: {} }));
+      return;
+    }
     if (p === "/") p = "/index.html";
     const fp = path.join(ROOT, p);
     if (!fp.startsWith(ROOT) || !fs.existsSync(fp) || !fs.statSync(fp).isFile()) {
