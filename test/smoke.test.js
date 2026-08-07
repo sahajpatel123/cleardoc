@@ -2022,6 +2022,17 @@ skip("analyzer: scoreboard renders headline scores and copies them", async () =>
   const text = await page.$eval("#scoreBoardText", (el) => el.textContent);
   assert.match(text, /SCOREBOARD —/, "scoreboard must carry a clear header");
   assert.match(text, /readiness|maturity|difficulty|risks/, "scoreboard must include at least one score");
+  // Cycle #275 v2 — chips are clickable and jump to their source block.
+  const chip = await page.$("#scoreBoardText .scoreboard-chip[data-target]");
+  assert.ok(chip, "scoreboard must render clickable chips");
+  const target = await page.$eval("#scoreBoardText .scoreboard-chip[data-target]", (el) => el.getAttribute("data-target"));
+  await page.click("#scoreBoardText .scoreboard-chip[data-target]");
+  await page.waitForFunction((t) => {
+    const el = document.getElementById(t);
+    if(!el) return false;
+    const r = el.getBoundingClientRect();
+    return r.top < window.innerHeight && r.bottom > 0;
+  }, target, { timeout: 3000 });
   await page.close();
 });
 

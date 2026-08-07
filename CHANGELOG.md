@@ -158,6 +158,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Obligations digest** (cycle #274) — a `💬 obligations digest` copy button in the obligation tracker exports a chat-friendly summary grouped by type (⚡ Must / ✓ May), with per-item progress checkmarks and a share link — ready to paste into Slack, Discord, or iMessage.
   - *Polish (cycle #274 v2):* the `o` keyboard shortcut now copies the obligations digest when results are visible (documented in the `?` help modal alongside the `c` summary and `d` risk-digest shortcuts).
 - **Analysis scoreboard** (cycle #275) — after analysis, a compact `SCOREBOARD` row consolidates readiness, maturity, negotiation difficulty, tone, and risk count in one line with a `📋 copy` button, so the headline numbers are shareable without opening each block.
+  - *Polish (cycle #275 v2):* each score is now a **clickable chip** that smooth-scrolls to the matching block (readiness, maturity, difficulty, tone, or risks), with keyboard focus styling and a toast confirmation.
 
 ### Documentation
 

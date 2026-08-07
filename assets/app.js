@@ -4580,28 +4580,43 @@
       const copyBtn = document.getElementById('scoreBoardCopyBtn');
       if(!el || !textEl || !raw){ if(el) el.hidden = true; return; }
       const scores = [];
+      const chip = (txt, target) => '<button type="button" class="scoreboard-chip" data-target="' + target + '" title="Jump to ' + target + '">' + txt + '</button>';
       const readiness = document.getElementById('readinessScore');
-      if(readiness && readiness.textContent.trim()) scores.push('readiness ' + readiness.textContent.trim() + '/100');
+      if(readiness && readiness.textContent.trim()) scores.push(chip('readiness ' + readiness.textContent.trim() + '/100', 'readinessBlock'));
       const matGlyph = document.querySelector('.mat-letter-glyph');
       const matNum = document.querySelector('.mat-letter-num');
       if(matGlyph && matGlyph.textContent.trim()){
-        scores.push('maturity ' + matGlyph.textContent.trim() + (matNum && matNum.textContent.trim() ? ' (' + matNum.textContent.trim() + '/100)' : ''));
+        scores.push(chip('maturity ' + matGlyph.textContent.trim() + (matNum && matNum.textContent.trim() ? ' (' + matNum.textContent.trim() + '/100)' : ''), 'maturityBlock'));
       }
       const diffBlock = document.getElementById('difficultyBlock');
       if(diffBlock && !diffBlock.hidden){
         const d = diffBlock.querySelector('.diff-main-num');
-        if(d && d.textContent.trim()) scores.push('difficulty ' + d.textContent.trim());
+        if(d && d.textContent.trim()) scores.push(chip('difficulty ' + d.textContent.trim(), 'diffBlock'));
       }
       const toneBlock = document.getElementById('toneBlock');
       if(toneBlock && !toneBlock.hidden){
         const t = toneBlock.textContent.replace(/\s+/g, ' ').trim().slice(0, 60);
-        if(t) scores.push('tone ' + t);
+        if(t) scores.push(chip('tone ' + t, 'toneBlock'));
       }
       const riskRows = (document.getElementById('riskList') || { querySelectorAll: () => [] }).querySelectorAll('.rrow');
-      if(riskRows.length) scores.push('risks ' + riskRows.length);
+      if(riskRows.length) scores.push(chip('risks ' + riskRows.length, 'riskList'));
       if(!scores.length){ el.hidden = true; return; }
-      const text = 'SCOREBOARD — ' + scores.join(' · ');
-      textEl.textContent = text;
+      const text = 'SCOREBOARD — ' + scores.map(s => s.replace(/<[^>]*>/g, '')).join(' · ');
+      textEl.innerHTML = 'SCOREBOARD — ' + scores.join(' · ');
+      // Cycle #275 v2 — clickable chips jump to the score's source block.
+      if(!el._scoreChipsWired){
+        el._scoreChipsWired = true;
+        el.addEventListener('click', (e) => {
+          const btn = e.target && e.target.closest ? e.target.closest('.scoreboard-chip') : null;
+          if(!btn) return;
+          const target = btn.getAttribute('data-target');
+          const dest = document.getElementById(target);
+          if(dest){
+            try { dest.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){ dest.scrollIntoView(); }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('🔍 Jumped to ' + target);
+          }
+        });
+      }
       el.hidden = false;
       if(copyBtn && !copyBtn._scoreWired){
         copyBtn._scoreWired = true;
