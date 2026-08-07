@@ -10650,6 +10650,8 @@ test("analyzer: Style profile measures voice + sentence shape + reading grade", 
     "iter #271 must confirm when the style profile Markdown is copied");
   assert.match(appSrc, /\| Metric \| Value \|/,
     "iter #271 must build a Markdown table header");
+  assert.match(appSrc, /_Generated ' \+ new Date\(\)\.toLocaleString/,
+    "iter #271 must include a generated timestamp");
   assert.match(cssSrc, /\.style-controls\b/, ".style-controls style must exist");
 });
 
@@ -10684,6 +10686,7 @@ skip("analyze: style profile copies as Markdown", async () => {
     const captured = await page.evaluate(() => window.__copiedStyleMd);
     assert.match(captured, /^## Style profile/, "the copied style profile must start with a heading");
     assert.match(captured, /\| Metric \| Value \|/, "the copied style profile must include the metric table");
+    assert.match(captured, /_Generated/, "the copied style profile must include a generated line");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();

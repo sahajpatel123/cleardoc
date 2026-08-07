@@ -13700,7 +13700,8 @@
             '| Top 10% avg | ' + p.longestTenth + ' words |\n' +
             '| Passive voice | ' + p.passiveRate + '% |\n' +
             '| Reading grade | ' + p.grade + ' (' + p.verdict + ') |\n' +
-            '| Style verdict | ' + String(v).replace(/\|/g, '\\|') + ' |';
+            '| Style verdict | ' + String(v).replace(/\|/g, '\\|') + ' |' +
+            '\n\n_Generated ' + new Date().toLocaleString() + ((_fpState && _fpState.short) ? ' · #' + _fpState.short : '') + '_';
           let copied = false;
           try {
             if(navigator.clipboard && navigator.clipboard.writeText){
