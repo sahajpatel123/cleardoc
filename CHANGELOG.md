@@ -177,6 +177,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #285 v2):* the `s` keyboard shortcut now copies the one-line document summary when results are visible (documented in the `?` help modal alongside the other copy shortcuts).
 - **Risk summary copy** (cycle #286) — the risk panel now offers a `📋 risk summary` button that copies a compact tally (traps / watches / notes) with the top concern and a share link.
   - *Polish (cycle #286 v2):* the risk summary copy now also includes the top concern’s **counter-suggestion** when one exists, so the paste is actionable.
+- **Clean draft** (cycle #287) — a `✍️ clean draft` button in the result actions copies a revised version of the document with the top counter-suggestions applied (without touching the original textarea), so users can review and share a negotiated draft.
 
 ### Documentation
 
