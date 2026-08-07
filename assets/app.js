@@ -15944,8 +15944,29 @@
           if(trapEl) trapEl.classList.toggle('rs-empty', tCount === 0);
           if(watchEl) watchEl.classList.toggle('rs-empty', wCount === 0);
           if(noteEl) noteEl.classList.toggle('rs-empty', nCount === 0);
+          // Cycle #267 — risk balance bar: a stacked visual so users see
+          // the severity mix at a glance (mostly traps vs mostly notes).
+          const riskBar = document.getElementById('riskBalance');
+          if(riskBar && flags.length > 0){
+            const pct = (n) => Math.round((n / flags.length) * 100);
+            const trapPct = pct(tCount), watchPct = pct(wCount), notePct = pct(nCount);
+            riskBar.innerHTML =
+              '<div class="risk-balance-bar" role="presentation">' +
+                (tCount ? '<span class="risk-balance-seg risk-balance-trap" style="flex:' + tCount + '" title="' + tCount + ' trap' + (tCount === 1 ? '' : 's') + ' — ' + trapPct + '%"></span>' : '') +
+                (wCount ? '<span class="risk-balance-seg risk-balance-watch" style="flex:' + wCount + '" title="' + wCount + ' watch' + (wCount === 1 ? '' : 'es') + ' — ' + watchPct + '%"></span>' : '') +
+                (nCount ? '<span class="risk-balance-seg risk-balance-note" style="flex:' + nCount + '" title="' + nCount + ' note' + (nCount === 1 ? '' : 's') + ' — ' + notePct + '%"></span>' : '') +
+              '</div>' +
+              '<div class="risk-balance-legend">' +
+                (tCount ? '<span class="risk-balance-key risk-balance-key-trap">🔴 ' + trapPct + '% traps</span>' : '') +
+                (wCount ? '<span class="risk-balance-key risk-balance-key-watch">🟡 ' + watchPct + '% watches</span>' : '') +
+                (nCount ? '<span class="risk-balance-key risk-balance-key-note">⚪ ' + notePct + '% notes</span>' : '') +
+              '</div>';
+            riskBar.hidden = false;
+          }
           riskSumWrap.hidden = false;
         } else {
+          const riskBar = document.getElementById('riskBalance');
+          if(riskBar) riskBar.hidden = true;
           riskSumWrap.hidden = true;
         }
       }
