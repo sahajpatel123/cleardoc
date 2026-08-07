@@ -162,6 +162,17 @@ else
     check_warn "Node.js not available for JSON validation"
 fi
 
+# 10. Check no tracked .env secret files
+echo ""
+echo "--- Checking tracked env files ---"
+tracked_env=$(git ls-files 2>/dev/null | grep -E '(^|/)(\.env|\.env\.)' | grep -v '\.env\.example$' || true)
+if [ -n "$tracked_env" ]; then
+    check_fail "Tracked env files may leak secrets:"
+    echo "$tracked_env"
+else
+    check_pass "No tracked env secret files"
+fi
+
 # Summary
 echo ""
 echo "=== Summary ==="
