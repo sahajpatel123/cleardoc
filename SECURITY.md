@@ -63,6 +63,7 @@ Every API handler (`/api/analyze`, `/api/chat`, `/api/health`, `/api/csp-report`
 - **Structured 500 safety net** — uncaught throws return sanitized JSON 500 (no stack frames, no module paths, no `err.message` leak); `res.headersSent` guard prevents double-end on partial responses
 - **Per-request `X-Request-Id`** in both response header and `console.error` log lines
 - **Strict fail-closed schema validation** on all AI responses (RULES.md #3 — partial legal data is more dangerous than no data)
+- **Hardened API response headers** — `/api/*` responses set `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`, `X-Permitted-Cross-Domain-Policies: none`, `X-Robots-Tag: noindex, nofollow`, and `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`
 
 ### Privacy
 
