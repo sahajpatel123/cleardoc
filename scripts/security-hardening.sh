@@ -195,7 +195,16 @@ else
     check_fail "CodeQL does not disable fail-fast"
 fi
 
-# 3h. Verify browser smoke tests remain in CI
+# 3h. Verify CodeQL can upload security events
+echo ""
+echo "--- Checking GitHub Actions CodeQL security-events ---"
+if [ -f .github/workflows/codeql.yml ] && grep -q "security-events: write" .github/workflows/codeql.yml; then
+    check_pass "CodeQL has security-events write permission"
+else
+    check_fail "CodeQL is missing security-events write permission"
+fi
+
+# 3i. Verify browser smoke tests remain in CI
 echo ""
 echo "--- Checking GitHub Actions browser smoke coverage ---"
 if [ -f .github/workflows/test.yml ] && grep -q "npm run test:smoke" .github/workflows/test.yml; then
@@ -204,7 +213,7 @@ else
     check_fail "Browser smoke tests are missing from test workflow"
 fi
 
-# 3i. Verify checkout steps do not persist credentials
+# 3j. Verify checkout steps do not persist credentials
 echo ""
 echo "--- Checking GitHub Actions checkout credential persistence ---"
 MISSING_PERSIST=""
