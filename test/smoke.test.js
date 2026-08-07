@@ -12444,6 +12444,47 @@ skip("analyze: obligations copy as Markdown", async () => {
   }
 });
 
+// Cycle #274 — chat-friendly obligations digest.
+skip("analyzer: obligations digest copies must/may groups with progress", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedOblDigest = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedOblDigest = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedOblDigest = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#actionBlock2:not([hidden]) #actionDigestBtn", { timeout: 8000 });
+    await page.click("#actionDigestBtn");
+    await page.waitForFunction(() => window.__copiedOblDigest && window.__copiedOblDigest.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedOblDigest);
+    assert.match(captured, /OBLIGATIONS DIGEST —/, "the digest must carry a clear header");
+    assert.match(captured, /Must:|May:/, "the digest must group obligations by type");
+    assert.match(captured, /http.*#share=/, "the digest must include a share link");
+    assert.match(captured, /_ClearDoc · informational only, not legal advice_/, "the digest must carry the disclaimer");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #118 — ask the document about any obligation in one click.
 test("analyzer: Obligation rows can ask the document about the obligation in one click", () => {
   if (!HAS_BROWSER) return;

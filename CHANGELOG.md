@@ -155,6 +155,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #272 v2):* the copied digest now appends a **share link** to the full analysis (mirroring the risk digest), so a chat recipient can open the underlying document in one tap.
 - **Key facts snapshot** (cycle #273) — after analysis, a compact row under the verdict shows the document type, governing jurisdiction, money amounts found, risk tally, readiness score, and deadline count in one glanceable line — so the essentials are visible without scrolling through separate blocks.
   - *Polish (cycle #273 v2):* each key fact is now a **clickable chip** that smooth-scrolls to the relevant section (verdict, jurisdiction, currency, risks, readiness, or deadlines), with keyboard focus styling and a toast confirmation.
+- **Obligations digest** (cycle #274) — a `💬 obligations digest` copy button in the obligation tracker exports a chat-friendly summary grouped by type (⚡ Must / ✓ May), with per-item progress checkmarks and a share link — ready to paste into Slack, Discord, or iMessage.
 
 ### Documentation
 

@@ -7204,6 +7204,7 @@
       const controls = '<div class="action-controls">' +
         '<span class="action-count"><b>' + doneCount + '</b> of ' + items.length + ' done · ' + mandatory + ' must · ' + permissive + ' may</span>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="actionCopyAllBtn" title="Copy all obligations as plain text">📋 copy all</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="actionDigestBtn" title="Copy a chat-friendly obligations digest for Slack, Discord, or iMessage">💬 obligations digest</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="actionCsvBtn" title="Download obligations as a .csv file for a tracker">📊 CSV</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="actionCopyMdBtn" title="Copy obligations as a Markdown table"># MD</button>' +
       '</div>';
@@ -7284,6 +7285,49 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Obligations copied (' + items.length + ')' : '⚠ Couldn’t copy');
           copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
           setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
+        });
+      }
+      // Cycle #274 — chat-friendly obligations digest. Groups outstanding
+      // obligations by type (must / may) and carries progress so a chat
+      // thread reads who has to do what without a spreadsheet.
+      const actionDigestBtn = document.getElementById('actionDigestBtn');
+      if(actionDigestBtn){
+        actionDigestBtn.addEventListener('click', async () => {
+          const musts = [];
+          const mays = [];
+          items.forEach((it, idx) => {
+            const isMandatory = /^(shall|must|is required|are required|undertakes|warrants|covenants|is obligated|are obligated|is responsible|are responsible)/.test(it.verb);
+            const done = !!doneMap['ob-' + idx];
+            const line = (done ? '✓ ' : '☐ ') + '(' + it.verb + ') ' + String(it.sentence || '').slice(0, 160);
+            (isMandatory ? musts : mays).push(line);
+          });
+          const lines = ['OBLIGATIONS DIGEST — ' + doneCount + ' of ' + items.length + ' done (ClearDoc)'];
+          if(musts.length){ lines.push(''); lines.push('⚡ Must:'); lines.push(...musts.map(l => '  • ' + l)); }
+          if(mays.length){ lines.push(''); lines.push('✓ May:'); lines.push(...mays.map(l => '  • ' + l)); }
+          lines.push('');
+          lines.push('_ClearDoc · informational only, not legal advice_');
+          let text = lines.join('\n');
+          // Cycle #274 v2 — append a share link so a chat recipient can
+          // open the full analysis in one tap (mirrors risk/deadline).
+          try {
+            if(typeof buildShareUrl === 'function'){
+              const shareUrl = await buildShareUrl();
+              if(shareUrl) text += '\n' + shareUrl;
+            }
+          } catch(_){ /* keep the digest copyable even if the link fails */ }
+          let copied = false;
+          try { if(navigator.clipboard) { await navigator.clipboard.writeText(text); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Obligations digest copied' : '⚠ Couldn’t copy');
+          actionDigestBtn.textContent = copied ? '✓ copied' : '💬 obligations digest';
+          setTimeout(() => { if(actionDigestBtn.isConnected) actionDigestBtn.textContent = '💬 obligations digest'; }, 2500);
         });
       }
       // Cycle 78/79 — obligation CSV export: Status (done/todo), Verb,
