@@ -2538,6 +2538,7 @@
             <div class="kb-row"><kbd>o</kbd><span>Copy the obligations digest</span></div>
             <div class="kb-row"><kbd>n</kbd><span>Copy the key facts snapshot</span></div>
             <div class="kb-row"><kbd>t</kbd><span>Copy the care plan next-dates digest</span></div>
+            <div class="kb-row"><kbd>s</kbd><span>Copy the one-line document summary</span></div>
             <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
@@ -2714,6 +2715,16 @@
         if(p && !p.hidden){
           const cb = document.getElementById('careDatesBtn');
           if(cb && cb.isConnected && !document.getElementById('careBlock').hidden){ e.preventDefault(); cb.click(); return; }
+        }
+      }
+
+      // Cycle #285 v2 — 's' copies the one-line document summary when
+      // results are visible (mirrors the other copy shortcuts).
+      if(k === 's' || k === 'S'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const sb = document.getElementById('docSummaryBtn');
+          if(sb && sb.isConnected){ e.preventDefault(); sb.click(); return; }
         }
       }
 

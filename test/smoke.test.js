@@ -2211,6 +2211,12 @@ skip("analyzer: document summary button copies a one-line summary", async () => 
     assert.match(captured, /word/, "document summary must include the word count");
     assert.match(captured, /http.*#share=/, "document summary must include a share link");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+    // Cycle #285 v2 — 's' shortcut copies the same summary.
+    await page.evaluate(() => { window.__copiedDocSummary = null; });
+    await page.keyboard.press("s");
+    await page.waitForFunction(() => window.__copiedDocSummary && window.__copiedDocSummary.length > 0, { timeout: 8000 });
+    const viaKey = await page.evaluate(() => window.__copiedDocSummary);
+    assert.match(viaKey, /http.*#share=/, "the s shortcut must copy the document summary");
   } finally {
     await page.close();
     await ctx.close();
