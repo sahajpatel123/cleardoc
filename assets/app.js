@@ -19443,6 +19443,9 @@
     function buildAnalysisBundle(){
       if(!lastRaw) return '';
       const out = [];
+      out.push('CLEARDOC ANALYSIS BUNDLE');
+      out.push('Generated: ' + new Date().toLocaleString());
+      out.push('');
       const kf = document.getElementById('keyFacts');
       if(kf && !kf.hidden) out.push((kf.textContent || '').replace(/\s+/g, ' ').trim());
       const sb = document.getElementById('scoreBoardText');
@@ -19495,12 +19498,20 @@
       return out.join('\n');
     }
     async function copyAnalysisBundle(){
-      const text = buildAnalysisBundle();
+      let text = buildAnalysisBundle();
       const btn = document.getElementById('copyBundleBtn');
       if(!text){
         if(msg){msg.textContent='Analyze a document first, then copy the bundle.'; msg.className='analyze-msg';}
         return;
       }
+      // Cycle #279 v2 — append a share link so a recipient can open the
+      // full analysis in one tap (mirrors the other digests).
+      try {
+        if(typeof buildShareUrl === 'function'){
+          const shareUrl = await buildShareUrl();
+          if(shareUrl) text += '\n' + shareUrl;
+        }
+      } catch(_){ /* keep the bundle copyable even if the link fails */ }
       let ok = false;
       try{
         if(navigator.clipboard && navigator.clipboard.writeText){

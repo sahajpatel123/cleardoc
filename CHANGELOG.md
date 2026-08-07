@@ -164,6 +164,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Risk keyword filter** (cycle #278) — the risk radar now has a small `filter risks by keyword…` input that hides every risk row that doesn’t mention the typed term (e.g. `renew` or `indemnity`), combining with the existing severity chips so users can find the specific clause type fast.
   - *Polish (cycle #278 v2):* pressing **Escape** clears the keyword and restores the full list, the filter re-applies automatically after a re-analysis, and switching a severity chip clears any active keyword so the two filters don’t silently stack.
 - **Copy-all analysis bundle** (cycle #279) — a new `📋 Copy all` button in the result actions copies a single paste-ready bundle combining the key facts, scoreboard, risk digest, deadlines, obligations, care plan, and next steps — for a lawyer, team thread, or meeting notes.
+  - *Polish (cycle #279 v2):* the bundle now opens with a `CLEARDOC ANALYSIS BUNDLE` header and generation timestamp, and appends a **share link** to the full analysis (mirroring the other digests).
 
 ### Documentation
 
