@@ -2232,6 +2232,15 @@ button.risk-preview:hover{filter:brightness(.96)}
 .care-actions{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .care-actions .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
 
+/* Cycle #267 — risk balance bar */
+.risk-balance{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.risk-balance-bar{display:flex;height:6px;border-radius:999px;overflow:hidden;background:var(--paper2);border:var(--bd-hair) solid var(--ink-soft)}
+.risk-balance-seg{display:block;min-width:2px}
+.risk-balance-trap{background:var(--danger)}
+.risk-balance-watch{background:var(--amber)}
+.risk-balance-note{background:var(--green)}
+.risk-balance-legend{display:flex;gap:10px;flex-wrap:wrap;font-size:var(--t-micro);color:var(--ink-soft)}
+
 /* Smoking-gun sentences (iter #190) — top-N most concerning sentences as a shareable mini-card. */
 .smoking-grid{display:flex;flex-direction:column;gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
 .smoking-card{display:flex;flex-direction:column;gap:4px;padding:10px 14px;border:var(--bd-hair) solid var(--ink);background:#fff;cursor:pointer;transition:filter .15s ease;position:relative}

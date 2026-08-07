@@ -591,6 +591,27 @@ skip("risk filter: 'showing X of Y' pill counts rows the CSS actually reveals", 
   assert.match(appSrc, /applyRiskFilter\(cur\);/, "paintRiskFilter must re-apply the active filter so the pill refreshes after re-analysis");
 });
 
+// Cycle #267 — risk balance bar: stacked severity mix so the risk
+// summary reads at a glance (mostly traps vs mostly notes).
+skip("analyzer: risk balance bar renders severity proportions after analysis", async () => {
+  if (!HAS_BROWSER) return;
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  await page.evaluate(() => {
+    document.getElementById("docInput").value =
+      "This subscription shall automatically renew for successive terms unless cancelled. " +
+      "All fees are non-refundable and the tenant shall indemnify the landlord in perpetuity. " +
+      "The agreement may be amended by the provider at its sole discretion.";
+  });
+  await page.click("#analyzeBtn");
+  await page.waitForSelector("#riskBalance:not([hidden])", { timeout: 8000 });
+  const segs = await page.$$eval("#riskBalance .risk-balance-seg", (els) => els.length);
+  const legend = await page.$eval("#riskBalance .risk-balance-legend", (el) => el.textContent || "");
+  assert.ok(segs >= 2, `risk balance should render at least 2 segments, got ${segs}`);
+  assert.match(legend, /traps|watches|notes/, "risk balance legend must describe the mix");
+  await page.close();
+});
+
 skip("rewrite stats: word count is computed and displayed next to sentences + read time", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
