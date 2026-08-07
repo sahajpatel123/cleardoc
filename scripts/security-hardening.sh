@@ -108,6 +108,33 @@ else
     check_warn "No workflow files found"
 fi
 
+# 3c. Verify every workflow job declares a timeout
+echo ""
+echo "--- Checking GitHub Actions job timeouts ---"
+if [ -n "$WORKFLOW_FILES" ]; then
+    HAS_TIMEOUT=0
+    for file in $WORKFLOW_FILES; do
+        # Count jobs and timeout-minutes entries after the top-level jobs: key.
+        if ! awk 'BEGIN{jobs=0; tm=0; inj=0}
+                  /^jobs:/{inj=1; next}
+                  inj && /^[^[:space:]]/{inj=0}
+                  inj && /^[[:space:]]{2}[A-Za-z0-9_-]+:$/{jobs++}
+                  inj && /^[[:space:]]{4}timeout-minutes:/{tm++}
+                  END{exit !(jobs>0 && tm>=jobs)}' "$file"; then
+            echo "  Missing timeout-minutes in a job in $file"
+            HAS_TIMEOUT=1
+        fi
+    done
+
+    if [ $HAS_TIMEOUT -eq 0 ]; then
+        check_pass "All workflow jobs declare timeout-minutes"
+    else
+        check_fail "Some workflow jobs are missing timeout-minutes"
+    fi
+else
+    check_warn "No workflow files found"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""

@@ -95,7 +95,7 @@ ClearDoc uses GitHub Actions with security best practices:
 - **Concurrency groups**: Prevent stale CI runs from executing after new pushes
 - **CodeQL analysis**: Automated security scanning on every push/PR + weekly scans
 - **Dependabot**: Automated dependency updates with security priority
-- **Hardening script gates**: `scripts/security-hardening.sh` fails if CSP `report-uri`, `frame-ancestors`, `object-src`, or `base-uri` regress; it also verifies workflow actions are SHA-pinned, workflow permissions default to read-only, `security.txt` has the RFC 9116 `Contact` field, and `SECURITY.md` exposes a reporting channel.
+- **Hardening script gates**: `scripts/security-hardening.sh` fails if CSP `report-uri`, `frame-ancestors`, `object-src`, or `base-uri` regress; it also verifies workflow actions are SHA-pinned, workflow permissions default to read-only, every workflow job declares a timeout, `security.txt` has the RFC 9116 `Contact` field, and `SECURITY.md` exposes a reporting channel.
 
 #### Running Security Checks Locally
 
