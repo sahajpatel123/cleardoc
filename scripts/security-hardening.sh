@@ -459,6 +459,15 @@ else
     check_warn "Node.js not available for JSON validation"
 fi
 
+# 9a. Verify package-lock.json is tracked for reproducible installs
+echo ""
+echo "--- Checking package-lock.json ---"
+if git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
+    check_pass "package-lock.json is tracked"
+else
+    check_fail "package-lock.json is not tracked"
+fi
+
 # 10. Check no tracked .env secret files
 echo ""
 echo "--- Checking tracked env files ---"
