@@ -362,6 +362,23 @@ if [ -f ".well-known/security.txt" ]; then
     else
         check_warn "security.txt missing Expires header (RFC 9116 requirement)"
     fi
+    if command -v node &> /dev/null; then
+        if node -e "
+const fs=require('fs');
+const txt=fs.readFileSync('.well-known/security.txt','utf8');
+const line=txt.split(/\r?\n/).find(l=>/^Expires:/i.test(l));
+if(!line) process.exit(1);
+const date=new Date(line.replace(/^Expires:\s*/i,''));
+if(isNaN(date.getTime()) || date.getTime() <= Date.now()) process.exit(1);
+process.exit(0);
+" 2>/dev/null; then
+            check_pass "security.txt Expires is in the future"
+        else
+            check_fail "security.txt Expires is missing or expired"
+        fi
+    else
+        check_warn "Node.js not available for security.txt expiry check"
+    fi
     # Check for Contact header (also required by RFC 9116)
     if grep -q "^Contact:" .well-known/security.txt 2>/dev/null; then
         check_pass "security.txt has Contact header"
