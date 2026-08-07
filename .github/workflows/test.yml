@@ -25,6 +25,11 @@ on:
   schedule:
     - cron: '0 2 * * *'
 
+# Default to read-only access for every job. Jobs that need more
+# privileges override this locally (none currently do for Tests).
+permissions:
+  contents: read
+
 # Cancel any in-flight runs for the same ref when a new commit lands.
 # Saves CI minutes on rapid-fire pushes (the analyzer iterates daily).
 concurrency:

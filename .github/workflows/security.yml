@@ -29,6 +29,11 @@ on:
         required: false
         default: '22'
 
+# Default to read-only access; individual jobs may request the narrow
+# additional scopes they need (e.g. dependency-review reads PR metadata).
+permissions:
+  contents: read
+
 concurrency:
   group: security-${{ github.ref }}
   cancel-in-progress: true

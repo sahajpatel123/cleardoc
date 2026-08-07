@@ -81,6 +81,33 @@ else
     check_warn "No workflow files found"
 fi
 
+# 3b. Verify workflows declare read-only top-level permissions
+echo ""
+echo "--- Checking GitHub Actions least-privilege defaults ---"
+if [ -n "$WORKFLOW_FILES" ]; then
+    HAS_PERMS=0
+    for file in $WORKFLOW_FILES; do
+        # Top-level permissions: starts at column 0 and contains
+        # `contents: read` before the next top-level key.
+        if ! awk 'BEGIN{ok=0; inp=0}
+                  /^permissions:/{inp=1; next}
+                  inp && /^[A-Za-z]/{inp=0}
+                  inp && /^[[:space:]]+contents: read/{ok=1}
+                  END{exit !ok}' "$file"; then
+            echo "  Missing top-level read permissions in $file"
+            HAS_PERMS=1
+        fi
+    done
+
+    if [ $HAS_PERMS -eq 0 ]; then
+        check_pass "All workflows default to read-only permissions"
+    else
+        check_fail "Some workflows do not default to read-only permissions"
+    fi
+else
+    check_warn "No workflow files found"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""

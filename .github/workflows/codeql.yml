@@ -25,6 +25,11 @@ on:
         required: false
         default: 'javascript'
 
+# Default to read-only access. The analyze job below explicitly requests
+# the security-events write it needs to upload CodeQL results.
+permissions:
+  contents: read
+
 # Concurrency: cancel in-flight runs when a new push lands.
 # Prevents stale analysis jobs from running after newer commits.
 concurrency:
