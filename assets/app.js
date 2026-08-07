@@ -10638,7 +10638,8 @@
         careIcsBtn.addEventListener('click', () => {
           const events = items.filter(it => it && it.date).map(it => ({
             date: new Date(it.date + 'T00:00:00Z'),
-            label: it.label === 'Auto-renewal cancel-by window' ? 'Cancel by — auto-renew' : (it.label || 'Deadline'),
+            label: (it.label === 'Auto-renewal cancel-by window' ? 'Cancel by — auto-renew' : (it.label || 'Deadline')) +
+              (it.detail ? ' — ' + it.detail.slice(0, 80) : ''),
           }));
           const ics = (typeof buildIcs === 'function') ? buildIcs(events) : '';
           if(!ics){

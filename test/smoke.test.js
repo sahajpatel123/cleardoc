@@ -2036,6 +2036,7 @@ skip("analyzer: care plan exports an .ics calendar file", async () => {
     const path = await download.path();
     const content = require("node:fs").readFileSync(path, "utf8");
     assert.match(content, /BEGIN:VCALENDAR/, "the .ics file must open with VCALENDAR");
+    assert.match(content, /SUMMARY:/, "the .ics file must include event summaries");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();

@@ -168,6 +168,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Copy key facts** (cycle #280) — the key-facts snapshot now has its own `📋 copy key facts` button that copies the headline row (doc type, jurisdiction, amounts, risk tally, readiness, deadlines) plus a share link — a quick snapshot to paste into chat or notes.
   - *Polish (cycle #280 v2):* the `n` keyboard shortcut now copies the key facts snapshot when results are visible (documented in the `?` help modal alongside the other copy shortcuts).
 - **Care plan calendar export** (cycle #281) — the contract care plan now offers a `📅 .ics` button that downloads the renewal cancel-by window and upcoming deadlines as a single calendar file (`cleardoc-care-plan-<date>.ics`) for import into Google Calendar, Apple Calendar, or Outlook.
+  - *Polish (cycle #281 v2):* each calendar event now carries a **descriptive summary** (e.g. `Deadline — …`) from the care plan item detail, so imported events explain themselves without opening the app.
 
 ### Documentation
 
