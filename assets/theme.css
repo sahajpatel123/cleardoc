@@ -2221,6 +2221,17 @@ button.risk-preview:hover{filter:brightness(.96)}
 .renewal-countdown .renewal-ics{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;cursor:pointer;margin-left:auto}
 .renewal-countdown .renewal-ics:hover{background:rgba(255,255,255,.25)}
 
+/* Cycle #266 — contract care plan */
+.care-grid{display:flex;flex-direction:column;gap:6px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
+.care-item{display:flex;gap:10px;align-items:flex-start;padding:6px 10px;border:var(--bd-hair) solid var(--ink-soft);background:var(--paper2)}
+.care-item.care-urgent{border-left:3px solid var(--danger);background:var(--danger-tint)}
+.care-tag{font-weight:700;white-space:nowrap;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.care-when{font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap}
+.care-countdown{color:var(--amber)}
+.care-detail{color:var(--ink-soft);font-size:12px}
+.care-actions{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
+.care-actions .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
+
 /* Smoking-gun sentences (iter #190) — top-N most concerning sentences as a shareable mini-card. */
 .smoking-grid{display:flex;flex-direction:column;gap:8px;font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;line-height:1.4}
 .smoking-card{display:flex;flex-direction:column;gap:4px;padding:10px 14px;border:var(--bd-hair) solid var(--ink);background:#fff;cursor:pointer;transition:filter .15s ease;position:relative}
