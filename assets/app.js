@@ -2541,6 +2541,7 @@
             <div class="kb-row"><kbd>t</kbd><span>Copy the care plan next-dates digest</span></div>
             <div class="kb-row"><kbd>s</kbd><span>Copy the one-line document summary</span></div>
             <div class="kb-row"><kbd>w</kbd><span>Copy the clean draft (counter-suggestions applied)</span></div>
+            <div class="kb-row"><kbd>e</kbd><span>Copy the care plan deadline digest</span></div>
             <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
@@ -2747,6 +2748,17 @@
         if(p && !p.hidden){
           const mb = document.getElementById('keyFactsMdBtn');
           if(mb && !mb.hidden){ e.preventDefault(); mb.click(); return; }
+        }
+      }
+
+      // Cycle #291 v2 — 'e' copies the care plan deadline digest when
+      // results are visible (mirrors the other copy shortcuts; the risk-row
+      // 'e' expand shortcut only fires when a risk row is focused).
+      if(k === 'e' || k === 'E'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden && document.activeElement && !document.activeElement.closest('#riskList')){
+          const eb = document.getElementById('careDeadlineDigestBtn');
+          if(eb && eb.isConnected && !document.getElementById('careBlock').hidden){ e.preventDefault(); eb.click(); return; }
         }
       }
 
