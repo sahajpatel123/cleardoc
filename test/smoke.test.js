@@ -11800,6 +11800,50 @@ test("analyzer: Obligation tracker exports a CSV with done status", () => {
     "the filename must be cleardoc-obligations-<date>.csv");
   assert.match(appSrc, /'📊 Obligations CSV downloaded \(' \+ rows\.length/,
     "the export must toast with the row count");
+  assert.match(appSrc, /actionCopyMdBtn/,
+    "the obligation controls must include a Markdown copy button");
+  assert.match(appSrc, /'📋 Obligations copied as Markdown'/,
+    "the Markdown obligation copy must confirm with a toast");
+  assert.match(appSrc, /\| Type \| Progress \| Obligation \|/,
+    "the Markdown obligation copy must build a table header");
+});
+
+skip("analyze: obligations copy as Markdown", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedOblMd = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedOblMd = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedOblMd = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#actionBlock2:not([hidden]) #actionCopyMdBtn", { timeout: 8000 });
+    await page.click("#actionCopyMdBtn");
+    await page.waitForFunction(() => window.__copiedOblMd && window.__copiedOblMd.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedOblMd);
+    assert.match(captured, /^\| Type \| Progress \| Obligation \|/, "the copied obligations must start with the Markdown header");
+    assert.match(captured, /\|---\|---\|---\|/, "the copied obligations must include the separator row");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
 });
 
 // Cycle #118 — ask the document about any obligation in one click.

@@ -6995,6 +6995,7 @@
         '<span class="action-count"><b>' + doneCount + '</b> of ' + items.length + ' done · ' + mandatory + ' must · ' + permissive + ' may</span>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="actionCopyAllBtn" title="Copy all obligations as plain text">📋 copy all</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="actionCsvBtn" title="Download obligations as a .csv file for a tracker">📊 CSV</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="actionCopyMdBtn" title="Copy obligations as a Markdown table"># MD</button>' +
       '</div>';
       actionList.innerHTML = rows + controls;
       actionBlock2.hidden = false;
@@ -7110,6 +7111,37 @@
           }catch(_){
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create CSV file');
           }
+        });
+      }
+      const actionCopyMdBtn = document.getElementById('actionCopyMdBtn');
+      if(actionCopyMdBtn){
+        actionCopyMdBtn.addEventListener('click', async () => {
+          const rows = items.map((it, idx) => {
+            const snip = (it.sentence || '').slice(0, 180).replace(/\|/g, '\\|');
+            const isMandatory = /^(shall|must|is required|are required|undertakes|warrants|covenants|is obligated|are obligated|is responsible|are responsible)/.test(it.verb);
+            return '| ' + (isMandatory ? '⚡ must' : '✓ may') + ' | ' + (doneMap['ob-' + idx] ? 'done' : 'todo') + ' | ' + snip + ' |';
+          }).join('\n');
+          const md = '| Type | Progress | Obligation |\n|---|---|---|\n' + rows;
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Obligations copied as Markdown' : '⚠ Couldn’t copy');
+          actionCopyMdBtn.textContent = copied ? '✓ copied' : '# MD';
+          setTimeout(() => { if(actionCopyMdBtn.isConnected) actionCopyMdBtn.textContent = '# MD'; }, 2500);
         });
       }
     }
