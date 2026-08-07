@@ -1992,6 +1992,17 @@ skip("analyzer: key facts snapshot renders after analysis", async () => {
   await page.waitForSelector("#keyFacts:not([hidden])", { timeout: 8000 });
   const text = await page.$eval("#keyFacts", (el) => el.textContent);
   assert.match(text, /risks?|readiness|deadline/, "key facts must surface at least one headline metric");
+  // Cycle #273 v2 — chips are clickable and jump to their source block.
+  const chip = await page.$("#keyFacts .keyfacts-chip[data-target]");
+  assert.ok(chip, "key facts must render clickable chips");
+  const target = await page.$eval("#keyFacts .keyfacts-chip[data-target]", (el) => el.getAttribute("data-target"));
+  await page.click("#keyFacts .keyfacts-chip[data-target]");
+  await page.waitForFunction((t) => {
+    const el = document.getElementById(t);
+    if(!el) return false;
+    const r = el.getBoundingClientRect();
+    return r.top < window.innerHeight && r.bottom > 0;
+  }, target, { timeout: 3000 });
   await page.close();
 });
 

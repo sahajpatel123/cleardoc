@@ -154,6 +154,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Deadline digest** (cycle #272) — a `💬 deadline digest` copy button in the deadline controls exports a compact chat-friendly summary grouped by urgency (⚠ overdue, ⏰ next 7 days, 📅 later), each line with the date, countdown, and clause context — ready to paste into Slack, Discord, or iMessage.
   - *Polish (cycle #272 v2):* the copied digest now appends a **share link** to the full analysis (mirroring the risk digest), so a chat recipient can open the underlying document in one tap.
 - **Key facts snapshot** (cycle #273) — after analysis, a compact row under the verdict shows the document type, governing jurisdiction, money amounts found, risk tally, readiness score, and deadline count in one glanceable line — so the essentials are visible without scrolling through separate blocks.
+  - *Polish (cycle #273 v2):* each key fact is now a **clickable chip** that smooth-scrolls to the relevant section (verdict, jurisdiction, currency, risks, readiness, or deadlines), with keyboard focus styling and a toast confirmation.
 
 ### Documentation
 

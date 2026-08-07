@@ -2241,6 +2241,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 /* Cycle #273 — key facts snapshot */
 .keyfacts{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:6px;font-size:11px;color:var(--ink-soft);border-top:var(--bd-hair) solid var(--ink-soft);padding-top:6px}
 .keyfacts-sep{opacity:.5}
+.keyfacts-chip{background:transparent;border:1px solid var(--bd-hair);color:var(--ink);padding:1px 6px;border-radius:999px;font-size:10px;cursor:pointer;transition:filter .15s ease}
+.keyfacts-chip:hover,.keyfacts-chip:focus-visible{filter:brightness(.9);outline:2px solid var(--ink);outline-offset:1px}
 
 /* Cycle #267 — risk balance bar */
 .risk-balance{margin-top:8px;display:flex;flex-direction:column;gap:4px}

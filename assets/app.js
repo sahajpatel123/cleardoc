@@ -4522,27 +4522,42 @@
       const el = document.getElementById('keyFacts');
       if(!el || !raw){ if(el) el.hidden = true; return; }
       const facts = [];
+      const chip = (text, target) => '<button type="button" class="keyfacts-chip" data-target="' + target + '" title="Jump to ' + target + '">' + text + '</button>';
       const dt = (typeof detectDocType === 'function') ? detectDocType(raw) : null;
-      if(dt && dt.label) facts.push('📄 ' + esc(dt.label));
+      if(dt && dt.label) facts.push(chip('📄 ' + esc(dt.label), 'verdictBlock'));
       const juris = document.getElementById('jurisRow');
       if(juris && !juris.hidden){
         const jl = juris.querySelector('.juris-label');
-        if(jl && jl.textContent.trim()) facts.push('🌍 ' + esc(jl.textContent.trim()));
+        if(jl && jl.textContent.trim()) facts.push(chip('🌍 ' + esc(jl.textContent.trim()), 'jurisBlock'));
       }
       const curBlock = document.getElementById('currencyBlock');
       if(curBlock && !curBlock.hidden){
         const curList = document.getElementById('currencyList');
         const rows = curList ? curList.querySelectorAll('.cur-row') : [];
-        if(rows.length) facts.push('💰 ' + rows.length + ' amount' + (rows.length === 1 ? '' : 's'));
+        if(rows.length) facts.push(chip('💰 ' + rows.length + ' amount' + (rows.length === 1 ? '' : 's'), 'currencyBlock'));
       }
       const riskRows = (document.getElementById('riskList') || { querySelectorAll: () => [] }).querySelectorAll('.rrow');
-      if(riskRows.length) facts.push('⚠ ' + riskRows.length + ' risk' + (riskRows.length === 1 ? '' : 's'));
+      if(riskRows.length) facts.push(chip('⚠ ' + riskRows.length + ' risk' + (riskRows.length === 1 ? '' : 's'), 'riskList'));
       const readiness = document.getElementById('readinessScore');
-      if(readiness && readiness.textContent.trim()) facts.push('📊 readiness ' + readiness.textContent.trim() + '/100');
+      if(readiness && readiness.textContent.trim()) facts.push(chip('📊 readiness ' + readiness.textContent.trim() + '/100', 'readinessBlock'));
       const dlRows = (document.getElementById('deadlinesList') || { querySelectorAll: () => [] }).querySelectorAll('.deadline-row');
-      if(dlRows.length) facts.push('⏰ ' + dlRows.length + ' deadline' + (dlRows.length === 1 ? '' : 's'));
+      if(dlRows.length) facts.push(chip('⏰ ' + dlRows.length + ' deadline' + (dlRows.length === 1 ? '' : 's'), 'deadlinesBlock'));
       if(!facts.length){ el.hidden = true; return; }
       el.innerHTML = facts.join('<span class="keyfacts-sep" aria-hidden="true"> · </span>');
+      // Cycle #273 v2 — clickable chips jump to the source block.
+      if(!el._keyFactsWired){
+        el._keyFactsWired = true;
+        el.addEventListener('click', (e) => {
+          const btn = e.target && e.target.closest ? e.target.closest('.keyfacts-chip') : null;
+          if(!btn) return;
+          const target = btn.getAttribute('data-target');
+          const dest = document.getElementById(target);
+          if(dest){
+            try { dest.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){ dest.scrollIntoView(); }
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('🔍 Jumped to ' + target);
+          }
+        });
+      }
       el.hidden = false;
     }
 
