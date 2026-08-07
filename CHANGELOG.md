@@ -172,6 +172,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Next dates digest** (cycle #282) — a `⏰ next dates` button in the contract care plan copies a compact list of just the dated items (renewal cancel-by + upcoming deadlines) with countdowns and a share link, for a quick calendar check.
   - *Polish (cycle #282 v2):* the `t` keyboard shortcut now copies the next-dates digest when results are visible (documented in the `?` help modal alongside the other copy shortcuts).
 - **Richer chat share** (cycle #283) — the `💬 Share to chat` one-liner now also carries the **deadline count** and **governing jurisdiction** (when detected), so the share gives recipients the essentials without opening the app.
+  - *Polish (cycle #283 v2):* the chat share now appends a **share link** to the full analysis (mirroring the other copy actions), so a recipient can open the underlying document in one tap.
 
 ### Documentation
 
