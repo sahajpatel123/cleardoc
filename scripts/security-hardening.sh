@@ -243,6 +243,21 @@ else
     check_fail "npm cache missing in:$MISSING_CACHE"
 fi
 
+# 3l. Verify workflows support manual dispatch
+echo ""
+echo "--- Checking GitHub Actions workflow_dispatch ---"
+MISSING_DISPATCH=""
+for file in .github/workflows/test.yml .github/workflows/security.yml .github/workflows/codeql.yml; do
+    if [ -f "$file" ] && ! grep -q "workflow_dispatch" "$file"; then
+        MISSING_DISPATCH="$MISSING_DISPATCH $file"
+    fi
+done
+if [ -z "$MISSING_DISPATCH" ]; then
+    check_pass "All workflows support workflow_dispatch"
+else
+    check_fail "workflow_dispatch missing in:$MISSING_DISPATCH"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""
