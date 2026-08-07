@@ -195,6 +195,21 @@ else
     check_fail "CodeQL does not disable fail-fast"
 fi
 
+# 3h. Verify checkout steps do not persist credentials
+echo ""
+echo "--- Checking GitHub Actions checkout credential persistence ---"
+MISSING_PERSIST=""
+for file in .github/workflows/test.yml .github/workflows/security.yml .github/workflows/codeql.yml; do
+    if [ -f "$file" ] && ! grep -q "persist-credentials: false" "$file"; then
+        MISSING_PERSIST="$MISSING_PERSIST $file"
+    fi
+done
+if [ -z "$MISSING_PERSIST" ]; then
+    check_pass "Checkout does not persist credentials in workflows"
+else
+    check_fail "persist-credentials false missing in:$MISSING_PERSIST"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""
