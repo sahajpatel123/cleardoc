@@ -2539,6 +2539,7 @@
             <div class="kb-row"><kbd>n</kbd><span>Copy the key facts snapshot</span></div>
             <div class="kb-row"><kbd>t</kbd><span>Copy the care plan next-dates digest</span></div>
             <div class="kb-row"><kbd>s</kbd><span>Copy the one-line document summary</span></div>
+            <div class="kb-row"><kbd>w</kbd><span>Copy the clean draft (counter-suggestions applied)</span></div>
             <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
@@ -2725,6 +2726,16 @@
         if(p && !p.hidden){
           const sb = document.getElementById('docSummaryBtn');
           if(sb && sb.isConnected){ e.preventDefault(); sb.click(); return; }
+        }
+      }
+
+      // Cycle #287 v2 — 'w' copies the clean draft when results are
+      // visible (mirrors the other copy shortcuts).
+      if(k === 'w' || k === 'W'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const db = document.getElementById('cleanDraftBtn');
+          if(db && db.isConnected){ e.preventDefault(); db.click(); return; }
         }
       }
 

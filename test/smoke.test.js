@@ -2906,6 +2906,12 @@ skip("analyzer: clean draft copies revised document without mutating the origina
     assert.match(captured, /CLEANDRAFT —/, "clean draft must carry a clear header");
     assert.match(captured, /Original text was not modified/, "clean draft must confirm the original was untouched");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+    // Cycle #287 v2 — 'w' shortcut copies the same draft.
+    await page.evaluate(() => { window.__copiedCleanDraft = null; });
+    await page.keyboard.press("w");
+    await page.waitForFunction(() => window.__copiedCleanDraft && window.__copiedCleanDraft.length > 0, { timeout: 8000 });
+    const viaKey = await page.evaluate(() => window.__copiedCleanDraft);
+    assert.match(viaKey, /CLEANDRAFT —/, "the w shortcut must copy the clean draft");
   } finally {
     await page.close();
     await ctx.close();
