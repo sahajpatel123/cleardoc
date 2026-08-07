@@ -117,6 +117,28 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - `.nvmrc` pinning Node 22.
 - `.github/workflows/test.yml` — runs unit + smoke + integration in 8 typed steps.
 
+## 2026-08 — CI/CD Security Hardening
+
+### Security Configuration
+
+- **GitHub Actions SHA-pinning** — all actions in all workflows use cryptographic SHA references to prevent supply-chain attacks.
+- **CodeQL security analysis** — upgraded to v4.37.6 with SHA-pinned actions, adds concurrency groups to prevent stale runs.
+- **Security workflow** — new workflow (`security.yml`) with:
+  - Dependency review for license compliance (denies GPL, AGPL, LGPL)
+  - Security-focused test suite execution
+  - Pattern-based lint checks for hardcoded secrets, eval usage, CSP strictness
+- **Dependabot configuration** — automated weekly updates for npm dependencies and GitHub Actions with security priority.
+- **CODEOWNERS** — defines code ownership for security-critical files.
+- **security.txt** — RFC 9116 compliant disclosure endpoint at `/.well-known/security.txt`.
+- **security-hardening.sh** — local script for security verification (secrets, SHA pins, CSP, config files).
+- **Pre-commit hook** — documentation for running security checks before commits.
+
+### Documentation
+
+- **SECURITY.md** — enhanced with CI/CD security practices, branch protection recommendations.
+- **README.md** — added CI/CD status badges and Security section with key practices.
+- **CONTRIBUTING.md** — added security checklist and pre-commit documentation.
+
 ## Notes on format
 
 - Every commit on `main` is live. There are no versioned releases — this file tracks changes chronologically, not semver.
