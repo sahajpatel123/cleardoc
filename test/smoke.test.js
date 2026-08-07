@@ -10795,7 +10795,51 @@ test("analyzer: Cost predictor shows expected / 90th / worst-case scenarios", ()
     "iter #139 must render probability sliders");
   assert.match(appSrc, /costResetProbsBtn/,
     "iter #139 must render a reset-to-defaults button");
+  assert.match(appSrc, /costCopyMdBtn/,
+    "iter #270 must include a cost-predictor Markdown copy button");
+  assert.match(appSrc, /'📋 Cost predictor copied as Markdown'/,
+    "iter #270 must confirm when the cost predictor Markdown is copied");
+  assert.match(appSrc, /\| Scenario \| Amount \|/,
+    "iter #270 must build a Markdown table header");
   assert.match(cssSrc, /\.cost-sliders\b/, ".cost-sliders style must exist");
+});
+
+skip("analyze: cost predictor copies as Markdown", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedCostMd = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedCostMd = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedCostMd = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#costBlock:not([hidden]) #costCopyMdBtn", { timeout: 8000 });
+    await page.click("#costCopyMdBtn");
+    await page.waitForFunction(() => window.__copiedCostMd && window.__copiedCostMd.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedCostMd);
+    assert.match(captured, /^## Cost predictor/, "the copied cost predictor must start with a heading");
+    assert.match(captured, /\| Scenario \| Amount \|/, "the copied cost predictor must include the scenario table");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
 });
 
 // Cycle #116 — ask the document about any "what-if" scenario.

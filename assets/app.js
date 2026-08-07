@@ -13363,6 +13363,7 @@
         slider('pNote','Note (low stakes)', probs.pNote, 'pNoteHi') +
         '<div class="cost-sliders-actions">' +
           '<button type="button" class="ghost-btn ghost-btn-sm" id="costResetProbsBtn" title="Restore default probabilities">↺ defaults</button>' +
+          '<button type="button" class="ghost-btn ghost-btn-sm" id="costCopyMdBtn" title="Copy the cost predictor as Markdown"># MD</button>' +
         '</div>' +
       '</div>';
       costGrid.innerHTML = cells.join('') + sliders;
@@ -13370,6 +13371,37 @@
       if(costNote){
         costNote.innerHTML = '<span class="riskNote-lead">' + c.total + ' risk' + (c.total === 1 ? '' : 's') + ' analyzed</span> · ' +
           'Three cost scenarios · <b>drag the sliders</b> to match your own risk tolerance. ↺ restores defaults.';
+      }
+      const copyMdBtn = document.getElementById('costCopyMdBtn');
+      if(copyMdBtn){
+        copyMdBtn.addEventListener('click', async () => {
+          const md = '## Cost predictor\n\n' +
+            '| Scenario | Amount |\n|---|---|\n' +
+            '| Expected | ' + fmt(c.expected) + ' |\n' +
+            '| 90th percentile | ' + fmt(c.pct90) + ' |\n' +
+            '| Worst case | ' + (c.worst > 0 ? fmt(c.worst) : '—') + ' |\n\n' +
+            '**Potential savings:** ' + fmt(savings);
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Cost predictor copied as Markdown' : '⚠ Couldn’t copy');
+          copyMdBtn.textContent = copied ? '✓ copied' : '# MD';
+          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '# MD'; }, 2500);
+        });
       }
       // Iter #139 — slider live updates
       $$('input[data-cost-prob]', costGrid).forEach(inp => {
