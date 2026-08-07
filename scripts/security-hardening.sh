@@ -186,6 +186,15 @@ else
     check_fail "npm ci missing in:$MISSING_NPM_CI"
 fi
 
+# 3g. Verify CodeQL disables fail-fast so one matrix leg can't abort all scans
+echo ""
+echo "--- Checking GitHub Actions CodeQL fail-fast ---"
+if [ -f .github/workflows/codeql.yml ] && grep -q "fail-fast: false" .github/workflows/codeql.yml; then
+    check_pass "CodeQL disables fail-fast"
+else
+    check_fail "CodeQL does not disable fail-fast"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""
