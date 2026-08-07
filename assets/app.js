@@ -8434,6 +8434,38 @@
         out.push('CLEARDOC PRE-SIGN BRIEF');
         out.push('Recommendation: ' + (dd && dd.headline ? dd.headline : 'Review before signing.'));
         if(dd && dd.rationale) out.push(dd.rationale);
+        // Cycle #265 v2 — headline metrics (readiness, maturity, risk tally)
+        // so the brief carries the same at-a-glance numbers as the page.
+        const metrics = [];
+        const readinessEl = document.getElementById('readinessScore');
+        const readinessLabel = document.getElementById('readinessLabel');
+        if(readinessEl && readinessEl.textContent.trim()){
+          metrics.push('readiness ' + readinessEl.textContent.trim() + '/100' + (readinessLabel && readinessLabel.textContent.trim() ? ' (' + readinessLabel.textContent.trim() + ')' : ''));
+        }
+        const matGlyph = document.querySelector('.mat-letter-glyph');
+        const matNum = document.querySelector('.mat-letter-num');
+        if(matGlyph && matGlyph.textContent.trim()){
+          metrics.push('maturity ' + matGlyph.textContent.trim() + (matNum && matNum.textContent.trim() ? ' (' + matNum.textContent.trim() + '/100)' : ''));
+        }
+        const tally = { r: 0, a: 0, g: 0 };
+        (document.getElementById('riskList') || { querySelectorAll: () => [] }).querySelectorAll('.rrow').forEach(row => {
+          const sev = row.getAttribute('data-risk');
+          if(sev === 'r' || sev === 'a' || sev === 'g') tally[sev]++;
+        });
+        const tallyParts = [];
+        if(tally.r) tallyParts.push(tally.r + ' trap' + (tally.r === 1 ? '' : 's'));
+        if(tally.a) tallyParts.push(tally.a + ' watch' + (tally.a === 1 ? '' : 's'));
+        if(tally.g) tallyParts.push(tally.g + ' note' + (tally.g === 1 ? '' : 's'));
+        if(tallyParts.length) metrics.push(tallyParts.join(' · ') + ' flagged');
+        if(metrics.length) out.push('Metrics: ' + metrics.join(' · '));
+        // Cycle #265 v2 — auto-renewal signal: surface the cancel-by
+        // date when the radar detected one, so the brief is actionable.
+        const renewalBlock = document.getElementById('renewalBlock');
+        const renewalNote = document.getElementById('renewalNote');
+        if(renewalBlock && !renewalBlock.hidden && renewalNote){
+          const renewalText = renewalNote.textContent.replace(/\s+/g, ' ').trim();
+          if(renewalText) out.push('Auto-renewal: ' + renewalText);
+        }
         out.push('');
         const riskRows = (document.getElementById('riskList') || { querySelectorAll: () => [] }).querySelectorAll('.rrow');
         if(riskRows.length){
