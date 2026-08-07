@@ -555,6 +555,15 @@ else
     check_fail "robots.txt must disallow /api/"
 fi
 
+# 11b. Verify robots.txt has standard user-agent and sitemap directives
+echo ""
+echo "--- Checking robots.txt standard directives ---"
+if [ -f "robots.txt" ] && grep -q "^User-agent:" robots.txt 2>/dev/null && grep -q "^Sitemap:" robots.txt 2>/dev/null; then
+    check_pass "robots.txt has user-agent and sitemap directives"
+else
+    check_fail "robots.txt is missing user-agent or sitemap directive"
+fi
+
 # 12. Verify sitemap.xml contains the core URLs
 echo ""
 echo "--- Checking sitemap.xml core URLs ---"
