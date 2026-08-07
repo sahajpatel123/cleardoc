@@ -3607,6 +3607,7 @@
     const dismiss = document.getElementById('privacyGuardDismiss');
     const maskBtn = document.getElementById('privacyMaskBtn');
     const maskUndoBtn = document.getElementById('privacyMaskUndoBtn');
+    const copyRedactedBtn = document.getElementById('privacyCopyRedactedBtn');
     if(!ta || !box || !out) return;
     const EMAIL_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
     const PHONE_RE = /\b\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(?!\d)/g;
@@ -3711,6 +3712,31 @@
         showAnalyzeToast('↩ Personal info restored');
       }
       render();
+    });
+    // Cycle #269 — copy the document with PII redacted, without mutating
+    // the textarea. Lets users paste a safe version into a lawyer chat,
+    // ticket, or notes while keeping the original intact.
+    if(copyRedactedBtn) copyRedactedBtn.addEventListener('click', async () => {
+      const raw = ta ? ta.value : '';
+      if(!raw){
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy — add text first');
+        return;
+      }
+      const redacted = maskPii(raw);
+      let ok = false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(redacted); ok = true;
+        } else {
+          const el = document.createElement('textarea');
+          el.value = redacted; el.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(el); el.select();
+          ok = document.execCommand('copy'); document.body.removeChild(el);
+        }
+      }catch(_){ /* fall through */ }
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Redacted copy — personal info removed' : '⚠ Couldn’t copy');
+      if(copyRedactedBtn) copyRedactedBtn.textContent = ok ? '✓ copied' : '📋 copy redacted';
+      if(copyRedactedBtn) setTimeout(() => { if(copyRedactedBtn.isConnected) copyRedactedBtn.textContent = '📋 copy redacted'; }, 2500);
     });
     render();
   }
