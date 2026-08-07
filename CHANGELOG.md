@@ -142,6 +142,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Risk balance bar** (cycle #267) — the risk summary now renders a stacked severity bar (trap / watch / note) with a percentage legend, so a document that is mostly traps reads differently from a mostly-notes document at a glance. Hidden when no risks are flagged.
   - *Polish (cycle #267 v2):* each segment is now a focusable button with an accessible label — click (or activate with the keyboard) to filter the risk list to that severity, the same behavior as the existing filter chips. The bar also carries a full `aria-label` describing the trap / watch / note mix for screen-reader users.
 - **Chat-friendly risk digest** (cycle #268) — a new `💬 Risk digest` copy button in the risk panel exports a compact plain-text table (severity, clause, why, and counter-suggestion where one exists) ready to paste into Slack, Discord, iMessage, or a ticket. Complements the existing Markdown and CSV exports for people who just want the risks in a chat thread.
+  - *Polish (cycle #268 v2):* the copied digest now appends a **share link** to the full analysis so a chat recipient can open the underlying document in one tap, and the `d` keyboard shortcut copies the digest when results are visible (documented in the `?` help modal alongside the `c` summary shortcut).
 
 ### Documentation
 
