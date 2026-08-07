@@ -180,6 +180,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Clean draft** (cycle #287) — a `✍️ clean draft` button in the result actions copies a revised version of the document with the top counter-suggestions applied (without touching the original textarea), so users can review and share a negotiated draft.
   - *Polish (cycle #287 v2):* the `w` keyboard shortcut now copies the clean draft when results are visible (documented in the `?` help modal alongside the other copy shortcuts).
 - **Scoreboard share link** (cycle #288) — the analysis scoreboard copy now appends a **share link** to the full analysis (mirroring the other copy actions), completing the share-link family across all copyable summaries.
+- **Care plan Markdown export** (cycle #289) — the contract care plan now offers a `# MD` button that copies the watch-list as a Markdown table (Item / When / Detail) with a disclaimer footer.
 
 ### Documentation
 
