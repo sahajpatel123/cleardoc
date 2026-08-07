@@ -139,6 +139,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #265 v2):* the brief now leads with the same at-a-glance metrics as the page — `Metrics: readiness 72/100 (Review) · maturity B (68/100) · 3 traps · 1 watch flagged` — and adds an `Auto-renewal:` line whenever the radar detected a renewal clause with a cancel-by window, so the copied block carries the numbers a lawyer or team actually needs before the detailed risk list.
 - **Contract care plan** (cycle #266) — a new post-signing block that answers “what should I actually watch after I sign?” It consolidates the auto-renewal cancel-by window from the renewal radar with the next upcoming deadlines into one chronological list, highlights anything urgent (≤14 days), and includes a `📋 copy plan` button for pasting the watch-list into a calendar, tracker, or shared notes. Hidden when there’s nothing to watch, so clean contracts don’t add noise.
   - *Polish (cycle #266 v2):* the care plan now also pulls the top unfulfilled **mandatory obligations** from the obligation tracker (`shall` / `must` / `undertakes` …) so the copied watch-list covers “what I still have to do” as well as renewal windows and deadlines.
+- **Risk balance bar** (cycle #267) — the risk summary now renders a stacked severity bar (trap / watch / note) with a percentage legend, so a document that is mostly traps reads differently from a mostly-notes document at a glance. Hidden when no risks are flagged.
 
 ### Documentation
 
