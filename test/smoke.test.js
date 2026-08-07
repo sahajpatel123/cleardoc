@@ -392,6 +392,8 @@ skip("analyzer: copy redacted pastes a masked copy while leaving the original in
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
     const doc = "Contact jane@example.com or call 415-555-0199. Card 4111 1111 1111 1111.";
     await page.fill("#docInput", doc);
+    // Cycle #269 v2 — the compare textarea must also be redacted when present.
+    await page.fill("#docInputB", "Second party can reach me at bob@example.com or 555-010-1234.");
     await page.waitForSelector("#privacyGuard:not([hidden]) #privacyCopyRedactedBtn", { timeout: 4000 });
     await page.click("#privacyCopyRedactedBtn");
     await page.waitForFunction(() => window.__copiedRedacted && window.__copiedRedacted.length > 0, { timeout: 4000 });
@@ -400,6 +402,9 @@ skip("analyzer: copy redacted pastes a masked copy while leaving the original in
     assert.match(copied, /\[phone\]/, "the copied text must mask the phone");
     assert.match(copied, /\[card\]/, "the copied text must mask the card number");
     assert.doesNotMatch(copied, /jane@example\.com|415-555-0199|4111 1111 1111 1111/, "the copied text must not leak identifiers");
+    assert.match(copied, /Compare text:/, "the copied text must include the compare textarea section");
+    assert.match(copied, /\[email\]/, "the compare textarea email must be masked");
+    assert.doesNotMatch(copied, /bob@example\.com|555-010-1234/, "the compare textarea identifiers must be masked");
     const original = await page.inputValue("#docInput");
     assert.match(original, /jane@example\.com/, "the textarea must keep the original text untouched");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);

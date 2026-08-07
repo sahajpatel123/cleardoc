@@ -3714,15 +3714,21 @@
       render();
     });
     // Cycle #269 — copy the document with PII redacted, without mutating
-    // the textarea. Lets users paste a safe version into a lawyer chat,
-    // ticket, or notes while keeping the original intact.
+    // the textareas. Lets users paste a safe version into a lawyer chat,
+    // ticket, or notes while keeping the originals intact.
     if(copyRedactedBtn) copyRedactedBtn.addEventListener('click', async () => {
       const raw = ta ? ta.value : '';
       if(!raw){
         if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy — add text first');
         return;
       }
-      const redacted = maskPii(raw);
+      const parts = [maskPii(raw)];
+      // Cycle #269 v2 — also redact the compare textarea so a side-by-side
+      // comparison stays just as safe to share.
+      if(taB && taB.value && taB.value.trim()){
+        parts.push('---\nCompare text:\n' + maskPii(taB.value));
+      }
+      const redacted = parts.join('\n\n');
       let ok = false;
       try{
         if(navigator.clipboard && navigator.clipboard.writeText){
