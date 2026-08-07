@@ -51,6 +51,18 @@ AI-touched responses (`/api/analyze`, `/api/chat`) additionally include:
 - `X-AI-OpenRouter-Ms` / `X-AI-Gemini-Ms` — per-provider latency breakdown
 - `Retry-After: 60` on degraded 502 paths so monitoring clients back off properly
 
+## Security
+
+ClearDoc is built with security-first practices:
+
+- **SHA-pinned Actions**: All GitHub Actions use cryptographic SHA references
+- **Strict CSP**: No `unsafe-inline` for scripts; SRI hashes on all CDN resources
+- **Rate Limiting**: Per-IP protection on all API endpoints
+- **Fail-Closed Validation**: AI responses are schema-validated; partial data is rejected
+- **Minimal Permissions**: CI workflows use only required permissions
+- **CodeQL**: Automated security scanning on every push/PR
+- **Dependabot**: Security updates prioritized for dependencies
+
 See [SECURITY.md](./SECURITY.md) for the full security posture and disclosure policy.
 
 ## Local development
