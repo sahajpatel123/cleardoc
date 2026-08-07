@@ -135,6 +135,27 @@ else
     check_warn "No workflow files found"
 fi
 
+# 3d. Verify workflows declare concurrency groups
+echo ""
+echo "--- Checking GitHub Actions concurrency groups ---"
+if [ -n "$WORKFLOW_FILES" ]; then
+    HAS_CONCURRENCY=0
+    for file in $WORKFLOW_FILES; do
+        if ! grep -q '^concurrency:' "$file"; then
+            echo "  Missing concurrency group in $file"
+            HAS_CONCURRENCY=1
+        fi
+    done
+
+    if [ $HAS_CONCURRENCY -eq 0 ]; then
+        check_pass "All workflows declare concurrency groups"
+    else
+        check_fail "Some workflows are missing concurrency groups"
+    fi
+else
+    check_warn "No workflow files found"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""
