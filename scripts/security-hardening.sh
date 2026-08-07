@@ -107,6 +107,26 @@ else
     check_warn "Node.js not available for CSP check"
 fi
 
+# 4a. Verify CSP violation reporting is wired to the report endpoint
+echo ""
+echo "--- Checking CSP report-uri ---"
+if command -v node &> /dev/null; then
+    if node -e "
+const j=JSON.parse(require('fs').readFileSync('vercel.json','utf8'));
+const c=j.headers.find(h=>h.headers.some(h=>h.key==='Content-Security-Policy'));
+if(!c) throw new Error('No CSP');
+const csp=c.headers.find(h=>h.key==='Content-Security-Policy').value;
+if(!/report-uri\s+\\/api\\/csp-report/.test(csp)) throw new Error('CSP report-uri is missing or miswired');
+process.exit(0);
+" 2>/dev/null; then
+        check_pass "CSP report-uri is wired to /api/csp-report"
+    else
+        check_fail "CSP report-uri is missing or miswired"
+    fi
+else
+    check_warn "Node.js not available for CSP report-uri check"
+fi
+
 # 4b. Verify API security headers
 echo ""
 echo "--- Checking API security headers ---"
