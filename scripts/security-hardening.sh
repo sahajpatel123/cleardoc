@@ -239,7 +239,29 @@ else
     check_fail "Inline event handlers found in:$INLINE_HANDLER"
 fi
 
-# 4e. Verify API security headers
+# 4e. Verify CSP connect-src has no wildcards
+echo ""
+echo "--- Checking CSP connect-src wildcards ---"
+if command -v node &> /dev/null; then
+    if node -e "
+const j=JSON.parse(require('fs').readFileSync('vercel.json','utf8'));
+const c=j.headers.find(h=>h.headers.some(h=>h.key==='Content-Security-Policy'));
+if(!c) throw new Error('No CSP');
+const csp=c.headers.find(h=>h.key==='Content-Security-Policy').value;
+const m=csp.match(/connect-src[^;]*/);
+if(!m) throw new Error('No connect-src');
+if(/[*]/.test(m[0])) throw new Error('connect-src contains a wildcard');
+process.exit(0);
+" 2>/dev/null; then
+        check_pass "CSP connect-src has no wildcards"
+    else
+        check_fail "CSP connect-src contains a wildcard or is missing"
+    fi
+else
+    check_warn "Node.js not available for CSP connect-src check"
+fi
+
+# 4f. Verify API security headers
 echo ""
 echo "--- Checking API security headers ---"
 if command -v node &> /dev/null; then
