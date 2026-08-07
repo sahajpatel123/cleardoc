@@ -400,6 +400,11 @@ echo ""
 echo "--- Checking dependabot.yml ---"
 if [ -f ".github/dependabot.yml" ]; then
     check_pass "dependabot.yml exists"
+    if grep -q 'package-ecosystem: "npm"' .github/dependabot.yml 2>/dev/null && grep -q 'package-ecosystem: "github-actions"' .github/dependabot.yml 2>/dev/null; then
+        check_pass "dependabot covers npm and GitHub Actions"
+    else
+        check_fail "dependabot.yml is missing npm or GitHub Actions ecosystem"
+    fi
 else
     check_fail "dependabot.yml not found"
 fi
