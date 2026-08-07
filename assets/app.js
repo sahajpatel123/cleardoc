@@ -7472,6 +7472,7 @@
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCopyAllBtn" title="Copy all deadlines as plain text">📋 copy all</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCsvBtn" title="Download all deadlines as a .csv file for Excel, Google Sheets, or Numbers">📊 CSV</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineIcsAllBtn" title="Download all deadlines as a single .ics calendar file">📅 all .ics</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCopyMdBtn" title="Copy all deadlines as a Markdown table"># MD</button>' +
       '</div>';
       deadlineList.innerHTML = (rows || '<div class="deadline-empty">No deadlines match this filter.</div>') + controls;
       deadlineBlock.hidden = false;
@@ -7522,6 +7523,37 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Deadlines copied (' + exportItems.length + ')' + filteredNote : '⚠ Couldn’t copy');
           copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
           setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
+        });
+      }
+      const deadlineCopyMdBtn = document.getElementById('deadlineCopyMdBtn');
+      if(deadlineCopyMdBtn){
+        deadlineCopyMdBtn.addEventListener('click', async () => {
+          const rows = exportItems.map(it => {
+            const type = /\(obligated\)/.test(it.verb) ? 'must' : 'scheduled';
+            return '| ' + it.date + ' | ' + ((countdown(it.date) || '').trim()) + ' | ' + type + ' | ' +
+              String(it.sentence || '').slice(0, 120).replace(/\|/g, '\\|') + ' |';
+          }).join('\n');
+          const md = '| Date | Countdown | Type | Clause |\n|---|---|---|---|\n' + rows + filteredNote;
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Deadlines copied as Markdown' + filteredNote : '⚠ Couldn’t copy');
+          deadlineCopyMdBtn.textContent = copied ? '✓ copied' : '# MD';
+          setTimeout(() => { if(deadlineCopyMdBtn.isConnected) deadlineCopyMdBtn.textContent = '# MD'; }, 2500);
         });
       }
       // Iter #250 — deadline CSV export (RFC 4180): Date, Type, Countdown,
