@@ -4235,6 +4235,13 @@ skip("analyzer: deadline digest copies urgency-grouped deadlines", async () => {
     assert.match(captured, /http.*#share=/, "the digest must include a share link");
     assert.match(captured, /_ClearDoc · informational only, not legal advice_/, "the digest must carry the disclaimer");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+
+    // Cycle #274 v2 — 'o' shortcut should copy the same digest.
+    await page.evaluate(() => { window.__copiedOblDigest = null; });
+    await page.keyboard.press("o");
+    await page.waitForFunction(() => window.__copiedOblDigest && window.__copiedOblDigest.length > 0, { timeout: 8000 });
+    const viaKey = await page.evaluate(() => window.__copiedOblDigest);
+    assert.match(viaKey, /OBLIGATIONS DIGEST —/, "the o shortcut must copy the obligations digest");
   } finally {
     await page.close();
     await ctx.close();

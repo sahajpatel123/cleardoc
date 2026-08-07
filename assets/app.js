@@ -2494,6 +2494,7 @@
             <div class="kb-row"><kbd>⌘</kbd><kbd>Enter</kbd><span>Run the analysis</span></div>
             <div class="kb-row"><kbd>c</kbd><span>Copy the plain-text summary</span></div>
             <div class="kb-row"><kbd>d</kbd><span>Copy the chat-friendly risk digest</span></div>
+            <div class="kb-row"><kbd>o</kbd><span>Copy the obligations digest</span></div>
             <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
@@ -2640,6 +2641,16 @@
         if(p && !p.hidden){
           const db = document.getElementById('riskChatDigestBtn');
           if(db){ e.preventDefault(); db.click(); return; }
+        }
+      }
+
+      // Cycle #274 v2 — 'o' copies the obligations digest when results
+      // are visible (mirrors the 'c' summary and 'd' risk-digest shortcuts).
+      if(k === 'o' || k === 'O'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const ob = document.getElementById('actionDigestBtn');
+          if(ob && ob.isConnected){ e.preventDefault(); ob.click(); return; }
         }
       }
 
