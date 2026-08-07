@@ -1,0 +1,24 @@
+#!/bin/bash
+# Pre-commit hook for security validation
+# Place this file in .git/hooks/pre-commit and make it executable: chmod +x .git/hooks/pre-commit
+# Alternatively, run `bash scripts/pre-commit` before committing
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+echo "🔒 Running pre-commit security checks..."
+
+# Run the security hardening script
+if ! bash scripts/security-hardening.sh; then
+    echo ""
+    echo "❌ Security checks failed. Please fix the issues above before committing."
+    echo "   Tips:"
+    echo "   - Never commit hardcoded API keys or secrets"
+    echo "   - Ensure all GitHub Actions are SHA-pinned"
+    echo "   - No unsafe CSP directives in script-src"
+    echo "   - Always run 'npm run check' before committing"
+    exit 1
+fi
+
+echo ""
+echo "✓ All security checks passed"
+exit 0

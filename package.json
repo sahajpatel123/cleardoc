@@ -14,7 +14,8 @@
     "test:integration": "node test/integration.test.js",
     "syntax": "node -e \"const f=require('node:fs');['assets/app.js','api/_safety.js','api/analyze.js','api/chat.js','api/health.js','api/csp-report.js','assets/pdfjs-bootstrap.js'].forEach(p=>{require('node:child_process').execSync('node --check '+p,{stdio:'inherit'});})\"",
     "validate:json": "node -e \"['vercel.json','site.webmanifest'].forEach(p=>{JSON.parse(require('node:fs').readFileSync(p,'utf8'));console.log(p+': valid');})\"",
-    "check": "npm run validate:json && npm run syntax && npm test"
+    "check": "npm run validate:json && npm run syntax && npm test",
+    "precommit": "bash scripts/security-hardening.sh"
   },
   "devDependencies": {
     "playwright": "^1.60.0"

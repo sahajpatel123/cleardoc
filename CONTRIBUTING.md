@@ -124,6 +124,26 @@ npm run check
 - CodeQL runs on every push/PR
 - Dependabot handles dependency updates
 
+### Running Security Checks Locally
+
+```bash
+# Run security checks before committing
+npm run precommit
+
+# Or run the script directly
+bash scripts/pre-commit
+
+# Or use the full pre-deploy check
+npm run check
+```
+
+A pre-commit hook script is provided at `scripts/pre-commit`. To install it as a git hook:
+
+```bash
+chmod +x scripts/pre-commit
+ln -sf ../scripts/pre-commit .git/hooks/pre-commit
+```
+
 ## Reporting Security Issues
 
 **Do not file public GitHub issues for security-sensitive bugs.** See [SECURITY.md](./SECURITY.md) for the disclosure policy and contact channels.
