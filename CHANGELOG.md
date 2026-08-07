@@ -132,6 +132,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **security.txt** — RFC 9116 compliant disclosure endpoint at `/.well-known/security.txt`.
 - **security-hardening.sh** — local script for security verification (secrets, SHA pins, CSP, config files).
 - **Pre-commit hook** — documentation for running security checks before commits.
+- **CI workflows** — Tests, Security, and CodeQL support manual `workflow_dispatch`; Tests runs nightly; Tests/Security accept a configurable Node version; docs-only changes skip all three workflows.
 
 ### Features
 
