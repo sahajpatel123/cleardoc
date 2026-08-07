@@ -476,6 +476,11 @@ if [ -f "SECURITY.md" ]; then
     else
         check_fail "SECURITY.md has no vulnerability reporting channel"
     fi
+    if grep -q "/security/advisories/new" SECURITY.md 2>/dev/null; then
+        check_pass "SECURITY.md includes private vulnerability reporting URL"
+    else
+        check_fail "SECURITY.md is missing private vulnerability reporting URL"
+    fi
 else
     check_fail "SECURITY.md not found"
 fi
