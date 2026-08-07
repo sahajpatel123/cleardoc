@@ -23784,6 +23784,47 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     // Cycle #268 — chat-friendly risk digest copy.
     const riskChatDigestBtn = document.getElementById('riskChatDigestBtn');
     if(riskChatDigestBtn) riskChatDigestBtn.addEventListener('click', copyRiskChatDigest);
+    // Cycle #286 — compact risk summary copy (tally + top concern).
+    const riskSummaryCopyBtn = document.getElementById('riskSummaryCopyBtn');
+    if(riskSummaryCopyBtn) riskSummaryCopyBtn.addEventListener('click', async () => {
+      if(!lastFlags || !lastFlags.length){
+        if(msg){msg.textContent='No risks found — copy a risk summary when the analysis has flagged items.'; msg.className='analyze-msg';}
+        return;
+      }
+      let t=0,w=0,g=0;
+      (lastFlags||[]).forEach(f=>{ const s=f&&f.rule&&f.rule.sev; if(s==='r')t++; else if(s==='a')w++; else g++; });
+      const order = { r:0, a:1, g:2 };
+      const top = (lastFlags||[]).slice().sort((a,b)=>((order[(a&&a.rule&&a.rule.sev)]??3) - (order[(b&&b.rule&&b.rule.sev)]??3)))[0];
+      const topText = top && top.rule ? (top.rule.label||'Risk') + (top.s ? ' — "' + String(top.s).slice(0,120) + '"' : '') : '';
+      const parts = [];
+      parts.push('RISK SUMMARY — ' + lastFlags.length + ' risk' + (lastFlags.length===1?'':'s'));
+      if(t) parts.push(t + ' trap' + (t===1?'':'s'));
+      if(w) parts.push(w + ' watch' + (w===1?'es':'es'));
+      if(g) parts.push(g + ' note' + (g===1?'s':'s'));
+      if(topText) parts.push('Top: ' + topText);
+      let text = parts.join(' · ');
+      try {
+        if(typeof buildShareUrl === 'function'){
+          const shareUrl = await buildShareUrl();
+          if(shareUrl) text += '\n' + shareUrl;
+        }
+      } catch(_){ /* keep the copy working even if the link fails */ }
+      let ok=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok=true;
+        } else {
+          const ta=document.createElement('textarea');
+          ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok=document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      }catch(_){}
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Risk summary copied' : '⚠ Couldn’t copy');
+      riskSummaryCopyBtn.textContent = ok ? '✓ copied' : '📋 risk summary';
+      setTimeout(() => { if(riskSummaryCopyBtn.isConnected) riskSummaryCopyBtn.textContent = '📋 risk summary'; }, 2500);
+    });
     // iter #202: export full analysis as Markdown (.md) — mirrors the
     // .txt path (buildAnalysisSummary → saveAnalysis) but with markdown
     // formatting so users can drop the result into Obsidian/Notion/email
