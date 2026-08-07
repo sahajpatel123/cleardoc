@@ -10630,6 +10630,46 @@
           setTimeout(() => { if(careCopyBtn.isConnected) careCopyBtn.textContent = '📋 copy plan'; }, 2500);
         });
       }
+      // Cycle #281 — care plan .ics export: download renewal cancel-by +
+      // upcoming deadlines as a single calendar file.
+      const careIcsBtn = document.getElementById('careIcsBtn');
+      if(careIcsBtn && !careIcsBtn._careIcsWired){
+        careIcsBtn._careIcsWired = true;
+        careIcsBtn.addEventListener('click', () => {
+          const events = items.filter(it => it && it.date).map(it => ({
+            date: new Date(it.date + 'T00:00:00Z'),
+            label: it.label === 'Auto-renewal cancel-by window' ? 'Cancel by — auto-renew' : (it.label || 'Deadline'),
+          }));
+          const ics = (typeof buildIcs === 'function') ? buildIcs(events) : '';
+          if(!ics){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ No dated care items to export');
+            return;
+          }
+          let exported = false;
+          try {
+            const stamp = new Date().toISOString().slice(0, 10);
+            const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-care-plan-' + stamp + '.ics';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            exported = true;
+          } catch(_){ /* fall through to data URL */ }
+          if(!exported){
+            try {
+              const a = document.createElement('a');
+              a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+              a.download = 'cleardoc-care-plan-' + new Date().toISOString().slice(0, 10) + '.ics';
+              document.body.appendChild(a); a.click(); document.body.removeChild(a);
+              exported = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(exported ? '📅 Care plan calendar downloaded' : '⚠ Couldn’t export');
+          careIcsBtn.textContent = exported ? '✓ exported' : '📅 .ics';
+          setTimeout(() => { if(careIcsBtn.isConnected) careIcsBtn.textContent = '📅 .ics'; }, 2500);
+        });
+      }
     }
 
     // Iter #190 — smoking-gun sentences. Walks the doc sentence-by-

@@ -2010,6 +2010,39 @@ skip("analyzer: contract care plan copies renewal + upcoming deadlines", async (
   await page.close();
 });
 
+// Cycle #281 — care plan calendar export.
+skip("analyzer: care plan exports an .ics calendar file", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="careIcsBtn"/, "analyze.html must expose the care plan .ics button");
+  assert.match(appSrc, /cleardoc-care-plan-/, "the care plan export must use the care-plan filename prefix");
+
+  const ctx = await browser.newContext({ acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#careBlock:not([hidden]) #careIcsBtn", { timeout: 8000 });
+    const [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 8000 }),
+      page.click("#careIcsBtn"),
+    ]);
+    assert.match(download.suggestedFilename(), /^cleardoc-care-plan-\d{4}-\d{2}-\d{2}\.ics$/, "the download must be cleardoc-care-plan-<date>.ics");
+    const path = await download.path();
+    const content = require("node:fs").readFileSync(path, "utf8");
+    assert.match(content, /BEGIN:VCALENDAR/, "the .ics file must open with VCALENDAR");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #273 — key facts snapshot: type, jurisdiction, currency, risks,
 // readiness, deadlines in one glanceable row.
 skip("analyzer: key facts snapshot renders after analysis", async () => {
