@@ -22,6 +22,8 @@ on:
         description: 'Node.js version to run the suite against'
         required: false
         default: '22'
+  schedule:
+    - cron: '0 2 * * *'
 
 # Cancel any in-flight runs for the same ref when a new commit lands.
 # Saves CI minutes on rapid-fire pushes (the analyzer iterates daily).
