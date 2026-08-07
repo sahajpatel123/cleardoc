@@ -302,6 +302,40 @@ else
     check_warn "Node.js not available for API header check"
 fi
 
+# 4g. Verify page-level security headers
+echo ""
+echo "--- Checking page security headers ---"
+if command -v node &> /dev/null; then
+    if node -e "
+const j=JSON.parse(require('fs').readFileSync('vercel.json','utf8'));
+const block=j.headers.find(h=>h.source==='/(.*)');
+if(!block) throw new Error('No page header block');
+const hs=Object.fromEntries(block.headers.map(h=>[h.key.toLowerCase(), h.value]));
+const required={
+  'x-content-type-options':'nosniff',
+  'x-frame-options':'SAMEORIGIN',
+  'referrer-policy':'strict-origin-when-cross-origin',
+  'x-dns-prefetch-control':'off',
+  'x-download-options':'noopen',
+  'x-permitted-cross-domain-policies':'none',
+  'permissions-policy':'camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(), usb=()',
+  'strict-transport-security':'max-age=63072000; includesubdomains; preload',
+  'cross-origin-opener-policy':'same-origin',
+  'cross-origin-resource-policy':'same-origin'
+};
+for (const [k,v] of Object.entries(required)) {
+  if((hs[k]||'').toLowerCase()!==v.toLowerCase()) throw new Error('Missing '+k+': '+v);
+}
+process.exit(0);
+" 2>/dev/null; then
+        check_pass "Page security headers are strict"
+    else
+        check_fail "Page security headers are missing or incorrect"
+    fi
+else
+    check_warn "Node.js not available for page header check"
+fi
+
 # 5. Check security.txt exists
 echo ""
 echo "--- Checking security.txt ---"
