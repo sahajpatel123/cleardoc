@@ -4547,6 +4547,7 @@ skip("analyzer: risk summary copy exports tally + top concern", async () => {
     await page.waitForFunction(() => window.__copiedRiskSummary && window.__copiedRiskSummary.length > 0, { timeout: 8000 });
     const captured = await page.evaluate(() => window.__copiedRiskSummary);
     assert.match(captured, /RISK SUMMARY —/, "risk summary must carry a clear header");
+    assert.match(captured, /Counter:/, "risk summary must include the top concern counter-suggestion when available");
     assert.match(captured, /http.*#share=/, "risk summary must include a share link");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {

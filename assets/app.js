@@ -23796,12 +23796,14 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       const order = { r:0, a:1, g:2 };
       const top = (lastFlags||[]).slice().sort((a,b)=>((order[(a&&a.rule&&a.rule.sev)]??3) - (order[(b&&b.rule&&b.rule.sev)]??3)))[0];
       const topText = top && top.rule ? (top.rule.label||'Risk') + (top.s ? ' — "' + String(top.s).slice(0,120) + '"' : '') : '';
+      const topCounter = top && top.rule && top.rule.counter ? String(top.rule.counter).slice(0,160) : '';
       const parts = [];
       parts.push('RISK SUMMARY — ' + lastFlags.length + ' risk' + (lastFlags.length===1?'':'s'));
       if(t) parts.push(t + ' trap' + (t===1?'':'s'));
       if(w) parts.push(w + ' watch' + (w===1?'es':'es'));
       if(g) parts.push(g + ' note' + (g===1?'s':'s'));
       if(topText) parts.push('Top: ' + topText);
+      if(topCounter) parts.push('Counter: ' + topCounter);
       let text = parts.join(' · ');
       try {
         if(typeof buildShareUrl === 'function'){
