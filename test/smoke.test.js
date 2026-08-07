@@ -12024,7 +12024,51 @@ test("analyzer: Analysis confidence rates how reliable the result is", () => {
   assert.match(cssSrc, /\.conf-main\b/, ".conf-main style must exist");
   assert.match(cssSrc, /\.conf-good\b/, ".conf-good style must exist");
   assert.match(cssSrc, /\.conf-caveats\b/, ".conf-caveats style must exist");
+  assert.match(appSrc, /confCopyMdBtn/,
+    "iter #269 must include a confidence Markdown copy button");
+  assert.match(appSrc, /'📋 Confidence copied as Markdown'/,
+    "iter #269 must confirm when the confidence Markdown is copied");
+  assert.match(appSrc, /\| Metric \| Score \|/,
+    "iter #269 must build a Markdown table header");
 
+
+skip("analyze: confidence summary copies as Markdown", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedConfMd = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedConfMd = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedConfMd = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#confBlock:not([hidden]) #confCopyMdBtn", { timeout: 8000 });
+    await page.click("#confCopyMdBtn");
+    await page.waitForFunction(() => window.__copiedConfMd && window.__copiedConfMd.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedConfMd);
+    assert.match(captured, /^## Confidence: /, "the copied confidence must start with a heading");
+    assert.match(captured, /\| Metric \| Score \|/, "the copied confidence must include the metric table");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
 
 
 // Iter #174: deadline extractor — pulls date mentions from obligations.

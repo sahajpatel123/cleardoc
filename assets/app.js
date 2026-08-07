@@ -12137,6 +12137,38 @@
           setTimeout(() => { if(copyJsonBtn.isConnected) copyJsonBtn.textContent = '📋 copy JSON'; }, 2500);
         });
       }
+      const copyMdBtn = document.getElementById('confCopyMdBtn');
+      if(copyMdBtn){
+        copyMdBtn.addEventListener('click', async () => {
+          const md = '## Confidence: ' + c.overall + '/100 — ' + verdict + '\n\n' +
+            '| Metric | Score |\n|---|---|\n' +
+            '| Document length | ' + c.lenScore + ' |\n' +
+            '| Risk-pattern coverage | ' + c.riskScore + ' |\n' +
+            '| Tone signal strength | ' + c.toneScore + ' |\n' +
+            '| AI / fallback usage | ' + c.aiUsed + ' |' +
+            (c.caveats.length ? '\n\n**Notes:** ' + c.caveats.join(' · ') : '');
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Confidence copied as Markdown' : '⚠ Couldn’t copy');
+          copyMdBtn.textContent = copied ? '✓ copied' : '# MD';
+          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '# MD'; }, 2500);
+        });
+      }
     }
 
     function renderContactBlock(raw, ctx){
@@ -12431,6 +12463,7 @@
         // Iter #159 polish — copy-as-JSON chip
         '<div class="conf-controls">' +
           '<button type="button" class="ghost-btn ghost-btn-sm" id="confCopyJsonBtn" title="Copy the confidence metrics as JSON for programmatic use">📋 copy JSON</button>' +
+          '<button type="button" class="ghost-btn ghost-btn-sm" id="confCopyMdBtn" title="Copy the confidence summary as Markdown"># MD</button>' +
         '</div>';
       confBlock.hidden = false;
       if(confNote){
