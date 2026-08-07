@@ -9,6 +9,7 @@ on:
       - 'docs/**'
       - 'design-concepts/**'
       - 'memory/**'
+      - 'test/**'
   pull_request:
     branches: [main]
     paths-ignore:
@@ -16,6 +17,7 @@ on:
       - 'docs/**'
       - 'design-concepts/**'
       - 'memory/**'
+      - 'test/**'
   schedule:
     - cron: '0 0 * * 0'
   workflow_dispatch:
