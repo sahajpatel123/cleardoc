@@ -107,6 +107,37 @@ else
     check_warn "Node.js not available for CSP check"
 fi
 
+# 4b. Verify API security headers
+echo ""
+echo "--- Checking API security headers ---"
+if command -v node &> /dev/null; then
+    if node -e "
+const j=JSON.parse(require('fs').readFileSync('vercel.json','utf8'));
+const block=j.headers.find(h=>h.source==='/api/(.*)');
+if(!block) throw new Error('No API header block');
+const hs=Object.fromEntries(block.headers.map(h=>[h.key.toLowerCase(), h.value]));
+const required={
+  'cache-control':'no-store',
+  'x-content-type-options':'nosniff',
+  'x-frame-options':'DENY',
+  'referrer-policy':'no-referrer',
+  'cross-origin-opener-policy':'same-origin',
+  'cross-origin-resource-policy':'same-origin',
+  'x-robots-tag':'noindex, nofollow'
+};
+for (const [k,v] of Object.entries(required)) {
+  if((hs[k]||'').toLowerCase()!==v.toLowerCase()) throw new Error('Missing '+k+': '+v);
+}
+process.exit(0);
+" 2>/dev/null; then
+        check_pass "API security headers are strict"
+    else
+        check_fail "API security headers are missing or incorrect"
+    fi
+else
+    check_warn "Node.js not available for API header check"
+fi
+
 # 5. Check security.txt exists
 echo ""
 echo "--- Checking security.txt ---"
