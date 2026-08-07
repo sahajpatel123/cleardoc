@@ -2225,6 +2225,76 @@ skip("analyzer: care plan deadline digest copies dated items", async () => {
   }
 });
 
+// Cycle #293 — care plan email action.
+skip("analyzer: care plan email button opens a pre-filled mail client", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="careEmailBtn"/, "analyze.html must expose the care plan email button");
+  assert.match(appSrc, /careEmailBtn/, "app.js must wire the care plan email button");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#careBlock:not([hidden]) #careEmailBtn", { timeout: 8000 });
+    const btn = await page.$("#careEmailBtn");
+    assert.ok(btn, "care email button must be visible after analysis");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
+// Cycle #293 — care plan email.
+skip("analyzer: care plan email button opens a pre-filled mail client", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="careEmailBtn"/, "analyze.html must expose the care plan email button");
+  assert.match(html, /title="Open your mail client with the care plan pre-filled"/, "the button must be labelled as an email export");
+  assert.match(appSrc, /Cycle #293 — care plan email/, "app.js must wire the care plan email button");
+  assert.match(appSrc, /Contract care plan — what to watch next \(ClearDoc\)/, "the email subject must be pre-filled");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__mailtoHref = null;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        ...window.location,
+        set href(v) { window.__mailtoHref = v; },
+      },
+    });
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#careBlock:not([hidden]) #careEmailBtn", { timeout: 8000 });
+    await page.click("#careEmailBtn");
+    await page.waitForFunction(() => window.__mailtoHref && window.__mailtoHref.startsWith("mailto:"), { timeout: 8000 });
+    const href = await page.evaluate(() => window.__mailtoHref);
+    assert.match(href, /^mailto:\?subject=/, "the email must be a mailto link with a subject");
+    assert.match(decodeURIComponent(href), /Contract care plan/, "the subject must mention the care plan");
+    assert.match(decodeURIComponent(href), /Here is the ClearDoc care plan/, "the body must include the care plan intro");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #273 — key facts snapshot: type, jurisdiction, currency, risks,
 // readiness, deadlines in one glanceable row.
 skip("analyzer: key facts snapshot renders after analysis", async () => {

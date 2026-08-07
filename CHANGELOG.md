@@ -188,6 +188,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #291 v2):* the `e` keyboard shortcut now copies the care plan deadline digest when results are visible and no risk row is focused (documented in the `?` help modal).
 - **Home next-deadline chip** (cycle #292) — returning visitors with a saved analysis now see the soonest upcoming deadline (within 14 days) in the home page footer, with a countdown and a click-through to the analyzer.
   - *Polish (cycle #292 v2):* the chip is now a real **link** to the analyzer (keyboard-accessible, Tab + Enter), with a cleaner label.
+- **Care plan email** (cycle #293) — the contract care plan now offers an `✉️ email plan` button that opens the mail client with the watch-list (renewals, deadlines, obligations) pre-filled.
 
 ### Documentation
 
