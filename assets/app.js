@@ -19122,6 +19122,15 @@
       } else {
         line += ' No risks detected.';
       }
+      // Cycle #284 — include deadlines + key facts (jurisdiction,
+      // amounts) so the one-liner carries the essentials.
+      const dlRows = (document.getElementById('deadlinesList') || { querySelectorAll: () => [] }).querySelectorAll('.deadline-row');
+      if(dlRows.length) line += ' ' + dlRows.length + ' deadline' + (dlRows.length === 1 ? '' : 's') + '.';
+      const juris = document.getElementById('jurisRow');
+      if(juris && !juris.hidden){
+        const jl = juris.querySelector('.juris-label');
+        if(jl && jl.textContent.trim()) line += ' Governed by ' + jl.textContent.trim() + ' law.';
+      }
       line += ' cleardoc.app';
       // iter #215 v2: append the short document fingerprint so the
       // recipient can verify "yes this is the same document" by

@@ -12705,6 +12705,41 @@ skip("analyzer: obligations digest copies must/may groups with progress", async 
   }
 });
 
+// Cycle #284 — chat share now carries deadlines + jurisdiction.
+skip("analyzer: chat share includes deadlines and jurisdiction", async () => {
+  if (!HAS_BROWSER) return;
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(appSrc, /deadline' \+ \(dlRows\.length === 1 \? '' : 's'\)/, "app.js must include the deadline count in chat share");
+  assert.match(appSrc, /Governed by/, "app.js must include jurisdiction in chat share");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    window.__copiedChatShare = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: { writeText: async (txt) => { window.__copiedChatShare = txt; }, write: async () => {} },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedChatShare = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#chatShareBtn", { timeout: 8000 });
+    await page.click("#chatShareBtn");
+    await page.waitForFunction(() => window.__copiedChatShare && window.__copiedChatShare.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedChatShare);
+    assert.match(captured, /cleardoc\.app/, "chat share must include the site link");
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #118 — ask the document about any obligation in one click.
 test("analyzer: Obligation rows can ask the document about the obligation in one click", () => {
   if (!HAS_BROWSER) return;
