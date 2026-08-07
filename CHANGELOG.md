@@ -150,6 +150,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Download redacted document** (cycle #270) — the privacy guard also offers a `⬇ download redacted` button that saves the same masked document (and compare text, when present) as a `cleardoc-redacted-<date>.txt` file, for keeping an offline copy or attaching to a secure channel.
   - *Polish (cycle #270 v2):* the downloaded file now opens with a **redaction summary** — generation timestamp, what was replaced (e.g. `1 email, 1 phone`), and a note that the original text was not modified — so the artifact is self-identifying.
 - **Find in source** (cycle #271) — a compact `Find in source` input above the document stats searches the original contract textarea, shows a live match count (`3/4`), and jumps between matches with the `⤓ next` button or Enter. Escape clears the search. Complements the existing find-in-analysis for users who want to locate clauses in the raw document.
+  - *Polish (cycle #271 v2):* added a `⤒ prev` button and `Shift+Enter` for navigating backwards through matches, plus help-modal documentation for the navigation keys.
 
 ### Documentation
 
