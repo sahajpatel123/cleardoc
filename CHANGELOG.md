@@ -176,6 +176,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **One-line document summary** (cycle #285) — a `📄 summary` button next to the verdict copies a compact one-line summary (word count, document type, risk count, deadline count, key facts) plus a share link.
   - *Polish (cycle #285 v2):* the `s` keyboard shortcut now copies the one-line document summary when results are visible (documented in the `?` help modal alongside the other copy shortcuts).
 - **Risk summary copy** (cycle #286) — the risk panel now offers a `📋 risk summary` button that copies a compact tally (traps / watches / notes) with the top concern and a share link.
+  - *Polish (cycle #286 v2):* the risk summary copy now also includes the top concern’s **counter-suggestion** when one exists, so the paste is actionable.
 
 ### Documentation
 
