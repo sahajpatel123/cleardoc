@@ -19146,7 +19146,15 @@
         if(msg){msg.textContent='Analyze a document first, then share to chat.'; msg.className='analyze-msg';}
         return;
       }
-      const text = buildChatShare();
+      let text = buildChatShare();
+      // Cycle #284 v2 — append a share link so a recipient can open the
+      // full analysis in one tap (mirrors the other copy actions).
+      try {
+        if(typeof buildShareUrl === 'function'){
+          const shareUrl = await buildShareUrl();
+          if(shareUrl) text += '\n' + shareUrl;
+        }
+      } catch(_){ /* keep the copy working even if the link fails */ }
       const btn = document.getElementById('chatShareBtn');
       let ok=false;
       try{

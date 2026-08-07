@@ -12734,6 +12734,7 @@ skip("analyzer: chat share includes deadlines and jurisdiction", async () => {
     await page.waitForFunction(() => window.__copiedChatShare && window.__copiedChatShare.length > 0, { timeout: 8000 });
     const captured = await page.evaluate(() => window.__copiedChatShare);
     assert.match(captured, /cleardoc\.app/, "chat share must include the site link");
+    assert.match(captured, /http.*#share=/, "chat share must include a share link");
   } finally {
     await page.close();
     await ctx.close();
