@@ -37,6 +37,10 @@ updates:
       time: "04:00"
       timezone: "America/Los_Angeles"
     open-pull-requests-limit: 5
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "github-actions"
