@@ -195,7 +195,16 @@ else
     check_fail "CodeQL does not disable fail-fast"
 fi
 
-# 3h. Verify checkout steps do not persist credentials
+# 3h. Verify browser smoke tests remain in CI
+echo ""
+echo "--- Checking GitHub Actions browser smoke coverage ---"
+if [ -f .github/workflows/test.yml ] && grep -q "npm run test:smoke" .github/workflows/test.yml; then
+    check_pass "Browser smoke tests are present in test workflow"
+else
+    check_fail "Browser smoke tests are missing from test workflow"
+fi
+
+# 3i. Verify checkout steps do not persist credentials
 echo ""
 echo "--- Checking GitHub Actions checkout credential persistence ---"
 MISSING_PERSIST=""
