@@ -2232,6 +2232,12 @@ button.risk-preview:hover{filter:brightness(.96)}
 .care-actions{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:var(--t-micro);flex-wrap:wrap}
 .care-actions .ghost-btn{padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:transparent;border:1px solid var(--bd-hair);color:var(--ink);margin-left:6px}
 
+/* Cycle #271 — find in source */
+.source-find{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:var(--t-micro);color:var(--ink-soft)}
+.source-find-lbl{text-transform:uppercase;letter-spacing:.05em}
+.source-find input[type="text"]{flex:1 1 180px;min-width:120px;padding:4px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--paper2);border:1px solid var(--bd-hair);color:var(--ink)}
+.source-find-count{font-family:'JetBrains Mono',monospace;font-size:11px;min-width:48px}
+
 /* Cycle #267 — risk balance bar */
 .risk-balance{margin-top:8px;display:flex;flex-direction:column;gap:4px}
 .risk-balance-bar{display:flex;height:6px;border-radius:999px;overflow:hidden;background:var(--paper2);border:var(--bd-hair) solid var(--ink-soft)}

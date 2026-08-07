@@ -156,6 +156,12 @@
         <button type="button" class="ds-copy no-print" id="dsCopyBtn" title="Copy the document stats line" aria-label="Copy document stats">📋 copy</button>
       </div>
       <div class="ds-preview mono" id="dsJargonPreview" hidden aria-live="polite"></div>
+      <div class="source-find mono no-print" id="sourceFind" aria-live="polite">
+        <label class="source-find-lbl" for="sourceFindInput">Find in source</label>
+        <input type="text" id="sourceFindInput" maxlength="80" placeholder="indemnity, termination, auto-renew…" autocomplete="off" aria-label="Find a term in the source document">
+        <span class="source-find-count" id="sourceFindCount"></span>
+        <button type="button" class="ghost-btn ghost-btn-sm" id="sourceFindNextBtn" title="Jump to the next match (Enter)" aria-label="Jump to the next match">⤓ next</button>
+      </div>
       <div class="textstats mono" id="textStats" aria-live="polite">
         <span><span class="stat-lbl">type</span> <b id="statDocType">—</b></span>
         <span class="stat-sep" aria-hidden="true">·</span>

@@ -1180,7 +1180,7 @@
     const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo,wireDocFingerprint,initServiceStatus];
     const byPage={
       home:[heroClarifier,flagHunt,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
-      analyze:[analyzePage,privacyGuard,wireSelectionAsk,faq],
+      analyze:[analyzePage,privacyGuard,wireSourceFind,wireSelectionAsk,faq],
       pricing:[classifieds,faq]
     };
     always.concat(byPage[page]||[]).forEach(fn=>{ try{fn();}catch(e){console.error('[init '+fn.name+']',e);} });
@@ -3805,6 +3805,64 @@
       if(downloadRedactedBtn) setTimeout(() => { if(downloadRedactedBtn.isConnected) downloadRedactedBtn.textContent = '⬇ download redacted'; }, 2500);
     });
     render();
+  }
+
+  // Cycle #271 — find in source: search the original document textarea
+  // for a term, show the match count, and jump between matches without
+  // touching the results panel.
+  function wireSourceFind(){
+    const input = document.getElementById('sourceFindInput');
+    const countEl = document.getElementById('sourceFindCount');
+    const nextBtn = document.getElementById('sourceFindNextBtn');
+    const ta = document.getElementById('docInput');
+    if(!input || !ta) return;
+    let matches = [];
+    let idx = -1;
+    const clearState = () => {
+      matches = [];
+      idx = -1;
+      if(countEl) countEl.textContent = '';
+    };
+    const scan = () => {
+      const q = input.value.trim();
+      const text = ta.value || '';
+      if(!q || !text){
+        clearState();
+        return;
+      }
+      matches = [];
+      const needle = q.toLowerCase();
+      let from = 0;
+      while(from < text.length){
+        const at = text.toLowerCase().indexOf(needle, from);
+        if(at === -1) break;
+        matches.push(at);
+        from = at + Math.max(1, needle.length);
+      }
+      if(countEl) countEl.textContent = matches.length ? '0/' + matches.length : 'no matches';
+      if(matches.length){ jumpTo(0); }
+      else { idx = -1; }
+    };
+    const jumpTo = (n) => {
+      if(!matches.length) return;
+      idx = ((n % matches.length) + matches.length) % matches.length;
+      const at = matches[idx];
+      try {
+        ta.focus({ preventScroll: true });
+        ta.setSelectionRange(at, Math.min(at + input.value.length, ta.value.length));
+        const rel = at / Math.max(1, ta.value.length);
+        ta.scrollTop = rel * ta.scrollHeight - ta.clientHeight / 2;
+      } catch(_){ /* ignore */ }
+      if(countEl) countEl.textContent = (idx + 1) + '/' + matches.length;
+    };
+    input.addEventListener('input', scan);
+    if(nextBtn) nextBtn.addEventListener('click', () => jumpTo(idx + 1));
+    input.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){ e.preventDefault(); jumpTo(idx + 1); }
+      if(e.key === 'Escape'){ input.value = ''; clearState(); }
+    });
+    // Re-scan after the document changes so the count stays accurate.
+    ta.addEventListener('input', () => { if(input.value.trim()) scan(); });
   }
 
   /* ---- Selection-to-ask (cycle #170) ---- */

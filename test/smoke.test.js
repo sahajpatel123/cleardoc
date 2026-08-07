@@ -316,7 +316,7 @@ test("analyze: privacy guard scans pasted text for personal identifiers before A
     "masking must confirm with a toast");
   assert.match(appSrc, /'↩ Personal info restored'/,
     "undoing a mask must confirm with a toast");
-  assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,wireSelectionAsk,faq\]/,
+  assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,wireSourceFind,wireSelectionAsk,faq\]/,
     "privacyGuard must run on the analyze page init list");
   assert.match(cssSrc, /\.privacy-guard\{/, "guard styling must exist");
   assert.match(cssSrc, /\.privacy-guard b\{/, "the count summary must stand out");
@@ -414,6 +414,38 @@ skip("analyzer: copy redacted pastes a masked copy while leaving the original in
   }
 });
 
+// Cycle #271 — find in source: search the original document textarea.
+skip("analyzer: find in source counts matches and jumps between them", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="sourceFindInput"/, "analyze.html must expose the source-find input");
+  assert.match(html, /id="sourceFindNextBtn"/, "analyze.html must expose the source-find next button");
+  assert.match(appSrc, /function wireSourceFind\(\)\{/, "app.js must define wireSourceFind");
+  assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,wireSourceFind/, "wireSourceFind must run on the analyze page");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.fill("#sourceFindInput", "renew");
+    await page.waitForFunction(() => (document.getElementById("sourceFindCount").textContent || "").indexOf("/") >= 0, { timeout: 4000 });
+    const count = await page.$eval("#sourceFindCount", (el) => el.textContent);
+    assert.ok(count !== "no matches" && count.indexOf("/") >= 0, `source find should report a match count, got ${count}`);
+    const before = await page.evaluate(() => document.getElementById("docInput").selectionStart);
+    await page.click("#sourceFindNextBtn");
+    const after = await page.evaluate(() => document.getElementById("docInput").selectionStart);
+    assert.ok(after !== before, "clicking next must move the selection to the next match");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #270 — download the same redacted document as a .txt file.
 skip("analyzer: download redacted saves a masked .txt file", async () => {
   if (!HAS_BROWSER) return;
@@ -488,7 +520,7 @@ test("analyze: selecting a passage offers a floating ask button that prefills th
     "the Escape handler must remove the floating button");
   assert.match(appSrc, /rect\.top - 46 >= 8 \? rect\.top - 46 : Math\.min\(window\.innerHeight - 46, rect\.bottom \+ 8\)/,
     "the button must flip below the selection when there is no room above");
-  assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,wireSelectionAsk,faq\]/,
+  assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,wireSourceFind,wireSelectionAsk,faq\]/,
     "wireSelectionAsk must run on the analyze page init list");
   assert.match(cssSrc, /\.sel-ask\{/, "the floating button must be styled");
   assert.match(cssSrc, /\.sel-ask:focus-visible\{/, "the floating button must have a focus ring");
