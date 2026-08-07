@@ -2488,8 +2488,16 @@ skip("analyzer: risk digest copies severity, clause, why, and counter for chat a
     assert.match(captured, /RISK DIGEST —/, "the copied digest must carry the header");
     assert.match(captured, /TRAP|WATCH|NOTE/, "the copied digest must include severity labels");
     assert.match(captured, /Why:/, "the copied digest must include the why line");
+    assert.match(captured, /http.*#share=/, "the copied digest must include a share link");
     assert.match(captured, /_ClearDoc · informational only, not legal advice_/, "the copied digest must carry the disclaimer");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+
+    // Cycle #268 v2 — 'd' shortcut should copy the same digest.
+    await page.evaluate(() => { window.__copiedDigest = null; });
+    await page.keyboard.press("d");
+    await page.waitForFunction(() => window.__copiedDigest && window.__copiedDigest.length > 0, { timeout: 8000 });
+    const viaKey = await page.evaluate(() => window.__copiedDigest);
+    assert.match(viaKey, /RISK DIGEST —/, "the d shortcut must copy the risk digest");
   } finally {
     await page.close();
     await ctx.close();
