@@ -253,11 +253,14 @@ const csp=c.headers.find(h=>h.key==='Content-Security-Policy').value;
 const m=csp.match(/connect-src[^;]*/);
 if(!m) throw new Error('No connect-src');
 if(/[*]/.test(m[0])) throw new Error('connect-src contains a wildcard');
+const sm=csp.match(/script-src[^;]*/);
+if(!sm) throw new Error('No script-src');
+if(/[*]/.test(sm[0])) throw new Error('script-src contains a wildcard');
 process.exit(0);
 " 2>/dev/null; then
-        check_pass "CSP connect-src has no wildcards"
+        check_pass "CSP connect-src/script-src have no wildcards"
     else
-        check_fail "CSP connect-src contains a wildcard or is missing"
+        check_fail "CSP connect-src/script-src contains a wildcard or is missing"
     fi
 else
     check_warn "Node.js not available for CSP connect-src check"
