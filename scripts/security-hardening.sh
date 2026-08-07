@@ -171,6 +171,21 @@ else
     check_fail "npm audit gate missing in:$MISSING_AUDIT"
 fi
 
+# 3f. Verify CI uses npm ci for reproducible installs
+echo ""
+echo "--- Checking GitHub Actions npm ci usage ---"
+MISSING_NPM_CI=""
+for file in .github/workflows/test.yml .github/workflows/security.yml; do
+    if [ -f "$file" ] && ! grep -q "npm ci" "$file"; then
+        MISSING_NPM_CI="$MISSING_NPM_CI $file"
+    fi
+done
+if [ -z "$MISSING_NPM_CI" ]; then
+    check_pass "npm ci is used in test and security workflows"
+else
+    check_fail "npm ci missing in:$MISSING_NPM_CI"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""
