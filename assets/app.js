@@ -7778,7 +7778,15 @@
           if(later.length){ lines.push(''); lines.push('📅 Later:'); lines.push(...later.map(l => '  • ' + l)); }
           lines.push('');
           lines.push('_ClearDoc · informational only, not legal advice_');
-          const text = lines.join('\n');
+          let text = lines.join('\n');
+          // Cycle #272 v2 — append a share link so a chat recipient can
+          // open the full analysis in one tap (mirrors the risk digest).
+          try {
+            if(typeof buildShareUrl === 'function'){
+              const shareUrl = await buildShareUrl();
+              if(shareUrl) text += '\n' + shareUrl;
+            }
+          } catch(_){ /* keep the digest copyable even if the link fails */ }
           let copied = false;
           try {
             if(navigator.clipboard && navigator.clipboard.writeText){

@@ -4202,6 +4202,7 @@ skip("analyzer: deadline digest copies urgency-grouped deadlines", async () => {
     await page.waitForFunction(() => window.__copiedDeadlines && window.__copiedDeadlines.length > 0, { timeout: 8000 });
     const captured = await page.evaluate(() => window.__copiedDeadlines);
     assert.match(captured, /DEADLINE DIGEST —/, "the digest must carry a clear header");
+    assert.match(captured, /http.*#share=/, "the digest must include a share link");
     assert.match(captured, /_ClearDoc · informational only, not legal advice_/, "the digest must carry the disclaimer");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
