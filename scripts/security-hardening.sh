@@ -256,7 +256,22 @@ else
     check_fail "Inline event handlers found in:$INLINE_HANDLER"
 fi
 
-# 4e. Verify CSP connect-src has no wildcards
+# 4e. Verify production HTML has no inline script blocks
+echo ""
+echo "--- Checking HTML inline scripts ---"
+INLINE_SCRIPT=""
+for page in *.html; do
+    if [ -f "$page" ] && grep -E '<script[^>]*>' "$page" 2>/dev/null | grep -v 'src=' | grep -v 'application/ld+json' | grep -q .; then
+        INLINE_SCRIPT="$INLINE_SCRIPT $page"
+    fi
+done
+if [ -z "$INLINE_SCRIPT" ]; then
+    check_pass "No inline scripts in production HTML"
+else
+    check_fail "Inline script blocks found in:$INLINE_SCRIPT"
+fi
+
+# 4f. Verify CSP connect-src has no wildcards
 echo ""
 echo "--- Checking CSP connect-src wildcards ---"
 if command -v node &> /dev/null; then
@@ -281,7 +296,7 @@ else
     check_warn "Node.js not available for CSP connect-src check"
 fi
 
-# 4f. Verify API security headers
+# 4g. Verify API security headers
 echo ""
 echo "--- Checking API security headers ---"
 if command -v node &> /dev/null; then
@@ -317,7 +332,7 @@ else
     check_warn "Node.js not available for API header check"
 fi
 
-# 4g. Verify page-level security headers
+# 4h. Verify page-level security headers
 echo ""
 echo "--- Checking page security headers ---"
 if command -v node &> /dev/null; then
