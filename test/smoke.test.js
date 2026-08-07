@@ -10702,6 +10702,8 @@ test("analyzer: Clause index extracts numbered clauses with click-to-jump", () =
     "iter #268 must confirm when the clause index Markdown is copied");
   assert.match(appSrc, /\| Clause \| Snippet \| Flagged \|/,
     "iter #268 must build a Markdown table header");
+  assert.match(appSrc, /_Showing flagged clauses only\._/,
+    "iter #268 must note when the flagged-only filter is active");
 
   // Cycle #225 — valid HTML + keyboard parity: the row is a
   // div[role=button] (tabindex=0) so the inner copy button is legal,

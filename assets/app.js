@@ -13523,7 +13523,8 @@
             return;
           }
           const rows = visible.map(h => '| ' + String(h.raw).replace(/\|/g, '\\|') + ' | ' + String(h.snippet || '').replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|') + (isInRiskedClause(h.offset) ? ' | ⚠ flagged |' : ' | — |')).join('\n');
-          const md = '| Clause | Snippet | Flagged |\n|---|---|---|\n' + rows;
+          const md = '| Clause | Snippet | Flagged |\n|---|---|---|\n' + rows +
+            (showFlaggedOnly ? '\n\n_Showing flagged clauses only._' : '');
           let copied = false;
           try {
             if(navigator.clipboard && navigator.clipboard.writeText){
