@@ -4171,6 +4171,45 @@ skip("analyze: deadlines copy as Markdown", async () => {
   }
 });
 
+// Cycle #272 — chat-friendly deadline digest.
+skip("analyzer: deadline digest copies urgency-grouped deadlines", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedDeadlines = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedDeadlines = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedDeadlines = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#deadlineDigestBtn", { timeout: 8000 });
+    await page.click("#deadlineDigestBtn");
+    await page.waitForFunction(() => window.__copiedDeadlines && window.__copiedDeadlines.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedDeadlines);
+    assert.match(captured, /DEADLINE DIGEST —/, "the digest must carry a clear header");
+    assert.match(captured, /_ClearDoc · informational only, not legal advice_/, "the digest must carry the disclaimer");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #189 — the section quick-jump nav's Deadlines entry must resolve
 // to whichever deadline block is visible (full 📅 or AI-only ⏰), never a
 // hidden one.

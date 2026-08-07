@@ -7666,6 +7666,7 @@
         // (mirrors the filter chips).
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineSortBtn" aria-pressed="' + (dlSort === 'date' ? 'true' : 'false') + '" title="' + (dlSort === 'date' ? 'Restore document order' : 'Sort soonest first (overdue at the top)') + '">' + (dlSort === 'date' ? '⇅ by date' : '⇅ doc order') + '</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCopyAllBtn" title="Copy all deadlines as plain text">📋 copy all</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineDigestBtn" title="Copy a chat-friendly deadline digest for Slack, Discord, or iMessage">💬 deadline digest</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCsvBtn" title="Download all deadlines as a .csv file for Excel, Google Sheets, or Numbers">📊 CSV</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineIcsAllBtn" title="Download all deadlines as a single .ics calendar file">📅 all .ics</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="deadlineCopyMdBtn" title="Copy all deadlines as a Markdown table"># MD</button>' +
@@ -7751,6 +7752,53 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Deadlines copied as Markdown' + filteredNote : '⚠ Couldn’t copy');
           deadlineCopyMdBtn.textContent = copied ? '✓ copied' : '# MD';
           setTimeout(() => { if(deadlineCopyMdBtn.isConnected) deadlineCopyMdBtn.textContent = '# MD'; }, 2500);
+        });
+      }
+      // Cycle #272 — chat-friendly deadline digest. Groups deadlines by
+      // urgency (overdue / next 7 days / upcoming) so a chat thread reads
+      // the important ones first without calendar boilerplate.
+      const deadlineDigestBtn = document.getElementById('deadlineDigestBtn');
+      if(deadlineDigestBtn){
+        deadlineDigestBtn.addEventListener('click', async () => {
+          const overdue = [];
+          const soon = [];
+          const later = [];
+          exportItems.forEach(it => {
+            const d = dayDiff(it.date);
+            const cd = (countdown(it.date) || '').trim();
+            const type = /\(obligated\)/.test(it.verb) ? 'must' : 'scheduled';
+            const line = (it.date || '?') + (cd ? ' (' + cd + ')' : '') + ' [' + type + '] ' + String(it.sentence || '').slice(0, 120);
+            if(d !== null && d < 0) overdue.push(line);
+            else if(d !== null && d <= 7) soon.push(line);
+            else later.push(line);
+          });
+          const lines = ['DEADLINE DIGEST — ' + exportItems.length + ' deadline' + (exportItems.length === 1 ? '' : 's') + ' (ClearDoc)'];
+          if(overdue.length){ lines.push(''); lines.push('⚠ Overdue:'); lines.push(...overdue.map(l => '  • ' + l)); }
+          if(soon.length){ lines.push(''); lines.push('⏰ Next 7 days:'); lines.push(...soon.map(l => '  • ' + l)); }
+          if(later.length){ lines.push(''); lines.push('📅 Later:'); lines.push(...later.map(l => '  • ' + l)); }
+          lines.push('');
+          lines.push('_ClearDoc · informational only, not legal advice_');
+          const text = lines.join('\n');
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(text);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Deadline digest copied' + filteredNote : '⚠ Couldn’t copy');
+          deadlineDigestBtn.textContent = copied ? '✓ copied' : '💬 deadline digest';
+          setTimeout(() => { if(deadlineDigestBtn.isConnected) deadlineDigestBtn.textContent = '💬 deadline digest'; }, 2500);
         });
       }
       // Iter #250 — deadline CSV export (RFC 4180): Date, Type, Countdown,
