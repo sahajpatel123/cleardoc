@@ -7802,6 +7802,33 @@
           setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
         });
       }
+      const copyMdBtn = document.getElementById('glossCopyMdBtn');
+      if(copyMdBtn){
+        copyMdBtn.addEventListener('click', async () => {
+          const rows = visible.map(g => '| ' + String(g.term).replace(/\|/g, '\\|') + ' | ' + String(g.plain).replace(/\|/g, '\\|') + ' | ' + g.hits + ' |').join('\n');
+          const md = '| Term | Meaning | Hits |\n|---|---|---|\n' + rows;
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Glossary copied as Markdown' : '⚠ Couldn’t copy');
+          copyMdBtn.textContent = copied ? '✓ copied' : '# MD';
+          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '# MD'; }, 2500);
+        });
+      }
     }
 
     // Iter #178: cross-reference integrity checker — scans for internal
@@ -12454,6 +12481,7 @@
           '<button type="button" class="gloss-filter ghost-btn ghost-btn-sm ' + (filter === 'multi' ? 'gloss-filter-active' : '') + '" data-gloss-filter="multi">multi-hit only</button>' +
           '<button type="button" class="gloss-filter ghost-btn ghost-btn-sm ' + (filter === 'all' ? 'gloss-filter-active' : '') + '" data-gloss-filter="all">all</button>' +
           '<button type="button" class="gloss-copy-all ghost-btn ghost-btn-sm" id="glossCopyAllBtn" title="Copy the entire glossary as plain text">📋 copy all</button>' +
+          '<button type="button" class="gloss-copy-all ghost-btn ghost-btn-sm" id="glossCopyMdBtn" title="Copy the glossary as a Markdown table"># MD</button>' +
         '</div>';
       glossGrid.innerHTML = visible.map(g => (
         '<div class="gloss-row" data-gloss-term="' + esc(g.term) + '" data-gloss-plain="' + esc(g.plain) + '" title="Click to copy the plain-English meaning. Shift-click to jump to the source.">' +

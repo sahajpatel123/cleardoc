@@ -11694,7 +11694,51 @@ test("analyzer: Glossary quick-reference extracts legal terms with plain-English
     "iter #157 must include a copy-all button");
   assert.match(appSrc, /gloss-filter|glossFilter/,
     "iter #157 must include filter chips");
+  assert.match(appSrc, /glossCopyMdBtn/,
+    "iter #267 must include a glossary Markdown copy button");
+  assert.match(appSrc, /'📋 Glossary copied as Markdown'/,
+    "iter #267 must confirm when the glossary Markdown is copied");
+  assert.match(appSrc, /\| Term \| Meaning \| Hits \|/,
+    "iter #267 must build a Markdown table header");
   assert.match(cssSrc, /\.gloss-filter-active\b/, ".gloss-filter-active style must exist");
+});
+
+skip("analyze: glossary copies as Markdown", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__copiedGlossMd = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__copiedGlossMd = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__copiedGlossMd = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#glossBlock:not([hidden]) #glossCopyMdBtn", { timeout: 8000 });
+    await page.click("#glossCopyMdBtn");
+    await page.waitForFunction(() => window.__copiedGlossMd && window.__copiedGlossMd.length > 0, { timeout: 8000 });
+    const captured = await page.evaluate(() => window.__copiedGlossMd);
+    assert.match(captured, /^\| Term \| Meaning \| Hits \|/, "the copied glossary must start with the Markdown header");
+    assert.match(captured, /\|---\|---\|---\|/, "the copied glossary must include the separator row");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
 });
 
 // Cycle #128 — pronounce any glossary term.
