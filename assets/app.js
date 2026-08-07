@@ -2537,6 +2537,7 @@
             <div class="kb-row"><kbd>d</kbd><span>Copy the chat-friendly risk digest</span></div>
             <div class="kb-row"><kbd>o</kbd><span>Copy the obligations digest</span></div>
             <div class="kb-row"><kbd>n</kbd><span>Copy the key facts snapshot</span></div>
+            <div class="kb-row"><kbd>t</kbd><span>Copy the care plan next-dates digest</span></div>
             <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
@@ -2703,6 +2704,16 @@
         if(p && !p.hidden){
           const kb = document.getElementById('keyFactsCopyBtn');
           if(kb && !kb.hidden){ e.preventDefault(); kb.click(); return; }
+        }
+      }
+
+      // Cycle #282 v2 — 't' copies the care plan next-dates digest when
+      // results are visible (mirrors the other copy shortcuts).
+      if(k === 't' || k === 'T'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const cb = document.getElementById('careDatesBtn');
+          if(cb && cb.isConnected && !document.getElementById('careBlock').hidden){ e.preventDefault(); cb.click(); return; }
         }
       }
 

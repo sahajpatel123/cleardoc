@@ -170,6 +170,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Care plan calendar export** (cycle #281) — the contract care plan now offers a `📅 .ics` button that downloads the renewal cancel-by window and upcoming deadlines as a single calendar file (`cleardoc-care-plan-<date>.ics`) for import into Google Calendar, Apple Calendar, or Outlook.
   - *Polish (cycle #281 v2):* each calendar event now carries a **descriptive summary** (e.g. `Deadline — …`) from the care plan item detail, so imported events explain themselves without opening the app.
 - **Next dates digest** (cycle #282) — a `⏰ next dates` button in the contract care plan copies a compact list of just the dated items (renewal cancel-by + upcoming deadlines) with countdowns and a share link, for a quick calendar check.
+  - *Polish (cycle #282 v2):* the `t` keyboard shortcut now copies the next-dates digest when results are visible (documented in the `?` help modal alongside the other copy shortcuts).
 
 ### Documentation
 
