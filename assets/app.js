@@ -10052,6 +10052,27 @@
         const detail = ctxEl ? ctxEl.textContent.replace(/\s+/g, ' ').trim().slice(0, 160) : '';
         items.push({ date: iso, label: 'Deadline', detail: detail, urgent: days <= 14 });
       });
+      // Cycle #266 v2 — include the top unfulfilled obligations from the
+      // tracker so the plan covers "what I still have to do" too.
+      const obligBlock = document.getElementById('actionBlock2');
+      const obligList = document.getElementById('actionList');
+      if(obligBlock && !obligBlock.hidden && obligList){
+        let obligCount = 0;
+        [...obligList.querySelectorAll('.action-row')].slice(0, 8).forEach(row => {
+          if(obligCount >= 3) return;
+          const doneBtn = row.querySelector('.act-done-btn');
+          const done = doneBtn && doneBtn.textContent.trim() === '✓';
+          if(done) return;
+          const sentenceEl = row.querySelector('.action-sentence');
+          const tagEl = row.querySelector('.action-tag');
+          const isMust = tagEl && /must/.test(tagEl.textContent || '');
+          if(!isMust) return;
+          const sentence = sentenceEl ? sentenceEl.textContent.replace(/\s+/g, ' ').trim().slice(0, 160) : '';
+          if(!sentence) return;
+          items.push({ date: null, label: 'Obligation to fulfill', detail: sentence, urgent: false });
+          obligCount++;
+        });
+      }
       items.sort((a, b) => {
         if(!a.date && !b.date) return 0;
         if(!a.date) return 1;
@@ -10073,7 +10094,7 @@
           ? esc(it.date) + ' <span class="care-countdown">' + esc(countdown(it.date) || '') + '</span>'
           : '<span class="care-countdown">review</span>';
         return '<div class="care-item' + (it.urgent ? ' care-urgent' : '') + '">' +
-          '<span class="care-tag">' + esc(it.label) + '</span>' +
+          '<span class="care-tag" data-label="' + esc(it.label) + '">' + esc(it.label) + '</span>' +
           '<span class="care-when">' + when + '</span>' +
           (it.detail ? '<span class="care-detail">' + esc(it.detail) + '</span>' : '') +
         '</div>';
@@ -10086,6 +10107,8 @@
           items.forEach(it => {
             if(it.label === 'Auto-renewal cancel-by window'){
               lines.push('• Renewal: cancel by ' + (it.date || '') + (it.date && countdown(it.date) ? ' (' + countdown(it.date) + ')' : ''));
+            } else if(it.label === 'Obligation to fulfill'){
+              lines.push('• Obligation: ' + it.detail);
             } else {
               lines.push('• ' + (it.date || '') + (it.date && countdown(it.date) ? ' (' + countdown(it.date) + ')' : '') + (it.detail ? ' — ' + it.detail : ''));
             }
