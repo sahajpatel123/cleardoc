@@ -179,6 +179,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #286 v2):* the risk summary copy now also includes the top concern’s **counter-suggestion** when one exists, so the paste is actionable.
 - **Clean draft** (cycle #287) — a `✍️ clean draft` button in the result actions copies a revised version of the document with the top counter-suggestions applied (without touching the original textarea), so users can review and share a negotiated draft.
   - *Polish (cycle #287 v2):* the `w` keyboard shortcut now copies the clean draft when results are visible (documented in the `?` help modal alongside the other copy shortcuts).
+- **Scoreboard share link** (cycle #288) — the analysis scoreboard copy now appends a **share link** to the full analysis (mirroring the other copy actions), completing the share-link family across all copyable summaries.
 
 ### Documentation
 
