@@ -8805,7 +8805,15 @@
       const decisionBriefBtn = document.getElementById('decisionBriefBtn');
       if(decisionBriefBtn){
         decisionBriefBtn.onclick = async () => {
-          const brief = buildPreSignBrief(d);
+          let brief = buildPreSignBrief(d);
+          // Cycle #277 — append a share link so a chat recipient can open
+          // the full analysis in one tap (mirrors the other digests).
+          try {
+            if(typeof buildShareUrl === 'function'){
+              const shareUrl = await buildShareUrl();
+              if(shareUrl) brief += '\n' + shareUrl;
+            }
+          } catch(_){ /* keep the brief copyable even if the link fails */ }
           let copied = false;
           try { if(navigator.clipboard){ await navigator.clipboard.writeText(brief); copied = true; } }
           catch(_){ /* fall through */ }
