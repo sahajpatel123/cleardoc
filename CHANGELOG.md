@@ -183,6 +183,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Care plan Markdown export** (cycle #289) — the contract care plan now offers a `# MD` button that copies the watch-list as a Markdown table (Item / When / Detail) with a disclaimer footer.
   - *Polish (cycle #289 v2):* the Markdown export now appends a **share link** to the full analysis (mirroring the other copy actions), so a recipient can open the underlying document in one tap.
 - **Key facts Markdown export** (cycle #290) — the key-facts row now offers a `# MD` button that copies the snapshot as a Markdown bullet list with a share link.
+  - *Polish (cycle #290 v2):* the `m` keyboard shortcut now copies the key facts as Markdown when results are visible (documented in the `?` help modal alongside the other copy shortcuts).
 
 ### Documentation
 
