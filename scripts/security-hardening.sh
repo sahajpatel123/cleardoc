@@ -204,7 +204,16 @@ else
     check_fail "CodeQL is missing security-events write permission"
 fi
 
-# 3i. Verify browser smoke tests remain in CI
+# 3i. Verify CodeQL ignores test-only changes
+echo ""
+echo "--- Checking GitHub Actions CodeQL test ignore ---"
+if [ -f .github/workflows/codeql.yml ] && grep -q "test/\*\*" .github/workflows/codeql.yml; then
+    check_pass "CodeQL ignores test-only changes"
+else
+    check_fail "CodeQL is missing test path ignore"
+fi
+
+# 3j. Verify browser smoke tests remain in CI
 echo ""
 echo "--- Checking GitHub Actions browser smoke coverage ---"
 if [ -f .github/workflows/test.yml ] && grep -q "npm run test:smoke" .github/workflows/test.yml; then
@@ -213,7 +222,7 @@ else
     check_fail "Browser smoke tests are missing from test workflow"
 fi
 
-# 3j. Verify JSON config validation remains in CI
+# 3k. Verify JSON config validation remains in CI
 echo ""
 echo "--- Checking GitHub Actions JSON validation ---"
 if [ -f .github/workflows/test.yml ] && grep -q "npm run validate:json" .github/workflows/test.yml; then
@@ -222,7 +231,7 @@ else
     check_fail "JSON config validation is missing from test workflow"
 fi
 
-# 3k. Verify checkout steps do not persist credentials
+# 3l. Verify checkout steps do not persist credentials
 echo ""
 echo "--- Checking GitHub Actions checkout credential persistence ---"
 MISSING_PERSIST=""
@@ -237,7 +246,7 @@ else
     check_fail "persist-credentials false missing in:$MISSING_PERSIST"
 fi
 
-# 3k. Verify setup-node caches npm dependencies
+# 3m. Verify setup-node caches npm dependencies
 echo ""
 echo "--- Checking GitHub Actions npm cache ---"
 MISSING_CACHE=""
@@ -252,7 +261,7 @@ else
     check_fail "npm cache missing in:$MISSING_CACHE"
 fi
 
-# 3l. Verify workflows support manual dispatch
+# 3n. Verify workflows support manual dispatch
 echo ""
 echo "--- Checking GitHub Actions workflow_dispatch ---"
 MISSING_DISPATCH=""
@@ -267,7 +276,7 @@ else
     check_fail "workflow_dispatch missing in:$MISSING_DISPATCH"
 fi
 
-# 3m. Verify the security hardening script runs in CI
+# 3o. Verify the security hardening script runs in CI
 echo ""
 echo "--- Checking GitHub Actions hardening script run ---"
 if [ -f .github/workflows/security.yml ] && grep -q "scripts/security-hardening.sh" .github/workflows/security.yml; then
