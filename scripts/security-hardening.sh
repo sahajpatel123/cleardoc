@@ -258,6 +258,15 @@ else
     check_fail "workflow_dispatch missing in:$MISSING_DISPATCH"
 fi
 
+# 3m. Verify the security hardening script runs in CI
+echo ""
+echo "--- Checking GitHub Actions hardening script run ---"
+if [ -f .github/workflows/security.yml ] && grep -q "scripts/security-hardening.sh" .github/workflows/security.yml; then
+    check_pass "Security hardening script runs in CI"
+else
+    check_fail "Security hardening script is missing from CI"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""
