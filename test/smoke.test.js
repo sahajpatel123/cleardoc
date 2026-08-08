@@ -2262,6 +2262,12 @@ skip("analyzer: care plan email button opens a pre-filled mail client", async ()
     assert.match(decodeURIComponent(href), /Contract care plan/, "the subject must mention the care plan");
     assert.match(decodeURIComponent(href), /Here is the ClearDoc care plan/, "the body must include the care plan intro");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+    // Cycle #293 v2 — 'a' shortcut opens the same email.
+    await page.evaluate(() => { window.__mailtoHref = null; });
+    await page.keyboard.press("a");
+    await page.waitForFunction(() => window.__mailtoHref && window.__mailtoHref.startsWith("mailto:"), { timeout: 8000 });
+    const viaKey = await page.evaluate(() => window.__mailtoHref);
+    assert.match(viaKey, /^mailto:\?subject=/, "the a shortcut must open the care plan email");
   } finally {
     await page.close();
     await ctx.close();

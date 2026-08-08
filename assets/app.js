@@ -2563,6 +2563,7 @@
             <div class="kb-row"><kbd>s</kbd><span>Copy the one-line document summary</span></div>
             <div class="kb-row"><kbd>w</kbd><span>Copy the clean draft (counter-suggestions applied)</span></div>
             <div class="kb-row"><kbd>e</kbd><span>Copy the care plan deadline digest</span></div>
+            <div class="kb-row"><kbd>a</kbd><span>Open the care plan email</span></div>
             <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
@@ -2780,6 +2781,17 @@
         if(p && !p.hidden && document.activeElement && !document.activeElement.closest('#riskList')){
           const eb = document.getElementById('careDeadlineDigestBtn');
           if(eb && eb.isConnected && !document.getElementById('careBlock').hidden){ e.preventDefault(); eb.click(); return; }
+        }
+      }
+
+      // Cycle #293 v2 — 'a' opens the care plan email when results are
+      // visible and no risk row is focused (the risk-row 'a' ask shortcut
+      // only fires when a risk row is focused).
+      if(k === 'a' || k === 'A'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden && document.activeElement && !document.activeElement.closest('#riskList')){
+          const ab = document.getElementById('careEmailBtn');
+          if(ab && ab.isConnected && !document.getElementById('careBlock').hidden){ e.preventDefault(); ab.click(); return; }
         }
       }
 
