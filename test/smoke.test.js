@@ -2347,6 +2347,7 @@ skip("analyzer: scoreboard renders headline scores and copies them", async () =>
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
   assert.match(html, /id="scoreBoard"/, "analyze.html must expose the scoreboard");
+  assert.match(html, /id="scoreBoardEmailBtn"/, "analyze.html must expose the scoreboard email button");
   assert.match(appSrc, /function renderScoreBoard\(raw, ctx\)\{/, "app.js must define renderScoreBoard");
 
   const page = await context.newPage();
@@ -2369,6 +2370,21 @@ skip("analyzer: scoreboard renders headline scores and copies them", async () =>
   const copiedScore = await page.evaluate(() => window.__copiedScore);
   assert.match(copiedScore, /SCOREBOARD —/, "scoreboard copy must include the scoreboard line");
   assert.match(copiedScore, /http.*#share=/, "scoreboard copy must include a share link");
+  // Cycle #294 — scoreboard email opens a mailto with the scoreboard.
+  await page.evaluate(() => {
+    window.__scoreMailto = null;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        ...window.location,
+        set href(v) { window.__scoreMailto = v; },
+      },
+    });
+  });
+  await page.click("#scoreBoardEmailBtn");
+  await page.waitForFunction(() => window.__scoreMailto && window.__scoreMailto.startsWith("mailto:"), { timeout: 4000 });
+  const scoreMailto = await page.evaluate(() => window.__scoreMailto);
+  assert.match(scoreMailto, /^mailto:\?subject=/, "scoreboard email must open a mailto link");
   // Cycle #275 v2 — chips are clickable and jump to their source block.
   const chip = await page.$("#scoreBoardText .scoreboard-chip[data-target]");
   assert.ok(chip, "scoreboard must render clickable chips");

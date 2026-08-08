@@ -190,6 +190,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #292 v2):* the chip is now a real **link** to the analyzer (keyboard-accessible, Tab + Enter), with a cleaner label.
 - **Care plan email** (cycle #293) — the contract care plan now offers an `✉️ email plan` button that opens the mail client with the watch-list (renewals, deadlines, obligations) pre-filled.
   - *Polish (cycle #293 v2):* the `a` keyboard shortcut now opens the care plan email when results are visible and no risk row is focused (documented in the `?` help modal).
+- **Scoreboard email** (cycle #294) — the analysis scoreboard now has an `✉️ email` button that opens the mail client with the scoreboard line pre-filled.
 
 ### Documentation
 
