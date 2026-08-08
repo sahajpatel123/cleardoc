@@ -651,6 +651,11 @@ if [ -f "sitemap.xml" ]; then
     else
         check_fail "sitemap.xml missing:$missing"
     fi
+    if grep -q "<lastmod>" sitemap.xml 2>/dev/null; then
+        check_pass "sitemap.xml contains lastmod entries"
+    else
+        check_fail "sitemap.xml is missing lastmod entries"
+    fi
 else
     check_fail "sitemap.xml not found"
 fi
