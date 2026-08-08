@@ -2283,6 +2283,7 @@ skip("analyzer: key facts snapshot renders after analysis", async () => {
   assert.match(html, /id="keyFacts"/, "analyze.html must expose the key-facts row");
   assert.match(html, /id="keyFactsCopyBtn"/, "analyze.html must expose the key-facts copy button");
   assert.match(html, /id="keyFactsMdBtn"/, "analyze.html must expose the key-facts Markdown button");
+  assert.match(html, /id="keyFactsEmailBtn"/, "analyze.html must expose the key-facts email button");
   assert.match(appSrc, /function renderKeyFacts\(raw, ctx\)\{/, "app.js must define renderKeyFacts");
 
   const page = await context.newPage();
@@ -2315,6 +2316,21 @@ skip("analyzer: key facts snapshot renders after analysis", async () => {
   const copiedMd = await page.evaluate(() => window.__copiedKeyFactsMd);
   assert.match(copiedMd, /# Key facts/, "key facts Markdown must carry a header");
   assert.match(copiedMd, /http.*#share=/, "key facts Markdown must include a share link");
+  // Cycle #295 — key facts email opens a mailto.
+  await page.evaluate(() => {
+    window.__keyFactsMailto = null;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        ...window.location,
+        set href(v) { window.__keyFactsMailto = v; },
+      },
+    });
+  });
+  await page.click("#keyFactsEmailBtn");
+  await page.waitForFunction(() => window.__keyFactsMailto && window.__keyFactsMailto.startsWith("mailto:"), { timeout: 4000 });
+  const keyFactsMailto = await page.evaluate(() => window.__keyFactsMailto);
+  assert.match(keyFactsMailto, /^mailto:\?subject=/, "key facts email must open a mailto link");
   // Cycle #290 v2 — 'm' shortcut copies key facts as Markdown.
   await page.evaluate(() => { window.__copiedKeyFactsMd = null; });
   await page.keyboard.press("m");
