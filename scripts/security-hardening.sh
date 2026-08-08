@@ -525,6 +525,11 @@ if [ -f "SECURITY.md" ]; then
     else
         check_fail "SECURITY.md is missing private vulnerability reporting URL"
     fi
+    if grep -q "security@cleardoc\.app" SECURITY.md 2>/dev/null; then
+        check_pass "SECURITY.md includes the security email"
+    else
+        check_fail "SECURITY.md is missing the security email"
+    fi
 else
     check_fail "SECURITY.md not found"
 fi
