@@ -2385,6 +2385,12 @@ skip("analyzer: scoreboard renders headline scores and copies them", async () =>
   await page.waitForFunction(() => window.__scoreMailto && window.__scoreMailto.startsWith("mailto:"), { timeout: 4000 });
   const scoreMailto = await page.evaluate(() => window.__scoreMailto);
   assert.match(scoreMailto, /^mailto:\?subject=/, "scoreboard email must open a mailto link");
+  // Cycle #294 v2 — 'b' shortcut opens the same email.
+  await page.evaluate(() => { window.__scoreMailto = null; });
+  await page.keyboard.press("b");
+  await page.waitForFunction(() => window.__scoreMailto && window.__scoreMailto.startsWith("mailto:"), { timeout: 4000 });
+  const viaKey = await page.evaluate(() => window.__scoreMailto);
+  assert.match(viaKey, /^mailto:\?subject=/, "the b shortcut must open the scoreboard email");
   // Cycle #275 v2 — chips are clickable and jump to their source block.
   const chip = await page.$("#scoreBoardText .scoreboard-chip[data-target]");
   assert.ok(chip, "scoreboard must render clickable chips");
