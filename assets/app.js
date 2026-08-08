@@ -2564,6 +2564,7 @@
             <div class="kb-row"><kbd>w</kbd><span>Copy the clean draft (counter-suggestions applied)</span></div>
             <div class="kb-row"><kbd>e</kbd><span>Copy the care plan deadline digest</span></div>
             <div class="kb-row"><kbd>a</kbd><span>Open the care plan email</span></div>
+            <div class="kb-row"><kbd>b</kbd><span>Open the scoreboard email</span></div>
             <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
@@ -2792,6 +2793,16 @@
         if(p && !p.hidden && document.activeElement && !document.activeElement.closest('#riskList')){
           const ab = document.getElementById('careEmailBtn');
           if(ab && ab.isConnected && !document.getElementById('careBlock').hidden){ e.preventDefault(); ab.click(); return; }
+        }
+      }
+
+      // Cycle #294 v2 — 'b' opens the scoreboard email when results are
+      // visible (mirrors the other copy/email shortcuts).
+      if(k === 'b' || k === 'B'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const sb = document.getElementById('scoreBoardEmailBtn');
+          if(sb && sb.isConnected && !document.getElementById('scoreBoard').hidden){ e.preventDefault(); sb.click(); return; }
         }
       }
 
