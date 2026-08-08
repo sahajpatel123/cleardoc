@@ -213,7 +213,16 @@ else
     check_fail "Browser smoke tests are missing from test workflow"
 fi
 
-# 3j. Verify checkout steps do not persist credentials
+# 3j. Verify JSON config validation remains in CI
+echo ""
+echo "--- Checking GitHub Actions JSON validation ---"
+if [ -f .github/workflows/test.yml ] && grep -q "npm run validate:json" .github/workflows/test.yml; then
+    check_pass "JSON config validation is present in test workflow"
+else
+    check_fail "JSON config validation is missing from test workflow"
+fi
+
+# 3k. Verify checkout steps do not persist credentials
 echo ""
 echo "--- Checking GitHub Actions checkout credential persistence ---"
 MISSING_PERSIST=""
