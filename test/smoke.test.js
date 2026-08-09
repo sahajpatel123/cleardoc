@@ -2071,6 +2071,12 @@ skip("analyzer: pre-sign brief email button opens a pre-filled mail client", asy
     const href = await page.evaluate(() => window.__decisionMailto);
     assert.match(href, /^mailto:\?subject=/, "the pre-sign brief email must open a mailto link");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+    // Cycle #300 v2 — 'v' shortcut opens the same email.
+    await page.evaluate(() => { window.__decisionMailto = null; });
+    await page.keyboard.press("v");
+    await page.waitForFunction(() => window.__decisionMailto && window.__decisionMailto.startsWith("mailto:"), { timeout: 8000 });
+    const viaKey = await page.evaluate(() => window.__decisionMailto);
+    assert.match(viaKey, /^mailto:\?subject=/, "the v shortcut must open the pre-sign brief email");
   } finally {
     await page.close();
     await ctx.close();

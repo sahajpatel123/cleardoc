@@ -672,6 +672,11 @@ if [ -f ".github/dependabot.yml" ]; then
     else
         check_fail "dependabot.yml is missing npm or GitHub Actions ecosystem"
     fi
+    if [ "$(grep -c "open-pull-requests-limit" .github/dependabot.yml 2>/dev/null || true)" -ge 2 ]; then
+        check_pass "dependabot caps open PRs for npm and GitHub Actions"
+    else
+        check_fail "dependabot.yml is missing open-pull-requests-limit for both ecosystems"
+    fi
 else
     check_fail "dependabot.yml not found"
 fi
