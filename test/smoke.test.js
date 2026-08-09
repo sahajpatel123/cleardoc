@@ -2145,6 +2145,12 @@ skip("analyzer: care plan exports a CSV tracker file", async () => {
     assert.match(content, /Item,When,Detail/, "the CSV must carry the expected header");
     assert.match(content, /Care item|Renewal|cancel/, "the CSV must include care plan items");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+    // Cycle #301 v2 — 'y' shortcut downloads the same CSV.
+    const [dl2] = await Promise.all([
+      page.waitForEvent("download", { timeout: 8000 }),
+      page.keyboard.press("y"),
+    ]);
+    assert.match(dl2.suggestedFilename(), /^cleardoc-care-plan-\d{4}-\d{2}-\d{2}\.csv$/, "the y shortcut must download the care plan CSV");
   } finally {
     await page.close();
     await ctx.close();

@@ -2571,6 +2571,7 @@
             <div class="kb-row"><kbd>u</kbd><span>Open the deadline email</span></div>
             <div class="kb-row"><kbd>x</kbd><span>Open the obligations email</span></div>
             <div class="kb-row"><kbd>v</kbd><span>Open the pre-sign brief email</span></div>
+            <div class="kb-row"><kbd>y</kbd><span>Download the care plan CSV</span></div>
             <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
@@ -2868,6 +2869,16 @@
         if(p && !p.hidden){
           const vb = document.getElementById('decisionEmailBtn');
           if(vb && vb.isConnected && !document.getElementById('decisionBlock').hidden){ e.preventDefault(); vb.click(); return; }
+        }
+      }
+
+      // Cycle #301 v2 — 'y' downloads the care plan CSV when results are
+      // visible (mirrors the other export shortcuts).
+      if(k === 'y' || k === 'Y'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const yb = document.getElementById('careCsvBtn');
+          if(yb && yb.isConnected && !document.getElementById('careBlock').hidden){ e.preventDefault(); yb.click(); return; }
         }
       }
 
