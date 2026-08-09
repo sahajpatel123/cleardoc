@@ -687,6 +687,11 @@ if [ -f ".github/dependabot.yml" ]; then
     else
         check_fail "dependabot.yml is missing a weekly schedule for both ecosystems"
     fi
+    if [ "$(grep -c '\- "dependencies"' .github/dependabot.yml 2>/dev/null || true)" -ge 2 ]; then
+        check_pass "dependabot labels dependency PRs for both ecosystems"
+    else
+        check_fail "dependabot.yml is missing dependency labels for both ecosystems"
+    fi
 else
     check_fail "dependabot.yml not found"
 fi
