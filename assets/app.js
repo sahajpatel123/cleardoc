@@ -11087,6 +11087,43 @@
           setTimeout(() => { if(careEmailBtn.isConnected) careEmailBtn.textContent = '✉️ email plan'; }, 2500);
         });
       }
+      // Cycle #301 — care plan CSV export.
+      const careCsvBtn = document.getElementById('careCsvBtn');
+      if(careCsvBtn && !careCsvBtn._careCsvWired){
+        careCsvBtn._careCsvWired = true;
+        careCsvBtn.addEventListener('click', () => {
+          const csvCell = (v) => {
+            let s = String(v || '');
+            if(/^[=+\-@]/.test(s)) s = "'" + s;
+            return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+          };
+          const rows = items.map(it => csvCell(it.label || 'Care item') + ',' + csvCell(it.date || '') + ',' + csvCell(it.detail || ''));
+          const text = '\uFEFF' + csvCell('Item') + ',' + csvCell('When') + ',' + csvCell('Detail') + '\n' + rows.join('\n');
+          let exported = false;
+          try {
+            const stamp = new Date().toISOString().slice(0, 10);
+            const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-care-plan-' + stamp + '.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            exported = true;
+          } catch(_){ /* fall through to data URL */ }
+          if(!exported){
+            try {
+              const a = document.createElement('a');
+              a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(text);
+              a.download = 'cleardoc-care-plan-' + new Date().toISOString().slice(0, 10) + '.csv';
+              document.body.appendChild(a); a.click(); document.body.removeChild(a);
+              exported = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(exported ? '📊 Care plan CSV downloaded' : '⚠ Couldn’t export');
+          careCsvBtn.textContent = exported ? '✓ exported' : '📊 CSV';
+          setTimeout(() => { if(careCsvBtn.isConnected) careCsvBtn.textContent = '📊 CSV'; }, 2500);
+        });
+      }
       // Cycle #281 — care plan .ics export: download renewal cancel-by +
       // upcoming deadlines as a single calendar file.
       const careIcsBtn = document.getElementById('careIcsBtn');
