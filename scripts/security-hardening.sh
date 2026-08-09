@@ -712,6 +712,24 @@ else
     check_fail "package-lock.json is not tracked"
 fi
 
+# 9b. Verify the npm precommit hook still runs the hardening script
+echo ""
+echo "--- Checking package.json precommit hook ---"
+if command -v node &> /dev/null; then
+    if node -e "
+const p=require('./package.json');
+const pre=p.scripts && p.scripts.precommit ? p.scripts.precommit : '';
+if(!/security-hardening/.test(pre)) process.exit(1);
+process.exit(0);
+" 2>/dev/null; then
+        check_pass "npm precommit runs the security hardening script"
+    else
+        check_fail "npm precommit does not run scripts/security-hardening.sh"
+    fi
+else
+    check_warn "Node.js not available for package.json precommit check"
+fi
+
 # 10. Check no tracked .env secret files
 echo ""
 echo "--- Checking tracked env files ---"
