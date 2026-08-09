@@ -434,6 +434,27 @@ else
     check_warn "Node.js not available for CSP connect-src check"
 fi
 
+# 4f2. Verify the API CSP is fully locked down (default-src none + no framing)
+echo ""
+echo "--- Checking CSP API lockdown ---"
+if command -v node &> /dev/null; then
+    if node -e "
+const j=JSON.parse(require('fs').readFileSync('vercel.json','utf8'));
+const block=j.headers.find(h=>h.source==='/api/(.*)');
+if(!block) throw new Error('No API header block');
+const csp=(block.headers.find(h=>h.key==='Content-Security-Policy')||{}).value||'';
+if(!csp.includes(\"default-src 'none'\")) throw new Error('API CSP default-src is not none');
+if(!csp.includes(\"frame-ancestors 'none'\")) throw new Error('API CSP frame-ancestors is not none');
+process.exit(0);
+" 2>/dev/null; then
+        check_pass "API CSP locks default-src and frame-ancestors to none"
+    else
+        check_fail "API CSP is missing default-src 'none' or frame-ancestors 'none'"
+    fi
+else
+    check_warn "Node.js not available for API CSP lockdown check"
+fi
+
 # 4g. Verify API security headers
 echo ""
 echo "--- Checking API security headers ---"

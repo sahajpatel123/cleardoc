@@ -13307,6 +13307,43 @@ skip("analyzer: obligations digest copies must/may groups with progress", async 
   }
 });
 
+// Cycle #299 — obligations email action.
+skip("analyzer: obligations email button opens a pre-filled mail client", async () => {
+  if (!HAS_BROWSER) return;
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(appSrc, /actionEmailBtn/, "app.js must wire the obligations email button");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__obligMailto = null;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        ...window.location,
+        set href(v) { window.__obligMailto = v; },
+      },
+    });
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#actionEmailBtn", { timeout: 8000 });
+    await page.click("#actionEmailBtn");
+    await page.waitForFunction(() => window.__obligMailto && window.__obligMailto.startsWith("mailto:"), { timeout: 8000 });
+    const href = await page.evaluate(() => window.__obligMailto);
+    assert.match(href, /^mailto:\?subject=/, "the obligations email must open a mailto link");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #284 — chat share now carries deadlines + jurisdiction.
 skip("analyzer: chat share includes deadlines and jurisdiction", async () => {
   if (!HAS_BROWSER) return;

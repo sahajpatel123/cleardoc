@@ -200,6 +200,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #297 v2):* the `l` keyboard shortcut now copies the scoreboard as Markdown when results are visible (documented in the `?` help modal).
 - **Deadline email** (cycle #298) — the deadline block now has an `✉️ email` button that opens the mail client with the extracted deadlines pre-filled.
   - *Polish (cycle #298 v2):* the `u` keyboard shortcut now opens the deadline email when results are visible (documented in the `?` help modal).
+- **Obligations email** (cycle #299) — the obligation tracker now has an `✉️ email` button that opens the mail client with the obligation list pre-filled.
 
 ### Documentation
 
