@@ -2038,6 +2038,45 @@ skip("analyzer: contract care plan copies renewal + upcoming deadlines", async (
   await page.close();
 });
 
+// Cycle #300 — pre-sign brief email action.
+skip("analyzer: pre-sign brief email button opens a pre-filled mail client", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="decisionEmailBtn"/, "analyze.html must expose the pre-sign brief email button");
+  assert.match(appSrc, /decisionEmailBtn/, "app.js must wire the pre-sign brief email button");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__decisionMailto = null;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        ...window.location,
+        set href(v) { window.__decisionMailto = v; },
+      },
+    });
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#decisionEmailBtn", { timeout: 8000 });
+    await page.click("#decisionEmailBtn");
+    await page.waitForFunction(() => window.__decisionMailto && window.__decisionMailto.startsWith("mailto:"), { timeout: 8000 });
+    const href = await page.evaluate(() => window.__decisionMailto);
+    assert.match(href, /^mailto:\?subject=/, "the pre-sign brief email must open a mailto link");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #281 — care plan calendar export.
 skip("analyzer: care plan exports an .ics calendar file", async () => {
   if (!HAS_BROWSER) return;
