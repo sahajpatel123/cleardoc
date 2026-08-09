@@ -644,6 +644,11 @@ if [ -f "robots.txt" ] && grep -q "^User-agent:" robots.txt 2>/dev/null && grep 
 else
     check_fail "robots.txt is missing user-agent or sitemap directive"
 fi
+if [ -f "robots.txt" ] && grep -q "^User-agent: \*$" robots.txt 2>/dev/null; then
+    check_pass "robots.txt targets all crawlers"
+else
+    check_fail "robots.txt is missing User-agent: *"
+fi
 if [ -f "robots.txt" ] && grep -q "^Allow: /$" robots.txt 2>/dev/null; then
     check_pass "robots.txt allows the site root"
 else
