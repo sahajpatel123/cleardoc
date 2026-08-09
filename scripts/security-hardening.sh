@@ -603,6 +603,15 @@ if command -v node &> /dev/null; then
     else
         check_fail "vercel.json is not valid JSON"
     fi
+    if node -e "
+const j=JSON.parse(require('fs').readFileSync('vercel.json','utf8'));
+if(j.cleanUrls !== true || j.trailingSlash !== false) process.exit(1);
+process.exit(0);
+" 2>/dev/null; then
+        check_pass "vercel.json uses clean URLs without trailing slashes"
+    else
+        check_fail "vercel.json cleanUrls or trailingSlash is not configured as expected"
+    fi
 else
     check_warn "Node.js not available for JSON validation"
 fi
