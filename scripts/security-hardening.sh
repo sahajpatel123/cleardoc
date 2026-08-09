@@ -680,6 +680,11 @@ if [ -f "sitemap.xml" ]; then
     else
         check_fail "sitemap.xml is missing lastmod entries"
     fi
+    if grep -q "<changefreq>" sitemap.xml 2>/dev/null; then
+        check_pass "sitemap.xml contains changefreq entries"
+    else
+        check_fail "sitemap.xml is missing changefreq entries"
+    fi
 else
     check_fail "sitemap.xml not found"
 fi
