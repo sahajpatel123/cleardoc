@@ -209,6 +209,35 @@ skip("home: next-deadline chip shows soonest upcoming deadline", async () => {
   }
 });
 
+// Cycle #302 — two-press slider copy button.
+skip("home: two-press slider copies the plain-English version", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "index.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="tpCopyBtn"/, "index.html must expose the two-press copy button");
+  assert.match(appSrc, /function wireTwoPressCopy\(\)\{/, "app.js must define wireTwoPressCopy");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    window.__tpCopied = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { window.__tpCopied = t; }, write: async () => {} } });
+    } catch (_) {}
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
+    await page.waitForSelector("#tpCopyBtn", { timeout: 4000 });
+    await page.click("#tpCopyBtn");
+    await page.waitForFunction(() => window.__tpCopied && window.__tpCopied.length > 0, { timeout: 4000 });
+    const copied = await page.evaluate(() => window.__tpCopied);
+    assert.match(copied, /cover the landlord's losses/, "the copied text must be the plain-English version");
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 test("all pages: footer includes the service status chip", () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
@@ -2745,6 +2774,46 @@ test("home: hero clarifier card can copy the plain-English rewrite", () => {
     "the copy chip must sit below the 'ClearDoc ✦' corner label (no overlap)");
   assert.match(cssSrc, /\.hcard \.hcard-copy:focus-visible\{/,
     "the copy chip must have a visible focus ring");
+});
+
+// Cycle #302 — two-press slider copy button.
+skip("home: two-press slider copies the plain-English version", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "index.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="tpCopyBtn"/, "index.html must expose the two-press copy button");
+  assert.match(appSrc, /wireTwoPressCopy/, "app.js must wire the two-press copy button");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__tpCopied = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (txt) => { window.__tpCopied = txt; },
+          write: async () => {},
+        },
+      });
+    } catch (_) {
+      try { navigator.clipboard = { writeText: async (txt) => { window.__tpCopied = txt; }, write: async () => {} }; } catch (_2) {}
+    }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/index.html`, { waitUntil: "networkidle" });
+    await page.click("#tpCopyBtn");
+    await page.waitForFunction(() => window.__tpCopied && window.__tpCopied.length > 0, { timeout: 8000 });
+    const copied = await page.evaluate(() => window.__tpCopied);
+    assert.ok(copied.length > 0, "the two-press copy button must copy plain text");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
 });
 
 skip("STRICT RULE: html/body overflow-x is 'clip', never 'hidden' (kills sticky)", async () => {

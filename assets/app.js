@@ -1177,7 +1177,7 @@
   /* ================= INIT ================= */
   function initAll(){
     const page=(document.body.dataset.page)||'home';
-    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo,wireDocFingerprint,initServiceStatus,initHomeDeadline];
+    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo,wireDocFingerprint,initServiceStatus,initHomeDeadline,wireTwoPressCopy];
     const byPage={
       home:[heroClarifier,flagHunt,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,privacyGuard,wireSourceFind,wireSelectionAsk,faq],
@@ -1265,6 +1265,38 @@
     el.textContent = '⏰ ' + when + ' · ' + soon.label.slice(0, 60);
     el.title = 'Soonest deadline from your last analysis: ' + soon.date;
     el.hidden = false;
+  }
+
+  // Cycle #302 — two-press slider copy: copy the plain-English version
+  // of the demo clause from the home page.
+  function wireTwoPressCopy(){
+    const btn = document.getElementById('tpCopyBtn');
+    if(!btn) return;
+    const src = document.getElementById('tpClear');
+    if(!src) return;
+    btn.addEventListener('click', async () => {
+      const text = src.textContent || '';
+      let ok = false;
+      try {
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        }
+      } catch(_){ /* fall through */ }
+      if(!ok){
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+        } catch(_){ ok = false; }
+      }
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Plain-English copy ready' : '⚠ Couldn’t copy');
+      btn.textContent = ok ? '✓ copied' : '📋 copy';
+      setTimeout(() => { if(btn.isConnected) btn.textContent = '📋 copy'; }, 2500);
+    });
   }
 
   /* ---- CTAs ---- */
