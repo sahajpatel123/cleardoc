@@ -199,6 +199,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Scoreboard Markdown export** (cycle #297) — the analysis scoreboard now has a `# MD` button that copies the scoreboard as a Markdown bullet list with a share link.
   - *Polish (cycle #297 v2):* the `l` keyboard shortcut now copies the scoreboard as Markdown when results are visible (documented in the `?` help modal).
 - **Deadline email** (cycle #298) — the deadline block now has an `✉️ email` button that opens the mail client with the extracted deadlines pre-filled.
+  - *Polish (cycle #298 v2):* the `u` keyboard shortcut now opens the deadline email when results are visible (documented in the `?` help modal).
 
 ### Documentation
 

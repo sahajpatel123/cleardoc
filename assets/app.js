@@ -2568,6 +2568,7 @@
             <div class="kb-row"><kbd>k</kbd><span>Open the key facts email</span></div>
             <div class="kb-row"><kbd>i</kbd><span>Open the risk email</span></div>
             <div class="kb-row"><kbd>l</kbd><span>Copy the scoreboard as Markdown</span></div>
+            <div class="kb-row"><kbd>u</kbd><span>Open the deadline email</span></div>
             <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
@@ -2835,6 +2836,16 @@
         if(p && !p.hidden){
           const lb = document.getElementById('scoreBoardMdBtn');
           if(lb && lb.isConnected && !document.getElementById('scoreBoard').hidden){ e.preventDefault(); lb.click(); return; }
+        }
+      }
+
+      // Cycle #298 v2 — 'u' opens the deadline email when results are
+      // visible (mirrors the other email shortcuts).
+      if(k === 'u' || k === 'U'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const ub = document.getElementById('deadlineEmailBtn');
+          if(ub && ub.isConnected){ e.preventDefault(); ub.click(); return; }
         }
       }
 

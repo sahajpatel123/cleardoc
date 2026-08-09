@@ -300,6 +300,15 @@ else
     check_fail "Integration tests missing from:$MISSING_INTEGRATION"
 fi
 
+# 3q. Verify CodeQL uses the broader security-and-quality query suite
+echo ""
+echo "--- Checking GitHub Actions CodeQL query suite ---"
+if [ -f .github/workflows/codeql.yml ] && grep -q "security-and-quality" .github/workflows/codeql.yml; then
+    check_pass "CodeQL uses the security-and-quality query suite"
+else
+    check_fail "CodeQL is missing the security-and-quality query suite"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""

@@ -5050,6 +5050,13 @@ skip("analyzer: deadline email button opens a pre-filled mail client", async () 
     assert.match(href, /Contract deadlines/, "the deadline email subject must be clear");
     assert.match(href, /body=/, "the deadline email body must be pre-filled");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+
+    // Cycle #298 v2 — 'u' shortcut opens the same deadline email.
+    await page.evaluate(() => { window.__deadlineMailto = null; });
+    await page.keyboard.press("u");
+    await page.waitForFunction(() => window.__deadlineMailto && window.__deadlineMailto.startsWith("mailto:"), { timeout: 8000 });
+    const viaKey = await page.evaluate(() => window.__deadlineMailto);
+    assert.match(viaKey, /^mailto:\?subject=/, "the u shortcut must open the deadline email");
   } finally {
     await page.close();
     await ctx.close();
