@@ -195,6 +195,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Key facts email** (cycle #295) — the key-facts row now has an `✉️ email` button that opens the mail client with the snapshot line pre-filled.
   - *Polish (cycle #295 v2):* the `k` keyboard shortcut now opens the key facts email when results are visible and no risk row is focused (documented in the `?` help modal).
 - **Risk email** (cycle #296) — the risk panel now has an `✉️ email` button that opens the mail client with the risk summary (tally + top concern) pre-filled.
+  - *Polish (cycle #296 v2):* the `i` keyboard shortcut now opens the risk email when results are visible (documented in the `?` help modal).
 
 ### Documentation
 
