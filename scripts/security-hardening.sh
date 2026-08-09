@@ -725,6 +725,11 @@ if [ -f ".github/dependabot.yml" ]; then
     else
         check_fail "dependabot.yml is missing dependency labels for both ecosystems"
     fi
+    if grep -q "security-updates" .github/dependabot.yml 2>/dev/null; then
+        check_pass "dependabot groups security updates"
+    else
+        check_fail "dependabot.yml is missing a security-updates group"
+    fi
 else
     check_fail "dependabot.yml not found"
 fi
