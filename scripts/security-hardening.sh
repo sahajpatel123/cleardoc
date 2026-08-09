@@ -610,6 +610,11 @@ process.exit(0);
     else
         check_fail "security.txt is missing canonical or preferred-language directive"
     fi
+    if grep -q "^Preferred-Languages: en$" .well-known/security.txt 2>/dev/null; then
+        check_pass "security.txt declares English as the preferred language"
+    else
+        check_fail "security.txt is missing Preferred-Languages: en"
+    fi
     if grep -q "^Policy: https://cleardoc.app/SECURITY.md" .well-known/security.txt 2>/dev/null; then
         check_pass "security.txt points to SECURITY.md policy"
     else
