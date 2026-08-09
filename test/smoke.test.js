@@ -4941,6 +4941,12 @@ skip("analyzer: risk email button opens a pre-filled mail client", async () => {
     const href = await page.evaluate(() => window.__riskMailto);
     assert.match(href, /^mailto:\?subject=/, "the risk email must open a mailto link");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+    // Cycle #296 v2 — 'i' shortcut opens the same email.
+    await page.evaluate(() => { window.__riskMailto = null; });
+    await page.keyboard.press("i");
+    await page.waitForFunction(() => window.__riskMailto && window.__riskMailto.startsWith("mailto:"), { timeout: 8000 });
+    const viaKey = await page.evaluate(() => window.__riskMailto);
+    assert.match(viaKey, /^mailto:\?subject=/, "the i shortcut must open the risk email");
   } finally {
     await page.close();
     await ctx.close();

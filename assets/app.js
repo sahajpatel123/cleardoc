@@ -2566,6 +2566,7 @@
             <div class="kb-row"><kbd>a</kbd><span>Open the care plan email</span></div>
             <div class="kb-row"><kbd>b</kbd><span>Open the scoreboard email</span></div>
             <div class="kb-row"><kbd>k</kbd><span>Open the key facts email</span></div>
+            <div class="kb-row"><kbd>i</kbd><span>Open the risk email</span></div>
             <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
@@ -2814,6 +2815,15 @@
         if(p && !p.hidden && document.activeElement && !document.activeElement.closest('#riskList')){
           const kb = document.getElementById('keyFactsEmailBtn');
           if(kb && !kb.hidden){ e.preventDefault(); kb.click(); return; }
+        }
+      }
+
+      // Cycle #296 v2 — 'i' opens the risk email when results are visible.
+      if(k === 'i' || k === 'I'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const rb = document.getElementById('riskEmailBtn');
+          if(rb && rb.isConnected){ e.preventDefault(); rb.click(); return; }
         }
       }
 
