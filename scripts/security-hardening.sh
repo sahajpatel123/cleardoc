@@ -409,6 +409,21 @@ else
     check_fail "Inline script blocks found in:$INLINE_SCRIPT"
 fi
 
+# 4e2. Verify target=_blank links always carry rel=noopener noreferrer
+echo ""
+echo "--- Checking HTML/JS reverse-tabnabbing protection ---"
+UNSAFE_BLANK=""
+for f in *.html assets/app.js; do
+    if [ -f "$f" ] && grep -n 'target="_blank"' "$f" 2>/dev/null | grep -v 'rel="noopener noreferrer"' | grep -q .; then
+        UNSAFE_BLANK="$UNSAFE_BLANK $f"
+    fi
+done
+if [ -z "$UNSAFE_BLANK" ]; then
+    check_pass "target=_blank links include noopener noreferrer"
+else
+    check_fail "target=_blank without rel=noopener noreferrer in:$UNSAFE_BLANK"
+fi
+
 # 4f. Verify CSP connect-src has no wildcards
 echo ""
 echo "--- Checking CSP connect-src wildcards ---"
