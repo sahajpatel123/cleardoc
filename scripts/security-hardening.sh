@@ -735,6 +735,11 @@ if [ -f ".github/dependabot.yml" ]; then
     else
         check_fail "dependabot.yml is missing a security-updates group"
     fi
+    if [ "$(grep -c 'prefix:' .github/dependabot.yml 2>/dev/null || true)" -ge 2 ]; then
+        check_pass "dependabot uses commit-message prefixes for both ecosystems"
+    else
+        check_fail "dependabot.yml is missing commit-message prefixes for both ecosystems"
+    fi
 else
     check_fail "dependabot.yml not found"
 fi
