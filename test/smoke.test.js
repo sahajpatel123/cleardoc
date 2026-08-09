@@ -4908,6 +4908,45 @@ skip("analyzer: risk summary copy exports tally + top concern", async () => {
   }
 });
 
+// Cycle #296 — risk email action.
+skip("analyzer: risk email button opens a pre-filled mail client", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="riskEmailBtn"/, "analyze.html must expose the risk email button");
+  assert.match(appSrc, /RISK SUMMARY —/, "app.js must build a risk summary for the email");
+
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__riskMailto = null;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        ...window.location,
+        set href(v) { window.__riskMailto = v; },
+      },
+    });
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#riskEmailBtn", { timeout: 8000 });
+    await page.click("#riskEmailBtn");
+    await page.waitForFunction(() => window.__riskMailto && window.__riskMailto.startsWith("mailto:"), { timeout: 8000 });
+    const href = await page.evaluate(() => window.__riskMailto);
+    assert.match(href, /^mailto:\?subject=/, "the risk email must open a mailto link");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #272 — chat-friendly deadline digest.
 skip("analyzer: deadline digest copies urgency-grouped deadlines", async () => {
   if (!HAS_BROWSER) return;
