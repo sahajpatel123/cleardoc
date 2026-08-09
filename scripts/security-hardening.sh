@@ -624,6 +624,11 @@ echo ""
 echo "--- Checking SECURITY.md ---"
 if [ -f "SECURITY.md" ]; then
     check_pass "SECURITY.md exists"
+    if grep -q "Supported Versions" SECURITY.md 2>/dev/null; then
+        check_pass "SECURITY.md declares supported versions"
+    else
+        check_fail "SECURITY.md is missing the supported versions section"
+    fi
     if grep -Eq "security@cleardoc\.app|/security/advisories/new" SECURITY.md 2>/dev/null; then
         check_pass "SECURITY.md includes a vulnerability reporting channel"
     else
