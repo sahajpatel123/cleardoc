@@ -285,6 +285,21 @@ else
     check_fail "Security hardening script is missing from CI"
 fi
 
+# 3p. Verify the integration test suite remains wired into CI
+echo ""
+echo "--- Checking GitHub Actions integration test coverage ---"
+MISSING_INTEGRATION=""
+for file in .github/workflows/test.yml .github/workflows/security.yml; do
+    if [ -f "$file" ] && ! grep -Eq "npm run test:integration|npm test" "$file"; then
+        MISSING_INTEGRATION="$MISSING_INTEGRATION $file"
+    fi
+done
+if [ -z "$MISSING_INTEGRATION" ]; then
+    check_pass "Integration tests run in test and security workflows"
+else
+    check_fail "Integration tests missing from:$MISSING_INTEGRATION"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""
