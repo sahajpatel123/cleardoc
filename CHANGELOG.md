@@ -207,6 +207,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Care plan CSV export** (cycle #301) — the contract care plan now offers a `📊 CSV` button that downloads the watch-list as a tracker-ready `.csv` file.
   - *Polish (cycle #301 v2):* the `y` keyboard shortcut now downloads the care plan CSV when results are visible (documented in the `?` help modal).
 - **Two-press slider copy** (cycle #302) — the home page’s “two presses” compare slider now has a `📋 copy` button that copies the plain-English version of the demo clause.
+- **Freshness email** (cycle #303) — the freshness stamp block now has an `✉️ email` button that opens the mail client with every detected freshness marker (effective / revised / executed / version) pre-filled, including the header verdict.
 
 ### Documentation
 

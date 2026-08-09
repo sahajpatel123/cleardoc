@@ -11562,6 +11562,26 @@ test("analyzer: Freshness block copies all markers in one click", () => {
     "the copy-all controls row must be styled");
 });
 
+// Cycle #303 — freshness email: open the mail client with every
+// freshness marker pre-filled.
+test("analyzer: Freshness block opens an email with the markers pre-filled", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="freshEmailBtn" title="Open your mail client with the freshness markers pre-filled"/,
+    "the freshness block must include an email chip");
+  assert.match(appSrc, /const freshEmailBtn = document\.getElementById\('freshEmailBtn'\);/,
+    "the email chip must have a click handler");
+  assert.match(appSrc, /'Document freshness markers detected by ClearDoc:', ''/,
+    "the email must lead with a clear freshness summary");
+  assert.match(appSrc, /'✉️ Freshness email opened'/,
+    "opening the email must toast the action");
+  assert.match(appSrc, /or <b>✉️ email<\/b> drafts a freshness note/,
+    "the freshness note must document the email chip");
+});
+
 // Iter #120: document simplifier — paste a confusing sentence and
 // we translate it to plain English using the same jargon table that
 // powers the rewrite. Pure local.
