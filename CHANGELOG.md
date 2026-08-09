@@ -193,6 +193,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Scoreboard email** (cycle #294) — the analysis scoreboard now has an `✉️ email` button that opens the mail client with the scoreboard line pre-filled.
   - *Polish (cycle #294 v2):* the `b` keyboard shortcut now opens the scoreboard email when results are visible (documented in the `?` help modal).
 - **Key facts email** (cycle #295) — the key-facts row now has an `✉️ email` button that opens the mail client with the snapshot line pre-filled.
+  - *Polish (cycle #295 v2):* the `k` keyboard shortcut now opens the key facts email when results are visible and no risk row is focused (documented in the `?` help modal).
 
 ### Documentation
 

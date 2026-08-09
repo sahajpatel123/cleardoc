@@ -2331,6 +2331,12 @@ skip("analyzer: key facts snapshot renders after analysis", async () => {
   await page.waitForFunction(() => window.__keyFactsMailto && window.__keyFactsMailto.startsWith("mailto:"), { timeout: 4000 });
   const keyFactsMailto = await page.evaluate(() => window.__keyFactsMailto);
   assert.match(keyFactsMailto, /^mailto:\?subject=/, "key facts email must open a mailto link");
+  // Cycle #295 v2 — 'k' shortcut opens the same email.
+  await page.evaluate(() => { window.__keyFactsMailto = null; });
+  await page.keyboard.press("k");
+  await page.waitForFunction(() => window.__keyFactsMailto && window.__keyFactsMailto.startsWith("mailto:"), { timeout: 4000 });
+  const viaKeyEmail = await page.evaluate(() => window.__keyFactsMailto);
+  assert.match(viaKeyEmail, /^mailto:\?subject=/, "the k shortcut must open the key facts email");
   // Cycle #290 v2 — 'm' shortcut copies key facts as Markdown.
   await page.evaluate(() => { window.__copiedKeyFactsMd = null; });
   await page.keyboard.press("m");
@@ -2341,8 +2347,8 @@ skip("analyzer: key facts snapshot renders after analysis", async () => {
   await page.evaluate(() => { window.__copiedKeyFacts = null; });
   await page.keyboard.press("n");
   await page.waitForFunction(() => window.__copiedKeyFacts && window.__copiedKeyFacts.length > 0, { timeout: 4000 });
-  const viaKey = await page.evaluate(() => window.__copiedKeyFacts);
-  assert.match(viaKey, /http.*#share=/, "the n shortcut must copy key facts");
+  const viaKeyN = await page.evaluate(() => window.__copiedKeyFacts);
+  assert.match(viaKeyN, /http.*#share=/, "the n shortcut must copy key facts");
   // Cycle #273 v2 — chips are clickable and jump to their source block.
   const chip = await page.$("#keyFacts .keyfacts-chip[data-target]");
   assert.ok(chip, "key facts must render clickable chips");
