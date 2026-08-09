@@ -335,6 +335,15 @@ else
     check_fail "Syntax or JSON validation missing from:$MISSING_SYNTAX_JSON"
 fi
 
+# 3t. Verify the security workflow runs dependency review
+echo ""
+echo "--- Checking GitHub Actions dependency review ---"
+if [ -f .github/workflows/security.yml ] && grep -q "dependency-review" .github/workflows/security.yml && grep -q "deny-licenses" .github/workflows/security.yml; then
+    check_pass "Security workflow runs dependency review with license gates"
+else
+    check_fail "Security workflow is missing dependency-review or deny-licenses"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""
