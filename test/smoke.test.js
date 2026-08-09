@@ -2117,6 +2117,40 @@ skip("analyzer: care plan exports an .ics calendar file", async () => {
   }
 });
 
+// Cycle #301 — care plan CSV export.
+skip("analyzer: care plan exports a CSV tracker file", async () => {
+  if (!HAS_BROWSER) return;
+  const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
+  const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="careCsvBtn"/, "analyze.html must expose the care plan CSV button");
+  assert.match(appSrc, /cleardoc-care-plan-/, "the care plan export must use the care-plan filename prefix");
+
+  const ctx = await browser.newContext({ acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#careBlock:not([hidden]) #careCsvBtn", { timeout: 8000 });
+    const [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 8000 }),
+      page.click("#careCsvBtn"),
+    ]);
+    assert.match(download.suggestedFilename(), /^cleardoc-care-plan-\d{4}-\d{2}-\d{2}\.csv$/, "the download must be cleardoc-care-plan-<date>.csv");
+    const path = await download.path();
+    const content = require("node:fs").readFileSync(path, "utf8");
+    assert.match(content, /Item,When,Detail/, "the CSV must carry the expected header");
+    assert.match(content, /Care item|Renewal|cancel/, "the CSV must include care plan items");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #282 — next dates digest from the care plan.
 skip("analyzer: care plan next-dates digest copies dated items", async () => {
   if (!HAS_BROWSER) return;
