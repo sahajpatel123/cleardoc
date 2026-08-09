@@ -2567,6 +2567,7 @@
             <div class="kb-row"><kbd>b</kbd><span>Open the scoreboard email</span></div>
             <div class="kb-row"><kbd>k</kbd><span>Open the key facts email</span></div>
             <div class="kb-row"><kbd>i</kbd><span>Open the risk email</span></div>
+            <div class="kb-row"><kbd>l</kbd><span>Copy the scoreboard as Markdown</span></div>
             <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
@@ -2824,6 +2825,16 @@
         if(p && !p.hidden){
           const rb = document.getElementById('riskEmailBtn');
           if(rb && rb.isConnected){ e.preventDefault(); rb.click(); return; }
+        }
+      }
+
+      // Cycle #297 v2 — 'l' copies the scoreboard as Markdown when results
+      // are visible (mirrors the other copy shortcuts).
+      if(k === 'l' || k === 'L'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const lb = document.getElementById('scoreBoardMdBtn');
+          if(lb && lb.isConnected && !document.getElementById('scoreBoard').hidden){ e.preventDefault(); lb.click(); return; }
         }
       }
 

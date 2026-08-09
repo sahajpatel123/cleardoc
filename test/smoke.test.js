@@ -2405,6 +2405,12 @@ skip("analyzer: scoreboard renders headline scores and copies them", async () =>
   const scoreMd = await page.evaluate(() => window.__scoreMd);
   assert.match(scoreMd, /# Scoreboard/, "scoreboard Markdown must carry a header");
   assert.match(scoreMd, /http.*#share=/, "scoreboard Markdown must include a share link");
+  // Cycle #297 v2 — 'l' shortcut copies the same Markdown.
+  await page.evaluate(() => { window.__scoreMd = null; });
+  await page.keyboard.press("l");
+  await page.waitForFunction(() => window.__scoreMd && window.__scoreMd.length > 0, { timeout: 4000 });
+  const viaKeyMd = await page.evaluate(() => window.__scoreMd);
+  assert.match(viaKeyMd, /# Scoreboard/, "the l shortcut must copy the scoreboard Markdown");
   // Cycle #294 — scoreboard email opens a mailto with the scoreboard.
   await page.evaluate(() => {
     window.__scoreMailto = null;
