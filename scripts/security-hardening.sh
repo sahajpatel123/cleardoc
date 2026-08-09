@@ -667,6 +667,11 @@ if [ -f "SECURITY.md" ]; then
     else
         check_fail "SECURITY.md is missing the supported versions section"
     fi
+    if grep -q "Response Commitments" SECURITY.md 2>/dev/null; then
+        check_pass "SECURITY.md documents response commitments"
+    else
+        check_fail "SECURITY.md is missing response commitments"
+    fi
     if grep -Eq "security@cleardoc\.app|/security/advisories/new" SECURITY.md 2>/dev/null; then
         check_pass "SECURITY.md includes a vulnerability reporting channel"
     else
