@@ -5019,6 +5019,43 @@ skip("analyzer: deadline digest copies urgency-grouped deadlines", async () => {
   }
 });
 
+// Cycle #298 — deadline email: the deadline block has an email button that
+// opens the mail client with the extracted deadlines pre-filled.
+skip("analyzer: deadline email button opens a pre-filled mail client", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    window.__deadlineMailto = null;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        ...window.location,
+        set href(v) { window.__deadlineMailto = v; },
+      },
+    });
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#deadlineEmailBtn", { timeout: 8000 });
+    await page.click("#deadlineEmailBtn");
+    await page.waitForFunction(() => window.__deadlineMailto && window.__deadlineMailto.startsWith("mailto:"), { timeout: 8000 });
+    const href = await page.evaluate(() => window.__deadlineMailto);
+    assert.match(href, /^mailto:\?subject=/, "the deadline email must open a mailto link");
+    assert.match(href, /Contract deadlines/, "the deadline email subject must be clear");
+    assert.match(href, /body=/, "the deadline email body must be pre-filled");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #189 — the section quick-jump nav's Deadlines entry must resolve
 // to whichever deadline block is visible (full 📅 or AI-only ⏰), never a
 // hidden one.
