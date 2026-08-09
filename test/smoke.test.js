@@ -2369,6 +2369,7 @@ skip("analyzer: scoreboard renders headline scores and copies them", async () =>
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
   assert.match(html, /id="scoreBoard"/, "analyze.html must expose the scoreboard");
+  assert.match(html, /id="scoreBoardMdBtn"/, "analyze.html must expose the scoreboard Markdown button");
   assert.match(html, /id="scoreBoardEmailBtn"/, "analyze.html must expose the scoreboard email button");
   assert.match(appSrc, /function renderScoreBoard\(raw, ctx\)\{/, "app.js must define renderScoreBoard");
 
@@ -2392,6 +2393,18 @@ skip("analyzer: scoreboard renders headline scores and copies them", async () =>
   const copiedScore = await page.evaluate(() => window.__copiedScore);
   assert.match(copiedScore, /SCOREBOARD —/, "scoreboard copy must include the scoreboard line");
   assert.match(copiedScore, /http.*#share=/, "scoreboard copy must include a share link");
+  // Cycle #297 — scoreboard Markdown export.
+  await page.evaluate(() => {
+    window.__scoreMd = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { window.__scoreMd = t; }, write: async () => {} } });
+    } catch (_) {}
+  });
+  await page.click("#scoreBoardMdBtn");
+  await page.waitForFunction(() => window.__scoreMd && window.__scoreMd.length > 0, { timeout: 4000 });
+  const scoreMd = await page.evaluate(() => window.__scoreMd);
+  assert.match(scoreMd, /# Scoreboard/, "scoreboard Markdown must carry a header");
+  assert.match(scoreMd, /http.*#share=/, "scoreboard Markdown must include a share link");
   // Cycle #294 — scoreboard email opens a mailto with the scoreboard.
   await page.evaluate(() => {
     window.__scoreMailto = null;

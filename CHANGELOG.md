@@ -196,6 +196,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #295 v2):* the `k` keyboard shortcut now opens the key facts email when results are visible and no risk row is focused (documented in the `?` help modal).
 - **Risk email** (cycle #296) — the risk panel now has an `✉️ email` button that opens the mail client with the risk summary (tally + top concern) pre-filled.
   - *Polish (cycle #296 v2):* the `i` keyboard shortcut now opens the risk email when results are visible (documented in the `?` help modal).
+- **Scoreboard Markdown export** (cycle #297) — the analysis scoreboard now has a `# MD` button that copies the scoreboard as a Markdown bullet list with a share link.
 
 ### Documentation
 
