@@ -11580,6 +11580,10 @@ test("analyzer: Freshness block opens an email with the markers pre-filled", () 
     "opening the email must toast the action");
   assert.match(appSrc, /or <b>✉️ email<\/b> drafts a freshness note/,
     "the freshness note must document the email chip");
+  assert.match(appSrc, /k === 'z' \|\| k === 'Z'/,
+    "the z shortcut must open the freshness email when results are visible");
+  assert.match(appSrc, /<kbd>z<\/kbd><span>Open the freshness email<\/span>/,
+    "the help modal must document the z shortcut");
 });
 
 // Iter #120: document simplifier — paste a confusing sentence and

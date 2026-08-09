@@ -208,6 +208,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #301 v2):* the `y` keyboard shortcut now downloads the care plan CSV when results are visible (documented in the `?` help modal).
 - **Two-press slider copy** (cycle #302) — the home page’s “two presses” compare slider now has a `📋 copy` button that copies the plain-English version of the demo clause.
 - **Freshness email** (cycle #303) — the freshness stamp block now has an `✉️ email` button that opens the mail client with every detected freshness marker (effective / revised / executed / version) pre-filled, including the header verdict.
+  - *Polish (cycle #303 v2):* the `z` keyboard shortcut now opens the freshness email when results are visible (documented in the `?` help modal alongside the other email shortcuts).
 
 ### Documentation
 
