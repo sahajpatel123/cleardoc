@@ -309,6 +309,23 @@ else
     check_fail "CodeQL is missing the security-and-quality query suite"
 fi
 
+# 3r. Verify syntax + JSON validation gates stay wired into CI
+echo ""
+echo "--- Checking GitHub Actions syntax and JSON validation gates ---"
+MISSING_SYNTAX_JSON=""
+for file in .github/workflows/test.yml .github/workflows/security.yml; do
+    if [ -f "$file" ]; then
+        if ! grep -q "npm run syntax" "$file" || ! grep -q "npm run validate:json" "$file"; then
+            MISSING_SYNTAX_JSON="$MISSING_SYNTAX_JSON $file"
+        fi
+    fi
+done
+if [ -z "$MISSING_SYNTAX_JSON" ]; then
+    check_pass "Syntax and JSON validation run in test and security workflows"
+else
+    check_fail "Syntax or JSON validation missing from:$MISSING_SYNTAX_JSON"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""
