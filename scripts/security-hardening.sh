@@ -344,6 +344,21 @@ else
     check_fail "Security workflow is missing dependency-review or deny-licenses"
 fi
 
+# 3u. Verify every workflow keeps a scheduled trigger
+echo ""
+echo "--- Checking GitHub Actions scheduled triggers ---"
+MISSING_SCHEDULE=""
+for file in .github/workflows/test.yml .github/workflows/security.yml .github/workflows/codeql.yml; do
+    if [ -f "$file" ] && ! grep -q "schedule:" "$file"; then
+        MISSING_SCHEDULE="$MISSING_SCHEDULE $file"
+    fi
+done
+if [ -z "$MISSING_SCHEDULE" ]; then
+    check_pass "All workflows keep scheduled triggers"
+else
+    check_fail "Workflows missing schedule:$MISSING_SCHEDULE"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""
