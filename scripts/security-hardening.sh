@@ -682,6 +682,11 @@ if [ -f ".github/dependabot.yml" ]; then
     else
         check_fail "dependabot.yml is missing open-pull-requests-limit for both ecosystems"
     fi
+    if [ "$(grep -c 'interval: "weekly"' .github/dependabot.yml 2>/dev/null || true)" -ge 2 ]; then
+        check_pass "dependabot schedules weekly updates for npm and GitHub Actions"
+    else
+        check_fail "dependabot.yml is missing a weekly schedule for both ecosystems"
+    fi
 else
     check_fail "dependabot.yml not found"
 fi
