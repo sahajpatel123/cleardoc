@@ -309,6 +309,15 @@ else
     check_fail "CodeQL is missing the security-and-quality query suite"
 fi
 
+# 3s. Verify CodeQL has the minimum actions read permission
+echo ""
+echo "--- Checking GitHub Actions CodeQL actions permission ---"
+if [ -f .github/workflows/codeql.yml ] && grep -q "actions: read" .github/workflows/codeql.yml; then
+    check_pass "CodeQL grants actions read permission"
+else
+    check_fail "CodeQL is missing the actions read permission"
+fi
+
 # 3r. Verify syntax + JSON validation gates stay wired into CI
 echo ""
 echo "--- Checking GitHub Actions syntax and JSON validation gates ---"
