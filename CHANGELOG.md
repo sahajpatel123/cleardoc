@@ -204,6 +204,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #299 v2):* the `x` keyboard shortcut now opens the obligations email when results are visible (documented in the `?` help modal).
 - **Pre-sign brief email** (cycle #300) — the Bottom line block now has an `✉️ email` button that opens the mail client with the pre-sign brief pre-filled.
   - *Polish (cycle #300 v2):* the `v` keyboard shortcut now opens the pre-sign brief email when results are visible (documented in the `?` help modal).
+- **Care plan CSV export** (cycle #301) — the contract care plan now offers a `📊 CSV` button that downloads the watch-list as a tracker-ready `.csv` file.
 
 ### Documentation
 
