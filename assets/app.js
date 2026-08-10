@@ -15719,6 +15719,7 @@
         '<span class="fresh-count">' + count + ' marker' + (count === 1 ? '' : 's') + '</span>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="freshCopyAllBtn" title="Copy all freshness markers as plain text">📋 copy all</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="freshEmailBtn" title="Open your mail client with the freshness markers pre-filled">✉️ email</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="freshCsvBtn" title="Download freshness markers as a .csv file for a tracker">📊 CSV</button>' +
       '</div>';
       freshGrid.innerHTML = verdictHtml + rows + freshControls;
       freshBlock.hidden = false;
@@ -15802,10 +15803,46 @@
           setTimeout(() => { if(freshEmailBtn.isConnected) freshEmailBtn.textContent = '✉️ email'; }, 2500);
         });
       }
+      // Cycle #304 — freshness CSV export: downloads a tracker-ready
+      // table of every freshness marker with its label, raw phrase,
+      // ISO date (when available), and human-friendly when-ago column.
+      const freshCsvBtn = document.getElementById('freshCsvBtn');
+      if(freshCsvBtn){
+        freshCsvBtn.addEventListener('click', () => {
+          const rows = items.map(it => {
+            let when = '—';
+            if(it.key === 'version'){ when = it.raw; }
+            else if(it.date){
+              const monthsAgo = Math.round((now - it.date.getTime()) / (30 * 86400000));
+              when = monthsAgo === 0 ? 'this month' : (monthsAgo < 0 ? 'in ' + Math.abs(monthsAgo) + ' months' : monthsAgo + ' months ago');
+            }
+            return [it.label, it.raw, when, it.date ? it.date.toISOString().slice(0, 10) : ''];
+          });
+          const csvCell = (v) => {
+            let s = String(v || '');
+            if(/^[=+\-@]/.test(s)) s = "'" + s;
+            return '"' + s.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+          };
+          const header = csvCell('Verdict') + ',' + csvCell(headerVerdict || '—') + '\n' + csvCell('Marker') + ',' + csvCell('Raw text') + ',' + csvCell('When') + ',' + csvCell('ISO date');
+          const body = rows.map(r => csvCell(r[0]) + ',' + csvCell(r[1]) + ',' + csvCell(r[2]) + ',' + csvCell(r[3])).join('\n');
+          const text = '\uFEFF' + header + '\n' + body;
+          try{
+            const stamp = new Date().toISOString().slice(0, 10);
+            const url = URL.createObjectURL(new Blob([text], { type:'text/csv;charset=utf-8' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-freshness-' + stamp + '.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📊 Freshness CSV downloaded (' + rows.length + ')');
+          }catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create CSV file');
+          }
+        });
+      }
       if(freshNote){
         freshNote.innerHTML = '<span class="riskNote-lead">' + count + ' freshness marker' + (count === 1 ? '' : 's') + '</span> ' +
           (old > 0 ? '⚠ At least one date is >1 year old — confirm you have the latest revision before signing.' : 'Looks current. Always double-check you have the latest revision.') +
-          ' <b>📋 copy all</b> exports the markers as plain text, or <b>✉️ email</b> drafts a freshness note in your mail client.';
+          ' <b>📋 copy all</b> exports the markers as plain text, <b>✉️ email</b> drafts a freshness note, or <b>📊 CSV</b> downloads a tracker file.';
       }
       // Iter #119: click-to-jump on each row
       $$('.fresh-row', freshGrid).forEach(row => {
