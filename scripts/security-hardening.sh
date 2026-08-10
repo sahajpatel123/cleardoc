@@ -720,6 +720,11 @@ if [ -f "SECURITY.md" ]; then
     else
         check_fail "SECURITY.md is missing the security posture section"
     fi
+    if grep -q "^### Transport & Headers" SECURITY.md 2>/dev/null; then
+        check_pass "SECURITY.md documents transport and header security"
+    else
+        check_fail "SECURITY.md is missing the transport and headers section"
+    fi
     if grep -Eq "security@cleardoc\.app|/security/advisories/new" SECURITY.md 2>/dev/null; then
         check_pass "SECURITY.md includes a vulnerability reporting channel"
     else
