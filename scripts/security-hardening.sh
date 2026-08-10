@@ -738,6 +738,11 @@ echo ""
 echo "--- Checking dependabot.yml ---"
 if [ -f ".github/dependabot.yml" ]; then
     check_pass "dependabot.yml exists"
+    if grep -q "^version: 2" .github/dependabot.yml 2>/dev/null; then
+        check_pass "dependabot.yml uses version 2"
+    else
+        check_fail "dependabot.yml must use version 2"
+    fi
     if grep -q 'package-ecosystem: "npm"' .github/dependabot.yml 2>/dev/null && grep -q 'package-ecosystem: "github-actions"' .github/dependabot.yml 2>/dev/null; then
         check_pass "dependabot covers npm and GitHub Actions"
     else
