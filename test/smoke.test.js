@@ -3308,6 +3308,22 @@ skip("analyzer: copy-all bundle combines key facts, digests, and next steps", as
   }
 });
 
+// Cycle #308 — email the full analysis bundle.
+test("analyzer: email-all bundle opens a pre-filled mail client", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(html, /id="emailBundleBtn"[^>]*title="Open your mail client with the full analysis bundle pre-filled"/,
+    "analyze.html must expose the email-all bundle button");
+  assert.match(appSrc, /document\.getElementById\('emailBundleBtn'\)/,
+    "app.js must wire the email-all bundle button");
+  assert.match(appSrc, /'Contract analysis bundle \(ClearDoc\)'/,
+    "the email must use a clear subject");
+});
+
 // Cycle #287 — clean draft: copy the document with counter-suggestions applied.
 skip("analyzer: clean draft copies revised document without mutating the original", async () => {
   if (!HAS_BROWSER) return;

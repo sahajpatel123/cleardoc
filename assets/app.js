@@ -20362,6 +20362,27 @@
       if(btn){ flashButton(btn, ok ? '✓ Bundle copied' : 'Copy failed', ok ? 1400 : 1800); }
     }
 
+    // Cycle #308 — email the full analysis bundle: same content as the
+    // Copy all action, but opened in the mail client for forwarding to a
+    // lawyer, teammate, or client.
+    async function openAnalysisBundleEmail(){
+      let text = buildAnalysisBundle();
+      if(!text){
+        if(msg){msg.textContent='Analyze a document first, then email the bundle.'; msg.className='analyze-msg';}
+        return;
+      }
+      try {
+        if(typeof buildShareUrl === 'function'){
+          const share = await buildShareUrl();
+          if(share && share.ok && share.url) text += '\n' + share.url;
+        }
+      } catch(_){ /* keep the email working even if the link fails */ }
+      const href = 'mailto:?subject=' + encodeURIComponent('Contract analysis bundle (ClearDoc)') + '&body=' + encodeURIComponent(text);
+      try { window.location.href = href; } catch(_){ /* ignore */ }
+      const btn = document.getElementById('emailBundleBtn');
+      if(btn) flashButton(btn, '✉ Opened', 1500);
+    }
+
     // Cycle #287 — clean draft: apply the top counter-suggestions to the
     // document (without touching the textarea) and copy the revised text.
     function buildCleanDraft(){
@@ -24501,6 +24522,8 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     if(downloadCsvBtn) downloadCsvBtn.addEventListener('click', downloadAnalysisCsv);
     const copyBundleBtn = document.getElementById('copyBundleBtn');
     if(copyBundleBtn) copyBundleBtn.addEventListener('click', copyAnalysisBundle);
+    const emailBundleBtn = document.getElementById('emailBundleBtn');
+    if(emailBundleBtn) emailBundleBtn.addEventListener('click', openAnalysisBundleEmail);
     const cleanDraftBtn = document.getElementById('cleanDraftBtn');
     if(cleanDraftBtn) cleanDraftBtn.addEventListener('click', copyCleanDraft);
     // Cycle #268 — chat-friendly risk digest copy.
