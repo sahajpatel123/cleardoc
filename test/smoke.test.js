@@ -1008,6 +1008,10 @@ test("analyzer: Compare panel opens an email with the comparison pre-filled", ()
     "app.js must wire the compare email button");
   assert.match(appSrc, /'Contract comparison \(ClearDoc\)'/,
     "the email must use a clear subject");
+  assert.match(appSrc, /'Original: ' \+ aText/,
+    "the email must include the original snippet");
+  assert.match(appSrc, /'Compare: ' \+ bText/,
+    "the email must include the compare snippet");
 });
 
 skip("ask: quick-question chips fill the input and ask immediately", async () => {

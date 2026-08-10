@@ -22289,6 +22289,13 @@
         if(!compareStats || !compareVerdict) return '';
         const verdictText = (compareVerdict.textContent || '').trim();
         const lines = [verdictText || 'Comparison'];
+        // Cycle #309 v2 — include truncated snippets of both sides so a
+        // recipient sees the documents being compared without opening the app.
+        const aText = input ? (input.value || '').replace(/\s+/g, ' ').trim().slice(0, 400) : '';
+        const bText = inputB ? (inputB.value || '').replace(/\s+/g, ' ').trim().slice(0, 400) : '';
+        if(aText) lines.push('', 'Original: ' + aText);
+        if(bText) lines.push('', 'Compare: ' + bText);
+        lines.push('');
         const table = compareStats.querySelector('table');
         if(table){
           table.querySelectorAll('tbody tr').forEach(row => {
