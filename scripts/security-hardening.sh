@@ -300,6 +300,15 @@ else
     check_fail "Integration tests missing from:$MISSING_INTEGRATION"
 fi
 
+# 3p2. Verify the unit test suite remains wired into CI
+echo ""
+echo "--- Checking GitHub Actions unit test coverage ---"
+if [ -f .github/workflows/test.yml ] && grep -q "npm run test:unit" .github/workflows/test.yml; then
+    check_pass "Unit tests run in the test workflow"
+else
+    check_fail "Unit tests are missing from the test workflow"
+fi
+
 # 3q. Verify CodeQL uses the broader security-and-quality query suite
 echo ""
 echo "--- Checking GitHub Actions CodeQL query suite ---"
