@@ -11578,7 +11578,7 @@ test("analyzer: Freshness block opens an email with the markers pre-filled", () 
     "the email must lead with a clear freshness summary");
   assert.match(appSrc, /'✉️ Freshness email opened'/,
     "opening the email must toast the action");
-  assert.match(appSrc, /, <b>✉️ email<\/b> drafts a freshness note, or <b>📊 CSV<\/b> downloads a tracker file/,
+  assert.match(appSrc, /, <b>✉️ email<\/b> drafts a freshness note, <b>📊 CSV<\/b> downloads a tracker file, or <b># MD<\/b> copies a Markdown table/,
     "the freshness note must document the email chip");
   assert.match(appSrc, /k === 'z' \|\| k === 'Z'/,
     "the z shortcut must open the freshness email when results are visible");
@@ -11605,12 +11605,31 @@ test("analyzer: Freshness block exports a CSV tracker file", () => {
     "the CSV must use a freshness-prefixed filename");
   assert.match(appSrc, /'📊 Freshness CSV downloaded \(' \+ rows\.length \+ '\)'/,
     "downloading must toast the row count");
-  assert.match(appSrc, /or <b>📊 CSV<\/b> downloads a tracker file/,
+  assert.match(appSrc, /, <b>📊 CSV<\/b> downloads a tracker file, or <b># MD<\/b> copies a Markdown table/,
     "the freshness note must document the CSV export");
   assert.match(appSrc, /k === 'h' \|\| k === 'H'/,
     "the h shortcut must download the freshness CSV when results are visible");
   assert.match(appSrc, /<kbd>h<\/kbd><span>Download the freshness CSV<\/span>/,
     "the help modal must document the h shortcut");
+});
+
+// Cycle #305 — freshness Markdown export: copy a paste-ready table.
+test("analyzer: Freshness block copies a Markdown table", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="freshMdBtn" title="Copy freshness markers as a Markdown table"/,
+    "the freshness block must include a Markdown export chip");
+  assert.match(appSrc, /const freshMdBtn = document\.getElementById\('freshMdBtn'\);/,
+    "the Markdown chip must have a click handler");
+  assert.match(appSrc, /# Document freshness\\n\\n\| Marker \| Raw text \| When \| ISO date \|/,
+    "the Markdown must include a freshness table header");
+  assert.match(appSrc, /'📋 Freshness copied as Markdown'/,
+    "copying must toast the action");
+  assert.match(appSrc, /or <b># MD<\/b> copies a Markdown table/,
+    "the freshness note must document the Markdown export");
 });
 
 // Iter #120: document simplifier — paste a confusing sentence and

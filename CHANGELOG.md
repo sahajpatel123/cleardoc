@@ -212,6 +212,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #303 v3):* the email draft now appends a **share link** to the full analysis, so the recipient can open the underlying document in one tap.
 - **Freshness CSV export** (cycle #304) — the freshness stamp block now has a `📊 CSV` button that downloads every detected freshness marker as a tracker-ready `.csv` file (marker label, raw phrase, when-ago, and ISO date), with the header verdict in a metadata row.
   - *Polish (cycle #304 v2):* the `h` keyboard shortcut now downloads the freshness CSV when results are visible (documented in the `?` help modal alongside the other export shortcuts).
+- **Freshness Markdown export** (cycle #305) — the freshness stamp block now has a `# MD` button that copies a paste-ready Markdown table of every detected freshness marker (marker label, raw text, when-ago, and ISO date) plus a share link.
 
 ### Documentation
 
