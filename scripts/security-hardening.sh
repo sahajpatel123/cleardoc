@@ -832,6 +832,16 @@ process.exit(0);
     else
         check_fail "package.json engines.node must be 22 or newer"
     fi
+    if node -e "
+const p=require('./package.json');
+const t=p.scripts && p.scripts.test ? p.scripts.test : '';
+if(!/test:unit/.test(t) || !/test:smoke/.test(t) || !/test:integration/.test(t)) process.exit(1);
+process.exit(0);
+" 2>/dev/null; then
+        check_pass "npm test runs unit, smoke, and integration suites"
+    else
+        check_fail "package.json test script must run unit, smoke, and integration suites"
+    fi
 else
     check_warn "Node.js not available for package.json checks"
 fi
