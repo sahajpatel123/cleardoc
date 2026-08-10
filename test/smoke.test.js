@@ -2762,6 +2762,8 @@ test("home: hero clarifier card opens an email with the plain-English rewrite", 
     "the email chip must have a click handler");
   assert.match(appSrc, /'Nothing to email yet — clarify a sentence first'/,
     "email must guard the empty state");
+  assert.match(appSrc, /'Original: ' \+ original/,
+    "the email must include the original sentence when available");
   assert.match(appSrc, /'Try it live: ' \+ demoUrl/,
     "the email must append a link to the live demo");
   assert.match(appSrc, /'✉️ Plain-English email opened'/,

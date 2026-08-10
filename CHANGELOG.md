@@ -217,6 +217,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Two-press slider email** (cycle #306) — the home page’s “two presses” compare slider now has an `✉️ email` button that opens the mail client with the plain-English demo clause pre-filled.
   - *Polish (cycle #306 v2):* the email draft now appends a **live demo link** to the home page, so the recipient can open the slider and try it themselves.
 - **Hero clarifier email** (cycle #307) — the home page hero clarifier card now has an `✉️ email` button that opens the mail client with the plain-English rewrite pre-filled, including a live demo link.
+  - *Polish (cycle #307 v2):* the email draft now also includes the **original legalese sentence**, so the recipient sees the before/after in one message.
 
 ### Documentation
 
