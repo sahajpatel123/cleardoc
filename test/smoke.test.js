@@ -2787,6 +2787,24 @@ skip("home: two-press slider copies the plain-English version", async () => {
   }
 });
 
+// Cycle #306 — two-press slider email: open the mail client with the
+// plain-English demo clause pre-filled.
+test("home: two-press slider opens an email with the plain-English version", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(html, /id="tpEmailBtn" title="Open your mail client with the plain-English version"/,
+    "index.html must expose the two-press email button");
+  assert.match(appSrc, /const emailBtn = document\.getElementById\('tpEmailBtn'\);/,
+    "app.js must wire the two-press email button");
+  assert.match(appSrc, /'Plain-English version \(ClearDoc\):', '', text/,
+    "the email must lead with a plain-English heading");
+  assert.match(appSrc, /'✉️ Plain-English email opened'/,
+    "opening the email must toast the action");
+});
+
 skip("STRICT RULE: html/body overflow-x is 'clip', never 'hidden' (kills sticky)", async () => {
   // Project rule #1: `overflow-x: hidden` on html/body breaks position:sticky
   // site-wide. `clip` is the safe equivalent. Lock it in so future edits
