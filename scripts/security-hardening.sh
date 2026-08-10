@@ -318,6 +318,15 @@ else
     check_fail "CodeQL is missing the actions read permission"
 fi
 
+# 3s2. Verify CodeQL skips docs/design-only changes
+echo ""
+echo "--- Checking GitHub Actions CodeQL docs ignore ---"
+if [ -f .github/workflows/codeql.yml ] && grep -q "docs/\*\*" .github/workflows/codeql.yml && grep -q "design-concepts/\*\*" .github/workflows/codeql.yml; then
+    check_pass "CodeQL ignores docs and design-only changes"
+else
+    check_fail "CodeQL is missing docs or design-concepts path ignores"
+fi
+
 # 3r. Verify syntax + JSON validation gates stay wired into CI
 echo ""
 echo "--- Checking GitHub Actions syntax and JSON validation gates ---"
