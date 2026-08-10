@@ -715,6 +715,11 @@ if [ -f "SECURITY.md" ]; then
     else
         check_fail "SECURITY.md is missing the reporting-vulnerability section"
     fi
+    if grep -q "^## Security Posture" SECURITY.md 2>/dev/null; then
+        check_pass "SECURITY.md documents the security posture"
+    else
+        check_fail "SECURITY.md is missing the security posture section"
+    fi
     if grep -Eq "security@cleardoc\.app|/security/advisories/new" SECURITY.md 2>/dev/null; then
         check_pass "SECURITY.md includes a vulnerability reporting channel"
     else
