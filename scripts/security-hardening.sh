@@ -857,6 +857,15 @@ process.exit(0);
     else
         check_fail "package.json test script must run unit, smoke, and integration suites"
     fi
+    if node -e "
+const p=require('./package.json');
+if(p.private !== true) process.exit(1);
+process.exit(0);
+" 2>/dev/null; then
+        check_pass "package.json is marked private"
+    else
+        check_fail "package.json must be private (prevent accidental publish)"
+    fi
 else
     check_warn "Node.js not available for package.json checks"
 fi
