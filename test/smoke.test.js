@@ -11624,8 +11624,12 @@ test("analyzer: Freshness block copies a Markdown table", () => {
     "the freshness block must include a Markdown export chip");
   assert.match(appSrc, /const freshMdBtn = document\.getElementById\('freshMdBtn'\);/,
     "the Markdown chip must have a click handler");
-  assert.match(appSrc, /# Document freshness\\n\\n\| Marker \| Raw text \| When \| ISO date \|/,
+  assert.match(appSrc, /# Document freshness\\n/,
+    "the Markdown must open with a freshness heading");
+  assert.match(appSrc, /\| Marker \| Raw text \| When \| ISO date \|/,
     "the Markdown must include a freshness table header");
+  assert.match(appSrc, /if\(headerVerdict\) md \+= '\\nVerdict: ' \+ headerVerdict \+ '\\n';/,
+    "the Markdown must carry the header verdict when one exists");
   assert.match(appSrc, /'📋 Freshness copied as Markdown'/,
     "copying must toast the action");
   assert.match(appSrc, /or <b># MD<\/b> copies a Markdown table/,
