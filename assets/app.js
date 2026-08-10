@@ -2605,6 +2605,7 @@
             <div class="kb-row"><kbd>v</kbd><span>Open the pre-sign brief email</span></div>
             <div class="kb-row"><kbd>y</kbd><span>Download the care plan CSV</span></div>
             <div class="kb-row"><kbd>z</kbd><span>Open the freshness email</span></div>
+            <div class="kb-row"><kbd>h</kbd><span>Download the freshness CSV</span></div>
             <div class="kb-row"><kbd>Enter</kbd><kbd>Shift+Enter</kbd><span>Next / previous match in Find in source</span></div>
             <div class="kb-row"><kbd>f</kbd><span>Toggle Focus mode (rewrite only)</span></div>
             <div class="kb-row"><kbd>p</kbd><span>Toggle Privacy blur (hide the screen)</span></div>
@@ -2922,6 +2923,16 @@
         if(p && !p.hidden){
           const zb = document.getElementById('freshEmailBtn');
           if(zb && zb.isConnected && !document.getElementById('freshBlock').hidden){ e.preventDefault(); zb.click(); return; }
+        }
+      }
+
+      // Cycle #304 v2 — 'h' downloads the freshness CSV when results are
+      // visible (mirrors the other export shortcuts).
+      if(k === 'h' || k === 'H'){
+        const p = document.getElementById('resultPanel');
+        if(p && !p.hidden){
+          const hb = document.getElementById('freshCsvBtn');
+          if(hb && hb.isConnected && !document.getElementById('freshBlock').hidden){ e.preventDefault(); hb.click(); return; }
         }
       }
 

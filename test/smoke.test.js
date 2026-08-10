@@ -11607,6 +11607,10 @@ test("analyzer: Freshness block exports a CSV tracker file", () => {
     "downloading must toast the row count");
   assert.match(appSrc, /or <b>📊 CSV<\/b> downloads a tracker file/,
     "the freshness note must document the CSV export");
+  assert.match(appSrc, /k === 'h' \|\| k === 'H'/,
+    "the h shortcut must download the freshness CSV when results are visible");
+  assert.match(appSrc, /<kbd>h<\/kbd><span>Download the freshness CSV<\/span>/,
+    "the help modal must document the h shortcut");
 });
 
 // Iter #120: document simplifier — paste a confusing sentence and
