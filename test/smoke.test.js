@@ -2747,6 +2747,27 @@ test("home: hero clarifier card can copy the plain-English rewrite", () => {
     "the copy chip must have a visible focus ring");
 });
 
+// Cycle #307 — hero clarifier email: open the mail client with the
+// plain-English rewrite pre-filled.
+test("home: hero clarifier card opens an email with the plain-English rewrite", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(html, /id="hcardEmailBtn" title="Open your mail client with the plain-English rewrite"/,
+    "index.html must contain #hcardEmailBtn with a descriptive title");
+  assert.match(appSrc, /hcardEmailBtn\.addEventListener\(\s*['"]click['"]/,
+    "the email chip must have a click handler");
+  assert.match(appSrc, /'Nothing to email yet — clarify a sentence first'/,
+    "email must guard the empty state");
+  assert.match(appSrc, /'Try it live: ' \+ demoUrl/,
+    "the email must append a link to the live demo");
+  assert.match(appSrc, /'✉️ Plain-English email opened'/,
+    "email must update the hero status message on success");
+});
+
 // Cycle #302 — two-press slider copy button.
 skip("home: two-press slider copies the plain-English version", async () => {
   if (!HAS_BROWSER) return;
