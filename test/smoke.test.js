@@ -11578,7 +11578,7 @@ test("analyzer: Freshness block opens an email with the markers pre-filled", () 
     "the email must lead with a clear freshness summary");
   assert.match(appSrc, /'✉️ Freshness email opened'/,
     "opening the email must toast the action");
-  assert.match(appSrc, /or <b>✉️ email<\/b> drafts a freshness note/,
+  assert.match(appSrc, /, <b>✉️ email<\/b> drafts a freshness note, or <b>📊 CSV<\/b> downloads a tracker file/,
     "the freshness note must document the email chip");
   assert.match(appSrc, /k === 'z' \|\| k === 'Z'/,
     "the z shortcut must open the freshness email when results are visible");
@@ -11586,6 +11586,27 @@ test("analyzer: Freshness block opens an email with the markers pre-filled", () 
     "the help modal must document the z shortcut");
   assert.match(appSrc, /share && share\.ok && share\.url/,
     "the freshness email must append a full-analysis share link when available");
+});
+
+// Cycle #304 — freshness CSV export: download a tracker-ready table.
+test("analyzer: Freshness block exports a CSV tracker file", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(appSrc, /id="freshCsvBtn" title="Download freshness markers as a \.csv file for a tracker"/,
+    "the freshness block must include a CSV export chip");
+  assert.match(appSrc, /const freshCsvBtn = document\.getElementById\('freshCsvBtn'\);/,
+    "the CSV chip must have a click handler");
+  assert.match(appSrc, /csvCell\('Marker'\) \+ ',' \+ csvCell\('Raw text'\)/,
+    "the CSV must include marker + raw text columns");
+  assert.match(appSrc, /'cleardoc-freshness-' \+ stamp \+ '\.csv'/,
+    "the CSV must use a freshness-prefixed filename");
+  assert.match(appSrc, /'📊 Freshness CSV downloaded \(' \+ rows\.length \+ '\)'/,
+    "downloading must toast the row count");
+  assert.match(appSrc, /or <b>📊 CSV<\/b> downloads a tracker file/,
+    "the freshness note must document the CSV export");
 });
 
 // Iter #120: document simplifier — paste a confusing sentence and
