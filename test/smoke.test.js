@@ -11584,6 +11584,8 @@ test("analyzer: Freshness block opens an email with the markers pre-filled", () 
     "the z shortcut must open the freshness email when results are visible");
   assert.match(appSrc, /<kbd>z<\/kbd><span>Open the freshness email<\/span>/,
     "the help modal must document the z shortcut");
+  assert.match(appSrc, /share && share\.ok && share\.url/,
+    "the freshness email must append a full-analysis share link when available");
 });
 
 // Iter #120: document simplifier — paste a confusing sentence and
