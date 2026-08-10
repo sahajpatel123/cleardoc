@@ -991,6 +991,25 @@ skip("compare panel: copy button exports verdict + stats as plain text", async (
   assert.match(themeSrc, /\.compare-actions \.cmp-copy\{/, "theme.css must style .cmp-copy");
 });
 
+// Cycle #309 — compare email: open the mail client with the side-by-side
+// verdict + stats + diff pre-filled.
+test("analyzer: Compare panel opens an email with the comparison pre-filled", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(analyzeHtml, /id="compareEmailBtn" title="Open your mail client with the comparison pre-filled"/,
+    "analyze.html must expose the compare email button");
+  assert.match(appSrc, /function buildCompareText\(\)\{/,
+    "app.js must define buildCompareText");
+  assert.match(appSrc, /compareEmailBtn\.addEventListener\('click'/,
+    "app.js must wire the compare email button");
+  assert.match(appSrc, /'Contract comparison \(ClearDoc\)'/,
+    "the email must use a clear subject");
+});
+
 skip("ask: quick-question chips fill the input and ask immediately", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
