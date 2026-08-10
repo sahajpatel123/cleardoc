@@ -705,6 +705,11 @@ if [ -f "SECURITY.md" ]; then
     else
         check_fail "SECURITY.md is missing the privacy section"
     fi
+    if grep -q "^### Third-Party Dependencies" SECURITY.md 2>/dev/null; then
+        check_pass "SECURITY.md documents third-party dependencies"
+    else
+        check_fail "SECURITY.md is missing third-party dependencies section"
+    fi
     if grep -Eq "security@cleardoc\.app|/security/advisories/new" SECURITY.md 2>/dev/null; then
         check_pass "SECURITY.md includes a vulnerability reporting channel"
     else
