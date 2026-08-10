@@ -215,6 +215,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Freshness Markdown export** (cycle #305) — the freshness stamp block now has a `# MD` button that copies a paste-ready Markdown table of every detected freshness marker (marker label, raw text, when-ago, and ISO date) plus a share link.
   - *Polish (cycle #305 v2):* the Markdown export now carries the **header verdict** on a line above the table, so the copied summary includes the bottom-line freshness read.
 - **Two-press slider email** (cycle #306) — the home page’s “two presses” compare slider now has an `✉️ email` button that opens the mail client with the plain-English demo clause pre-filled.
+  - *Polish (cycle #306 v2):* the email draft now appends a **live demo link** to the home page, so the recipient can open the slider and try it themselves.
 
 ### Documentation
 

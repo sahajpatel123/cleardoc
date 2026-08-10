@@ -2801,6 +2801,8 @@ test("home: two-press slider opens an email with the plain-English version", () 
     "app.js must wire the two-press email button");
   assert.match(appSrc, /'Plain-English version \(ClearDoc\):', '', text/,
     "the email must lead with a plain-English heading");
+  assert.match(appSrc, /'Try it live: ' \+ demoUrl/,
+    "the email must append a link to the live demo");
   assert.match(appSrc, /'✉️ Plain-English email opened'/,
     "opening the email must toast the action");
 });
