@@ -20383,6 +20383,40 @@
       if(btn) flashButton(btn, '✉ Opened', 1500);
     }
 
+    // Cycle #308 v2 — copy-to-clipboard sibling for users without a
+    // configured mail client (or who want to paste into a ticket/chat).
+    async function copyAnalysisBundleEmail(){
+      let text = buildAnalysisBundle();
+      if(!text){
+        if(msg){msg.textContent='Analyze a document first, then copy the bundle email.'; msg.className='analyze-msg';}
+        return;
+      }
+      try {
+        if(typeof buildShareUrl === 'function'){
+          const share = await buildShareUrl();
+          if(share && share.ok && share.url) text += '\n' + share.url;
+        }
+      } catch(_){ /* keep the copy working even if the link fails */ }
+      const final = 'Subject: Contract analysis bundle (ClearDoc)\n\n' + text;
+      const btn = document.getElementById('copyEmailBundleBtn');
+      let ok = false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(final);
+          ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = final;
+          ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta);
+          ta.select();
+          ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+      }catch(_){ /* ignore */ }
+      if(btn) flashButton(btn, ok ? '✓ Email copied' : 'Copy failed', ok ? 1400 : 1800);
+    }
+
     // Cycle #287 — clean draft: apply the top counter-suggestions to the
     // document (without touching the textarea) and copy the revised text.
     function buildCleanDraft(){
@@ -24524,6 +24558,8 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     if(copyBundleBtn) copyBundleBtn.addEventListener('click', copyAnalysisBundle);
     const emailBundleBtn = document.getElementById('emailBundleBtn');
     if(emailBundleBtn) emailBundleBtn.addEventListener('click', openAnalysisBundleEmail);
+    const copyEmailBundleBtn = document.getElementById('copyEmailBundleBtn');
+    if(copyEmailBundleBtn) copyEmailBundleBtn.addEventListener('click', copyAnalysisBundleEmail);
     const cleanDraftBtn = document.getElementById('cleanDraftBtn');
     if(cleanDraftBtn) cleanDraftBtn.addEventListener('click', copyCleanDraft);
     // Cycle #268 — chat-friendly risk digest copy.

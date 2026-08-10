@@ -3322,6 +3322,12 @@ test("analyzer: email-all bundle opens a pre-filled mail client", () => {
     "app.js must wire the email-all bundle button");
   assert.match(appSrc, /'Contract analysis bundle \(ClearDoc\)'/,
     "the email must use a clear subject");
+  assert.match(html, /id="copyEmailBundleBtn"[^>]*title="Copy the same bundle email to the clipboard/,
+    "analyze.html must expose the copy-email-all bundle button");
+  assert.match(appSrc, /async function copyAnalysisBundleEmail\(\)\{/,
+    "app.js must define copyAnalysisBundleEmail");
+  assert.match(appSrc, /copyEmailBundleBtn\) copyEmailBundleBtn\.addEventListener\('click', copyAnalysisBundleEmail\);/,
+    "app.js must wire the copy-email-all button");
 });
 
 // Cycle #287 — clean draft: copy the document with counter-suggestions applied.

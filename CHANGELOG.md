@@ -219,6 +219,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Hero clarifier email** (cycle #307) — the home page hero clarifier card now has an `✉️ email` button that opens the mail client with the plain-English rewrite pre-filled, including a live demo link.
   - *Polish (cycle #307 v2):* the email draft now also includes the **original legalese sentence**, so the recipient sees the before/after in one message.
 - **Email-all bundle** (cycle #308) — the result actions now have an `✉️ email all` button that opens the mail client with the full analysis bundle (key facts, scoreboard, risks, deadlines, obligations, care plan, next steps) plus a share link pre-filled.
+  - *Polish (cycle #308 v2):* added a **`📋 Copy email all`** sibling that copies the same bundle email to the clipboard for users without a configured mail client.
 
 ### Documentation
 
