@@ -793,6 +793,11 @@ if git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
 else
     check_fail "package-lock.json is not tracked"
 fi
+if [ -f package-lock.json ] && grep -q '"lockfileVersion"' package-lock.json; then
+    check_pass "package-lock.json carries a lockfileVersion"
+else
+    check_fail "package-lock.json is missing lockfileVersion"
+fi
 
 # 9b. Verify the npm precommit hook still runs the hardening script
 echo ""
