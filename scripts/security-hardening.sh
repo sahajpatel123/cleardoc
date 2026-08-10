@@ -700,6 +700,11 @@ if [ -f "SECURITY.md" ]; then
     else
         check_fail "SECURITY.md is missing coordinated disclosure"
     fi
+    if grep -q "^### Privacy" SECURITY.md 2>/dev/null; then
+        check_pass "SECURITY.md documents the privacy posture"
+    else
+        check_fail "SECURITY.md is missing the privacy section"
+    fi
     if grep -Eq "security@cleardoc\.app|/security/advisories/new" SECURITY.md 2>/dev/null; then
         check_pass "SECURITY.md includes a vulnerability reporting channel"
     else
