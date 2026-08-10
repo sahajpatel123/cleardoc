@@ -222,6 +222,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
   - *Polish (cycle #308 v2):* added a **`📋 Copy email all`** sibling that copies the same bundle email to the clipboard for users without a configured mail client.
 - **Compare email** (cycle #309) — the compare panel now has an `✉️ email` button that opens the mail client with the side-by-side verdict, stats table, and sentence diff pre-filled.
   - *Polish (cycle #309 v2):* the email now also includes **truncated snippets** of the original and compare documents, so the recipient sees what was compared without opening the app.
+- **Compare Markdown export** (cycle #310) — the compare panel now has a `# MD` button that copies the comparison as a paste-ready Markdown table (Metric / Original / Compare) plus the sentence diff.
 
 ### Documentation
 

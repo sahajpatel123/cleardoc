@@ -1014,6 +1014,26 @@ test("analyzer: Compare panel opens an email with the comparison pre-filled", ()
     "the email must include the compare snippet");
 });
 
+// Cycle #310 — compare Markdown export.
+test("analyzer: Compare panel copies as Markdown", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(analyzeHtml, /id="compareMdBtn" title="Copy the comparison as a Markdown table"/,
+    "analyze.html must expose the compare Markdown button");
+  assert.match(appSrc, /compareMdBtn\.addEventListener\('click'/,
+    "app.js must wire the compare Markdown button");
+  assert.match(appSrc, /'# Contract comparison\\n\\n'/,
+    "the Markdown must open with a comparison heading");
+  assert.match(appSrc, /\| Metric \| Original \| Compare \|/,
+    "the Markdown must include a comparison table header");
+  assert.match(appSrc, /'📋 Comparison copied as Markdown'/,
+    "copying must toast the action");
+});
+
 skip("ask: quick-question chips fill the input and ask immediately", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
