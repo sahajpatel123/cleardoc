@@ -686,6 +686,11 @@ if [ -f "SECURITY.md" ]; then
     else
         check_fail "SECURITY.md is missing reporter acknowledgments"
     fi
+    if grep -qi "coordinated disclosure" SECURITY.md 2>/dev/null; then
+        check_pass "SECURITY.md follows coordinated disclosure"
+    else
+        check_fail "SECURITY.md is missing coordinated disclosure"
+    fi
     if grep -Eq "security@cleardoc\.app|/security/advisories/new" SECURITY.md 2>/dev/null; then
         check_pass "SECURITY.md includes a vulnerability reporting channel"
     else
