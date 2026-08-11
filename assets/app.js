@@ -22417,6 +22417,7 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to download yet — compare two clauses first');
           return;
         }
+        let ok = false;
         try{
           const stamp = new Date().toISOString().slice(0,10);
           const url = URL.createObjectURL(new Blob([md], { type:'text/markdown;charset=utf-8' }));
@@ -22424,10 +22425,23 @@
           a.href = url; a.download = 'cleardoc-compare-' + stamp + '.md';
           document.body.appendChild(a); a.click(); document.body.removeChild(a);
           URL.revokeObjectURL(url);
+          ok = true;
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⬇ Comparison Markdown downloaded');
         }catch(_){
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create Markdown file');
         }
+        // Cycle #315 — flash the button like the copy button so the
+        // download confirms itself on screen, not just in the toast.
+        const orig = '⬇ md';
+        compareMdDownloadBtn.textContent = ok ? '✓ downloaded' : 'Download failed';
+        compareMdDownloadBtn.setAttribute('aria-label', ok ? 'Comparison Markdown downloaded' : 'Download failed — try again');
+        clearTimeout(compareMdDownloadBtn._flashTimer);
+        compareMdDownloadBtn._flashTimer = setTimeout(() => {
+          if(compareMdDownloadBtn.isConnected){
+            compareMdDownloadBtn.textContent = orig;
+            compareMdDownloadBtn.setAttribute('aria-label', 'Download the comparison as a .md file');
+          }
+        }, 1400);
       });
       // Cycle #309 — compare email: open the mail client with the same
       // side-by-side verdict + stats + diff pre-filled.

@@ -382,6 +382,21 @@ else
     check_fail "CI secret scan must cover client secrets, provider tokens, and private keys"
 fi
 
+# 3w. Verify workflows don't download-and-execute remote scripts
+echo ""
+echo "--- Checking GitHub Actions shell hygiene ---"
+BAD_SHELL=""
+for file in .github/workflows/*.yml; do
+    if [ -f "$file" ] && grep -E "(curl|wget)[^|]*\|[[:space:]]*(sh|bash)" "$file" >/dev/null 2>&1; then
+        BAD_SHELL="$BAD_SHELL $file"
+    fi
+done
+if [ -z "$BAD_SHELL" ]; then
+    check_pass "Workflows do not download-and-execute remote scripts"
+else
+    check_fail "Workflows download-and-execute remote scripts in:$BAD_SHELL"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""
@@ -888,6 +903,24 @@ process.exit(0);
     fi
 else
     check_warn "Node.js not available for package.json checks"
+fi
+
+# 9c. Verify package.json has no install lifecycle scripts
+echo ""
+echo "--- Checking package.json install lifecycle scripts ---"
+if command -v node &> /dev/null; then
+    if node -e "
+const p=require('./package.json');
+const bad=['preinstall','install','postinstall'].filter(k=>p.scripts && Object.prototype.hasOwnProperty.call(p.scripts,k));
+if(bad.length) { console.log('Lifecycle scripts found: '+bad.join(', ')); process.exit(1); }
+process.exit(0);
+" 2>/dev/null; then
+        check_pass "package.json has no preinstall/install/postinstall scripts"
+    else
+        check_fail "package.json must not define install lifecycle scripts"
+    fi
+else
+    check_warn "Node.js not available for lifecycle script check"
 fi
 
 # 10. Check no tracked .env secret files

@@ -1323,6 +1323,11 @@ skip("integration: compare panel downloads a Markdown comparison file", async ()
     ]);
     const dlPath = await download.path();
     const content = fs.readFileSync(dlPath, "utf8");
+    // Cycle #315 — the button must confirm itself on screen, not just toast.
+    await page.waitForFunction(
+      () => document.getElementById("compareMdDownloadBtn").textContent === "✓ downloaded",
+      { timeout: 4000 }
+    );
     assert.match(download.suggestedFilename(), /^cleardoc-compare-\d{4}-\d{2}-\d{2}\.md$/,
       "the Markdown must download as cleardoc-compare-<date>.md");
     assert.match(content, /^# Contract comparison/, "the file must open with the comparison heading");

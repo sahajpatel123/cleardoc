@@ -5892,3 +5892,21 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 314 of the autonomous loop (alternate add/polish): clipboard permission can be flaky or blocked — a comparison worth copying is worth saving, so let users download the exact same Markdown as a file.
+
+**2026-08-11 18:55 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- security(supply-chain): `scripts/security-hardening.sh` now has two new gates. Workflows must not download-and-execute remote scripts (`curl|sh` / `curl|bash`), and `package.json` must not define `preinstall` / `install` / `postinstall` lifecycle scripts that could run arbitrary code during install.
+- No existing workflows or package scripts violate the new gates; the hardening run is now 89/89 checks.
+- CHANGELOG + SECURITY.md updated. JSON/YAML/JS syntax still green.
+
+**Prompt Intention:**
+- Cycle 315 of the autonomous loop (security refinement): supply-chain risk often hides in CI and install hooks — add fail-fast gates for remote-script execution and install lifecycle scripts.
+
+**2026-08-11 18:15 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- polish(compare-md): the `⬇ md` download button now flashes `✓ downloaded` (or `Download failed`) for 1.4s and updates its aria-label, exactly mirroring the `# MD` copy button's feedback — the download confirms itself on screen instead of only toasting.
+- Extended the cycle-#314 smoke test with 3 assertions (success/failure flash text, aria-label flash, aria-label revert) and the integration test with a real-browser wait for the `✓ downloaded` state after the download event.
+- CHANGELOG + LOGBOOK updated. Full suite green. Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 315 of the autonomous loop (alternate add/polish): a download that only announces itself in a toast gives the eye nothing to latch onto — make the button confirm itself like its copy sibling.

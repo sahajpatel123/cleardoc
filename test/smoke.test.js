@@ -1069,6 +1069,12 @@ test("analyzer: Compare panel downloads Markdown", () => {
     "downloading must toast the action");
   assert.match(appSrc, /'⚠ Nothing to download yet — compare two clauses first'/,
     "the download must give feedback when nothing has been compared");
+  assert.match(appSrc, /compareMdDownloadBtn\.textContent = ok \? '✓ downloaded' : 'Download failed'/,
+    "the download button must flash a success/failure state like the copy button");
+  assert.match(appSrc, /compareMdDownloadBtn\.setAttribute\('aria-label', ok \? 'Comparison Markdown downloaded' : 'Download failed — try again'\)/,
+    "the flash must update the download button aria-label");
+  assert.match(appSrc, /compareMdDownloadBtn\.setAttribute\('aria-label', 'Download the comparison as a \.md file'\)/,
+    "the flash must revert the download button aria-label");
 });
 
 skip("ask: quick-question chips fill the input and ask immediately", async () => {
