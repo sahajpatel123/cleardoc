@@ -1045,6 +1045,32 @@ test("analyzer: Compare panel copies as Markdown", () => {
     "the empty-comparison guard must reuse the standard toast wording");
 });
 
+// Cycle #314 — compare Markdown download.
+test("analyzer: Compare panel downloads Markdown", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  assert.match(analyzeHtml, /id="compareMdDownloadBtn" title="Download the comparison as a \.md file"/,
+    "analyze.html must expose the compare Markdown download button");
+  assert.match(appSrc, /compareMdDownloadBtn\.addEventListener\('click'/,
+    "app.js must wire the compare Markdown download button");
+  assert.match(appSrc, /function buildCompareMarkdown\(\)/,
+    "the copy and download buttons must share one Markdown builder");
+  assert.match(appSrc, /const md = buildCompareMarkdown\(\);/,
+    "the download must reuse the shared Markdown builder");
+  assert.match(appSrc, /'cleardoc-compare-' \+ stamp \+ '\.md'/,
+    "the download must be named cleardoc-compare-<date>.md");
+  assert.match(appSrc, /type:'text\/markdown;charset=utf-8'/,
+    "the download must use text/markdown UTF-8");
+  assert.match(appSrc, /'⬇ Comparison Markdown downloaded'/,
+    "downloading must toast the action");
+  assert.match(appSrc, /'⚠ Nothing to download yet — compare two clauses first'/,
+    "the download must give feedback when nothing has been compared");
+});
+
 skip("ask: quick-question chips fill the input and ask immediately", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");

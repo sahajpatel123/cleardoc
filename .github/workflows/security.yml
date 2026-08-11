@@ -125,13 +125,14 @@ jobs:
 
       - name: Check for hardcoded secrets
         run: |
-          # Scan for potential hardcoded secrets (not exhaustive, but catches common mistakes)
-          # This is a basic check - GitHub also has secret scanning enabled
-          if grep -rE "(api[_-]?key|secret[_-]?key|password)\s*=\s*['\"]" --include="*.js" --include="*.ts" . 2>/dev/null | grep -v "node_modules" | grep -v "//"; then
-            echo "::error::Potential hardcoded secrets detected"
+          # Scan tracked source/config files only (never local .env files) for
+          # hardcoded secrets, private keys, and provider tokens. GitHub secret
+          # scanning still runs as a second layer; this is the fail-fast gate.
+          if git grep -nE "(api[_-]?key|secret[_-]?key|client[_-]?secret|access[_-]?token|auth[_-]?token|private[_-]?key)[[:space:]]*[:=][[:space:]]*['\"][^'\"]{10,}['\"]|(sk_live_|pk_live_|sk_test_|pk_test_|ghp_|github_pat_|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|BEGIN (RSA|EC|OPENSSH|DSA|PGP) PRIVATE KEY)" -- "*.js" "*.ts" "*.mjs" "*.cjs" "*.json" "*.html" "*.css" "*.sh" "*.yml" "*.yaml" ':(exclude)scripts/security-hardening.sh' ':(exclude).github/workflows/security.yml'; then
+            echo "::error::Potential hardcoded secrets / private keys / provider tokens detected"
             exit 1
           fi
-          echo "No hardcoded secrets found"
+          echo "No hardcoded secrets found in tracked files"
 
       - name: Ensure no .env secret files are tracked
         run: |

@@ -31,16 +31,12 @@ check_warn() {
     echo -e "${YELLOW}⚠ WARN${NC}: $1"
 }
 
-# 1. Check for hardcoded secrets in source files
+# 1. Check for hardcoded secrets, private keys, and provider tokens in tracked files
 echo "--- Checking for hardcoded secrets ---"
-if grep -rE "(api[_-]?key|secret[_-]?key)\s*=\s*['\"][^'\"]{10,}['\"]" --include="*.js" --include="*.ts" \
-    --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.opencode \
-    --exclude-dir=.git --exclude-dir=.claude --exclude-dir=.openclaude \
-    --exclude-dir=.antigravitycli --exclude-dir=playwright-report --exclude-dir=test-results \
-    . 2>/dev/null | grep -v "//"; then
-    check_fail "Potential hardcoded secrets found"
+if git grep -nE "(api[_-]?key|secret[_-]?key|client[_-]?secret|access[_-]?token|auth[_-]?token|private[_-]?key)[[:space:]]*[:=][[:space:]]*['\"][^'\"]{10,}['\"]|(sk_live_|pk_live_|sk_test_|pk_test_|ghp_|github_pat_|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|BEGIN (RSA|EC|OPENSSH|DSA|PGP) PRIVATE KEY)" -- "*.js" "*.ts" "*.mjs" "*.cjs" "*.json" "*.html" "*.css" "*.sh" "*.yml" "*.yaml" ':(exclude)scripts/security-hardening.sh' ':(exclude).github/workflows/security.yml' 2>/dev/null; then
+    check_fail "Potential hardcoded secrets found (tracked files only)"
 else
-    check_pass "No hardcoded secrets detected"
+    check_pass "No hardcoded secrets detected in tracked files"
 fi
 
 # 2. Check for dangerous eval/Function usage
@@ -375,6 +371,15 @@ if [ -z "$MISSING_SCHEDULE" ]; then
     check_pass "All workflows keep scheduled triggers"
 else
     check_fail "Workflows missing schedule:$MISSING_SCHEDULE"
+fi
+
+# 3v. Verify CI secret scan covers tracked files, provider tokens, and private keys
+echo ""
+echo "--- Checking GitHub Actions secret scan strength ---"
+if [ -f .github/workflows/security.yml ] && grep -qE "git grep|sk_live_|BEGIN .*PRIVATE KEY" .github/workflows/security.yml; then
+    check_pass "CI secret scan covers client secrets, provider tokens, and private keys"
+else
+    check_fail "CI secret scan must cover client secrets, provider tokens, and private keys"
 fi
 
 # 4. Check CSP configuration
