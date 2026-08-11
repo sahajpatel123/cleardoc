@@ -1033,6 +1033,16 @@ test("analyzer: Compare panel copies as Markdown", () => {
     "the Markdown must include a comparison table header");
   assert.match(appSrc, /'📋 Comparison copied as Markdown'/,
     "copying must toast the action");
+  assert.match(appSrc, /const escMd = s => String\(s\)\.replace\(/,
+    "the Markdown builder must escape pipe characters inside cells");
+  assert.match(appSrc, /const label = th \? escMd\(/,
+    "metric labels must be escaped before joining the table row");
+  assert.match(appSrc, /Array\.from\(tds\)\.map\(td => escMd\(/,
+    "metric values must be escaped before joining the table row");
+  assert.match(appSrc, /if\(!verdictText && !rows\.length && !dRows\.length\)/,
+    "the Markdown export must bail out with feedback when nothing has been compared");
+  assert.match(appSrc, /'⚠ Nothing to copy yet — compare two clauses first'/,
+    "the empty-comparison guard must reuse the standard toast wording");
 });
 
 skip("ask: quick-question chips fill the input and ask immediately", async () => {

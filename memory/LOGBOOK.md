@@ -5854,3 +5854,21 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 253 of the autonomous loop (alternate add/polish): a checklist whose ☑ does nothing is a poster, not a tool — the toggle that ships must be the toggle that works.
+
+**2026-08-11 17:30 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- polish(compare-md): the cycle-#310 Markdown export now escapes pipe characters in metric names and values (a literal "|" inside a clause could previously break the table into extra columns), and bails out with the standard "Nothing to copy yet — compare two clauses first" toast instead of copying a heading-only stub when no comparison has been run. The diff section is unchanged.
+- Extended the cycle-#310 smoke test with 5 assertions (escape helper, label/value escaping through `escMd`, empty-comparison guard, guard toast wording).
+- CHANGELOG + LOGBOOK updated. Full suite green (490 unit + 417 smoke + 15 integration = 922 tests). Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 311 of the autonomous loop (alternate add/polish): an export that can produce malformed tables from ordinary content isn't polished yet — make the Markdown export escape-proof and honest about its empty state.
+
+**2026-08-11 18:05 IST | Model: Codex (GPT-5)**
+**Changes Made:**
+- security(test-harness): the browser smoke and integration suites now bind their local servers to `127.0.0.1` instead of `0.0.0.0`, so a test harness can never accidentally expose the static site, mock OpenRouter, or mock Gemini endpoints to the LAN while tests are running.
+- `scripts/security-hardening.sh` gained a gate that fails if a test server regresses to binding all interfaces; the hardening run now covers smoke + integration loopback binding.
+- CHANGELOG + SECURITY.md updated. Hardening script passes (86 checks); JSON + syntax checks green. Commit + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 312 of the autonomous loop (security): CI and CodeQL should stay green without exposing test harness sockets — bind test servers to loopback and make the hardening script enforce it.

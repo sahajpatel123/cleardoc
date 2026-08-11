@@ -134,6 +134,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Pre-commit hook** — documentation for running security checks before commits.
 - **CI workflows** — Tests, Security, and CodeQL support manual `workflow_dispatch`; Tests runs nightly; Tests/Security accept a configurable Node version; docs-only changes skip all three workflows.
 - **CodeQL manual dispatch** — CodeQL accepts a configurable language input on `workflow_dispatch` (defaults to `javascript`), so a scan can target a different language without editing YAML.
+- **Test servers bind to loopback only** — the browser smoke and integration suites now listen on `127.0.0.1` instead of `0.0.0.0`, so a local test harness can never accidentally expose its mock AI endpoints or static file server to the network. The hardening script now fails if a test server regresses to binding all interfaces.
 
 ### Features
 
@@ -223,6 +224,7 @@ ClearDoc is a continuously-deployed static site — every push to `main` is live
 - **Compare email** (cycle #309) — the compare panel now has an `✉️ email` button that opens the mail client with the side-by-side verdict, stats table, and sentence diff pre-filled.
   - *Polish (cycle #309 v2):* the email now also includes **truncated snippets** of the original and compare documents, so the recipient sees what was compared without opening the app.
 - **Compare Markdown export** (cycle #310) — the compare panel now has a `# MD` button that copies the comparison as a paste-ready Markdown table (Metric / Original / Compare) plus the sentence diff.
+  - *Polish (cycle #311):* the Markdown export now **escapes pipe characters** inside metric names and values so literal `|` content can't break the table, and shows the standard "nothing to copy yet" toast instead of exporting a heading-only stub when no comparison has been run.
 
 ### Documentation
 
