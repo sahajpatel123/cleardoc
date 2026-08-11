@@ -5882,13 +5882,3 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 313 of the autonomous loop (security refinement): the old secret scan missed private keys/provider tokens and could scan untracked local `.env` files — tighten it to tracked files only, cover common token families, and gate the CI scan strength.
-
-**2026-08-11 18:00 IST | Model: Codex (GPT-5)**
-**Changes Made:**
-- feat(compare-md): the compare panel now has an `⬇ md` download button that saves the same comparison as `cleardoc-compare-<date>.md`. The copy (`# MD`) and download buttons share one `buildCompareMarkdown()` builder, so the two exports can never drift; the download reuses the app's blob/anchor pattern with a `text/markdown;charset=utf-8` type and its own "Nothing to download yet — compare two clauses first" guard toast.
-- Verified in a real browser via a new integration test (two pasted clauses → open compare panel → download): the file arrived as `cleardoc-compare-2026-08-11.md` with the `# Contract comparison` heading, the `| Metric | Original | Compare |` table header, the type metric row, and the informational footer; zero console errors.
-- New smoke source test (8 assertions: button markup, handler wiring, shared builder, reuse in download, filename, MIME type, success toast, empty-state toast).
-- Full suite green (490 unit + 418 smoke + 16 integration = 924 tests). Hardening gate 87/87. Commit + push to origin/main.
-
-**Prompt Intention:**
-- Cycle 314 of the autonomous loop (alternate add/polish): clipboard permission can be flaky or blocked — a comparison worth copying is worth saving, so let users download the exact same Markdown as a file.
