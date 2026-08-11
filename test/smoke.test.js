@@ -15,6 +15,7 @@ const fs = require("node:fs");
 
 const ROOT = path.resolve(__dirname, "..");
 const PORT = 4321;
+const HOST = "127.0.0.1";
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -55,7 +56,7 @@ function serveStatic() {
     res.writeHead(200);
     fs.createReadStream(filePath).pipe(res);
   });
-  server.listen(PORT);
+  server.listen(PORT, HOST);
   server.unref();
   return server;
 }

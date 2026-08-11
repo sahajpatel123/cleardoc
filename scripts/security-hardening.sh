@@ -963,6 +963,20 @@ else
     check_fail "sitemap.xml not found"
 fi
 
+# 13. Verify test servers bind to loopback only
+echo ""
+echo "--- Checking test server loopback binding ---"
+if [ -f "test/smoke.test.js" ] && grep -q "const HOST = \"127.0.0.1\"" test/smoke.test.js && grep -q "server.listen(PORT, HOST)" test/smoke.test.js; then
+    check_pass "Smoke test server binds to loopback only"
+else
+    check_fail "Smoke test server must bind to 127.0.0.1 (never 0.0.0.0)"
+fi
+if [ -f "test/integration.test.js" ] && grep -q "const HOST = \"127.0.0.1\"" test/integration.test.js && ! grep -n '\.listen(' test/integration.test.js | grep -v 'HOST' | grep -q .; then
+    check_pass "Integration test servers bind to loopback only"
+else
+    check_fail "Integration test servers must bind to 127.0.0.1"
+fi
+
 # Summary
 echo ""
 echo "=== Summary ==="
