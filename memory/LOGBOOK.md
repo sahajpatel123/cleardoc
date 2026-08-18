@@ -5953,3 +5953,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 319 of the autonomous loop (alternate add-polish): a button with no documentation is invisible. Polishing the risk detail Markdown copy feature with help-modal discoverability.
+
+---
+
+**2026-08-18 11:53 IST | Model: Claude Opus 4.5 Sonnet**
+**Changes Made:**
+- feat(pressure): added a 📋 # MD button to the pressure-tactics controls that copies the visible pressure-tactic list as a Markdown report (score summary, per-tactic heading with severity tag, blockquoted sentence, why, and tip). New inline formatter `formatPressureMarkdown()` builds the report from the same `visible` array + `isDone()` state as the plain-text copy button so the two exports never drift. Flash feedback mirrors the compare-panel Markdown button exactly: clipboard API + `execCommand('copy')` fallback, `aria-label` save/restore, 1400ms `✓ copied` → `# MD` reset, `_pressureMdWired` guard.
+- Updated the pressure-tactics inline help note to mention `📋 # MD` alongside `📋 copy list`.
+- Added a PRESSURE TACTICS section to the keyboard-shortcuts help modal documenting copy-list, # MD, reset-reviewed, and cooldown-reset buttons.
+- All 405 smoke tests pass (270 pass, 135 skipped, 0 fail), syntax validation green. No inline event handlers — button wired via `addEventListener`.
+
+**Prompt Intention:**
+- Cycle 320 of the autonomous loop (add): the pressure-tactics section was the only major data surface with a plain-text copy but no Markdown export. Adding one gives users a structured paste target for note apps (Obsidian, Notion, Apple Notes) and closes the parity gap with the compare panel, risk detail, and signing checklist.
