@@ -5910,3 +5910,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 315 of the autonomous loop (alternate add/polish): a download that only announces itself in a toast gives the eye nothing to latch onto — make the button confirm itself like its copy sibling.
+
+---
+
+**2026-08-18 11:30 IST | Model: Claude Opus 4.5 Sonnet**
+**Changes Made:**
+- feat(compare): added a 📊 CSV button to the compare panel that copies the comparison stats table (type, level, risks, deadlines) + verdict as CSV to the clipboard, reusable in spreadsheets. The `buildCompareCsv()` builder reuses the same DOM table as the Markdown builder so the two can never drift. Includes OWASP CSV-injection guards (RFC 4180 quoting + formula-cell apostrophe escape) mirroring the risk-table CSV. Click handler mirrors the compare MD button's flash-feedback pattern.
+- Also committed preceding supply-chain security job additions (`.github/workflows/security.yml` + matching gates in `scripts/security-hardening.sh`).
+- All 270 unit tests pass, 0 failures. Syntax + JSON validation green. Commit `a69e19c1` + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 316 of the autonomous loop (alternate add/polish): the compare panel already had plain-text copy, Markdown copy, Markdown download, email, and diff-only copy — but no CSV export. Adding it brings feature parity with the main risk table and gives spreadsheet users a direct paste path.
