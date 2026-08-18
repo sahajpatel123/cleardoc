@@ -341,6 +341,19 @@ if [ -f .github/workflows/codeql.yml ] && grep -q "docs/\*\*" .github/workflows/
 else
     check_fail "CodeQL is missing docs or design-concepts path ignores"
 fi
+# 3s3. Verify CodeQL uses a config file for path scoping
+echo ""
+echo "--- Checking GitHub Actions CodeQL config file ---"
+if [ -f .github/workflows/codeql.yml ] && grep -q "config-file:" .github/workflows/codeql.yml; then
+    check_pass "CodeQL references a configuration file (config-file)"
+else
+    check_fail "CodeQL should reference a config-file for path scoping"
+fi
+if [ -f .github/codeql/codeql-config.yml ] && grep -q "paths:" .github/codeql/codeql-config.yml && grep -q "paths-ignore:" .github/codeql/codeql-config.yml; then
+    check_pass "CodeQL config file defines paths and paths-ignore"
+else
+    check_fail "CodeQL config file must define paths and paths-ignore sections"
+fi
 
 # 3r. Verify syntax + JSON validation gates stay wired into CI
 echo ""

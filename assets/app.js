@@ -12081,7 +12081,7 @@
       // of truth (mirrors buildCompareMarkdown / buildCompareCsv in the
       // compare panel). Builds a Markdown report from the visible
       // pressure-tactic items: score summary + per-tactic heading with
-      // severity tag, blockquoted sentence, why, and tip.
+      // severity tag, trigger kind, blockquoted sentence, why, and tip.
       const formatPressureMarkdown = () => {
         const escMd = (s) => String(s || '').replace(/[\r\n]+/g, ' ').replace(/\|/g, '\\|').trim();
         const sevTag = (it) => it.sev === 'high' ? '🔴 HIGH' : (it.sev === 'med' ? '🟡 MED' : '⚪ low');
@@ -12100,7 +12100,8 @@
         visible.forEach(it => {
           idx++;
           const done = isDone(it);
-          lines.push('### ' + sevTag(it) + ' #' + idx + (done ? ' · ✓ reviewed' : '') + ' — ' + escMd(it.label));
+          const kindPart = it.kind ? ' [' + escMd(it.kind) + ']' : '';
+          lines.push('### ' + sevTag(it) + ' #' + idx + (done ? ' · ✓ reviewed' : '') + kindPart + ' — ' + escMd(it.label));
           lines.push('');
           const sentence = (it.sentence || '').replace(/^"|"$/g, '');
           lines.push('> ' + escMd(sentence));

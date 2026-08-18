@@ -63,6 +63,10 @@ jobs:
           # Broader than the default query set: catches quality issues too,
           # not just the most common security classes.
           queries: security-and-quality
+          # Configuration file narrows analysis to production source code,
+          # reducing false positives from test fixtures and utility scripts
+          # while maintaining full security coverage of request-handling paths.
+          config-file: .github/codeql/codeql-config.yml
       - uses: github/codeql-action/autobuild@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
       - uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
         with:

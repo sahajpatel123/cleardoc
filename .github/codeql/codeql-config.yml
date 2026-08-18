@@ -1,0 +1,23 @@
+# CodeQL configuration — narrows scan scope to production source code.
+# Reduces false positives from test fixtures, documentation, and
+# utility scripts while maintaining full security coverage of the
+# application code that handles user requests.
+
+# Production source code directories that contain request-handling logic
+paths:
+  - api/
+  - app/
+  - components/
+  - assets/
+
+# Directories excluded from CodeQL analysis
+paths-ignore:
+  - test/
+  - scripts/
+  - docs/
+  - design-concepts/
+  - memory/
+  - .well-known/
+  - .claude/
+  - .opencode/
+  - .vercel/
