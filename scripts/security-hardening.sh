@@ -397,6 +397,25 @@ else
     check_fail "Workflows download-and-execute remote scripts in:$BAD_SHELL"
 fi
 
+# 3x. Verify supply-chain security job exists with production audit and install-script guard
+echo ""
+echo "--- Checking GitHub Actions supply-chain security job ---"
+if [ -f .github/workflows/security.yml ] && grep -q "supply-chain-security" .github/workflows/security.yml; then
+    check_pass "Security workflow includes a supply-chain security job"
+else
+    check_fail "Security workflow is missing a supply-chain security job"
+fi
+if [ -f .github/workflows/security.yml ] && grep -q "npm audit.*--omit=dev" .github/workflows/security.yml; then
+    check_pass "Supply-chain job audits production dependencies only"
+else
+    check_fail "Supply-chain job must audit production dependencies with --omit=dev"
+fi
+if [ -f .github/workflows/security.yml ] && grep -q "hasInstallScript\|hasPostinstallScript\|hasPreinstallScript" .github/workflows/security.yml; then
+    check_pass "Supply-chain job checks for install scripts"
+else
+    check_fail "Supply-chain job must check for packages with install scripts"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""

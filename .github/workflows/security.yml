@@ -184,3 +184,51 @@ jobs:
           else
             echo "::warning::vercel.json not found"
           fi
+
+  # Supply chain security - detects risky dependency patterns and production vulnerabilities
+  supply-chain-security:
+    name: Supply chain security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies (reproducible from committed lockfile)
+        run: npm ci --no-audit --no-fund
+
+      - name: Audit production dependencies only
+        # Scans runtime dependencies only (excludes devDependencies) so
+        # dev-only vulnerabilities don't mask production-critical issues.
+        run: npm audit --audit-level=high --omit=dev --no-fund
+
+      - name: Check for packages with install scripts
+        # Packages with preinstall/install/postinstall scripts execute
+        # arbitrary code during npm install — a known supply-chain
+        # attack vector. Optional deps (e.g. macOS-only fsevents) are
+        # excluded since they don't affect Linux CI.
+        run: |
+          node -e "
+            const p = require('./package-lock.json');
+            const pkgs = Object.entries(p.packages || {});
+            const flagged = pkgs.filter(([k, v]) => {
+              if (v.optional) return false;
+              return v.hasInstallScript || v.hasPostinstallScript || v.hasPreinstallScript;
+            });
+            if (flagged.length) {
+              console.error('Packages with install scripts (supply-chain risk):');
+              flagged.forEach(([k]) => console.error('  ' + k));
+              process.exit(1);
+            }
+            console.log('No packages with install scripts found');
+          "
