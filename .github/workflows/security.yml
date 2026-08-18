@@ -238,11 +238,34 @@ jobs:
         # Maximum-visibility: reports ALL known vulnerabilities (low+ severity)
         # in production dependencies. Non-blocking — surfaces early warnings
         # for vulnerabilities below the high threshold that blocks CI above.
-        # Developers can triage these in daily workflow without failing PRs.
+        # Output is parsed and summarized by severity for quick daily triage:
+        #   🚨 Critical → fix immediately  ⚠️ High → fix next patch
+        #   🔍 Moderate → fix when convenient  📋 Low → track for remediation
         continue-on-error: true
         run: |
           echo "::group::Full production dependency audit (informational)"
-          npm audit --audit-level=low --omit=dev --no-fund || true
+          audit_json=$(npm audit --audit-level=low --omit=dev --no-fund --json 2>/dev/null || true)
+          if [ -n "$audit_json" ] && [ "$audit_json" != "{}" ]; then
+            echo "$audit_json" | node -e "
+              const data = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+              const counts = (data.metadata && data.metadata.vulnerabilities) || {};
+              const severities = ['critical', 'high', 'moderate', 'low'];
+              const emojis = { critical: '🚨', high: '⚠️ ', moderate: '🔍', low: '📋' };
+              let total = 0;
+              for (const sev of severities) {
+                const count = counts[sev] || 0;
+                total += count;
+                if (count > 0) {
+                  console.log(emojis[sev] + ' ' + sev.charAt(0).toUpperCase() + sev.slice(1) + ': ' + count);
+                }
+              }
+              console.log('');
+              console.log('Total: ' + total);
+              if (total === 0) console.log('✅ No known vulnerabilities in production dependencies');
+            "
+          else
+            echo "✅ No vulnerabilities found in production dependencies"
+          fi
           echo "::endgroup::"
 
       - name: Check for outdated dependencies

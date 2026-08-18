@@ -5978,3 +5978,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 321 of the autonomous loop (alternate add-polish): the compare panel has both a clipboard-copy Markdown button and a download-as-`.md` button — parity means the pressure tactics section should too. Refactoring the formatter into a shared function also eliminates the risk of the two formats drifting.
+
+---
+
+**2026-08-18 12:13 IST | Model: Claude Opus 4.5 Sonnet**
+**Changes Made:**
+- feat(signing): added 📋 # MD button to the signing-checklist controls that copies the checklist as a Markdown checklist (grouped by role: 👤 You do, 🤝 Counterparty does, ⚖ Lawyer reviews, 📜 Notary witnesses; - [x]/- [ ] checkboxes; hint as blockquote sub-item). New `formatActionsMarkdown()` local function inside `renderActionsBlock` reuses the same `grouped`/`order`/`completed`/`labels` data as the CSV handler so the two exports never drift. Flash feedback mirrors the pressure-tactics # MD button exactly: clipboard API + execCommand fallback, aria-label save/restore, 1400ms ✓ copied → # MD reset, _actMdWired guard.
+- Added a SIGNING CHECKLIST section to the keyboard-shortcuts help modal documenting all checklist export buttons (copy, # MD, CSV, reset all).
+- All 405 smoke tests pass (270 pass, 135 skipped, 0 fail), syntax validation green. No inline event handlers.
+
+**Prompt Intention:**
+- Cycle #322 of the autonomous loop (add): the signing checklist had copy (📋) and CSV (📊) but no Markdown export — the last major data surface missing one. Adding it gives users a structured paste target for note apps (Obsidian, Notion, Apple Notes) with native checkbox semantics.

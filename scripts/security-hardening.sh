@@ -451,6 +451,11 @@ if [ -f .github/workflows/security.yml ] && grep -B5 "audit-level=low" .github/w
 else
     check_fail "Full-spectrum audit must be non-blocking with continue-on-error"
 fi
+if [ -f .github/workflows/security.yml ] && grep -A3 "Full-spectrum vulnerability audit" .github/workflows/security.yml | grep -q -- "--json"; then
+    check_pass "Full-spectrum audit parses JSON output for structured severity summary"
+else
+    check_fail "Full-spectrum audit should use --json with severity summary parsing"
+fi
 
 # 3y. Verify test workflow includes non-blocking advisory checks with output formatting
 echo ""
