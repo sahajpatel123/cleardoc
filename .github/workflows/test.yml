@@ -71,6 +71,22 @@ jobs:
       - name: Audit dependencies for vulnerabilities
         run: npm audit --audit-level=high --no-fund
 
+      - name: Audit dependencies for moderate vulnerabilities (advisory)
+        # Non-blocking: surfaces moderate+ vulnerabilities early in the
+        # development workflow. The security workflow hard-fails on
+        # high+ in production scopes (--omit=dev).
+        continue-on-error: true
+        run: npm audit --audit-level=moderate --no-fund
+
+      - name: Check for outdated dependencies (advisory)
+        # Non-blocking: surfaces stale packages that may carry unpatched
+        # security fixes. --omit=dev focuses the advisory on production deps.
+        continue-on-error: true
+        run: |
+          echo "::group::Outdated dependencies"
+          npm outdated --omit=dev --json 2>/dev/null || true
+          echo "::endgroup::"
+
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 

@@ -431,6 +431,20 @@ else
     check_fail "Supply-chain job must check for packages with install scripts"
 fi
 
+# 3y. Verify test workflow includes non-blocking advisory checks
+echo ""
+echo "--- Checking GitHub Actions dependency advisory gates ---"
+if [ -f .github/workflows/test.yml ] && grep -q "audit-level=moderate" .github/workflows/test.yml; then
+    check_pass "Test workflow includes moderate vulnerability advisory"
+else
+    check_fail "Test workflow is missing moderate vulnerability advisory"
+fi
+if [ -f .github/workflows/test.yml ] && grep -q "npm outdated" .github/workflows/test.yml; then
+    check_pass "Test workflow includes outdated dependency advisory"
+else
+    check_fail "Test workflow is missing outdated dependency advisory"
+fi
+
 # 4. Check CSP configuration
 # Note: style-src 'unsafe-inline' is intentional for Google Fonts
 echo ""

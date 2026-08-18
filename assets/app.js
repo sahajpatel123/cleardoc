@@ -2640,6 +2640,12 @@
             <div class="kb-row"><kbd>💬</kbd><span>Copy chat-friendly summary to clipboard</span></div>
             <div class="kb-row"><kbd>📧</kbd><span>Open mail client with analysis summary</span></div>
           </div>
+          <h3 class="kb-modal-subtitle mono">COMPARE PANEL</h3>
+          <div class="kb-modal-grid">
+            <div class="kb-row"><kbd>g</kbd><kbd>c</kbd><span>Copy comparison as CSV (compare panel open)</span></div>
+            <div class="kb-row"><kbd>g</kbd><kbd>m</kbd><span>Copy comparison as Markdown (compare panel open)</span></div>
+            <div class="kb-row"><kbd>Esc</kbd><span>Close the compare panel</span></div>
+          </div>
           <h3 class="kb-modal-subtitle mono">RISK ROW ACTIONS</h3>
           <div class="kb-modal-grid">
             <div class="kb-row"><kbd>a</kbd><span>Ask about flagged risk (when focused on risk row)</span></div>
@@ -3016,6 +3022,26 @@
       if(lc === 'h'){ e.preventDefault(); navTo('index.html'); return; }
       if(lc === 'a'){ e.preventDefault(); navTo('analyze.html'); return; }
       if(lc === 'p'){ e.preventDefault(); navTo('pricing.html'); return; }
+      // Cycle #317 v2 — 'g' + 'c' copies the compare-panel CSV when the
+      // compare panel is open. Falls through to the 'c' copy-summary shortcut
+      // when the panel isn't visible, so 'c' stays free on other pages.
+      if(lc === 'c'){
+        const cp = document.getElementById('comparePanel');
+        if(cp && !cp.hidden){
+          const cb = document.getElementById('compareCsvBtn');
+          if(cb){ e.preventDefault(); cb.click(); return; }
+        }
+      }
+      // 'g' + 'm' copies the compare-panel Markdown table when the compare
+      // panel is open. 'm' alone copies key-facts-as-Markdown (Cycle #290),
+      // so the g-sequence scope keeps them distinct.
+      if(lc === 'm'){
+        const cp = document.getElementById('comparePanel');
+        if(cp && !cp.hidden){
+          const mb = document.getElementById('compareMdBtn');
+          if(mb){ e.preventDefault(); mb.click(); return; }
+        }
+      }
     }, { passive:false });
   }
 
