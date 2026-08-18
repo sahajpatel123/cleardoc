@@ -6000,3 +6000,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #323 of the autonomous loop (alternate add-polish): the compare panel and pressure tactics both have a ⬇ md download button alongside their 📋 # MD copy button — parity means the signing checklist should too. Reuses the Cycle #322 formatter so the two code paths share one source of truth.
+
+---
+
+**2026-08-18 12:27 IST | Model: Claude Opus 4.5 Sonnet**
+**Changes Made:**
+- feat(pressure): added 📊 CSV download button to the pressure-tactics controls, mirroring `buildCompareCsv()` and `actCsvBtn` from the signing checklist. Builds a CSV from the same `visible` array (so it matches the plain-text and Markdown exports). Includes metadata header rows (pressure score, counts, filter, date), a `No./Severity/Label/Sentence/Why/Tip/Reviewed` column header, and per-item rows. BOM prefix, OWASP CSV-injection guard (cells starting with = + - @ get leading apostrophe), RFC 4180 quoting, Blob download as `cleardoc-pressure-<date>.csv`. Flash feedback: ✓ downloaded → 📊 CSV after 1400ms with `_pressureCsvWired` guard.
+- Updated the pressure-tactics inline help note to mention `📊 CSV`.
+- Added 📊 CSV row to the PRESSURE TACTICS section in the keyboard-shortcuts help modal.
+- All 405 smoke tests pass (270 pass, 135 skipped, 0 fail), syntax validation green. No inline event handlers.
+
+**Prompt Intention:**
+- Cycle #324 of the autonomous loop (add): the pressure-tactics section was the last major data surface missing a CSV export — all other sections (compare panel, risk detail, signing checklist) had one. Adding it closes the final parity gap and gives users a spreadsheet-ready export path for their pressure-tactic analysis.
