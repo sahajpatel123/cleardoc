@@ -5943,3 +5943,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 318 of the autonomous loop (alternate add/polish): every major data surface in ClearDoc now has a Markdown export except the risk detail toolbar. Adding it closes the last gap and gives users a structured paste target for Notion/GitHub/Confluence.
+
+---
+
+**2026-08-18 11:48 IST | Model: Claude Opus 4.5 Sonnet**
+**Changes Made:**
+- polish: added a RISK DETAIL TOOLBAR section to the keyboard-shortcuts help modal documenting all toolbar buttons (copy, # MD, redline, apply all, read all). The Markdown copy button from Cycle #318 was previously undocumented — now discoverable via the ? help modal.
+- All 490 tests pass, 0 failures. Syntax gate green. Commit `c6235d9c` + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 319 of the autonomous loop (alternate add-polish): a button with no documentation is invisible. Polishing the risk detail Markdown copy feature with help-modal discoverability.
