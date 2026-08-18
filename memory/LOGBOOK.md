@@ -5989,3 +5989,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #322 of the autonomous loop (add): the signing checklist had copy (📋) and CSV (📊) but no Markdown export — the last major data surface missing one. Adding it gives users a structured paste target for note apps (Obsidian, Notion, Apple Notes) with native checkbox semantics.
+
+---
+
+**2026-08-18 12:20 IST | Model: Claude Opus 4.5 Sonnet**
+**Changes Made:**
+- polish(signing): added ⬇ md download button to the signing-checklist controls, mirroring the compare-panel compareMdDownloadBtn (Cycle #314) and pressure-tactics pressureMdDownloadBtn (Cycle #321). Reuses the `formatActionsMarkdown()` function from Cycle #322 so the download and clipboard copy can never drift. Flash feedback: ✓ downloaded → ⬇ md after 1400ms with aria-label save/restore and `_actMdDownloadWired` guard. Downloads as `cleardoc-signing-<date>.md`.
+- Added ⬇ md row to the SIGNING CHECKLIST section in the keyboard-shortcuts help modal.
+- All 405 smoke tests pass (270 pass, 135 skipped, 0 fail), syntax validation green. No inline event handlers.
+
+**Prompt Intention:**
+- Cycle #323 of the autonomous loop (alternate add-polish): the compare panel and pressure tactics both have a ⬇ md download button alongside their 📋 # MD copy button — parity means the signing checklist should too. Reuses the Cycle #322 formatter so the two code paths share one source of truth.
