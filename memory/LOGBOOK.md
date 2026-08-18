@@ -6012,3 +6012,12 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #324 of the autonomous loop (add): the pressure-tactics section was the last major data surface missing a CSV export — all other sections (compare panel, risk detail, signing checklist) had one. Adding it closes the final parity gap and gives users a spreadsheet-ready export path for their pressure-tactic analysis.
+
+---
+
+**2026-08-18 12:33 IST | Model: Claude Opus 4.5 Sonnet**
+**Changes Made:**
+- polish(pressure): added the trigger `kind` field (e.g. "deadline", "scarcity") to each tactic in the pressure Markdown output, matching the on-screen cards which show `[kind]` in the pressure-meta span. The kind is conditionally included (only when `it.kind` exists) and inserted into the heading line between the severity tag and the label.
+
+**Prompt Intention:**
+- Cycle #325 of the autonomous loop (alternate add-polish): the pressure Markdown report from Cycle #320 was missing the trigger-kind context that the on-screen cards display — adding it makes the exported Markdown as information-rich as the in-app view, so pasted reports in Notion/Obsidian retain the tactic category.
