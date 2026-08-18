@@ -207,10 +207,22 @@ jobs:
       - name: Install dependencies (reproducible from committed lockfile)
         run: npm ci --no-audit --no-fund
 
+      - name: Verify dependency tree integrity
+        # npm ci enforces lockfile sync; npm ls adds an explicit check
+        # for extraneous/missing packages and surfaces peer-dependency
+        # drift with a clear CI step name.
+        run: |
+          echo "::group::Dependency tree"
+          npm ls --depth=0 --omit=dev
+          echo "::endgroup::"
+
       - name: Audit production dependencies only
         # Scans runtime dependencies only (excludes devDependencies) so
         # dev-only vulnerabilities don't mask production-critical issues.
-        run: npm audit --audit-level=high --omit=dev --no-fund
+        run: |
+          echo "::group::Production dependency audit"
+          npm audit --audit-level=high --omit=dev --no-fund
+          echo "::endgroup::"
 
       - name: Check for packages with install scripts
         # Packages with preinstall/install/postinstall scripts execute
@@ -218,17 +230,25 @@ jobs:
         # attack vector. Optional deps (e.g. macOS-only fsevents) are
         # excluded since they don't affect Linux CI.
         run: |
+          echo "::group::Checking for install scripts"
           node -e "
             const p = require('./package-lock.json');
             const pkgs = Object.entries(p.packages || {});
-            const flagged = pkgs.filter(([k, v]) => {
+            const scriptKeys = ['hasInstallScript', 'hasPostinstallScript', 'hasPreinstallScript'];
+            const scriptNames = { hasInstallScript: 'install', hasPostinstallScript: 'postinstall', hasPreinstallScript: 'preinstall' };
+            const flagged = pkgs.filter(([_, v]) => {
               if (v.optional) return false;
-              return v.hasInstallScript || v.hasPostinstallScript || v.hasPreinstallScript;
+              return scriptKeys.some(k => v[k]);
             });
             if (flagged.length) {
               console.error('Packages with install scripts (supply-chain risk):');
-              flagged.forEach(([k]) => console.error('  ' + k));
+              flagged.forEach(([path, meta]) => {
+                const names = scriptKeys.filter(k => meta[k]).map(k => scriptNames[k]).join(', ');
+                const name = path.replace('node_modules/', '');
+                console.error('  ' + name + ' (v' + (meta.version || '?') + ') triggers: ' + names);
+              });
               process.exit(1);
             }
             console.log('No packages with install scripts found');
           "
+          echo "::endgroup::"

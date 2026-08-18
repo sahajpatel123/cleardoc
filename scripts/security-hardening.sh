@@ -397,7 +397,7 @@ else
     check_fail "Workflows download-and-execute remote scripts in:$BAD_SHELL"
 fi
 
-# 3x. Verify supply-chain security job exists with production audit and install-script guard
+# 3x. Verify supply-chain security job exists with audit, dep-tree check, and install-script guard
 echo ""
 echo "--- Checking GitHub Actions supply-chain security job ---"
 if [ -f .github/workflows/security.yml ] && grep -q "supply-chain-security" .github/workflows/security.yml; then
@@ -409,6 +409,11 @@ if [ -f .github/workflows/security.yml ] && grep -q "npm audit.*--omit=dev" .git
     check_pass "Supply-chain job audits production dependencies only"
 else
     check_fail "Supply-chain job must audit production dependencies with --omit=dev"
+fi
+if [ -f .github/workflows/security.yml ] && grep -q "npm ls.*--omit=dev" .github/workflows/security.yml; then
+    check_pass "Supply-chain job verifies dependency tree integrity"
+else
+    check_fail "Supply-chain job must verify dependency tree with npm ls"
 fi
 if [ -f .github/workflows/security.yml ] && grep -q "hasInstallScript\|hasPostinstallScript\|hasPreinstallScript" .github/workflows/security.yml; then
     check_pass "Supply-chain job checks for install scripts"
