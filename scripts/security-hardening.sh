@@ -431,7 +431,7 @@ else
     check_fail "Supply-chain job must check for packages with install scripts"
 fi
 
-# 3y. Verify test workflow includes non-blocking advisory checks
+# 3y. Verify test workflow includes non-blocking advisory checks with output formatting
 echo ""
 echo "--- Checking GitHub Actions dependency advisory gates ---"
 if [ -f .github/workflows/test.yml ] && grep -q "audit-level=moderate" .github/workflows/test.yml; then
@@ -439,10 +439,20 @@ if [ -f .github/workflows/test.yml ] && grep -q "audit-level=moderate" .github/w
 else
     check_fail "Test workflow is missing moderate vulnerability advisory"
 fi
+if [ -f .github/workflows/test.yml ] && grep -q "continue-on-error: true" .github/workflows/test.yml && grep -q "audit-level=moderate" .github/workflows/test.yml; then
+    check_pass "Moderate advisory is non-blocking (continue-on-error)"
+else
+    check_fail "Moderate advisory must be non-blocking with continue-on-error"
+fi
 if [ -f .github/workflows/test.yml ] && grep -q "npm outdated" .github/workflows/test.yml; then
     check_pass "Test workflow includes outdated dependency advisory"
 else
     check_fail "Test workflow is missing outdated dependency advisory"
+fi
+if [ -f .github/workflows/test.yml ] && grep -q "::group::" .github/workflows/test.yml; then
+    check_pass "Advisory steps use collapsible output groups"
+else
+    check_fail "Advisory steps should use ::group:: for collapsible CI output"
 fi
 
 # 4. Check CSP configuration
