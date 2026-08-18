@@ -66,7 +66,12 @@ jobs:
           cache: npm
 
       - name: Install dependencies (reproducible from committed lockfile)
-        run: npm ci --no-audit --no-fund
+        # --ignore-scripts blocks preinstall/install/postinstall lifecycle hooks
+        # in dependencies — a common supply-chain attack vector.
+        # Safe for this project: the only devDependency (playwright) installs
+        # browsers separately via 'npx playwright install', and fsevents
+        # (macOS-only, optional) is excluded from Linux CI.
+        run: npm ci --no-audit --no-fund --ignore-scripts
 
       - name: Audit dependencies for vulnerabilities
         run: npm audit --audit-level=high --no-fund

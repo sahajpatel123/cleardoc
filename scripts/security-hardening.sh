@@ -420,10 +420,21 @@ if [ -f .github/workflows/security.yml ] && grep -q "npm outdated.*--omit=dev" .
 else
     check_fail "Supply-chain job must check for outdated dependencies"
 fi
-if [ -f .github/workflows/security.yml ] && grep -q -- "--ignore-scripts" .github/workflows/security.yml; then
-    check_pass "Supply-chain job uses --ignore-scripts to block lifecycle hooks"
-else
-    check_fail "Supply-chain job must use --ignore-scripts on npm ci"
+# System-wide --ignore-scripts policy: every npm ci across ALL workflow
+# files must block preinstall/install/postinstall lifecycle hooks.
+# Verified that no package needs install scripts (playwright browsers
+# are installed via 'npx playwright install', fsevents is optional/macOS-only).
+ignore_scripts_violation=false
+if ls .github/workflows/*.yml >/dev/null 2>&1; then
+    while IFS= read -r wf; do
+        if grep -q "npm ci" "$wf" && ! grep -q -- "--ignore-scripts" "$wf"; then
+            check_fail "$wf has 'npm ci' without --ignore-scripts"
+            ignore_scripts_violation=true
+        fi
+    done < <(ls .github/workflows/*.yml)
+fi
+if [ "$ignore_scripts_violation" = "false" ]; then
+    check_pass "All workflow npm ci commands use --ignore-scripts to block lifecycle hooks"
 fi
 if [ -f .github/workflows/security.yml ] && grep -q "hasInstallScript\|hasPostinstallScript\|hasPreinstallScript" .github/workflows/security.yml; then
     check_pass "Supply-chain job checks for install scripts"
