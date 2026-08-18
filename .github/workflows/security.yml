@@ -205,7 +205,12 @@ jobs:
           cache: npm
 
       - name: Install dependencies (reproducible from committed lockfile)
-        run: npm ci --no-audit --no-fund
+        # --ignore-scripts blocks preinstall/install/postinstall lifecycle
+        # hooks in dependencies — a common supply-chain attack vector.
+        # Safe for this project: the only devDependency (playwright) installs
+        # browsers separately via 'npx playwright install', and fsevents
+        # (macOS-only, optional) is excluded from Linux CI.
+        run: npm ci --no-audit --no-fund --ignore-scripts
 
       - name: Verify dependency tree integrity
         # npm ci enforces lockfile sync; npm ls adds an explicit check
@@ -222,6 +227,22 @@ jobs:
         run: |
           echo "::group::Production dependency audit"
           npm audit --audit-level=high --omit=dev --no-fund
+          echo "::endgroup::"
+
+      - name: Check for outdated dependencies
+        # Flags packages behind their latest compatible version — newer
+        # releases may contain security patches the lockfile hasn't picked up.
+        # Uses --omit=dev to focus on production dependencies only.
+        # Non-blocking: surfaces drift as a CI annotation, not a failure.
+        run: |
+          echo "::group::Outdated production dependencies"
+          outdated=$(npm outdated --omit=dev --json 2>/dev/null || true)
+          if [ -n "$outdated" ] && [ "$outdated" != "{}" ]; then
+            echo "::warning::Outdated dependencies found — review for security patches:"
+            node -e "const d=JSON.parse(process.argv[1]);Object.entries(d).forEach(([k,v])=>{console.warn('  '+k+': '+v.current+' → '+v.wanted+' (latest: '+v.latest+')')})" "$outdated"
+          else
+            echo "All production dependencies are up to date"
+          fi
           echo "::endgroup::"
 
       - name: Check for packages with install scripts

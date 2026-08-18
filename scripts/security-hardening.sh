@@ -415,6 +415,16 @@ if [ -f .github/workflows/security.yml ] && grep -q "npm ls.*--omit=dev" .github
 else
     check_fail "Supply-chain job must verify dependency tree with npm ls"
 fi
+if [ -f .github/workflows/security.yml ] && grep -q "npm outdated.*--omit=dev" .github/workflows/security.yml; then
+    check_pass "Supply-chain job checks for outdated dependencies"
+else
+    check_fail "Supply-chain job must check for outdated dependencies"
+fi
+if [ -f .github/workflows/security.yml ] && grep -q -- "--ignore-scripts" .github/workflows/security.yml; then
+    check_pass "Supply-chain job uses --ignore-scripts to block lifecycle hooks"
+else
+    check_fail "Supply-chain job must use --ignore-scripts on npm ci"
+fi
 if [ -f .github/workflows/security.yml ] && grep -q "hasInstallScript\|hasPostinstallScript\|hasPreinstallScript" .github/workflows/security.yml; then
     check_pass "Supply-chain job checks for install scripts"
 else
