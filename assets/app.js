@@ -2659,6 +2659,7 @@
             <div class="kb-row"><kbd>📋 copy</kbd><span>Copy checklist with progress as plain text</span></div>
             <div class="kb-row"><kbd>📋 # MD</kbd><span>Copy checklist as a Markdown checklist</span></div>
             <div class="kb-row"><kbd>📊 CSV</kbd><span>Download checklist as a .csv file</span></div>
+            <div class="kb-row"><kbd>⬇ md</kbd><span>Download checklist as a .md file</span></div>
             <div class="kb-row"><kbd>reset all</kbd><span>Reset all checkmarks</span></div>
           </div>
           <h3 class="kb-modal-subtitle mono">RISK ROW ACTIONS</h3>
@@ -16574,7 +16575,7 @@
           '</ul>' +
         '</div>'
       )).join('');
-      const controls = '<div class="act-controls"><span class="act-count"><b>' + doneCount + '</b> of ' + totalForCounter + ' done</span><button type="button" class="act-copy ghost-btn ghost-btn-sm" id="actCopyBtn" title="Copy the signing checklist with your progress">📋 copy</button><button type="button" class="act-csv ghost-btn ghost-btn-sm" id="actCsvBtn" title="Download the signing checklist as a .csv file">📊 CSV</button><button type="button" class="act-md ghost-btn ghost-btn-sm" id="actMdBtn" title="Copy the signing checklist as Markdown">📋 # MD</button><button type="button" class="act-reset ghost-btn ghost-btn-sm" id="actResetBtn">reset all</button></div>';
+      const controls = '<div class="act-controls"><span class="act-count"><b>' + doneCount + '</b> of ' + totalForCounter + ' done</span><button type="button" class="act-copy ghost-btn ghost-btn-sm" id="actCopyBtn" title="Copy the signing checklist with your progress">📋 copy</button><button type="button" class="act-csv ghost-btn ghost-btn-sm" id="actCsvBtn" title="Download the signing checklist as a .csv file">📊 CSV</button><button type="button" class="act-md ghost-btn ghost-btn-sm" id="actMdBtn" title="Copy the signing checklist as Markdown">📋 # MD</button><button type="button" class="act-md-download ghost-btn ghost-btn-sm" id="actMdDownloadBtn" title="Download the signing checklist as a .md file">⬇ md</button><button type="button" class="act-reset ghost-btn ghost-btn-sm" id="actResetBtn">reset all</button></div>';
       actionGrid.innerHTML = cells + controls;
       actionBlock.hidden = false;
       actionGrid._actResult = result;
@@ -16748,6 +16749,45 @@
             if(actMdBtn.isConnected){
               actMdBtn.textContent = orig;
               actMdBtn.setAttribute('aria-label', 'Copy the signing checklist as Markdown');
+            }
+          }, 1400);
+        });
+      }
+      // Cycle #323 polish — download the same Markdown as a .md file,
+      // mirroring the compare-panel compareMdDownloadBtn (Cycle #314) and
+      // the pressure-tactics pressureMdDownloadBtn (Cycle #321). Reuses
+      // formatActionsMarkdown() so the download and clipboard copy can
+      // never drift.
+      const actMdDownloadBtn = document.getElementById('actMdDownloadBtn');
+      if(actMdDownloadBtn && !actMdDownloadBtn._actMdDownloadWired){
+        actMdDownloadBtn._actMdDownloadWired = true;
+        actMdDownloadBtn.addEventListener('click', () => {
+          const md = formatActionsMarkdown();
+          if(!md){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to download yet');
+            return;
+          }
+          let ok = false;
+          try{
+            const stamp = new Date().toISOString().slice(0,10);
+            const url = URL.createObjectURL(new Blob([md], { type:'text/markdown;charset=utf-8' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-signing-' + stamp + '.md';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            ok = true;
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⬇ Signing checklist Markdown downloaded');
+          }catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create Markdown file');
+          }
+          const orig = '⬇ md';
+          actMdDownloadBtn.textContent = ok ? '✓ downloaded' : 'Download failed';
+          actMdDownloadBtn.setAttribute('aria-label', ok ? 'Signing checklist Markdown downloaded' : 'Download failed — try again');
+          clearTimeout(actMdDownloadBtn._flashTimer);
+          actMdDownloadBtn._flashTimer = setTimeout(() => {
+            if(actMdDownloadBtn.isConnected){
+              actMdDownloadBtn.textContent = orig;
+              actMdDownloadBtn.setAttribute('aria-label', 'Download the signing checklist as a .md file');
             }
           }, 1400);
         });

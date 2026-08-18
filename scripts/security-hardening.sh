@@ -166,6 +166,16 @@ if [ -z "$MISSING_AUDIT" ]; then
 else
     check_fail "npm audit --audit-level=high missing in:$MISSING_AUDIT"
 fi
+if [ -f .github/workflows/security.yml ] && grep -q "audit-level=high.*--omit=dev" .github/workflows/security.yml; then
+    check_pass "Security workflow blocking audit uses --omit=dev (production-focused)"
+else
+    check_fail "Security workflow blocking audit must use --omit=dev for production focus"
+fi
+if [ -f .github/workflows/security.yml ] && grep -q "audit-level=moderate.*--no-fund.*--json\|audit-level=moderate" .github/workflows/security.yml && grep -B3 "audit-level=moderate" .github/workflows/security.yml | grep -q "continue-on-error: true"; then
+    check_pass "Security workflow has non-blocking moderate advisory audit"
+else
+    check_fail "Security workflow must have a non-blocking moderate advisory audit"
+fi
 
 # 3f. Verify CI uses npm ci for reproducible installs
 echo ""

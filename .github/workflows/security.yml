@@ -88,8 +88,40 @@ jobs:
         # (macOS-only, optional) is excluded from Linux CI.
         run: npm ci --no-audit --no-fund --ignore-scripts
 
-      - name: Audit dependencies for vulnerabilities
-        run: npm audit --audit-level=high --no-fund
+      - name: Audit production dependencies (blocking)
+        # Focus on production dependencies only — high+ severity vulnerabilities
+        # in runtime code must block CI. Matches the supply-chain job's blocking
+        # audit strategy so policy is consistent across workflows.
+        run: |
+          echo "::group::Production dependency audit"
+          npm audit --audit-level=high --omit=dev --no-fund
+          echo "::endgroup::"
+
+      - name: Audit all dependencies for moderate vulnerabilities (advisory)
+        # Non-blocking advisory: surfaces moderate+ vulnerabilities in
+        # ALL dependencies (including dev) so dev-only issues are visible
+        # without breaking CI. Production high+ is already caught above.
+        continue-on-error: true
+        run: |
+          echo "::group::Full dependency audit (moderate+)"
+          audit_json=$(npm audit --audit-level=moderate --no-fund --json 2>/dev/null || true)
+          if [ -n "$audit_json" ] && [ "$audit_json" != "{}" ]; then
+            echo "$audit_json" | node -e "
+              const data = JSON.parse(require('fs').readFileSync(0, 'utf8') || '{}');
+              const counts = (data.metadata && data.metadata.vulnerabilities) || {};
+              const sevLabel = { critical: '🚨', high: '⚠️ ', moderate: '🔍', low: '📋' };
+              const severities = ['critical', 'high', 'moderate', 'low'];
+              let total = 0;
+              for (const sev of severities) {
+                if (counts[sev] > 0) { console.log(sevLabel[sev] + ' ' + sev + ': ' + counts[sev]); total += counts[sev]; }
+              }
+              console.log('Total: ' + total);
+              if (total === 0) console.log('✅ No moderate+ vulnerabilities found');
+            "
+          else
+            echo "✅ No vulnerabilities found in full dependency tree"
+          fi
+          echo "::endgroup::"
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
