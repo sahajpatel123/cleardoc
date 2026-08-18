@@ -441,6 +441,16 @@ if [ -f .github/workflows/security.yml ] && grep -q "hasInstallScript\|hasPostin
 else
     check_fail "Supply-chain job must check for packages with install scripts"
 fi
+if [ -f .github/workflows/security.yml ] && grep -q "audit-level=low.*--omit=dev" .github/workflows/security.yml; then
+    check_pass "Supply-chain job includes full-spectrum informational audit (low+ production)"
+else
+    check_fail "Supply-chain job must include a non-blocking full-spectrum audit"
+fi
+if [ -f .github/workflows/security.yml ] && grep -B5 "audit-level=low" .github/workflows/security.yml | grep -q "continue-on-error: true"; then
+    check_pass "Full-spectrum audit is non-blocking (continue-on-error)"
+else
+    check_fail "Full-spectrum audit must be non-blocking with continue-on-error"
+fi
 
 # 3y. Verify test workflow includes non-blocking advisory checks with output formatting
 echo ""

@@ -234,6 +234,17 @@ jobs:
           npm audit --audit-level=high --omit=dev --no-fund
           echo "::endgroup::"
 
+      - name: Full-spectrum vulnerability audit (informational)
+        # Maximum-visibility: reports ALL known vulnerabilities (low+ severity)
+        # in production dependencies. Non-blocking — surfaces early warnings
+        # for vulnerabilities below the high threshold that blocks CI above.
+        # Developers can triage these in daily workflow without failing PRs.
+        continue-on-error: true
+        run: |
+          echo "::group::Full production dependency audit (informational)"
+          npm audit --audit-level=low --omit=dev --no-fund || true
+          echo "::endgroup::"
+
       - name: Check for outdated dependencies
         # Flags packages behind their latest compatible version — newer
         # releases may contain security patches the lockfile hasn't picked up.

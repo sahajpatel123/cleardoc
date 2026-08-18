@@ -2646,6 +2646,13 @@
             <div class="kb-row"><kbd>g</kbd><kbd>m</kbd><span>Copy comparison as Markdown (compare panel open)</span></div>
             <div class="kb-row"><kbd>Esc</kbd><span>Close the compare panel</span></div>
           </div>
+          <h3 class="kb-modal-subtitle mono">PRESSURE TACTICS</h3>
+          <div class="kb-modal-grid">
+            <div class="kb-row"><kbd>📋 copy list</kbd><span>Copy pressure-tactic list as plain text</span></div>
+            <div class="kb-row"><kbd>📋 # MD</kbd><span>Copy pressure-tactic list as Markdown</span></div>
+            <div class="kb-row"><kbd>↺ reset reviewed</kbd><span>Clear all reviewed marks for this document</span></div>
+            <div class="kb-row"><kbd>↺ reset</kbd><span>Reset the cooldown timer (pressure ≥ 50)</span></div>
+          </div>
           <h3 class="kb-modal-subtitle mono">RISK ROW ACTIONS</h3>
           <div class="kb-modal-grid">
             <div class="kb-row"><kbd>a</kbd><span>Ask about flagged risk (when focused on risk row)</span></div>
@@ -11903,6 +11910,7 @@
         '<span class="pressure-count">' + visible.length + ' / ' + r.items.length + ' shown · ' + totalDone + ' reviewed · click card to jump</span>' +
         (totalDone > 0 ? '<button type="button" class="ghost-btn ghost-btn-sm" id="pressureResetDoneBtn" title="Clear all reviewed marks for this document">↺ reset reviewed</button>' : '') +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="pressureCopyBtn" title="Copy the pressure-tactic list as plain text">📋 copy list</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="pressureMdBtn" title="Copy the pressure-tactic list as Markdown">📋 # MD</button>' +
       '</div>';
       pressureGrid.innerHTML = summary + filterChips + cards + controls;
       pressureBlock.hidden = false;
@@ -11913,7 +11921,7 @@
         pressureNote.innerHTML = '<span class="riskNote-lead">Pressure score ' + r.pressureScore + '/100</span> · ' +
           'Real contracts rarely need to be signed "today only". We extract every clause designed to rush you into action: hard deadlines, manufactured scarcity, emotional pressure, and "sole discretion" language. ' +
           skNote + (skNote ? ' ' : '') +
-          'Each card shows the verbatim quote with the trigger phrase highlighted, why it matters, and what to do instead. Click <b>○</b> to mark a tactic as reviewed (progress persists). ' + cooldownNote + ' <b>📋 copy list</b> exports the full list. <b>🔊</b> reads one aloud, or <b>💬</b> asks about one.' + filterNote;
+          'Each card shows the verbatim quote with the trigger phrase highlighted, why it matters, and what to do instead. Click <b>○</b> to mark a tactic as reviewed (progress persists). ' + cooldownNote + ' <b>📋 copy list</b> exports the full list, <b>📋 # MD</b> copies it as Markdown. <b>🔊</b> reads one aloud, or <b>💬</b> asks about one.' + filterNote;
       }
       // Click-to-jump — but don't fire when the user clicks the done
       // checkbox (which is a button inside the card).
