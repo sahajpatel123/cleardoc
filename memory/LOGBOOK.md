@@ -5921,3 +5921,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 316 of the autonomous loop (alternate add/polish): the compare panel already had plain-text copy, Markdown copy, Markdown download, email, and diff-only copy — but no CSV export. Adding it brings feature parity with the main risk table and gives spreadsheet users a direct paste path.
+
+---
+
+**2026-08-18 11:38 IST | Model: Claude Opus 4.5 Sonnet**
+**Changes Made:**
+- polish(compare): added `g`+`c` keyboard shortcut to copy the compare-panel CSV and `g`+`m` for the compare Markdown table. Both fire only when the compare panel is open — the `c` and `m` keys retain their existing page-level behavior (copy summary, copy key-facts-as-Markdown) when the panel is closed.
+- Added a COMPARE PANEL section to the keyboard-shortcuts help modal documenting g+c, g+m, and Esc-to-close.
+- Updated the compare CSV and Markdown button titles with inline shortcut hints for hover discoverability.
+- All 490 tests pass, 0 failures. Syntax + JSON validation green. Commit `30f2e00f` + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 317 of the autonomous loop (alternate add-polish): a feature without a keyboard shortcut and help-modal entry is half-done. Polishing the Cycle 316 CSV button with discoverable shortcuts and documentation.
