@@ -5965,3 +5965,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 320 of the autonomous loop (add): the pressure-tactics section was the only major data surface with a plain-text copy but no Markdown export. Adding one gives users a structured paste target for note apps (Obsidian, Notion, Apple Notes) and closes the parity gap with the compare panel, risk detail, and signing checklist.
+
+---
+
+**2026-08-18 12:03 IST | Model: Claude Opus 4.5 Sonnet**
+**Changes Made:**
+- polish(pressure): refactored the inline Markdown builder from Cycle #320 into a named `formatPressureMarkdown()` function so both copy and download handlers share one source of truth (mirrors `buildCompareMarkdown` / `buildCompareCsv` in the compare panel).
+- Added a ⬇ md download button to the pressure-tactics controls that saves the same Markdown report as a `cleardoc-pressure-<date>.md` file (Blob + object URL + programmatic click, matching the compare-panel `compareMdDownloadBtn` pattern from Cycle #314). Flash feedback uses the same 1400ms `✓ downloaded` → `⬇ md` reset with `aria-label` save/restore and a `_pressureMdDownloadWired` guard.
+- Updated the pressure-tactics inline help note to mention `⬇ md` alongside the other export buttons.
+- Added ⬇ md row to the PRESSURE TACTICS section in the keyboard-shortcuts help modal.
+- All 405 smoke tests pass (270 pass, 135 skipped, 0 fail), syntax validation green. No inline event handlers.
+
+**Prompt Intention:**
+- Cycle 321 of the autonomous loop (alternate add-polish): the compare panel has both a clipboard-copy Markdown button and a download-as-`.md` button — parity means the pressure tactics section should too. Refactoring the formatter into a shared function also eliminates the risk of the two formats drifting.

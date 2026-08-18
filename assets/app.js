@@ -2650,6 +2650,7 @@
           <div class="kb-modal-grid">
             <div class="kb-row"><kbd>📋 copy list</kbd><span>Copy pressure-tactic list as plain text</span></div>
             <div class="kb-row"><kbd>📋 # MD</kbd><span>Copy pressure-tactic list as Markdown</span></div>
+            <div class="kb-row"><kbd>⬇ md</kbd><span>Download pressure-tactic list as a .md file</span></div>
             <div class="kb-row"><kbd>↺ reset reviewed</kbd><span>Clear all reviewed marks for this document</span></div>
             <div class="kb-row"><kbd>↺ reset</kbd><span>Reset the cooldown timer (pressure ≥ 50)</span></div>
           </div>
@@ -11911,6 +11912,7 @@
         (totalDone > 0 ? '<button type="button" class="ghost-btn ghost-btn-sm" id="pressureResetDoneBtn" title="Clear all reviewed marks for this document">↺ reset reviewed</button>' : '') +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="pressureCopyBtn" title="Copy the pressure-tactic list as plain text">📋 copy list</button>' +
         '<button type="button" class="ghost-btn ghost-btn-sm" id="pressureMdBtn" title="Copy the pressure-tactic list as Markdown">📋 # MD</button>' +
+        '<button type="button" class="ghost-btn ghost-btn-sm" id="pressureMdDownloadBtn" title="Download the pressure-tactic list as a .md file">⬇ md</button>' +
       '</div>';
       pressureGrid.innerHTML = summary + filterChips + cards + controls;
       pressureBlock.hidden = false;
@@ -11921,7 +11923,7 @@
         pressureNote.innerHTML = '<span class="riskNote-lead">Pressure score ' + r.pressureScore + '/100</span> · ' +
           'Real contracts rarely need to be signed "today only". We extract every clause designed to rush you into action: hard deadlines, manufactured scarcity, emotional pressure, and "sole discretion" language. ' +
           skNote + (skNote ? ' ' : '') +
-          'Each card shows the verbatim quote with the trigger phrase highlighted, why it matters, and what to do instead. Click <b>○</b> to mark a tactic as reviewed (progress persists). ' + cooldownNote + ' <b>📋 copy list</b> exports the full list, <b>📋 # MD</b> copies it as Markdown. <b>🔊</b> reads one aloud, or <b>💬</b> asks about one.' + filterNote;
+          'Each card shows the verbatim quote with the trigger phrase highlighted, why it matters, and what to do instead. Click <b>○</b> to mark a tactic as reviewed (progress persists). ' + cooldownNote + ' <b>📋 copy list</b> exports the full list, <b>📋 # MD</b> copies it as Markdown, <b>⬇ md</b> downloads a .md file. <b>🔊</b> reads one aloud, or <b>💬</b> asks about one.' + filterNote;
       }
       // Click-to-jump — but don't fire when the user clicks the done
       // checkbox (which is a button inside the card).
@@ -12064,43 +12066,52 @@
           setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy list'; }, 2500);
         });
       }
-      // Cycle #320 — Markdown export for pressure tactics. Copies the
-      // visible pressure-tactic list as a Markdown report so it can be
-      // pasted into note apps (Obsidian, Notion, Apple Notes) or shared
-      // with counsel. Mirrors the flash-feedback pattern from the compare
-      // Markdown button (clipboard API + execCommand fallback, 1400ms timer).
+      // Cycle #321 polish — extract the Markdown formatter into a named
+      // function so both the copy and download handlers share one source
+      // of truth (mirrors buildCompareMarkdown / buildCompareCsv in the
+      // compare panel). Builds a Markdown report from the visible
+      // pressure-tactic items: score summary + per-tactic heading with
+      // severity tag, blockquoted sentence, why, and tip.
+      const formatPressureMarkdown = () => {
+        const escMd = (s) => String(s || '').replace(/[\r\n]+/g, ' ').replace(/\|/g, '\\|').trim();
+        const sevTag = (it) => it.sev === 'high' ? '🔴 HIGH' : (it.sev === 'med' ? '🟡 MED' : '⚪ low');
+        const lines = [];
+        lines.push('# Pressure tactics — ClearDoc');
+        lines.push('');
+        lines.push('**Pressure score:** ' + r.pressureScore + ' / 100');
+        lines.push('**High:** ' + r.counts.high + ' · **Medium:** ' + r.counts.med + ' · **Low:** ' + r.counts.low);
+        if(r.pressureScore >= 50){
+          lines.push('**Recommended wait before signing:** ' + (r.pressureScore >= 75 ? '48h' : '24h'));
+        }
+        lines.push('');
+        lines.push('## Tactics');
+        lines.push('');
+        let idx = 0;
+        visible.forEach(it => {
+          idx++;
+          const done = isDone(it);
+          lines.push('### ' + sevTag(it) + ' #' + idx + (done ? ' · ✓ reviewed' : '') + ' — ' + escMd(it.label));
+          lines.push('');
+          const sentence = (it.sentence || '').replace(/^"|"$/g, '');
+          lines.push('> ' + escMd(sentence));
+          lines.push('');
+          lines.push('**Why:** ' + escMd(it.why));
+          if(it.tip) lines.push('**Tip:** ' + escMd(it.tip));
+          lines.push('');
+        });
+        lines.push('_Generated by ClearDoc — informational only, not legal advice._');
+        return lines.join('\n');
+      };
+      // Cycle #314 pattern — copy Markdown to clipboard with flash feedback.
       const pressureMdBtn = document.getElementById('pressureMdBtn');
       if(pressureMdBtn && !pressureMdBtn._pressureMdWired){
         pressureMdBtn._pressureMdWired = true;
         pressureMdBtn.addEventListener('click', async () => {
-          const escMd = (s) => String(s || '').replace(/[\r\n]+/g, ' ').replace(/\|/g, '\\|').trim();
-          const sevTag = (it) => it.sev === 'high' ? '🔴 HIGH' : (it.sev === 'med' ? '🟡 MED' : '⚪ low');
-          const lines = [];
-          lines.push('# Pressure tactics — ClearDoc');
-          lines.push('');
-          lines.push('**Pressure score:** ' + r.pressureScore + ' / 100');
-          lines.push('**High:** ' + r.counts.high + ' · **Medium:** ' + r.counts.med + ' · **Low:** ' + r.counts.low);
-          if(r.pressureScore >= 50){
-            lines.push('**Recommended wait before signing:** ' + (r.pressureScore >= 75 ? '48h' : '24h'));
+          const md = formatPressureMarkdown();
+          if(!md){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to copy yet');
+            return;
           }
-          lines.push('');
-          lines.push('## Tactics');
-          lines.push('');
-          let idx = 0;
-          visible.forEach(it => {
-            idx++;
-            const done = isDone(it);
-            lines.push('### ' + sevTag(it) + ' #' + idx + (done ? ' · ✓ reviewed' : '') + ' — ' + escMd(it.label));
-            lines.push('');
-            const sentence = (it.sentence || '').replace(/^"|"$/g, '');
-            lines.push('> ' + escMd(sentence));
-            lines.push('');
-            lines.push('**Why:** ' + escMd(it.why));
-            if(it.tip) lines.push('**Tip:** ' + escMd(it.tip));
-            lines.push('');
-          });
-          lines.push('_Generated by ClearDoc — informational only, not legal advice._');
-          const md = lines.join('\n');
           let ok = false;
           try {
             if(navigator.clipboard && navigator.clipboard.writeText){
@@ -12122,6 +12133,42 @@
             if(pressureMdBtn.isConnected){
               pressureMdBtn.textContent = orig;
               pressureMdBtn.setAttribute('aria-label', 'Copy the pressure-tactic list as Markdown');
+            }
+          }, 1400);
+        });
+      }
+      // Cycle #321 polish — download the same Markdown as a .md file,
+      // mirroring the compare panel's compareMdDownloadBtn (Cycle #314).
+      const pressureMdDownloadBtn = document.getElementById('pressureMdDownloadBtn');
+      if(pressureMdDownloadBtn && !pressureMdDownloadBtn._pressureMdDownloadWired){
+        pressureMdDownloadBtn._pressureMdDownloadWired = true;
+        pressureMdDownloadBtn.addEventListener('click', () => {
+          const md = formatPressureMarkdown();
+          if(!md){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Nothing to download yet');
+            return;
+          }
+          let ok = false;
+          try{
+            const stamp = new Date().toISOString().slice(0,10);
+            const url = URL.createObjectURL(new Blob([md], { type:'text/markdown;charset=utf-8' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = 'cleardoc-pressure-' + stamp + '.md';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            ok = true;
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⬇ Pressure tactics Markdown downloaded');
+          }catch(_){
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast('⚠ Couldn’t create Markdown file');
+          }
+          const orig = '⬇ md';
+          pressureMdDownloadBtn.textContent = ok ? '✓ downloaded' : 'Download failed';
+          pressureMdDownloadBtn.setAttribute('aria-label', ok ? 'Pressure tactics Markdown downloaded' : 'Download failed — try again');
+          clearTimeout(pressureMdDownloadBtn._flashTimer);
+          pressureMdDownloadBtn._flashTimer = setTimeout(() => {
+            if(pressureMdDownloadBtn.isConnected){
+              pressureMdDownloadBtn.textContent = orig;
+              pressureMdDownloadBtn.setAttribute('aria-label', 'Download the pressure-tactic list as a .md file');
             }
           }, 1400);
         });
