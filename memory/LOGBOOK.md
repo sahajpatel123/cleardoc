@@ -5933,3 +5933,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle 317 of the autonomous loop (alternate add-polish): a feature without a keyboard shortcut and help-modal entry is half-done. Polishing the Cycle 316 CSV button with discoverable shortcuts and documentation.
+
+---
+
+**2026-08-18 11:43 IST | Model: Claude Opus 4.5 Sonnet**
+**Changes Made:**
+- feat(risk-detail): added a 📋 # MD button to the risk detail toolbar that exports the pattern-match list (severity, clause, why, counter-suggestion) as a Markdown table. New `formatMatchesForMarkdown()` builder reuses the same hit extraction as `formatMatchesForCopy()` so the two formats can never drift. Flash feedback mirrors the existing Copy button. This was the last risk surface without a Markdown export — parity with the main risk table, clause index, obligations, and scoreboard.
+- All 490 tests pass, 0 failures. Syntax + JSON validation green. Commit `38f4159a` + push to origin/main.
+
+**Prompt Intention:**
+- Cycle 318 of the autonomous loop (alternate add/polish): every major data surface in ClearDoc now has a Markdown export except the risk detail toolbar. Adding it closes the last gap and gives users a structured paste target for Notion/GitHub/Confluence.
