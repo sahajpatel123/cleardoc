@@ -2654,6 +2654,14 @@
             <div class="kb-row"><kbd>q</kbd><span>Focus the Ask panel (when results are visible)</span></div>
             <div class="kb-row"><kbd>r</kbd><span>Resume the reading list (first unread chunk)</span></div>
           </div>
+          <h3 class="kb-modal-subtitle mono">RISK DETAIL TOOLBAR</h3>
+          <div class="kb-modal-grid">
+            <div class="kb-row"><kbd>📋</kbd><span>Copy risk matches as plain text</span></div>
+            <div class="kb-row"><kbd>📋 # MD</kbd><span>Copy risk matches as a Markdown table</span></div>
+            <div class="kb-row"><kbd>📝</kbd><span>Export redline negotiation suggestions</span></div>
+            <div class="kb-row"><kbd>✓ Apply all</kbd><span>Apply every counter-suggestion in one click</span></div>
+            <div class="kb-row"><kbd>🔊</kbd><span>Read all risk matches aloud</span></div>
+          </div>
           <p class="kb-modal-foot mono">Shortcuts are disabled while typing in a field. Threat level &amp; health check appear automatically after analysis.</p>
         </div>`;
       document.body.appendChild(m);
