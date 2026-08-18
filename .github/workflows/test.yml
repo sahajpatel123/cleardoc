@@ -76,15 +76,25 @@ jobs:
         # development workflow. The security workflow hard-fails on
         # high+ in production scopes (--omit=dev).
         continue-on-error: true
-        run: npm audit --audit-level=moderate --no-fund
+        run: |
+          echo "::group::Moderate vulnerability audit"
+          npm audit --audit-level=moderate --no-fund || true
+          echo "::endgroup::"
 
       - name: Check for outdated dependencies (advisory)
         # Non-blocking: surfaces stale packages that may carry unpatched
         # security fixes. --omit=dev focuses the advisory on production deps.
+        # Structured output: current → wanted → latest for each package.
         continue-on-error: true
         run: |
           echo "::group::Outdated dependencies"
-          npm outdated --omit=dev --json 2>/dev/null || true
+          outdated=$(npm outdated --omit=dev --json 2>/dev/null || true)
+          if [ -n "$outdated" ] && [ "$outdated" != "{}" ]; then
+            echo "::warning::Outdated production dependencies found — review for security patches"
+            node -e "const d=JSON.parse(process.argv[1]);Object.entries(d).forEach(([k,v])=>console.log('  '+k+': '+v.current+' → '+v.wanted+' (latest: '+v.latest+')'))" "$outdated" || true
+          else
+            echo "All production dependencies are up to date"
+          fi
           echo "::endgroup::"
 
       - name: Install Playwright Chromium
