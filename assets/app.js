@@ -1177,7 +1177,7 @@
   /* ================= INIT ================= */
   function initAll(){
     const page=(document.body.dataset.page)||'home';
-    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo,wireDocFingerprint,initServiceStatus,initHomeDeadline,wireTwoPressCopy];
+    const always=[wireScrollCTAs,mobileNav,tickerLoop,wireForgetMe,wireKeyboardShortcuts,wireBackToTop,wireRiskFilter,wireFindInAnalysis,wireSectionNav,wireAnalyzedAgo,wireDocFingerprint,initServiceStatus,initHomeDeadline,initDeadlineNotify,wireTwoPressCopy];
     const byPage={
       home:[heroClarifier,flagHunt,fogCanvas,indexBoard,pressRoom,byof,twoPresses,consequences,crossword,vault,classifieds,letters,faq,lastWord,kineticDrift],
       analyze:[analyzePage,privacyGuard,wireSourceFind,wireSelectionAsk,faq],
@@ -1265,6 +1265,78 @@
     el.textContent = '⏰ ' + when + ' · ' + soon.label.slice(0, 60);
     el.title = 'Soonest deadline from your last analysis: ' + soon.date;
     el.hidden = false;
+  }
+
+  // Cycle #329 — opt-in deadline notifications. Everything stays on the
+  // device: reminders read the same localStorage record the analyzer
+  // writes, permission is requested only from an explicit banner-button
+  // press, and each due deadline notifies at most once per local day so
+  // revisits never nag. Denied permission is respected permanently until
+  // the user re-enables it in browser settings.
+  function _dlNotifyDay(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function _dlDueItems(){
+    let rec = null;
+    try { rec = JSON.parse(localStorage.getItem('cleardoc:upcomingDeadlines') || 'null'); } catch(_){ rec = null; }
+    if(!rec || !Array.isArray(rec.items)) return [];
+    return rec.items
+      .map(it => ({
+        date: String(it.date || ''),
+        label: String(it.label || it.date || ''),
+        days: (typeof it.days === 'number') ? it.days : null,
+      }))
+      .filter(it => it.days !== null && it.days >= -2 && it.days <= 3)
+      .sort((a, b) => a.days - b.days);
+  }
+  function maybeNotifyDeadlines(){
+    if(typeof window === 'undefined' || typeof Notification === 'undefined') return;
+    let permission = '';
+    try { permission = Notification.permission; } catch(_){ return; }
+    if(permission !== 'granted') return;
+    for(const it of _dlDueItems()){
+      const key = 'cleardoc:notified:' + _dlNotifyDay() + ':' + it.date + ':' + it.label.slice(0, 40);
+      try { if(localStorage.getItem(key)) continue; } catch(_){ /* ignore */ }
+      const when = it.days < 0 ? Math.abs(it.days) + 'd overdue'
+        : it.days === 0 ? 'due today'
+        : it.days === 1 ? 'due tomorrow'
+        : 'due in ' + it.days + ' days';
+      let n = null;
+      try {
+        n = new Notification('⏰ ClearDoc · deadline ' + when, {
+          body: (it.label.slice(0, 120) + ' (' + it.date + ')').trim(),
+          tag: 'cleardoc-deadline-' + it.date,
+        });
+      } catch(_){ return; } // construction can throw on restrictive engines — stay quiet
+      try { localStorage.setItem(key, '1'); } catch(_){ /* ignore */ }
+      try { n.onclick = () => { try { window.focus(); } catch(_){} n.close(); }; } catch(_){ /* ignore */ }
+      return; // one per check — soonest due item wins
+    }
+  }
+  function initDeadlineNotify(){
+    maybeNotifyDeadlines();
+    const btn = document.getElementById('deadlineNotifyBtn');
+    if(!btn) return;
+    if(typeof Notification === 'undefined' || !('Notification' in window)){ btn.hidden = true; return; }
+    let permission = 'denied';
+    try { permission = Notification.permission; } catch(_){ btn.hidden = true; return; }
+    // granted → reminders fire automatically; denied → never ask again here.
+    if(permission !== 'default'){ btn.hidden = true; return; }
+    btn.hidden = false;
+    if(btn._notifyWired) return;
+    btn._notifyWired = true;
+    btn.addEventListener('click', async () => {
+      let result = 'denied';
+      try { result = await Notification.requestPermission(); } catch(_){ /* ignore */ }
+      btn.hidden = true;
+      if(result === 'granted'){
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('🔔 Deadline notifications on — we’ll ping you when one is due');
+        maybeNotifyDeadlines();
+      } else {
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('🔕 Notifications blocked — allow them in your browser settings to get deadline pings');
+      }
+    });
   }
 
   // Cycle #302 — two-press slider copy: copy the plain-English version
@@ -2640,6 +2712,10 @@
             <div class="kb-row"><kbd>💬</kbd><span>Copy chat-friendly summary to clipboard</span></div>
             <div class="kb-row"><kbd>📤</kbd><span>Open the device share sheet (clipboard fallback on desktop)</span></div>
             <div class="kb-row"><kbd>📧</kbd><span>Open mail client with analysis summary</span></div>
+          </div>
+          <h3 class="kb-modal-subtitle mono">DEADLINE REMINDERS</h3>
+          <div class="kb-modal-grid">
+            <div class="kb-row"><kbd>🔔 notify me</kbd><span>Allow browser notifications when a stored deadline is due (opt-in, device-local)</span></div>
           </div>
           <h3 class="kb-modal-subtitle mono">COMPARE PANEL</h3>
           <div class="kb-modal-grid">

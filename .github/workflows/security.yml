@@ -45,6 +45,10 @@ jobs:
     name: Dependency review
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # The action diffs two refs and hard-fails without one ("Both a base ref
+    # and head ref must be provided"), so it can only run where a PR diff
+    # exists. Push and schedule events skip this job instead of failing.
+    if: github.event_name == 'pull_request'
     permissions:
       contents: read
       pull-requests: read
@@ -191,8 +195,11 @@ jobs:
 
       - name: Check for eval/Function usage
         run: |
-          # Detect dangerous eval/Function usage
-          if grep -rE "\b(eval|Function)\s*\(" --include="*.js" . 2>/dev/null | grep -v "node_modules" | grep -v "// "; then
+          # Detect dangerous eval/Function usage. The char before the call must
+          # not be `$`, `.`, or an identifier char — Playwright's page.$eval() /
+          # page.$$eval() test helpers (safe DOM query APIs) share the `eval(`
+          # substring and flooded this gate with false positives.
+          if grep -rE "(^|[^$[:alnum:]_.\"'])((eval)|(Function))[[:space:]]*\(" --include="*.js" . 2>/dev/null | grep -v "node_modules" | grep -v "// "; then
             echo "::error::Potentially dangerous eval/Function usage detected"
             exit 1
           fi

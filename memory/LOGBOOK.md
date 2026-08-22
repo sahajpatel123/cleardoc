@@ -6058,3 +6058,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #328 of the autonomous loop (polish — last cycle added the native share sheet): a feature isn't shipped until PWA users receive it, and the cache-first asset strategy meant they wouldn't. Making the version bump + precache-list invariants test-enforced so this class of silent staleness can't regress.
+
+---
+
+**2026-08-23 01:47 IST | Model: ox-alpha (opencode)**
+**Changes Made:**
+- feat(deadlines): added opt-in browser notifications for due deadlines — the first proactive surface in the app. Until now, stored deadlines (Cycle #106's localStorage record) only resurfaced passively if the user happened to reopen the site. New `maybeNotifyDeadlines()` runs on every page load via the always boot list: when permission is already 'granted', a due deadline (overdue ≤2d through 3d out) fires a `Notification` ("⏰ ClearDoc · deadline due tomorrow / 3d overdue") with a stable per-date tag and click-to-focus. Deduplicated per local day via `cleardoc:notified:<day>:<date>:<label>` keys so revisits never nag; soonest item wins, one per check.
+- Permission is requested from exactly ONE place: the new 🔔 notify me button inside the returning-user deadline-reminder banner (ships `hidden`, revealed only when `Notification.permission === 'default'`; granted stays automatic, denied is respected permanently). A static smoke test enforces the single-call-site invariant so a drive-by prompt can never be reintroduced.
+- Added a DEADLINE REMINDERS section to the keyboard-shortcuts help modal.
+- Smoke coverage: always-run static contract test (hidden-by-default button, single requestPermission inside the click handler, dedup key shape, boot-list membership, default-only offer) + two-phase Playwright test (phase 1: granted → notification payload + dedup key + offer stays hidden; phase 2: default → no notification before opt-in, one click grants, due-today fires immediately, offer hides).
+- Full gate green: 490/490 unit, smoke 273 pass / 0 fail / 137 skipped, syntax + JSON validation clean.
+
+**Prompt Intention:**
+- Cycle #329 of the autonomous loop (add — last cycle was polish): "read what you're about to sign" only helps if you remember the cancel-by date. The deadline data was already persisted device-locally; this closes the loop by making it proactive — with the strict consent posture the project's privacy stance requires: no prompts without a press, no server, no cross-device anything.

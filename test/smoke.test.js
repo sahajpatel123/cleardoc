@@ -67,7 +67,12 @@ try { ({ chromium } = require("playwright")); }
 catch (_) { /* playwright not installed */ }
 
 const HAS_BROWSER = !!chromium;
-const skip = (name) => (HAS_BROWSER ? test : test.skip.bind(test))(name);
+// Declares a disabled test: the body is kept for future coverage but never
+// runs. The previous shape forwarded only `name` to test() — dropping the
+// fn — so in browser environments it registered an empty always-passing
+// test, and tests registered after one could nest beneath it and get
+// cancelled by its parent (the "Deadline extractor" CI cascade).
+const skip = (name, fn) => test(name, { skip: true }, fn);
 
 let server, browser, context;
 
@@ -1023,7 +1028,9 @@ test("analyzer: Compare panel copies as Markdown", () => {
   const analyzeHtml = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
 
-  assert.match(analyzeHtml, /id="compareMdBtn" title="Copy the comparison as a Markdown table"/,
+  // The title may carry the optional "(shortcut: g m)" hint appended by the
+  // keyboard-shortcut pass — accept both the bare and suffixed forms.
+  assert.match(analyzeHtml, /id="compareMdBtn" title="Copy the comparison as a Markdown table( \(shortcut[^"]*)?"/,
     "analyze.html must expose the compare Markdown button");
   assert.match(appSrc, /compareMdBtn\.addEventListener\('click'/,
     "app.js must wire the compare Markdown button");
@@ -13733,6 +13740,104 @@ skip("analyzer: chat share includes deadlines and jurisdiction", async () => {
   } finally {
     await page.close();
     await ctx.close();
+  }
+});
+
+// Cycle #329 — opt-in deadline notifications (device-local, gesture-gated).
+test("analyzer: deadline notifications are opt-in, deduplicated per day, and never prompt without a press", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const htmlSrc = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  assert.match(htmlSrc, /id="deadlineNotifyBtn"[^>]*hidden/, "the notify button must ship hidden — JS reveals it only when permission is still 'default'");
+  assert.match(appSrc, /function maybeNotifyDeadlines\(\)/, "app.js must define the notification pass");
+  assert.match(appSrc, /function initDeadlineNotify\(\)/, "app.js must define the banner-button wiring");
+  assert.match(appSrc, /initDeadlineNotify,wireTwoPressCopy/, "the initializer must run on every page via the always boot list");
+  // Permission is requested ONLY from the button's click handler.
+  const requestSites = appSrc.match(/Notification\.requestPermission/g) || [];
+  assert.equal(requestSites.length, 1, "requestPermission must appear exactly once — no drive-by prompts");
+  assert.match(appSrc, /btn\.addEventListener\('click', async \(\) => \{\s*\n\s*let result = 'denied';\s*\n\s*try \{ result = await Notification\.requestPermission/,
+    "the single requestPermission call must sit inside the button click handler");
+  assert.match(appSrc, /'cleardoc:notified:' \+ _dlNotifyDay\(\)/, "notifications must deduplicate per local day");
+  assert.match(appSrc, /if\(permission !== 'default'\)\{ btn\.hidden = true; return; \}/,
+    "granted stays automatic and denied is respected — the offer only shows for 'default'");
+});
+
+skip("analyzer: deadline notifications fire when granted and opt-in from the banner button", async () => {
+  if (!HAS_BROWSER) return;
+
+  // Phase 1 — permission already granted: a due stored deadline must
+  // produce exactly one Notification and write its dedup key.
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    window.__notified = [];
+    class FakeNotification {
+      constructor(title, opts){ this.title = title; window.__notified.push({ title, opts }); }
+      close(){}
+    }
+    FakeNotification.permission = "granted";
+    FakeNotification.requestPermission = async () => "granted";
+    Object.defineProperty(window, "Notification", { configurable: true, value: FakeNotification });
+    localStorage.setItem("cleardoc:upcomingDeadlines", JSON.stringify({
+      ts: Date.now(), fp: null, docName: "lease.pdf",
+      items: [{ date: "2026-08-24", label: "Cancel by — auto-renew deadline", days: 1 }],
+    }));
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.waitForFunction(() => window.__notified && window.__notified.length > 0, { timeout: 8000 });
+    const n = await page.evaluate(() => window.__notified[0]);
+    assert.match(n.title, /due tomorrow/, "the notification title must carry the urgency");
+    assert.match(n.opts.body, /Cancel by — auto-renew deadline/, "the body must carry the deadline label");
+    assert.equal(n.opts.tag, "cleardoc-deadline-2026-08-24", "the tag must be stable per deadline");
+    const keys = await page.evaluate(() =>
+      Object.keys(localStorage).filter((k) => k.startsWith("cleardoc:notified:")));
+    assert.equal(keys.length, 1, "exactly one dedup key must be written");
+    const notifyBtn = await page.evaluate(() => {
+      const b = document.getElementById("deadlineNotifyBtn");
+      return b ? b.hidden : null;
+    });
+    assert.equal(notifyBtn, true, "with permission granted the banner offer must stay hidden");
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+
+  // Phase 2 — permission still 'default': the banner button appears and
+  // one press requests permission, then the reminder fires immediately.
+  const ctx2 = await browser.newContext();
+  const page2 = await ctx2.newPage();
+  await page2.addInitScript(() => {
+    window.__notified = [];
+    class FakeNotification {
+      constructor(title, opts){ this.title = title; window.__notified.push({ title, opts }); }
+      close(){}
+    }
+    FakeNotification.permission = "default";
+    FakeNotification.requestPermission = async () => "granted";
+    Object.defineProperty(window, "Notification", { configurable: true, value: FakeNotification });
+    localStorage.setItem("cleardoc:upcomingDeadlines", JSON.stringify({
+      ts: Date.now(), fp: null, docName: "lease.pdf",
+      items: [{ date: "2026-08-23", label: "Sign and return the renewal form", days: 0 }],
+    }));
+  });
+  try {
+    await page2.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page2.waitForSelector("#deadlineNotifyBtn", { timeout: 8000 });
+    await page2.waitForFunction(() => {
+      const b = document.getElementById("deadlineNotifyBtn");
+      return b && b.hidden === false;
+    }, { timeout: 8000 });
+    assert.equal(await page2.evaluate(() => window.__notified.length), 0,
+      "no notification may fire before the user opts in");
+    await page2.click("#deadlineNotifyBtn");
+    await page2.waitForFunction(() => window.__notified.length > 0, { timeout: 8000 });
+    const n2 = await page2.evaluate(() => window.__notified[0]);
+    assert.match(n2.title, /due today/, "post-opt-in the due-today deadline must notify immediately");
+    const hiddenAfter = await page2.evaluate(() => document.getElementById("deadlineNotifyBtn").hidden);
+    assert.equal(hiddenAfter, true, "the offer must hide itself after a decision");
+  } finally {
+    await page2.close();
+    await ctx2.close();
   }
 });
 
