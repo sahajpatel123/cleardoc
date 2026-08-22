@@ -1694,7 +1694,8 @@ button.risk-preview:hover{filter:brightness(.96)}
 /* Cycle #341 — risk map rows: section title + tally over a weighted
    severity bar (red = trap-heavy, amber = watch-heavy, ink = notes). */
 .risk-map-list{display:flex;flex-direction:column;gap:10px}
-.rs-row{display:flex;flex-direction:column;gap:4px}
+.rs-row{display:flex;flex-direction:column;gap:4px;cursor:pointer;transition:filter .15s ease}
+.rs-row:hover{filter:brightness(.94)}
 .rs-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
 .rs-title{font-size:var(--t-meta);font-weight:700;color:var(--ink)}
 .rs-tally{font-size:var(--t-micro);color:var(--ink-soft);white-space:nowrap}

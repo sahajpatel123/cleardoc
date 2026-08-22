@@ -17022,14 +17022,19 @@
         else b.notes++;
       }
       // 4) Assemble rows in document order; the preamble bucket sorts
-      // first when present.
+      // first when present. Cycle #342 — each item also carries its
+      // `end` offset (next header or end of text) so the renderer can
+      // select the whole section in the source input on click.
       const items = [];
       bySection.forEach((b, key) => {
         const title = key === -1
           ? 'Before the first heading'
           : (heads[key] ? heads[key].title : '?');
-        const start = key === -1 ? -1 : heads[key].start;
-        items.push({ title, start,
+        const start = key === -1 ? 0 : heads[key].start;
+        const end = key === -1
+          ? (heads.length ? heads[0].start - 1 : text.length)
+          : (key + 1 < heads.length ? heads[key + 1].start - 1 : text.length);
+        items.push({ title, start, end,
           traps: b.traps, watches: b.watches, notes: b.notes,
           score: b.traps * 30 + b.watches * 12 + b.notes * 4 });
       });
@@ -17045,7 +17050,9 @@
       const rows = result.items.map(it => {
         const pct = Math.max(8, Math.round((it.score / maxScore) * 100));
         const dom = it.traps >= it.watches && it.traps >= it.notes ? 'r' : (it.watches >= it.notes ? 'a' : 'g');
-        return '<div class="rs-row">' +
+        // Cycle #342 — rows are jump targets: click/Enter selects the
+        // whole section in the source textarea and scrolls to it.
+        return '<div class="rs-row" role="button" tabindex="0" data-rs-start="' + Math.max(0, it.start) + '" data-rs-end="' + it.end + '" title="Click to find this section in your document">' +
           '<div class="rs-head"><span class="rs-title mono">' + esc(it.title) + '</span>' +
             '<span class="rs-tally">' +
               (it.traps ? '<b style="color:var(--danger)">' + it.traps + ' trap' + (it.traps === 1 ? '' : 's') + '</b>' : '') +
@@ -17063,7 +17070,29 @@
       riskMapBlock.hidden = false;
       if(riskMapNote){
         riskMapNote.innerHTML = '<span class="riskNote-lead">Where the risk sits</span> ' +
-          'Traps clustered in one section point at that clause family; risk spread thin across many sections usually means broad boilerplate. Bar length = weighted severity (traps weigh most).';
+          'Traps clustered in one section point at that clause family; risk spread thin across many sections usually means broad boilerplate. Bar length = weighted severity (traps weigh most). Click a row to find that section in your document.';
+      }
+      // Cycle #342 — delegated jump: click / Enter / Space selects the
+      // section's raw-text span in the input and scrolls it into view
+      // (same interaction contract as the signing-checklist rows).
+      if(!riskMapList._rsWired){
+        riskMapList._rsWired = true;
+        const jumpToSection = (row) => {
+          const s = parseInt(row.getAttribute('data-rs-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-rs-end'), 10) || (s + 200);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Section highlighted in your document');
+        };
+        riskMapList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('.rs-row');
+          if(row) jumpToSection(row);
+        });
+        riskMapList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('.rs-row');
+          if(row){ e.preventDefault(); jumpToSection(row); }
+        });
       }
     }
 
@@ -22218,6 +22247,17 @@
             if(!r || !r.length) return '';
             return Array.from(r).slice(0, 6).map(row => '<li class="cheat-li">' + esc((row.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          // Cycle #342 — the risk map joins too: "1. Payment — 2 traps ·
+          // 1 watch" lines so the printed brief says WHERE to look.
+          const riskMapLines = (function(){
+            const titles = document.querySelectorAll('#riskMapList .rs-title');
+            if(!titles || !titles.length) return '';
+            const tallies = document.querySelectorAll('#riskMapList .rs-tally');
+            return Array.from(titles).slice(0, 6).map((el, i2) => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim()) +
+              (tallies[i2] ? ' — ' + esc((tallies[i2].textContent || '').trim()) : '') +
+              '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -22239,6 +22279,7 @@
               '<div class="cheat-section"><div class="cheat-section-title">Clauses to read twice</div><ul style="padding-left:18px;margin:0">' + keyClauses + '</ul></div>' +
               '<div class="cheat-section"><div class="cheat-section-title">What the document is missing</div><ul style="padding-left:18px;margin:0">' + gaps + '</ul></div>' +
               (openTerms ? '<div class="cheat-section"><div class="cheat-section-title">Open terms (fill before signing)</div><ul style="padding-left:18px;margin:0">' + openTerms + '</ul></div>' : '') +
+              (riskMapLines ? '<div class="cheat-section"><div class="cheat-section-title">Where the risk sits</div><ul style="padding-left:18px;margin:0">' + riskMapLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +

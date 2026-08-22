@@ -16166,6 +16166,18 @@ test("risk map: markup, wiring, styling, and detector caps are all in place", ()
   assert.match(dBody, /slice\(0, ?8\)/, "the detector must cap visible sections");
   assert.doesNotMatch(dBody, /fetch|sendBeacon|XMLHttpRequest/,
     "the detector is pure-local — no network calls");
+  // Cycle #342 — rows are jump targets with keyboard parity.
+  assert.match(appSrc, /data-rs-start=/, "rows must carry their section start offset");
+  assert.match(appSrc, /_rsWired/, "the jump listener must be wired once (delegated)");
+  assert.match(appSrc, /setSelectionRange\(s, Math\.min\(e, \(input\.value \|\| ''\)\.length\)\)/,
+    "jumping must select the section span in the source input");
+  assert.ok(appSrc.indexOf("e.key !== 'Enter' && e.key !== ' '") !== -1,
+    "keyboard users get Enter/Space parity on map rows");
+  // The cheat sheet carries the map so printed briefs say WHERE to look.
+  assert.ok(appSrc.indexOf("#riskMapList .rs-title") !== -1,
+    "the cheat sheet must read risk-map titles");
+  assert.ok(appSrc.indexOf("Where the risk sits") !== -1,
+    "the cheat sheet must include a risk-location section");
 });
 
 // Cycle #341 — behavioral check: the real parser is extracted and run
@@ -16204,6 +16216,15 @@ test("risk map: flags bucket into the right sections with correct tallies", () =
   assert.equal(r.items[1].watches, 1, "the payment watch lands in section 1");
   assert.equal(r.items[2].traps, 1, "the term trap lands in section 2");
   assert.equal(r.unlocated, 1, "sub-three-word findings count as unlocated");
+
+  // Cycle #342 — end offsets: each section's span reaches exactly to
+  // the next header (or end of text), so click-to-jump selects it all.
+  const payAt = doc.indexOf("1. Payment");
+  const termAt = doc.indexOf("2. Term");
+  assert.equal(r.items[0].end, payAt - 1, "preamble ends just before section 1");
+  assert.equal(r.items[1].start, payAt, "section 1 starts at its header");
+  assert.equal(r.items[1].end, termAt - 1, "section 1 ends just before section 2");
+  assert.equal(r.items[2].end, doc.length, "the last section runs to the end of text");
 
   // No headers → no map (graceful empty), never a crash.
   const plain = detectRiskSections("Just some prose without any section numbering at all here.", flags.slice(0, 1));

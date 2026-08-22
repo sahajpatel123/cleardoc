@@ -6206,3 +6206,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #341 of the autonomous loop (add — last cycle polished weekend exports): chose the section map as a genuinely new analytical lens. Polish candidate for next cycle: click-to-jump from map rows to the source text, or map data into the cheat-sheet/receipt aggregates.
+
+## 2026-08-23 03:48 | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #342 — POLISH: risk-map jump + cheat-sheet integration.** Map rows are now jump targets: each carries its exact section span (`data-rs-start`/`data-rs-end`), and one delegated, once-guarded listener selects that span in the source textarea (focus + setSelectionRange) and scrolls it into view. Keyboard parity via Enter/Space on `role="button"` rows — same interaction contract as the signing checklist.
+- Detector now emits `end` per section (next header − 1, last one runs to end-of-text; preamble clamps to 0). Behavioral test pins all four span boundaries against a synthetic contract.
+- Negotiator Cheat Sheet gains "Where the risk sits" — compact "1. Payment — 2 traps · 1 watch" lines pairing `.rs-title` + `.rs-tally` — so printed/packed briefs say WHERE to look; omitted entirely when the map is empty.
+- Gate: unit 490/490 · smoke 297 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #342 of the autonomous loop (polish — last cycle added the risk map): close the loop from insight to action (find it in your document) and carry the insight into the printable brief. Next add-cycle candidate: open terms in exec-summary/receipt aggregates, or a section-aware "worst section" callout in the verdict area.
