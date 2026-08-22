@@ -5119,8 +5119,8 @@ test("analyzer: deadline block filters to next-7-days or overdue", () => {
     "the deadline controls must include a Markdown copy button");
   assert.match(appSrc, /'📋 Deadlines copied as Markdown'/,
     "the Markdown deadline copy must confirm with a toast");
-  assert.match(appSrc, /\| Date \| Countdown \| Type \| Clause \|/,
-    "the Markdown deadline copy must build a table header");
+  assert.match(appSrc, /\| Date \| Countdown \| Type \| Weekend \| Clause \|/,
+    "the Markdown deadline copy must build a table header (Cycle #340 added the Weekend column)");
   assert.match(appSrc, /_Scoped to ' \+ dlFilter \+ ' deadlines\._/,
     "the Markdown deadline copy must note the active scope");
   assert.match(cssSrc, /\.deadline-controls \.dl-filter-active\{/, "the active chip must be styled");
@@ -14360,7 +14360,9 @@ test("analyzer: Deadline extractor polish — countdown + copy-all chip", () => 
   // Cycle #193 — the copy-all list carries countdowns like the row copy.
   assert.match(appSrc, /const cd = \(countdown\(it\.date\) \|\| ''\)\.trim\(\);/,
     "the copy-all builder must compute each deadline's countdown");
-  assert.match(appSrc, /it\.date \+ \(cd \? ' \(' \+ cd \+ '\)' : ''\) \+ \(it\.verb === '\(obligated\)'/,
+  // Cycle #340 — the weekend annotation may sit between the countdown
+  // and the type, so the pin allows an optional wkSuffix() call there.
+  assert.match(appSrc, /it\.date \+ \(cd \? ' \(' \+ cd \+ '\)' : ''\)(\s*\+\s*wkSuffix\(it\.date\))?\s*\+\s*\(it\.verb === '\(obligated\)'/,
     "the countdown must sit after the date in the copy-all text");
 });
 
@@ -14498,8 +14500,9 @@ test("analyzer: Deadline block exports all deadlines as a CSV file", () => {
     "CSV cells must be quoted with doubled internal quotes per RFC 4180");
   assert.match(appSrc, /const text = '\\uFEFF' \+ header \+ '\\n' \+ body;/,
     "CSV must start with a UTF-8 BOM so Excel decodes non-ASCII correctly");
-  assert.match(appSrc, /csvCell\('Date'\) \+ ',' \+ csvCell\('Type'\) \+ ',' \+ csvCell\('Countdown'\) \+ ',' \+ csvCell\('Context'\)/,
-    "CSV must have Date, Type, Countdown, Context columns in that order");
+  // Cycle #340 — Weekend column sits between Countdown and Context.
+  assert.match(appSrc, /csvCell\('Date'\) \+ ',' \+ csvCell\('Type'\) \+ ',' \+ csvCell\('Countdown'\) \+ ',' \+ csvCell\('Weekend'\) \+ ',' \+ csvCell\('Context'\)/,
+    "CSV must have Date, Type, Countdown, Weekend, Context columns in that order");
   assert.match(appSrc, /'obligated' : 'scheduled'/,
     "Type column must map obligated vs scheduled deadlines");
   assert.match(appSrc, /countdown\(it\.date\)/,
@@ -16122,4 +16125,23 @@ test("deadlines: weekendInfo flags true weekends and passes weekdays through", (
   assert.equal(weekendInfo(wed), null, wed + " is a Wednesday — no tag");
   assert.equal(weekendInfo(""), null, "empty input yields no tag");
   assert.equal(weekendInfo("not-a-date"), null, "garbage input yields no tag");
+});
+
+// Cycle #340 — polish: the weekend warning travels with every export,
+// not just the row tag — banner, copy-all, Markdown, digest, email, CSV.
+test("deadlines: weekend warnings ride along in the banner and every text export", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(appSrc, /const wkSuffix = \(dateStr\) =>/,
+    "the shared weekend-annotation helper must exist");
+  // One shared suffix keeps copy-all, digest, and email identical.
+  const uses = (appSrc.match(/wkSuffix\(it\.date\)/g) || []).length;
+  assert.ok(uses >= 3, "copy-all, digest, and email must all use wkSuffix, found " + uses);
+  // Alert banner: its own part so the advice survives copy-as-text.
+  assert.match(appSrc, /on a weekend<\/b> — act by Friday/,
+    "the alert banner must carry a weekend part");
+  // Columnar exports gain an explicit Weekend column.
+  assert.ok(appSrc.indexOf("| Date | Countdown | Type | Weekend | Clause |") !== -1,
+    "the Markdown table must gain a Weekend column");
+  assert.ok(appSrc.indexOf("csvCell('Weekend')") !== -1,
+    "the CSV must gain a Weekend column");
 });

@@ -6184,3 +6184,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #339 of the autonomous loop (add — last cycle polished Open terms exports): scope-checked draft autosave (exists), version history (exists), section-risk mapping (viable future add), and chose weekend-awareness as a genuinely missing, high-delight, pure-local completion of the deadline feature. Next polish-cycle candidate: surface weekend tags in the alert banner + digest/email exports.
+
+## 2026-08-23 03:24 | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #340 — POLISH: weekend warnings travel with every deadline export.** Cycle #339's row tag is now backed by the whole surface: the alert banner gains its own "N on a weekend — act by Friday (dates)" part (so the advice survives copy-as-text and off-screen rows), and one shared `wkSuffix()` helper annotates copy-all, the chat digest, and the email export identically.
+- Columnar exports gain an explicit **Weekend** column: the Markdown table (`| Date | Countdown | Type | Weekend | Clause |`) and the CSV (`Weekend` between Countdown and Context) both carry "Saturday — act by Friday" per row.
+- Batch .ics deliberately left untouched — calendar event dates must stay semantically pure; the annotation is a reading aid, not a date change.
+- New always-run test pins: wkSuffix exists and is used by ≥3 exporters, banner part string, both Weekend columns. Three legacy spec pins updated deliberately for the new shapes (MD header, copy-all countdown position — now allows an optional wkSuffix between countdown and type, CSV column order); one transient confidence-test failure under full-gate parallel load did not reproduce on clean re-run (known flake class).
+- Gate: unit 490/490 · smoke 295 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #340 of the autonomous loop (polish — last cycle added weekend-aware deadline warnings): make the warning ubiquitous across every surface a deadline already travels through. Next add-cycle candidate: risk-by-section map (which numbered section holds the traps) or open-terms integration into exec-summary/receipt.
