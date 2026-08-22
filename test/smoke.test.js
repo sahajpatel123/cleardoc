@@ -16371,3 +16371,72 @@ test("readiness + health check: open terms cost points and block 'Ready'", () =>
   assert.match(mixed.detail, /2 traps/, "flagged breakdown keeps the trap tally");
   assert.match(mixed.detail, /12 open terms unfilled/, "flagged breakdown adds the blank tally");
 });
+
+// Cycle #347 — dangling cross-references: "per Section 9" with no
+// Section 9 anywhere points at deleted or never-drafted terms.
+test("xref: markup, guarded call site, and detector caps are in place", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const htmlSrc = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  assert.match(appSrc, /function detectXrefs\(raw\)/,
+    "the pure-local cross-reference detector must exist");
+  assert.match(appSrc, /renderXrefBlock\(detectXrefs\(raw\)\)/,
+    "the detector must feed the renderer in the analysis flow");
+  assert.match(htmlSrc, /id="xrefBlock"/, "analyze.html must contain the broken-references block");
+  assert.match(htmlSrc, /id="xrefList"/, "…and its list container");
+  // Display cap + purity, same house rules as every detector.
+  const dStart = appSrc.indexOf("function detectXrefs");
+  const dBody = appSrc.slice(dStart, appSrc.indexOf("\n    }", appSrc.indexOf("return { items, count: items.length, defined: defined.size };", dStart)));
+  assert.doesNotMatch(dBody, /fetch|sendBeacon|XMLHttpRequest/,
+    "the detector is pure-local — no network calls");
+  const rStart = appSrc.indexOf("function renderXrefBlock");
+  const rBody = appSrc.slice(rStart, appSrc.indexOf("\n    }", rStart));
+  assert.match(rBody, /slice\(0, ?8\)/, "the renderer must cap visible rows");
+  assert.ok(appSrc.indexOf("Broken promises") !== -1,
+    "the note must explain what broken citations mean");
+});
+
+// Cycle #347 — behavioral: the REAL detector runs on a synthetic
+// contract mixing arabic headers, a roman article, sub-section refs,
+// and lowercase prose references.
+test("xref: references resolve against real headers (roman ↔ arabic)", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  // The detector leans on SECTION_HEAD_RE (declared earlier in the file),
+  // so the extraction carries that one-line const plus everything from
+  // XREF_WORD_RE through the end of detectXrefs.
+  const headStart = appSrc.indexOf("const SECTION_HEAD_RE = /");
+  assert.ok(headStart >= 0, "SECTION_HEAD_RE must be present to extract");
+  const headLine = appSrc.slice(headStart, appSrc.indexOf("\n", headStart));
+  const start = appSrc.indexOf("const XREF_WORD_RE");
+  const retAt = appSrc.indexOf("return { items, count: items.length, defined: defined.size };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = headLine + "\n" + appSrc.slice(start, end + endMark.length)
+    + "\n return { detectXrefs };";
+  const { detectXrefs } = new Function(src)();
+
+  const doc = [
+    "SERVICE AGREEMENT",
+    "This agreement incorporates the policies referenced below.",
+    "1. Payment",
+    "Fees follow Section 4.2; late fees per section 9 apply.",
+    "2. Term",
+    "Renewal per Section 2.5.",
+    "ARTICLE IV",
+    "Confidentiality survives per Article VII and Article IV."
+  ].join("\n");
+  const r = detectXrefs(doc);
+  assert.equal(r.defined, 3, "headers define sections 1, 2, and IV→4");
+  assert.equal(r.count, 2, "only section 9 and Article VII dangle, got " +
+    r.items.map(i => i.label).join(","));
+  const labels = r.items.map(i => i.label);
+  assert.ok(labels.indexOf("section 9") !== -1, "lowercase prose refs are checked too");
+  assert.ok(labels.indexOf("Article VII") !== -1, "roman refs normalize to arabic for comparison");
+  assert.ok(labels.indexOf("Article IV") === -1, "a roman ref matching an arabic header resolves");
+  assert.ok(labels.indexOf("Section 4.2") === -1, "sub-section refs resolve against their top level");
+
+  // Headerless text → stay quiet, never flag everything.
+  const plain = detectXrefs("Please review paragraph three of the attached letter.");
+  assert.equal(plain.count, 0, "documents without section headers produce no findings");
+});

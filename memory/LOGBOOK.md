@@ -6261,6 +6261,19 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Cycle #346 of the autonomous loop (polish — last cycle added open-terms-in-exec-summary): make every verdict surface agree — blanks now cost points and block "Ready" everywhere, not just in prose. Next add-cycle candidate: dangling cross-reference checker (Section N references that don't resolve), or defined-terms consistency lens.
 
+## 2026-08-23 04:4x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #347 — ADD: broken-reference detector ("⛓ Broken promises").** New pure-local `detectXrefs(raw)` catches citations that point at sections which don't exist — the fingerprint of deleted clauses, copy-paste leftovers, or terms never drafted:
+  - **Pass 1** collects top-level section numbers defined by real headers (reuses `SECTION_HEAD_RE`; romans normalize to arabic via `xrefRomToNum`, so an "ARTICLE IV" header defines "4"). **Pass 2** scans every Section/Subsection/Article/Clause/Paragraph reference (case-insensitive) against that set.
+  - **Anti-false-positive design:** references resolve by top-level number only ("Section 4.2" is fine when just "4." exists), roman↔arabic equivalence works in both directions ("Article VII" dangles in a doc whose sections end at VI; "Article IV" resolves against a "4." header), unparseable numerals are skipped rather than guessed, duplicates collapse, and headerless documents stay completely quiet. Cap 30 findings, ±48-char context snippets.
+  - Renderer reuses `.gap-row` styling under a new `#xrefBlock` in analyze.html with an amber ⛓ glyph, "no such section exists" labels, and a note explaining what broken citations usually mean. Guarded call site after the risk map.
+- Tests: structural pins (markup, guarded call site, purity, display cap) + behavioral test running the REAL extracted detector on a synthetic contract mixing arabic headers, a roman article, sub-section refs, lowercase prose refs, and a headerless negative. The behavioral test caught a real bug pre-push: XREF_ROMAN_RE had one capture group where scan() expected two — fixed by aligning the group shape.
+- Gate: unit 490/490 · smoke 303 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #347 of the autonomous loop (add — last cycle polished readiness/health verdicts): give readers a lens no other surface covers — promises the document makes about its own structure and breaks. Next polish-cycle candidate: cheat-sheet inclusion for broken references, or click-to-jump on xref rows like the risk map.
+
+
 
 
 

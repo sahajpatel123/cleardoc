@@ -4488,6 +4488,7 @@
           gapBlock=$('#gapBlock'),gapNote=$('#gapNote'),gapList=$('#gapList'),
           openTermsBlock=$('#openTermsBlock'),openTermsNote=$('#openTermsNote'),openTermsList=$('#openTermsList'),
           riskMapBlock=$('#riskMapBlock'),riskMapNote=$('#riskMapNote'),riskMapList=$('#riskMapList'),
+          xrefBlock=$('#xrefBlock'),xrefNote=$('#xrefNote'),xrefList=$('#xrefList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -17176,6 +17177,107 @@
       });
     }
 
+    // Cycle #347 — dangling cross-reference detector. A contract that
+    // says "per Section 9" but ends at Section 6 points at deleted or
+    // never-drafted terms. Pass 1 collects the top-level numbers actually
+    // defined by section headers; pass 2 checks every Section/Article/
+    // Clause/Paragraph reference against them. References resolve by
+    // top-level number only ("4.2" is fine when just "4." exists), and
+    // romans normalize to arabic so "Article IV" resolves against a
+    // "4." header (and vice versa).
+    const XREF_WORD_RE = /\b(Section|Subsection|Article|Clause|Paragraph)s?\s+(\d{1,2}(?:\.\d+)*)\b/gi;
+    const XREF_ROMAN_RE = /\b(Article)\s+([IVXivx]{1,6})\b/g;
+    function xrefRomToNum(r){
+      const ROM_VAL = { I:1, V:5, X:10, L:50, C:100, D:500, M:1000 };
+      const s = String(r || '').toUpperCase();
+      if(!s) return NaN;
+      let v = 0;
+      for(let i = 0; i < s.length; i++){
+        const c = ROM_VAL[s[i]];
+        const n = ROM_VAL[s[i + 1]];
+        if(!c) return NaN;
+        v += (!n || c >= n) ? c : -c;
+      }
+      return v;
+    }
+    function detectXrefs(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], count: 0, defined: 0 };
+      // Everything normalizes to an arabic top-level string.
+      const defined = new Set();
+      text.split(/\n/).forEach(line => {
+        if(!SECTION_HEAD_RE.test(line)) return;
+        const num = line.match(/(\d{1,2}(?:\.\d+)*)/);
+        if(num){ defined.add(num[1].split('.')[0]); return; }
+        const rom = line.match(/\b([IVXivx]{1,6})\b/);
+        if(rom){ const rv = xrefRomToNum(rom[1]); if(!isNaN(rv)) defined.add(String(rv)); }
+      });
+      // No headers → nothing to check against; stay quiet rather than
+      // flagging every reference in a headerless letter.
+      if(!defined.size) return { items: [], count: 0, defined: 0 };
+      const items = [];
+      const seen = new Set();
+      const scan = (re, kind) => {
+        re.lastIndex = 0;
+        let m;
+        while((m = re.exec(text)) !== null){
+          if(!m[0]) break; // zero-length safety
+          let key;
+          if(kind === 'roman'){
+            const rv = xrefRomToNum(m[2]);
+            if(isNaN(rv)) continue; // unparseable numeral — don't guess
+            key = String(rv);
+          } else {
+            key = m[2].split('.')[0];
+          }
+          if(defined.has(key)) continue;
+          const label = m[1] + ' ' + m[2];
+          const dedupe = label.toLowerCase();
+          if(seen.has(dedupe)) continue;
+          seen.add(dedupe);
+          const at = m.index;
+          const from = Math.max(0, at - 48);
+          const to = Math.min(text.length, at + m[0].length + 48);
+          items.push({
+            label,
+            context: (from > 0 ? '…' : '') + text.slice(from, to).replace(/\s+/g, ' ').trim() + (to < text.length ? '…' : '')
+          });
+          if(items.length >= 30) break; // defensive cap before display slice
+        }
+        re.lastIndex = 0;
+      };
+      scan(XREF_WORD_RE, 'num');
+      scan(XREF_ROMAN_RE, 'roman');
+      return { items, count: items.length, defined: defined.size };
+    }
+
+    // Cycle #347 — renderer for dangling cross-references. Reuses the
+    // .gap-row styling (kinship with "What's missing"): both surfaces
+    // flag things the document claims but doesn't have.
+    function renderXrefBlock(result){
+      if(!xrefBlock || !xrefList || !result) return;
+      if(!result.items.length){ xrefBlock.hidden = true; return; }
+      const shown = result.items.slice(0, 8);
+      const rows = shown.map(it => (
+        '<div class="gap-row" title="This reference points at a section that does not exist">' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">⛓</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label"><code>' + esc(it.label) + '</code> — no such section exists</div>' +
+            '<div class="gap-hint">“' + esc(it.context) + '”</div>' +
+          '</div>' +
+        '</div>'
+      )).join('');
+      xrefList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.count + ' broken reference' + (result.count === 1 ? '' : 's') +
+        ' · checked against ' + result.defined + ' section' + (result.defined === 1 ? '' : 's') + ' found in the document</span></div>';
+      xrefBlock.hidden = false;
+      if(xrefNote){
+        xrefNote.innerHTML = '<span class="riskNote-lead">Broken promises</span> ' +
+          'These citations point at sections that do not exist — usually deleted clauses, copy-paste leftovers, or terms that were never drafted. Ask for them to be fixed or removed before signing.';
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -18257,6 +18359,13 @@
         renderRiskSections(detectRiskSections(raw, flags));
       } else if(riskMapBlock) {
         riskMapBlock.hidden = true;
+      }
+      // Cycle #347 — dangling cross-references: "per Section 9" with no
+      // Section 9 anywhere. Quiet when the document has no headers.
+      if(xrefBlock && typeof detectXrefs === 'function'){
+        renderXrefBlock(detectXrefs(raw));
+      } else if(xrefBlock) {
+        xrefBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
