@@ -6082,3 +6082,26 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #330 of the autonomous loop (polish — last cycle added deadline notifications): a notification feature is only as good as its restraint. Respecting the snooze the user already set, pinging when they actually return to the tab rather than only at cold load, and never letting bookkeeping keys accumulate make the feature trustworthy enough to keep enabled.
+
+---
+
+**2026-08-23 02:11 IST | Model: ox-alpha (opencode)**
+**Changes Made:**
+- feat(share): added 🖼 Verdict card button (`verdictCardBtn`) — downloads a 1200×630 branded PNG of the analysis verdict (inline SVG → blob-URL `<img>` → canvas → `toBlob`, with a direct `.svg` download fallback if rasterization fails). Card carries ONLY aggregate fields: verdict label, trap/watch/note counts, threat score+level, date, cleardoc.app footer, NOT LEGAL ADVICE strip. Privacy by construction and enforced by a static test that slices the builder function body and fails if it references `lastRaw`, `attachedFile`, `sentence`, or `clause`. System fonts only (Arial Black/Impact + Menlo stack) so canvas rasterization never depends on network font loads; object URLs revoked after use; `_verdictCardWired` guard; help-modal row added.
+- NOTE — concurrent-session overlap: while this feature was being written, another session's commit `5cc65933` (skip()-helper repair + stale compare-Markdown contract) swept these two new smoke tests into its `git add -A`. This commit lands the matching feature code; the tests already live in HEAD. A static test pins the privacy invariant and a Playwright test exercises the click→✓ path.
+- Left `.github/workflows/security.yml` (eval-grep single-quote fix) UNCOMMITTED — it appeared mid-cycle from concurrent work and isn't mine to verify/ship. Flagging so the next session treats it as pending deliberate work, not debris.
+- Full gate green on the combined tree: unit 490/490 · smoke 286 pass / 0 fail / 139 skipped · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #331 of the autonomous loop (add — last cycle was polish): every export so far produces text or files for lawyers/spreadsheets; chat apps want IMAGES. The verdict is the hero output of an analysis, so a shareable verdict card gives the product a growth surface — with document text excluded by design AND by enforced test, keeping the privacy promise intact.
+
+---
+
+**2026-08-23 02:07 IST | Model: ox-alpha (opencode)**
+**Changes Made:**
+- polish(share): verdict cards now mirror the on-screen verdict tone instead of always printing ink-on-paper. The builder reads the rendered `.verdict-label` classes and maps fair→green (#176B53), review→amber (#9A6A00), suspicious/illegal→danger (#C6361F) — the exact light-theme values from theme.css (the card is a fixed-paper brand artifact, so dark-theme variants don't apply). Tone drives both the big verdict headline and its underline bar; unknown/absent tone falls back to ink.
+- Static contract extended: pins the full tone map literal and asserts the tone is sourced from the verdict-label className, alongside the existing aggregate-only privacy slice check.
+- Full gate green on the combined tree: unit 490/490 · smoke 286 pass / 0 fail / 139 skipped · integration 16/16 (un-skipped by the concurrent session's environment fix) · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #332 of the autonomous loop (polish — last cycle added the verdict card): a card that always looks identical whether the verdict is "fair" or "illegal" wastes its loudest signal. Matching the app's own severity palette makes the shared image instantly legible at a glance — green means safe to sign, red means walk away — without changing what data leaves the device.

@@ -13753,6 +13753,11 @@ test("analyzer: verdict card renders aggregate stats only and downloads as PNG",
   assert.match(appSrc, /_verdictCardWired/, "the handler must be guard-wired exactly once");
   assert.match(appSrc, /width="1200" height="630"/, "the card must use the standard share-image ratio");
   assert.match(appSrc, /NOT LEGAL ADVICE/, "the card must carry the disclaimer");
+  // Cycle #332 polish — the card mirrors the on-screen verdict tone.
+  assert.match(appSrc, /\{ fair: '#176B53', review: '#9A6A00', suspicious: '#C6361F', illegal: '#C6361F' \}/,
+    "the tone map must match theme.css verdict-label colors exactly");
+  assert.match(appSrc, /vLabelEl\.className\) \|\| ''\)\.match\(|fair\|review\|suspicious\|illegal/,
+    "the tone must come from the rendered verdict-label classes");
   // Privacy by construction: nothing inside the card builder may touch
   // document-derived content (raw text, flagged clauses, file names).
   const start = appSrc.indexOf("function buildVerdictCardSvg()");

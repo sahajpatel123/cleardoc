@@ -20312,6 +20312,11 @@
     function buildVerdictCardSvg(){
       const vLabelEl = verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-label');
       const verdict = (vLabelEl && vLabelEl.textContent || '').trim() || 'Analysis complete';
+      // Cycle #332 — mirror the on-screen verdict tone so the card reads
+      // like the app: fair=green, review=amber, suspicious/illegal=danger
+      // (light-theme values from theme.css — the card is fixed paper).
+      const toneMatch = ((vLabelEl && vLabelEl.className) || '').match(/fair|review|suspicious|illegal/);
+      const toneColor = { fair: '#176B53', review: '#9A6A00', suspicious: '#C6361F', illegal: '#C6361F' }[(toneMatch && toneMatch[0]) || ''] || '#14120E';
       const t = (typeof computeThreatScore === 'function' && lastFlags) ? computeThreatScore(lastFlags) : null;
       const traps = t ? t.traps : (lastFlags || []).length;
       const watches = t ? t.watches : 0;
@@ -20324,8 +20329,8 @@
         '<rect x="24" y="540" width="1152" height="66" fill="#14120E"/>' +
         '<text x="56" y="86" font-family="Menlo,Consolas,monospace" font-size="22" letter-spacing="6" fill="#FF3B00">// VERDICT</text>' +
         '<text x="1144" y="86" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="20" fill="#14120E" opacity="0.7">' + escS(new Date().toISOString().slice(0,10)) + '</text>' +
-        '<text x="56" y="290" font-family="\'Arial Black\',Impact,sans-serif" font-size="' + (verdict.length > 18 ? 64 : 96) + '" fill="#14120E">' + escS(verdict.slice(0, 60)) + '</text>' +
-        '<rect x="56" y="330" width="180" height="8" fill="#FF3B00"/>' +
+        '<text x="56" y="290" font-family="\'Arial Black\',Impact,sans-serif" font-size="' + (verdict.length > 18 ? 64 : 96) + '" fill="' + toneColor + '">' + escS(verdict.slice(0, 60)) + '</text>' +
+        '<rect x="56" y="330" width="180" height="8" fill="' + toneColor + '"/>' +
         '<text x="56" y="420" font-family="Menlo,Consolas,monospace" font-size="34" fill="#14120E">' +
           '⛔ ' + traps + ' traps&#160;&#160;&#160;⚠ ' + watches + ' watches&#160;&#160;&#160;ℹ ' + notes + ' notes</text>' +
         (threatLine ? '<text x="1144" y="420" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="28" fill="#FF3B00">' + escS(threatLine) + '</text>' : '') +
