@@ -6128,3 +6128,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #334 of the autonomous loop (polish — last cycle added card sharing): the card is the artifact users attach to public conversations; a visibly wrong date on it is a credibility leak. One shared helper, three surfaces, test-enforced so the UTC pattern can't creep back into the card.
+
+---
+
+**2026-08-23 02:58 IST | Model: ox-alpha (opencode)**
+**Changes Made:**
+- feat(pwa): registered a **share target** in site.webmanifest (`action: /analyze.html`, GET, params title/text/url) — ClearDoc now appears in the phone's OS share sheet. Users can select contract text anywhere (email, browser, PDF viewer) → Share → ClearDoc → the analyzer opens pre-filled and ready to Analyze. This is the natural mobile flow for "read what you're about to sign": no copy-switch-paste dance.
+- Receiver: `consumeShareTarget()` runs at analyze-page boot — composes title+text into the textarea (clamped to the textarea's own maxlength), fires an `input` event so the live stats/draft systems update, focuses + scrolls to the input, toasts "📄 Shared text loaded — press Analyze", then `history.replaceState` scrubs the query string so shared content never lingers in the URL bar or history. A bare shared link (no text) is taken as context with an instruction to paste the page's actual wording — the analyzer only sees pasted text, by design.
+- Tests: static manifest assertions (share_target shape, GET method, ?text= param) + consumer contract (URLSearchParams read, replaceState scrub, maxlength clamp); Playwright test drives `analyze.html?title=…&text=…` end-to-end asserting prefill and scrubbed URL.
+- Gate: unit 490/490 · smoke 288 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON validation clean.
+
+**Prompt Intention:**
+- Cycle #335 of the autonomous loop (add — last cycle was polish): installed-PWA users could only bring documents in by copy/paste inside the tab. The share target makes ClearDoc a first-class citizen of the phone: any text in any app is one Share tap away from a verdict. The privacy posture carries through — scrubbed URLs, no fetching of remote links.

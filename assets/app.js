@@ -26077,5 +26077,35 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     try { showDeadlineReminder(); } catch(e){ console.warn('[deadline-reminder]', e); }
     // Decode any #share= fragment so we can offer to view it
     try { tryLoadSharedAnalysis(); } catch(e){ console.warn('[share-load]', e); }
+    // Cycle #335 — PWA share target: the manifest registers ClearDoc in
+    // the OS share sheet ("Share → ClearDoc" from any app). Consume the
+    // GET params here, prefill the analyzer, then scrub the URL so the
+    // shared text never lingers in the address bar or history.
+    function consumeShareTarget(){
+      const ta = document.getElementById('docInput');
+      if(!ta) return;
+      let p;
+      try { p = new URLSearchParams(location.search); } catch(_){ return; }
+      const title = (p.get('title') || '').trim();
+      let text = (p.get('text') || '').trim();
+      const url = (p.get('url') || '').trim();
+      if(!text && !title && !url) return;
+      if(!text && url){
+        // A bare link can't be analyzed client-side — take it as context
+        // and ask for the page text instead of silently analyzing a URL.
+        text = url + '\n\n(Open this link, copy its terms or letter text, and paste it here — ClearDoc analyzes pasted text only.)';
+      } else if(title && !text.includes(title)){
+        text = title + '\n\n' + text;
+      }
+      const MAX = parseInt(ta.getAttribute('maxlength') || '0', 10) || 40000;
+      ta.value = text.slice(0, MAX);
+      try { ta.dispatchEvent(new Event('input', { bubbles: true })); } catch(_){ /* stats refresh is best-effort */ }
+      try {
+        history.replaceState(null, '', location.pathname);
+      } catch(_){ /* keep the query string rather than break the page */ }
+      try { ta.scrollIntoView({ behavior: 'smooth', block: 'center' }); ta.focus({ preventScroll: true }); } catch(_){}
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📄 Shared text loaded — press Analyze');
+    }
+    try { consumeShareTarget(); } catch(e){ console.warn('[share-target]', e); }
   }
 })();

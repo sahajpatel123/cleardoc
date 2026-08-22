@@ -13743,6 +13743,41 @@ skip("analyzer: chat share includes deadlines and jurisdiction", async () => {
   }
 });
 
+// Cycle #335 — PWA share target: "Share → ClearDoc" from any app prefills the analyzer.
+test("pwa: manifest registers a share target and the analyzer consumes it with a URL scrub", () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "site.webmanifest"), "utf8"));
+  assert.ok(manifest.share_target, "the manifest must register a share_target");
+  assert.equal(manifest.share_target.action, "/analyze.html", "shared content must land on the analyzer");
+  assert.equal(manifest.share_target.method, "GET", "GET keeps the target usable without extra SW plumbing");
+  assert.equal(manifest.share_target.params.text, "text", "the shared body must arrive via ?text=");
+
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(appSrc, /function consumeShareTarget\(\)/, "app.js must define the share-target consumer");
+  assert.match(appSrc, /try \{ consumeShareTarget\(\); \} catch\(e\)/, "the consumer must run at analyze-page boot");
+  assert.match(appSrc, /new URLSearchParams\(location\.search\)/, "it must read the GET params");
+  assert.match(appSrc, /history\.replaceState\(null, '', location\.pathname\)/,
+    "the shared text must be scrubbed from the URL so it never lingers in history");
+  assert.match(appSrc, /ta\.getAttribute\('maxlength'\)/,
+    "prefill must respect the textarea's own cap instead of assuming one");
+});
+
+skip("analyzer: sharing text into ClearDoc prefills the input and scrubs the URL", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html?title=Lease%20clause&text=The%20tenant%20shall%20waive%20all%20rights.`, { waitUntil: "networkidle" });
+    const val = await page.evaluate(() => document.getElementById("docInput").value);
+    assert.match(val, /Lease clause/, "the share title must be included in the prefill");
+    assert.match(val, /The tenant shall waive all rights\./, "the shared text must land in the analyzer");
+    const search = await page.evaluate(() => location.search);
+    assert.equal(search, "", "the query string must be scrubbed after consumption");
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #333 — share-the-card button: share sheet → clipboard → download,
 // all rendering through the shared PNG builder.
 test("analyzer: verdict card sharing has three tiers and shares the shared PNG builder", () => {

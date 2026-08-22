@@ -9,6 +9,12 @@
   "background_color": "#fbf7ee",
   "theme_color": "#fbf7ee",
   "categories": ["productivity", "utilities", "business"],
+  "share_target": {
+    "action": "/analyze.html",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  },
   "icons": [
     {
       "src": "assets/favicon.svg",
