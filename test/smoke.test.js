@@ -16626,6 +16626,16 @@ test("signatures: markup, guarded call site, and purity are in place", () => {
     "the detector is pure-local — no network calls");
   assert.ok(appSrc.indexOf("Execution check") !== -1,
     "the note must frame this as the mechanics of getting bound");
+  // Cycle #354 — locatable findings are jump targets; the brief carries them.
+  assert.match(appSrc, /data-sg-start=/,
+    "signature findings must carry their source span for click-to-jump");
+  assert.match(appSrc, /_sgWired/,
+    "the signature jump listener must be wired once (delegated)");
+  assert.ok(appSrc.indexOf("📍 Signature area highlighted in your document") !== -1,
+    "jumping must confirm with a toast like the other surfaces");
+  assert.ok(appSrc.indexOf("#sigList .gap-label") !== -1 &&
+            appSrc.indexOf("Execution problems (fix before signing)") !== -1,
+    "the printed brief must include the execution-problems section");
 });
 
 // Cycle #353 — behavioral: the REAL detector separates healthy blocks
@@ -16653,18 +16663,26 @@ test("signatures: healthy blocks stay quiet; broken ones speak up", () => {
   assert.equal(healthy.count, 0, "a healthy two-party block with dates stays quiet");
 
   // One-sided: a single Consultant line.
-  const oneSided = detectSignatures([
+  const oneSidedSrc = [
     "The Consultant shall provide consulting services.",
     "Consultant: ______________________",
     "Date: ____________"
-  ].join("\n"));
+  ].join("\n");
+  const oneSided = detectSignatures(oneSidedSrc);
   assert.equal(oneSided.count, 1, "one slot alone is flagged");
   assert.match(oneSided.items[0].label, /Only one signature line/, "the finding names the problem");
+  // Cycle #354 — locatable findings carry spans for click-to-jump.
+  // (Slot matches begin at the newline before the label, so −1.)
+  assert.equal(oneSided.items[0].start, oneSidedSrc.indexOf("Consultant:") - 1,
+    "the one-sided finding points at the lone signature line");
+  assert.equal(oneSided.items[0].end, oneSided.items[0].start + "\nConsultant: ______________________".length,
+    "…and its span covers the whole slot line");
 
   // Contract-like text with zero signature furniture.
   const none = detectSignatures("The parties agree that the Consultant shall perform the work described herein.");
   assert.equal(none.count, 1, "a contract with no block at all is flagged");
   assert.match(none.items[0].label, /No signature block/, "the finding says what's missing");
+  assert.equal(none.items[0].start, undefined, "a missing block cannot be jumped to — no span");
 
   // Undated pair: two lines, no Date anywhere.
   const undated = detectSignatures("Buyer: ______________\n\nSeller: ______________");

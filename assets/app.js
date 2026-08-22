@@ -17531,23 +17531,30 @@
         if(looksLikeContract){
           items.push({
             label: 'No signature block found',
+            // Cycle #354 — nothing to point at here: there IS no block.
             why: 'The document reads like a contract but has no signature lines. Ask how it gets executed — and by whom.'
           });
         }
       } else if(slots.length === 1){
         items.push({
           label: 'Only one signature line (“' + slots[0].label + '”)',
-          why: 'One-sided signing. Ask for a matching line for the other party — or find out why only one side signs.'
+          why: 'One-sided signing. Ask for a matching line for the other party — or find out why only one side signs.',
+          start: slots[0].start,
+          end: slots[0].end
         });
       } else if(slots.length >= 2 && !hasDateLine){
         items.push({
           label: 'Signature lines have no Date line',
-          why: 'Without dates next to signatures, “who agreed first and when” becomes a fight. Ask for a Date line under each signature.'
+          why: 'Without dates next to signatures, “who agreed first and when” becomes a fight. Ask for a Date line under each signature.',
+          start: slots[0].start,
+          end: slots[0].end
         });
       } else if(!slots.length && hasEvidence){
+        const ev = /\bIN WITNESS\b/i.exec(text) || /\bsignature\b/i.exec(text) || /\bsigned\b/i.exec(text);
         items.push({
           label: 'Signing mentioned, but no signature lines',
-          why: 'The document talks about signing without providing lines to sign. Ask for a proper execution block.'
+          why: 'The document talks about signing without providing lines to sign. Ask for a proper execution block.',
+          ...(ev ? { start: ev.index, end: ev.index + ev[0].length } : {})
         });
       }
       return { items, count: items.length, slots: slots.length };
@@ -17557,15 +17564,20 @@
     function renderSigBlock(result){
       if(!sigBlock || !sigList || !result) return;
       if(!result.items.length){ sigBlock.hidden = true; return; }
-      const rows = result.items.map(it => (
-        '<div class="gap-row">' +
+      // Cycle #354 — findings with a location are jump targets; the
+      // "no block at all" finding has nothing to point at and stays plain.
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number';
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-sg-start="' + Math.max(0, it.start) + '" data-sg-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
           '<span class="gap-glyph mono" style="color:var(--amber)">✍️</span>' +
           '<div class="gap-body">' +
             '<div class="gap-label">' + esc(it.label) + '</div>' +
             '<div class="gap-hint">' + esc(it.why) + '</div>' +
           '</div>' +
-        '</div>'
-      )).join('');
+        '</div>';
+      }).join('');
       sigList.innerHTML = rows +
         '<div class="gap-controls"><span class="gap-count">' +
         result.slots + ' signature line' + (result.slots === 1 ? '' : 's') + ' found in the document</span></div>';
@@ -17573,6 +17585,26 @@
       if(sigNote){
         sigNote.innerHTML = '<span class="riskNote-lead">Execution check</span> ' +
           'Who signs, how many parties sign, and whether signatures carry dates — the mechanics of actually making this deal binding. Pure-local check of the document\'s signature furniture; healthy blocks stay quiet.';
+      }
+      // Delegated, once-guarded jump wiring (same contract as _rsWired).
+      if(!sigList._sgWired){
+        sigList._sgWired = true;
+        const jumpToSig = (row) => {
+          const s = parseInt(row.getAttribute('data-sg-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-sg-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Signature area highlighted in your document');
+        };
+        sigList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-sg-start]');
+          if(row) jumpToSig(row);
+        });
+        sigList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-sg-start]');
+          if(row){ e.preventDefault(); jumpToSig(row); }
+        });
       }
     }
 
@@ -22805,6 +22837,13 @@
               return '<li class="cheat-li">' + esc(((hint && hint.textContent) || '').trim().slice(0, 140)) + '</li>';
             }).join('');
           })();
+          // Cycle #354 — execution problems join the printed brief.
+          const sigLines = (function(){
+            const rows = document.querySelectorAll('#sigList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -22830,6 +22869,7 @@
               (xrefLines ? '<div class="cheat-section"><div class="cheat-section-title">Broken references (fix before signing)</div><ul style="padding-left:18px;margin:0">' + xrefLines + '</ul></div>' : '') +
               (termsLines ? '<div class="cheat-section"><div class="cheat-section-title">Undefined terms (ask for definitions)</div><ul style="padding-left:18px;margin:0">' + termsLines + '</ul></div>' : '') +
               (undatedLines ? '<div class="cheat-section"><div class="cheat-section-title">Undated obligations (ask for a deadline)</div><ul style="padding-left:18px;margin:0">' + undatedLines + '</ul></div>' : '') +
+              (sigLines ? '<div class="cheat-section"><div class="cheat-section-title">Execution problems (fix before signing)</div><ul style="padding-left:18px;margin:0">' + sigLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +

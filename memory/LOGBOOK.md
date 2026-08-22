@@ -6345,6 +6345,18 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Cycle #353 of the autonomous loop (add — last cycle polished undated jumps/cheat-sheet): move from what the document SAYS to whether it can actually be EXECUTED and enforced as binding. Next polish-cycle candidate: click-to-jump on one-sided-signature rows + cheat-sheet inclusion, completing the house pattern.
 
+## 2026-08-23 05:5x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #354 — POLISH: execution findings now jump and travel.** Completed the house pattern for the Cycle #353 signature checker:
+  - **Click-to-jump:** locatable findings (one-sided line, undated multi-party lines, signing-language-without-lines) now carry raw-text spans — slot matches point at the lone/first signature line; the evidence finding points at "IN WITNESS"/"signed". Rows with spans are keyboard-reachable jump targets (`data-sg-start`/`data-sg-end`, delegated once-guarded `_sgWired` wiring, 📍 toast); the "No signature block found" finding deliberately stays plain — there is nothing to point at.
+  - **Cheat-sheet carry-through:** "Execution problems (fix before signing)" section reads `#sigList .gap-label` lines into the printed brief.
+- Tests: structural pins for span attrs/once-guard/toast/cheat reads; behavioral asserts pin the one-sided span to the exact slot line and assert the missing-block finding has no span (by design). Off-by-one caught pre-push: slot regex matches begin at the newline before the label.
+- Gate: unit 490/490 · smoke 309 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #354 of the autonomous loop (polish — last cycle added the execution check): every lens family in ClearDoc now ships identical equipment on day one. Next add-cycle candidate: party-obligation balance reusing bearer machinery, or a negotiation-leverage checklist generator.
+
+
 
 
 
