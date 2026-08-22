@@ -6332,6 +6332,20 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Cycle #352 of the autonomous loop (polish — last cycle added the undated lens): every lens in the consistency family now has identical equipment — spans, jumps, printed brief. Next add-cycle candidate: something outside the consistency family — e.g. a "who signs what" signature-block checker, or party-obligation balance.
 
+## 2026-08-23 05:4x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #353 — ADD: execution check ("✍️ Who signs what").** New pure-local `detectSignatures(raw)` audits the document's signature block mechanics:
+  - **Slot detection:** party-labeled blank/signature lines (`Landlord: ____`, `Service Provider: ____`) via a labeled-slot regex; furniture labels (Name/Title/Date/By/Witness…) are excluded so only real party lines count.
+  - **Four findings:** contract-like text with no signature block at all · exactly one signature line (one-sided signing) · multi-party lines with no `Date:` line (undated signatures invite "who agreed first" fights) · signing language ("IN WITNESS", "signed") with no actual lines.
+  - Healthy blocks (≥2 slots + Date line) stay silent per house convention; the footer always reports how many signature lines were found.
+- Renderer reuses `.gap-row` styling under new `#sigBlock` in analyze.html; guarded call site after the undated block.
+- Tests: structural pins + behavioral test on the extracted detector covering all four findings plus the healthy-silent case (fixture includes furniture labels to prove exclusion).
+- Gate: unit 490/490 · smoke 309 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #353 of the autonomous loop (add — last cycle polished undated jumps/cheat-sheet): move from what the document SAYS to whether it can actually be EXECUTED and enforced as binding. Next polish-cycle candidate: click-to-jump on one-sided-signature rows + cheat-sheet inclusion, completing the house pattern.
+
+
 
 
 

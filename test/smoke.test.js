@@ -16608,3 +16608,66 @@ test("undated: obligations without clocks are flagged exactly", () => {
   const calm = detectUndated("The Client shall pay within 15 days. Vendor must deliver by Monday.");
   assert.equal(calm.count, 0, "clocked obligations produce no findings");
 });
+
+// Cycle #353 — signature-block mechanics: missing blocks, one-sided
+// signing lines, and undated signature lines.
+test("signatures: markup, guarded call site, and purity are in place", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const htmlSrc = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  assert.match(appSrc, /function detectSignatures\(raw\)/,
+    "the pure-local signature-block detector must exist");
+  assert.match(appSrc, /renderSigBlock\(detectSignatures\(raw\)\)/,
+    "the detector must feed the renderer in the analysis flow");
+  assert.match(htmlSrc, /id="sigBlock"/, "analyze.html must contain the execution-check block");
+  assert.match(htmlSrc, /id="sigList"/, "…and its list container");
+  const dStart = appSrc.indexOf("function detectSignatures");
+  const dBody = appSrc.slice(dStart, appSrc.indexOf("\n    }", appSrc.indexOf("return { items, count: items.length, slots: slots.length };", dStart)));
+  assert.doesNotMatch(dBody, /fetch|sendBeacon|XMLHttpRequest/,
+    "the detector is pure-local — no network calls");
+  assert.ok(appSrc.indexOf("Execution check") !== -1,
+    "the note must frame this as the mechanics of getting bound");
+});
+
+// Cycle #353 — behavioral: the REAL detector separates healthy blocks
+// from one-sided signing, undated lines, and missing execution blocks.
+test("signatures: healthy blocks stay quiet; broken ones speak up", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const start = appSrc.indexOf("const SIG_FURNITURE");
+  const retAt = appSrc.indexOf("return { items, count: items.length, slots: slots.length };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectSignatures };";
+  const { detectSignatures } = new Function(src)();
+
+  // Healthy: two party lines + a Date line → silent.
+  const healthy = detectSignatures([
+    "IN WITNESS WHEREOF, the parties have executed this Agreement.",
+    "Landlord: ____________________",
+    "Name: ____ Title: ____",
+    "Date: ____________",
+    "Tenant: ____________________"
+  ].join("\n"));
+  assert.equal(healthy.slots, 2, "party-labeled blank lines count as slots (furniture excluded)");
+  assert.equal(healthy.count, 0, "a healthy two-party block with dates stays quiet");
+
+  // One-sided: a single Consultant line.
+  const oneSided = detectSignatures([
+    "The Consultant shall provide consulting services.",
+    "Consultant: ______________________",
+    "Date: ____________"
+  ].join("\n"));
+  assert.equal(oneSided.count, 1, "one slot alone is flagged");
+  assert.match(oneSided.items[0].label, /Only one signature line/, "the finding names the problem");
+
+  // Contract-like text with zero signature furniture.
+  const none = detectSignatures("The parties agree that the Consultant shall perform the work described herein.");
+  assert.equal(none.count, 1, "a contract with no block at all is flagged");
+  assert.match(none.items[0].label, /No signature block/, "the finding says what's missing");
+
+  // Undated pair: two lines, no Date anywhere.
+  const undated = detectSignatures("Buyer: ______________\n\nSeller: ______________");
+  assert.equal(undated.count, 1, "multi-party blocks without Date lines are flagged");
+  assert.match(undated.items[0].label, /no Date line/, "the finding asks for dated signatures");
+});

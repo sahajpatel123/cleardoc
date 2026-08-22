@@ -4491,6 +4491,7 @@
           xrefBlock=$('#xrefBlock'),xrefNote=$('#xrefNote'),xrefList=$('#xrefList'),
           termsBlock=$('#termsBlock'),termsNote=$('#termsNote'),termsList=$('#termsList'),
           undatedBlock=$('#undatedBlock'),undatedNote=$('#undatedNote'),undatedList=$('#undatedList'),
+          sigBlock=$('#sigBlock'),sigNote=$('#sigNote'),sigList=$('#sigList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -17503,6 +17504,78 @@
       }
     }
 
+    // Cycle #353 — signature-block checker. A contract's signature
+    // section is where execution actually happens: a missing block, a
+    // one-sided signing line, or signature lines with no Date line all
+    // create disputes about who agreed and when. Pure-local sweep over
+    // the raw text, same house pattern as the other detectors.
+    const SIG_FURNITURE = new Set(('Name Title Date Signature Signed By Address Email Phone Print Witness Notary Acknowledged').split(/\s+/));
+    const SIG_SLOT_RE = /(?:^|\n)[ \t]*([A-Z][A-Za-z&. ]{1,30})[ \t]*:[ \t]*(?:\n?[ \t]*)?(?:_{4,}|[.·]{8,}|(?:electronically[ \t]+)?signed|signature)/gi;
+    function detectSignatures(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], count: 0, slots: 0 };
+      const slots = [];
+      let m;
+      SIG_SLOT_RE.lastIndex = 0;
+      while((m = SIG_SLOT_RE.exec(text)) !== null){
+        if(!m[0]) break;
+        const label = m[1].trim();
+        if(SIG_FURNITURE.has(label)) continue; // "Name: ____" is furniture, not a party
+        slots.push({ label, start: m.index, end: m.index + m[0].length });
+      }
+      const hasEvidence = /_{4,}/.test(text) || /\bsignature\b|\bsigned\b|\bIN WITNESS\b/i.test(text);
+      const hasDateLine = /\bdate\b[ \t]*:[ \t]*(?:_{3,})?/i.test(text);
+      const looksLikeContract = /\b(?:shall|whereas|agreement|hereby|party|parties)\b/i.test(text);
+      const items = [];
+      if(!slots.length && !hasEvidence){
+        if(looksLikeContract){
+          items.push({
+            label: 'No signature block found',
+            why: 'The document reads like a contract but has no signature lines. Ask how it gets executed — and by whom.'
+          });
+        }
+      } else if(slots.length === 1){
+        items.push({
+          label: 'Only one signature line (“' + slots[0].label + '”)',
+          why: 'One-sided signing. Ask for a matching line for the other party — or find out why only one side signs.'
+        });
+      } else if(slots.length >= 2 && !hasDateLine){
+        items.push({
+          label: 'Signature lines have no Date line',
+          why: 'Without dates next to signatures, “who agreed first and when” becomes a fight. Ask for a Date line under each signature.'
+        });
+      } else if(!slots.length && hasEvidence){
+        items.push({
+          label: 'Signing mentioned, but no signature lines',
+          why: 'The document talks about signing without providing lines to sign. Ask for a proper execution block.'
+        });
+      }
+      return { items, count: items.length, slots: slots.length };
+    }
+
+    // Cycle #353 — renderer. Reuses .gap-row styling.
+    function renderSigBlock(result){
+      if(!sigBlock || !sigList || !result) return;
+      if(!result.items.length){ sigBlock.hidden = true; return; }
+      const rows = result.items.map(it => (
+        '<div class="gap-row">' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">✍️</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>'
+      )).join('');
+      sigList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.slots + ' signature line' + (result.slots === 1 ? '' : 's') + ' found in the document</span></div>';
+      sigBlock.hidden = false;
+      if(sigNote){
+        sigNote.innerHTML = '<span class="riskNote-lead">Execution check</span> ' +
+          'Who signs, how many parties sign, and whether signatures carry dates — the mechanics of actually making this deal binding. Pure-local check of the document\'s signature furniture; healthy blocks stay quiet.';
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -18605,6 +18678,13 @@
         renderUndatedBlock(detectUndated(raw));
       } else if(undatedBlock) {
         undatedBlock.hidden = true;
+      }
+      // Cycle #353 — signature-block mechanics: who signs, how many
+      // lines, and whether they carry dates.
+      if(sigBlock && typeof detectSignatures === 'function'){
+        renderSigBlock(detectSignatures(raw));
+      } else if(sigBlock) {
+        sigBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
