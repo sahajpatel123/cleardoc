@@ -16558,6 +16558,16 @@ test("undated: markup, guarded call site, and purity are in place", () => {
     "the detector is pure-local — no network calls");
   assert.ok(appSrc.indexOf("Forever duties") !== -1,
     "the note must explain why open-ended obligations matter");
+  // Cycle #352 — rows are jump targets and the brief carries them.
+  assert.match(appSrc, /data-ud-start=/,
+    "undated rows must carry their source span for click-to-jump");
+  assert.match(appSrc, /_udWired/,
+    "the undated jump listener must be wired once (delegated)");
+  assert.ok(appSrc.indexOf("📍 Obligation highlighted in your document") !== -1,
+    "jumping must confirm with a toast like the other surfaces");
+  assert.ok(appSrc.indexOf("#undatedList .gap-row") !== -1 &&
+            appSrc.indexOf("Undated obligations (ask for a deadline)") !== -1,
+    "the printed brief must include the undated-obligations section");
 });
 
 // Cycle #351 — behavioral: the REAL detector separates clocked

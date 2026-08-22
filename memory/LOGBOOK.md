@@ -6321,6 +6321,18 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Cycle #351 of the autonomous loop (add — last cycle polished terms jumps/cheat-sheet): give the deadline surface a complement that asks not "when is it due?" but "does it EVER end?". Next polish-cycle candidate: click-to-jump + cheat-sheet inclusion for undated rows, matching the house pattern.
 
+## 2026-08-23 05:3x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #352 — POLISH: undated obligations now jump and travel.** Completed the house pattern for the Cycle #351 lens:
+  - **Click-to-jump:** rows are keyboard-reachable jump targets (`role="button"`, `data-ud-start`/`data-ud-end`) — the detector already emitted raw-text spans, so wiring was pure renderer work: delegated once-guarded listener (`_udWired`), Enter/Space parity, "📍 Obligation highlighted in your document" toast.
+  - **Cheat-sheet carry-through:** "Undated obligations (ask for a deadline)" section reads each row's quoted sentence (first `.gap-hint` per `.gap-row`, since the labels are all identical "No deadline attached") so printed/emailed briefs say exactly which duty needs a number or an exit.
+- Tests: structural pins for span attrs, once-guard, toast, and both cheat-sheet reads; behavioral span assertions from #351 carry over unchanged.
+- Gate: unit 490/490 · smoke 307 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #352 of the autonomous loop (polish — last cycle added the undated lens): every lens in the consistency family now has identical equipment — spans, jumps, printed brief. Next add-cycle candidate: something outside the consistency family — e.g. a "who signs what" signature-block checker, or party-obligation balance.
+
+
 
 
 
