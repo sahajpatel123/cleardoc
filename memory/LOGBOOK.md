@@ -6308,6 +6308,20 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Cycle #350 of the autonomous loop (polish — last cycle added the terms lens): every lens now ships the same day with jump-to-source + printed-brief carry-through, making the pattern the house standard. Next add-cycle candidate: obligation-balance meter (who must do what), or a fresh lens outside the consistency family.
 
+## 2026-08-23 05:2x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #351 — ADD: undated-obligations lens ("⏳ Forever duties").** The deadline block extracts dates; this catches its blind spot — "shall/must/agrees to" sentences carrying NO clock:
+  - `detectUndated(raw)` scans sentence-ish spans straight over raw text (so jump-ready `start`/`end` spans are free). Obligation verbs in; definitions and boilerplate grammar ("means", "governed by", "deemed") out; sentences already tied to a clock out.
+  - **Clock vocabulary is deliberately two-sided:** durations/dates/weekdays/"before" count as bounds, but "at all times" and "from time to time" do NOT — those phrases ARE the open-ended wording worth surfacing, not an escape hatch.
+  - Renderer reuses `.gap-row` styling under new `#undatedBlock` in analyze.html with amber ⏳ glyphs and per-row "ask for a number or an exit" guidance. Jump wiring + cheat-sheet carry land next cycle per the add→polish rhythm.
+- Tests: structural pins + behavioral test on the extracted detector (insurance-at-all-times and from-time-to-time flagged exactly · within-30-days/definitions/governed-by/promptly-upon skipped · exact raw-text spans · fully-clocked doc silent). Weekday names joined the bound list mid-build when the negative fixture exposed "deliver by Monday" as a false-positive class.
+- Process note: an Edit anchored mid-test split the terms test from its tail and broke the smoke file's syntax; caught immediately by node --check and repaired before any push.
+- Gate: unit 490/490 · smoke 307 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #351 of the autonomous loop (add — last cycle polished terms jumps/cheat-sheet): give the deadline surface a complement that asks not "when is it due?" but "does it EVER end?". Next polish-cycle candidate: click-to-jump + cheat-sheet inclusion for undated rows, matching the house pattern.
+
+
 
 
 

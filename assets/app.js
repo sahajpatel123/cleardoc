@@ -4490,6 +4490,7 @@
           riskMapBlock=$('#riskMapBlock'),riskMapNote=$('#riskMapNote'),riskMapList=$('#riskMapList'),
           xrefBlock=$('#xrefBlock'),xrefNote=$('#xrefNote'),xrefList=$('#xrefList'),
           termsBlock=$('#termsBlock'),termsNote=$('#termsNote'),termsList=$('#termsList'),
+          undatedBlock=$('#undatedBlock'),undatedNote=$('#undatedNote'),undatedList=$('#undatedList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -17426,6 +17427,61 @@
       }
     }
 
+    // Cycle #351 — undated-obligation lens. The deadline block extracts
+    // dates; this catches its blind spot: "shall/must" sentences with
+    // NO clock attached. A forever obligation ("maintain insurance",
+    // "keep records confidential") deserves a deadline or an exit.
+    // Pure-local sweep, same house pattern as the other detectors.
+    function detectUndated(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], count: 0 };
+      const items = [];
+      // Sentence-ish scan straight over raw text, so spans are free.
+      const sentRe = /[^.!?\n]+[.!?]?/g;
+      let m;
+      while((m = sentRe.exec(text)) !== null){
+        const s = m[0];
+        if(!s || s.trim().length < 12) continue;
+        // An obligation…
+        if(!/\b(?:shall|must|agrees? to|is required to|are required to|obligated to)\b/i.test(s)) continue;
+        // …but not definitions or boilerplate grammar.
+        if(/\b(?:means|mean\b|governed by|construed|deemed|interpreted|shall have the meaning|purpose)\b/i.test(s)) continue;
+        // …already tied to a clock → fine. Note: "from time to time"
+        // and "at all times" deliberately NOT here — those ARE the
+        // open-ended wording we want surfaced.
+        if(/\b(?:within|no later than|on or before|upon|immediately|prior to|following|after receipt|annually|monthly|quarterly|weekly|daily|business day|before|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}\s*(?:calendar |business )?(?:day|week|month|year)s?\b|(?:day|week|month|year|hour)s?\b)/i.test(s)) continue;
+        items.push({ text: s.replace(/\s+/g, ' ').trim(), start: m.index, end: m.index + s.length });
+        if(items.length >= 40) break; // defensive cap before display slice
+      }
+      return { items, count: items.length };
+    }
+
+    // Cycle #351 — renderer. Reuses .gap-row styling; jump wiring lands
+    // with the next polish cycle per the add→polish rhythm.
+    function renderUndatedBlock(result){
+      if(!undatedBlock || !undatedList || !result) return;
+      if(!result.items.length){ undatedBlock.hidden = true; return; }
+      const shown = result.items.slice(0, 6);
+      const rows = shown.map(it => (
+        '<div class="gap-row">' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">⏳</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">No deadline attached</div>' +
+            '<div class="gap-hint">“' + esc(it.text.slice(0, 200)) + (it.text.length > 200 ? '…”' : '”') + '</div>' +
+            '<div class="gap-hint">Ask for a number (“within X days”) or an exit (ends when the agreement ends).</div>' +
+          '</div>' +
+        '</div>'
+      )).join('');
+      undatedList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.count + ' obligation' + (result.count === 1 ? '' : 's') + ' with no clock on it</span></div>';
+      undatedBlock.hidden = false;
+      if(undatedNote){
+        undatedNote.innerHTML = '<span class="riskNote-lead">Forever duties</span> ' +
+          'These sentences say someone must do something — with no deadline, ever. Open-ended obligations are how small duties become permanent ones. Pure-local check; sentences already tied to a date or duration are ignored.';
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -18521,6 +18577,13 @@
         renderTermsBlock(detectTerms(raw));
       } else if(termsBlock) {
         termsBlock.hidden = true;
+      }
+      // Cycle #351 — undated obligations: "shall/must" sentences with
+      // no clock attached, the deadline block's blind spot.
+      if(undatedBlock && typeof detectUndated === 'function'){
+        renderUndatedBlock(detectUndated(raw));
+      } else if(undatedBlock) {
+        undatedBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.

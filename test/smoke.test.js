@@ -16540,3 +16540,61 @@ test("terms: usage vs definitions sorted correctly", () => {
   const calm = detectTerms("We met on Monday to discuss the project. The team was helpful.");
   assert.equal(calm.count, 0, "calendar words and one-off capitals stay quiet");
 });
+
+// Cycle #351 — undated obligations: "shall/must" sentences with no
+// clock attached. The deadline block's blind spot.
+test("undated: markup, guarded call site, and purity are in place", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const htmlSrc = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  assert.match(appSrc, /function detectUndated\(raw\)/,
+    "the pure-local undated-obligation detector must exist");
+  assert.match(appSrc, /renderUndatedBlock\(detectUndated\(raw\)\)/,
+    "the detector must feed the renderer in the analysis flow");
+  assert.match(htmlSrc, /id="undatedBlock"/, "analyze.html must contain the undated-obligations block");
+  assert.match(htmlSrc, /id="undatedList"/, "…and its list container");
+  const dStart = appSrc.indexOf("function detectUndated");
+  const dBody = appSrc.slice(dStart, appSrc.indexOf("\n    }", appSrc.indexOf("return { items, count: items.length };", dStart)));
+  assert.doesNotMatch(dBody, /fetch|sendBeacon|XMLHttpRequest/,
+    "the detector is pure-local — no network calls");
+  assert.ok(appSrc.indexOf("Forever duties") !== -1,
+    "the note must explain why open-ended obligations matter");
+});
+
+// Cycle #351 — behavioral: the REAL detector separates clocked
+// obligations, definitions, boilerplate, and genuinely open-ended ones.
+test("undated: obligations without clocks are flagged exactly", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const start = appSrc.indexOf("function detectUndated");
+  const retAt = appSrc.indexOf("return { items, count: items.length };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectUndated };";
+  const { detectUndated } = new Function(src)();
+
+  const doc = [
+    "SERVICE TERMS",
+    "1. Duties",
+    "The Consultant shall maintain insurance coverage at all times.",
+    "The Client shall pay each invoice within 30 days of receipt.",
+    "\"Services\" shall mean the consulting work described herein.",
+    "This Agreement shall be governed by Delaware law.",
+    "Vendor agrees to provide support from time to time as needed.",
+    "Both parties must comply promptly upon receiving written notice."
+  ].join("\n");
+  const r = detectUndated(doc);
+  assert.equal(r.count, 2, "only insurance + from-time-to-time lack clocks, got " +
+    r.items.map(i => i.text.slice(0, 30)).join(" | "));
+  assert.match(r.items[0].text, /maintain insurance/, "the forever duty is flagged");
+  assert.match(r.items[1].text, /from time to time/, "open-ended wording is surfaced, not treated as a bound");
+
+  // Spans land on the raw sentence for later jump wiring.
+  const insAt = doc.indexOf("The Consultant shall maintain insurance");
+  assert.equal(r.items[0].start, insAt, "spans are exact offsets into the source document");
+  assert.equal(r.items[0].end, insAt + r.items[0].text.length, "span covers the sentence including its period");
+
+  // Nothing to find → quiet.
+  const calm = detectUndated("The Client shall pay within 15 days. Vendor must deliver by Monday.");
+  assert.equal(calm.count, 0, "clocked obligations produce no findings");
+});
