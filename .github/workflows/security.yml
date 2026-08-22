@@ -198,8 +198,9 @@ jobs:
           # Detect dangerous eval/Function usage. The char before the call must
           # not be `$`, `.`, or an identifier char — Playwright's page.$eval() /
           # page.$$eval() test helpers (safe DOM query APIs) share the `eval(`
-          # substring and flooded this gate with false positives.
-          if grep -rE "(^|[^$[:alnum:]_.\"'])((eval)|(Function))[[:space:]]*\(" --include="*.js" . 2>/dev/null | grep -v "node_modules" | grep -v "// "; then
+          # substring and flooded this gate with false positives. Single-quoted:
+          # inside double quotes bash would expand `$[` as legacy arithmetic.
+          if grep -rE '(^|[^$[:alnum:]_.])(eval|Function)[[:space:]]*\(' --include='*.js' . 2>/dev/null | grep -v 'node_modules' | grep -v '// '; then
             echo "::error::Potentially dangerous eval/Function usage detected"
             exit 1
           fi
