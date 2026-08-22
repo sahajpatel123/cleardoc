@@ -16313,3 +16313,61 @@ test("exec summary: open terms surface in headline, body, and both render paths"
   assert.ok(appSrc.indexOf("' — blanks, placeholders, or TBDs — still need real values before this document is signable.'") !== -1,
     "the body must say what open terms block");
 });
+
+// Cycle #346 — polish: completeness now counts in BOTH verdict cards.
+// Readiness charges points per blank; the health check stops waving
+// blank-filled documents through as ✅ Ready.
+test("readiness + health check: open terms cost points and block 'Ready'", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  // Readiness: each open term costs one point, capped ≈ two traps.
+  assert.ok(appSrc.indexOf("const openPenalty = Math.min(10, openCount);") !== -1,
+    "readiness must apply a capped per-blank penalty");
+  assert.ok(appSrc.indexOf("Math.round(base - densityPenalty - openPenalty)") !== -1,
+    "the flagged-path score must include the open-term penalty");
+  assert.ok(appSrc.indexOf("s2 + '/100 · no risks detected · '") !== -1,
+    "a risk-free document with blanks must explain why it isn't 100");
+  // Health check: blanks stop the free pass.
+  assert.ok(/level='Review'; icon='⚠️'; tone='review';/.test(appSrc) &&
+            /level='Ready'; icon='✅'; tone='low';/.test(appSrc),
+    "the low-risk band must branch: blanks → Review, clean → Ready");
+  assert.ok(appSrc.indexOf("'No major traps detected, but ' + openCount + ' open term'") !== -1,
+    "…and its recommendation must say what still blocks signing");
+  assert.ok(appSrc.indexOf("' to fill in before signing.'") !== -1,
+    "low-risk recommendations must name remaining open terms");
+
+  // Behavioral: run the REAL computeReadinessScore against a threat-
+  // score stub with house weights (trap=10, watch=4, note=1).
+  const start = appSrc.indexOf("function computeReadinessScore(){");
+  const tail = appSrc.indexOf("detail: detailParts.join(' · ') };", start);
+  assert.ok(start >= 0 && tail > start, "readiness scorer must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, tail);
+  assert.ok(end > tail, "closing brace must be findable");
+  const fnSrc = appSrc.slice(start, end + endMark.length);
+  const src =
+    "function computeThreatScore(f){ const t={score:0,total:Array.isArray(f)?f.length:0,traps:0,watches:0,notes:0};" +
+    "(Array.isArray(f)?f:[]).forEach(x=>{ const s=x&&x.rule&&x.rule.sev; if(s==='r'){t.score+=10;t.traps++;} else if(s==='a'){t.score+=4;t.watches++;} else if(s==='g'){t.score+=1;t.notes++;} }); return t; }\n" +
+    "let lastFlags=[],lastOpenTerms=null;\n" + fnSrc +
+    "\nreturn { run:(lf,lot)=>{ lastFlags=lf; lastOpenTerms=lot; return computeReadinessScore(); } };";
+  const { run } = new Function(src)();
+  const flag = (sev) => ({ rule: { sev } });
+
+  // Truly clean → untouched perfect score and original wording.
+  const clean = run([], null);
+  assert.equal(clean.score, 100, "a clean document must keep its 100");
+  assert.equal(clean.detail, "Clean document — no risks detected", "clean wording preserved");
+
+  // Clean but 3 blanks → 97, and the breakdown says why.
+  const blanks = run([], { count: 3 });
+  assert.equal(blanks.score, 97, "each open term costs exactly one point");
+  assert.match(blanks.detail, /3 open terms unfilled/, "breakdown names the unfilled terms");
+
+  // Penalty cap: 40 blanks still cost at most 10 points.
+  assert.equal(run([], { count: 40 }).score, 90, "the open-term penalty caps at 10");
+
+  // Flagged path: two traps (base 88) minus cap-10 blanks floor.
+  const mixed = run([flag("r"), flag("r")], { count: 12 });
+  assert.equal(mixed.score, 78, "traps and blanks stack: 100 − 20×0.6 − 10");
+  assert.match(mixed.detail, /2 traps/, "flagged breakdown keeps the trap tally");
+  assert.match(mixed.detail, /12 open terms unfilled/, "flagged breakdown adds the blank tally");
+});

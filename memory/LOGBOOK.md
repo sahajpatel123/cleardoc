@@ -6250,5 +6250,17 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Cycle #345 of the autonomous loop (add — last cycle polished ask parity/cheat-sheet carry): close the gap where a blank-filled contract scored as clean; completeness now speaks in the same voice as risk. Next polish-cycle candidate: tone/icon escalation when many open terms coexist with low risk, or open terms in the readiness score.
 
+## 2026-08-23 04:3x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #346 — POLISH: completeness counts in both verdict cards.** The readiness score and health check had the same blind spot #345 fixed in the exec summary — they judged risk only, so a blank-filled contract scored 100/✅ "Ready to proceed":
+  - **Readiness score:** each open term costs one point (capped at 10 ≈ two traps' worth), stacked into the flagged-path formula (`base − density − openPenalty`), and a risk-free document with blanks no longer returns a flat 100 — it explains itself ("97/100 · no risks detected · N open terms unfilled"). Flagged breakdowns gain the same "N open terms unfilled" part.
+  - **Health check:** the zero-risk path escalates from ✅ Ready to ⚠️ Review when blanks exist ("No risks detected, but N open terms must be filled in before signing"); the low-risk band branches identically; low-risk recommendations gain "It also has N open terms to fill in before signing."; detail lines count open terms. High-risk bands unchanged (risk dominates there).
+- Tests: new behavioral test extracts the REAL computeReadinessScore and runs it against a house-weight threat-score stub (clean=100 preserved · 3 blanks→97 · cap at 10 · two traps + 12 blanks → 78) plus structural pins on both cards.
+- Gate: unit 490/490 · smoke 301 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #346 of the autonomous loop (polish — last cycle added open-terms-in-exec-summary): make every verdict surface agree — blanks now cost points and block "Ready" everywhere, not just in prose. Next add-cycle candidate: dangling cross-reference checker (Section N references that don't resolve), or defined-terms consistency lens.
+
+
 
 

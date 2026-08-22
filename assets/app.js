@@ -5334,22 +5334,38 @@
     // plus missing-section count to produce a holistic readiness score.
     function computeHealthCheck(){
       const t = (typeof computeThreatScore === 'function') ? computeThreatScore(lastFlags) : { score:0, level:'Low', total:0 };
-      if(!t.total) return { score:0, level:'Ready', icon:'✅', recommendation:'No risks detected — this contract looks clean to proceed.',
-        detail:'', tone:'low' };
+      // Cycle #346 — completeness counts: blanks/TBDs stop a risk-free
+      // document from being waved through as "Ready".
+      const openCount = (lastOpenTerms && lastOpenTerms.count) || 0;
+      if(!t.total){
+        if(!openCount) return { score:0, level:'Ready', icon:'✅', recommendation:'No risks detected — this contract looks clean to proceed.',
+          detail:'', tone:'low' };
+        return { score:0, level:'Review', icon:'⚠️', recommendation:'No risks detected, but ' + openCount + ' open term' + (openCount === 1 ? '' : 's') + ' must be filled in before signing.',
+          detail:openCount + ' open term' + (openCount === 1 ? '' : 's') + ' unfilled', tone:'review' };
+      }
       const riskCount = t.total;
       const trapCount = t.traps || 0;
       const watchCount = t.watches || 0;
       const notesCount = t.notes || 0;
+      // When risk looks low, open terms are the remaining blocker — say so.
+      const openNote = (openCount && trapCount === 0)
+        ? ' It also has ' + openCount + ' open term' + (openCount === 1 ? '' : 's') + ' to fill in before signing.'
+        : '';
       // Health score mirrors threat score thresholds but adds
       // a "missing sections" penalty using coverage if available.
       let score = t.score;
       let level, icon, recommendation, tone;
       if(trapCount === 0 && riskCount <= 2){
-        level='Ready'; icon='✅'; tone='low';
-        recommendation='This contract is ready to proceed. No major traps detected.';
+        if(openCount){
+          level='Review'; icon='⚠️'; tone='review';
+          recommendation='No major traps detected, but ' + openCount + ' open term' + (openCount === 1 ? '' : 's') + ' must be filled in before signing.';
+        } else {
+          level='Ready'; icon='✅'; tone='low';
+          recommendation='This contract is ready to proceed. No major traps detected.';
+        }
       } else if(trapCount <= 1 && riskCount <= 5){
         level='Review'; icon='⚠️'; tone='review';
-        recommendation='Review the flagged items before signing — most are manageable with a quick negotiation.';
+        recommendation='Review the flagged items before signing — most are manageable with a quick negotiation.' + openNote;
       } else if(trapCount <= 3 && riskCount <= 10){
         level='Negotiate'; icon='🤝'; tone='negotiate';
         recommendation='This contract needs active negotiation — focus on the top-priority traps first.';
@@ -5362,6 +5378,7 @@
       if(trapCount) detailParts.push(trapCount + ' trap' + (trapCount===1?'':'s'));
       if(watchCount) detailParts.push(watchCount + ' watch' + (watchCount===1?'':'es'));
       if(notesCount) detailParts.push(notesCount + ' note' + (notesCount===1?'':'s'));
+      if(openCount) detailParts.push(openCount + ' open term' + (openCount === 1 ? '' : 's') + ' unfilled');
       return { score:score, level:level, icon:icon, recommendation:recommendation, detail:detailParts.join(' · '), tone:tone };
     }
     function renderHealthCheck(){
@@ -5398,13 +5415,23 @@
     // low (≥60), medium (40-59), high (20-39), critical (<20).
     function computeReadinessScore(){
       const t = (typeof computeThreatScore === 'function') ? computeThreatScore(lastFlags) : { score:0, total:0, traps:0, watches:0, notes:0 };
+      // Cycle #346 — blanks/TBDs block signing even when risk is clean,
+      // so each open term costs a readiness point (capped at 10 ≈ two
+      // traps' worth) and shows up in the breakdown line.
+      const openCount = (lastOpenTerms && lastOpenTerms.count) || 0;
+      const openPenalty = Math.min(10, openCount);
       if(!t.total){
-        return { score:100, level:'Low', tone:'low', detail:'Clean document — no risks detected' };
+        if(!openCount){
+          return { score:100, level:'Low', tone:'low', detail:'Clean document — no risks detected' };
+        }
+        const s2 = Math.max(0, 100 - openPenalty);
+        return { score:s2, level:'Low', tone:'low',
+          detail:s2 + '/100 · no risks detected · ' + openCount + ' open term' + (openCount === 1 ? '' : 's') + ' unfilled' };
       }
       const base = Math.max(0, 100 - (t.score * 0.6));
       // Penalize dense risk clusters: more risks per trap = lower score.
       const densityPenalty = Math.min(15, (t.total - t.traps) * 0.5);
-      const score = Math.max(0, Math.min(100, Math.round(base - densityPenalty)));
+      const score = Math.max(0, Math.min(100, Math.round(base - densityPenalty - openPenalty)));
       let level, tone;
       if(score >= 60)       { level = 'Low';      tone = 'low'; }
       else if(score >= 40)  { level = 'Medium';   tone = 'medium'; }
@@ -5416,6 +5443,7 @@
       if(t.traps) detailParts.push(t.traps + ' trap' + (t.traps === 1 ? '' : 's'));
       if(t.watches) detailParts.push(t.watches + ' watch' + (t.watches === 1 ? 'es' : 'es'));
       if(t.notes) detailParts.push(t.notes + ' note' + (t.notes === 1 ? 's' : 's'));
+      if(openCount) detailParts.push(openCount + ' open term' + (openCount === 1 ? '' : 's') + ' unfilled');
       return { score, level, tone, detail: detailParts.join(' · ') };
     }
     function renderReadinessScore(){
