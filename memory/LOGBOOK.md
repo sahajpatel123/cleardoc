@@ -6284,6 +6284,20 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Cycle #348 of the autonomous loop (polish — last cycle added the xref detector): close insight-to-action (find it in your document) and insight-to-paper (show it in the brief) the same day the lens shipped. Next add-cycle candidate: defined-terms consistency lens, or obligation-balance meter.
 
+## 2026-08-23 05:0x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #349 — ADD: undefined-terms lens ("❓ Words doing heavy lifting").** New pure-local `detectTerms(raw)` catches two quiet drafting smells:
+  - **Undefined workhorses:** capitalized terms used ≥2 times mid-sentence but never defined ("Consultant", "Services") — whoever gets to explain what such a word covers later has the advantage. Definition capture handles three house styles: `"X" means…`, `(the "X")` parenthetical first-use, and unquoted `X means`; all words of a defined phrase are whitelisted.
+  - **Dead definitions:** terms formally defined but never used again — usually copy-paste leftovers from another contract (🪦 glyph).
+  - **Noise discipline:** sentence-initial capitals ignored via a mid-sentence filter (prev-char must be lowercase/comma + space); ~150-word stop list covers structure words (Section/Party/Agreement), calendar words, and generic business nouns; one-off mentions below the ≥2-use threshold stay quiet; caps 6 undefined rows + 4 dead.
+- Renderer reuses `.gap-row` styling under new `#termsBlock` in analyze.html; guarded call site after the xref block.
+- Tests: structural pins + behavioral test on the extracted detector (undefined repeat offender counted exactly · defined terms never flagged · dead vs alive definitions distinguished · calendar/one-off prose stays silent). Fixture iteration caught my own test-doc mistake (a "used" definition that never actually recurred) before it could enshrine wrong expectations.
+- Gate: unit 490/490 · smoke 305 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #349 of the autonomous loop (add — last cycle polished xref jumps/cheat-sheet): extend the document-self-consistency family (gaps → open terms → broken refs → now vocabulary). Next polish-cycle candidate: cheat-sheet inclusion for undefined terms, or click-to-jump on term rows.
+
+
 
 
 

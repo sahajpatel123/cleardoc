@@ -4489,6 +4489,7 @@
           openTermsBlock=$('#openTermsBlock'),openTermsNote=$('#openTermsNote'),openTermsList=$('#openTermsList'),
           riskMapBlock=$('#riskMapBlock'),riskMapNote=$('#riskMapNote'),riskMapList=$('#riskMapList'),
           xrefBlock=$('#xrefBlock'),xrefNote=$('#xrefNote'),xrefList=$('#xrefList'),
+          termsBlock=$('#termsBlock'),termsNote=$('#termsNote'),termsList=$('#termsList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -17304,6 +17305,99 @@
       }
     }
 
+    // Cycle #349 — defined-terms consistency lens. A capitalized term
+    // used again and again but never defined ("Consultant", "Services")
+    // invites scope arguments: whose version of what that word covers
+    // wins. The inverse smell too — a term defined but never used again
+    // usually means copy-paste from another contract. Pure-local sweep,
+    // same house pattern as detectGaps/detectOpenTerms/detectXrefs.
+    const TERM_STOP = new Set(('The This That These Those Such Each Any All Both Every Other Another Same Said Respective Following Preceding Foregoing Section Subsection Article Clause Paragraph Exhibit Schedule Appendix Annex Item Page Party Parties Person Business Company Incorporated Limited Corp Ltd LLC Llc Date Day Days Month Months Year Years Time Notice Notices Amount Fee Fees Payment Term Period Place Name Address Email Telephone Signature Witness Notary State County City Federal National Local General Part Parts Whole Total First Second Third Fourth Fifth Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October November December United States Court Act Government Governmental Department Agency Office Board Group Team Staff Employee Manager Director Officer Customer Client User Users Provider Vendor Supplier Seller Buyer Tenant Landlord Owner Agent Representative').split(/\s+/));
+    const TERM_DEF_RES = [
+      // "Services" means … / "Support" shall have the meaning set forth…
+      /["“]([A-Z][A-Za-z]{2,}(?:\s+[A-Za-z]{2,}){0,2})["”]\s*(?:\([^)]*\)\s*)?(?:means|shall mean|has the meaning|shall have the meaning|shall refer to|refers to)/g,
+      // … (the "Services") — parenthetical definition on first use
+      /\((?:the\s+)?["“]([A-Z][A-Za-z]{2,}(?:\s+[A-Za-z]{2,}){0,2})["”]\)/g,
+      // Services means … (unquoted plain form)
+      /\b([A-Z][a-z]{2,})\s+(?:means|shall mean)\s/g
+    ];
+    function detectTerms(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], count: 0, dead: [], deadCount: 0 };
+      const definedWords = new Set();
+      for(const re of TERM_DEF_RES){
+        re.lastIndex = 0;
+        let m;
+        while((m = re.exec(text)) !== null){
+          if(!m[0]) break;
+          String(m[1]).split(/\s+/).forEach(w => definedWords.add(w));
+        }
+        re.lastIndex = 0;
+      }
+      // Count mid-sentence capitalized tokens: preceded by whitespace
+      // whose char before it is a lowercase letter or comma. Sentence-
+      // initial capitals are ignored — every line would otherwise match.
+      const uses = {};
+      const tokRe = /\b([A-Z][a-z]{2,})\b/g;
+      let t;
+      while((t = tokRe.exec(text)) !== null){
+        const at = t.index;
+        const prev = text.slice(Math.max(0, at - 2), at);
+        if(!/^[a-z,]\s$/.test(prev || '')) continue;
+        const w = t[1];
+        if(TERM_STOP.has(w) || definedWords.has(w)) continue;
+        uses[w] = (uses[w] || 0) + 1;
+      }
+      const items = Object.keys(uses)
+        .filter(w => uses[w] >= 2)
+        .sort((a, b) => uses[b] - uses[a])
+        .slice(0, 6)
+        .map(w => ({ term: w, uses: uses[w] }));
+      // Dead definitions: formally defined but never used again.
+      const dead = [];
+      for(const w of definedWords){
+        const re = new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g');
+        let n = 0;
+        let dm;
+        while((dm = re.exec(text)) !== null){ n++; if(n > 1) break; }
+        if(n <= 1 && dead.length < 4) dead.push(w);
+      }
+      return { items, count: items.length, dead, deadCount: dead.length };
+    }
+
+    // Cycle #349 — renderer. Reuses .gap-row styling (kinship with the
+    // other incompleteness surfaces).
+    function renderTermsBlock(result){
+      if(!termsBlock || !termsList || !result) return;
+      if(!result.items.length && !result.deadCount){ termsBlock.hidden = true; return; }
+      const rows = result.items.map(it => (
+        '<div class="gap-row" title="This term is used repeatedly but never defined">' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">❓</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label"><code>' + esc(it.term) + '</code> — used ' + it.uses + ' times, never defined</div>' +
+            '<div class="gap-hint">Whoever gets to explain what this word covers later has the advantage. Ask for a definition (“' + esc(it.term) + '” means …).</div>' +
+          '</div>' +
+        '</div>'
+      )).concat(result.dead.map(w => (
+        '<div class="gap-row" title="This term is defined but never used">' +
+          '<span class="gap-glyph mono">🪦</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label"><code>' + esc(w) + '</code> — defined but never used</div>' +
+            '<div class="gap-hint">Often a leftover from another contract. Ask whether whole sections were copied over.</div>' +
+          '</div>' +
+        '</div>'
+      ))).join('');
+      termsList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.count + ' undefined term' + (result.count === 1 ? '' : 's') +
+        (result.deadCount ? ' · ' + result.deadCount + ' unused definition' + (result.deadCount === 1 ? '' : 's') : '') +
+        '</span></div>';
+      termsBlock.hidden = false;
+      if(termsNote){
+        termsNote.innerHTML = '<span class="riskNote-lead">Words doing heavy lifting</span> ' +
+          'Capitalized terms that appear again and again are meant to be defined — when they are not, each side can argue for the meaning that suits it. Pure-local check; proper nouns and one-off mentions are ignored.';
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -18392,6 +18486,13 @@
         renderXrefBlock(detectXrefs(raw));
       } else if(xrefBlock) {
         xrefBlock.hidden = true;
+      }
+      // Cycle #349 — defined-terms consistency: capitalized terms used
+      // repeatedly but never defined (and definitions never used).
+      if(termsBlock && typeof detectTerms === 'function'){
+        renderTermsBlock(detectTerms(raw));
+      } else if(termsBlock) {
+        termsBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.

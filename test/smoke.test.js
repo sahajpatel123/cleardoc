@@ -16458,3 +16458,66 @@ test("xref: references resolve against real headers (roman ↔ arabic)", () => {
   const plain = detectXrefs("Please review paragraph three of the attached letter.");
   assert.equal(plain.count, 0, "documents without section headers produce no findings");
 });
+
+// Cycle #349 — defined-terms consistency: capitalized terms used
+// repeatedly but never defined (and dead definitions never used).
+test("terms: markup, guarded call site, and purity are in place", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const htmlSrc = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  assert.match(appSrc, /function detectTerms\(raw\)/,
+    "the pure-local defined-terms detector must exist");
+  assert.match(appSrc, /renderTermsBlock\(detectTerms\(raw\)\)/,
+    "the detector must feed the renderer in the analysis flow");
+  assert.match(htmlSrc, /id="termsBlock"/, "analyze.html must contain the undefined-terms block");
+  assert.match(htmlSrc, /id="termsList"/, "…and its list container");
+  const dStart = appSrc.indexOf("function detectTerms");
+  const dBody = appSrc.slice(dStart, appSrc.indexOf("\n    }", appSrc.indexOf("return { items, count: items.length, dead, deadCount: dead.length };", dStart)));
+  assert.doesNotMatch(dBody, /fetch|sendBeacon|XMLHttpRequest/,
+    "the detector is pure-local — no network calls");
+  assert.ok(appSrc.indexOf("Words doing heavy lifting") !== -1,
+    "the note must explain why undefined terms matter");
+});
+
+// Cycle #349 — behavioral: the REAL detector separates defined terms,
+// undefined repeat offenders, proper nouns, and dead definitions.
+test("terms: usage vs definitions sorted correctly", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const start = appSrc.indexOf("const TERM_STOP");
+  const retAt = appSrc.indexOf("return { items, count: items.length, dead, deadCount: dead.length };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectTerms };";
+  const { detectTerms } = new Function(src)();
+
+  const doc = [
+    "CONSULTING AGREEMENT",
+    "The Consultant shall provide consulting services to the Client.",
+    "\"Contractor\" means the entity retained under this agreement, and",
+    "\"Successor\" means any successor in interest.",
+    "The Consultant will invoice the Client monthly, and the Client must pay",
+    "each invoice. The Consultant keeps records while the Contractor works."
+  ].join("\n");
+  const r = detectTerms(doc);
+  const terms = r.items.map(i => i.term);
+  // "Consultant" appears mid-sentence 3 times and is never defined.
+  assert.ok(terms.indexOf("Consultant") !== -1, "a repeated undefined term must be flagged");
+  const consultant = r.items.find(i => i.term === "Consultant");
+  assert.equal(consultant.uses, 3, "mid-sentence uses are counted exactly");
+  // "Contractor" is defined via quoted-means → not flagged.
+  assert.ok(terms.indexOf("Contractor") === -1, "defined terms are never flagged");
+  // Sentence-initial capitals don't count ("CONSULTING" is all-caps;
+  // the first word of each line is ignored by the mid-sentence filter)
+  // and structure words like Agreement/Party are on the stop list.
+  const stopSample = ["Agreement", "Client", "Party", "Section", "Date"];
+  assert.ok(!r.items.some(i => stopSample.indexOf(i.term) !== -1),
+    "stop-listed and defined words never surface as findings: got " + terms.join(","));
+  // Dead definition: Successor is defined but used nowhere else.
+  assert.ok(r.dead.indexOf("Successor") !== -1, "a defined-but-unused term lands in the dead list");
+  assert.equal(r.dead.indexOf("Contractor"), -1, "definitions that get reused are not dead");
+
+  // Clean prose: months, single mentions → nothing flagged.
+  const calm = detectTerms("We met on Monday to discuss the project. The team was helpful.");
+  assert.equal(calm.count, 0, "calendar words and one-off capitals stay quiet");
+});
