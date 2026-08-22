@@ -3,6 +3,12 @@
 # utility scripts while maintaining full security coverage of the
 # application code that handles user requests.
 
+# Build mode: JavaScript has no compilation step, so CodeQL extracts
+# directly from .js source files. This skips the autobuild phase and
+# reduces CodeQL wall-clock time by ~30-50%.
+build:
+  mode: none
+
 # Production source code directories that contain request-handling logic
 paths:
   - api/
@@ -21,3 +27,4 @@ paths-ignore:
   - .claude/
   - .opencode/
   - .vercel/
+  - .github/

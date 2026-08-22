@@ -354,6 +354,11 @@ if [ -f .github/codeql/codeql-config.yml ] && grep -q "paths:" .github/codeql/co
 else
     check_fail "CodeQL config file must define paths and paths-ignore sections"
 fi
+if [ -f .github/codeql/codeql-config.yml ] && grep -q "mode: none" .github/codeql/codeql-config.yml; then
+    check_pass "CodeQL config uses build mode: none for JavaScript (no compilation step)"
+else
+    check_info "CodeQL config could set build mode: none for faster JS analysis"
+fi
 
 # 3r. Verify syntax + JSON validation gates stay wired into CI
 echo ""
@@ -474,7 +479,9 @@ if [ -f .github/workflows/security.yml ] && grep -B5 "audit-level=low" .github/w
 else
     check_fail "Full-spectrum audit must be non-blocking with continue-on-error"
 fi
-if [ -f .github/workflows/security.yml ] && grep -A3 "Full-spectrum vulnerability audit" .github/workflows/security.yml | grep -q -- "--json"; then
+# Wider window (-A15): comment blocks legitimately sit between the step
+# name and its run script, so a narrow -A3 misses the --json flag.
+if [ -f .github/workflows/security.yml ] && grep -A15 "Full-spectrum vulnerability audit" .github/workflows/security.yml | grep -q -- "--json"; then
     check_pass "Full-spectrum audit parses JSON output for structured severity summary"
 else
     check_fail "Full-spectrum audit should use --json with severity summary parsing"

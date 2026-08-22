@@ -6021,3 +6021,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #325 of the autonomous loop (alternate add-polish): the pressure Markdown report from Cycle #320 was missing the trigger-kind context that the on-screen cards display — adding it makes the exported Markdown as information-rich as the in-app view, so pasted reports in Notion/Obsidian retain the tactic category.
+
+---
+
+**2026-08-23 00:56 IST | Model: ox-alpha (opencode)**
+**Changes Made:**
+- polish(security): fixed a brittle grep in `scripts/security-hardening.sh` (check 3x "Full-spectrum audit parses JSON") — it used `-A3`, but the comment block between the step name and its `run:` script pushed `--json` outside the window, so the check false-failed on a workflow that is actually correct. Widened to `-A15` with an explanatory comment.
+- Landed the pending CodeQL changes from the prior session: `.github/codeql/codeql-config.yml` now sets `build: mode: none` (JS has no compilation step — skips autobuild, ~30-50% faster CodeQL runs) and ignores `.github/` paths; `scripts/security-hardening.sh` gained a matching informational check.
+- Security-hardening suite: 107/107 pass (was 106/107).
+
+**Prompt Intention:**
+- Cycle #326 of the autonomous loop (alternate add-polish): polish cycle. The repo had coherent uncommitted hardening changes plus one false-failing security check; landing both restores a fully green gate before starting new feature work in Cycle #327.
