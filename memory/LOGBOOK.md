@@ -6238,4 +6238,17 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Cycle #344 of the autonomous loop (polish — last cycle added the ask buttons/callout): make new surfaces indistinguishable from the house-standard ones (a11y + focus) and make their insight survive printing. Next add-cycle candidate: open terms folded into exec-summary aggregates, or a fresh analytical lens.
 
+## 2026-08-23 04:2x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #345 — ADD: the executive summary now counts what blocks signing.** Open terms (blanks, `____` stubs, `[PLACEHOLDER]` brackets, TBDs — the Cycle #337 detector) are folded into `buildExecSummary` via a new `lastOpenTerms` state var:
+  - **Headline honesty:** a zero-risk contract with blanks no longer claims "appears ready for review" — it says "No significant risks identified, but N open terms must be filled in before signing." The truly-ready variant is preserved for genuinely clean documents.
+  - **Body line at every severity:** "⚠ N open terms — blanks, placeholders, or TBDs — still need real values before this document is signable." rides between the watch-point sentence and the fingerprint footer, so it flows into the exec-summary copy button too.
+- State plumbing mirrors the house pattern: computed once in both paths that paint the summary (fresh `render()` right after `lastRaw=raw`; `paintStoredSnapshot()` for shared/reloaded analyses), cleared on the clear button.
+- Smoke tests: structural pins cover the declaration, both compute sites, clear-path reset, both headline variants, and the body line.
+- Gate: unit 490/490 · smoke 300 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #345 of the autonomous loop (add — last cycle polished ask parity/cheat-sheet carry): close the gap where a blank-filled contract scored as clean; completeness now speaks in the same voice as risk. Next polish-cycle candidate: tone/icon escalation when many open terms coexist with low risk, or open terms in the readiness score.
+
+
 

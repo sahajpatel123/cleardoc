@@ -16289,3 +16289,27 @@ test("risk map ask: aria parity, focus ring, cheat-sheet start-here line", () =>
   assert.ok(appSrc.indexOf("getAttribute('data-worst-section')") !== -1,
     "the cheat sheet must read the stamped attribute");
 });
+
+// Cycle #345 — the executive summary now counts what blocks signing:
+// open terms shape both the zero-risk headline and the body narrative.
+test("exec summary: open terms surface in headline, body, and both render paths", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  // State rides with the other last* variables and is computed in both
+  // paths that paint the summary (fresh render + restored snapshot).
+  assert.match(appSrc, /let lastOpenTerms=null;/,
+    "open-terms state must live beside lastFlags/lastRaw");
+  assert.ok(appSrc.indexOf("? detectOpenTerms(raw) : null") !== -1,
+    "the fresh-render path must compute open terms before renderExecSummary");
+  assert.ok(appSrc.indexOf("? detectOpenTerms(lastRaw) : null") !== -1,
+    "the snapshot-restore path must compute open terms too");
+  assert.ok(appSrc.indexOf("lastFlags=[]; lastRaw=''; lastOpenTerms=null;") !== -1,
+    "clearing the analysis must drop the open-terms state");
+  // Headline honesty: zero risk + blanks is NOT "ready for review".
+  assert.ok(appSrc.indexOf("'No significant risks identified, but ' + openCount + ' open term'") !== -1,
+    "a clean contract with blanks must not claim it's ready for review");
+  assert.ok(appSrc.indexOf("'No significant risks identified. This contract appears ready for review.'") !== -1,
+    "the truly-ready headline variant must remain");
+  // Body carries the actionable line in every severity case.
+  assert.ok(appSrc.indexOf("' — blanks, placeholders, or TBDs — still need real values before this document is signable.'") !== -1,
+    "the body must say what open terms block");
+});
