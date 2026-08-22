@@ -1485,6 +1485,9 @@ button.risk-preview:hover{filter:brightness(.96)}
    deadline reads at a glance (print rules later force white bg). */
 .deadline-row.deadline-overdue{background:var(--danger-tint);border-color:var(--danger)}
 .deadline-overdue-tag{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--danger);border:1px solid var(--danger);padding:2px 6px;flex:0 0 auto;align-self:center;white-space:nowrap}
+/* Cycle #339 — weekend deadline tag: same shape as the overdue tag,
+   amber instead of red (a warning to act early, not a miss). */
+.deadline-weekend-tag{font-family:'JetBrains Mono',monospace;font-size:var(--t-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);border:1px solid var(--amber);padding:2px 6px;flex:0 0 auto;align-self:center;white-space:nowrap}
 .deadline-date{font-family:'JetBrains Mono';font-size:var(--t-meta);font-weight:700;color:var(--danger);white-space:nowrap;flex:0 0 auto;min-width:120px}
 .deadline-desc{font-size:var(--t-card);line-height:1.4;color:var(--ink-soft)}
 .deadline-copy{font-family:'JetBrains Mono',monospace;font-size:var(--t-meta);background:none;border:1px solid var(--ink-soft);color:var(--ink-soft);cursor:pointer;margin-left:auto;flex:0 0 auto;padding:2px 8px;transition:background .15s,color .15s}

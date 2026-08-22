@@ -16065,3 +16065,61 @@ test("open terms: export surface matches house CSV/MD conventions and feeds the 
   assert.ok(appSrc.indexOf("Open terms (fill before signing)") !== -1,
     "the cheat sheet must include an Open terms section");
 });
+
+// Cycle #339 — weekend-aware deadline warnings: a deadline printed as
+// Saturday/Sunday is tagged "act by Friday" because offices are closed.
+test("deadlines: weekend dates carry an act-by-Friday warning", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  assert.match(appSrc, /const weekendInfo = \(dateStr\) =>/,
+    "the weekend helper must exist beside the other deadline math");
+  assert.match(appSrc, /deadline-weekend-tag/,
+    "deadline rows must render a weekend tag");
+  assert.ok(appSrc.indexOf("treat Friday as the real deadline") !== -1,
+    "the deadline note must explain the weekend rule");
+  assert.match(cssSrc, /\.deadline-weekend-tag\{/,
+    "theme.css must style the weekend tag");
+  // The weekday must be read in UTC on the parsed plain YYYY-MM-DD
+  // string so the calendar date cannot shift with the viewer's timezone
+  // (same convention as the preserved ICS/date-key conversions).
+  const start = appSrc.indexOf("const weekendInfo = (dateStr) => {");
+  const endMark = "\n      };";
+  const body = appSrc.slice(start, appSrc.indexOf(endMark, start) + endMark.length);
+  assert.ok(body.indexOf("getUTCDay()") !== -1,
+    "weekday must come from getUTCDay(), not local getDay()");
+});
+
+// Cycle #339 — behavioral check: the real helper is extracted and run
+// against actual calendar dates computed inside this test, so it stays
+// correct no matter when it runs.
+test("deadlines: weekendInfo flags true weekends and passes weekdays through", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const start = appSrc.indexOf("const weekendInfo = (dateStr) => {");
+  const endMark = "\n      };";
+  const src = appSrc.slice(start, appSrc.indexOf(endMark, start) + endMark.length)
+    + "\n return weekendInfo;";
+  assert.ok(start >= 0, "weekendInfo source must be present to extract");
+  const weekendInfo = new Function(src)();
+
+  // Find the next true Saturday and Sunday after a fixed anchor date.
+  function nextDow(anchor, dow) {
+    const d = new Date(anchor + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + ((dow - d.getUTCDay() + 7) % 7 || 7));
+    return d.toISOString().slice(0, 10);
+  }
+  const sat = nextDow("2026-01-01", 6); // 2026-01-01 is a Thursday → first Saturday
+  const sun = nextDow("2026-01-01", 0); // …and first Sunday
+  const wed = nextDow("2026-01-01", 3); // …and first Wednesday
+
+  const rSat = weekendInfo(sat);
+  assert.ok(rSat && rSat.dayName === "Saturday",
+    sat + " must be flagged Saturday, got " + JSON.stringify(rSat));
+  assert.equal(rSat.actBy, "Friday", "Saturday's act-by day must be Friday");
+  const rSun = weekendInfo(sun);
+  assert.ok(rSun && rSun.dayName === "Sunday" && rSun.actBy === "Friday",
+    sun + " must be flagged Sunday / act by Friday");
+
+  assert.equal(weekendInfo(wed), null, wed + " is a Wednesday — no tag");
+  assert.equal(weekendInfo(""), null, "empty input yields no tag");
+  assert.equal(weekendInfo("not-a-date"), null, "garbage input yields no tag");
+});

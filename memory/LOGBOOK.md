@@ -6173,3 +6173,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #338 of the autonomous loop (polish — last cycle added the Open terms detector): give the new finding its full export surface so it works everywhere ClearDoc findings already travel — spreadsheets, files, and the printable cheat sheet. Next add-cycle candidate: wire open terms into the exec-summary/receipt aggregates or a browser-gated Playwright test for the block.
+
+## 2026-08-23 03:26 | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #339 — ADD: weekend-aware deadline warnings.** A deadline printed as Saturday or Sunday is a quiet trap of its own — offices are closed, and a window that "ends Saturday" really ends Friday. New `weekendInfo()` helper beside the other deadline math reads the weekday via `getUTCDay()` on the parsed plain YYYY-MM-DD string, so the calendar date cannot shift with the viewer's timezone (same UTC convention as the preserved ICS/date-key conversions from Cycle #336).
+- Deadline rows now carry an amber **🗓 SATURDAY — ACT BY FRI** tag (same shape as the overdue tag, amber instead of red: a warning to act early, not a miss), with the full advice in the tooltip. Deadline block note explains the rule.
+- Both weekend days share Friday as the last business day before — erring early is the safe direction when deciding whether you can still sign, serve notice, or cancel.
+- Tests: structural (helper exists, tag rendered, note updated, CSS class present, getUTCDay-not-getDay pinned) + behavioral (real helper extracted and run against dynamically computed next-Saturday/Sunday/Wednesday dates — correct forever, plus empty/garbage input guards).
+- Gate: unit 490/490 · smoke 294 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #339 of the autonomous loop (add — last cycle polished Open terms exports): scope-checked draft autosave (exists), version history (exists), section-risk mapping (viable future add), and chose weekend-awareness as a genuinely missing, high-delight, pure-local completion of the deadline feature. Next polish-cycle candidate: surface weekend tags in the alert banner + digest/email exports.

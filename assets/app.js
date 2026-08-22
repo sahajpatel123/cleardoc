@@ -8365,6 +8365,23 @@
         if(isNaN(dt.getTime())) return null;
         return Math.round((dt.getTime() - now.getTime()) / 86400000);
       };
+      // Cycle #339 — weekend awareness: a deadline printed as Saturday
+      // or Sunday is a quiet trap of its own — offices are closed, and
+      // a window that "ends Saturday" really ends Friday. Weekday is
+      // read via getUTCDay on the parsed plain YYYY-MM-DD string, so
+      // the calendar date cannot shift with the viewer's timezone.
+      //   weekendInfo('2026-08-22') → { dayName:'Saturday', actBy:'Friday' }
+      //   weekendInfo('2026-08-19') → null (a Wednesday)
+      const weekendInfo = (dateStr) => {
+        const dt = new Date((dateStr || '') + 'T00:00:00Z');
+        if(isNaN(dt.getTime())) return null;
+        const day = dt.getUTCDay();
+        if(day !== 0 && day !== 6) return null;
+        // Both weekend days share the same last business day before:
+        // Friday. Erring early is the safe direction when deciding
+        // whether you can still sign, serve notice, or cancel.
+        return { dayName: day === 6 ? 'Saturday' : 'Sunday', actBy: 'Friday' };
+      };
       const overdue = items.filter(it => {
         const d = dayDiff(it.date);
         return d !== null && d < 0;
@@ -8514,6 +8531,12 @@
         // deadline reads at a glance (mirrors the alert + dp-past band).
         const d = dayDiff(it.date);
         const isOverdue = d !== null && d < 0;
+        // Cycle #339 — weekend tag: "2026-09-05" reads harmless until
+        // you notice it's a Saturday. Act-by advice sits in the tooltip.
+        const wknd = weekendInfo(it.date);
+        const wkTag = wknd
+          ? '<span class="deadline-weekend-tag" title="Offices are closed on ' + wknd.dayName + ' — treat ' + wknd.actBy + ' as the real deadline">🗓 ' + esc(wknd.dayName) + ' — act by ' + wknd.actBy + '</span>'
+          : '';
         // Cycle #192 — the copy carries the countdown so a pasted
         // deadline reads as urgent ("in 7 days") without reopening the app.
         const cd = (countdown(it.date) || '').trim();
@@ -8527,6 +8550,7 @@
           // of five loose siblings fighting for margin space.
           '<span class="deadline-actions">' +
             (isOverdue ? '<span class="deadline-overdue-tag">⚠ overdue</span>' : '') +
+            wkTag +
             '<button type="button" class="deadline-ics ghost-btn ghost-btn-sm" data-deadline-ics="' + esc(it.date) + '" title="Save to your calendar">📅 ics</button>' +
             '<a class="deadline-gcal ghost-btn ghost-btn-sm" href="' + esc(gcalHref) + '" target="_blank" rel="noopener noreferrer" title="Add this deadline to Google Calendar" aria-label="Add deadline ' + esc(it.date) + ' to Google Calendar">🌐 gcal</a>' +
             '<button type="button" class="deadline-ask ghost-btn ghost-btn-sm" data-deadline-ask="' + esc(it.sentence || it.date || '') + '" data-deadline-date="' + esc(it.date || '') + '" data-deadline-type="' + (isM ? 'obligated' : 'scheduled') + '" title="Ask about this deadline" aria-label="Ask about this deadline">💬</button>' +
@@ -8567,7 +8591,7 @@
         const mandated = items.filter(it => /\(obligated\)/.test(it.verb)).length;
         deadlineNote.innerHTML = '<span class="riskNote-lead">' + items.length + ' deadline' + (items.length === 1 ? '' : 's') + ' extracted</span> · ' +
           '<b>' + mandated + ' mandatory</b> (shall deliver by / shall be made by) · rest are scheduled milestones. ' +
-          'Each row shows a countdown (in 7 days / today / 3 days ago). Click 📅 to save a calendar event, <b>🌐 gcal</b> to add it to Google Calendar, <b>💬</b> to ask about it, <b>⇅</b> to sort by date (soonest first), or <b>📋 copy all</b> / <b>📊 CSV</b> / <b>📅 all .ics</b> to export the list.';
+          'Each row shows a countdown (in 7 days / today / 3 days ago). Deadlines that land on a weekend are tagged — treat Friday as the real deadline. Click 📅 to save a calendar event, <b>🌐 gcal</b> to add it to Google Calendar, <b>💬</b> to ask about it, <b>⇅</b> to sort by date (soonest first), or <b>📋 copy all</b> / <b>📊 CSV</b> / <b>📅 all .ics</b> to export the list.';
       }
       // Cycle #234 — sort toggle (persisted like the filter).
       const sortBtn = document.getElementById('deadlineSortBtn');
