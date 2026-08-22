@@ -20310,6 +20310,14 @@
     // clauses, or file names. Rendered as inline SVG → canvas → PNG with
     // a .svg download fallback; system fonts only so rasterization never
     // depends on network font loads.
+    // Cycle #334 — local-date stamp for every card surface. toISOString()
+    // is UTC: an IST user analyzing at 02:00 wore yesterday's date on the
+    // displayed card and its filename. Deadlines and reminder logic already
+    // stamp locally — cards now match them.
+    function _cardLocalStamp(){
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
     function buildVerdictCardSvg(){
       const vLabelEl = verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-label');
       const verdict = (vLabelEl && vLabelEl.textContent || '').trim() || 'Analysis complete';
@@ -20329,7 +20337,7 @@
         '<rect x="24" y="24" width="1152" height="582" fill="none" stroke="#14120E" stroke-width="4"/>' +
         '<rect x="24" y="540" width="1152" height="66" fill="#14120E"/>' +
         '<text x="56" y="86" font-family="Menlo,Consolas,monospace" font-size="22" letter-spacing="6" fill="#FF3B00">// VERDICT</text>' +
-        '<text x="1144" y="86" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="20" fill="#14120E" opacity="0.7">' + escS(new Date().toISOString().slice(0,10)) + '</text>' +
+        '<text x="1144" y="86" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="20" fill="#14120E" opacity="0.7">' + escS(_cardLocalStamp()) + '</text>' +
         '<text x="56" y="290" font-family="\'Arial Black\',Impact,sans-serif" font-size="' + (verdict.length > 18 ? 64 : 96) + '" fill="' + toneColor + '">' + escS(verdict.slice(0, 60)) + '</text>' +
         '<rect x="56" y="330" width="180" height="8" fill="' + toneColor + '"/>' +
         '<text x="56" y="420" font-family="Menlo,Consolas,monospace" font-size="34" fill="#14120E">' +
@@ -20361,7 +20369,7 @@
         return;
       }
       const btn = document.getElementById('verdictCardBtn');
-      const stamp = new Date().toISOString().slice(0,10);
+      const stamp = _cardLocalStamp();
       const flash = (ok) => { if(btn) flashButton(btn, ok ? '✓ downloaded' : 'failed', ok ? 1400 : 1800); };
       // Preferred path: rasterize to PNG via the shared builder.
       try {
@@ -20403,7 +20411,7 @@
       let blob = null;
       try { blob = await buildVerdictCardPng(); }
       catch(e){ console.warn('[verdict-card-share] PNG build failed', e); }
-      const stamp = new Date().toISOString().slice(0,10);
+      const stamp = _cardLocalStamp();
       if(blob && navigator.canShare){
         try {
           const file = new File([blob], 'cleardoc-verdict-' + stamp + '.png', { type: 'image/png' });

@@ -6117,3 +6117,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #333 of the autonomous loop (add — last cycle was polish): Cycle #327 put a share sheet in the toolbar and #331 built a shareable image, but the card could only be DOWNLOADED — a save-then-hunt-for-the-file dance on mobile. This closes the loop: the exact image goes straight into iMessage/WhatsApp/AirDrop where sharing actually happens.
+
+---
+
+**2026-08-23 02:41 IST | Model: ox-alpha (opencode)**
+**Changes Made:**
+- polish(share): all three verdict-card surfaces (the SVG's displayed date, the download filename, the share filename) now stamp the LOCAL date via a shared `_cardLocalStamp()` helper instead of `toISOString().slice(0,10)`, which is UTC — an IST user analyzing at 02:00 was wearing yesterday's date on a card they'd share publicly. Deadline/reminder logic already stamped locally; cards now match. Static test pins the helper's existence and asserts zero UTC stamps anywhere in the card region.
+- Scope note for a future cycle: ~25 other `toISOString().slice(0,10)` call sites exist across app.js (older export paths). Same class of bug; left untouched this cycle to keep the change scoped to the card feature.
+- Gate: unit 490/490 · smoke 287 pass / 0 fail / 140 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #334 of the autonomous loop (polish — last cycle added card sharing): the card is the artifact users attach to public conversations; a visibly wrong date on it is a credibility leak. One shared helper, three surfaces, test-enforced so the UTC pattern can't creep back into the card.

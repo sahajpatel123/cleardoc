@@ -13818,6 +13818,13 @@ test("analyzer: verdict card renders aggregate stats only and downloads as PNG",
     "the tone map must match theme.css verdict-label colors exactly");
   assert.match(appSrc, /vLabelEl\.className\) \|\| ''\)\.match\(|fair\|review\|suspicious\|illegal/,
     "the tone must come from the rendered verdict-label classes");
+  // Cycle #334 polish — every card surface stamps LOCAL date, not UTC
+  // (toISOString() wore yesterday's date for late-evening users).
+  assert.match(appSrc, /function _cardLocalStamp\(\)/, "the shared local-date helper must exist");
+  const cardRegion = appSrc.slice(appSrc.indexOf("function _cardLocalStamp()"), appSrc.indexOf("async function nativeShareAnalysis(){"));
+  assert.ok(cardRegion.includes("buildVerdictCardSvg"), "card region bounds must be locatable");
+  assert.doesNotMatch(cardRegion, /toISOString\(\)\.slice\(0, ?10\)/,
+    "no card surface may stamp dates in UTC");
   // Privacy by construction: nothing inside the card builder may touch
   // document-derived content (raw text, flagged clauses, file names).
   const start = appSrc.indexOf("function buildVerdictCardSvg()");
