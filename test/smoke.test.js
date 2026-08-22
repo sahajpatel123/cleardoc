@@ -15961,3 +15961,75 @@ test("dark mode: every public page loads the head script + toggle, and CSS/JS ar
     "un-tinted risk rows must be raised without killing severity tints");
   assert.match(cssSrc, /\.theme-toggle\{/, "theme.css must style the toggle button");
 });
+
+// Cycle #337 — open-terms detector: unfilled blanks and placeholders
+// ("____", "[insert date]", "TBD") get surfaced before signing, because
+// a term nobody wrote down is a term the other side can fill in later.
+test("open terms: markup, wiring, and renderer are all in place", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const htmlSrc = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  assert.match(appSrc, /const OPEN_TERM_PATTERNS = \[/,
+    "the open-term pattern table must exist");
+  assert.match(appSrc, /function detectOpenTerms\(raw\)/,
+    "the pure-local open-terms detector must exist");
+  // All four placeholder classes are covered by the pattern table.
+  assert.match(appSrc, /re: \/_\{3,\}\/g/, "underscore blanks must be detected");
+  assert.match(appSrc, /insert\|fill in\|to be\|specify/,
+    "bracketed [insert …]-style placeholders must be detected");
+  assert.ok(appSrc.indexOf("TO BE (?:DETERMINED|ADVISED|NEGOTIATED") !== -1,
+    "TBD/TBA/'to be determined' phrases must be detected");
+  assert.match(appSrc, /\$\\s\?XX\+/, "stub values like $XX/XX% must be detected");
+  // Wiring: rendered into its block from the analysis flow + a
+  // next-steps action so the finding turns into something to do.
+  assert.match(appSrc, /renderOpenTermsBlock\(detectOpenTerms\(raw\)\)/,
+    "the detector must feed the renderer in the analysis flow");
+  assert.match(appSrc, /function renderOpenTermsBlock\(result\)/,
+    "the renderer must exist");
+  assert.match(appSrc, /Fill in every open term/,
+    "next-steps must include a fill-the-blanks action");
+  assert.match(htmlSrc, /id="openTermsBlock"/,
+    "analyze.html must contain the Open terms block");
+  assert.match(htmlSrc, /id="openTermsList"/,
+    "the block must have its list container");
+  // Display cap so a blank-riddled document cannot flood the UI.
+  const start = appSrc.indexOf("function renderOpenTermsBlock");
+  const body = appSrc.slice(start, appSrc.indexOf("\n    }", start));
+  assert.match(body, /slice\(0, ?8\)/, "the renderer must cap visible rows");
+  // Privacy-by-construction: the detector never touches the network.
+  const dStart = appSrc.indexOf("function detectOpenTerms");
+  const dBody = appSrc.slice(dStart, appSrc.indexOf("\n    }", dStart));
+  assert.doesNotMatch(dBody, /fetch|sendBeacon|XMLHttpRequest/,
+    "the detector is pure-local — no network calls");
+});
+
+// Cycle #337 — behavioral check: the real pattern table is extracted
+// from app.js and executed so the detection rules themselves are
+// exercised, not just their source text.
+test("open terms: the detector actually finds blanks, placeholders, TBDs, and stubs", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const start = appSrc.indexOf("const OPEN_TERM_PATTERNS = [");
+  const retAt = appSrc.indexOf("return { items, count: items.length };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "the detector's closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectOpenTerms, OPEN_TERM_PATTERNS };";
+  const { detectOpenTerms } = new Function(src)();
+
+  const clean = detectOpenTerms("The fee is refundable within 30 days of written notice.");
+  assert.equal(clean.count, 0, "ordinary prose must produce zero findings");
+
+  const messy = detectOpenTerms("Tenant shall pay $____ as deposit within ____ days. Lease begins on [insert date]. Late fee: XX% per month. Renewal price: TBD.");
+  assert.ok(messy.count >= 5, "a blank-riddled clause must yield multiple findings, got " + messy.count);
+  const keys = new Set(messy.items.map(i => i.key));
+  for (const k of ["blank", "bracket", "tbd", "xx"]) {
+    assert.ok(keys.has(k), "finding class '" + k + "' must be represented, got: " + [...keys].join(","));
+  }
+  const blankItem = messy.items.find(i => i.key === "blank");
+  assert.match(blankItem.context, /within/, "each finding carries surrounding context");
+  assert.ok(blankItem.why && blankItem.why.length > 10, "each finding explains why it matters");
+
+  // A document stuffed with blanks cannot flood the list (defensive cap).
+  const flooded = detectOpenTerms("____ ".repeat(200));
+  assert.ok(flooded.items.length <= 60, "the defensive cap must hold, got " + flooded.items.length);
+});

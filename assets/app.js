@@ -4483,6 +4483,7 @@
           transBlock=$('#transBlock'),transNote=$('#transNote'),transList=$('#transList'),
           actionBlock=$('#actionBlock'),actionNote=$('#actionNote'),actionGrid=$('#actionGrid'),
           gapBlock=$('#gapBlock'),gapNote=$('#gapNote'),gapList=$('#gapList'),
+          openTermsBlock=$('#openTermsBlock'),openTermsNote=$('#openTermsNote'),openTermsList=$('#openTermsList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -7143,6 +7144,11 @@
       const gapList = document.querySelectorAll('#gapList .gap-row');
       if(gapList.length > 0){
         steps.push({ step: 'Add the missing clauses', detail: 'Add a ' + gapList.length + ' missing clauses (termination, refund, dispute, etc.) — see the "What\'s missing" section above.', impact: 'high', effort: 'medium' });
+      }
+      // Cycle #337: fill every open term — a blank is an unsigned deal.
+      const openTermRows = document.querySelectorAll('#openTermsList .gap-row');
+      if(openTermRows.length > 0){
+        steps.push({ step: 'Fill in every open term', detail: 'This document has ' + openTermRows.length + '+ unfilled blanks/placeholders ("____", "TBD"). See the "Open terms" section — never sign around a blank.', impact: 'high', effort: 'low' });
       }
       // Step 4: tone check
       if(c.pressure > 60){
@@ -16712,6 +16718,149 @@
       return { items: items.slice(0, 8), count: items.length };
     }
 
+    // Cycle #337 — open-terms detector. Unfilled blanks and placeholders
+    // ("____", "[insert date]", "TBD", "$XX") are the quietest trap in a
+    // contract: a term nobody agreed to yet is a term the other side can
+    // fill in later. Pure-local regex sweep over the raw text — runs
+    // whether or not the AI analysis succeeds, same as detectGaps.
+    //   detectOpenTerms("Pay $____ within __ days") → { items:[…], count:2 }
+    const OPEN_TERM_PATTERNS = [
+      { key: 'blank', label: 'Unfilled blank', glyph: '▁▁',
+        re: /_{3,}/g,
+        why: 'A blank line where a term should be. Whoever fills it in later controls the deal.' },
+      { key: 'bracket', label: 'Placeholder marker', glyph: '[ ]',
+        re: /\[(?:[●•xX]{1,3}|[^\]\n]{0,40}\b(?:insert|fill in|to be|specify|date of|name of)\b[^\]\n]{0,40})\]/gi,
+        why: 'A drafting placeholder that was never replaced with real language.' },
+      { key: 'tbd', label: 'Undecided term', glyph: '?',
+        re: /\bTBD\b|\bTBA\b|\bTO BE (?:DETERMINED|ADVISED|NEGOTIATED|AGREED|CONFIRMED|DECIDED)\b/g,
+        why: 'The parties have not actually agreed on this term yet.' },
+      { key: 'xx', label: 'Stub value', glyph: '×',
+        re: /\bXX(?:\.\d+)?\s?(?:%|percent\b|days\b|months\b|years\b)|\$\s?XX+/g,
+        why: 'A stand-in number left where a real amount or deadline belongs.' }
+    ];
+    function detectOpenTerms(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], count: 0 };
+      const items = [];
+      for(const p of OPEN_TERM_PATTERNS){
+        p.re.lastIndex = 0;
+        let m;
+        while((m = p.re.exec(text)) !== null){
+          if(!m[0]) break; // zero-length safety
+          const at = m.index;
+          // Context snippet ±48 chars, whitespace-collapsed, so users
+          // can spot the blank inside their own document.
+          const from = Math.max(0, at - 48);
+          const to = Math.min(text.length, at + m[0].length + 48);
+          items.push({
+            key: p.key, label: p.label, glyph: p.glyph, match: m[0], why: p.why,
+            context: (from > 0 ? '…' : '') + text.slice(from, to).replace(/\s+/g, ' ').trim() + (to < text.length ? '…' : '')
+          });
+          if(items.length >= 60) break; // defensive cap before display slice
+        }
+        p.re.lastIndex = 0;
+      }
+      return { items, count: items.length };
+    }
+
+    // Cycle #337 — renderer for the open-terms block. Reuses the
+    // .gap-row styling for visual kinship with "What's missing" (both
+    // surfaces are about incompleteness). Shows at most 8 rows; the
+    // note carries the full count.
+    function renderOpenTermsBlock(result){
+      if(!openTermsBlock || !openTermsList || !result) return;
+      if(!result.items.length){ openTermsBlock.hidden = true; return; }
+      const shown = result.items.slice(0, 8);
+      const tally = {};
+      result.items.forEach(it => { tally[it.key] = (tally[it.key] || 0) + 1; });
+      const parts = [];
+      if(tally.blank) parts.push('<b style="color:var(--danger)">' + tally.blank + ' blank' + (tally.blank === 1 ? '' : 's') + '</b>');
+      if(tally.bracket) parts.push(tally.bracket + ' placeholder' + (tally.bracket === 1 ? '' : 's'));
+      if(tally.tbd) parts.push(tally.tbd + ' undecided');
+      if(tally.xx) parts.push(tally.xx + ' stub value' + (tally.xx === 1 ? '' : 's'));
+      const rows = shown.map(it => (
+        '<div class="gap-row" title="Ask for this term to be filled in before signing">' +
+          '<span class="gap-glyph mono">' + esc(it.glyph) + '</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label"><code>' + esc(it.match) + '</code> — ' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">“' + esc(it.context) + '”</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+          '<button type="button" class="gap-ask ghost-btn ghost-btn-sm" data-open-ask="' + esc(it.match) + '" title="Copy a &quot;please fill this in&quot; ask to clipboard">📝 ask</button>' +
+        '</div>'
+      )).join('');
+      const controls =
+        '<div class="gap-controls">' +
+          '<span class="gap-count">' + result.count + ' open term' + (result.count === 1 ? '' : 's') + (parts.length ? ' · ' + parts.join(' · ') : '') + '</span>' +
+          '<button type="button" class="gap-csv ghost-btn ghost-btn-sm" id="openTermsCopyBtn" title="Copy the full open-terms list as Markdown">📋 # MD</button>' +
+        '</div>';
+      openTermsList.innerHTML = rows + controls;
+      openTermsBlock.hidden = false;
+      if(openTermsNote){
+        openTermsNote.innerHTML = '<span class="riskNote-lead">' + result.count + ' term' + (result.count === 1 ? '' : 's') + ' not filled in</span> ' +
+          'A contract with open terms is not finished — anything left blank can be completed after you sign, and not in your favor. Resolve every item below (or strike it) before signing.';
+      }
+      // Per-row 📝 ask — copies a clipboard-ready request to complete
+      // that specific term before signature.
+      $$('.gap-ask', openTermsList).forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const match = btn.getAttribute('data-open-ask') || '';
+          const ask = '[REQUEST: This document contains an unfilled term (“' + match + '”). Please complete it with specific, agreed language before signature — no blanks, placeholders, or TBDs.]';
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(ask); copied = true;
+            }
+          } catch(_){ /* fall through to execCommand */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = ask; ta.style.position = 'fixed'; ta.style.opacity = '0';
+              document.body.appendChild(ta); ta.select();
+              copied = document.execCommand('copy');
+              ta.remove();
+            } catch(_){ /* ignore */ }
+          }
+          const prev = btn.textContent;
+          btn.textContent = copied ? '✓ copied' : '⚠ copy failed';
+          setTimeout(() => { btn.textContent = prev; }, 1600);
+        });
+      });
+      // 📋 # MD — copy the full list as Markdown.
+      const copyAllBtn = document.getElementById('openTermsCopyBtn');
+      if(copyAllBtn && !copyAllBtn._otWired){
+        copyAllBtn._otWired = true;
+        copyAllBtn.addEventListener('click', async () => {
+          const lines = ['## Open terms (' + result.count + ')', ''];
+          result.items.forEach(it => {
+            lines.push('- **' + it.label + '**: `' + it.match + '` — “' + it.context + '”');
+          });
+          lines.push('', 'Resolve every open term before signing. — ClearDoc');
+          const md = lines.join('\n');
+          let ok = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md); ok = true;
+            }
+          } catch(_){ /* fall through to execCommand */ }
+          if(!ok){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md; ta.style.position = 'fixed'; ta.style.opacity = '0';
+              document.body.appendChild(ta); ta.select();
+              ok = document.execCommand('copy');
+              ta.remove();
+            } catch(_){ /* ignore */ }
+          }
+          const prev = copyAllBtn.textContent;
+          copyAllBtn.textContent = ok ? '✓ copied' : '⚠ failed';
+          setTimeout(() => { copyAllBtn.textContent = prev; }, 1600);
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -17774,6 +17923,15 @@
         renderGapBlock(gp);
       } else if(gapBlock) {
         gapBlock.hidden = true;
+      }
+      // Cycle #337 — open-terms detector — unfilled blanks, bracket
+      // placeholders, TBDs, and stub values. A term nobody wrote down
+      // is a term the other side can fill in later; surface every one
+      // before signing.
+      if(openTermsBlock && typeof detectOpenTerms === 'function'){
+        renderOpenTermsBlock(detectOpenTerms(raw));
+      } else if(openTermsBlock) {
+        openTermsBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.

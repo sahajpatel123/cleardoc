@@ -6152,3 +6152,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #336 of the autonomous loop (polish — last cycle added the share target): this closes the debt logged in Cycle #334. One helper, two sweep passes (the first grep missed the spaced variant and date-object conversions — the failing test caught it before landing, which is exactly what the test is for), and an invariant strong enough to keep the codebase honest.
+
+## 2026-08-23 02:48 | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #337 — ADD: "Open terms" detector (unfilled blanks & placeholders).** The quietest trap in a contract: a term nobody wrote down is a term the other side can fill in later. New pure-local `detectOpenTerms(raw)` + `OPEN_TERM_PATTERNS` table covers four classes: underscore blanks (`____`), bracket placeholders (`[insert date]`, `[●]`), undecided terms (`TBD`/`TBA`/"TO BE DETERMINED…"), and stub values (`$XX`, `XX%`). Each finding carries a ±48-char context snippet and a why-it-matters line.
+- New "✍️ Open terms" result block (analyze.html) reusing `.gap-row` styling for kinship with "What's missing" — both surfaces are about incompleteness. Per-row "📝 ask" copies a clipboard-ready request to complete that specific term before signature; "📋 # MD" copies the full list as Markdown. Capped at 8 visible rows, 60 findings (defensive), with a per-class tally in the kicker.
+- Wired into the analysis flow right after the gap block, plus a new next-steps step ("Fill in every open term — never sign around a blank").
+- Tests: two new always-run tests — structural (all four classes present, flow wiring, markup, display cap, no-network invariant) and **behavioral** (the real pattern table is extracted from app.js and executed: clean prose → 0 findings; blank-riddled clause → findings from all four classes; flood cap holds).
+- Gate: unit 490/490 · smoke 291 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #337 of the autonomous loop (add — last cycle polished export stamps). Scope-checked five candidate features against the codebase first (readability meter, analysis history, clause locator, jargon glossary, negotiation emails — all already exist); blank/placeholder detection was the first genuinely unmet need found. Exports/CSV integration for this block is the natural polish follow-up for Cycle #338.
