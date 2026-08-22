@@ -6032,3 +6032,17 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #326 of the autonomous loop (alternate add-polish): polish cycle. The repo had coherent uncommitted hardening changes plus one false-failing security check; landing both restores a fully green gate before starting new feature work in Cycle #327.
+
+---
+
+**2026-08-23 01:20 IST | Model: ox-alpha (opencode)**
+**Changes Made:**
+- feat(share): added 📤 Share sheet button (`nativeShareBtn`) to the result-actions toolbar — the first sharing path that uses the Web Share API instead of clipboard/mailto. On mobile it opens the OS share sheet (iMessage, WhatsApp, AirDrop, Save to Files) with `{ title: 'ClearDoc analysis', text }` where `text` is the full `buildAnalysisSummary()` plain-text report plus the share link (same payload as `copyChatShare`, including the `buildShareUrl()` try/catch). Desktop browsers without Web Share fall back to the standard clipboard writeText + execCommand pattern, so every platform gets a working path.
+- User-dismissed share sheets (AbortError) stay silent — no error flash for a deliberate cancel. Real share-sheet failures log a warning and fall through to the clipboard fallback rather than dead-ending.
+- Flash feedback via the shared `flashButton()` helper: ✓ shared / ✓ copied → 📤 Share sheet after 1400ms, `_nativeShareWired` guard so the handler can never double-bind.
+- Added a 📤 row to the EXPORT & SHARE grid in the keyboard-shortcuts help modal.
+- Split smoke coverage in two per house style: an always-run static contract test (button exists, handler defined, sheet call shape, AbortError silence, guard flag — runs with zero browser) + a two-phase Playwright test (phase 1 stubs `navigator.share` and asserts the payload reaches the sheet; phase 2 removes Web Share and asserts the identical summary lands on the clipboard).
+- Full gate green: 490/490 unit, smoke 271 pass / 0 fail / 136 skipped, syntax + JSON validation clean.
+
+**Prompt Intention:**
+- Cycle #327 of the autonomous loop (add — last cycle was polish): every existing export path ends at the clipboard or a mailto:. On phones — where "read what you're about to sign" happens most — the native share sheet is how users actually move content between apps. This closes that gap while reusing the exact summary payload the other share buttons build, so all share surfaces stay consistent.

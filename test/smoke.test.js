@@ -13736,6 +13736,79 @@ skip("analyzer: chat share includes deadlines and jurisdiction", async () => {
   }
 });
 
+// Cycle #327 — native share sheet (Web Share API) with clipboard fallback.
+// Static contract first: runs everywhere, no browser needed.
+test("analyzer: native share button exists and is wired with sheet + clipboard fallback", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const htmlSrc = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  assert.match(htmlSrc, /id="nativeShareBtn"/, "analyze.html must render the native share button");
+  assert.match(appSrc, /async function nativeShareAnalysis\(\)/, "app.js must define the share handler");
+  assert.match(appSrc, /navigator\.share\(\{ title: ?'ClearDoc analysis', text \}\)/,
+    "the handler must open the OS share sheet with the summary payload");
+  assert.match(appSrc, /e\.name === 'AbortError'/,
+    "a user-dismissed share sheet must stay silent instead of flashing an error");
+  assert.match(appSrc, /_nativeShareWired/, "the handler must be guard-wired exactly once");
+});
+
+skip("analyzer: native share button opens the device share sheet, clipboard fallback on desktop", async () => {
+  if (!HAS_BROWSER) return;
+
+  // Phase 1 — Web Share available: the payload must reach navigator.share.
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    window.__sharedPayload = null;
+    try {
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: async (data) => { window.__sharedPayload = data; },
+      });
+    } catch (_) { /* older engines */ }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#nativeShareBtn", { timeout: 8000 });
+    await page.click("#nativeShareBtn");
+    await page.waitForFunction(() => window.__sharedPayload && window.__sharedPayload.text.length > 0, { timeout: 8000 });
+    const payload = await page.evaluate(() => window.__sharedPayload);
+    assert.equal(payload.title, "ClearDoc analysis", "the share payload must carry a title");
+    assert.match(payload.text, /CLEARDOC ANALYSIS/, "the share payload must carry the plain-text summary");
+    assert.match(payload.text, /#share=/, "the share payload must include a share link");
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+
+  // Phase 2 — no Web Share (desktop): must fall back to clipboard copy.
+  const ctx2 = await browser.newContext();
+  const page2 = await ctx2.newPage();
+  await page2.addInitScript(() => {
+    window.__copiedNativeFallback = null;
+    try {
+      Object.defineProperty(navigator, "share", { configurable: true, value: undefined });
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: { writeText: async (txt) => { window.__copiedNativeFallback = txt; }, write: async () => {} },
+      });
+    } catch (_) { /* older engines */ }
+  });
+  try {
+    await page2.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page2.click(".qf[data-fill]:first-of-type");
+    await page2.click("#analyzeBtn");
+    await page2.waitForSelector("#nativeShareBtn", { timeout: 8000 });
+    await page2.click("#nativeShareBtn");
+    await page2.waitForFunction(() => window.__copiedNativeFallback && window.__copiedNativeFallback.length > 0, { timeout: 8000 });
+    const copied = await page2.evaluate(() => window.__copiedNativeFallback);
+    assert.match(copied, /CLEARDOC ANALYSIS/, "the clipboard fallback must copy the same summary");
+  } finally {
+    await page2.close();
+    await ctx2.close();
+  }
+});
+
 // Cycle #118 — ask the document about any obligation in one click.
 test("analyzer: Obligation rows can ask the document about the obligation in one click", () => {
   if (!HAS_BROWSER) return;

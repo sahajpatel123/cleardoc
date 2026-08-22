@@ -2638,6 +2638,7 @@
             <div class="kb-row"><kbd>⬇</kbd><span>Download analysis files (.txt / .md / .json / .csv)</span></div>
             <div class="kb-row"><kbd>🔗</kbd><span>Copy share link to clipboard</span></div>
             <div class="kb-row"><kbd>💬</kbd><span>Copy chat-friendly summary to clipboard</span></div>
+            <div class="kb-row"><kbd>📤</kbd><span>Open the device share sheet (clipboard fallback on desktop)</span></div>
             <div class="kb-row"><kbd>📧</kbd><span>Open mail client with analysis summary</span></div>
           </div>
           <h3 class="kb-modal-subtitle mono">COMPARE PANEL</h3>
@@ -20190,6 +20191,54 @@
       }
       if(btn) flashButton(btn, ok ? '✓ copied' : 'Copy failed', ok ? 1400 : 1800);
     }
+    // Cycle #327 — native share sheet. Mobile users reach for the OS
+    // share sheet (iMessage, WhatsApp, AirDrop, Save to Files) rather
+    // than the clipboard; desktop browsers without Web Share fall back
+    // to the same clipboard path the other share buttons use. Payload
+    // mirrors copyChatShare: plain-text summary + share link.
+    async function nativeShareAnalysis(){
+      if(!lastRaw){
+        if(msg){msg.textContent='Analyze a document first, then share the summary.'; msg.className='analyze-msg';}
+        return;
+      }
+      let text = buildAnalysisSummary();
+      try {
+        if(typeof buildShareUrl === 'function'){
+          const shareUrl = await buildShareUrl();
+          if(shareUrl) text += '\n' + shareUrl;
+        }
+      } catch(_){ /* keep the share working even if the link fails */ }
+      const btn = document.getElementById('nativeShareBtn');
+      // Web Share needs a user gesture + secure context. AbortError
+      // means the user closed the sheet themselves — not a failure,
+      // so stay quiet instead of flashing an error.
+      if(navigator.share){
+        try{
+          await navigator.share({ title:'ClearDoc analysis', text });
+          if(btn) flashButton(btn,'✓ shared',1400);
+          return;
+        }catch(e){
+          if(e && e.name === 'AbortError'){ return; }
+          console.warn('[native-share] share sheet failed, falling back to clipboard',e);
+        }
+      }
+      let ok=false;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok=true;
+        } else {
+          const ta=document.createElement('textarea');
+          ta.value=text;
+          ta.style.cssText='position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok=document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      }catch(e){
+        console.warn('[native-share] clipboard fallback failed',e);
+      }
+      if(btn) flashButton(btn, ok ? '✓ copied' : 'Copy failed', ok ? 1400 : 1800);
+    }
     async function copyAnalysis(){
       if(!lastRaw){
         if(msg){msg.textContent='Analyze a document first, then copy the summary.'; msg.className='analyze-msg';}
@@ -25238,6 +25287,13 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     // this" shareText pattern (iter #79) so the two feel related.
     const chatShareBtn = document.getElementById('chatShareBtn');
     if(chatShareBtn) chatShareBtn.addEventListener('click', copyChatShare);
+    // Cycle #327 — native share-sheet button: opens the OS share sheet
+    // where Web Share exists (mobile), clipboard fallback elsewhere.
+    const nativeShareBtn = document.getElementById('nativeShareBtn');
+    if(nativeShareBtn && !nativeShareBtn._nativeShareWired){
+      nativeShareBtn._nativeShareWired = true;
+      nativeShareBtn.addEventListener('click', nativeShareAnalysis);
+    }
     // Iter #63: Share-button handler — copies the share one-liner
     // to the clipboard with the standard navigator.clipboard
     // + execCommand fallback pattern (same as the existing
