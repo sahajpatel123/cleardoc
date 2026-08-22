@@ -6297,6 +6297,18 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Cycle #349 of the autonomous loop (add — last cycle polished xref jumps/cheat-sheet): extend the document-self-consistency family (gaps → open terms → broken refs → now vocabulary). Next polish-cycle candidate: cheat-sheet inclusion for undefined terms, or click-to-jump on term rows.
 
+## 2026-08-23 05:1x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #350 — POLISH: undefined terms now jump and travel.** Same-day polish of the Cycle #349 lens:
+  - **Click-to-jump:** the detector now records where each term first appears (`firstAt` for undefined terms; the definition site for dead ones) and emits `start`/`end` spans. Rows are keyboard-reachable jump targets (`role="button"`, `data-tm-start`/`data-tm-end`) with delegated once-guarded wiring (`_tmWired`) and a "📍 Term highlighted in your document" toast — identical contract to risk-map and xref rows.
+  - **Cheat-sheet carry-through:** "Undefined terms (ask for definitions)" section reads live `#termsList .gap-label` lines ("Consultant — used 4 times, never defined") so printed/emailed briefs list exactly which definitions to request.
+- Tests: behavioral assertions updated for the object-shaped `dead` list plus exact span checks (first-use span for undefined terms; definition-site span for dead ones); structural pins cover span attrs, once-guard, toast, and both cheat-sheet reads.
+- Gate: unit 490/490 · smoke 305 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #350 of the autonomous loop (polish — last cycle added the terms lens): every lens now ships the same day with jump-to-source + printed-brief carry-through, making the pattern the house standard. Next add-cycle candidate: obligation-balance meter (who must do what), or a fresh lens outside the consistency family.
+
+
 
 
 

@@ -17337,6 +17337,9 @@
       // whose char before it is a lowercase letter or comma. Sentence-
       // initial capitals are ignored — every line would otherwise match.
       const uses = {};
+      // Cycle #350 — remember where each term first appears so rows can
+      // jump to source, same contract as risk-map/xref rows.
+      const firstAt = {};
       const tokRe = /\b([A-Z][a-z]{2,})\b/g;
       let t;
       while((t = tokRe.exec(text)) !== null){
@@ -17346,12 +17349,13 @@
         const w = t[1];
         if(TERM_STOP.has(w) || definedWords.has(w)) continue;
         uses[w] = (uses[w] || 0) + 1;
+        if(!firstAt[w]) firstAt[w] = at;
       }
       const items = Object.keys(uses)
         .filter(w => uses[w] >= 2)
         .sort((a, b) => uses[b] - uses[a])
         .slice(0, 6)
-        .map(w => ({ term: w, uses: uses[w] }));
+        .map(w => ({ term: w, uses: uses[w], start: firstAt[w], end: firstAt[w] + w.length }));
       // Dead definitions: formally defined but never used again.
       const dead = [];
       for(const w of definedWords){
@@ -17359,7 +17363,10 @@
         let n = 0;
         let dm;
         while((dm = re.exec(text)) !== null){ n++; if(n > 1) break; }
-        if(n <= 1 && dead.length < 4) dead.push(w);
+        if(n <= 1 && dead.length < 4){
+          const at2 = text.indexOf(w);
+          dead.push({ term: w, start: Math.max(0, at2), end: Math.max(0, at2) + w.length });
+        }
       }
       return { items, count: items.length, dead, deadCount: dead.length };
     }
@@ -17369,19 +17376,20 @@
     function renderTermsBlock(result){
       if(!termsBlock || !termsList || !result) return;
       if(!result.items.length && !result.deadCount){ termsBlock.hidden = true; return; }
+      // Cycle #350 — rows are jump targets like risk-map/xref rows.
       const rows = result.items.map(it => (
-        '<div class="gap-row" title="This term is used repeatedly but never defined">' +
+        '<div class="gap-row" role="button" tabindex="0" data-tm-start="' + Math.max(0, it.start || 0) + '" data-tm-end="' + (it.end || 0) + '" title="Click to find this term in your document">' +
           '<span class="gap-glyph mono" style="color:var(--amber)">❓</span>' +
           '<div class="gap-body">' +
             '<div class="gap-label"><code>' + esc(it.term) + '</code> — used ' + it.uses + ' times, never defined</div>' +
             '<div class="gap-hint">Whoever gets to explain what this word covers later has the advantage. Ask for a definition (“' + esc(it.term) + '” means …).</div>' +
           '</div>' +
         '</div>'
-      )).concat(result.dead.map(w => (
-        '<div class="gap-row" title="This term is defined but never used">' +
+      )).concat(result.dead.map(d => (
+        '<div class="gap-row" role="button" tabindex="0" data-tm-start="' + Math.max(0, d.start || 0) + '" data-tm-end="' + (d.end || 0) + '" title="Click to find this definition in your document">' +
           '<span class="gap-glyph mono">🪦</span>' +
           '<div class="gap-body">' +
-            '<div class="gap-label"><code>' + esc(w) + '</code> — defined but never used</div>' +
+            '<div class="gap-label"><code>' + esc(d.term) + '</code> — defined but never used</div>' +
             '<div class="gap-hint">Often a leftover from another contract. Ask whether whole sections were copied over.</div>' +
           '</div>' +
         '</div>'
@@ -17395,6 +17403,26 @@
       if(termsNote){
         termsNote.innerHTML = '<span class="riskNote-lead">Words doing heavy lifting</span> ' +
           'Capitalized terms that appear again and again are meant to be defined — when they are not, each side can argue for the meaning that suits it. Pure-local check; proper nouns and one-off mentions are ignored.';
+      }
+      // Delegated, once-guarded jump wiring (same contract as _rsWired).
+      if(!termsList._tmWired){
+        termsList._tmWired = true;
+        const jumpToTerm = (row) => {
+          const s = parseInt(row.getAttribute('data-tm-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-tm-end'), 10) || (s + 40);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Term highlighted in your document');
+        };
+        termsList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-tm-start]');
+          if(row) jumpToTerm(row);
+        });
+        termsList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-tm-start]');
+          if(row){ e.preventDefault(); jumpToTerm(row); }
+        });
       }
     }
 
@@ -22594,6 +22622,14 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          // Cycle #350 — undefined terms join the printed brief: lines
+          // like "Consultant — used 4 times, never defined".
+          const termsLines = (function(){
+            const rows = document.querySelectorAll('#termsList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -22617,6 +22653,7 @@
               (openTerms ? '<div class="cheat-section"><div class="cheat-section-title">Open terms (fill before signing)</div><ul style="padding-left:18px;margin:0">' + openTerms + '</ul></div>' : '') +
               (riskMapLines ? '<div class="cheat-section"><div class="cheat-section-title">Where the risk sits</div><ul style="padding-left:18px;margin:0">' + riskMapLines + '</ul></div>' : '') +
               (xrefLines ? '<div class="cheat-section"><div class="cheat-section-title">Broken references (fix before signing)</div><ul style="padding-left:18px;margin:0">' + xrefLines + '</ul></div>' : '') +
+              (termsLines ? '<div class="cheat-section"><div class="cheat-section-title">Undefined terms (ask for definitions)</div><ul style="padding-left:18px;margin:0">' + termsLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +

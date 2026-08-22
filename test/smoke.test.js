@@ -16476,6 +16476,17 @@ test("terms: markup, guarded call site, and purity are in place", () => {
     "the detector is pure-local — no network calls");
   assert.ok(appSrc.indexOf("Words doing heavy lifting") !== -1,
     "the note must explain why undefined terms matter");
+  // Cycle #350 — rows are jump targets and the brief carries them.
+  assert.match(appSrc, /data-tm-start=/,
+    "term rows must carry their source span for click-to-jump");
+  assert.match(appSrc, /_tmWired/,
+    "the term jump listener must be wired once (delegated)");
+  assert.ok(appSrc.indexOf("📍 Term highlighted in your document") !== -1,
+    "jumping must confirm with a toast like the other surfaces");
+  assert.ok(appSrc.indexOf("#termsList .gap-label") !== -1,
+    "the cheat sheet must read undefined-term labels");
+  assert.ok(appSrc.indexOf("Undefined terms (ask for definitions)") !== -1,
+    "the printed brief must include the undefined-terms section");
 });
 
 // Cycle #349 — behavioral: the REAL detector separates defined terms,
@@ -16514,8 +16525,16 @@ test("terms: usage vs definitions sorted correctly", () => {
   assert.ok(!r.items.some(i => stopSample.indexOf(i.term) !== -1),
     "stop-listed and defined words never surface as findings: got " + terms.join(","));
   // Dead definition: Successor is defined but used nowhere else.
-  assert.ok(r.dead.indexOf("Successor") !== -1, "a defined-but-unused term lands in the dead list");
-  assert.equal(r.dead.indexOf("Contractor"), -1, "definitions that get reused are not dead");
+  assert.ok(r.dead.some(d => d.term === "Successor"), "a defined-but-unused term lands in the dead list");
+  assert.equal(r.dead.findIndex(d => d.term === "Contractor"), -1, "definitions that get reused are not dead");
+
+  // Cycle #350 — findings carry raw-text spans for click-to-jump.
+  const consAt = doc.indexOf("Consultant");
+  assert.equal(consultant.start, consAt, "an undefined term's span starts at its first use");
+  assert.equal(consultant.end, consAt + "Consultant".length, "…and ends exactly at its length");
+  const succ = r.dead.find(d => d.term === "Successor");
+  assert.ok(succ && typeof succ.start === "number" && succ.end - succ.start === "Successor".length,
+    "dead definitions carry spans pointing at their definition site");
 
   // Clean prose: months, single mentions → nothing flagged.
   const calm = detectTerms("We met on Monday to discuss the project. The team was helpful.");
