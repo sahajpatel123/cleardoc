@@ -2740,6 +2740,7 @@
             <div class="kb-row"><kbd>💬</kbd><span>Copy chat-friendly summary to clipboard</span></div>
             <div class="kb-row"><kbd>📤</kbd><span>Open the device share sheet (clipboard fallback on desktop)</span></div>
             <div class="kb-row"><kbd>🖼</kbd><span>Download a shareable verdict card as PNG — aggregate stats only, never document text</span></div>
+            <div class="kb-row"><kbd>📤</kbd><span>Share the verdict card image (share sheet → clipboard → download)</span></div>
             <div class="kb-row"><kbd>📧</kbd><span>Open mail client with analysis summary</span></div>
           </div>
           <h3 class="kb-modal-subtitle mono">DEADLINE REMINDERS</h3>
@@ -20338,32 +20339,33 @@
         '<text x="1144" y="582" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="18" fill="#EDE7D8">NOT LEGAL ADVICE</text>' +
       '</svg>';
     }
+    // Shared rasterizer for every card surface (download / share sheet /
+    // clipboard paste) so all three can never drift. Returns a PNG blob;
+    // throws if the canvas pipeline is unavailable (caller falls back).
+    async function buildVerdictCardPng(){
+      const svg = buildVerdictCardSvg();
+      const svgUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+      const img = new Image();
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = svgUrl; });
+      const canvas = document.createElement('canvas');
+      canvas.width = 1200; canvas.height = 630;
+      canvas.getContext('2d').drawImage(img, 0, 0, 1200, 630);
+      URL.revokeObjectURL(svgUrl);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if(!blob) throw new Error('toBlob returned null');
+      return blob;
+    }
     async function downloadVerdictCard(){
       if(!lastRaw){
         if(msg){msg.textContent='Analyze a document first, then download the verdict card.'; msg.className='analyze-msg';}
         return;
       }
       const btn = document.getElementById('verdictCardBtn');
-      const svg = buildVerdictCardSvg();
       const stamp = new Date().toISOString().slice(0,10);
       const flash = (ok) => { if(btn) flashButton(btn, ok ? '✓ downloaded' : 'failed', ok ? 1400 : 1800); };
-      // Preferred path: rasterize to PNG (accepted everywhere). The SVG is
-      // drawn through an <img> from a blob URL — same-origin, no taint, no
-      // external resources — then exported via toBlob.
+      // Preferred path: rasterize to PNG via the shared builder.
       try {
-        const svgUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
-        const img = new Image();
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = reject;
-          img.src = svgUrl;
-        });
-        const canvas = document.createElement('canvas');
-        canvas.width = 1200; canvas.height = 630;
-        canvas.getContext('2d').drawImage(img, 0, 0, 1200, 630);
-        URL.revokeObjectURL(svgUrl);
-        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-        if(!blob) throw new Error('toBlob returned null');
+        const blob = await buildVerdictCardPng();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = 'cleardoc-verdict-' + stamp + '.png';
@@ -20384,6 +20386,67 @@
       } catch(e){
         console.warn('[verdict-card] download failed', e);
         flash(false);
+      }
+    }
+    // Cycle #333 — share the verdict card itself. Three tiers, first
+    // supported wins: (1) OS share sheet with the real PNG file — chat
+    // apps accept images natively; (2) clipboard image paste for desktop
+    // chats; (3) plain download. A user-dismissed sheet (AbortError)
+    // stays silent. Same aggregate-only payload as the download button —
+    // both render through the shared buildVerdictCardPng().
+    async function shareVerdictCard(){
+      if(!lastRaw){
+        if(msg){msg.textContent='Analyze a document first, then share the verdict card.'; msg.className='analyze-msg';}
+        return;
+      }
+      const btn = document.getElementById('shareCardBtn');
+      let blob = null;
+      try { blob = await buildVerdictCardPng(); }
+      catch(e){ console.warn('[verdict-card-share] PNG build failed', e); }
+      const stamp = new Date().toISOString().slice(0,10);
+      if(blob && navigator.canShare){
+        try {
+          const file = new File([blob], 'cleardoc-verdict-' + stamp + '.png', { type: 'image/png' });
+          if(navigator.canShare({ files: [file] })){
+            await navigator.share({ files: [file], title: 'ClearDoc verdict' });
+            if(btn) flashButton(btn,'✓ shared',1400);
+            return;
+          }
+        }catch(e){
+          if(e && e.name === 'AbortError') return;
+          console.warn('[verdict-card-share] share sheet failed, falling back', e);
+        }
+      }
+      if(blob && typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write){
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          if(btn) flashButton(btn,'✓ copied',1400);
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('🖼 Verdict card copied — paste it into any chat');
+          return;
+        }catch(e){ console.warn('[verdict-card-share] clipboard image write failed', e); }
+      }
+      if(blob){
+        try{
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = 'cleardoc-verdict-' + stamp + '.png';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(() => { URL.revokeObjectURL(url); }, 4000);
+          if(btn) flashButton(btn,'✓ downloaded',1400);
+          return;
+        }catch(e){ /* fall through to the .svg path */ }
+      }
+      try {
+        const svg = buildVerdictCardSvg();
+        const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+        const a = document.createElement('a');
+        a.href = url; a.download = 'cleardoc-verdict-' + stamp + '.svg';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => { URL.revokeObjectURL(url); }, 4000);
+        if(btn) flashButton(btn,'✓ downloaded',1400);
+      }catch(e){
+        console.warn('[verdict-card-share] all paths failed', e);
+        if(btn) flashButton(btn,'failed',1800);
       }
     }
     async function nativeShareAnalysis(){
@@ -25487,6 +25550,12 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     if(verdictCardBtn && !verdictCardBtn._verdictCardWired){
       verdictCardBtn._verdictCardWired = true;
       verdictCardBtn.addEventListener('click', downloadVerdictCard);
+    }
+    // Cycle #333 — share-the-card button (sheet → clipboard → download).
+    const shareCardBtn = document.getElementById('shareCardBtn');
+    if(shareCardBtn && !shareCardBtn._shareCardWired){
+      shareCardBtn._shareCardWired = true;
+      shareCardBtn.addEventListener('click', shareVerdictCard);
     }
     if(nativeShareBtn && !nativeShareBtn._nativeShareWired){
       nativeShareBtn._nativeShareWired = true;

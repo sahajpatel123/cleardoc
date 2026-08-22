@@ -6105,3 +6105,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #332 of the autonomous loop (polish — last cycle added the verdict card): a card that always looks identical whether the verdict is "fair" or "illegal" wastes its loudest signal. Matching the app's own severity palette makes the shared image instantly legible at a glance — green means safe to sign, red means walk away — without changing what data leaves the device.
+
+---
+
+**2026-08-23 02:26 IST | Model: ox-alpha (opencode)**
+**Changes Made:**
+- feat(share): added 📤 Share card button (`shareCardBtn`) — sends the verdict-card IMAGE itself through whatever channel the device supports. Four-tier fallback, first supported wins: (1) OS share sheet with the real PNG file via `navigator.canShare({files})` + `navigator.share({files})` — chat apps accept images natively; (2) clipboard image paste via `ClipboardItem` for desktop chats, with a toast telling the user to paste; (3) plain PNG download; (4) `.svg` download if the whole canvas pipeline is unavailable. User-dismissed sheets (AbortError) stay silent. Guard-wired `_shareCardWired`; help-modal row added.
+- Refactored the rasterizer into a shared `buildVerdictCardPng()` now consumed by BOTH the download button and the share button — the two surfaces can never drift (same pattern as Cycles #321/#322's shared Markdown formatter). `downloadVerdictCard` shrank to use it.
+- Tests: static contract pins all four tiers, both call sites through the shared builder, and AbortError silence; Playwright test stubs `navigator.share`/`canShare`, clicks the button, and asserts the handed-over File is a dated non-empty `image/png`.
+- Gate: unit 490/490 · smoke 287 pass / 0 fail / 140 skipped · integration 16/16 on clean re-run (three tests flaked under full-gate parallel load with ~13s timeouts; zero failures sequentially — noted here so the next session doesn't chase a phantom).
+
+**Prompt Intention:**
+- Cycle #333 of the autonomous loop (add — last cycle was polish): Cycle #327 put a share sheet in the toolbar and #331 built a shareable image, but the card could only be DOWNLOADED — a save-then-hunt-for-the-file dance on mobile. This closes the loop: the exact image goes straight into iMessage/WhatsApp/AirDrop where sharing actually happens.

@@ -13743,6 +13743,66 @@ skip("analyzer: chat share includes deadlines and jurisdiction", async () => {
   }
 });
 
+// Cycle #333 — share-the-card button: share sheet → clipboard → download,
+// all rendering through the shared PNG builder.
+test("analyzer: verdict card sharing has three tiers and shares the shared PNG builder", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const htmlSrc = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  assert.match(htmlSrc, /id="shareCardBtn"/, "analyze.html must render the share-card button");
+  assert.match(appSrc, /async function shareVerdictCard\(\)/, "app.js must define the share handler");
+  assert.match(appSrc, /_shareCardWired/, "the handler must be guard-wired exactly once");
+  // One rasterizer, three consumers — the copy and download paths must not
+  // be able to drift from each other.
+  const pngCallSites = appSrc.match(/await buildVerdictCardPng\(\)/g) || [];
+  assert.ok(pngCallSites.length >= 2,
+    "both the download and share handlers must render through buildVerdictCardPng()");
+  assert.match(appSrc, /navigator\.canShare\(\{ files: \[file\] \}\)/,
+    "tier 1 must gate the OS share sheet on real file-share support");
+  assert.match(appSrc, /new ClipboardItem\(\{ 'image\/png': blob \}\)/,
+    "tier 2 must paste the image via the async clipboard");
+  assert.match(appSrc, /e\.name === 'AbortError'\) return;/,
+    "a user-dismissed share sheet must stay silent");
+  assert.match(appSrc, /cleardoc-verdict-' \+ stamp \+ '\.svg'/,
+    "tier 4 must keep the .svg download fallback for broken canvas pipelines");
+});
+
+skip("analyzer: share-card button hands the PNG file to the share sheet", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    window.__sharedFiles = null;
+    try {
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: async (data) => { window.__sharedFiles = data.files || null; },
+      });
+      Object.defineProperty(navigator, "canShare", {
+        configurable: true,
+        value: (data) => !!(data && Array.isArray(data.files) && data.files.length),
+      });
+    } catch (_) { /* older engines */ }
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#shareCardBtn", { timeout: 8000 });
+    await page.click("#shareCardBtn");
+    await page.waitForFunction(() => !!window.__sharedFiles, { timeout: 8000 });
+    const info = await page.evaluate(() => {
+      const f = window.__sharedFiles[0];
+      return { name: f.name, type: f.type, size: f.size };
+    });
+    assert.match(info.name, /^cleardoc-verdict-\d{4}-\d{2}-\d{2}\.png$/, "the shared file must be a dated verdict PNG");
+    assert.equal(info.type, "image/png", "the shared file must be image/png");
+    assert.ok(info.size > 0, "the shared PNG must not be empty");
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #331 — shareable verdict card (aggregate stats only, PNG + .svg fallback).
 test("analyzer: verdict card renders aggregate stats only and downloads as PNG", () => {
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
