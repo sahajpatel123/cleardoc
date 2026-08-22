@@ -13759,6 +13759,12 @@ test("analyzer: deadline notifications are opt-in, deduplicated per day, and nev
   assert.match(appSrc, /'cleardoc:notified:' \+ _dlNotifyDay\(\)/, "notifications must deduplicate per local day");
   assert.match(appSrc, /if\(permission !== 'default'\)\{ btn\.hidden = true; return; \}/,
     "granted stays automatic and denied is respected — the offer only shows for 'default'");
+  // Cycle #330 polish — snooze respect, visibility re-check, key pruning.
+  assert.match(appSrc, /snooze && snooze\.until && String\(snooze\.until\) > _dlNotifyDay\(\)\) return;/,
+    "a snoozed reminder must silence notifications too (same record as the banner)");
+  assert.match(appSrc, /k\.indexOf\('cleardoc:notified:'\) === 0 && k\.split\(':'\)\[2\] !== today/,
+    "stale dedup keys must be pruned so the store cannot grow unbounded");
+  assert.match(appSrc, /document\._dlNotifyVisWired/, "the visibility re-check must be wired exactly once");
 });
 
 skip("analyzer: deadline notifications fire when granted and opt-in from the banner button", async () => {
@@ -13802,7 +13808,36 @@ skip("analyzer: deadline notifications fire when granted and opt-in from the ban
     await ctx.close();
   }
 
-  // Phase 2 — permission still 'default': the banner button appears and
+  // Phase 2 — snoozed reminder: even with permission granted, a snooze
+  // recorded by the banner must silence notifications until it expires.
+  const ctxS = await browser.newContext();
+  const pageS = await ctxS.newPage();
+  await pageS.addInitScript(() => {
+    window.__notified = [];
+    class FakeNotification {
+      constructor(title, opts){ this.title = title; window.__notified.push({ title, opts }); }
+      close(){}
+    }
+    FakeNotification.permission = "granted";
+    FakeNotification.requestPermission = async () => "granted";
+    Object.defineProperty(window, "Notification", { configurable: true, value: FakeNotification });
+    localStorage.setItem("cleardoc:upcomingDeadlines", JSON.stringify({
+      ts: Date.now(), fp: null, docName: "lease.pdf",
+      items: [{ date: "2026-08-24", label: "Cancel by — auto-renew deadline", days: 1 }],
+    }));
+    localStorage.setItem("cleardoc:deadlineSnooze", JSON.stringify({ until: "2099-12-31" }));
+  });
+  try {
+    await pageS.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await pageS.waitForTimeout(600);
+    assert.equal(await pageS.evaluate(() => window.__notified.length), 0,
+      "an active snooze must suppress notifications entirely");
+  } finally {
+    await pageS.close();
+    await ctxS.close();
+  }
+
+  // Phase 3 — permission still 'default': the banner button appears and
   // one press requests permission, then the reminder fires immediately.
   const ctx2 = await browser.newContext();
   const page2 = await ctx2.newPage();

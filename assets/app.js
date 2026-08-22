@@ -1295,6 +1295,25 @@
     let permission = '';
     try { permission = Notification.permission; } catch(_){ return; }
     if(permission !== 'granted') return;
+    // Cycle #330 — respect the banner snooze: a user who told the reminder
+    // to come back later said the same thing about notifications. Same
+    // record, same semantics as showDeadlineReminder().
+    try {
+      const snooze = JSON.parse(localStorage.getItem('cleardoc:deadlineSnooze') || 'null');
+      if(snooze && snooze.until && String(snooze.until) > _dlNotifyDay()) return;
+    } catch(_){ /* ignore */ }
+    // Cycle #330 — prune yesterday's dedup keys so the store can't grow
+    // forever. Keys are `cleardoc:notified:<day>:<date>:<label>`; anything
+    // not stamped with today's date has already served its purpose.
+    try {
+      const today = _dlNotifyDay();
+      const doomed = [];
+      for(let i = 0; i < localStorage.length; i++){
+        const k = localStorage.key(i);
+        if(k && k.indexOf('cleardoc:notified:') === 0 && k.split(':')[2] !== today) doomed.push(k);
+      }
+      for(const k of doomed){ localStorage.removeItem(k); }
+    } catch(_){ /* ignore */ }
     for(const it of _dlDueItems()){
       const key = 'cleardoc:notified:' + _dlNotifyDay() + ':' + it.date + ':' + it.label.slice(0, 40);
       try { if(localStorage.getItem(key)) continue; } catch(_){ /* ignore */ }
@@ -1316,6 +1335,15 @@
   }
   function initDeadlineNotify(){
     maybeNotifyDeadlines();
+    // Cycle #330 — a long-lived tab crosses the deadline boundary while
+    // closed in the background; re-check each time it becomes visible so
+    // the ping arrives when the user actually looks. Wired once.
+    if(typeof document !== 'undefined' && !document._dlNotifyVisWired){
+      document._dlNotifyVisWired = true;
+      document.addEventListener('visibilitychange', () => {
+        if(!document.hidden) maybeNotifyDeadlines();
+      });
+    }
     const btn = document.getElementById('deadlineNotifyBtn');
     if(!btn) return;
     if(typeof Notification === 'undefined' || !('Notification' in window)){ btn.hidden = true; return; }

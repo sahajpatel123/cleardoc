@@ -6071,3 +6071,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #329 of the autonomous loop (add — last cycle was polish): "read what you're about to sign" only helps if you remember the cancel-by date. The deadline data was already persisted device-locally; this closes the loop by making it proactive — with the strict consent posture the project's privacy stance requires: no prompts without a press, no server, no cross-device anything.
+
+---
+
+**2026-08-23 01:57 IST | Model: ox-alpha (opencode)**
+**Changes Made:**
+- polish(deadlines): three politeness fixes for Cycle #329's notifications. (1) Snooze respect — `maybeNotifyDeadlines()` now reads the same `cleardoc:deadlineSnooze` record the reminder banner writes, so "snooze until tomorrow" silences notifications too instead of just hiding the banner. (2) Visibility re-check — a tab left open in the background crosses the deadline boundary unseen; `initDeadlineNotify` now re-runs the notification pass on every `visibilitychange` → visible transition (wired once via `document._dlNotifyVisWired`), mirroring the existing re-check pattern used by the service-status checker. (3) Dedup-key pruning — yesterday's `cleardoc:notified:<day>:…` keys are swept on each pass so the localStorage store can't grow unbounded across months of use.
+- Extended smoke coverage: static test now pins all three behaviors (snooze-suppression line, prune predicate, one-time visibility wiring); Playwright test gained a snooze phase asserting zero notifications while a snooze is active.
+- Full gate green: 490/490 unit, smoke 273 pass / 0 fail / 137 skipped, syntax + JSON validation clean.
+
+**Prompt Intention:**
+- Cycle #330 of the autonomous loop (polish — last cycle added deadline notifications): a notification feature is only as good as its restraint. Respecting the snooze the user already set, pinging when they actually return to the tab rather than only at cold load, and never letting bookkeeping keys accumulate make the feature trustworthy enough to keep enabled.
