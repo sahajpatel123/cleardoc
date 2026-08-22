@@ -16230,3 +16230,37 @@ test("risk map: flags bucket into the right sections with correct tallies", () =
   const plain = detectRiskSections("Just some prose without any section numbering at all here.", flags.slice(0, 1));
   assert.equal(plain.count, 0, "documents without section headers produce an empty map");
 });
+
+// Cycle #343 — the map speaks up: per-section 💬 ask buttons and a
+// worst-section concentration callout when one clause family dominates.
+test("risk map: per-row ask buttons and concentration callout are wired", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  // Ask buttons ride on every row and follow the house ask contract.
+  assert.match(appSrc, /data-rs-ask="' \+ esc\(it\.title\) \+ '"/,
+    "each row must carry an ask button tagged with its section title");
+  assert.ok(appSrc.indexOf("What does the “' + title + '” section") !== -1,
+    "the ask button must pre-fill a section-specific question");
+  const rsBlock = appSrc.indexOf("rs-ask");
+  const wiring = appSrc.slice(rsBlock, appSrc.indexOf("renderActionsBlock", rsBlock));
+  assert.ok(wiring.indexOf("e.stopPropagation()") !== -1,
+    "the ask click must not also trigger the row's jump-to-source");
+  assert.ok(wiring.indexOf("document.getElementById('askInput')") !== -1,
+    "asking must fill the shared ask box like every other 💬 surface");
+  assert.ok(wiring.indexOf("qBtn.disabled = false") !== -1,
+    "asking must enable the Ask button");
+  assert.ok(wiring.indexOf("Question ready — press Ask") !== -1,
+    "asking must confirm with the standard toast");
+  // Keyboard parity: Enter/Space on the button asks instead of jumping.
+  assert.ok(wiring.indexOf("e.target.closest('[data-rs-ask]')") !== -1,
+    "the keydown handler must ignore Enter/Space on the ask button itself");
+  // Concentration callout: only when one section holds ≥ half the
+  // weighted score AND ≥2 traps/watches.
+  const noteAt = appSrc.indexOf("Most risk concentrates in");
+  assert.ok(noteAt > 0, "the worst-section callout string must exist");
+  const calcStart = appSrc.lastIndexOf("const totalScore", noteAt);
+  const calc = appSrc.slice(calcStart, appSrc.indexOf("riskMapNote.innerHTML", calcStart));
+  assert.match(calc, /worst\.score \/ totalScore\) >= 0\.5/,
+    "concentration means one section holds at least half the weighted risk");
+  assert.match(calc, /worst\.traps \+ worst\.watches\) >= 2/,
+    "…and it needs real findings behind it, not one stray flag");
+});

@@ -17060,7 +17060,12 @@
               (it.watches ? '<b style="color:var(--amber)">' + it.watches + ' watch' + (it.watches === 1 ? '' : 'es') + '</b>' : '') +
               ((it.traps || it.watches) && it.notes ? ' · ' : '') +
               (it.notes ? it.notes + ' note' + (it.notes === 1 ? '' : 's') : '') +
-            '</span></div>' +
+            '</span>' +
+            // Cycle #343 — per-section ask, same contract as the
+            // deadline/risk/question 💬 buttons. stopPropagation keeps
+            // the row's own jump-to-source from double-firing.
+            '<button type="button" class="rs-ask ghost-btn ghost-btn-sm" data-rs-ask="' + esc(it.title) + '" title="Ask about this section">💬</button>' +
+          '</div>' +
           '<div class="rs-bar" role="img" aria-label="Risk weight for ' + esc(it.title) + '"><div class="rs-fill rs-' + dom + '" style="width:' + pct + '%"></div></div>' +
         '</div>';
       }).join('');
@@ -17069,7 +17074,15 @@
         (result.unlocated ? '<span class="gap-count"> · ' + result.unlocated + ' finding' + (result.unlocated === 1 ? '' : 's') + ' not tied to a location</span>' : '') + '</div>';
       riskMapBlock.hidden = false;
       if(riskMapNote){
+        // Cycle #343 — concentration callout: when one section holds at
+        // least half the weighted risk AND ≥2 traps/watches, say so out
+        // loud so readers know where to start.
+        const totalScore = result.items.reduce((s2, it) => s2 + it.score, 0);
+        const worst = result.items.slice().sort((a, b) => b.score - a.score)[0] || null;
+        const concentrated = worst && totalScore > 0 &&
+          (worst.score / totalScore) >= 0.5 && (worst.traps + worst.watches) >= 2;
         riskMapNote.innerHTML = '<span class="riskNote-lead">Where the risk sits</span> ' +
+          (concentrated ? '<b style="color:var(--danger)">⚠ Most risk concentrates in “' + esc(worst.title) + '”</b> — start there. ' : '') +
           'Traps clustered in one section point at that clause family; risk spread thin across many sections usually means broad boilerplate. Bar length = weighted severity (traps weigh most). Click a row to find that section in your document.';
       }
       // Cycle #342 — delegated jump: click / Enter / Space selects the
@@ -17090,10 +17103,32 @@
         });
         riskMapList.addEventListener('keydown', (e) => {
           if(e.key !== 'Enter' && e.key !== ' ') return;
+          // The 💬 button is its own keyboard target — Enter/Space on it
+          // must ask, not jump.
+          if(e.target.closest && e.target.closest('[data-rs-ask]')) return;
           const row = e.target.closest && e.target.closest('.rs-row');
           if(row){ e.preventDefault(); jumpToSection(row); }
         });
       }
+      // Cycle #343 — per-section ask: same contract as the deadline and
+      // question cards (fill #askInput, enable #askBtn, focus + toast).
+      // stopPropagation keeps the row's own click-to-jump from firing too.
+      Array.prototype.forEach.call(riskMapList.querySelectorAll('[data-rs-ask]'), (btn) => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const title = btn.getAttribute('data-rs-ask') || '';
+          const qInput = document.getElementById('askInput');
+          const qBtn = document.getElementById('askBtn');
+          if(!qInput) return;
+          qInput.value = 'What does the “' + title + '” section of my document mean, and are its terms normal?';
+          qInput.disabled = false;
+          if(qBtn) qBtn.disabled = false;
+          try { qInput.focus(); } catch(_){ /* ignore */ }
+          try { qInput.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('💬 Question ready — press Ask');
+        });
+      });
     }
 
     // Iter #102: signing checklist renderer (iter #103 polished)

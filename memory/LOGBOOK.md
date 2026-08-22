@@ -6216,3 +6216,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #342 of the autonomous loop (polish — last cycle added the risk map): close the loop from insight to action (find it in your document) and carry the insight into the printable brief. Next add-cycle candidate: open terms in exec-summary/receipt aggregates, or a section-aware "worst section" callout in the verdict area.
+
+## 2026-08-23 04:0x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #343 — ADD: the risk map speaks up and connects.** Two upgrades to the Cycle #341/342 map:
+  - **Concentration callout:** when one section holds ≥50% of the total weighted score AND ≥2 traps+watches, the map note now opens with "⚠ Most risk concentrates in "<title>" — start there." so readers know where to begin instead of reading bars top-to-bottom. Below threshold, the note stays explanatory as before.
+  - **Per-section 💬 ask buttons:** every row's header gains a ghost 💬 button tagged `data-rs-ask="<title>"`; clicking pre-fills the shared ask box ("What does the "<title>" section of my document mean, and are its terms normal?"), enables Ask, focuses + scrolls to it, and toasts "💬 Question ready — press Ask" — the exact deadline/smoking-gun/question-card contract. `stopPropagation` keeps the row's own jump-to-source from double-firing, and the delegated keydown handler now ignores Enter/Space that land on `[data-rs-ask]` so keyboard users ask rather than jump.
+- Smoke tests: new structural test pins the button markup, question template, stopPropagation, ask-box contract, keydown guard, and both concentration thresholds (≥0.5 share, ≥2 findings).
+- Gate: unit 490/490 · smoke 298 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #343 of the autonomous loop (add — last cycle polished jump/cheat-sheet): turn the map from a passive chart into a launcher — tell readers where to start, then let them ask about that section in one click. Next polish-cycle candidate: open terms folded into exec-summary/receipt aggregates, or styling/hover polish on the new ask buttons.
+
