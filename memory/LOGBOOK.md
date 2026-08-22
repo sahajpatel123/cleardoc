@@ -6046,3 +6046,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #327 of the autonomous loop (add — last cycle was polish): every existing export path ends at the clipboard or a mailto:. On phones — where "read what you're about to sign" happens most — the native share sheet is how users actually move content between apps. This closes that gap while reusing the exact summary payload the other share buttons build, so all share surfaces stay consistent.
+
+---
+
+**2026-08-23 01:31 IST | Model: ox-alpha (opencode)**
+**Changes Made:**
+- polish(pwa): bumped `sw.js` VERSION `v1.0.0` → `v1.1.0` and documented the bump rule inline at the constant. Root cause this fixes: pages load `assets/app.js` with no cache-busting query string AND same-origin assets are served cache-first by the worker, so VERSION is the only invalidation path for returning PWA users — it hadn't moved through 326 cycles of app.js changes, meaning installed PWAs could be running a stale shell indefinitely. The v1.1.0 bump is also what actually ships Cycle #327's share-sheet button to those users.
+- Added an always-run smoke test guarding the two ways that path silently breaks: every PRECACHE_URLS entry must exist on disk (a 404 makes atomic `addAll` fail → stale shell persists), and VERSION must never sit back at its pre-cycle-328 value.
+- Added `sw.js` to the `npm run syntax` check list — it was the only shipped JS file not syntax-gated.
+- Full gate green: 490/490 unit, smoke 272 pass / 0 fail / 136 skipped, syntax + JSON validation clean.
+
+**Prompt Intention:**
+- Cycle #328 of the autonomous loop (polish — last cycle added the native share sheet): a feature isn't shipped until PWA users receive it, and the cache-first asset strategy meant they wouldn't. Making the version bump + precache-list invariants test-enforced so this class of silent staleness can't regress.

@@ -13736,6 +13736,30 @@ skip("analyzer: chat share includes deadlines and jurisdiction", async () => {
   }
 });
 
+// Cycle #328 — service worker cache hygiene. Same-origin assets are served
+// cache-first with no query-string busting, so VERSION is the only
+// invalidation path for returning PWA users. Guard the two ways that path
+// silently breaks: a precached URL that 404s (atomic addAll fails → stale
+// shell persists) and the version constant being reset to its long-stale
+// original value.
+test("pwa: every precached shell URL exists on disk and the SW version has moved past v1.0.0", () => {
+  const swSrc = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
+  const versionMatch = swSrc.match(/const VERSION = '([^']+)'/);
+  assert.ok(versionMatch, "sw.js must define VERSION");
+  assert.notEqual(versionMatch[1], "v1.0.0",
+    "sw.js VERSION is still the pre-cycle-328 value — bump it when precached files change");
+
+  const precacheBlock = swSrc.match(/const PRECACHE_URLS = \[([\s\S]*?)\];/);
+  assert.ok(precacheBlock, "sw.js must define PRECACHE_URLS");
+  const urls = [...precacheBlock[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  assert.ok(urls.length >= 10, `expected the full precache list, got ${urls.length} entries`);
+  for (const url of urls) {
+    const rel = url === "/" ? "index.html" : url.replace(/^\//, "");
+    assert.ok(fs.existsSync(path.join(ROOT, rel)),
+      `PRECACHE_URLS entry /${rel} does not exist on disk — addAll would fail atomically`);
+  }
+});
+
 // Cycle #327 — native share sheet (Web Share API) with clipboard fallback.
 // Static contract first: runs everywhere, no browser needed.
 test("analyzer: native share button exists and is wired with sheet + clipboard fallback", () => {

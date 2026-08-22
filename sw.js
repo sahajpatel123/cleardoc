@@ -20,7 +20,13 @@
  * install — old caches are pruned in `activate`.
  */
 
-const VERSION = 'v1.0.0';
+// Cycle #328 — bump on EVERY change to a precached file (assets/app.js,
+// theme.css, any HTML page). Pages load assets with no cache-busting
+// query string and same-origin assets are served cache-first, so this
+// constant is the ONLY invalidation path for returning PWA users: if it
+// doesn't change, the browser never re-installs the worker and they keep
+// running the old shell indefinitely.
+const VERSION = 'v1.1.0';
 const STATIC_CACHE = `cleardoc-static-${VERSION}`;
 const RUNTIME_CACHE = `cleardoc-runtime-${VERSION}`;
 const CDN_CACHE = `cleardoc-cdn-${VERSION}`;
