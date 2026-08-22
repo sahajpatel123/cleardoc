@@ -6367,3 +6367,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 
 
+
+## 2026-08-23 06:1x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #355 — ADD: "🗣 My asks" negotiation ask-list builder.** The cheat sheet is the brief you keep; this is the list you SEND. One new button beside the cheat-sheet action consolidates every lens's findings into a single ranked, copy-ready Markdown demand list:
+  - **Ranked deal-breaker-first:** execution problems → missing clauses → open terms → undated obligations → undefined terms → broken references, each section phrased AS AN ASK ("Ask them to add: …", "Fill in: …", "Put a deadline or exit on: …", "Define: …", "Fix reference: …", "Fix the signature block: …") — concrete changes to request, not internal labels.
+  - **Built live from the DOM** so the list always matches what the user actually sees on screen; undated rows read their `.gap-hint` guidance and strip surrounding quotes; header carries date + document fingerprint for provenance; footer asks for written confirmation of each point.
+  - **House clipboard pattern** (navigator.clipboard with textarea/execCommand fallback), ✓ copied button flash, success toast; a clean document says "Nothing to ask — this document came back clean" instead of producing an empty file.
+- Tests: structural pins for the hidden button beside its siblings, once-guarded wiring, all six lens selectors, rank order (execution before gaps before open terms), per-category ask prefixes, provenance header, both clipboard paths, and the empty-state message.
+- Gate: unit 490/490 · smoke 310 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #355 of the autonomous loop (add — last cycle polished signature jumps/cheat-sheet): the negotiator's take-home artifact, closing the loop from analysis to action. Next polish-cycle candidate: ask-list polish (top-priority line from the executive summary, per-row source links), or party-obligation balance.

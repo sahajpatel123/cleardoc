@@ -22404,6 +22404,67 @@
       // Iter #108: reveal cheat-sheet button alongside voice mode.
       const cheatSheetBtn = document.getElementById('cheatSheetBtn');
       if(cheatSheetBtn) cheatSheetBtn.hidden = false;
+      // Cycle #355 — "My asks": every lens's findings consolidated into
+      // one ranked, copy-ready demand list. The cheat sheet is the brief
+      // you keep; this is the list you SEND — ordered deal-breakers
+      // first, phrased as concrete requests, built live from the DOM so
+      // it always matches what the user actually sees on screen.
+      const askListBtn = document.getElementById('askListBtn');
+      if(askListBtn){
+        askListBtn.hidden = false;
+        if(!askListBtn._alWired){
+          askListBtn._alWired = true;
+          askListBtn.addEventListener('click', async () => {
+            const readAll = (sel, cap) => Array.from(document.querySelectorAll(sel)).slice(0, cap || 6)
+              .map(el => (el.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+            const readFirstHints = (sel, cap) => Array.from(document.querySelectorAll(sel)).slice(0, cap || 4).map(row => {
+              const h = row.querySelector && row.querySelector('.gap-hint');
+              return ((h && h.textContent) || '').replace(/\s+/g, ' ').trim();
+            }).filter(Boolean);
+            const sections = [];
+            const addSection = (title, prefix, items, wrap) => {
+              if(items.length) sections.push({ title, lines: items.map(t => '- ' + prefix + (wrap ? wrap(t) : t)) });
+            };
+            // Deal-breakers first, then completeness, then polish.
+            addSection('Fix before anything else', 'Fix the signature block: ', readAll('#sigList .gap-label'));
+            addSection('Missing clauses to request', 'Ask them to add: ', readAll('#gapList .gap-label', 8));
+            addSection('Fill in before signing', 'Fill in: ', readAll('#openTermsList .gap-label', 8));
+            addSection('Put deadlines on forever duties', 'Put a deadline or exit on: ', readFirstHints('#undatedList .gap-row', 4), t => t.replace(/^[“”"]+|[“”"]+$/g, ''));
+            addSection('Define the vocabulary', 'Define: ', readAll('#termsList .gap-label', 6));
+            addSection('Repair broken cross-references', 'Fix reference: ', readAll('#xrefList .gap-label', 6));
+            if(!sections.length){
+              if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✓ Nothing to ask — this document came back clean');
+              return;
+            }
+            const fp = (_fpState && _fpState.short) ? _fpState.short : '';
+            const mdLines = ['# My negotiation asks', '',
+              'Prepared with ClearDoc on ' + localDateStamp() + (fp ? ' · fingerprint #' + fp : '') + '.',
+              'Each item is a concrete change to request before signing.', ''];
+            sections.forEach(s2 => {
+              mdLines.push('## ' + s2.title, ...s2.lines, '');
+            });
+            mdLines.push('— Sent after a full read of the agreement. Please confirm each point in writing before signing.');
+            const text = mdLines.join('\n');
+            let ok = false;
+            try {
+              if(navigator.clipboard && navigator.clipboard.writeText){
+                await navigator.clipboard.writeText(text);
+                ok = true;
+              } else {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+                document.body.appendChild(ta); ta.select();
+                ok = document.execCommand('copy'); document.body.removeChild(ta);
+              }
+            } catch(_){}
+            const prev = askListBtn.textContent;
+            askListBtn.textContent = ok ? '✓ copied' : 'Copy failed';
+            clearTimeout(askListBtn._flashTimer);
+            askListBtn._flashTimer = setTimeout(() => { askListBtn.textContent = prev; }, 1600);
+            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '✓ Ask list copied — paste it into your reply' : '⚠ Couldn’t copy');
+          });
+        }
+      }
       const receiptBtn = document.getElementById('receiptBtn');
       if(receiptBtn) receiptBtn.hidden = false;
       const voiceMeter = document.getElementById('voiceModeMeter');

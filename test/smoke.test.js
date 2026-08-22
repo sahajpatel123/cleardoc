@@ -16689,3 +16689,53 @@ test("signatures: healthy blocks stay quiet; broken ones speak up", () => {
   assert.equal(undated.count, 1, "multi-party blocks without Date lines are flagged");
   assert.match(undated.items[0].label, /no Date line/, "the finding asks for dated signatures");
 });
+
+// Cycle #355 — "My asks": one button consolidates every lens's findings
+// into a single ranked, copy-ready negotiation demand list. It reads the
+// LIVE DOM (so it always matches what the user sees) in deal-breaker-first
+// order, phrases each row as an ask, and copies via the house pattern.
+test("ask list: button exists, reads every lens in rank order, copies as asks", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  // Button sits beside its sibling export buttons.
+  assert.match(html, /id="askListBtn"[^>]*hidden/, "the button ships hidden until analysis runs");
+  const btnAt = html.indexOf('id="askListBtn"');
+  const cheatAt = html.indexOf('id="cheatSheetBtn"');
+  assert.ok(btnAt > 0 && cheatAt > 0 && Math.abs(btnAt - cheatAt) < 400,
+    "the ask-list button lives with the other export actions");
+
+  // Wiring is once-guarded like every other delegated listener.
+  assert.match(appSrc, /getElementById\('askListBtn'\)/, "app wires the button");
+  assert.match(appSrc, /_alWired/, "wiring is once-guarded");
+
+  // Every lens feeds the list — none left behind.
+  for(const sel of ["#sigList .gap-label", "#gapList .gap-label", "#openTermsList .gap-label",
+                    "#undatedList .gap-row", "#termsList .gap-label", "#xrefList .gap-label"]){
+    assert.ok(appSrc.includes("'" + sel + "'"), "the builder reads " + sel);
+  }
+
+  // Ranking: execution problems are read before missing clauses, which are
+  // read before open terms (source order of addSection calls).
+  const sigRead = appSrc.indexOf("'#sigList .gap-label'");
+  const gapRead = appSrc.indexOf("'#gapList .gap-label'");
+  const openRead = appSrc.indexOf("'#openTermsList .gap-label'");
+  assert.ok(sigRead < gapRead && gapRead < openRead, "deal-breakers rank first in build order");
+
+  // Each section is phrased AS AN ASK, not as a label.
+  assert.match(appSrc, /'Ask them to add: '/, "missing clauses become requests to add");
+  assert.match(appSrc, /'Fill in: '/, "open terms become fill-in asks");
+  assert.match(appSrc, /'Put a deadline or exit on: '/, "forever duties get deadline asks");
+  assert.match(appSrc, /'Define: '/, "undefined terms become definition asks");
+  assert.match(appSrc, /'Fix reference: '/, "broken refs become repair asks");
+
+  // Header carries provenance; copy uses the house clipboard pattern.
+  assert.match(appSrc, /'# My negotiation asks'/, "markdown header present");
+  assert.match(appSrc, /Prepared with ClearDoc on '/, "header carries date provenance");
+  assert.match(appSrc, /navigator\.clipboard\.writeText\(text\)/, "primary copy path");
+  assert.match(appSrc, /execCommand\('copy'\)/, "textarea fallback path");
+  assert.match(appSrc, /Ask list copied/, "success toast confirms delivery");
+
+  // A clean document says so instead of producing an empty file.
+  assert.match(appSrc, /Nothing to ask/, "empty result gets its own message, no empty copy");
+});
