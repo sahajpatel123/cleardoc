@@ -6228,3 +6228,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Cycle #343 of the autonomous loop (add — last cycle polished jump/cheat-sheet): turn the map from a passive chart into a launcher — tell readers where to start, then let them ask about that section in one click. Next polish-cycle candidate: open terms folded into exec-summary/receipt aggregates, or styling/hover polish on the new ask buttons.
 
+## 2026-08-23 04:1x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #344 — POLISH: risk-map ask parity + cheat-sheet carry-through.** Brought the Cycle #343 `.rs-ask` button up to the standard set by `.smoking-ask` / `.pressure-ask` / `.exposure-ask`: per-section `aria-label="Ask about the <title> section"` (screen-reader users hear which row they're on, not six identical "Ask about this section"s), plus the sibling layout rule (`margin-left:4px;flex-shrink:0;align-self:center`) and explicit `:focus-visible` ring.
+- Concentration verdict now travels beyond the live page: `renderRiskSections` stamps `data-worst-section="<title>"` on `#riskMapList` when concentrated (and removes it otherwise), and the Negotiator Cheat Sheet reads that attribute to open its "Where the risk sits" list with a bold "⚠ Start with: <title>" line — so printed/emailed briefs carry the start-here callout too. Attribute-based handoff keeps the cheat sheet DOM-driven as designed (no JS-state plumbing).
+- Smoke tests: new structural test pins the aria-label template, both CSS rules, set/remove of `data-worst-section`, and the cheat-sheet lead line + attribute read.
+- Gate: unit 490/490 · smoke 299 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #344 of the autonomous loop (polish — last cycle added the ask buttons/callout): make new surfaces indistinguishable from the house-standard ones (a11y + focus) and make their insight survive printing. Next add-cycle candidate: open terms folded into exec-summary aggregates, or a fresh analytical lens.
+
+

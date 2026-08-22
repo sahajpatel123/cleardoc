@@ -16264,3 +16264,28 @@ test("risk map: per-row ask buttons and concentration callout are wired", () => 
   assert.match(calc, /worst\.traps \+ worst\.watches\) >= 2/,
     "…and it needs real findings behind it, not one stray flag");
 });
+
+// Cycle #344 — polish: ask buttons match their siblings (label + focus
+// ring), and the concentration verdict travels into the printed brief.
+test("risk map ask: aria parity, focus ring, cheat-sheet start-here line", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  // Every sibling 💬 names itself for screen readers; so must this one.
+  assert.ok(appSrc.indexOf('aria-label="Ask about the \' + esc(it.title) + \' section"') !== -1,
+    "the rs-ask button must carry a per-section aria-label like its siblings");
+  // Same treatment as .smoking-ask / .pressure-ask / .exposure-ask.
+  assert.match(cssSrc, /\.rs-ask\{margin-left:4px;flex-shrink:0/,
+    ".rs-ask needs the sibling ask-button layout rule");
+  assert.match(cssSrc, /\.rs-ask:focus-visible\{outline:2px solid var\(--accent\)/,
+    ".rs-ask needs an explicit keyboard focus ring");
+  // The worst-section verdict is published as data on the list element.
+  assert.ok(appSrc.indexOf("setAttribute('data-worst-section', worst.title)") !== -1,
+    "a concentrated map must stamp its worst section as data");
+  assert.ok(appSrc.indexOf("removeAttribute('data-worst-section')") !== -1,
+    "a spread-out map must clear any stale worst-section stamp");
+  // The printed cheat sheet leads "Where the risk sits" with start-here.
+  assert.ok(appSrc.indexOf("⚠ Start with: ' + esc(worstTitle)") !== -1,
+    "the cheat sheet must open the risk-location list with the callout");
+  assert.ok(appSrc.indexOf("getAttribute('data-worst-section')") !== -1,
+    "the cheat sheet must read the stamped attribute");
+});

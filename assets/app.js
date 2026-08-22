@@ -17064,7 +17064,7 @@
             // Cycle #343 — per-section ask, same contract as the
             // deadline/risk/question 💬 buttons. stopPropagation keeps
             // the row's own jump-to-source from double-firing.
-            '<button type="button" class="rs-ask ghost-btn ghost-btn-sm" data-rs-ask="' + esc(it.title) + '" title="Ask about this section">💬</button>' +
+            '<button type="button" class="rs-ask ghost-btn ghost-btn-sm" data-rs-ask="' + esc(it.title) + '" title="Ask about this section" aria-label="Ask about the ' + esc(it.title) + ' section">💬</button>' +
           '</div>' +
           '<div class="rs-bar" role="img" aria-label="Risk weight for ' + esc(it.title) + '"><div class="rs-fill rs-' + dom + '" style="width:' + pct + '%"></div></div>' +
         '</div>';
@@ -17081,6 +17081,10 @@
         const worst = result.items.slice().sort((a, b) => b.score - a.score)[0] || null;
         const concentrated = worst && totalScore > 0 &&
           (worst.score / totalScore) >= 0.5 && (worst.traps + worst.watches) >= 2;
+        // Cycle #344 — publish the verdict as data so non-DOM surfaces
+        // (the cheat sheet reads attributes, not JS state) can carry it.
+        if(concentrated) riskMapList.setAttribute('data-worst-section', worst.title);
+        else riskMapList.removeAttribute('data-worst-section');
         riskMapNote.innerHTML = '<span class="riskNote-lead">Where the risk sits</span> ' +
           (concentrated ? '<b style="color:var(--danger)">⚠ Most risk concentrates in “' + esc(worst.title) + '”</b> — start there. ' : '') +
           'Traps clustered in one section point at that clause family; risk spread thin across many sections usually means broad boilerplate. Bar length = weighted severity (traps weigh most). Click a row to find that section in your document.';
@@ -22284,11 +22288,16 @@
           })();
           // Cycle #342 — the risk map joins too: "1. Payment — 2 traps ·
           // 1 watch" lines so the printed brief says WHERE to look.
+          // Cycle #344 — when one section dominates, the printed brief
+          // opens that list with an explicit start-here line.
           const riskMapLines = (function(){
             const titles = document.querySelectorAll('#riskMapList .rs-title');
             if(!titles || !titles.length) return '';
             const tallies = document.querySelectorAll('#riskMapList .rs-tally');
-            return Array.from(titles).slice(0, 6).map((el, i2) => '<li class="cheat-li">' +
+            const mapEl = document.getElementById('riskMapList');
+            const worstTitle = mapEl ? (mapEl.getAttribute('data-worst-section') || '') : '';
+            const lead = worstTitle ? '<li class="cheat-li"><b>⚠ Start with: ' + esc(worstTitle) + '</b></li>' : '';
+            return lead + Array.from(titles).slice(0, 6).map((el, i2) => '<li class="cheat-li">' +
               esc((el.textContent || '').trim()) +
               (tallies[i2] ? ' — ' + esc((tallies[i2].textContent || '').trim()) : '') +
               '</li>').join('');
