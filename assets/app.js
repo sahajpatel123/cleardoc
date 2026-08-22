@@ -4484,6 +4484,7 @@
           actionBlock=$('#actionBlock'),actionNote=$('#actionNote'),actionGrid=$('#actionGrid'),
           gapBlock=$('#gapBlock'),gapNote=$('#gapNote'),gapList=$('#gapList'),
           openTermsBlock=$('#openTermsBlock'),openTermsNote=$('#openTermsNote'),openTermsList=$('#openTermsList'),
+          riskMapBlock=$('#riskMapBlock'),riskMapNote=$('#riskMapNote'),riskMapList=$('#riskMapList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -16965,6 +16966,107 @@
       }
     }
 
+    // Cycle #341 — risk-by-section map. "Where exactly is the danger?"
+    // is the natural follow-up to the verdict: a contract whose traps
+    // cluster in one numbered section reads very differently from one
+    // smeared evenly through the document. Pure-local: parses common
+    // section headers (ARTICLE 4 / SECTION 2 / § 3 / "1. Payment"),
+    // then buckets every flag into the section that contains it.
+    const SECTION_HEAD_RE = /^[ \t]{0,6}(?:(?:ARTICLE|SECTION|§)\s+[A-Za-z\dIVXivx]{1,6}\.?[^\n]{0,90}|\d{1,2}\.\s+\S[^\n]{0,90})$/;
+    function detectRiskSections(raw, flagsArr){
+      const text = String(raw || '');
+      if(!text.trim()) return { items: [], count: 0 };
+      // 1) Section headers + their char offsets, scanned line-by-line
+      // so anchored patterns can't match mid-sentence mentions.
+      const heads = [];
+      let off = 0;
+      for(const line of text.split('\n')){
+        if(SECTION_HEAD_RE.test(line)) heads.push({ start: off, title: line.replace(/\s+/g, ' ').trim().slice(0, 80) });
+        off += line.length + 1;
+      }
+      if(!heads.length) return { items: [], count: 0 };
+      // 2) Locate each flag in the raw text. Sentences arrive
+      // whitespace-collapsed (splitSentences), so rebuild a tolerant
+      // search pattern from the first words instead of indexOf.
+      const escRe = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const flagOffset = (f) => {
+        const s = String(f.s || '').trim();
+        const words = s.split(/\s+/).slice(0, 8).map(escRe);
+        if(words.length < 3) return -1;
+        const m = new RegExp(words.join('\\s+')).exec(text);
+        return m ? m.index : -1;
+      };
+      // 3) Bucket flags into the last header at-or-before each offset.
+      const bySection = new Map();
+      let unlocated = 0;
+      for(const f of (flagsArr || [])){
+        const pos = flagOffset(f);
+        let secIdx = -1;
+        if(pos >= 0){
+          for(let h = heads.length - 1; h >= 0; h--){
+            if(heads[h].start <= pos){ secIdx = h; break; }
+          }
+        }
+        if(secIdx < 0){
+          // Flags before the first header still belong to the document
+          // opening; only truly unfindable ones are counted separately.
+          secIdx = pos >= 0 ? -1 : -2;
+          if(secIdx === -2){ unlocated++; continue; }
+        }
+        const key = secIdx === -1 ? -1 : secIdx;
+        if(!bySection.has(key)) bySection.set(key, { traps: 0, watches: 0, notes: 0 });
+        const b = bySection.get(key);
+        const sev = f.rule && f.rule.sev;
+        if(sev === 'r') b.traps++;
+        else if(sev === 'a') b.watches++;
+        else b.notes++;
+      }
+      // 4) Assemble rows in document order; the preamble bucket sorts
+      // first when present.
+      const items = [];
+      bySection.forEach((b, key) => {
+        const title = key === -1
+          ? 'Before the first heading'
+          : (heads[key] ? heads[key].title : '?');
+        const start = key === -1 ? -1 : heads[key].start;
+        items.push({ title, start,
+          traps: b.traps, watches: b.watches, notes: b.notes,
+          score: b.traps * 30 + b.watches * 12 + b.notes * 4 });
+      });
+      items.sort((a, b) => a.start - b.start);
+      return { items: items.slice(0, 8), count: items.length, unlocated };
+    }
+
+    // Cycle #341 — renderer for the risk map block.
+    function renderRiskSections(result){
+      if(!riskMapBlock || !riskMapList || !result) return;
+      if(!result.items.length){ riskMapBlock.hidden = true; return; }
+      const maxScore = Math.max.apply(null, result.items.map(it => it.score).concat([1]));
+      const rows = result.items.map(it => {
+        const pct = Math.max(8, Math.round((it.score / maxScore) * 100));
+        const dom = it.traps >= it.watches && it.traps >= it.notes ? 'r' : (it.watches >= it.notes ? 'a' : 'g');
+        return '<div class="rs-row">' +
+          '<div class="rs-head"><span class="rs-title mono">' + esc(it.title) + '</span>' +
+            '<span class="rs-tally">' +
+              (it.traps ? '<b style="color:var(--danger)">' + it.traps + ' trap' + (it.traps === 1 ? '' : 's') + '</b>' : '') +
+              (it.traps && it.watches ? ' · ' : '') +
+              (it.watches ? '<b style="color:var(--amber)">' + it.watches + ' watch' + (it.watches === 1 ? '' : 'es') + '</b>' : '') +
+              ((it.traps || it.watches) && it.notes ? ' · ' : '') +
+              (it.notes ? it.notes + ' note' + (it.notes === 1 ? '' : 's') : '') +
+            '</span></div>' +
+          '<div class="rs-bar" role="img" aria-label="Risk weight for ' + esc(it.title) + '"><div class="rs-fill rs-' + dom + '" style="width:' + pct + '%"></div></div>' +
+        '</div>';
+      }).join('');
+      riskMapList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' + result.count + ' section' + (result.count === 1 ? '' : 's') + ' carry flagged content</span>' +
+        (result.unlocated ? '<span class="gap-count"> · ' + result.unlocated + ' finding' + (result.unlocated === 1 ? '' : 's') + ' not tied to a location</span>' : '') + '</div>';
+      riskMapBlock.hidden = false;
+      if(riskMapNote){
+        riskMapNote.innerHTML = '<span class="riskNote-lead">Where the risk sits</span> ' +
+          'Traps clustered in one section point at that clause family; risk spread thin across many sections usually means broad boilerplate. Bar length = weighted severity (traps weigh most).';
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -18036,6 +18138,13 @@
         renderOpenTermsBlock(detectOpenTerms(raw));
       } else if(openTermsBlock) {
         openTermsBlock.hidden = true;
+      }
+      // Cycle #341 — risk-by-section map: which numbered sections hold
+      // the traps, so "where exactly is the danger?" has an answer.
+      if(riskMapBlock && typeof detectRiskSections === 'function'){
+        renderRiskSections(detectRiskSections(raw, flags));
+      } else if(riskMapBlock) {
+        riskMapBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.

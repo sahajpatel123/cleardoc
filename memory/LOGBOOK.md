@@ -6195,3 +6195,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #340 of the autonomous loop (polish — last cycle added weekend-aware deadline warnings): make the warning ubiquitous across every surface a deadline already travels through. Next add-cycle candidate: risk-by-section map (which numbered section holds the traps) or open-terms integration into exec-summary/receipt.
+
+## 2026-08-23 03:43 | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #341 — ADD: risk-by-section map ("🗺 Risk map").** Answers "where exactly is the danger?": traps clustered in one numbered section read very differently from risk smeared through boilerplate. New pure-local `detectRiskSections(raw, flags)` parses common headers (`ARTICLE 4` / `SECTION 2` / `§ 3` / `1. Payment`) line-anchored so mid-sentence mentions can't fake sections, then buckets every flag into its containing section.
+- Location strategy: sentences arrive whitespace-collapsed from splitSentences, so index math against raw is impossible — instead each flag's first ≤8 words become an escaped `\s+`-joined regex searched in the raw text. Works for local flags AND AI-risk clause snippets; sub-3-word/unfindable findings count as "not tied to a location" rather than lying.
+- Renderer: per-section rows with title + trap/watch/note tally over a weighted severity bar (traps ×30, watches ×12, notes ×4 — same weights as pickKeyClauses), bar color = dominant severity, document order, capped at 8 sections.
+- Tests: structural (pattern/wiring/markup/CSS/cap/no-network) + behavioral (real parser extracted and run against a synthetic preamble+two-section contract: correct bucketing, verbatim titles, tallies, unlocated counting, graceful empty on headerless prose).
+- Gate: unit 490/490 · smoke 297 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #341 of the autonomous loop (add — last cycle polished weekend exports): chose the section map as a genuinely new analytical lens. Polish candidate for next cycle: click-to-jump from map rows to the source text, or map data into the cheat-sheet/receipt aggregates.

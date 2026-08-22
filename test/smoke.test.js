@@ -16145,3 +16145,67 @@ test("deadlines: weekend warnings ride along in the banner and every text export
   assert.ok(appSrc.indexOf("csvCell('Weekend')") !== -1,
     "the CSV must gain a Weekend column");
 });
+
+// Cycle #341 — risk-by-section map: which numbered sections hold the traps.
+test("risk map: markup, wiring, styling, and detector caps are all in place", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const htmlSrc = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+  assert.match(appSrc, /const SECTION_HEAD_RE = \//,
+    "the section-header pattern must exist");
+  assert.match(appSrc, /function detectRiskSections\(raw, flagsArr\)/,
+    "the pure-local risk-section detector must exist");
+  assert.match(appSrc, /renderRiskSections\(detectRiskSections\(raw, flags\)\)/,
+    "the detector must feed the renderer in the analysis flow");
+  assert.match(htmlSrc, /id="riskMapBlock"/, "analyze.html must contain the Risk map block");
+  assert.match(htmlSrc, /id="riskMapList"/, "…and its list container");
+  assert.match(cssSrc, /\.rs-fill\.rs-r\{/, "theme.css must style the trap-heavy bar");
+  // Display cap: a contract with dozens of sections cannot flood the UI.
+  const dStart = appSrc.indexOf("function detectRiskSections");
+  const dBody = appSrc.slice(dStart, appSrc.indexOf("\n    }", dStart));
+  assert.match(dBody, /slice\(0, ?8\)/, "the detector must cap visible sections");
+  assert.doesNotMatch(dBody, /fetch|sendBeacon|XMLHttpRequest/,
+    "the detector is pure-local — no network calls");
+});
+
+// Cycle #341 — behavioral check: the real parser is extracted and run
+// against a synthetic contract with a preamble + two numbered sections.
+test("risk map: flags bucket into the right sections with correct tallies", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const start = appSrc.indexOf("const SECTION_HEAD_RE = /");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 8), count: items.length, unlocated };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length)
+    + "\n return { detectRiskSections, SECTION_HEAD_RE };";
+  const { detectRiskSections } = new Function(src)();
+
+  const doc = [
+    "SERVICE AGREEMENT",
+    "This agreement includes indemnification obligations that shall survive termination forever without limit.",
+    "1. Payment",
+    "All fees paid hereunder are non-refundable and forfeiture of deposits applies immediately upon default.",
+    "2. Term",
+    "This agreement renews automatically unless cancelled and disputes go to binding arbitration in Delaware."
+  ].join("\n");
+  const flags = [
+    { s: "This agreement includes indemnification obligations that shall survive termination forever.", rule: { sev: "r" } },
+    { s: "All fees paid hereunder are non-refundable and forfeiture of deposits applies immediately.", rule: { sev: "a" } },
+    { s: "This agreement renews automatically unless cancelled and disputes go to binding arbitration.", rule: { sev: "r" } },
+    { s: "too short", rule: { sev: "g" } }
+  ];
+  const r = detectRiskSections(doc, flags);
+  assert.equal(r.count, 3, "preamble + two numbered sections must be found, got " + r.count);
+  assert.equal(r.items[0].title, "Before the first heading", "pre-header flags bucket into the opening");
+  assert.equal(r.items[0].traps, 1, "the preamble holds the indemnity trap");
+  assert.equal(r.items[1].title, "1. Payment", "section header titles carry through verbatim");
+  assert.equal(r.items[1].watches, 1, "the payment watch lands in section 1");
+  assert.equal(r.items[2].traps, 1, "the term trap lands in section 2");
+  assert.equal(r.unlocated, 1, "sub-three-word findings count as unlocated");
+
+  // No headers → no map (graceful empty), never a crash.
+  const plain = detectRiskSections("Just some prose without any section numbering at all here.", flags.slice(0, 1));
+  assert.equal(plain.count, 0, "documents without section headers produce an empty map");
+});
