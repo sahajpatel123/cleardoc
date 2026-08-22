@@ -2739,6 +2739,7 @@
             <div class="kb-row"><kbd>🔗</kbd><span>Copy share link to clipboard</span></div>
             <div class="kb-row"><kbd>💬</kbd><span>Copy chat-friendly summary to clipboard</span></div>
             <div class="kb-row"><kbd>📤</kbd><span>Open the device share sheet (clipboard fallback on desktop)</span></div>
+            <div class="kb-row"><kbd>🖼</kbd><span>Download a shareable verdict card as PNG — aggregate stats only, never document text</span></div>
             <div class="kb-row"><kbd>📧</kbd><span>Open mail client with analysis summary</span></div>
           </div>
           <h3 class="kb-modal-subtitle mono">DEADLINE REMINDERS</h3>
@@ -20300,6 +20301,86 @@
     // than the clipboard; desktop browsers without Web Share fall back
     // to the same clipboard path the other share buttons use. Payload
     // mirrors copyChatShare: plain-text summary + share link.
+    // Cycle #331 — shareable verdict card. A 1200×630 branded image with
+    // the verdict, risk tally, and threat level — the hero output of an
+    // analysis, in a format chat apps and social posts actually accept.
+    // Privacy by construction: the card carries ONLY aggregate fields
+    // (verdict label, counts, threat score) — never document text,
+    // clauses, or file names. Rendered as inline SVG → canvas → PNG with
+    // a .svg download fallback; system fonts only so rasterization never
+    // depends on network font loads.
+    function buildVerdictCardSvg(){
+      const vLabelEl = verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-label');
+      const verdict = (vLabelEl && vLabelEl.textContent || '').trim() || 'Analysis complete';
+      const t = (typeof computeThreatScore === 'function' && lastFlags) ? computeThreatScore(lastFlags) : null;
+      const traps = t ? t.traps : (lastFlags || []).length;
+      const watches = t ? t.watches : 0;
+      const notes = t ? t.notes : 0;
+      const threatLine = t ? ('THREAT ' + t.score + ' · ' + t.level.toUpperCase()) : '';
+      const escS = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">' +
+        '<rect width="1200" height="630" fill="#EDE7D8"/>' +
+        '<rect x="24" y="24" width="1152" height="582" fill="none" stroke="#14120E" stroke-width="4"/>' +
+        '<rect x="24" y="540" width="1152" height="66" fill="#14120E"/>' +
+        '<text x="56" y="86" font-family="Menlo,Consolas,monospace" font-size="22" letter-spacing="6" fill="#FF3B00">// VERDICT</text>' +
+        '<text x="1144" y="86" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="20" fill="#14120E" opacity="0.7">' + escS(new Date().toISOString().slice(0,10)) + '</text>' +
+        '<text x="56" y="290" font-family="\'Arial Black\',Impact,sans-serif" font-size="' + (verdict.length > 18 ? 64 : 96) + '" fill="#14120E">' + escS(verdict.slice(0, 60)) + '</text>' +
+        '<rect x="56" y="330" width="180" height="8" fill="#FF3B00"/>' +
+        '<text x="56" y="420" font-family="Menlo,Consolas,monospace" font-size="34" fill="#14120E">' +
+          '⛔ ' + traps + ' traps&#160;&#160;&#160;⚠ ' + watches + ' watches&#160;&#160;&#160;ℹ ' + notes + ' notes</text>' +
+        (threatLine ? '<text x="1144" y="420" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="28" fill="#FF3B00">' + escS(threatLine) + '</text>' : '') +
+        '<text x="56" y="582" font-family="Menlo,Consolas,monospace" font-size="24" letter-spacing="3" fill="#EDE7D8">CLEARDOC.APP · READ WHAT YOU SIGN</text>' +
+        '<text x="1144" y="582" text-anchor="end" font-family="Menlo,Consolas,monospace" font-size="18" fill="#EDE7D8">NOT LEGAL ADVICE</text>' +
+      '</svg>';
+    }
+    async function downloadVerdictCard(){
+      if(!lastRaw){
+        if(msg){msg.textContent='Analyze a document first, then download the verdict card.'; msg.className='analyze-msg';}
+        return;
+      }
+      const btn = document.getElementById('verdictCardBtn');
+      const svg = buildVerdictCardSvg();
+      const stamp = new Date().toISOString().slice(0,10);
+      const flash = (ok) => { if(btn) flashButton(btn, ok ? '✓ downloaded' : 'failed', ok ? 1400 : 1800); };
+      // Preferred path: rasterize to PNG (accepted everywhere). The SVG is
+      // drawn through an <img> from a blob URL — same-origin, no taint, no
+      // external resources — then exported via toBlob.
+      try {
+        const svgUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = svgUrl;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = 1200; canvas.height = 630;
+        canvas.getContext('2d').drawImage(img, 0, 0, 1200, 630);
+        URL.revokeObjectURL(svgUrl);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+        if(!blob) throw new Error('toBlob returned null');
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'cleardoc-verdict-' + stamp + '.png';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => { URL.revokeObjectURL(url); }, 4000);
+        flash(true);
+        return;
+      } catch(e){
+        console.warn('[verdict-card] PNG path failed, falling back to .svg', e);
+      }
+      try {
+        const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+        const a = document.createElement('a');
+        a.href = url; a.download = 'cleardoc-verdict-' + stamp + '.svg';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => { URL.revokeObjectURL(url); }, 4000);
+        flash(true);
+      } catch(e){
+        console.warn('[verdict-card] download failed', e);
+        flash(false);
+      }
+    }
     async function nativeShareAnalysis(){
       if(!lastRaw){
         if(msg){msg.textContent='Analyze a document first, then share the summary.'; msg.className='analyze-msg';}
@@ -25394,6 +25475,14 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     // Cycle #327 — native share-sheet button: opens the OS share sheet
     // where Web Share exists (mobile), clipboard fallback elsewhere.
     const nativeShareBtn = document.getElementById('nativeShareBtn');
+    // Cycle #331 — verdict-card button: renders the aggregate-only card
+    // and downloads it as PNG (.svg fallback). Guard-wired like its
+    // toolbar siblings.
+    const verdictCardBtn = document.getElementById('verdictCardBtn');
+    if(verdictCardBtn && !verdictCardBtn._verdictCardWired){
+      verdictCardBtn._verdictCardWired = true;
+      verdictCardBtn.addEventListener('click', downloadVerdictCard);
+    }
     if(nativeShareBtn && !nativeShareBtn._nativeShareWired){
       nativeShareBtn._nativeShareWired = true;
       nativeShareBtn.addEventListener('click', nativeShareAnalysis);
