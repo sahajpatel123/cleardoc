@@ -13743,6 +13743,52 @@ skip("analyzer: chat share includes deadlines and jurisdiction", async () => {
   }
 });
 
+// Cycle #331 — shareable verdict card (aggregate stats only, PNG + .svg fallback).
+test("analyzer: verdict card renders aggregate stats only and downloads as PNG", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const htmlSrc = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  assert.match(htmlSrc, /id="verdictCardBtn"/, "analyze.html must render the verdict-card button");
+  assert.match(appSrc, /function buildVerdictCardSvg\(\)/, "app.js must define the card builder");
+  assert.match(appSrc, /async function downloadVerdictCard\(\)/, "app.js must define the downloader");
+  assert.match(appSrc, /_verdictCardWired/, "the handler must be guard-wired exactly once");
+  assert.match(appSrc, /width="1200" height="630"/, "the card must use the standard share-image ratio");
+  assert.match(appSrc, /NOT LEGAL ADVICE/, "the card must carry the disclaimer");
+  // Privacy by construction: nothing inside the card builder may touch
+  // document-derived content (raw text, flagged clauses, file names).
+  const start = appSrc.indexOf("function buildVerdictCardSvg()");
+  const end = appSrc.indexOf("async function downloadVerdictCard");
+  assert.ok(start > -1 && end > start, "card builder bounds must be locatable");
+  const fnBody = appSrc.slice(start, end);
+  assert.doesNotMatch(fnBody, /lastRaw|attachedFile|sentence|clause/,
+    "the verdict card must embed only aggregate fields — never document text");
+});
+
+skip("analyzer: clicking the verdict-card button downloads without errors", async () => {
+  if (!HAS_BROWSER) return;
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    await page.click(".qf[data-fill]:first-of-type");
+    await page.click("#analyzeBtn");
+    await page.waitForSelector("#verdictCardBtn", { timeout: 8000 });
+    await page.click("#verdictCardBtn");
+    await page.waitForFunction(() => {
+      const b = document.getElementById("verdictCardBtn");
+      return b && (b.textContent.includes("✓") || b.textContent.includes("failed"));
+    }, { timeout: 8000 });
+    const flashText = await page.evaluate(() => document.getElementById("verdictCardBtn").textContent);
+    assert.match(flashText, /✓/, "the card download must succeed in a real browser");
+    assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+});
+
 // Cycle #329 — opt-in deadline notifications (device-local, gesture-gated).
 test("analyzer: deadline notifications are opt-in, deduplicated per day, and never prompt without a press", () => {
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
