@@ -6140,3 +6140,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #335 of the autonomous loop (add — last cycle was polish): installed-PWA users could only bring documents in by copy/paste inside the tab. The share target makes ClearDoc a first-class citizen of the phone: any text in any app is one Share tap away from a verdict. The privacy posture carries through — scrubbed URLs, no fetching of remote links.
+
+---
+
+**2026-08-23 03:14 IST | Model: ox-alpha (opencode)**
+**Changes Made:**
+- polish(exports): swept the repo's remaining UTC "today" stamps to local time. New top-scope `localDateStamp()` helper; replaced 37 user-facing sites across both spacing variants — CSV/txt/md download filenames (steps, reading list, care plan ×2, smoking guns, playbook, redacted export), CSV/Markdown "generated on" header rows (pressure, compare, pattern report), cheat-sheet footer, negotiation-playbook printable title/date, and the older summary/email builders. Late-evening users were getting yesterday's date on files and reports they download and share.
+- Deliberately PRESERVED every date-OBJECT conversion where UTC is semantically correct: ICS event stamps (`r.cancelBy`, freshness `it.date`), quarterly/day keys derived from parsed `YYYY-MM-DD` document strings, and the deadline dedup key — a static test pins that those still exist so nobody "fixes" them into local time later.
+- Static contract: zero `new Date()…toISOString().slice(0,10)` anywhere in app.js (both spacings), helper present, UTC date-keys intact.
+- Gate: unit 490/490 · smoke 289 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #336 of the autonomous loop (polish — last cycle added the share target): this closes the debt logged in Cycle #334. One helper, two sweep passes (the first grep missed the spaced variant and date-object conversions — the failing test caught it before landing, which is exactly what the test is for), and an invariant strong enough to keep the codebase honest.

@@ -13743,6 +13743,19 @@ skip("analyzer: chat share includes deadlines and jurisdiction", async () => {
   }
 });
 
+// Cycle #336 — repo-wide local-date stamps on export surfaces.
+test("exports: every user-facing 'today' stamp is local time, never UTC", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(appSrc, /function localDateStamp\(\)/,
+    "the shared local-date helper must exist at top scope");
+  assert.doesNotMatch(appSrc, /new Date\(\)[\s\S]{0,40}?toISOString\(\)\.slice\(0, ?10\)/,
+    "new Date().toISOString() is UTC — use localDateStamp() for today-stamps");
+  // Deadline date-keys intentionally keep UTC (they key parsed
+  // YYYY-MM-DD strings) — guard that they were not swept up.
+  assert.match(appSrc, /const key = dt\.toISOString\(\)\.slice\(0, ?10\)/,
+    "the deadline UTC date-key must be preserved");
+});
+
 // Cycle #335 — PWA share target: "Share → ClearDoc" from any app prefills the analyzer.
 test("pwa: manifest registers a share target and the analyzer consumes it with a URL scrub", () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "site.webmanifest"), "utf8"));
