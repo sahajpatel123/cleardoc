@@ -6163,3 +6163,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #337 of the autonomous loop (add — last cycle polished export stamps). Scope-checked five candidate features against the codebase first (readability meter, analysis history, clause locator, jargon glossary, negotiation emails — all already exist); blank/placeholder detection was the first genuinely unmet need found. Exports/CSV integration for this block is the natural polish follow-up for Cycle #338.
+
+## 2026-08-23 03:06 | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #338 — POLISH: Open terms export surface.** The block Cycle #337 added now matches the export parity of its sibling surfaces: 📊 CSV download (house formula-injection guard, UTF-8 BOM, `cleardoc-open-terms-<local-date>.csv`), ⬇ .md file download, and the existing 📋 # MD copy — the latter two refactored onto one shared `buildOpenTermsMd()` builder so copy and download can never drift apart.
+- Negotiator Cheat Sheet integration: a new "Open terms (fill before signing)" section renders whenever the detector found blanks, so a printed/packed negotiation brief lists every unfilled term alongside top risks and missing clauses. Section omitted entirely when clean.
+- Test caught two of my own slips pre-landing: a dropped BOM escape in the CSV line (turned out to be an invisible literal U+FEFF — verified byte-level with hexdump, then converted to the visible `﻿` escape form) and a garbled placeholder assertion in the new test.
+- Gate: unit 490/490 · smoke 292 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #338 of the autonomous loop (polish — last cycle added the Open terms detector): give the new finding its full export surface so it works everywhere ClearDoc findings already travel — spreadsheets, files, and the printable cheat sheet. Next add-cycle candidate: wire open terms into the exec-summary/receipt aggregates or a browser-gated Playwright test for the block.

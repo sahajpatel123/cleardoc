@@ -16033,3 +16033,35 @@ test("open terms: the detector actually finds blanks, placeholders, TBDs, and st
   const flooded = detectOpenTerms("____ ".repeat(200));
   assert.ok(flooded.items.length <= 60, "the defensive cap must hold, got " + flooded.items.length);
 });
+
+// Cycle #338 — polish: the Open terms block gets the full export
+// surface (CSV download + .md download + Markdown copy) and rides along
+// in the Negotiator Cheat Sheet.
+test("open terms: export surface matches house CSV/MD conventions and feeds the cheat sheet", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  // All three export buttons render in the controls row.
+  for (const id of ["openTermsCsvBtn", "openTermsCopyBtn", "openTermsMdDlBtn"]) {
+    assert.match(appSrc, new RegExp('id="' + id + '"'),
+      "the Open terms controls must include " + id);
+  }
+  // CSV conventions: injection guard, BOM, local-date filename.
+  const rStart = appSrc.indexOf("function renderOpenTermsBlock");
+  const rEndMark = "\n    }";
+  const rBody = appSrc.slice(rStart, appSrc.indexOf(rEndMark, appSrc.indexOf("openTermsMdDlBtn", rStart)) + rEndMark.length);
+  assert.ok(rBody.indexOf("/^[=+\\-@]/.test(s)") !== -1,
+    "CSV cells must carry the formula-injection guard");
+  assert.ok(rBody.indexOf("'\\uFEFF'") !== -1,
+    "the CSV must start with a UTF-8 BOM like every other ClearDoc export");
+  assert.match(rBody, /cleardoc-open-terms-' \+ localDateStamp\(\) \+ '\.csv'/,
+    "the CSV filename must use the shared local-date stamp");
+  assert.match(rBody, /cleardoc-open-terms-' \+ localDateStamp\(\) \+ '\.md'/,
+    "the .md filename must use the shared local-date stamp");
+  // Copy + download share one builder so they can't drift.
+  assert.match(rBody, /buildOpenTermsMd/,
+    "the Markdown builder must be shared by copy and download");
+  // Cheat-sheet integration: reads the block and renders only when present.
+  assert.ok(appSrc.indexOf("#openTermsList .gap-label") !== -1,
+    "the cheat sheet must read open terms from their list");
+  assert.ok(appSrc.indexOf("Open terms (fill before signing)") !== -1,
+    "the cheat sheet must include an Open terms section");
+});
