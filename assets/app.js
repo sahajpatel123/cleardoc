@@ -17240,6 +17240,10 @@
           const to = Math.min(text.length, at + m[0].length + 48);
           items.push({
             label,
+            // Cycle #348 — raw-text span so rows can jump to source,
+            // same contract as risk-map rows.
+            start: at,
+            end: at + m[0].length,
             context: (from > 0 ? '…' : '') + text.slice(from, to).replace(/\s+/g, ' ').trim() + (to < text.length ? '…' : '')
           });
           if(items.length >= 30) break; // defensive cap before display slice
@@ -17258,8 +17262,10 @@
       if(!xrefBlock || !xrefList || !result) return;
       if(!result.items.length){ xrefBlock.hidden = true; return; }
       const shown = result.items.slice(0, 8);
+      // Cycle #348 — rows are jump targets like risk-map rows: clicking
+      // (or Enter/Space) selects the citation's span in the source text.
       const rows = shown.map(it => (
-        '<div class="gap-row" title="This reference points at a section that does not exist">' +
+        '<div class="gap-row" role="button" tabindex="0" data-xr-start="' + Math.max(0, it.start || 0) + '" data-xr-end="' + (it.end || 0) + '" title="Click to find this reference in your document">' +
           '<span class="gap-glyph mono" style="color:var(--amber)">⛓</span>' +
           '<div class="gap-body">' +
             '<div class="gap-label"><code>' + esc(it.label) + '</code> — no such section exists</div>' +
@@ -17275,6 +17281,26 @@
       if(xrefNote){
         xrefNote.innerHTML = '<span class="riskNote-lead">Broken promises</span> ' +
           'These citations point at sections that do not exist — usually deleted clauses, copy-paste leftovers, or terms that were never drafted. Ask for them to be fixed or removed before signing.';
+      }
+      // Delegated, once-guarded jump wiring (same contract as _rsWired).
+      if(!xrefList._xrWired){
+        xrefList._xrWired = true;
+        const jumpToRef = (row) => {
+          const s = parseInt(row.getAttribute('data-xr-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-xr-end'), 10) || (s + 40);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Reference highlighted in your document');
+        };
+        xrefList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-xr-start]');
+          if(row) jumpToRef(row);
+        });
+        xrefList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-xr-start]');
+          if(row){ e.preventDefault(); jumpToRef(row); }
+        });
       }
     }
 
@@ -22458,6 +22484,15 @@
               (tallies[i2] ? ' — ' + esc((tallies[i2].textContent || '').trim()) : '') +
               '</li>').join('');
           })();
+          // Cycle #348 — broken references join the printed brief too:
+          // "section 9 — no such section exists" lines a negotiator can
+          // wave at across the table.
+          const xrefLines = (function(){
+            const rows = document.querySelectorAll('#xrefList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -22480,6 +22515,7 @@
               '<div class="cheat-section"><div class="cheat-section-title">What the document is missing</div><ul style="padding-left:18px;margin:0">' + gaps + '</ul></div>' +
               (openTerms ? '<div class="cheat-section"><div class="cheat-section-title">Open terms (fill before signing)</div><ul style="padding-left:18px;margin:0">' + openTerms + '</ul></div>' : '') +
               (riskMapLines ? '<div class="cheat-section"><div class="cheat-section-title">Where the risk sits</div><ul style="padding-left:18px;margin:0">' + riskMapLines + '</ul></div>' : '') +
+              (xrefLines ? '<div class="cheat-section"><div class="cheat-section-title">Broken references (fix before signing)</div><ul style="padding-left:18px;margin:0">' + xrefLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +

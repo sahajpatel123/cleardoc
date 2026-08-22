@@ -6273,6 +6273,18 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Prompt Intention:**
 - Cycle #347 of the autonomous loop (add — last cycle polished readiness/health verdicts): give readers a lens no other surface covers — promises the document makes about its own structure and breaks. Next polish-cycle candidate: cheat-sheet inclusion for broken references, or click-to-jump on xref rows like the risk map.
 
+## 2026-08-23 04:5x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #348 — POLISH: broken references now jump and travel.** Two upgrades to the Cycle #347 xref block:
+  - **Click-to-jump:** rows became keyboard-reachable jump targets (`role="button"`, `tabindex="0"`, `data-xr-start`/`data-xr-end`) — click or Enter/Space selects the citation's exact span in the source textarea and scrolls it into view with a "📍 Reference highlighted in your document" toast. Detector now emits `start`/`end` per finding; wiring is delegated and once-guarded (`_xrWired`), identical in contract to `_rsWired`.
+  - **Cheat-sheet carry-through:** the Negotiator Cheat Sheet gains "Broken references (fix before signing)" — up to six "section 9 — no such section exists" lines read live from `#xrefList .gap-label` — so printed/emailed briefs list exactly what to make the other side fix.
+- Tests: structural pins extended (span attrs, once-guard, toast string, both cheat-sheet reads); behavioral test now asserts exact span boundaries for arabic and roman findings.
+- Gate: unit 490/490 · smoke 303 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #348 of the autonomous loop (polish — last cycle added the xref detector): close insight-to-action (find it in your document) and insight-to-paper (show it in the brief) the same day the lens shipped. Next add-cycle candidate: defined-terms consistency lens, or obligation-balance meter.
+
+
 
 
 

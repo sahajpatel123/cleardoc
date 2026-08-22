@@ -16391,6 +16391,17 @@ test("xref: markup, guarded call site, and detector caps are in place", () => {
   const rStart = appSrc.indexOf("function renderXrefBlock");
   const rBody = appSrc.slice(rStart, appSrc.indexOf("\n    }", rStart));
   assert.match(rBody, /slice\(0, ?8\)/, "the renderer must cap visible rows");
+  // Cycle #348 — rows are jump targets and the brief carries them.
+  assert.match(appSrc, /data-xr-start=/,
+    "xref rows must carry their source span for click-to-jump");
+  assert.match(appSrc, /_xrWired/,
+    "the xref jump listener must be wired once (delegated)");
+  assert.ok(appSrc.indexOf("📍 Reference highlighted in your document") !== -1,
+    "jumping must confirm with a toast like risk-map jumps");
+  assert.ok(appSrc.indexOf("#xrefList .gap-label") !== -1,
+    "the cheat sheet must read broken-reference labels");
+  assert.ok(appSrc.indexOf("Broken references (fix before signing)") !== -1,
+    "the printed brief must include the broken-references section");
   assert.ok(appSrc.indexOf("Broken promises") !== -1,
     "the note must explain what broken citations mean");
 });
@@ -16435,6 +16446,13 @@ test("xref: references resolve against real headers (roman ↔ arabic)", () => {
   assert.ok(labels.indexOf("Article VII") !== -1, "roman refs normalize to arabic for comparison");
   assert.ok(labels.indexOf("Article IV") === -1, "a roman ref matching an arabic header resolves");
   assert.ok(labels.indexOf("Section 4.2") === -1, "sub-section refs resolve against their top level");
+
+  // Cycle #348 — rows carry raw-text spans so click-to-jump can select
+  // the exact citation in the source document.
+  const nineAt = doc.indexOf("section 9");
+  assert.equal(r.items[0].start, nineAt, "the first dangling ref's span starts at its text");
+  assert.equal(r.items[0].end, nineAt + "section 9".length, "…and ends exactly at its length");
+  assert.equal(r.items[1].start, doc.indexOf("Article VII"), "roman refs carry spans too");
 
   // Headerless text → stay quiet, never flag everything.
   const plain = detectXrefs("Please review paragraph three of the attached letter.");
