@@ -6585,3 +6585,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #372 of the autonomous loop (polish — last cycle added rate translation): the translator now handles the shapes contracts actually use. Next cycle #373 is ADD — candidates TBD with scope-incumbents-first grep.
+
+## 2026-08-23 09:2x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #373 — ADD: 📨 Notice mechanics lens.** Formal notice is where disputes quietly go to die, and no surface checked it. Full house equipment:
+  - **detectNotices:** (1) the deemed-dispatch trap — "deemed received upon mailing" makes you legally aware of letters that never arrived — flagged with a jump span; (2) missing provision entirely in contract-like text ≥500 chars with zero notice words (no span; nothing to point at). Healthy arrival-timed clauses stay quiet. Pure-local.
+  - **Equipment:** #noticeBlock/#noticeNote/#noticeList in analyze.html between figures and tone; refs trio; guarded call site after figures'; renderNoticeBlock with conditional-span jump rows (_nlWired, data-nl-start/end, house toast); cheat-sheet section "Notice mechanics (how it becomes official)"; ask-list section 'Put notice mechanics in writing'; ninth chip on the landing checklist.
+- Tests: behavioral through the real detector — trap fires with exact span, healthy clause silent, bare contract flagged span-less, short text untouched; structural pins for every equipment piece incl. storefront advertisement.
+- Fixed: landing-checklist count pin updated from hard-coded 8 to lenses.length so the storefront test scales with shipped lenses.
+- Gate: unit 490/490 · smoke 321 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #373 of the autonomous loop (add — last cycle hardened rate translation): signers now see whether the document's formal-notification machinery is fair or fictional. Next cycle #374 is POLISH of this lens — candidates: notice-address presence check, deemed-timing variant patterns, or TBD.

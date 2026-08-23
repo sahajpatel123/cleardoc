@@ -4494,6 +4494,7 @@
           sigBlock=$('#sigBlock'),sigNote=$('#sigNote'),sigList=$('#sigList'),
           balanceBlock=$('#balanceBlock'),balanceNote=$('#balanceNote'),balanceList=$('#balanceList'),
           figuresBlock=$('#figuresBlock'),figuresNote=$('#figuresNote'),figuresList=$('#figuresList'),
+          noticeBlock=$('#noticeBlock'),noticeNote=$('#noticeNote'),noticeList=$('#noticeList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -17978,6 +17979,84 @@
       }
     }
 
+    // Cycle #373 — notices lens: the mechanics of formal notice, where
+    // disputes quietly go to die. Two checks: the deemed-dispatch trap
+    // (you are legally "aware" of letters that never arrived) and the
+    // missing provision entirely. Healthy notice clauses stay quiet.
+    function detectNotices(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0 };
+      const items = [];
+      let checked = 0;
+      let m;
+      const DEEMED_RE = /\bdeemed\s+(?:to\s+be\s+)?(?:given|received|delivered|served)\s+(?:upon|on|at|when)\b[^.;]{0,40}?\b(dispatch|mailing|sending|transmission|posting|deposit)/gi;
+      DEEMED_RE.lastIndex = 0;
+      while((m = DEEMED_RE.exec(text)) && items.length < 4){
+        checked++;
+        items.push({
+          label: 'Notices count as delivered when SENT, not when they arrive',
+          why: 'This clause says a notice is “deemed” delivered the moment it leaves your hands — even if it never lands, or lands during a holiday. Ask for arrival-based timing (for example, “three business days after mailing”) so you are never presumed to know something you never got.',
+          start: m.index,
+          end: m.index + m[0].length
+        });
+      }
+      if(!items.length){
+        const looksLikeContract = /\b(?:shall|agreement|party|parties|hereby)\b/i.test(text);
+        if(looksLikeContract && text.length >= 500 && !/\bnotices?\b/i.test(text)){
+          checked++;
+          items.push({
+            label: 'No notices clause found',
+            why: 'Formal notice is how terminations, defaults, and address changes become official. Ask for a short clause: what counts as notice (writing), where it goes (addresses), and when it takes effect.'
+          });
+        }
+      }
+      return { items: items.slice(0, 4), checked: checked };
+    }
+
+    function renderNoticeBlock(result){
+      if(!noticeBlock || !noticeList || !result) return;
+      if(!result.items.length){ noticeBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number';
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-nl-start="' + Math.max(0, it.start) + '" data-nl-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">📨</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      noticeList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' notice-related check' + (result.checked === 1 ? '' : 's') + ' ran on this document</span></div>';
+      noticeBlock.hidden = false;
+      if(noticeNote){
+        noticeNote.innerHTML = '<span class="riskNote-lead">Notice mechanics</span> ' +
+          'How the parties formally tell each other things that matter — defaults, terminations, address changes. The trap to watch: clauses where a notice counts as delivered the moment it is sent, not when someone actually reads it.';
+      }
+      if(!noticeList._nlWired){
+        noticeList._nlWired = true;
+        const jumpToNotice = (row) => {
+          const s = parseInt(row.getAttribute('data-nl-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-nl-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Notice language highlighted in your document');
+        };
+        noticeList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-nl-start]');
+          if(row) jumpToNotice(row);
+        });
+        noticeList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-nl-start]');
+          if(row){ e.preventDefault(); jumpToNotice(row); }
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -19099,6 +19178,13 @@
         renderFiguresBlock(detectFigures(raw));
       } else if(figuresBlock) {
         figuresBlock.hidden = true;
+      }
+      // Cycle #373 — notice mechanics: deemed-delivery traps and the
+      // missing provision.
+      if(noticeBlock && typeof detectNotices === 'function'){
+        renderNoticeBlock(detectNotices(raw));
+      } else if(noticeBlock) {
+        noticeBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
@@ -22821,6 +22907,8 @@
         addSection('Define the vocabulary', 'Define: ', readAll('#termsList .gap-label', 6));
         addSection('Repair broken cross-references', 'Fix reference: ', readAll('#xrefList .gap-label', 6));
         addSection('Rebalance the workload', 'Rebalance these duties (or pay for the extra load): ', readAll('#balanceList .gap-label', 4));
+        // Cycle #373 — notice mechanics belong in the sent list too.
+        addSection('Put notice mechanics in writing', 'Set out how formal notice works: ', readAll('#noticeList .gap-label', 4));
         if(!sections.length) return null;
         const fp = (_fpState && _fpState.short) ? _fpState.short : '';
         const mdLines = ['# My negotiation asks', '',
@@ -23335,6 +23423,13 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          // Cycle #373 — notice mechanics join the printed brief.
+          const noticeLines = (function(){
+            const rows = document.querySelectorAll('#noticeList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -23363,6 +23458,7 @@
               (sigLines ? '<div class="cheat-section"><div class="cheat-section-title">Execution problems (fix before signing)</div><ul style="padding-left:18px;margin:0">' + sigLines + '</ul></div>' : '') +
               (balanceLines ? '<div class="cheat-section"><div class="cheat-section-title">Obligation balance (who carries the duties)</div><ul style="padding-left:18px;margin:0">' + balanceLines + '</ul></div>' : '') +
               (figuresLines ? '<div class="cheat-section"><div class="cheat-section-title">Split figures (words vs digits)</div><ul style="padding-left:18px;margin:0">' + figuresLines + '</ul></div>' : '') +
+              (noticeLines ? '<div class="cheat-section"><div class="cheat-section-title">Notice mechanics (how it becomes official)</div><ul style="padding-left:18px;margin:0">' + noticeLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +

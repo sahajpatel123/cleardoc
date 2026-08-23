@@ -17064,9 +17064,11 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
   assert.match(html, /id="checks"/, "the section exists on the landing page");
   assert.match(html, /id="checksTitle"/, "it is labelled for assistive tech");
 
-  // The grid advertises exactly the eight lenses — no vaporware.
+  // The grid advertises exactly the shipped lenses — no vaporware.
+  // Cycle #373 — notices lens joins the storefront.
   const lenses = ["Missing clauses", "Open terms", "Broken references", "Undefined terms",
-                  "Undated obligations", "Execution check", "Obligation balance", "Figure check"];
+                  "Undated obligations", "Execution check", "Obligation balance", "Figure check",
+                  "Notice mechanics"];
   lenses.forEach(name => {
     assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
   });
@@ -17075,8 +17077,8 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
   const gridAt = html.indexOf('class="checks-grid"');
   const footAt = html.indexOf("checks-foot");
   assert.ok(gridAt > 0 && footAt > gridAt, "grid precedes its closing call-to-action");
-  assert.equal((html.slice(gridAt, footAt).match(/href="analyze\.html"/g) || []).length, 8,
-    "all eight chips link to analyze.html");
+  assert.equal((html.slice(gridAt, footAt).match(/href="analyze\.html"/g) || []).length, lenses.length,
+    "every advertised chip links to analyze.html");
   assert.match(html, /read your own document/, "footer invites the paste");
 
   // Styling ships with the section and uses theme tokens (dark-mode safe).
@@ -17260,4 +17262,70 @@ test("figure check: catches split amounts, stays silent on agreement", () => {
   assert.match(appSrc, /rates written only in words translate too/, "the word-rate layer is annotated");
   assert.ok(appSrc.indexOf("%\\s*\\)?\\s*(?:per|a|") !== -1,
     "the digit pattern accepts the parenthesised dual form");
+});
+
+// Cycle #373 — behavioral: the notices lens flags deemed-dispatch traps
+// and missing provisions; healthy notice clauses stay quiet.
+test("notices: deemed-delivery traps and missing clauses speak up", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectNotices");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectNotices };";
+  const { detectNotices } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // Trap: notice is "delivered" the moment it is mailed.
+  const trapDoc = 'Any notice shall be in writing and shall be deemed received upon mailing to the addresses above. The parties shall otherwise perform as agreed.';
+  const trap = detectNotices(trapDoc);
+  assert.equal(trap.items.length, 1, "the deemed-dispatch wording is flagged");
+  assert.match(trap.items[0].label, /when SENT, not when they arrive/,
+    "the headline names the trap");
+  assert.equal(trap.items[0].start, trapDoc.indexOf("deemed received upon mailing"),
+    "the span points at the trap phrase");
+
+  // Healthy: a real notices clause with arrival timing stays quiet.
+  const healthy = detectNotices([
+    "This Agreement is made between the Company and the Consultant.",
+    "Any notice required under this agreement shall be in writing and delivered to the addresses listed below.",
+    "A notice takes effect only upon actual receipt on a business day.",
+    "The Consultant shall perform the services described in Exhibit A with professional care.",
+    "Either party may terminate for material breach on thirty days prior written notice to the other party.",
+    "The parties shall cooperate in good faith to resolve any dispute arising under this agreement."
+  ].join("\n"));
+  assert.equal(healthy.items.length, 0, "an arrival-timed clause never fires");
+
+  // Missing entirely: substantial contract-like text, zero notice words.
+  let bare = "This Agreement is made between the Company and the Contractor. The Contractor shall perform the services described in Exhibit A.";
+  while(bare.length < 560) bare += " The parties shall cooperate in good faith and perform all duties under this agreement promptly.";
+  const miss = detectNotices(bare);
+  assert.equal(miss.items.length, 1, "a contract with no notices clause is flagged");
+  assert.equal(miss.items[0].start, undefined, "nothing to jump to when nothing exists");
+
+  // Short everyday text stays quiet either way.
+  assert.equal(detectNotices("Thanks for sending the memo over.").items.length, 0,
+    "short non-contract text is untouched");
+
+  // Full house equipment ships.
+  assert.match(html, /id="noticeBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="noticeList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("noticeBlock=$('#noticeBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectNotices === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-nl-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_nlWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Notice language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#noticeList .gap-label") !== -1 &&
+            appSrc.indexOf("Notice mechanics (how it becomes official)") !== -1,
+    "the printed brief includes the notice section");
+  assert.ok(appSrc.indexOf("'Put notice mechanics in writing'") !== -1,
+    "the sent ask list includes notice asks");
+  assert.ok(indexHtml.indexOf("Notice mechanics") !== -1,
+    "the landing checklist advertises the new lens");
 });
