@@ -6391,3 +6391,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #356 of the autonomous loop (polish — last cycle added the ask-list builder): the demand list now opens like a real negotiation letter — priority first, scope visible. Next add-cycle candidate: party-obligation balance reusing bearer machinery, or per-section risk heatmap strip.
+
+## 2026-08-23 06:3x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #357 — ADD: ⚖️ Obligation balance lens.** A new pure-local detector answers "who actually carries the duties here?" — the oldest red flag in contracting:
+  - **Detection:** a ~32-role vocabulary (Consultant/Client, Landlord/Tenant, Distributor/Company…) filtered to roles actually present; one sentence pass attributes each obligation-bearing sentence ("shall", "must", "agrees to", "required to", "obligated to", "responsible for") to a role — subject zone before the verb first, whole-sentence fallback; definitions/boilerplate sentences excluded; contract-likeness gate keeps narrative text quiet.
+  - **Findings:** two-party imbalance flags when the heavy side has ≥3 duty sentences AND ≥2× the light side (rows for both sides with counts and negotiation guidance); all-duty-one-side flags when another known party is mentioned ≥2 times but obligated 0 times ("Named but never obligated. Ask for their duties in writing."); balanced loads stay silent.
+  - Detector emits raw-text spans (first duty sentence per party) ready for #358 click-to-jump polish; block/note/list wired via the standard guarded call site after the execution check.
+- Tests: structural pins (hidden block, refs, guarded call site, explicit quiet conditions — single-role silence, heavy-AND-double threshold, mentions floor); behavioral extraction tests cover lopsided attribution (4 vs 1 with exact span), balanced silence (2–2), zero-obligation callout with mention evidence, and non-contract quiet.
+- Gate: unit 490/490 · smoke 312 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #357 of the autonomous loop (add — last cycle polished the ask list): the fairness lens completes the document-consistency family's next ring — not just what's missing, but who bears what exists. Next polish-cycle candidate: click-to-jump on balance rows + cheat-sheet carry-through, completing the house pattern.

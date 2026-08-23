@@ -4492,6 +4492,7 @@
           termsBlock=$('#termsBlock'),termsNote=$('#termsNote'),termsList=$('#termsList'),
           undatedBlock=$('#undatedBlock'),undatedNote=$('#undatedNote'),undatedList=$('#undatedList'),
           sigBlock=$('#sigBlock'),sigNote=$('#sigNote'),sigList=$('#sigList'),
+          balanceBlock=$('#balanceBlock'),balanceNote=$('#balanceNote'),balanceList=$('#balanceList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -17608,6 +17609,112 @@
       }
     }
 
+    // Cycle #357 — obligation balance: who actually carries the duties.
+    // Counts obligation-bearing sentences per party role and flags a
+    // lopsided load — the classic "you do everything" contract. Pure
+    // local: role vocabulary + verb scan, no network, no AI.
+    const BALANCE_ROLES = ['Service Provider', 'Franchisor', 'Franchisee', 'Licensor', 'Licensee',
+      'Contractor', 'Consultant', 'Customer', 'Client', 'Company', 'Vendor', 'Supplier',
+      'Provider', 'Landlord', 'Tenant', 'Buyer', 'Seller', 'Purchaser', 'Employee',
+      'Employer', 'Distributor', 'Manufacturer', 'Borrower', 'Lender', 'Insurer',
+      'Insured', 'Agent', 'Principal', 'Developer', 'Designer', 'Subscriber', 'Merchant'];
+    const OBLIG_VERB_RE = /\b(?:shall|must|agrees? to|is required to|are required to|obligated to|responsible for)\b/i;
+    function detectObligationBalance(raw){
+      const text = String(raw || '');
+      const empty = { items: [], parties: [] };
+      if(!text || !/\b(?:shall|whereas|agreement|hereby|party|parties)\b/i.test(text)) return empty;
+      // Which roles appear at all? (word-boundary match, optional "the")
+      const present = BALANCE_ROLES.filter(r =>
+        new RegExp('\\b(?:the\\s+)?' + r.replace(/ /g, '\\s+') + '\\b', 'i').test(text));
+      if(present.length < 2) return empty;
+      // One pass over sentences: attribute each obligation sentence to a
+      // role. Subject zone = words before the verb; fall back to any
+      // mention in the sentence only when the subject names nobody.
+      const oblig = {}, firstSpan = {};
+      const sentRe = /[^.!?\n]+[.!?]?/g;
+      let m;
+      while((m = sentRe.exec(text))){
+        const s = m[0], at = m.index;
+        const vm = s.match(OBLIG_VERB_RE);
+        if(!vm) continue;
+        // Definitions and boilerplate are not duties.
+        if(/\b(?:means|mean\b|governed by|construed|deemed|interpreted|purpose)\b/i.test(s)) continue;
+        const subjZone = s.slice(0, s.toLowerCase().indexOf(vm[0].toLowerCase()));
+        let hit = null;
+        for(const r of present){
+          const re = new RegExp('\\b(?:the\\s+)?' + r.replace(/ /g, '\\s+') + '\\b', 'i');
+          const sm = subjZone.match(re);
+          if(sm){ hit = r; break; }
+        }
+        if(!hit){
+          for(const r of present){
+            if(new RegExp('\\b(?:the\\s+)?' + r.replace(/ /g, '\\s+') + '\\b', 'i').test(s)){ hit = r; break; }
+          }
+        }
+        if(!hit) continue;
+        oblig[hit] = (oblig[hit] || 0) + 1;
+        if(!(hit in firstSpan)) firstSpan[hit] = { start: at, end: at + s.length };
+      }
+      // Mentions per role (for zero-obligation findings).
+      const mentions = {};
+      present.forEach(r => {
+        mentions[r] = (text.match(new RegExp('\\b(?:the\\s+)?' + r.replace(/ /g, '\\s+') + '\\b', 'gi')) || []).length;
+      });
+      const ranked = present.slice().sort((a, b) => (oblig[b] || 0) - (oblig[a] || 0));
+      const active = ranked.filter(r => (oblig[r] || 0) > 0);
+      if(!active.length) return empty;
+      const top = active[0];
+      const maxC = oblig[top];
+      const items = [];
+      const pushPartyRow = (r, label, why) => {
+        items.push({ party: r, count: oblig[r] || 0, label, why,
+          ...(firstSpan[r] ? { start: firstSpan[r].start, end: firstSpan[r].end } : {}) });
+      };
+      if(active.length === 1){
+        // All duties on one side — flag only if another known party is
+        // mentioned often enough that the silence looks deliberate.
+        const idle = ranked.filter(r => !(oblig[r] > 0) && mentions[r] >= 2)
+          .sort((a, b) => mentions[b] - mentions[a])[0];
+        if(idle && maxC >= 2){
+          pushPartyRow(top, '"' + top + '" carries every duty — ' + maxC + ' obligation sentence' + (maxC !== 1 ? 's' : ''),
+            'All obligation language in this document lands on ' + top + '. Ask what "' + idle + '" owes in return — reciprocity is the point of a contract.');
+          pushPartyRow(idle, '"' + idle + '" has 0 obligations in ' + mentions[idle] + ' mention' + (mentions[idle] !== 1 ? 's' : ''),
+            'Named but never obligated. Ask for their duties in writing — delivery dates, quality standards, payment terms.');
+        } else {
+          return empty;
+        }
+      } else {
+        const low = active[active.length - 1];
+        const minC = oblig[low];
+        if(maxC >= 3 && maxC >= 2 * minC){
+          pushPartyRow(top, '"' + top + '" carries the heavier load — ' + maxC + ' obligation sentence' + (maxC !== 1 ? 's' : ''),
+            'Versus ' + minC + ' for "' + low + '". Ask to rebalance the duties or add consideration for the extra load.');
+          pushPartyRow(low, '"' + low + '" carries ' + minC + ' obligation sentence' + (minC !== 1 ? 's' : ''),
+            'Light duties here — check that this party’s key protections aren’t missing from the document.');
+        } else {
+          return empty;
+        }
+      }
+      return { items: items.slice(0, 8), parties: ranked.map(r => ({ party: r, count: oblig[r] || 0 })) };
+    }
+    function renderObligationBalance(result){
+      if(!balanceBlock || !balanceList || !result) return;
+      if(!result.items.length){ balanceBlock.hidden = true; return; }
+      balanceList.innerHTML = result.items.map(it =>
+        '<div class="gap-row">' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">⚖️</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>').join('');
+      balanceBlock.hidden = false;
+      if(balanceNote){
+        balanceNote.innerHTML = '<span class="riskNote-lead">Who carries the weight</span> ' +
+          'Obligation sentences ("shall", "must", "agrees to") tallied per party. A lopsided tally is the oldest red flag in contracting — one side does, the other side pays.';
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -18717,6 +18824,12 @@
         renderSigBlock(detectSignatures(raw));
       } else if(sigBlock) {
         sigBlock.hidden = true;
+      }
+      // Cycle #357 — obligation balance: which party carries the duties.
+      if(balanceBlock && typeof detectObligationBalance === 'function'){
+        renderObligationBalance(detectObligationBalance(raw));
+      } else if(balanceBlock) {
+        balanceBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.

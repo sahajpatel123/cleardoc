@@ -16750,3 +16750,83 @@ test("ask list: button exists, reads every lens in rank order, copies as asks", 
   assert.ok(startHereAt > 0 && sigSectionAt > startHereAt,
     "'Start here' is built before any category section — it ranks first");
 });
+
+// Cycle #357 — obligation balance: which party carries the duties.
+// A lopsided tally ("you do everything") is one of the oldest red flags
+// in contracting; this lens tallies obligation sentences per role.
+test("balance block: ships hidden, wired like every lens", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="balanceBlock"[^>]*hidden/, "block ships hidden");
+  assert.match(html, /id="balanceNote"/, "note element exists");
+  assert.match(html, /id="balanceList"/, "list element exists");
+  assert.match(appSrc, /balanceBlock=\$\('#balanceBlock'\)/, "refs declared");
+  assert.match(appSrc, /detectObligationBalance === 'function'/, "guarded call site present");
+  assert.match(appSrc, /const BALANCE_ROLES/, "role vocabulary defined");
+  // Quiet conditions are explicit: needs 2+ roles, a real imbalance
+  // threshold, and a mentions floor before calling an idle party out.
+  assert.match(appSrc, /present\.length < 2\) return empty/, "single-role docs stay quiet");
+  assert.match(appSrc, /maxC >= 3 && maxC >= 2 \* minC/, "imbalance threshold: heavy AND double");
+  assert.match(appSrc, /mentions\[r\] >= 2/, "idle parties need repeated mentions before flagging");
+  assert.match(appSrc, /Who carries the weight/, "note lead names the lens");
+});
+
+// Cycle #357 — behavioral: the REAL detector separates lopsided duty
+// loads from balanced ones, and never speaks outside contracts.
+test("obligation balance: flags lopsided duties, stays quiet when fair", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const start = appSrc.indexOf("const BALANCE_ROLES");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 8), parties:", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectObligationBalance };";
+  const { detectObligationBalance } = new Function(src)();
+
+  // Lopsided: Consultant carries four duty sentences, Client pays once.
+  const imbalSrc = [
+    "The Consultant shall provide consulting services.",
+    "The Consultant shall report progress weekly.",
+    "The Consultant must maintain insurance.",
+    "The Consultant agrees to keep records.",
+    "This Agreement is between the Consultant and the Client.",
+    "The Client shall pay invoices within 30 days."
+  ].join("\n");
+  const r = detectObligationBalance(imbalSrc);
+  assert.equal(r.items.length, 2, "a lopsided load produces one row per side");
+  assert.equal(r.items[0].party, "Consultant", "the heavier party ranks first");
+  assert.equal(r.items[0].count, 4, "all four duty sentences attributed");
+  assert.match(r.items[0].label, /heavier load/, "the row names the imbalance");
+  assert.equal(r.items[1].party, "Client", "the lighter party follows");
+  assert.equal(r.items[1].count, 1);
+  // Spans point at each party's first obligation sentence (for #358 jumps).
+  assert.equal(r.items[0].start, imbalSrc.indexOf("The Consultant shall provide"),
+    "heavy-party span points at its first duty sentence");
+
+  // Balanced: 2 duties each — under the threshold, silent.
+  const balanced = detectObligationBalance([
+    "The Developer shall deliver the work.",
+    "The Developer shall fix defects.",
+    "The Client must pay on delivery.",
+    "The Client must provide feedback."
+  ].join("\n"));
+  assert.equal(balanced.items.length, 0, "a fair split of duties stays quiet");
+
+  // All-duty-one-side: Distributor does everything, Company just exists.
+  const idle = detectObligationBalance([
+    "This Agreement is between the Company and the Distributor.",
+    "The Distributor shall sell the products.",
+    "The Distributor must report monthly sales.",
+    "The Distributor agrees to maintain records.",
+    "The Company is incorporated in Delaware."
+  ].join("\n"));
+  assert.equal(idle.items.length, 2, "an all-duty document calls out both sides");
+  assert.equal(idle.items[0].party, "Distributor", "the doing party leads");
+  assert.equal(idle.items[1].party, "Company", "the named-but-idle party is flagged");
+  assert.match(idle.items[1].label, /0 obligations in 2 mentions/, "the zero row shows the evidence");
+
+  // Not a contract: obligation verbs exist but no known roles — quiet.
+  const other = detectObligationBalance("Please submit the report. The manager shall approve all leave requests.");
+  assert.equal(other.items.length, 0, "no recognizable roles means no balance to judge");
+});
