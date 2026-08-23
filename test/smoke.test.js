@@ -16862,6 +16862,35 @@ test("figures block: ships hidden, wired like every lens", () => {
   assert.match(appSrc, /Split figures \(words vs digits\)/, "cheat-sheet section titled in plain words");
 });
 
+// Cycle #361 — the landing page now shows what one reading covers:
+// a capability grid built from the REAL lenses, each linking onward.
+test("landing checklist: every advertised lens is a real shipped feature", () => {
+  const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const css = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(html, /id="checks"/, "the section exists on the landing page");
+  assert.match(html, /id="checksTitle"/, "it is labelled for assistive tech");
+
+  // The grid advertises exactly the eight lenses — no vaporware.
+  const lenses = ["Missing clauses", "Open terms", "Broken references", "Undefined terms",
+                  "Undated obligations", "Execution check", "Obligation balance", "Figure check"];
+  lenses.forEach(name => {
+    assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
+  });
+
+  // Each chip links into the analyzer; the footer repeats the path.
+  const gridAt = html.indexOf('class="checks-grid"');
+  const footAt = html.indexOf("checks-foot");
+  assert.ok(gridAt > 0 && footAt > gridAt, "grid precedes its closing call-to-action");
+  assert.equal((html.slice(gridAt, footAt).match(/href="analyze\.html"/g) || []).length, 8,
+    "all eight chips link to analyze.html");
+  assert.match(html, /read your own document/, "footer invites the paste");
+
+  // Styling ships with the section and uses theme tokens (dark-mode safe).
+  assert.match(css, /\.checks-grid\{[^}]*display:grid/, "grid layout styled");
+  assert.match(css, /\.checks-grid a:focus-visible/, "chips keep keyboard focus visible");
+});
+
 // Cycle #359 — behavioral: the REAL parser converts number words and
 // flags only genuine words-vs-digits disagreements.
 test("figure check: catches split amounts, stays silent on agreement", () => {

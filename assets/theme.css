@@ -3054,3 +3054,15 @@ html[data-theme="dark"] #loader{background:#16130E;color:#EDE7D8}
     justify-content:space-between;border-radius:0;
   }
 }
+
+/* Cycle #361 — landing "what we read for" lens grid */
+.checks-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--s2)}
+.checks-grid li{min-width:0}
+.checks-grid a{display:flex;flex-direction:column;gap:6px;height:100%;padding:var(--s2);border:var(--bd-hair) solid var(--ink-soft);text-decoration:none;color:inherit;background:var(--paper);transition:border-color .15s ease}
+.checks-grid a:hover{border-color:var(--ink)}
+.checks-grid a:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
+.ck-glyph{font-size:20px;line-height:1}
+.ck-name{font-weight:700}
+.ck-line{color:var(--ink-soft);font-size:var(--t-card)}
+.checks-foot{margin-top:var(--s3);color:var(--ink-soft)}
+.checks-foot a{color:var(--accent-text);font-weight:700;text-underline-offset:3px}

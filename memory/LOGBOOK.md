@@ -6440,3 +6440,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #360 of the autonomous loop (polish — last cycle added the figure check): the youngest lens now ships the full house equipment like its siblings. Next add-cycle candidate: TBD — scope against incumbents first (heatmap and calendar-export ideas already died on contact with existing features).
+
+## 2026-08-23 07:2x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #361 — ADD: landing-page "What ClearDoc reads for" checklist.** The analyze page grew ten lenses this session while the storefront (index.html, untouched for 13 days) never mentioned any of them. New editorial section between the consequences desk and the crossword:
+  - **Eight lens chips** (missing clauses / open terms / broken references / undefined terms / undated obligations / execution check / obligation balance / figure check), each glyph + name + one plain line, every chip linking into analyze.html; footer closes with the paste invite.
+  - Scoping discipline held: assignment-clause lens, keyboard-help overlay, and full-report download all died on contact with existing features (RISK rules, help modal, exportHtmlBtn) before this surface-level gap was chosen.
+- Styling uses theme tokens only (auto dark-mode safe); keyboard focus-visible rings on chips; responsive auto-fit grid.
+- Tests: pins that every advertised lens is a real shipped feature name, all eight chips link onward, grid precedes its CTA, grid styling + focus ring exist.
+- Gate: unit 490/490 · smoke 315 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #361 of the autonomous loop (add — last cycle polished figure jumps/cheat-sheet): turn built depth into visitor-visible truth — the checklist advertises only what actually ships, pinned by tests so it can never drift into vaporware. Next polish-cycle candidate: polish a neglected landing interaction, or deepen a lens.
