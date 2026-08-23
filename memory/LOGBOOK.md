@@ -6499,3 +6499,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #365 of the autonomous loop (add — last cycle deep-linked samples from the hero): close the loop from reading to sending — the negotiator's artifact is now one click from the counterparty's inbox. Next polish-cycle candidate: TBD.
+
+## 2026-08-23 08:1x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #366 — POLISH: guided sample readings.** A sample could run, but nothing told the user *why* it was worth reading — the deliberate traps looked like ordinary findings. Now when a sample's analysis lands, a callout banner at the top of the results names what the sample was built to demonstrate:
+  - **Callout copy** per sample (nda → undated obligations + undefined terms; consulting → the showcase: execution, balance, figures, open terms + IP trap; lease → figure check + renewal gaps while a healthy signature block shows lenses staying quiet).
+  - **Jump links** in the callout deep-link straight to the tripped blocks (`jump to figures · jump to balance`), reusing existing block anchors.
+  - **Lifecycle:** any chip press hides stale callouts; a 400 ms poller shows the callout only once the reading has landed (`panel.hidden` gate), cancels if the text changed mid-run, and self-kills after 60 s; Clear dismisses it. All wiring once-guarded (`_scWired`, `clearBtn._scWired`); hidden by default, `no-print`, `role="note"`.
+  - Styled with house tokens (`.sample-callout`, `.sc-links`) next to the chip styles.
+- Tests: new pin block — callout ships hidden with its id, copy exists for all three keys, once-guards, panel-hidden wait, text-changed cancel, Clear dismissal, hide-not-remove behavior, CSS token use.
+- Gate: unit 490/490 · smoke 318 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #366 of the autonomous loop (polish — last cycle made the ask list sendable): samples now teach, not just demo — every trap comes with an explanation and a way to reach it. Next cycle #367 is ADD — candidates TBD with scope-incumbents-first grep.

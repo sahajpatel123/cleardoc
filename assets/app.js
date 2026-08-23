@@ -26067,6 +26067,70 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
         if(ab) ab.click();
         if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📄 Sample loaded — running the full read');
       });
+      // Cycle #366 — guided readings: once a sample's analysis lands,
+      // a callout at the top of the results names what the sample was
+      // built to demonstrate, with jump links to those blocks. Hidden
+      // again by Clear or any non-sample re-analysis (the text check).
+      const SAMPLE_CALLOUTS = {
+        nda: 'You are reading our sample NDA. It was written to trip ⏳ undated obligations (“at all times” is not a deadline) and ❓ undefined terms.',
+        consulting: 'You are reading our sample consulting agreement — the showcase. It trips ✍️ execution check, ⚖️ obligation balance, 🔢 figure check, ✏️ open terms and an IP trap.',
+        lease: 'You are reading our sample lease. It trips 🔢 figure check and renewal language — while keeping a healthy signature block, so you can see lenses stay quiet when things are fine.'
+      };
+      const CALLOUT_LINKS = {
+        nda: [['forever duties', 'undatedBlock'], ['undefined terms', 'termsBlock']],
+        consulting: [['execution', 'sigBlock'], ['balance', 'balanceBlock'], ['figures', 'figuresBlock'], ['open terms', 'openTermsBlock']],
+        lease: [['figure check', 'figuresBlock'], ['renewal gaps', 'gapBlock']]
+      };
+      let scTimer = null;
+      const stopCalloutPoll = () => { clearInterval(scTimer); scTimer = null; };
+      if(!sampleRow._scWired){
+        sampleRow._scWired = true;
+        sampleRow.addEventListener('click', () => {
+          // Any chip press hides any stale callout until the new run lands.
+          const box = document.getElementById('sampleCallout');
+          if(box) box.hidden = true;
+        });
+        sampleRow._showSampleCallout = (key) => {
+          const box = document.getElementById('sampleCallout');
+          if(!box || !SAMPLE_CALLOUTS[key]) return;
+          box.innerHTML = esc(SAMPLE_CALLOUTS[key]) +
+            '<span class="sc-links">' + (CALLOUT_LINKS[key] || []).map(l =>
+              '<a href="#' + l[1] + '">jump to ' + esc(l[0]) + '</a>').join(' · ') + '</span>';
+          box.hidden = false;
+          try { box.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'nearest' }); } catch(_){ /* ignore */ }
+        };
+        sampleRow._awaitSampleResults = (key) => {
+          sampleRow._pendingSample = key;
+          stopCalloutPoll();
+          scTimer = setInterval(() => {
+            if(!sampleRow._pendingSample){ stopCalloutPoll(); return; }
+            if(panel && panel.hidden) return;                       // still reading
+            if(input && input.value !== SAMPLE_DOCS[sampleRow._pendingSample]){
+              sampleRow._pendingSample = null; stopCalloutPoll(); return;  // text changed mid-run
+            }
+            sampleRow._showSampleCallout(sampleRow._pendingSample);
+            sampleRow._pendingSample = null;
+            stopCalloutPoll();
+          }, 400);
+          setTimeout(() => { sampleRow._pendingSample = null; stopCalloutPoll(); }, 60000);
+        };
+        // The chip handler marks what to await, right before the run.
+        sampleRow.addEventListener('click', (e) => {
+          const chip = e.target.closest && e.target.closest('[data-sample]');
+          if(chip && SAMPLE_CALLOUTS[chip.getAttribute('data-sample')]){
+            sampleRow._awaitSampleResults(chip.getAttribute('data-sample'));
+          }
+        });
+        if(clearBtn && !clearBtn._scWired){
+          clearBtn._scWired = true;
+          clearBtn.addEventListener('click', () => {
+            const box = document.getElementById('sampleCallout');
+            if(box) box.hidden = true;
+            sampleRow._pendingSample = null;
+            stopCalloutPoll();
+          });
+        }
+      }
       // Cycle #364 — deep link: analyze.html#sample=consulting loads and
       // runs that example on arrival, so the landing page can hand users
       // straight to a full reading. Skipped when an analysis is already

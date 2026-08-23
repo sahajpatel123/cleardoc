@@ -16984,6 +16984,28 @@ test("sample deep link: hero links through and the hash auto-runs", () => {
   assert.match(css, /\.hero-sample a\{color:var\(--accent-text\)/, "the link uses the word-safe accent token");
 });
 
+// Cycle #366 — guided readings: when a sample's analysis lands, a
+// callout names what the sample demonstrates and links to those blocks.
+test("sample callout: names the demo blocks, clears itself politely", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const css = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(html, /id="sampleCallout"[^>]*hidden/, "callout ships hidden at the top of results");
+  assert.match(appSrc, /const SAMPLE_CALLOUTS/, "callout copy defined");
+  for(const key of ["nda", "consulting", "lease"]){
+    assert.match(appSrc, new RegExp("(?:^|[^\\w])" + key + ": 'You are reading our sample"), "copy ships for: " + key);
+  }
+  assert.match(appSrc, /_scWired/, "callout wiring is once-guarded");
+  assert.match(appSrc, /_awaitSampleResults/, "chip presses mark what to await");
+  assert.match(appSrc, /panel && panel\.hidden\) return/, "the callout waits for the reading to land");
+  assert.match(appSrc, /input\.value !== SAMPLE_DOCS\[/, "a changed text cancels the callout");
+  assert.match(appSrc, /clearBtn\._scWired/, "Clear dismisses the callout");
+  assert.match(appSrc, /sampleCallout'\);\s*\n?\s*if\(box\) box\.hidden = true;|if\(box\) box\.hidden = true;/,
+    "the callout hides, it never lingers");
+  assert.match(css, /\.sample-callout\{/, "callout styled with house tokens");
+});
+
 // Cycle #359 — behavioral: the REAL parser converts number words and
 // flags only genuine words-vs-digits disagreements.
 test("figure check: catches split amounts, stays silent on agreement", () => {
