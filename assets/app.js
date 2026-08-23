@@ -4502,6 +4502,9 @@
           xferBlock=$('#xferBlock'),xferNote=$('#xferNote'),xferList=$('#xferList'),
           insBlock=$('#insBlock'),insNote=$('#insNote'),insList=$('#insList'),
           pubBlock=$('#pubBlock'),pubNote=$('#pubNote'),pubList=$('#pubList'),
+          setoffBlock=$('#setoffBlock'),setoffNote=$('#setoffNote'),setoffList=$('#setoffList'),
+          rateBlock=$('#rateBlock'),rateNote=$('#rateNote'),rateList=$('#rateList'),
+          indemBlock=$('#indemBlock'),indemNote=$('#indemNote'),indemList=$('#indemList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -18922,6 +18925,348 @@
       }
     }
 
+    // Cycle #389 — setoffs and short-pay rights: who can snip money
+    // out of your invoice. A one-way offset right means they underpay
+    // you and call it even.
+    function detectSetoff(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, offsets: 0 };
+      const normName = (s) => String(s || '').toLowerCase().replace(/\bthe\b/g, ' ')
+        .replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const items = [];
+      let checked = 0;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      const SETOFF_RE = /\bset\s*-?\s*offs?\b|\boffsets?\b|\bdeduct(?:s|ed|ing|ions?)?\b/i;
+      const MUTUAL_RE = /\b(?:each|either|both)\s+part(?:y|ies)\b|\bmutual(?:ly)?\b|\breciprocal\b/i;
+      const partyOf = (seg) => {
+        const pm = seg.match(/\b([A-Z][A-Za-z&-]*(?:\s+[A-Za-z&-]*){0,3})\s+(?:may|shall\s+have\s+the\s+right\s+to|is\s+entitled\s+to|reserves\s+the\s+right\s+to)\s+(?:also\s+|at\s+any\s+time\s+)?(?:offset|set\s+off|deduct)/i);
+        return pm ? { n: normName(pm[1]), raw: pm[1].trim().replace(/[.,]$/, '') } : null;
+      };
+      // Passive drafting hides the actor: "payments may be reduced"
+      // still short-pays you even though no name is attached.
+      const REDUCED_RE = /\b(?:payment|payments|amount|amounts|fees|invoice|invoices|sums)\b[^.]{0,100}?\b(?:may|shall)?\s*(?:be\s+)?(?:reduced|offset|set\s*off|deducted|withheld)\b/i;
+      // Cycle #390 — polish: grade the carve-out. An offset limited to
+      // "amounts actually disputed" or exercised "in good faith" is a
+      // fairer instrument than an unlimited one; say so instead of
+      // painting both with the same brush.
+      const CAP_NEAR = /\bdispute[ds]?\b|\bgood\s+faith\b|\bup\s+to\s+the\s+(?:amount|sum)\b|\bno\s+more\s+than\b|\blimited\s+to\b/i;
+      let offsetParty = null, firstAt = -1, firstLen = 0, cappedOnly = false;
+      segs.forEach(seg => {
+        if(!SETOFF_RE.test(seg.t)) return;
+        checked++;
+        if(MUTUAL_RE.test(seg.t)) return;
+        if(offsetParty) return;
+        const p = partyOf(seg.t);
+        if(p && p.n.length >= 4){
+          offsetParty = p; firstAt = seg.at; firstLen = seg.t.length;
+          cappedOnly = CAP_NEAR.test(seg.t);
+          return;
+        }
+        if(firstAt < 0 && REDUCED_RE.test(seg.t)){
+          firstAt = seg.at; firstLen = seg.t.length;
+          cappedOnly = CAP_NEAR.test(seg.t);
+        }
+      });
+      if(firstAt >= 0){
+        checked++;
+        const who = offsetParty ? offsetParty.raw : '';
+        if(cappedOnly){
+          items.push({
+            label: who
+              ? ('“' + who + '” can deduct — but only what is actually disputed')
+              : 'Offsets are allowed — capped at amounts actually disputed',
+            why: 'This offset right has a guardrail: it reaches only disputed or bounded amounts, not the whole invoice.' +
+              (who ? ' It still runs one way, though.' : '') +
+              ' Ask to make it mutual so both sides hold the same tool.',
+            start: firstAt,
+            end: firstAt + firstLen
+          });
+        } else {
+          items.push({
+            label: who
+              ? ('“' + who + '” can deduct from what it owes you')
+              : 'One side can deduct from what it owes you',
+            why: 'A one-way offset right lets “' + (who || 'one side') +
+              '” withhold or claw back money it owes you — your invoice becomes their negotiating position.' +
+              ' Ask to make any offset right mutual, capped at amounts actually disputed.',
+            start: firstAt,
+            end: firstAt + firstLen
+          });
+        }
+      }
+      return { items: items.slice(0, 4), checked: checked, offsets: firstAt >= 0 ? 1 : 0 };
+    }
+
+    function renderSetoffBlock(result){
+      if(!setoffBlock || !setoffList || !result) return;
+      if(!result.items.length){ setoffBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-so-start="' + Math.max(0, it.start) + '" data-so-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">✂️</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      setoffList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' payment sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.offsets + ' one-way offset right' + (result.offsets === 1 ? '' : 's') + '</span></div>';
+      setoffBlock.hidden = false;
+      if(setoffNote){
+        setoffNote.innerHTML = '<span class="riskNote-lead">Who can short-pay whom</span> ' +
+          'An offset right turns every invoice into an argument. Held by one side alone, it means the money they owe you is whatever they decide it is — ask to cap any offset at amounts actually disputed.';
+      }
+      if(!setoffList._soWired){
+        setoffList._soWired = true;
+        const jumpToSetoff = (row) => {
+          const s = parseInt(row.getAttribute('data-so-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-so-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Set-off language highlighted in your document');
+        };
+        setoffList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-so-start]');
+          if(row) jumpToSetoff(row);
+        });
+        setoffList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-so-start]');
+          if(row){ e.preventDefault(); jumpToSetoff(row); }
+        });
+      }
+    }
+
+    // Cycle #391 — rate changes: who can raise the price after you
+    // sign. A one-way uncapped increase right turns a fixed budget
+    // into whatever they say it is next quarter.
+    function detectRates(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, hikes: 0 };
+      const normName = (s) => String(s || '').toLowerCase().replace(/\bthe\b/g, ' ')
+        .replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const items = [];
+      let checked = 0;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      // Both drafting directions: "increase its fees" and "fees may
+      // be adjusted".
+      const HIKE_A = /\b(?:increas\w+|rais\w+|adjust\w*|modif\w*|chang\w+)\b[^.]{0,60}?\b(?:fee|fees|price|prices|rate|rates|charge|charges)s?\b/i;
+      const HIKE_B = /\b(?:fee|fees|price|prices|rate|rates|charge|charges)s?\b[^.]{0,60}?\b(?:may\s+be\s+|will\s+be\s+|shall\s+be\s+)?(?:increased|raised|adjusted|changed|modified)\b/i;
+      const partyOf = (seg) => {
+        const pm = seg.match(/\b([A-Z][A-Za-z&-]*(?:\s+[A-Za-z&-]*){0,3})\s+(?:may|shall\s+have\s+the\s+right\s+to|reserves\s+the\s+right\s+to|is\s+entitled\s+to)\s+(?:unilaterally\s+)?(?:from\s+time\s+to\s+time\s+)?(?:increas\w+|rais\w+|adjust\w*|modif\w*|chang\w+)/i);
+        return pm ? { n: normName(pm[1]), raw: pm[1].trim().replace(/[.,]$/, '') } : null;
+      };
+      // A cap or index makes the hike predictable — grade it apart.
+      const CAP_NEAR = /\bnot\s+(?:to\s+)?exceed\b|\bcapped?\s*(?:at)?\b|\bup\s+to\s+\d|\d+(?:\.\d+)?\s*%|\bconsumer\s+price\b|\bCPI\b|\binflation\b/i;
+      // Cycle #392 — polish: not all hikes ambush equally. A notice
+      // window is the difference between a surprise and an envelope.
+      const NOTICE_WIN = /\b(?:upon|after|with|following)\s+((?:\d{1,3}|one|two|three|four|five|six|seven|ten|fifteen|twenty|thirty|sixty|ninety)(?:\s*\(\d{1,3}\))?)\s*(?:days?\s*'?s?|business\s+days?)?\s*(?:prior\s+)?(?:written\s+)?notice\b/i;
+      let hikeParty = null, firstAt = -1, firstLen = 0, cappedHike = false, noticeWin = '';
+      segs.forEach(seg => {
+        const gmA = seg.t.match(HIKE_A);
+        const gmB = !gmA && !hikeParty ? seg.t.match(HIKE_B) : null;
+        if(!gmA && !gmB) return;
+        checked++;
+        if(hikeParty) return;
+        const p = partyOf(seg.t);
+        const nm = seg.t.match(NOTICE_WIN);
+        if(p && p.n.length >= 4){
+          hikeParty = p; firstAt = seg.at; firstLen = seg.t.length;
+          cappedHike = CAP_NEAR.test(seg.t);
+          noticeWin = nm ? nm[1].toLowerCase() : '';
+          return;
+        }
+        // Passive drafting ("fees shall be adjusted") still hikes your
+        // bill even though no active subject names itself.
+        if(firstAt < 0 && gmB){
+          firstAt = seg.at; firstLen = seg.t.length;
+          cappedHike = CAP_NEAR.test(seg.t);
+          noticeWin = nm ? nm[1].toLowerCase() : '';
+        }
+      });
+      if(firstAt >= 0){
+        checked++;
+        const who = hikeParty ? hikeParty.raw : '';
+        const noticeClause = noticeWin
+          ? (' It does promise ' + noticeWin + ' days’ notice — time to renegotiate, or leave, before the new price lands.')
+          : (cappedHike ? '' : ' No notice period is stated at all.');
+        if(cappedHike){
+          items.push({
+            label: who
+              ? ('“' + who + '” can raise rates — but within stated bounds')
+              : 'Rates can rise — but within stated bounds',
+            why: 'This increase right has a guardrail — a percentage cap or an inflation index keeps it predictable.' +
+              (who ? ' It still moves one way.' : '') + noticeClause +
+              ' Ask that any change also give you a free exit window.',
+            start: firstAt,
+            end: firstAt + firstLen
+          });
+        } else {
+          items.push({
+            label: who
+              ? ('“' + who + '” can raise your rates at any time')
+              : 'Your rates can be raised at any time',
+            why: 'An uncapped, one-way price-increase right means your cost is whatever “' + (who || 'the other side') +
+              '” decides next quarter — you signed a budget, not a ceiling.' + noticeClause +
+              ' Ask for a cap (e.g. CPI or 5% per year), advance written notice, and the right to terminate without penalty if a new rate does not suit you.',
+            start: firstAt,
+            end: firstAt + firstLen
+          });
+        }
+      }
+      return { items: items.slice(0, 4), checked: checked, hikes: firstAt >= 0 ? 1 : 0 };
+    }
+
+    function renderRateBlock(result){
+      if(!rateBlock || !rateList || !result) return;
+      if(!result.items.length){ rateBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-rt-start="' + Math.max(0, it.start) + '" data-rt-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">📈</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      rateList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' pricing sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.hikes + ' unilateral hike right' + (result.hikes === 1 ? '' : 's') + '</span></div>';
+      rateBlock.hidden = false;
+      if(rateNote){
+        rateNote.innerHTML = '<span class="riskNote-lead">Who can raise the price</span> ' +
+          'A rate-change clause decides whether today\'s number is a promise or a teaser. Uncapped and one-way, your budget is theirs to redraw; capped with notice and an exit, it is just administration.';
+      }
+      if(!rateList._rtWired){
+        rateList._rtWired = true;
+        const jumpToRate = (row) => {
+          const s = parseInt(row.getAttribute('data-rt-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-rt-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Rate-change language highlighted in your document');
+        };
+        rateList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-rt-start]');
+          if(row) jumpToRate(row);
+        });
+        rateList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-rt-start]');
+          if(row){ e.preventDefault(); jumpToRate(row); }
+        });
+      }
+    }
+
+    // Cycle #393 — indemnification: who extinguishes whose fires. One
+    // side promising to cover the other's losses — however caused, with
+    // all legal fees — is the most expensive sentence in the contract.
+    function detectIndemnity(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, indem: 0 };
+      const normName = (s) => String(s || '').toLowerCase().replace(/\bthe\b/g, ' ')
+        .replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const items = [];
+      let checked = 0;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      const INDEMN_RE = /\bindemnif(?:y|ies|ied|ication)\b|\bhold\s+(?:\w+\s+)?harmless\b/i;
+      const MUTUAL_RE = /\b(?:each|either|both)\s+part(?:y|ies)\b|\bmutual(?:ly)?\b|\breciprocal\b|\bone\s+another\b/i;
+      const partyOf = (seg) => {
+        const pm = seg.match(/\b([A-Z][A-Za-z&-]*(?:\s+[A-Za-z&-]*){0,3})\s+(?:shall|will|must|agrees?\s+to)\s+(?:defend\s+and\s+)?(?:fully\s+)?(?:indemnify|hold\s+harmless|hold\s+\w+\s+harmless)/i);
+        return pm ? { n: normName(pm[1]), raw: pm[1].trim().replace(/[.,]$/, '') } : null;
+      };
+      // Breadth grading: "any and all claims howsoever caused" is a
+      // different universe from "claims arising from X's own negligence".
+      const BROAD_RE = /\bany\s+and\s+all\b|\bhowsoever\s+caused\b|\bincluding\s+(?:all\s+)?(?:attorneys?['’]?|legal)\s*fees\b|\bincluding[^.;]{0,60}\bharmlessness\b|\bwithout\s+limitation\b|\bwhatsoever\b/i;
+      let payerParty = null, firstAt = -1, firstLen = 0, broadScope = false;
+      segs.forEach(seg => {
+        if(!INDEMN_RE.test(seg.t)) return;
+        checked++;
+        if(MUTUAL_RE.test(seg.t)) return;
+        if(payerParty) return;
+        const p = partyOf(seg.t);
+        if(!p || p.n.length < 4) return;
+        payerParty = p; firstAt = seg.at; firstLen = seg.t.length;
+        broadScope = BROAD_RE.test(seg.t);
+      });
+      if(firstAt >= 0){
+        checked++;
+        const who = payerParty ? payerParty.raw : 'one side';
+        items.push({
+          label: '“' + who + '” covers the other side’s losses',
+          why: 'An indemnity makes “' + who + '” pay for the other party’s legal battles' +
+            (broadScope ? ' — “any and all”, however caused, legal fees included — before any court decides who was actually at fault.' : '.') +
+            ' Ask for a mutual indemnity capped at the value of the contract, excluding gross negligence and willful misconduct.',
+          start: firstAt,
+          end: firstAt + firstLen
+        });
+      }
+      return { items: items.slice(0, 4), checked: checked, indem: firstAt >= 0 ? 1 : 0 };
+    }
+
+    function renderIndemBlock(result){
+      if(!indemBlock || !indemList || !result) return;
+      if(!result.items.length){ indemBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-im-start="' + Math.max(0, it.start) + '" data-im-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">🧯</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      indemList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' indemnity sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.indem + ' one-way coverage promise' + (result.indem === 1 ? '' : 's') + '</span></div>';
+      indemBlock.hidden = false;
+      if(indemNote){
+        indemNote.innerHTML = '<span class="riskNote-lead">Who covers the losses</span> ' +
+          'An indemnity clause decides who pays for the fire before anyone proves who lit it. One-way and uncapped, it turns every dispute into your expense; mutual and capped, it is ordinary risk-sharing.';
+      }
+      if(!indemList._imWired){
+        indemList._imWired = true;
+        const jumpToIndem = (row) => {
+          const s = parseInt(row.getAttribute('data-im-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-im-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Indemnity language highlighted in your document');
+        };
+        indemList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-im-start]');
+          if(row) jumpToIndem(row);
+        });
+        indemList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-im-start]');
+          if(row){ e.preventDefault(); jumpToIndem(row); }
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -20092,6 +20437,24 @@
         renderPubBlock(detectPublicity(raw));
       } else if(pubBlock) {
         pubBlock.hidden = true;
+      }
+      // Cycle #389 — setoffs: who can deduct from what they owe you.
+      if(setoffBlock && typeof detectSetoff === 'function'){
+        renderSetoffBlock(detectSetoff(raw));
+      } else if(setoffBlock) {
+        setoffBlock.hidden = true;
+      }
+      // Cycle #391 — rates: who can raise the price after you sign.
+      if(rateBlock && typeof detectRates === 'function'){
+        renderRateBlock(detectRates(raw));
+      } else if(rateBlock) {
+        rateBlock.hidden = true;
+      }
+      // Cycle #393 — indemnity: who covers whose losses.
+      if(indemBlock && typeof detectIndemnity === 'function'){
+        renderIndemBlock(detectIndemnity(raw));
+      } else if(indemBlock) {
+        indemBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
@@ -23824,6 +24187,9 @@
         addSection('Even out transfer rights', 'Ask for the same freedom both ways: ', readAll('#xferList .gap-label', 4));
         addSection('Pin down the insurance numbers', 'Ask for stated limits, not "adequate": ', readAll('#insList .gap-label', 4));
         addSection('Put approvals around publicity', 'Ask for sign-off per use: ', readAll('#pubList .gap-label', 4));
+        addSection('Cap the setoffs', 'Ask that offsets be mutual and capped: ', readAll('#setoffList .gap-label', 4));
+        addSection('Cap the rate hikes', 'Ask for a cap and an exit window: ', readAll('#rateList .gap-label', 4));
+        addSection('Make indemnity mutual', 'Ask that indemnities run both ways, capped: ', readAll('#indemList .gap-label', 4));
         if(!sections.length) return null;
         const fp = (_fpState && _fpState.short) ? _fpState.short : '';
         const mdLines = ['# My negotiation asks', '',
@@ -24388,6 +24754,24 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          const setoffLines = (function(){
+            const rows = document.querySelectorAll('#setoffList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
+          const rateLines = (function(){
+            const rows = document.querySelectorAll('#rateList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
+          const indemLines = (function(){
+            const rows = document.querySelectorAll('#indemList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -24424,6 +24808,9 @@
               (xferLines ? '<div class="cheat-section"><div class="cheat-section-title">Transfer rights (who can hand off the deal)</div><ul style="padding-left:18px;margin:0">' + xferLines + '</ul></div>' : '') +
               (insLines ? '<div class="cheat-section"><div class="cheat-section-title">Insurance duties (who carries the coverage)</div><ul style="padding-left:18px;margin:0">' + insLines + '</ul></div>' : '') +
               (pubLines ? '<div class="cheat-section"><div class="cheat-section-title">Publicity rights (your name in their ads)</div><ul style="padding-left:18px;margin:0">' + pubLines + '</ul></div>' : '') +
+              (setoffLines ? '<div class="cheat-section"><div class="cheat-section-title">Setoffs (who can short-pay whom)</div><ul style="padding-left:18px;margin:0">' + setoffLines + '</ul></div>' : '') +
+              (rateLines ? '<div class="cheat-section"><div class="cheat-section-title">Rate changes (who can raise the price)</div><ul style="padding-left:18px;margin:0">' + rateLines + '</ul></div>' : '') +
+              (indemLines ? '<div class="cheat-section"><div class="cheat-section-title">Indemnification (who covers whose losses)</div><ul style="padding-left:18px;margin:0">' + indemLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +

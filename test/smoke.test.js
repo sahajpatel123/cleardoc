@@ -43,6 +43,15 @@ function serveStatic() {
 
   const server = http.createServer((req, res) => {
     let p = req.url.split("?")[0];
+    // The footer service-status chip pings /api/health on every page load
+    // (and again after any reload). Serve the same healthy mock as the
+    // integration suite so the strict zero-console-error tests stay about
+    // the feature under test, not about this endpoint being unmocked.
+    if (p === "/api/health") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, status: "ok", providers: {} }));
+      return;
+    }
     if (p === "/") p = "/index.html";
     const filePath = path.join(ROOT, p);
     if (!filePath.startsWith(ROOT) || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
@@ -80,7 +89,56 @@ test.before(async () => {
   if (!HAS_BROWSER) return;
   server = serveStatic();
   browser = await chromium.launch({ headless: true });
-  context = await browser.newContext();
+  // Block live service workers: sw.js's fetch handler forwards CDN
+  // requests itself, and worker-initiated requests can slip past
+  // context.route routing — re-opening the exact proxy-flake hole this
+  // setup exists to close. (SW behavior is asserted at source level.)
+  context = await browser.newContext({ serviceWorkers: "block" });
+  // Hermetic pages: the shipped HTML pulls GSAP / ScrollTrigger / Lenis
+  // from live CDNs with SRI hashes, plus Google Fonts. A proxy hiccup on
+  // any of those routes surfaces as a console error that strict
+  // zero-console-error tests trip over (the dark-mode flake family).
+  // Scripts are fetched once per run with retries and served from memory
+  // so their SRI digests still validate; everything else gets an empty
+  // local fulfillment.
+  const cdnScripts = [
+    "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js",
+    "https://unpkg.com/lenis@1.1.13/dist/lenis.min.js",
+  ];
+  const cdnCache = new Map();
+  const fetchOnce = (url) => new Promise((resolve) => {
+    const mod = url.startsWith("https:") ? require("node:https") : require("node:http");
+    const req = mod.get(url, { timeout: 8000 }, (res) => {
+      if (res.statusCode !== 200) { res.resume(); resolve(null); return; }
+      const chunks = [];
+      res.on("data", (c) => chunks.push(c));
+      res.on("end", () => resolve(Buffer.concat(chunks)));
+    });
+    req.on("timeout", () => req.destroy());
+    req.on("error", () => resolve(null));
+  });
+  for (const url of cdnScripts) {
+    let body = null;
+    for (let i = 0; i < 3 && !body; i++) body = await fetchOnce(url);
+    // Cache even failures (null) so a hard-down CDN fails fast instead of
+    // hanging the run; the page will report the missing global loudly.
+    cdnCache.set(url, body);
+  }
+  await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => {
+    const url = route.request().url();
+    if (cdnCache.has(url)) {
+      const buf = cdnCache.get(url);
+      route.fulfill({ status: 200, contentType: "text/javascript", body: buf || "" });
+      return;
+    }
+    const type = route.request().resourceType();
+    route.fulfill({
+      status: 200,
+      contentType: type === "stylesheet" ? "text/css" : "text/plain",
+      body: "",
+    });
+  });
 });
 
 test.after(async () => {
@@ -15883,7 +15941,7 @@ test("analyzer: Risk tally is surfaced in the browser tab title and reset on cle
     "clearing the analysis must reset both badge parts");
 });
 
-skip("dark mode: toggle applies, persists, and survives reload without console errors", async () => {
+test("dark mode: toggle applies, persists, and survives reload without console errors", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
   const errors = [];
@@ -17065,10 +17123,13 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
 
   // The grid advertises exactly the shipped lenses — no vaporware.
   // Cycle #387 — publicity lens joins the storefront.
+  // Cycle #389 — setoffs lens joins the storefront.
+  // Cycle #391 — rate-changes lens joins the storefront.
+  // Cycle #393 — indemnity lens joins the storefront.
   const lenses = ["Missing clauses", "Open terms", "Broken references", "Undefined terms",
                   "Undated obligations", "Execution check", "Obligation balance", "Figure check",
                   "Notice mechanics", "Liability caps", "Exit rights", "Breach notice", "Money timing",
-                  "Transfers", "Insurance", "Publicity"];
+                  "Transfers", "Insurance", "Publicity", "Setoffs", "Rate changes", "Indemnity"];
   lenses.forEach(name => {
     assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
   });
@@ -17837,4 +17898,196 @@ test("publicity: one-way marketing rights over your name speak up", () => {
     "the landing checklist advertises the new lens");
   assert.ok(appSrc.indexOf("polish: enumerate the full grant") !== -1,
     "the enumeration polish ships inside the detector");
+});
+
+test("setoffs: who can snip money out of your invoice speaks up", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectSetoff");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, offsets: firstAt >= 0 ? 1 : 0 };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectSetoff };";
+  const { detectSetoff } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // A one-way offset right → attributed finding with a span.
+  const clipDoc = "Company may offset any amounts owed by Consultant to Company against payments due under this agreement. Consultant shall provide the services with professional care throughout the term.";
+  const clip = detectSetoff(clipDoc);
+  assert.equal(clip.items.length, 1, "a one-way setoff right is flagged");
+  assert.match(clip.items[0].label, /Company.*deduct from what it owes you/,
+    "the headline names who holds the scissors");
+  assert.ok(typeof clip.items[0].start === "number" && clip.items[0].start >= 0,
+    "…and points at the sentence");
+
+  // Mutual offsets are a fair trade.
+  const mutual = detectSetoff("Either party may set off amounts owing between the parties against each other's invoices.");
+  assert.equal(mutual.items.length, 0, "mutual setoffs never fire");
+
+  // Deduction language without any party shape still surfaces.
+  const anon = detectSetoff("Amounts payable under this agreement may be reduced by deductions arising from any claimed failure to perform.");
+  assert.equal(anon.items.length, 1, "unattributed short-pay rights still speak up");
+  assert.match(anon.items[0].label, /One side can deduct/,
+    "…with the honest generic headline");
+
+  // No setoff language → fully quiet.
+  assert.equal(detectSetoff("Consultant shall perform the services with professional care. Client shall pay undisputed invoices within thirty days.").items.length, 0,
+    "documents without setoff language stay quiet");
+
+  // Cycle #390 — polish: a carve-out-scoped offset is graded apart.
+  const capDoc = "Company may offset amounts actually disputed by Company in good faith against payments due under this agreement.";
+  const cap = detectSetoff(capDoc);
+  assert.equal(cap.items.length, 1, "a capped one-way offset still speaks");
+  assert.match(cap.items[0].label, /deduct — but only what is actually disputed/,
+    "the headline grades the carve-out");
+  assert.match(cap.items[0].why, /guardrail/, "…and credits the guardrail");
+
+  // Full house equipment ships.
+  assert.match(html, /id="setoffBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="setoffList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("setoffBlock=$('#setoffBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectSetoff === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-so-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_soWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Set-off language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#setoffList .gap-label") !== -1 &&
+            appSrc.indexOf("Setoffs (who can short-pay whom)") !== -1,
+    "the printed brief includes the setoffs section");
+  assert.ok(appSrc.indexOf("'Cap the setoffs'") !== -1, "the sent ask list includes the setoffs ask");
+  assert.ok(indexHtml.indexOf("Setoffs") !== -1,
+    "the landing checklist advertises the new lens");
+  assert.ok(appSrc.indexOf("polish: grade the carve-out") !== -1,
+    "the carve-out grading ships inside the detector");
+});
+
+test("rate changes: who can raise the price after you sign speaks up", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectRates");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, hikes: firstAt >= 0 ? 1 : 0 };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectRates };";
+  const { detectRates } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // A one-way uncapped hike → attributed finding with a span.
+  const hikeDoc = "Company may increase its fees at any time upon thirty days notice. Consultant shall provide the services with professional care throughout the term.";
+  const hike = detectRates(hikeDoc);
+  assert.equal(hike.items.length, 1, "a one-way rate increase right is flagged");
+  assert.match(hike.items[0].label, /Company.*raise your rates/,
+    "the headline names who holds the pricing pen");
+  assert.ok(typeof hike.items[0].start === "number" && hike.items[0].start >= 0,
+    "…and points at the sentence");
+
+  // A capped or indexed hike is graded apart, not ignored.
+  const capDoc = "Company may adjust its rates once per year, provided any increase does not exceed five percent (5%).";
+  const cap = detectRates(capDoc);
+  assert.equal(cap.items.length, 1, "a capped hike still surfaces");
+  assert.match(cap.items[0].label, /within stated bounds/,
+    "…with the guardrail credited in the headline");
+
+  // Passive drafting without a name still surfaces.
+  const anon = detectRates("The subscription fees shall be adjusted by the Company from time to time to reflect prevailing market conditions.");
+  assert.equal(anon.items.length, 1, "unattributed hike rights still speak up");
+  assert.match(anon.items[0].label, /raised at any time|can be raised/,
+    "…with the honest generic headline");
+
+  // No rate-change language → fully quiet.
+  assert.equal(detectRates("Consultant shall perform the services with professional care. Client shall pay undisputed invoices within thirty days.").items.length, 0,
+    "documents without rate-change language stay quiet");
+
+  // Cycle #392 — polish: the notice window is surfaced, or its absence
+  // is named. The hike corpus promises thirty days notice.
+  assert.match(hike.items[0].why, /thirty days.{0,3} notice/,
+    "the notice window is quoted back to the reader");
+  const ambushDoc = "Company may increase its fees at any time for any reason whatsoever.";
+  const ambush = detectRates(ambushDoc);
+  assert.match(ambush.items[0].why, /No notice period is stated/,
+    "an ambush hike says so outright");
+
+  // Full house equipment ships.
+  assert.match(html, /id="rateBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="rateList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("rateBlock=$('#rateBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectRates === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-rt-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_rtWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Rate-change language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#rateList .gap-label") !== -1 &&
+            appSrc.indexOf("Rate changes (who can raise the price)") !== -1,
+    "the printed brief includes the rate-changes section");
+  assert.ok(appSrc.indexOf("'Cap the rate hikes'") !== -1, "the sent ask list includes the rate ask");
+  assert.ok(indexHtml.indexOf("Rate changes") !== -1,
+    "the landing checklist advertises the new lens");
+  assert.ok(appSrc.indexOf("polish: not all hikes ambush equally") !== -1,
+    "the notice-window polish ships inside the detector");
+});
+
+test("indemnity: who covers whose losses speaks up", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectIndemnity");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, indem: firstAt >= 0 ? 1 : 0 };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectIndemnity };";
+  const { detectIndemnity } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // A one-way broad indemnity → attributed finding with a span.
+  const broadDoc = "Consultant shall defend and indemnify Company against any and all claims, damages, and losses arising out of this agreement, including all legal fees. Consultant shall perform the services with professional care throughout the term.";
+  const broad = detectIndemnity(broadDoc);
+  assert.equal(broad.items.length, 1, "a one-way indemnity is flagged");
+  assert.match(broad.items[0].label, /Consultant.*covers the other side/,
+    "the headline names who holds the fire blanket");
+  assert.match(broad.items[0].why, /any and all|however caused/,
+    "…and the breadth is spoken to");
+  assert.ok(typeof broad.items[0].start === "number" && broad.items[0].start >= 0,
+    "…and points at the sentence");
+
+  // A narrow one-way indemnity still surfaces, minus the breadth alarm.
+  const narrowDoc = "Provider shall indemnify Customer for claims arising solely from Provider's negligence in performing the services.";
+  const narrow = detectIndemnity(narrowDoc);
+  assert.equal(narrow.items.length, 1, "a narrow indemnity still speaks");
+  assert.doesNotMatch(narrow.items[0].why, /howsoever caused/,
+    "…without overstating its breadth");
+
+  // Mutual indemnities are ordinary risk-sharing.
+  const mutual = detectIndemnity("Each party shall indemnify and hold harmless the other party against third-party claims to the extent caused by the indemnifying party's negligence.");
+  assert.equal(mutual.items.length, 0, "mutual indemnity never fires");
+
+  // No indemnity language → fully quiet.
+  assert.equal(detectIndemnity("Consultant shall perform the services with professional care. Client shall pay undisputed invoices within thirty days.").items.length, 0,
+    "documents without indemnity language stay quiet");
+
+  // Full house equipment ships.
+  assert.match(html, /id="indemBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="indemList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("indemBlock=$('#indemBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectIndemnity === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-im-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_imWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Indemnity language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#indemList .gap-label") !== -1 &&
+            appSrc.indexOf("Indemnification (who covers whose losses)") !== -1,
+    "the printed brief includes the indemnity section");
+  assert.ok(appSrc.indexOf("'Make indemnity mutual'") !== -1, "the sent ask list includes the indemnity ask");
+  assert.ok(indexHtml.indexOf("Indemnity") !== -1,
+    "the landing checklist advertises the new lens");
 });
