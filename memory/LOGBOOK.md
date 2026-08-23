@@ -6597,3 +6597,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #373 of the autonomous loop (add — last cycle hardened rate translation): signers now see whether the document's formal-notification machinery is fair or fictional. Next cycle #374 is POLISH of this lens — candidates: notice-address presence check, deemed-timing variant patterns, or TBD.
+
+## 2026-08-23 09:3x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #374 — POLISH: the notices lens reads real drafting.** Two refinements to #373:
+  - **Scaffolded deemed phrasing:** contracts write "deemed to have been given upon depositing in the mail" — the regex now accepts the to-be / (to) have been scaffolding between "deemed" and the verb.
+  - **Notice-to-nowhere check:** a substantial contract that requires formal notice but names no destination anywhere — street address, PO box, email, attention line, or an explicit pointer ("to the addresses listed below") — gets "Notices have no destination." Any concrete destination anywhere in the document satisfies it, keeping signature-block-only addresses quiet.
+- Tests: three new behavioral corpora (scaffolded phrasing fires with span, destination-less clause flagged by label, pointer-reference stays silent); existing healthy corpus verified against the pointer rule unchanged.
+- Gate: unit 490/490 · smoke 321 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #374 of the autonomous loop (polish — last cycle added the notices lens): the lens now catches how the clause is actually written, not just textbook phrasing. Next cycle #375 is ADD — candidates TBD with scope-incumbents-first grep.

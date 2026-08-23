@@ -17989,7 +17989,9 @@
       const items = [];
       let checked = 0;
       let m;
-      const DEEMED_RE = /\bdeemed\s+(?:to\s+be\s+)?(?:given|received|delivered|served)\s+(?:upon|on|at|when)\b[^.;]{0,40}?\b(dispatch|mailing|sending|transmission|posting|deposit)/gi;
+      // Cycle #374 — polish: real drafting stacks scaffolding between the
+      // words — "deemed to have been given upon depositing in the mail".
+      const DEEMED_RE = /\bdeemed\s+(?:to\s+be\s+|(?:to\s+)?have\s+been\s+)?(?:given|received|delivered|served)\s+(?:upon|on|at|when)\b[^.;]{0,40}?\b(dispatch|mailing|sending|transmission|posting|deposit)/gi;
       DEEMED_RE.lastIndex = 0;
       while((m = DEEMED_RE.exec(text)) && items.length < 4){
         checked++;
@@ -18000,14 +18002,32 @@
           end: m.index + m[0].length
         });
       }
-      if(!items.length){
-        const looksLikeContract = /\b(?:shall|agreement|party|parties|hereby)\b/i.test(text);
-        if(looksLikeContract && text.length >= 500 && !/\bnotices?\b/i.test(text)){
+      const looksLikeContract = /\b(?:shall|agreement|party|parties|hereby)\b/i.test(text);
+      const substantial = looksLikeContract && text.length >= 500;
+      if(substantial && !items.length){
+        if(!/\bnotices?\b/i.test(text)){
           checked++;
           items.push({
             label: 'No notices clause found',
             why: 'Formal notice is how terminations, defaults, and address changes become official. Ask for a short clause: what counts as notice (writing), where it goes (addresses), and when it takes effect.'
           });
+        } else {
+          // Cycle #374 — polish: a clause that delivers to nowhere. Any
+          // concrete destination anywhere in the document satisfies it —
+          // a street address, a PO box, an email, or an explicit pointer
+          // to an address block ("to the addresses listed below").
+          const HAS_ADDR = /\b\d{1,5}\s+[A-Za-z0-9.\s]+(?:street|st\.|avenue|ave\.?|boulevard|blvd\.?|road|rd\.?|drive|dr\.?|lane|ln\.?|suite|ste\.?)\b/i.test(text)
+            || /p\.?\s*o\.?\s*box/i.test(text)
+            || /[\w.+-]+@[\w-]+\.[\w.-]+/.test(text)
+            || /attention\s*:/i.test(text)
+            || /\baddress(?:es)?\s+(?:below|above|set\s+forth|listed|on\s+file)/i.test(text);
+          if(!HAS_ADDR){
+            checked++;
+            items.push({
+              label: 'Notices have no destination',
+              why: 'The document requires formal notice but never names where it goes. Ask for a delivery point — a street address, a PO box, or an email address written into the clause itself — otherwise “it was sent” becomes impossible to disprove.'
+            });
+          }
         }
       }
       return { items: items.slice(0, 4), checked: checked };

@@ -17312,6 +17312,24 @@ test("notices: deemed-delivery traps and missing clauses speak up", () => {
   assert.equal(detectNotices("Thanks for sending the memo over.").items.length, 0,
     "short non-contract text is untouched");
 
+  // Cycle #374 — polish: scaffolded deemed phrasing still trips.
+  const scaffold = detectNotices("Each notice shall be in writing. A notice is deemed to have been given upon depositing in the mail, postage prepaid. The parties shall perform as agreed.");
+  assert.equal(scaffold.items.length, 1, "'deemed to have been given upon depositing' is caught");
+  assert.ok(typeof scaffold.items[0].start === "number", "…with a jump span");
+
+  // Cycle #374 — polish: a notices clause with no destination anywhere.
+  let nowhere = "This Agreement is entered into by and between the Company and the Consultant. Any notice required hereunder shall be made in writing and shall be effective when sent in the manner described herein.";
+  while(nowhere.length < 560) nowhere += " The parties shall cooperate in good faith and perform all covenants of this agreement promptly.";
+  const dest = detectNotices(nowhere);
+  assert.equal(dest.items.length, 1, "notice-to-nowhere is flagged");
+  assert.match(dest.items[0].label, /no destination/, "the headline says what is missing");
+
+  // An explicit pointer to an address block satisfies the destination check.
+  let pointed = "This Agreement is made between the Company and the Consultant. Any notice shall be in writing and sent to the addresses listed below.";
+  while(pointed.length < 560) pointed += " The Consultant shall perform the services with professional care and the parties shall cooperate in good faith throughout the term.";
+  assert.equal(detectNotices(pointed).items.length, 0,
+    "'to the addresses listed below' counts as a destination");
+
   // Full house equipment ships.
   assert.match(html, /id="noticeBlock"/, "analyze.html carries the block");
   assert.match(html, /id="noticeList"/, "…and its list container");
