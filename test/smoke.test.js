@@ -16690,6 +16690,64 @@ test("signatures: healthy blocks stay quiet; broken ones speak up", () => {
   assert.match(undated.items[0].label, /no Date line/, "the finding asks for dated signatures");
 });
 
+// Cycle #367 — behavioral: a signature line naming an entity the document
+// never introduces is the shell-swap trap; introduced names stay quiet.
+test("signatures: foreign-entity signing lines get called out", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const start = appSrc.indexOf("const SIG_FURNITURE");
+  const retAt = appSrc.indexOf("return { items, count: items.length, slots: slots.length };", start);
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectSignatures };";
+  const { detectSignatures } = new Function(src)();
+
+  // The trap: preamble promises two parties, a third name signs.
+  // (Slot labels can't carry commas — house SIG_SLOT_RE constraint.)
+  const trapSrc = [
+    "This Agreement is made between Acme Labs Inc and Jane Doe Consulting.",
+    "Consulting services shall be provided as described herein.",
+    "Acme Labs Inc: ____________________",
+    "Jane Doe Consulting: ____________________",
+    "Ghost Holdings LLC: ____________________",
+    "Date: ____________"
+  ].join("\n");
+  const trap = detectSignatures(trapSrc);
+  assert.equal(trap.slots, 3, "all three party-labeled lines count as slots");
+  assert.equal(trap.count, 1, "only the foreign entity is flagged — introduced lines stay quiet");
+  assert.match(trap.items[0].label, /Ghost Holdings LLC[^]*no party by that name/,
+    "the finding names the impostor line");
+  assert.ok(typeof trap.items[0].start === "number", "the finding carries a jump span");
+
+  // Quoted defined parties prove the convention; a stranger still trips.
+  const quoted = detectSignatures([
+    'CONSULTING AGREEMENT made between ____ (the "Client") and ____ (the "Consultant").',
+    'The Consultant shall perform the services described herein.',
+    "Client: ____________________",
+    "Consultant: ____________________",
+    "Stranger Corp: ____________________",
+    "Date: ____________"
+  ].join("\n"));
+  assert.equal(quoted.count, 1, "quoted parties anchor the check; the stranger is flagged");
+  assert.match(quoted.items[0].label, /Stranger Corp/, "…by name");
+
+  // Both names introduced (in the preamble or used in the body) → quiet.
+  const quiet = detectSignatures([
+    "This Agreement is between Wexford Health Systems Inc and Northgate Supplies Ltd.",
+    "Northgate Supplies Ltd shall deliver the goods described herein.",
+    "Wexford Health Systems Inc: ____________________",
+    "Name: ____ Title: ____",
+    "Northgate Supplies Ltd: ____________________",
+    "Date: ____________"
+  ].join("\n"));
+  assert.equal(quiet.count, 0, "entities the document actually introduces are never flagged");
+
+  // Structural: the copy and the guards ship.
+  assert.match(appSrc, /Cycle #367 — wrong-entity check/, "the check is annotated");
+  assert.match(appSrc, /signs, but no party by that name/, "finding copy exists");
+  assert.match(appSrc, /const n = normName\(label\)/, "name normalization gates every comparison");
+  assert.match(appSrc, /parties\.length < 8/, "the party harvest is capped");
+});
+
 // Cycle #355 — "My asks": one button consolidates every lens's findings
 // into a single ranked, copy-ready negotiation demand list. It reads the
 // LIVE DOM (so it always matches what the user sees) in deal-breaker-first

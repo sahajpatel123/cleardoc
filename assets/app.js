@@ -17559,6 +17559,61 @@
           ...(ev ? { start: ev.index, end: ev.index + ev[0].length } : {})
         });
       }
+      // Cycle #367 — wrong-entity check: a signature line naming someone
+      // the document never introduces. The classic version of this trap:
+      // the preamble promises one legal person and the line you sign
+      // binds another ("Acme Labs, Inc." on page 1, "Acme Labs Holdings
+      // LLC" at the bottom — a different, sometimes empty, legal person).
+      // Quiet unless the block proves a signing convention: at least two
+      // lines AND at least one that matches a named party.
+      const normName = (s) => String(s || '').toLowerCase().replace(/\bthe\b/g, ' ')
+        .replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const parties = [];
+      // (a) The between/among line — cut at the first sentence break so
+      // the recitals don't leak in; split on "and" first (commas live
+      // inside entity names like "Acme Labs, Inc."), comma as fallback.
+      const pm = text.match(/\b(?:between|among)\s+([^\n]{2,200})/i);
+      if(pm){
+        const seg = pm[1].split(/\.\s|;\s/)[0];
+        let chunks = seg.split(/\s+and\s+/i).map(s => s.trim()).filter(Boolean);
+        if(chunks.length < 2) chunks = seg.split(/,/).map(s => s.trim()).filter(Boolean);
+        if(chunks.length >= 2){
+          parties.push(normName(chunks[0]), normName(chunks[chunks.length - 1]));
+        }
+      }
+      // (b) Quoted names near the top are defined parties ("the "Client"").
+      const head = text.slice(0, 600);
+      const qre = /["“]([A-Z][A-Za-z0-9&.,' -]{2,60})["”]/g;
+      let qm;
+      while((qm = qre.exec(head)) !== null && parties.length < 8){
+        parties.push(normName(qm[1]));
+      }
+      if(parties.length && slots.length >= 2){
+        const isMatch = (label) => {
+          const n = normName(label);
+          if(n.length < 3) return true;               // too short to judge — stay quiet
+          return parties.some(p => p && (p.indexOf(n) !== -1 || n.indexOf(p) !== -1));
+        };
+        if(slots.some(s => isMatch(s.label))){
+          slots.filter(s => !isMatch(s.label)).slice(0, 2).forEach(s => {
+            // A name that also appears in the body is a role or a known
+            // signer — only fully foreign names get flagged.
+            let elsewhere = false;
+            try {
+              const re = new RegExp(s.label.replace(/[.*+?${}()|[\]\\]/g, '\\$&'), 'gi');
+              let n = 0;
+              while(re.exec(text) !== null){ n++; if(n > 1){ elsewhere = true; break; } }
+            } catch(_){ /* ignore */ }
+            if(elsewhere) return;
+            items.push({
+              label: '“' + s.label + '” signs, but no party by that name appears in the document',
+              why: 'The agreement introduces its parties up top, yet this line names someone else. Ask which entity is actually bound — signing with a differently named (or empty) entity can leave you holding a promise no one can keep.',
+              start: s.start,
+              end: s.end
+            });
+          });
+        }
+      }
       return { items, count: items.length, slots: slots.length };
     }
 
@@ -17586,7 +17641,7 @@
       sigBlock.hidden = false;
       if(sigNote){
         sigNote.innerHTML = '<span class="riskNote-lead">Execution check</span> ' +
-          'Who signs, how many parties sign, and whether signatures carry dates — the mechanics of actually making this deal binding. Pure-local check of the document\'s signature furniture; healthy blocks stay quiet.';
+          'Who signs, how many parties sign, whether signatures carry dates, and whether the names on the lines are the parties the document actually introduces — the mechanics of making this deal binding. Pure-local check of the document\'s signature furniture; healthy blocks stay quiet.';
       }
       // Delegated, once-guarded jump wiring (same contract as _rsWired).
       if(!sigList._sgWired){

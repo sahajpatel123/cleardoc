@@ -6512,3 +6512,17 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #366 of the autonomous loop (polish — last cycle made the ask list sendable): samples now teach, not just demo — every trap comes with an explanation and a way to reach it. Next cycle #367 is ADD — candidates TBD with scope-incumbents-first grep.
+
+## 2026-08-23 08:2x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #367 — ADD: wrong-entity signature check.** The execution lens counted lines and dates but never asked *who* the lines name. Now `detectSignatures` cross-checks each signature label against the parties the document actually introduces:
+  - **Party harvest:** the between/among line (cut at the first sentence break, split on "and" first — commas live inside entity names — comma fallback) plus quoted defined names in the first 600 chars ("the "Client""); capped at 8.
+  - **Match rule:** normalized containment either way (`the` dropped, punctuation stripped); labels shorter than 3 chars stay quiet.
+  - **Convention gate:** fires only when ≥2 slots exist AND ≥1 matches a named party; a flagged label must appear NOWHERE else in the document (occurrence check — a body mention means it's a role or a known signer, not an impostor). Cap 2 findings, each carrying its jump span, so they ride the existing ✍️ rows, cheat-sheet section, and ask-list for free.
+  - Catches the shell swap: preamble says Acme Labs Inc., the line you sign binds Ghost Holdings LLC — a promise no one can keep.
+  - sigNote copy extended to cover name-matching; scoping killed jargon lens (tone axis + rewrite engine), dead definitions (already in detectTerms), PWA (manifest + sw.js shipped), reading time (readTimeBand), compare-based recheck (compare panel does before/after).
+- Tests: three behavioral corpora through the REAL detector — trap (3 slots → only the foreign line flagged, with span), quoted-party convention (stranger still trips), fully-introduced names quiet; structural pins for copy, normalization gate, harvest cap, annotation.
+- Gate: unit 490/490 · smoke 319 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #367 of the autonomous loop (add — last cycle guided sample readings): execution check now guards against signing with someone the contract never introduced. Next cycle #368 is POLISH of this feature — candidates: party-name harvest hardening (e.g., "by and between", "between … of even date"), or a per-finding "who is this?" hint row polish.
