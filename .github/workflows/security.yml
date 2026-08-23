@@ -208,8 +208,11 @@ jobs:
 
       - name: Check CSP strictness
         run: |
-          # Verify CSP is strict (no unsafe-inline, unsafe-eval in script-src)
-          if grep -rE "script-src.*unsafe-(inline|eval)" . --include="*.json" 2>/dev/null; then
+          # Verify CSP is strict: no unsafe-inline/unsafe-eval inside the
+          # script-src DIRECTIVE. [^;] keeps the match within one directive —
+          # a bare .* crossed the ';' boundary and flagged style-src's
+          # legitimate 'unsafe-inline' (stylesheets need it for inline themes).
+          if grep -rE "script-src[^;]*unsafe-(inline|eval)" . --include="*.json" 2>/dev/null; then
             echo "::error::Unsafe CSP directives found"
             exit 1
           fi
