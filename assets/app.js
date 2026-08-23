@@ -22425,6 +22425,12 @@
             const addSection = (title, prefix, items, wrap) => {
               if(items.length) sections.push({ title, lines: items.map(t => '- ' + prefix + (wrap ? wrap(t) : t)) });
             };
+            // Cycle #356 — the executive summary's top-priority risk leads
+            // the list, so the recipient sees the headline demand before
+            // any category. The body is one newline-joined text node.
+            const esText = (document.getElementById('execSummaryBody') || {}).textContent || '';
+            const prioLine = esText.split('\n').map(s2 => s2.trim()).find(l => /^Top priority:/i.test(l));
+            if(prioLine) sections.push({ title: 'Start here', lines: ['- ' + prioLine.replace(/^Top priority:\s*/i, '')] });
             // Deal-breakers first, then completeness, then polish.
             addSection('Fix before anything else', 'Fix the signature block: ', readAll('#sigList .gap-label'));
             addSection('Missing clauses to request', 'Ask them to add: ', readAll('#gapList .gap-label', 8));
@@ -22441,7 +22447,7 @@
               'Prepared with ClearDoc on ' + localDateStamp() + (fp ? ' · fingerprint #' + fp : '') + '.',
               'Each item is a concrete change to request before signing.', ''];
             sections.forEach(s2 => {
-              mdLines.push('## ' + s2.title, ...s2.lines, '');
+              mdLines.push('## ' + s2.title + ' (' + s2.lines.length + ')', ...s2.lines, '');
             });
             mdLines.push('— Sent after a full read of the agreement. Please confirm each point in writing before signing.');
             const text = mdLines.join('\n');

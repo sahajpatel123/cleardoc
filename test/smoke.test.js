@@ -16738,4 +16738,15 @@ test("ask list: button exists, reads every lens in rank order, copies as asks", 
 
   // A clean document says so instead of producing an empty file.
   assert.match(appSrc, /Nothing to ask/, "empty result gets its own message, no empty copy");
+
+  // Cycle #356 — the executive summary's top priority leads the list, and
+  // every section heading carries a count so the recipient sees scope.
+  assert.match(appSrc, /getElementById\('execSummaryBody'\)/, "the builder harvests the executive summary");
+  assert.match(appSrc, /\^Top priority:\//, "it finds the Top priority line in the summary text");
+  assert.match(appSrc, /title: 'Start here'/, "the headline demand gets its own first section");
+  assert.match(appSrc, /' \+ s2\.lines\.length/, "section headings carry item counts");
+  const startHereAt = appSrc.indexOf("title: 'Start here'");
+  const sigSectionAt = appSrc.indexOf("'#sigList .gap-label'", appSrc.indexOf("getElementById('askListBtn')"));
+  assert.ok(startHereAt > 0 && sigSectionAt > startHereAt,
+    "'Start here' is built before any category section — it ranks first");
 });

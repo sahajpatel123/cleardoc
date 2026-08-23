@@ -6379,3 +6379,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #355 of the autonomous loop (add — last cycle polished signature jumps/cheat-sheet): the negotiator's take-home artifact, closing the loop from analysis to action. Next polish-cycle candidate: ask-list polish (top-priority line from the executive summary, per-row source links), or party-obligation balance.
+
+## 2026-08-23 06:2x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #356 — POLISH: ask list now leads with the headline demand and shows scope.** Two upgrades to the Cycle #355 "My asks" builder:
+  - **"Start here" section:** the builder harvests the executive summary's "Top priority:" line from `#execSummaryBody` and ranks it first — before execution problems — so the recipient sees the single most important demand before any category. (The summary body is one newline-joined text node, so the harvest splits lines and matches `/^Top priority:/i`, stripping the label.)
+  - **Counts in headings:** every `##` heading gains `(N)` so the counterparty sees the size of each category at a glance ("Missing clauses to request (4)").
+- Verified pre-edit that the sig-list footer (".gap-count") can't leak into `.gap-label` reads.
+- Tests: pins for the exec-summary harvest, the Top-priority matcher, the 'Start here' title built before any category section, and the count-suffix logic; fixed one self-written regex pin (`\\` vs `/`) that would have matched nothing.
+- Gate: unit 490/490 · smoke 310 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #356 of the autonomous loop (polish — last cycle added the ask-list builder): the demand list now opens like a real negotiation letter — priority first, scope visible. Next add-cycle candidate: party-obligation balance reusing bearer machinery, or per-section risk heatmap strip.
