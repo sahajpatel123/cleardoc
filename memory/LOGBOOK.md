@@ -6573,3 +6573,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #371 of the autonomous loop (add — last cycle stripped invisible DOCX text): signers see the yearly cost of a rate before they sign. Next cycle #372 is POLISH — candidates: rate polish (word-number rates like "one and one-half percent", $-cap pairing), or TBD with scope-first grep.
+
+## 2026-08-23 09:1x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #372 — POLISH: the rate translator reads the document's own language.** Three refinements to #371's translation layer:
+  - **Dual drafting form fixed:** "(1.5%) per month" — digits in parens, the most common contract shape — was missed because the regex demanded "per" right after "%". Now accepts the closing paren.
+  - **Word-only rates:** "at the rate of eighteen percent per month" translates (filler trimmed from the left until numWordsToNumber parses; garbage runs and out-of-range values stay silent).
+  - **Duplicate suppression:** a rate restated ("1.5% per month … 1.5% a month") collapses to one row via a value|multiplier seen-key; shared pushRate/rateKindOf helpers de-duplicate the two matchers.
+- Tests: five new behavioral corpora (dual form → same headline math, word-only with filler, dedupe to one row, word-garbage silence) + pins for both annotations and the paren acceptance. One regex-literal escaping bug in a pin caught by node --check before landing.
+- Gate: unit 490/490 · smoke 320 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #372 of the autonomous loop (polish — last cycle added rate translation): the translator now handles the shapes contracts actually use. Next cycle #373 is ADD — candidates TBD with scope-incumbents-first grep.

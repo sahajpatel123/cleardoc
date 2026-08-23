@@ -17890,22 +17890,46 @@
       // yearly number. Late fees and default interest are quoted in
       // small-sounding pieces ("1.5% per month"); the annual figure is
       // what you actually pay, and it is what usury law speaks in.
-      const RATE_RE = /\b(\d{1,2}(?:\.\d+)?)\s*%\s*(?:per|a|\/)\s*(month(?:s|ly)?|week(?:s|ly)?|quarter(?:s|ly)?|half[- ]year(?:s)?|semi[- ]annual(?:ly)?)/gi;
-      RATE_RE.lastIndex = 0;
-      while((m = RATE_RE.exec(text)) && items.length < 10){
-        const v = parseFloat(m[1]);
-        const per = m[2].toLowerCase();
-        let mult = 0, kind = '';
-        if(per.indexOf('month') !== -1){ mult = 12; kind = 'a month'; }
-        else if(per.indexOf('week') !== -1){ mult = 52; kind = 'a week'; }
-        else if(per.indexOf('quarter') !== -1){ mult = 4; kind = 'a quarter'; }
-        else { mult = 2; kind = 'a half-year'; }
+      const pushRate = (v, kind, mult, at, len) => {
         const annual = Math.round(v * mult * 10) / 10;
+        const key = v + '|' + mult;
+        if(seenRates[key]) return;                       // same rate restated → one row
+        seenRates[key] = true;
         checked++;
         pushItem(v + '% ' + kind + ' is ' + annual + '% a year',
           'Rates are quoted in small-sounding pieces; over twelve months this clause charges ' + annual + '% of the balance' +
           (annual >= 18 ? ' — high enough that several states treat it as usurious. Ask for a cap.' : '. Worth capping before you sign.'),
-          m.index, m[0].length);
+          at, len);
+      };
+      const rateKindOf = (per) => {
+        if(per.indexOf('month') !== -1) return { kind: 'a month', mult: 12 };
+        if(per.indexOf('week') !== -1) return { kind: 'a week', mult: 52 };
+        if(per.indexOf('quarter') !== -1) return { kind: 'a quarter', mult: 4 };
+        return { kind: 'a half-year', mult: 2 };
+      };
+      const seenRates = {};
+      // Cycle #372 — polish: "\)" accepted, because the standard dual
+      // drafting form puts the digits in parens: "(1.5%) per month".
+      const RATE_RE = /\b(\d{1,2}(?:\.\d+)?)\s*%\s*\)?\s*(?:per|a|\/)\s*(month(?:s|ly)?|week(?:s|ly)?|quarter(?:s|ly)?|half[- ]year(?:s)?|semi[- ]annual(?:ly)?)/gi;
+      RATE_RE.lastIndex = 0;
+      while((m = RATE_RE.exec(text)) && items.length < 10){
+        const rk = rateKindOf(m[2].toLowerCase());
+        pushRate(parseFloat(m[1]), rk.kind, rk.mult, m.index, m[0].length);
+      }
+      // Cycle #372 — polish: rates written only in words translate too.
+      // The word-run before "percent" may carry filler ("at the rate of
+      // eighteen"), so trim from the left until the parser accepts it.
+      const WORD_RATE_RE = /\b((?:[A-Za-z][A-Za-z\-]*\s+){0,4}[A-Za-z][A-Za-z\-]*)\s+percent\s*(?:\)?\s*)?(?:per|a|\/)\s*(month(?:s|ly)?|week(?:s|ly)?|quarter(?:s|ly)?|half[- ]year(?:s)?)/gi;
+      WORD_RATE_RE.lastIndex = 0;
+      while((m = WORD_RATE_RE.exec(text)) && items.length < 10){
+        const parts = m[1].toLowerCase().split(/\s+/);
+        let wv = NaN;
+        for(let i = 0; i < parts.length && isNaN(wv); i++){
+          wv = numWordsToNumber(parts.slice(i).join(' '));
+        }
+        if(!isFinite(wv) || wv <= 0 || wv > 99) continue;   // not a rate — stay quiet
+        const rk = rateKindOf(m[2].toLowerCase());
+        pushRate(wv, rk.kind, rk.mult, m.index, m[0].length);
       }
       return { items: items.slice(0, 8), checked: checked };
     }

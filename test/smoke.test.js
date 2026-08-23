@@ -17238,5 +17238,26 @@ test("figure check: catches split amounts, stays silent on agreement", () => {
   const usury = detectFigures("Default interest of 2% per month applies after grace.");
   assert.match(usury.items[0].why, /usurious/, "steep annual figures get the push-back ask");
 
+  // Cycle #372 — polish: the dual drafting form "(1.5%) per month".
+  const dual = detectFigures("at a rate of one and one-half percent (1.5%) per month on unpaid amounts.");
+  assert.equal(dual.items.length, 1, "the parenthesised dual form translates");
+  assert.match(dual.items[0].label, /^1\.5% a month is 18% a year$/, "…with the same headline math");
+
+  // Rates written only in words still translate (filler tolerated).
+  const words = detectFigures("Interest accrues at the rate of eighteen percent per month on overdue amounts.");
+  assert.equal(words.items.length, 1, "a word-only rate is translated");
+  assert.match(words.items[0].label, /^18% a month is 216% a year$/, "filler words trimmed before parsing");
+
+  // The same rate restated produces one row, not two.
+  const dup = detectFigures("Late interest of 1.5% per month applies. The default rate of 1.5% a month continues until cured.");
+  assert.equal(dup.items.length, 1, "duplicate annual translations collapse to one row");
+
+  // Word-form garbage never becomes a rate.
+  const quietWords = detectFigures("The parties may amend this agreement in writing per month of Sundays notwithstanding.");
+  assert.equal(quietWords.items.length, 0, "unparseable word runs stay silent");
+
   assert.match(appSrc, /Cycle #371 — periodic percentage rates/, "the translation layer is annotated");
+  assert.match(appSrc, /rates written only in words translate too/, "the word-rate layer is annotated");
+  assert.ok(appSrc.indexOf("%\\s*\\)?\\s*(?:per|a|") !== -1,
+    "the digit pattern accepts the parenthesised dual form");
 });
