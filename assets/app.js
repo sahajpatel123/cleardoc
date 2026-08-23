@@ -25985,6 +25985,65 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
         }
       });
     }
+    // Cycle #363 — example documents: one click fills the reader and runs
+    // the full bench, so a first-time visitor sees everything ClearDoc
+    // reads for without hunting for a contract first. Each sample is
+    // crafted to exercise different lenses (figures split, forever duties,
+    // open terms, IP traps, one-sided signing, undefined terms).
+    const SAMPLE_DOCS = {
+      nda: [
+        'NON-DISCLOSURE AGREEMENT',
+        '',
+        'This Agreement is made between Acme Labs and the Recipient.',
+        'The Recipient shall keep all Confidential Materials strictly confidential at all times.',
+        'The Recipient shall not disclose Confidential Materials to any third party without prior written consent.',
+        'The obligations in this Agreement continue in perpetuity.',
+        '',
+        'Disclosing Party: ____________________',
+        'Date: _______________________________'
+      ].join('\n'),
+      consulting: [
+        'CONSULTING AGREEMENT',
+        '',
+        'This Agreement is between the Client and the Consultant, effective as of ____/____/______.',
+        'The work product shall be considered work made for hire and all intellectual property vests exclusively in the Client upon payment.',
+        'The Consultant shall deliver weekly status reports.',
+        'The Consultant must maintain professional liability insurance of Fifty Thousand Dollars ($45,000).',
+        'The Consultant shall fix defects at no additional charge until the Client is satisfied.',
+        'The Client shall pay the invoice within thirty (45) days of receipt.',
+        '',
+        'Consultant: ______________________'
+      ].join('\n'),
+      lease: [
+        'RESIDENTIAL LEASE',
+        '',
+        'This Lease is between the Landlord and the Tenant for the property at 14 Alder Street.',
+        'The Tenant shall pay rent of One Thousand Eight Hundred Dollars ($1,500) on the first day of each month.',
+        'The Tenant shall maintain the premises in good condition.',
+        'The Landlord shall repair structural defects within thirty (45) days of written notice.',
+        'This Lease automatically renews for successive one-year terms unless either party objects at least sixty days before expiry.',
+        '',
+        'Landlord: ____________________',
+        'Tenant: _____________________',
+        'Date: ______________________'
+      ].join('\n')
+    };
+    const sampleRow = document.getElementById('sampleRow');
+    if(sampleRow && !sampleRow._spWired){
+      sampleRow._spWired = true;
+      sampleRow.addEventListener('click', (e) => {
+        const chip = e.target.closest && e.target.closest('[data-sample]');
+        if(!chip || !input) return;
+        const doc = SAMPLE_DOCS[chip.getAttribute('data-sample')];
+        if(!doc) return;
+        input.value = doc;
+        try { input.dispatchEvent(new Event('input', { bubbles: true })); } catch(_){ /* ignore */ }
+        if(typeof updateTextStats === 'function') updateTextStats();
+        const ab = document.getElementById('analyzeBtn');
+        if(ab) ab.click();
+        if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📄 Sample loaded — running the full read');
+      });
+    }
     // Cycle 48 — rewrite text size (WCAG 1.4.4): A−/A+ adjust the
     // plain-English rewrite font size in ±2px steps via the data-size
     // attribute (CSS calc overrides). The choice persists across reloads

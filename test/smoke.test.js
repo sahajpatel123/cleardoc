@@ -16899,6 +16899,48 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
   assert.match(css, /\.checks-grid a:focus-visible/, "chips keep keyboard focus visible");
 });
 
+// Cycle #363 — example documents on the analyzer's empty state: one
+// click fills the reader and runs the full bench. Each sample is
+// crafted to trip different lenses, so a first run is never empty.
+test("sample docs: three examples ship, each exercising real lenses", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const css = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  assert.match(html, /id="sampleRow"/, "chip row lives in the empty state");
+  for(const key of ["nda", "consulting", "lease"]){
+    assert.match(html, new RegExp('data-sample="' + key + '"'), "chip ships for: " + key);
+  }
+
+  // Wiring: fill → sync → auto-run, once-guarded like every listener.
+  assert.match(appSrc, /const SAMPLE_DOCS/, "sample corpus defined");
+  assert.match(appSrc, /_spWired/, "chip wiring is once-guarded");
+  assert.match(appSrc, /input\.value = doc;/, "loading fills the reader");
+  assert.match(appSrc, /ab\.click\(\);/, "loading runs the analysis automatically");
+
+  // Behavioral: extract the REAL corpus and probe each document.
+  const start = appSrc.indexOf("const SAMPLE_DOCS");
+  const objEnd = appSrc.indexOf("};", start);
+  assert.ok(start >= 0 && objEnd > start, "corpus must be extractable");
+  const { SAMPLE_DOCS } = new Function(appSrc.slice(start, objEnd + 2) + "\n return { SAMPLE_DOCS };")();
+
+  for(const key of Object.keys(SAMPLE_DOCS)){
+    assert.ok(SAMPLE_DOCS[key].length >= 300, key + " sample is substantial enough to analyze");
+    assert.ok(!/ /.test(SAMPLE_DOCS[key]), key + " sample is plain text");
+  }
+  assert.match(SAMPLE_DOCS.nda, /at all times/, "nda exercises the forever-duty lens");
+  assert.match(SAMPLE_DOCS.nda, /Confidential Materials/, "nda exercises undefined terms");
+  assert.match(SAMPLE_DOCS.consulting, /work made for hire/, "consulting trips the IP trap rule");
+  assert.match(SAMPLE_DOCS.consulting, /\(\$45,000\)/, "consulting carries a words-vs-digits split");
+  assert.match(SAMPLE_DOCS.consulting, /____\/____\/______/, "consulting ships open terms to fill");
+  assert.match(SAMPLE_DOCS.consulting, /^Consultant: _+$/m, "consulting has a one-sided signature block");
+  assert.match(SAMPLE_DOCS.lease, /\(\$1,500\)/, "lease carries its own figure split");
+  assert.match(SAMPLE_DOCS.lease, /automatically renews/, "lease exercises renewal machinery");
+  assert.match(SAMPLE_DOCS.lease, /^Tenant: _+/m, "lease keeps a healthy two-party signature block");
+
+  assert.match(css, /\.sample-row\{[^}]*flex-wrap/, "chip row wraps responsively");
+});
+
 // Cycle #359 — behavioral: the REAL parser converts number words and
 // flags only genuine words-vs-digits disagreements.
 test("figure check: catches split amounts, stays silent on agreement", () => {

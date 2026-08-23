@@ -6463,3 +6463,17 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #362 of the autonomous loop (polish — last cycle added the landing checklist): keep the flagship artifact complete as the lens family grows — a new lens that never reaches the sent list is only half shipped. Next add-cycle candidate: TBD, scope incumbents first.
+
+## 2026-08-23 07:4x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #363 — ADD: example documents on the analyzer's empty state.** A first-time visitor faced an empty textarea with zero guidance. Three "start from an example" chips (📄 NDA · 💼 Consulting agreement · 🏠 Lease) now fill the reader and auto-run the full bench:
+  - **NDA** — "at all times" forever duty, undefined "Confidential Materials", perpetual obligations.
+  - **Consulting agreement** — work-made-for-hire IP trap, open terms (____ blanks), $50k-vs-$45,000 figure split, thirty (45) days mismatch, 4-vs-1 obligation imbalance, one-sided undated signature block, "until the Client is satisfied" forever duty — the showcase document.
+  - **Lease** — $1,800-vs-$1,500 figure split, thirty (45) days mismatch, auto-renewal language, deliberately healthy two-party signature block (lenses stay quiet when things are fine).
+  - Wiring: once-guarded delegated chips → fill input → dispatch input event → updateTextStats → analyzeBtn.click() → toast; chips live in #resultEmpty so they disappear once a reading exists.
+- Scoping held: confidentiality and auto-renewal lens ideas died on contact with existing RISK rules/doc-type machinery before choosing this gap.
+- Tests: structural pins (three chips, once-guard, fill+auto-run) + behavioral extraction of the REAL corpus asserting each sample trips its intended lens probes and is substantial enough to analyze.
+- Gate: unit 490/490 · smoke 316 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #363 of the autonomous loop (polish — last cycle fed all lenses into the ask list): kill the blank-page cold start — every new visitor is one click from seeing the whole bench fire. Next polish-cycle candidate: sample-chip polish (per-lens "what to watch for" captions), or landing-page interaction polish.

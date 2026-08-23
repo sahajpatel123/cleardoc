@@ -1021,6 +1021,11 @@ button.risk-preview:hover{filter:brightness(.96)}
 .empty-state{border:var(--bd) dashed var(--ink);padding:var(--s6) var(--s4);text-align:center;color:var(--ink-soft)}
 .empty-state .big{font-family:'Archivo Black';font-size:var(--d4);color:var(--ink);text-transform:uppercase;letter-spacing:-.02em;margin-bottom:var(--s2)}
 .empty-state p{font-size:var(--t-card);line-height:1.5;max-width:42ch;margin:0 auto}
+
+/* Cycle #363 — example-document chips in the empty state */
+.sample-row{margin-top:var(--s3);display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center}
+.sample-hint{font-size:var(--t-meta);color:var(--ink-soft)}
+.sample-chip:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
 .result-block{margin-bottom:var(--s5)}
 .result-block .rh{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);text-transform:uppercase;letter-spacing:.12em;color:var(--accent-text);border-bottom:2px solid var(--accent);padding-bottom:4px;display:inline-block;margin-bottom:var(--s3)}
 .rewrite p{font-size:var(--t-body-lg);line-height:1.6;margin-bottom:var(--s2)}
