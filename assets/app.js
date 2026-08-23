@@ -4500,6 +4500,7 @@
           breachBlock=$('#breachBlock'),breachNote=$('#breachNote'),breachList=$('#breachList'),
           payBlock=$('#payBlock'),payNote=$('#payNote'),payList=$('#payList'),
           xferBlock=$('#xferBlock'),xferNote=$('#xferNote'),xferList=$('#xferList'),
+          insBlock=$('#insBlock'),insNote=$('#insNote'),insList=$('#insList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -18703,6 +18704,88 @@
       }
     }
 
+    // Cycle #385 — insurance duties: a coverage promise without a number
+    // is a promise to argue later. "Adequate" is whatever a court says.
+    function detectInsurance(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, duties: 0 };
+      const items = [];
+      let checked = 0;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      const DUTY_RE = /\b(?:maintain|carry|procure|obtain|keep\s+in\s+force)\b[^.]{0,80}?\binsurance\b|\binsurance\b[^.]{0,80}?\b(?:maintain|carry|procure|obtain)\b/i;
+      // A stated limit is any dollar figure, floor phrase, or industry
+      // limit vocabulary — anything countable beats "adequate".
+      const STATED_RE = /\$\s?\d[\d,]{2,}|\bnot\s+less\s+than\b|\blimits?\s+of\b|\bper\s+occurrence\b|\bper\s+claim\b|\bcombined\s+single\s+limit\b/i;
+      const MUTUAL_RE = /\b(?:each|either|both)\s+part(?:y|ies)\b/i;
+      let dutyCount = 0;
+      let firstGapAt = -1, firstGapLen = 0;
+      segs.forEach(seg => {
+        if(!DUTY_RE.test(seg.t)) return;
+        checked++;
+        dutyCount++;
+        if(STATED_RE.test(seg.t) || MUTUAL_RE.test(seg.t)) return;
+        if(firstGapAt < 0){ firstGapAt = seg.at; firstGapLen = seg.t.length; }
+      });
+      if(firstGapAt >= 0){
+        checked++;
+        items.push({
+          label: 'An insurance duty with no number attached',
+          why: 'Someone must carry coverage, but no limit is stated — “adequate” or “sufficient” is whatever a dispute decides later. Ask for the figure: “commercial general liability insurance of not less than $1,000,000 per occurrence,” with certificates available on request.',
+          start: firstGapAt,
+          end: firstGapAt + firstGapLen
+        });
+      }
+      return { items: items.slice(0, 4), checked: checked, duties: dutyCount };
+    }
+
+    function renderInsBlock(result){
+      if(!insBlock || !insList || !result) return;
+      if(!result.items.length){ insBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-in-start="' + Math.max(0, it.start) + '" data-in-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">🩺</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      insList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' insurance sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.duties + ' dut' + (result.duties === 1 ? 'y' : 'ies') + ' found</span></div>';
+      insBlock.hidden = false;
+      if(insNote){
+        insNote.innerHTML = '<span class="riskNote-lead">Who carries the coverage</span> ' +
+          'An insurance clause is only as good as its number. Duties to “maintain adequate coverage” without stated limits shift every real argument to the worst possible day — after the loss.';
+      }
+      if(!insList._inWired){
+        insList._inWired = true;
+        const jumpToIns = (row) => {
+          const s = parseInt(row.getAttribute('data-in-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-in-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Insurance language highlighted in your document');
+        };
+        insList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-in-start]');
+          if(row) jumpToIns(row);
+        });
+        insList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-in-start]');
+          if(row){ e.preventDefault(); jumpToIns(row); }
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -19861,6 +19944,12 @@
         renderXferBlock(detectXfer(raw));
       } else if(xferBlock) {
         xferBlock.hidden = true;
+      }
+      // Cycle #385 — insurance duties: coverage promises with real numbers.
+      if(insBlock && typeof detectInsurance === 'function'){
+        renderInsBlock(detectInsurance(raw));
+      } else if(insBlock) {
+        insBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
@@ -23591,6 +23680,7 @@
         addSection('Pin the breach clock', 'Ask for a hard deadline to be told about leaks: ', readAll('#breachList .gap-label', 4));
         addSection('Even out the money clocks', 'Ask for one clock both ways: ', readAll('#payList .gap-label', 4));
         addSection('Even out transfer rights', 'Ask for the same freedom both ways: ', readAll('#xferList .gap-label', 4));
+        addSection('Pin down the insurance numbers', 'Ask for stated limits, not "adequate": ', readAll('#insList .gap-label', 4));
         if(!sections.length) return null;
         const fp = (_fpState && _fpState.short) ? _fpState.short : '';
         const mdLines = ['# My negotiation asks', '',
@@ -24143,6 +24233,12 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          const insLines = (function(){
+            const rows = document.querySelectorAll('#insList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -24177,6 +24273,7 @@
               (breachLines ? '<div class="cheat-section"><div class="cheat-section-title">Breach alerting (if data leaks)</div><ul style="padding-left:18px;margin:0">' + breachLines + '</ul></div>' : '') +
               (payLines ? '<div class="cheat-section"><div class="cheat-section-title">Money timing (who waits to be paid)</div><ul style="padding-left:18px;margin:0">' + payLines + '</ul></div>' : '') +
               (xferLines ? '<div class="cheat-section"><div class="cheat-section-title">Transfer rights (who can hand off the deal)</div><ul style="padding-left:18px;margin:0">' + xferLines + '</ul></div>' : '') +
+              (insLines ? '<div class="cheat-section"><div class="cheat-section-title">Insurance duties (who carries the coverage)</div><ul style="padding-left:18px;margin:0">' + insLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +

@@ -14233,6 +14233,13 @@ test("analyzer: Analysis confidence rates how reliable the result is", () => {
   assert.match(appSrc, /_fpState && _fpState\.short\) \? ' · #' \+ _fpState\.short/,
     "iter #269 must include the document fingerprint when available");
 
+  // Iter #159 polish: sub-score tooltips + copy-as-JSON.
+  assert.match(appSrc, /'How much text we have to analyze|'How many risk patterns matched|'How far the document/,
+    "iter #159 must add sub-score tooltips");
+  assert.match(appSrc, /confCopyJsonBtn[\s\S]+?JSON\.stringify/,
+    "iter #159 must include a copy-as-JSON button");
+  assert.match(cssSrc, /\.conf-controls\b/, ".conf-controls style must exist");
+});
 
 skip("analyze: confidence summary copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
@@ -14737,14 +14744,6 @@ test("analyzer: Overdue deadline rows show a danger flag in the list", () => {
   // Print must stay clean: the print override forces a white background
   assert.match(cssSrc, /\.deadline-row\{border:1px solid #000 !important;background:#fff !important/,
     "print output must not carry the overdue tint");
-});
-
-  // Iter #159 polish: sub-score tooltips + copy-as-JSON.
-  assert.match(appSrc, /'How much text we have to analyze|'How many risk patterns matched|'How far the document/,
-    "iter #159 must add sub-score tooltips");
-  assert.match(appSrc, /confCopyJsonBtn[\s\S]+?JSON\.stringify/,
-    "iter #159 must include a copy-as-JSON button");
-  assert.match(cssSrc, /\.conf-controls\b/, ".conf-controls style must exist");
 });
 
 // Iter #160: coverage index — measures presence of standard contract sections.
@@ -17065,11 +17064,11 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
   assert.match(html, /id="checksTitle"/, "it is labelled for assistive tech");
 
   // The grid advertises exactly the shipped lenses — no vaporware.
-  // Cycle #383 — transfer-rights lens joins the storefront.
+  // Cycle #385 — insurance lens joins the storefront.
   const lenses = ["Missing clauses", "Open terms", "Broken references", "Undefined terms",
                   "Undated obligations", "Execution check", "Obligation balance", "Figure check",
                   "Notice mechanics", "Liability caps", "Exit rights", "Breach notice", "Money timing",
-                  "Transfers"];
+                  "Transfers", "Insurance"];
   lenses.forEach(name => {
     assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
   });
@@ -17684,4 +17683,59 @@ test("transfer rights: one-way assignment freedoms speak up", () => {
     "the landing checklist advertises the new lens");
   assert.ok(appSrc.indexOf("polish: carve-out-scoped transfers") !== -1,
     "carve-out grading ships inside the detector");
+});
+
+test("insurance duties: coverage promises without numbers speak up", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectInsurance");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, duties: dutyCount };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectInsurance };";
+  const { detectInsurance } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // A duty to carry coverage with no stated limit → the finding.
+  const openDoc = "Contractor shall maintain adequate insurance covering its obligations under this Agreement throughout the term. Client shall provide workspace access during normal business hours.";
+  const openIns = detectInsurance(openDoc);
+  assert.equal(openIns.items.length, 1, "an unnumbered coverage duty is flagged");
+  assert.match(openIns.items[0].label, /no number attached/, "the headline names the gap");
+  assert.match(openIns.items[0].why, /per occurrence/, "…and supplies a concrete ask");
+  assert.ok(typeof openIns.items[0].start === "number", "…and points at the sentence");
+
+  // Stated limits (dollar figure or floor phrase) stay quiet.
+  const statedDoc = "Contractor shall maintain commercial general liability insurance of not less than $1,000,000 per occurrence during the term. Client shall pay undisputed invoices within thirty days of receipt.";
+  const stated = detectInsurance(statedDoc);
+  assert.equal(stated.items.length, 0, "a numbered duty never fires");
+  const dollarOnly = detectInsurance("Provider shall carry insurance with limits of $2,000,000 combined single limit for the duration. Client shall give access to premises as reasonably required.");
+  assert.equal(dollarOnly.items.length, 0, "a bare dollar figure counts as stated");
+
+  // Mutual insurance duties are not anyone's trap.
+  const mutual = detectInsurance("Each party shall maintain insurance appropriate to its own activities and property. The parties shall cooperate on safety matters at the site.");
+  assert.equal(mutual.items.length, 0, "mutual coverage duties stay quiet");
+
+  // No insurance language at all → fully quiet.
+  assert.equal(detectInsurance("Tenant shall maintain the premises in good repair throughout the lease term. Landlord shall provide quiet enjoyment of the property.").items.length, 0,
+    "documents without insurance language stay quiet");
+
+  // Full house equipment ships.
+  assert.match(html, /id="insBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="insList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("insBlock=$('#insBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectInsurance === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-in-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_inWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Insurance language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#insList .gap-label") !== -1 &&
+            appSrc.indexOf("Insurance duties (who carries the coverage)") !== -1,
+    "the printed brief includes the insurance section");
+  assert.ok(appSrc.indexOf("'Pin down the insurance numbers'") !== -1, "the sent ask list includes the insurance ask");
+  assert.ok(indexHtml.indexOf("Insurance") !== -1,
+    "the landing checklist advertises the new lens");
 });
