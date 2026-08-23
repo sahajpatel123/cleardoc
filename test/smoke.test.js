@@ -17065,10 +17065,10 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
   assert.match(html, /id="checksTitle"/, "it is labelled for assistive tech");
 
   // The grid advertises exactly the shipped lenses — no vaporware.
-  // Cycle #373 — notices lens joins the storefront.
+  // Cycle #377 — exit-rights lens joins the storefront.
   const lenses = ["Missing clauses", "Open terms", "Broken references", "Undefined terms",
                   "Undated obligations", "Execution check", "Obligation balance", "Figure check",
-                  "Notice mechanics", "Liability caps"];
+                  "Notice mechanics", "Liability caps", "Exit rights"];
   lenses.forEach(name => {
     assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
   });
@@ -17413,4 +17413,59 @@ test("liability symmetry: one-way caps and unlimited exposure speak up", () => {
     "the landing checklist advertises the new lens");
   assert.ok(appSrc.indexOf("Cycle #376 — polish: surface the ceiling itself") !== -1,
     "cap-amount extraction ships inside the detector");
+});
+
+test("exit rights: one-way walk-away rights speak up", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectTermRights");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, exits: exits.length };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectTermRights };";
+  const { detectTermRights } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // One-way convenience exit: Company can leave for any reason,
+  // Consultant needs a breach. The finding names the holder + notice.
+  const onewayDoc = "Company may terminate this Agreement for convenience upon 30 days' prior written notice. Consultant shall perform the services through the end of the then-current term without setoff.";
+  const oneway = detectTermRights(onewayDoc);
+  assert.equal(oneway.items.length, 1, "a single-sided exit is flagged");
+  assert.match(oneway.items[0].label, /Only .Company.*walk away/, "the headline names who holds the door");
+  assert.match(oneway.items[0].why, /30 days/, "…and states the notice window it rides on");
+  assert.ok(typeof oneway.items[0].start === "number", "…and points at the sentence");
+
+  // Word-form notice windows surface too.
+  const wordDoc = "The Provider may cancel this Agreement for any reason upon sixty days' advance written notice. The Client shall pay all undisputed invoices within fifteen days of receipt.";
+  const wordy = detectTermRights(wordDoc);
+  assert.equal(wordy.items.length, 1, "the word-number exit still fires");
+  assert.match(wordy.items[0].why, /sixty days/, "spelled-out windows are read");
+
+  // Mutual convenience: quiet.
+  const mutual = detectTermRights("Either party may terminate this Agreement for convenience upon sixty days' written notice. The parties shall continue performing during the notice period.");
+  assert.equal(mutual.items.length, 0, "mutual exits never fire");
+
+  // Cause-only termination (no convenience language): quiet.
+  const causeOnly = detectTermRights("Client may terminate this Agreement in the event of a material breach uncured within fifteen days of written notice. Provider shall perform throughout the term.");
+  assert.equal(causeOnly.items.length, 0, "for-cause exits are not mistaken for walk-aways");
+
+  // Full house equipment ships.
+  assert.match(html, /id="termBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="termList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("termBlock=$('#termBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectTermRights === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-tr-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_trWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Exit language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#termList .gap-label") !== -1 &&
+            appSrc.indexOf("Exit rights (who can end this)") !== -1,
+    "the printed brief includes the exit-rights section");
+  assert.ok(appSrc.indexOf("'Make the exit mutual'") !== -1, "the sent ask list includes exit asks");
+  assert.ok(indexHtml.indexOf("Exit rights") !== -1,
+    "the landing checklist advertises the new lens");
 });

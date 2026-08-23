@@ -4496,6 +4496,7 @@
           figuresBlock=$('#figuresBlock'),figuresNote=$('#figuresNote'),figuresList=$('#figuresList'),
           noticeBlock=$('#noticeBlock'),noticeNote=$('#noticeNote'),noticeList=$('#noticeList'),
           liabBlock=$('#liabBlock'),liabNote=$('#liabNote'),liabList=$('#liabList'),
+          termBlock=$('#termBlock'),termNote=$('#termNote'),termList=$('#termList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -18194,6 +18195,104 @@
       }
     }
 
+    // Cycle #377 — exit rights: who can end this contract, and how.
+    // Sibling of liability symmetry — a convenience exit held by one side
+    // is the same risk dump as a cap that protects only one party.
+    function detectTermRights(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, exits: 0 };
+      const normName = (s) => String(s || '').toLowerCase().replace(/\bthe\b/g, ' ')
+        .replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const items = [];
+      let checked = 0;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      // A convenience exit ends the deal for any reason (or none).
+      // Cause-based exits need a breach first and don't count here.
+      const CONVEN_RE = /\b(?:terminate|cancel)\b[^.;]{0,120}?\b(?:for\s+convenience|without\s+cause|for\s+any\s+reason|at\s+any\s+time|in\s+(?:its|their)\s+(?:sole\s+)?discretion)\b/i;
+      const MUTUAL_RE = /\b(?:either|each|both)\s+part(?:y|ies)\b|\bmutually\b/i;
+      const partyOf = (seg) => {
+        // Word-shape captures only (see detectLiability) so the capture
+        // cannot gorge backwards across the sentence.
+        const pm = seg.match(/\b([A-Z][A-Za-z&-]*(?:\s+[A-Z][A-Za-z&-]*){0,3})\s+(?:may|shall\s+be\s+entitled\s+to|reserves\s+the\s+right\s+to)\s+(?:terminate|cancel)/);
+        return pm ? { n: normName(pm[1]), raw: pm[1].trim().replace(/[.,]$/, '') } : null;
+      };
+      const noticeOf = (seg) => {
+        const nm = seg.match(/\b((?:\d{1,3}|ten|fifteen|twenty|thirty|forty[- ]five|sixty|ninety)\s*(?:calendar\s+|business\s+)?days?['’]?)\s+(?:prior\s+|advance\s+)*(?:written\s+)?notice/i);
+        return nm ? nm[1].replace(/\s+/g, ' ').toLowerCase().replace(/[.,]$/, '') : '';
+      };
+      const exits = [];
+      let mutualExit = false;
+      let firstAt = -1, firstLen = 0, firstNotice = '';
+      segs.forEach(seg => {
+        if(!CONVEN_RE.test(seg.t)) return;
+        checked++;
+        if(firstAt < 0){ firstAt = seg.at; firstLen = seg.t.length; firstNotice = noticeOf(seg.t); }
+        if(MUTUAL_RE.test(seg.t)){ mutualExit = true; return; }
+        const p = partyOf(seg.t);
+        if(p && p.n.length >= 4 && !exits.some(x => x.n === p.n) && exits.length < 4) exits.push(p);
+      });
+      // One-way exit: exactly one named side holds a no-cause walk-away
+      // and no either-party language softens it anywhere.
+      if(!mutualExit && exits.length === 1 && firstAt >= 0){
+        checked++;
+        items.push({
+          label: 'Only “' + exits[0].raw + '” can walk away without cause',
+          why: 'The convenience exit belongs to one side' + (firstNotice ? ', on ' + firstNotice : '') + '. The other party is locked in until the term runs out. Ask to make it even — “either party may terminate for convenience on ' + (firstNotice || '30 days’ written notice') + '.”',
+          start: firstAt,
+          end: firstAt + firstLen
+        });
+      }
+      return { items: items.slice(0, 4), checked: checked, exits: exits.length };
+    }
+
+    function renderTermBlock(result){
+      if(!termBlock || !termList || !result) return;
+      if(!result.items.length){ termBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-tr-start="' + Math.max(0, it.start) + '" data-tr-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">🚪</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      termList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' termination sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.exits + ' part' + (result.exits === 1 ? 'y' : 'ies') + ' holding an exit</span></div>';
+      termBlock.hidden = false;
+      if(termNote){
+        termNote.innerHTML = '<span class="riskNote-lead">Who can end this</span> ' +
+          'Exit rights cut both ways or they don’t cut at all. A “for convenience” escape held by only one party means you can be dropped mid-deal while owing the full term.';
+      }
+      if(!termList._trWired){
+        termList._trWired = true;
+        const jumpToTerm = (row) => {
+          const s = parseInt(row.getAttribute('data-tr-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-tr-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Exit language highlighted in your document');
+        };
+        termList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-tr-start]');
+          if(row) jumpToTerm(row);
+        });
+        termList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-tr-start]');
+          if(row){ e.preventDefault(); jumpToTerm(row); }
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -19328,6 +19427,12 @@
         renderLiabBlock(detectLiability(raw));
       } else if(liabBlock) {
         liabBlock.hidden = true;
+      }
+      // Cycle #377 — exit rights: who can walk away, and on what notice.
+      if(termBlock && typeof detectTermRights === 'function'){
+        renderTermBlock(detectTermRights(raw));
+      } else if(termBlock) {
+        termBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
@@ -23054,6 +23159,7 @@
         addSection('Put notice mechanics in writing', 'Set out how formal notice works: ', readAll('#noticeList .gap-label', 4));
         // Cycle #375 — liability symmetry does as well.
         addSection('Cap the liability', 'Ask for a mutual ceiling: ', readAll('#liabList .gap-label', 4));
+        addSection('Make the exit mutual', 'Ask for an even way out: ', readAll('#termList .gap-label', 4));
         if(!sections.length) return null;
         const fp = (_fpState && _fpState.short) ? _fpState.short : '';
         const mdLines = ['# My negotiation asks', '',
@@ -23582,6 +23688,12 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          const termLines = (function(){
+            const rows = document.querySelectorAll('#termList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -23612,6 +23724,7 @@
               (figuresLines ? '<div class="cheat-section"><div class="cheat-section-title">Split figures (words vs digits)</div><ul style="padding-left:18px;margin:0">' + figuresLines + '</ul></div>' : '') +
               (noticeLines ? '<div class="cheat-section"><div class="cheat-section-title">Notice mechanics (how it becomes official)</div><ul style="padding-left:18px;margin:0">' + noticeLines + '</ul></div>' : '') +
               (liabLines ? '<div class="cheat-section"><div class="cheat-section-title">Liability symmetry (who carries the risk)</div><ul style="padding-left:18px;margin:0">' + liabLines + '</ul></div>' : '') +
+              (termLines ? '<div class="cheat-section"><div class="cheat-section-title">Exit rights (who can end this)</div><ul style="padding-left:18px;margin:0">' + termLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +
