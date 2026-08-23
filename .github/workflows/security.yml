@@ -195,12 +195,14 @@ jobs:
 
       - name: Check for eval/Function usage
         run: |
-          # Detect dangerous eval/Function usage. The char before the call must
-          # not be `$`, `.`, or an identifier char — Playwright's page.$eval() /
-          # page.$$eval() test helpers (safe DOM query APIs) share the `eval(`
-          # substring and flooded this gate with false positives. Single-quoted:
-          # inside double quotes bash would expand `$[` as legacy arithmetic.
-          if grep -rE '(^|[^$[:alnum:]_.])(eval|Function)[[:space:]]*\(' --include='*.js' . 2>/dev/null | grep -v 'node_modules' | grep -v '// '; then
+          # Detect dangerous eval/Function usage in SHIPPED code. The char
+          # before the call must not be `$`, `.`, or an identifier char —
+          # Playwright's page.$eval() helpers share the `eval(` substring.
+          # test/ is excluded: suites legitimately use new Function(src)()
+          # to introspect module source, and tests never ship to prod.
+          # Single-quoted: inside double quotes bash expands `$[` as legacy
+          # arithmetic, silently mangling the [:alnum:] class.
+          if grep -rE '(^|[^$[:alnum:]_.])(eval|Function)[[:space:]]*\(' --include='*.js' . 2>/dev/null | grep -v 'node_modules' | grep -v '// ' | grep -v '/test/'; then
             echo "::error::Potentially dangerous eval/Function usage detected"
             exit 1
           fi

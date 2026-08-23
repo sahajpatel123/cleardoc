@@ -4501,6 +4501,7 @@
           payBlock=$('#payBlock'),payNote=$('#payNote'),payList=$('#payList'),
           xferBlock=$('#xferBlock'),xferNote=$('#xferNote'),xferList=$('#xferList'),
           insBlock=$('#insBlock'),insNote=$('#insNote'),insList=$('#insList'),
+          pubBlock=$('#pubBlock'),pubNote=$('#pubNote'),pubList=$('#pubList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -18801,6 +18802,111 @@
       }
     }
 
+    // Cycle #387 — publicity rights: your name, logo, or work product in
+    // someone else's marketing. Granted freely, it outlives the deal.
+    function detectPublicity(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, grants: 0 };
+      const normName = (s) => String(s || '').toLowerCase().replace(/\bthe\b/g, ' ')
+        .replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const items = [];
+      let checked = 0;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      const MUTUAL_RE = /\b(?:each|either|both)\s+part(?:y|ies)\b|\bone\s+another\b|\beach\s+other\b/i;
+      const GRANT_A = /\b(?:use|display|publish|reproduce|identify|refer\s+to|list)\b[^.]{0,80}?\b(name|logo|logos|trademark(?:s)?|marks?|likeness|work\s+product|deliverables)\b/i;
+      // Drafting runs both directions: "use their logo" and
+      // "the deliverables may be reproduced" are the same grant.
+      const GRANT_B = /\b(name|logo|logos|trademark(?:s)?|marks?|likeness|work\s+product|deliverables)\b[^.]{0,80}?\b(?:use[sd]?|display(?:ed)?|publish(?:ed)?|reproduc(?:e|ed|tion))\b/i;
+      const partyOf = (seg) => {
+        const pm = seg.match(/\b([A-Z][A-Za-z&-]*(?:\s+[A-Za-z&-]*){0,3})\s+(?:may|shall\s+be\s+entitled\s+to|is\s+permitted\s+to)\s+use\b/i);
+        return pm ? { n: normName(pm[1]), raw: pm[1].trim().replace(/[.,]$/, '') } : null;
+      };
+      // A consent fence in the sentence means the grant is not one-way.
+      const APPROVAL_NEAR = /\b(?:prior\s+)?(?:written\s+)?(?:consent|approval|sign[- ]?off)\b|\bapproved\s+in\s+advance\b/i;
+      const PERPETUAL_RE = /\bperpetual\b|\birrevocable\b|\bin\s+perpetuity\b|\bafter\s+(?:the\s+)?(?:expiration|termination|term)\b/i;
+      let grantParty = null, grantScope = '', grantForever = false;
+      let firstAt = -1, firstLen = 0;
+      segs.forEach(seg => {
+        const gm = seg.t.match(GRANT_A) || seg.t.match(GRANT_B);
+        if(!gm) return;
+        checked++;
+        if(MUTUAL_RE.test(seg.t)) return;
+        if(APPROVAL_NEAR.test(seg.t)) return;
+        if(firstAt >= 0) return;
+        const p = partyOf(seg.t);
+        if(p && p.n.length >= 4){ grantParty = p; }
+        grantScope = gm[1].toLowerCase();
+        grantForever = PERPETUAL_RE.test(seg.t);
+        firstAt = seg.at; firstLen = seg.t.length;
+      });
+      if(firstAt >= 0 && !grantParty){
+        // A grant exists but no "X may use" shape — still worth a row.
+        grantParty = { n: '', raw: '' };
+      }
+      if(firstAt >= 0){
+        checked++;
+        items.push({
+          label: grantParty.raw
+            ? ('“' + grantParty.raw + '” can put your ' + grantScope + ' on its marketing')
+            : 'Your work can end up in their marketing',
+          why: 'This hands one side a free pass to promote itself with your ' + grantScope +
+            (grantForever ? ' — and the right never expires with the contract' : '') +
+            '. Ask for per-use written approval, or at minimum a mutual right that dies when the agreement does.',
+          start: firstAt,
+          end: firstAt + firstLen
+        });
+      }
+      return { items: items.slice(0, 4), checked: checked, grants: firstAt >= 0 ? 1 : 0 };
+    }
+
+    function renderPubBlock(result){
+      if(!pubBlock || !pubList || !result) return;
+      if(!result.items.length){ pubBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-pb-start="' + Math.max(0, it.start) + '" data-pb-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">📣</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      pubList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' publicity sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.grants + ' one-way use right' + (result.grants === 1 ? '' : 's') + '</span></div>';
+      pubBlock.hidden = false;
+      if(pubNote){
+        pubNote.innerHTML = '<span class="riskNote-lead">Your name in their ads</span> ' +
+          'Publicity clauses hand out a piece of your reputation. Fine when it is a fair trade with sign-off — not fine as a free, perpetual license granted while you weren’t looking.';
+      }
+      if(!pubList._pbWired){
+        pubList._pbWired = true;
+        const jumpToPub = (row) => {
+          const s = parseInt(row.getAttribute('data-pb-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-pb-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Publicity language highlighted in your document');
+        };
+        pubList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-pb-start]');
+          if(row) jumpToPub(row);
+        });
+        pubList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-pb-start]');
+          if(row){ e.preventDefault(); jumpToPub(row); }
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -19965,6 +20071,12 @@
         renderInsBlock(detectInsurance(raw));
       } else if(insBlock) {
         insBlock.hidden = true;
+      }
+      // Cycle #387 — publicity: your name in someone else's ads.
+      if(pubBlock && typeof detectPublicity === 'function'){
+        renderPubBlock(detectPublicity(raw));
+      } else if(pubBlock) {
+        pubBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
@@ -23696,6 +23808,7 @@
         addSection('Even out the money clocks', 'Ask for one clock both ways: ', readAll('#payList .gap-label', 4));
         addSection('Even out transfer rights', 'Ask for the same freedom both ways: ', readAll('#xferList .gap-label', 4));
         addSection('Pin down the insurance numbers', 'Ask for stated limits, not "adequate": ', readAll('#insList .gap-label', 4));
+        addSection('Put approvals around publicity', 'Ask for sign-off per use: ', readAll('#pubList .gap-label', 4));
         if(!sections.length) return null;
         const fp = (_fpState && _fpState.short) ? _fpState.short : '';
         const mdLines = ['# My negotiation asks', '',
@@ -24254,6 +24367,12 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          const pubLines = (function(){
+            const rows = document.querySelectorAll('#pubList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -24289,6 +24408,7 @@
               (payLines ? '<div class="cheat-section"><div class="cheat-section-title">Money timing (who waits to be paid)</div><ul style="padding-left:18px;margin:0">' + payLines + '</ul></div>' : '') +
               (xferLines ? '<div class="cheat-section"><div class="cheat-section-title">Transfer rights (who can hand off the deal)</div><ul style="padding-left:18px;margin:0">' + xferLines + '</ul></div>' : '') +
               (insLines ? '<div class="cheat-section"><div class="cheat-section-title">Insurance duties (who carries the coverage)</div><ul style="padding-left:18px;margin:0">' + insLines + '</ul></div>' : '') +
+              (pubLines ? '<div class="cheat-section"><div class="cheat-section-title">Publicity rights (your name in their ads)</div><ul style="padding-left:18px;margin:0">' + pubLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +

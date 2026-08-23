@@ -17064,11 +17064,11 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
   assert.match(html, /id="checksTitle"/, "it is labelled for assistive tech");
 
   // The grid advertises exactly the shipped lenses — no vaporware.
-  // Cycle #385 — insurance lens joins the storefront.
+  // Cycle #387 — publicity lens joins the storefront.
   const lenses = ["Missing clauses", "Open terms", "Broken references", "Undefined terms",
                   "Undated obligations", "Execution check", "Obligation balance", "Figure check",
                   "Notice mechanics", "Liability caps", "Exit rights", "Breach notice", "Money timing",
-                  "Transfers", "Insurance"];
+                  "Transfers", "Insurance", "Publicity"];
   lenses.forEach(name => {
     assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
   });
@@ -17749,4 +17749,62 @@ test("insurance duties: coverage promises without numbers speak up", () => {
     "carrier attribution ships inside the detector");
   assert.ok(appSrc.indexOf("with stated limits") !== -1,
     "the count line tallies numbered duties");
+});
+
+test("publicity: one-way marketing rights over your name speak up", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectPublicity");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, grants: firstAt >= 0 ? 1 : 0 };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectPublicity };";
+  const { detectPublicity } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // A free pass over name and logo → attributed finding with a span.
+  const promoDoc = "Client may use Consultant's name and logo in Client's marketing materials during and after the term. Consultant shall provide the services with professional care throughout.";
+  const promo = detectPublicity(promoDoc);
+  assert.equal(promo.items.length, 1, "a one-way publicity grant is flagged");
+  assert.match(promo.items[0].label, /Client.*your name/, "the headline names who holds the megaphone");
+  assert.match(promo.items[0].why, /never expires/, "the outlives-the-term scope is spoken to");
+  assert.ok(typeof promo.items[0].start === "number", "…and points at the sentence");
+
+  // A consent fence in the sentence means it is not one-way.
+  const consentDoc = "Client may use Contractor's marks solely with Contractor's prior written approval for each particular use. Contractor shall perform the services throughout the term.";
+  assert.equal(detectPublicity(consentDoc).items.length, 0, "approval-gated uses stay quiet");
+
+  // Mutual name/logo exchanges are a fair trade.
+  const mutual = detectPublicity("Each party may use the other party's name and logo in customer lists and marketing materials.");
+  assert.equal(mutual.items.length, 0, "mutual publicity never fires");
+
+  // Work-product grants without any party shape still surface.
+  const anonDoc = "The completed deliverables may be reproduced by the receiving party for promotional and portfolio purposes worldwide.";
+  const anon = detectPublicity(anonDoc);
+  assert.equal(anon.items.length, 1, "unattributed grants still speak up");
+  assert.match(anon.items[0].label, /Your work can end up/, "…with the honest generic headline");
+
+  // No publicity language → fully quiet.
+  assert.equal(detectPublicity("Consultant shall perform the services with professional care. Client shall pay undisputed invoices within thirty days.").items.length, 0,
+    "documents without publicity language stay quiet");
+
+  // Full house equipment ships.
+  assert.match(html, /id="pubBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="pubList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("pubBlock=$('#pubBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectPublicity === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-pb-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_pbWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Publicity language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#pubList .gap-label") !== -1 &&
+            appSrc.indexOf("Publicity rights (your name in their ads)") !== -1,
+    "the printed brief includes the publicity section");
+  assert.ok(appSrc.indexOf("'Put approvals around publicity'") !== -1, "the sent ask list includes the publicity ask");
+  assert.ok(indexHtml.indexOf("Publicity") !== -1,
+    "the landing checklist advertises the new lens");
 });
