@@ -17065,10 +17065,11 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
   assert.match(html, /id="checksTitle"/, "it is labelled for assistive tech");
 
   // The grid advertises exactly the shipped lenses — no vaporware.
-  // Cycle #381 — money-timing lens joins the storefront.
+  // Cycle #383 — transfer-rights lens joins the storefront.
   const lenses = ["Missing clauses", "Open terms", "Broken references", "Undefined terms",
                   "Undated obligations", "Execution check", "Obligation balance", "Figure check",
-                  "Notice mechanics", "Liability caps", "Exit rights", "Breach notice", "Money timing"];
+                  "Notice mechanics", "Liability caps", "Exit rights", "Breach notice", "Money timing",
+                  "Transfers"];
   lenses.forEach(name => {
     assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
   });
@@ -17608,5 +17609,66 @@ test("money timing: lopsided payment clocks and one-way late fees speak up", () 
     "the printed brief includes the money-timing section");
   assert.ok(appSrc.indexOf("'Even out the money clocks'") !== -1, "the sent ask list includes the timing ask");
   assert.ok(indexHtml.indexOf("Money timing") !== -1,
+    "the landing checklist advertises the new lens");
+});
+
+test("transfer rights: one-way assignment freedoms speak up", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectXfer");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, transfers: freeParty ? 1 : 0 };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectXfer };";
+  const { detectXfer } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // One side assigns freely; the other needs written permission.
+  const onewayDoc = "Company may freely assign this Agreement upon notice to Consultant without any consent requirement. Consultant shall not assign this Agreement or delegate its duties without the prior written consent of Company.";
+  const oneway = detectXfer(onewayDoc);
+  assert.equal(oneway.items.length, 1, "a one-way assignment right is flagged");
+  assert.match(oneway.items[0].label, /Only .Company.*hand off/, "the headline names who holds the door");
+  assert.match(oneway.items[0].why, /written permission/, "…and notes the other side is fenced");
+  assert.ok(typeof oneway.items[0].start === "number", "…and points at the sentence");
+
+  // Unqualified "may assign" (no consent fence nearby) counts as free.
+  const quietFreeDoc = "The Provider may assign this Agreement to an affiliate in connection with a merger. The Client shall not assign any of its rights hereunder without Provider's prior written consent.";
+  const quietFree = detectXfer(quietFreeDoc);
+  assert.equal(quietFree.items.length, 1, "an unqualified assign right still fires");
+  assert.match(quietFree.items[0].label, /Provider/, "…attributed to the free party");
+
+  // A consent fence in the same sentence kills the free read.
+  const fencedDoc = "Client may assign this Agreement with the prior written consent of Company in each instance. Company shall perform its obligations throughout the term.";
+  const fenced = detectXfer(fencedDoc);
+  assert.equal(fenced.items.length, 0, "consent-fenced assignments are not called free");
+
+  // Mutual and neither-party clauses stay quiet.
+  assert.equal(detectXfer("Either party may assign this Agreement in connection with a merger or sale of substantially all of its assets.").items.length, 0,
+    "mutual assignment never fires");
+  assert.equal(detectXfer("Neither party shall assign this Agreement without the prior written consent of the other party.").items.length, 0,
+    "neither-party fences stay quiet");
+
+  // No assignment language at all → fully quiet.
+  assert.equal(detectXfer("Consultant shall perform the services with professional care throughout the term. The parties shall keep all negotiations confidential.").items.length, 0,
+    "documents without transfer language stay quiet");
+
+  // Full house equipment ships.
+  assert.match(html, /id="xferBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="xferList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("xferBlock=$('#xferBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectXfer === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-xf-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_xfWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Transfer language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#xferList .gap-label") !== -1 &&
+            appSrc.indexOf("Transfer rights (who can hand off the deal)") !== -1,
+    "the printed brief includes the transfer section");
+  assert.ok(appSrc.indexOf("'Even out transfer rights'") !== -1, "the sent ask list includes the transfer ask");
+  assert.ok(indexHtml.indexOf("Transfers") !== -1,
     "the landing checklist advertises the new lens");
 });

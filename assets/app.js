@@ -4499,6 +4499,7 @@
           termBlock=$('#termBlock'),termNote=$('#termNote'),termList=$('#termList'),
           breachBlock=$('#breachBlock'),breachNote=$('#breachNote'),breachList=$('#breachList'),
           payBlock=$('#payBlock'),payNote=$('#payNote'),payList=$('#payList'),
+          xferBlock=$('#xferBlock'),xferNote=$('#xferNote'),xferList=$('#xferList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -18572,6 +18573,110 @@
       }
     }
 
+    // Cycle #383 — transfer rights: who can hand this deal to someone
+    // else. An assignment right held by one side only means your
+    // counterparty can become a stranger mid-term.
+    function detectXfer(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, transfers: 0 };
+      const normName = (s) => String(s || '').toLowerCase().replace(/\bthe\b/g, ' ')
+        .replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const items = [];
+      let checked = 0;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      const MUTUAL_RE = /\b(?:either|each|both|neither)\s+part(?:y|ies)\b|\bmutually\b/i;
+      const ASSIGN_RE = /\bassign(?:s|ed|ment)?\b|\bdelegat(?:e|es|ed|ion)\b/i;
+      const partyOf = (seg) => {
+        // Word-shape capture only — see the other lenses.
+        const pm = seg.match(/\b([A-Z][A-Za-z&-]*(?:\s+[A-Z][A-Za-z&-]*){0,3})\s+(?:may|shall\s+have\s+the\s+right\s+to|reserves\s+the\s+right\s+to)\s+(?:freely\s+)?assign/i);
+        return pm ? { n: normName(pm[1]), raw: pm[1].trim().replace(/[.,]$/, '') } : null;
+      };
+      const CONSENT_NEAR = /\bconsent\b|\bapproval\b|\bprior\s+written\s+permission\b/i;
+      // A free handoff is either an explicit "may assign … without
+      // consent" or an unqualified "may assign" with no consent fence
+      // in the rest of the sentence.
+      const FREE_EXPLICIT = /\bmay\s+(?:freely\s+)?assign\b[^.]{0,90}?\bwithout\b[^.]{0,40}?\bconsent\b/i;
+      const FREE_MODAL = /\bmay\s+(?:freely\s+)?assign/i;
+      const BAN_RE = /\b(?:shall\s+not|may\s+not|will\s+not|cannot)\s+(?:assign|delegate)/i;
+      let freeParty = null, hasBan = false, mutualSeen = false;
+      let firstAt = -1, firstLen = 0;
+      segs.forEach(seg => {
+        if(!ASSIGN_RE.test(seg.t)) return;
+        checked++;
+        if(MUTUAL_RE.test(seg.t)){ mutualSeen = true; return; }
+        if(BAN_RE.test(seg.t)) hasBan = true;
+        if(freeParty || MUTUAL_RE.test(seg.t)) return;
+        const p = partyOf(seg.t);
+        if(!p || p.n.length < 4) return;
+        if(FREE_EXPLICIT.test(seg.t)){
+          freeParty = p; firstAt = seg.at; firstLen = seg.t.length; return;
+        }
+        const am = seg.t.match(FREE_MODAL);
+        if(am && !CONSENT_NEAR.test(seg.t.slice(am.index + am[0].length, am.index + am[0].length + 120))){
+          freeParty = p; firstAt = seg.at; firstLen = seg.t.length;
+        }
+      });
+      if(!mutualSeen && freeParty && firstAt >= 0){
+        checked++;
+        items.push({
+          label: 'Only “' + freeParty.raw + '” can hand off this contract',
+          why: (hasBan ? 'The other side needs written permission to do the same. ' : '') +
+            'An assignment right lets “' + freeParty.raw + '” transfer the whole deal — and every duty attached to it — to a buyer or affiliate you have never seen. Ask to make it even: “either party may assign on written notice,” or at minimum consent not to be unreasonably withheld.',
+          start: firstAt,
+          end: firstAt + firstLen
+        });
+      }
+      return { items: items.slice(0, 4), checked: checked, transfers: freeParty ? 1 : 0 };
+    }
+
+    function renderXferBlock(result){
+      if(!xferBlock || !xferList || !result) return;
+      if(!result.items.length){ xferBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-xf-start="' + Math.max(0, it.start) + '" data-xf-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">🔁</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      xferList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' assignment sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.transfers + ' unconstrained transfer right' + (result.transfers === 1 ? '' : 's') + '</span></div>';
+      xferBlock.hidden = false;
+      if(xferNote){
+        xferNote.innerHTML = '<span class="riskNote-lead">Who can hand this off</span> ' +
+          'An assignment right is a door out the back of the contract. Held by one side only, it means the face across the table can be replaced mid-deal — by an acquirer, an affiliate, or anyone they sell to.';
+      }
+      if(!xferList._xfWired){
+        xferList._xfWired = true;
+        const jumpToXfer = (row) => {
+          const s = parseInt(row.getAttribute('data-xf-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-xf-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Transfer language highlighted in your document');
+        };
+        xferList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-xf-start]');
+          if(row) jumpToXfer(row);
+        });
+        xferList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-xf-start]');
+          if(row){ e.preventDefault(); jumpToXfer(row); }
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -19724,6 +19829,12 @@
         renderPayBlock(detectPayFlow(raw));
       } else if(payBlock) {
         payBlock.hidden = true;
+      }
+      // Cycle #383 — transfer rights: who can hand the deal onward.
+      if(xferBlock && typeof detectXfer === 'function'){
+        renderXferBlock(detectXfer(raw));
+      } else if(xferBlock) {
+        xferBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
@@ -23453,6 +23564,7 @@
         addSection('Make the exit mutual', 'Ask for an even way out: ', readAll('#termList .gap-label', 4));
         addSection('Pin the breach clock', 'Ask for a hard deadline to be told about leaks: ', readAll('#breachList .gap-label', 4));
         addSection('Even out the money clocks', 'Ask for one clock both ways: ', readAll('#payList .gap-label', 4));
+        addSection('Even out transfer rights', 'Ask for the same freedom both ways: ', readAll('#xferList .gap-label', 4));
         if(!sections.length) return null;
         const fp = (_fpState && _fpState.short) ? _fpState.short : '';
         const mdLines = ['# My negotiation asks', '',
@@ -23999,6 +24111,12 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          const xferLines = (function(){
+            const rows = document.querySelectorAll('#xferList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -24032,6 +24150,7 @@
               (termLines ? '<div class="cheat-section"><div class="cheat-section-title">Exit rights (who can end this)</div><ul style="padding-left:18px;margin:0">' + termLines + '</ul></div>' : '') +
               (breachLines ? '<div class="cheat-section"><div class="cheat-section-title">Breach alerting (if data leaks)</div><ul style="padding-left:18px;margin:0">' + breachLines + '</ul></div>' : '') +
               (payLines ? '<div class="cheat-section"><div class="cheat-section-title">Money timing (who waits to be paid)</div><ul style="padding-left:18px;margin:0">' + payLines + '</ul></div>' : '') +
+              (xferLines ? '<div class="cheat-section"><div class="cheat-section-title">Transfer rights (who can hand off the deal)</div><ul style="padding-left:18px;margin:0">' + xferLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +
