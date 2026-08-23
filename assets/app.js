@@ -4505,6 +4505,7 @@
           setoffBlock=$('#setoffBlock'),setoffNote=$('#setoffNote'),setoffList=$('#setoffList'),
           rateBlock=$('#rateBlock'),rateNote=$('#rateNote'),rateList=$('#rateList'),
           indemBlock=$('#indemBlock'),indemNote=$('#indemNote'),indemList=$('#indemList'),
+          ncBlock=$('#ncBlock'),ncNote=$('#ncNote'),ncList=$('#ncList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -19273,6 +19274,115 @@
       }
     }
 
+    // Cycle #395 — restrictive covenants: where you can't work next.
+    // A non-compete with no end date and worldwide reach is a ban on
+    // your next paycheck, signed by you.
+    function detectNoncompete(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, covenants: 0 };
+      const normName = (s) => String(s || '').toLowerCase().replace(/\bthe\b/g, ' ')
+        .replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const items = [];
+      let checked = 0;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      const NC_RE = /\bnon[- ]?(?:compet\w+|solicit\w+)\b|\brestrictive\s+covenants?\b|\b(?:shall|will|must|agrees?\s+to|covenants?\s+to)\s+not\b[^.;]{0,120}?\b(?:compet\w*|solicit\w*|accept\s+employment|render\s+services)\b/i;
+      const partyOf = (seg) => {
+        const pm = seg.match(/\b([A-Z][A-Za-z&-]*(?:\s+[A-Za-z&-]*){0,3})\s+(?:shall|will|must|covenants?\s+to|agrees?\s+to)\s+not\b/i);
+        return pm ? { n: normName(pm[1]), raw: pm[1].trim().replace(/[.,]$/, '') } : null;
+      };
+      // Duration and reach decide how heavy the shackle is. Word
+      // numbers first so "twenty four months" isn't read as 4.
+      const DUR_WORD = { three: 3, four: 4, five: 5, six: 6, nine: 9, twelve: 12, fifteen: 15, eighteen: 18, twenty: 20, 'twenty four': 24, 'thirty six': 36 };
+      const DUR_RE = /\b(\d{1,2}|three|four|five|six|nine|twelve|fifteen|eighteen|twenty|twenty\s*four|thirty\s*six)\s*(?:\(\d{1,2}\))?\s*(months?|years?)\b/i;
+      const GEO_RE = /\bworldwide\b|\bglobally\b|\bany(?:where)?\s+in\s+the\s+(?:world|country|united states|state)\b|\bwithin\s+\d+\s+miles?\b/i;
+      const durOf = (seg) => {
+        const dm = seg.match(DUR_RE);
+        if(!dm) return '';
+        let n = parseInt(dm[1], 10);
+        if(isNaN(n)) n = DUR_WORD[dm[1].toLowerCase().replace(/\s+/g, ' ')] || 0;
+        if(!n) return '';
+        return n + ' ' + dm[2].toLowerCase();
+      };
+      let boundParty = null, firstAt = -1, firstLen = 0, duration = '', geoWide = false;
+      segs.forEach(seg => {
+        if(!NC_RE.test(seg.t)) return;
+        checked++;
+        if(boundParty) return;
+        const p = partyOf(seg.t);
+        if(!p || p.n.length < 4) return;
+        boundParty = p; firstAt = seg.at; firstLen = seg.t.length;
+        duration = durOf(seg.t);
+        geoWide = GEO_RE.test(seg.t);
+      });
+      if(firstAt >= 0){
+        checked++;
+        const who = boundParty ? boundParty.raw : 'you';
+        const durBit = duration
+          ? ('for ' + duration)
+          : 'with no end date stated at all';
+        const geoBit = geoWide ? ', across territory with no practical limit' : '';
+        items.push({
+          label: '“' + who + '” may not compete ' + durBit,
+          why: 'This covenant restricts where “' + who + '” can work after this contract ends' + geoBit +
+            '. Enforce or not in your state, it chills every future job offer.' +
+            (!duration ? ' Ask for an end date — 6 to 12 months is the defensible ceiling.' :
+              parseInt(duration, 10) > 12 ? ' Ask to shrink it to a year or less, limited to actual competitors.' :
+              ' Ask that it apply only to direct competitors, never the whole industry.'),
+          start: firstAt,
+          end: firstAt + firstLen
+        });
+      }
+      return { items: items.slice(0, 4), checked: checked, covenants: firstAt >= 0 ? 1 : 0 };
+    }
+
+    function renderNcBlock(result){
+      if(!ncBlock || !ncList || !result) return;
+      if(!result.items.length){ ncBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-nc-start="' + Math.max(0, it.start) + '" data-nc-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">🚧</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      ncList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' restriction sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.covenants + ' binding covenant' + (result.covenants === 1 ? '' : 's') + '</span></div>';
+      ncBlock.hidden = false;
+      if(ncNote){
+        ncNote.innerHTML = '<span class="riskNote-lead">Where you can’t work next</span> ' +
+          'A non-compete follows you out the door. Its weight is set by three numbers — duration, geography, scope — and every one of them is negotiable before you sign.';
+      }
+      if(!ncList._ncWired){
+        ncList._ncWired = true;
+        const jumpToNc = (row) => {
+          const s = parseInt(row.getAttribute('data-nc-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-nc-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Non-compete language highlighted in your document');
+        };
+        ncList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-nc-start]');
+          if(row) jumpToNc(row);
+        });
+        ncList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-nc-start]');
+          if(row){ e.preventDefault(); jumpToNc(row); }
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -20461,6 +20571,12 @@
         renderIndemBlock(detectIndemnity(raw));
       } else if(indemBlock) {
         indemBlock.hidden = true;
+      }
+      // Cycle #395 — non-compete: where you can't work next.
+      if(ncBlock && typeof detectNoncompete === 'function'){
+        renderNcBlock(detectNoncompete(raw));
+      } else if(ncBlock) {
+        ncBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
@@ -24196,6 +24312,7 @@
         addSection('Cap the setoffs', 'Ask that offsets be mutual and capped: ', readAll('#setoffList .gap-label', 4));
         addSection('Cap the rate hikes', 'Ask for a cap and an exit window: ', readAll('#rateList .gap-label', 4));
         addSection('Make indemnity mutual', 'Ask that indemnities run both ways, capped: ', readAll('#indemList .gap-label', 4));
+        addSection('Shrink the non-compete', 'Ask for a shorter, narrower covenant: ', readAll('#ncList .gap-label', 4));
         if(!sections.length) return null;
         const fp = (_fpState && _fpState.short) ? _fpState.short : '';
         const mdLines = ['# My negotiation asks', '',
@@ -24778,6 +24895,12 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          const ncLines = (function(){
+            const rows = document.querySelectorAll('#ncList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -24817,6 +24940,7 @@
               (setoffLines ? '<div class="cheat-section"><div class="cheat-section-title">Setoffs (who can short-pay whom)</div><ul style="padding-left:18px;margin:0">' + setoffLines + '</ul></div>' : '') +
               (rateLines ? '<div class="cheat-section"><div class="cheat-section-title">Rate changes (who can raise the price)</div><ul style="padding-left:18px;margin:0">' + rateLines + '</ul></div>' : '') +
               (indemLines ? '<div class="cheat-section"><div class="cheat-section-title">Indemnification (who covers whose losses)</div><ul style="padding-left:18px;margin:0">' + indemLines + '</ul></div>' : '') +
+              (ncLines ? '<div class="cheat-section"><div class="cheat-section-title">Restrictive covenants (where you can’t work next)</div><ul style="padding-left:18px;margin:0">' + ncLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +

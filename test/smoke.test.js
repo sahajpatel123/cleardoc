@@ -17126,10 +17126,12 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
   // Cycle #389 — setoffs lens joins the storefront.
   // Cycle #391 — rate-changes lens joins the storefront.
   // Cycle #393 — indemnity lens joins the storefront.
+  // Cycle #395 — non-compete lens joins the storefront.
   const lenses = ["Missing clauses", "Open terms", "Broken references", "Undefined terms",
                   "Undated obligations", "Execution check", "Obligation balance", "Figure check",
                   "Notice mechanics", "Liability caps", "Exit rights", "Breach notice", "Money timing",
-                  "Transfers", "Insurance", "Publicity", "Setoffs", "Rate changes", "Indemnity"];
+                  "Transfers", "Insurance", "Publicity", "Setoffs", "Rate changes", "Indemnity",
+                  "Non-compete"];
   lenses.forEach(name => {
     assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
   });
@@ -18098,4 +18100,64 @@ test("indemnity: who covers whose losses speaks up", () => {
     "the landing checklist advertises the new lens");
   assert.ok(appSrc.indexOf("polish: credit fault-bounded indemnities") !== -1,
     "the fault-bounded grading ships inside the detector");
+});
+
+test("non-compete: where you can't work next speaks up", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectNoncompete");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, covenants: firstAt >= 0 ? 1 : 0 };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectNoncompete };";
+  const { detectNoncompete } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // A bounded non-compete → attributed finding with duration quoted.
+  const boundDoc = "Employee shall not compete with Company for twenty four months following termination of employment anywhere in the United States. Employee shall perform duties diligently throughout employment.";
+  const bound = detectNoncompete(boundDoc);
+  assert.equal(bound.items.length, 1, "a binding non-compete is flagged");
+  assert.match(bound.items[0].label, /Employee.*may not compete for 24 months/,
+    "the headline names who wears the shackle and how long");
+  assert.match(bound.items[0].why, /shrink it to a year or less/,
+    "…and a heavy duration draws the shrinking ask");
+  assert.ok(typeof bound.items[0].start === "number" && bound.items[0].start >= 0,
+    "…and points at the sentence");
+
+  // No end date stated → that absence is named outright.
+  const openDoc = "Employee shall not solicit customers or employees of Company for so long as information remains competitively valuable.";
+  const open = detectNoncompete(openDoc);
+  assert.equal(open.items.length, 1, "an undated covenant still speaks");
+  assert.match(open.items[0].label, /no end date stated/,
+    "…with the missing clock named as the headline");
+
+  // A light covenant gets the lighter ask.
+  const lightDoc = "Contractor shall not compete with Client for six months following termination.";
+  const light = detectNoncompete(lightDoc);
+  assert.match(light.items[0].why, /direct competitors/,
+    "a short covenant asks only for scope-narrowing");
+
+  // No covenant language → fully quiet.
+  assert.equal(detectNoncompete("Consultant shall perform the services with professional care. Client shall pay undisputed invoices within thirty days.").items.length, 0,
+    "documents without covenant language stay quiet");
+
+  // Full house equipment ships.
+  assert.match(html, /id="ncBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="ncList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("ncBlock=$('#ncBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectNoncompete === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-nc-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_ncWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Non-compete language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#ncList .gap-label") !== -1 &&
+            appSrc.indexOf("Restrictive covenants (where you can’t work next)") !== -1,
+    "the printed brief includes the covenant section");
+  assert.ok(appSrc.indexOf("'Shrink the non-compete'") !== -1, "the sent ask list includes the covenant ask");
+  assert.ok(indexHtml.indexOf("Non-compete") !== -1,
+    "the landing checklist advertises the new lens");
 });
