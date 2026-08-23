@@ -4493,6 +4493,7 @@
           undatedBlock=$('#undatedBlock'),undatedNote=$('#undatedNote'),undatedList=$('#undatedList'),
           sigBlock=$('#sigBlock'),sigNote=$('#sigNote'),sigList=$('#sigList'),
           balanceBlock=$('#balanceBlock'),balanceNote=$('#balanceNote'),balanceList=$('#balanceList'),
+          figuresBlock=$('#figuresBlock'),figuresNote=$('#figuresNote'),figuresList=$('#figuresList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -17741,6 +17742,91 @@
       }
     }
 
+    // Cycle #359 — figure consistency: numbers that contradict
+    // themselves. Contracts often restate an amount in words AND digits;
+    // when the two disagree, courts argue about which one controls.
+    // Two high-precision checks, both pure-local:
+    //   1. "Fifty Thousand Dollars ($45,000)" — words vs digits mismatch.
+    //   2. "thirty (45) days" — the common word(number) drafting style,
+    //      where a sloppy edit leaves the pair inconsistent.
+    const NUM_WORDS = { one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,
+      eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,
+      eighteen:18,nineteen:19,twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,
+      eighty:80,ninety:90,hundred:100,thousand:1000,million:1000000 };
+    function numWordsToNumber(words){
+      const parts = String(words || '').toLowerCase().split(/[\s\-]+/).filter(Boolean);
+      let total = 0, current = 0, saw = false;
+      for(const p of parts){
+        if(p === 'and') continue;
+        const v = NUM_WORDS[p];
+        if(!v) return NaN;
+        saw = true;
+        if(v === 100){ current = (current || 1) * 100; }
+        else if(v === 1000 || v === 1000000){ total += (current || 1) * v; current = 0; }
+        else { current += v; }
+      }
+      return saw ? total + current : NaN;
+    }
+    // Group 1 is ONLY the number words — "Dollars" is consumed by the
+    // required tail so numWordsToNumber never sees a non-number word.
+    const MONEY_DUAL_RE = /\b([A-Z][A-Za-z\-]*(?:[\s\-](?:[A-Z][A-Za-z\-]*|and))*)\s+Dollars\s*\(\s*\$\s*([\d,]+(?:\.\d{1,2})?)\s*\)/g;
+    const DUAL_DAYS_RE = /\b([A-Za-z][A-Za-z\-]*)\s*\(\s*(\d+)\s*\)\s*(?:calendar\s+|business\s+)?days?\b/gi;
+    function detectFigures(raw){
+      const text = String(raw || '');
+      const empty = { items: [], checked: 0 };
+      if(!text) return empty;
+      const items = [];
+      let checked = 0;
+      const pushItem = (label, why, at, len) => {
+        items.push({ label, why, start: at, end: at + len });
+      };
+      // 1. Words-Dollars ($digits) — flag only on real disagreement.
+      let m;
+      MONEY_DUAL_RE.lastIndex = 0;
+      while((m = MONEY_DUAL_RE.exec(text)) && items.length < 10){
+        const words = numWordsToNumber(m[1]);
+        const digits = parseFloat(m[2].replace(/,/g, ''));
+        if(!isFinite(words) || !isFinite(digits)) continue;
+        checked++;
+        if(words === digits) continue;
+        pushItem('Amount written two ways — and they disagree',
+          'The text says "' + m[1].trim() + '" but the figures say $' + m[2] + '. Ask which amount controls and have the document corrected before signing.',
+          m.index, m[0].length);
+      }
+      // 2. word (N) days — flag when the parenthetical betrays the word.
+      DUAL_DAYS_RE.lastIndex = 0;
+      while((m = DUAL_DAYS_RE.exec(text)) && items.length < 10){
+        const words = numWordsToNumber(m[1]);
+        const digits = parseInt(m[2], 10);
+        if(!isFinite(words) || isNaN(digits)) continue;
+        checked++;
+        if(words === digits) continue;
+        pushItem('Day count written two ways — and they disagree',
+          'The text says "' + m[1] + '" but the parenthetical says (' + m[2] + ') days. Courts often treat the digits as controlling — make both say the number you agreed to.',
+          m.index, m[0].length);
+      }
+      return { items: items.slice(0, 8), checked: checked };
+    }
+
+    function renderFiguresBlock(result){
+      if(!figuresBlock || !figuresList || !result) return;
+      if(!result.items.length){ figuresBlock.hidden = true; return; }
+      // Cycle #360 will wire these spans as click-to-jump targets.
+      figuresList.innerHTML = result.items.map(it =>
+        '<div class="gap-row">' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">🔢</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>').join('');
+      figuresBlock.hidden = false;
+      if(figuresNote){
+        figuresNote.innerHTML = '<span class="riskNote-lead">Figures that disagree</span> ' +
+          'Amounts restated in words and digits — "Fifty Thousand Dollars ($50,000)", "thirty (30) days" — checked for agreement. When the pair splits, the digits usually win in court.';
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -18856,6 +18942,12 @@
         renderObligationBalance(detectObligationBalance(raw));
       } else if(balanceBlock) {
         balanceBlock.hidden = true;
+      }
+      // Cycle #359 — figure consistency: words-vs-digits disagreements.
+      if(figuresBlock && typeof detectFigures === 'function'){
+        renderFiguresBlock(detectFigures(raw));
+      } else if(figuresBlock) {
+        figuresBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.

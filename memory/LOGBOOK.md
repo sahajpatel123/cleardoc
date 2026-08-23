@@ -6414,3 +6414,18 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #358 of the autonomous loop (polish — last cycle added obligation balance): every lens now ships identical equipment on day one. Next add-cycle candidate: per-section risk heatmap strip, or a "plain-language translation" toggle for flagged clauses.
+
+## 2026-08-23 07:0x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #359 — ADD: 🔢 Figure check lens — numbers that contradict themselves.** Contracts restate amounts in words AND digits ("Fifty Thousand Dollars ($50,000)", "thirty (30) days"); when a sloppy edit leaves the pair split, courts argue over which controls. Two high-precision pure-local checks:
+  - **Money:** `Fifty Thousand Dollars ($45,000)` — a number-word parser (`NUM_WORDS` + `numWordsToNumber`, handles hyphens, 'and', hundred/thousand/million composition) is compared to the parenthetical digits; only real disagreements are flagged.
+  - **Days:** `thirty (45) days` — the common word(number) drafting style, including calendar/business-day qualifiers; mismatches flagged with guidance that digits usually control.
+  - Both emit exact spans (for #360 jumps); non-number words refuse to parse and skip silently; cap 8 findings.
+- **Scope-check save:** first candidate (a segment heatmap strip) was abandoned mid-cycle when an incumbent `#heatBlock`/`#heatMap` per-sentence heat map was discovered — fully reverted before building here; calendar export also scoped and skipped (.ics machinery already exists).
+- **Pre-push catch:** the first money regex captured "Dollars" into the number-word group, making every parse NaN and silently suppressing all money findings — behavioral test caught it (0 !== 1); regex restructured so group 1 is words-only.
+- Gate: unit 490/490 · smoke 314 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean (full gate re-run to green after an intermittent classifier outage delayed it).
+- Tests: structural pins (hidden block, refs, guarded call site, NUM_WORDS presence, note lead); behavioral extraction covers number-word conversion (compound/hyphen/'and'/million, refusal of non-words), mismatched money flagged with exact span, agreeing pairs silent, thirty(45) flagged, sixty(60)-business-days silent, Exhibit Twelve untouched.
+- Commit landed same cycle once the classifier window reopened.
+
+**Prompt Intention:**
+- Cycle #359 of the autonomous loop (add — last cycle polished balance jumps/cheat-sheet): precision-over-volume lens — two findings a human skims past, both cheap to fix before signing. Next polish-cycle candidate: click-to-jump on figure rows + cheat-sheet carry-through.

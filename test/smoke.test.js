@@ -16838,3 +16838,66 @@ test("obligation balance: flags lopsided duties, stays quiet when fair", () => {
   const other = detectObligationBalance("Please submit the report. The manager shall approve all leave requests.");
   assert.equal(other.items.length, 0, "no recognizable roles means no balance to judge");
 });
+
+// Cycle #359 — figure consistency: "Fifty Thousand Dollars ($45,000)"
+// and "thirty (45) days" are classic drafting traps; this lens catches
+// numbers that contradict themselves.
+test("figures block: ships hidden, wired like every lens", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  assert.match(html, /id="figuresBlock"[^>]*hidden/, "block ships hidden");
+  assert.match(html, /id="figuresNote"/, "note element exists");
+  assert.match(html, /id="figuresList"/, "list element exists");
+  assert.match(appSrc, /figuresBlock=\$\('#figuresBlock'\)/, "refs declared");
+  assert.match(appSrc, /detectFigures === 'function'/, "guarded call site present");
+  assert.match(appSrc, /const NUM_WORDS/, "number-word vocabulary defined");
+  assert.match(appSrc, /Figures that disagree/, "note lead names the lens");
+});
+
+// Cycle #359 — behavioral: the REAL parser converts number words and
+// flags only genuine words-vs-digits disagreements.
+test("figure check: catches split amounts, stays silent on agreement", () => {
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const start = appSrc.indexOf("const NUM_WORDS");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 8), checked: checked };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectFigures, numWordsToNumber };";
+  const { detectFigures, numWordsToNumber } = new Function(src)();
+
+  // Number-word conversion: simple, hyphenated, compound, with 'and'.
+  assert.equal(numWordsToNumber("Fifty Thousand"), 50000, "plain compound converts");
+  assert.equal(numWordsToNumber("One Hundred Twenty-Five Thousand"), 125000, "hyphenated tens convert");
+  assert.equal(numWordsToNumber("Two Hundred and Fifty Thousand"), 250000, "'and' is tolerated");
+  assert.equal(numWordsToNumber("One Million Two Hundred"), 1000200, "millions compose");
+  assert.equal(numWordsToNumber("Twelve"), 12, "simple teens convert");
+  assert.ok(isNaN(numWordsToNumber("Blue")), "non-number words refuse to parse");
+
+  // Mismatched money: flagged with an exact span.
+  const moneyDoc = "The total fee is Fifty Thousand Dollars ($45,000) payable on execution.";
+  const r1 = detectFigures(moneyDoc);
+  assert.equal(r1.items.length, 1, "a words-vs-digits amount disagreement is flagged");
+  assert.match(r1.items[0].label, /disagree/, "the row says what's wrong");
+  assert.equal(r1.items[0].start, moneyDoc.indexOf("Fifty Thousand"),
+    "the span points at the offending phrase");
+
+  // Matching money: silent.
+  const okMoney = detectFigures('Consideration is Ten Thousand Dollars ($10,000) in total.');
+  assert.equal(okMoney.items.length, 0, "an agreeing pair produces no finding");
+
+  // Mismatched days: the classic sloppy-edit trap.
+  const daysDoc = "Client must give notice within thirty (45) days of renewal.";
+  const r2 = detectFigures(daysDoc);
+  assert.equal(r2.items.length, 1, "thirty (45) is flagged");
+  assert.match(r2.items[0].why, /digits as controlling/, "guidance explains which one wins");
+
+  // Agreeing days (with the business-days qualifier) stay silent.
+  const okDays = detectFigures("Either party may terminate on sixty (60) business days notice.");
+  assert.equal(okDays.items.length, 0, "sixty (60) business days agrees and stays quiet");
+
+  // Non-number words before (N) are skipped, not flagged.
+  const junk = detectFigures("See Exhibit Twelve (12) for the schedule of days.");
+  assert.equal(junk.items.length, 0, "'Exhibit Twelve (12)' without a days unit pattern is untouched");
+});
