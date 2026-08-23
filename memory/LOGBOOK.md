@@ -6403,3 +6403,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #357 of the autonomous loop (add — last cycle polished the ask list): the fairness lens completes the document-consistency family's next ring — not just what's missing, but who bears what exists. Next polish-cycle candidate: click-to-jump on balance rows + cheat-sheet carry-through, completing the house pattern.
+
+## 2026-08-23 06:4x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #358 — POLISH: balance rows jump and travel.** Completed the house pattern for the Cycle #357 obligation-balance lens:
+  - **Click-to-jump:** the heavier/idle-flagged party's row carries its first-duty-sentence span and is a keyboard-reachable jump target (`data-bl-start`/`data-bl-end`, delegated once-guarded `_blWired` wiring, 📍 toast). The zero-obligation row has no duty to point at and stays plain — same by-design rule as the signature block's "no block found" finding.
+  - **Cheat-sheet carry-through:** "Obligation balance (who carries the duties)" section reads `#balanceList .gap-label` into the printed brief.
+- Tests: pins for jump attrs, once-guard wiring, toast text, cheat-sheet read and plain-word section title.
+- Gate: unit 490/490 · smoke 312 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #358 of the autonomous loop (polish — last cycle added obligation balance): every lens now ships identical equipment on day one. Next add-cycle candidate: per-section risk heatmap strip, or a "plain-language translation" toggle for flagged clauses.

@@ -16769,6 +16769,14 @@ test("balance block: ships hidden, wired like every lens", () => {
   assert.match(appSrc, /maxC >= 3 && maxC >= 2 \* minC/, "imbalance threshold: heavy AND double");
   assert.match(appSrc, /mentions\[r\] >= 2/, "idle parties need repeated mentions before flagging");
   assert.match(appSrc, /Who carries the weight/, "note lead names the lens");
+
+  // Cycle #358 — locatable rows are jump targets; the brief carries them.
+  assert.match(appSrc, /data-bl-start="/, "rows with spans are jump targets");
+  assert.match(appSrc, /_blWired/, "jump wiring is once-guarded");
+  assert.match(appSrc, /Duty highlighted in your document/, "jump confirms with a toast");
+  const cheatBalanceAt = appSrc.indexOf("'#balanceList .gap-label'", appSrc.indexOf("const balanceLines"));
+  assert.ok(cheatBalanceAt > 0, "the printed brief reads the balance list");
+  assert.match(appSrc, /Obligation balance \(who carries the duties\)/, "cheat-sheet section titled in plain words");
 });
 
 // Cycle #357 — behavioral: the REAL detector separates lopsided duty
