@@ -17068,7 +17068,7 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
   // Cycle #373 — notices lens joins the storefront.
   const lenses = ["Missing clauses", "Open terms", "Broken references", "Undefined terms",
                   "Undated obligations", "Execution check", "Obligation balance", "Figure check",
-                  "Notice mechanics"];
+                  "Notice mechanics", "Liability caps"];
   lenses.forEach(name => {
     assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
   });
@@ -17345,5 +17345,61 @@ test("notices: deemed-delivery traps and missing clauses speak up", () => {
   assert.ok(appSrc.indexOf("'Put notice mechanics in writing'") !== -1,
     "the sent ask list includes notice asks");
   assert.ok(indexHtml.indexOf("Notice mechanics") !== -1,
+    "the landing checklist advertises the new lens");
+});
+
+// Cycle #375 — behavioral: the liability lens attributes cap and
+// unlimited-exposure sentences to parties and compares the two sides.
+test("liability symmetry: one-way caps and unlimited exposure speak up", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectLiability");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, capped: cappedParties.length };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectLiability };";
+  const { detectLiability } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // Unlimited exposure, attributed to a named party with a span.
+  const unlimDoc = "The Consultant shall perform the services described herein. The Contractor shall be liable for all damages arising from any breach of this Agreement, with no limit on liability.";
+  const unlim = detectLiability(unlimDoc);
+  assert.equal(unlim.items.length, 1, "unlimited liability is flagged");
+  assert.match(unlim.items[0].label, /Contractor.*unlimited/, "the finding names the exposed party");
+  assert.ok(typeof unlim.items[0].start === "number", "…and points at the sentence");
+
+  // One-way cap: exactly one party protected, no mutual language.
+  const onewayDoc = "Provider's total liability shall not exceed the fees paid under this agreement. The Client shall pay all amounts when due under this agreement without setoff or deduction.";
+  const oneway = detectLiability(onewayDoc);
+  assert.equal(oneway.items.length, 1, "a single-sided cap is flagged");
+  assert.match(oneway.items[0].label, /Only one side has a liability cap/, "the headline says what is wrong");
+  assert.match(oneway.items[0].why, /provider/i, "…and names who is protected");
+
+  // Mutual cap: quiet.
+  const mutual = detectLiability("Each party's aggregate liability shall not exceed twelve months of fees. The parties shall perform their obligations in good faith throughout the term.");
+  assert.equal(mutual.items.length, 0, "mutual caps never fire");
+
+  // No liability language at all: quiet (gaps lens owns absence).
+  assert.equal(detectLiability("The Consultant shall perform services. Payment is due within thirty days of invoice.").items.length, 0,
+    "documents without liability talk are untouched");
+
+  // Full house equipment ships.
+  assert.match(html, /id="liabBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="liabList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("liabBlock=$('#liabBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectLiability === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-lb-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_lbWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Liability language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#liabList .gap-label") !== -1 &&
+            appSrc.indexOf("Liability symmetry (who carries the risk)") !== -1,
+    "the printed brief includes the liability section");
+  assert.ok(appSrc.indexOf("'Cap the liability'") !== -1, "the sent ask list includes liability asks");
+  assert.ok(indexHtml.indexOf("Liability caps") !== -1,
     "the landing checklist advertises the new lens");
 });

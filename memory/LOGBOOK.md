@@ -6608,3 +6608,13 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #374 of the autonomous loop (polish — last cycle added the notices lens): the lens now catches how the clause is actually written, not just textbook phrasing. Next cycle #375 is ADD — candidates TBD with scope-incumbents-first grep.
+## 2026-08-23 09:4x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #375 — ADD: 🛡️ Liability symmetry lens.** The RISK engine gives generic cap advice; nothing read YOUR document's liability sentences and compared the two sides. Full house equipment:
+  - **detectLiability:** sentence-segment scan attributing liability talk to parties (word-shape captures — the first loose char-class gorged across sentences and attributed liability to "no limit on"; caught by the behavioral suite and tightened); CAP_RE finds caps (shall not exceed / limited to / aggregate), UNLIM_RE finds exposure (no limit on liability, all damages arising). Verdicts: (1) named-party unlimited liability rows with spans + mutual-cap ask; (2) one-way cap — exactly one party protected, no mutual language, no second cap → "Only one side has a liability cap" pointing at the cap sentence. Neither-party/either-party phrasing counts as mutual and stays quiet.
+  - **Equipment:** #liabBlock after notices; refs trio; guarded call site; renderLiabBlock (data-lb-start/end jumps, _lbWired, house toast, "N sentences examined · M parties capped" count line); cheat-sheet section 'Liability symmetry (who carries the risk)'; ask-list section 'Cap the liability'; tenth landing-checklist chip added to the lenses array.
+- Tests: four behavioral corpora (unlimited→named party with span, one-way cap→names who's protected, mutual quiet, no-liability-talk untouched) + full equipment pins.
+- Gate: unit 490/490 · smoke 322 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #375 of the autonomous loop (add — last cycle polished notice drafting variants): signers now see who the risk dump favors before they sign. Next cycle #376 is POLISH of this lens — candidates: dollar-amount extraction from caps ("capped at $50,000" surfaced in the row), indemnity-vs-cap interaction, or TBD.

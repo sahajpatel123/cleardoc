@@ -4495,6 +4495,7 @@
           balanceBlock=$('#balanceBlock'),balanceNote=$('#balanceNote'),balanceList=$('#balanceList'),
           figuresBlock=$('#figuresBlock'),figuresNote=$('#figuresNote'),figuresList=$('#figuresList'),
           noticeBlock=$('#noticeBlock'),noticeNote=$('#noticeNote'),noticeList=$('#noticeList'),
+          liabBlock=$('#liabBlock'),liabNote=$('#liabNote'),liabList=$('#liabList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -18077,6 +18078,116 @@
       }
     }
 
+    // Cycle #375 — liability symmetry lens: who is capped, who isn't,
+    // and where the unlimited exposure hides. The RISK engine gives
+    // generic advice; this lens reads YOUR document's own sentences,
+    // attributes them to parties, and compares the two sides.
+    function detectLiability(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, capped: 0 };
+      const normName = (s) => String(s || '').toLowerCase().replace(/\bthe\b/g, ' ')
+        .replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const items = [];
+      let checked = 0;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      const MUTUAL_RE = /\b(?:neither\s+part|either\s+part|each\s+part|both\s+part)/i;
+      const partyOf = (seg) => {
+        // Word-shape captures only: a loose class here gorges across the
+        // sentence and attributes liability to "no limit on".
+        const pm = seg.match(/\b(?:in no event shall|nor shall)\s+([A-Z][A-Za-z&-]*(?:\s+[A-Z][A-Za-z&-]*){0,3})(?:\s+be\b|\s+and\b|,)/)
+          || seg.match(/\b([A-Z][A-Za-z&-]*(?:\s+[A-Z][A-Za-z&-]*){0,3})(?:'s)?\s+(?:total\s+|aggregate\s+|maximum\s+)?liability/)
+          || seg.match(/\b([A-Z][A-Za-z&-]*(?:\s+[A-Z][A-Za-z&-]*){0,3})\s+shall\s+be\s+(?:liable|responsible)/);
+        // Keep the raw casing for display, the normalized key for matching.
+        return pm ? { n: normName(pm[1]), raw: pm[1].trim().replace(/[.,]$/, '') } : null;
+      };
+      const CAP_RE = /\b(?:shall\s+not\s+exceed|will\s+not\s+exceed|not\s+to\s+exceed|limited\s+to|capped\s+at|aggregate\s+liability)\b/i;
+      const UNLIM_RE = /\b(?:no\s+limit(?:ation)?\s+(?:on\s+|of\s+)?liability|liability\s+is\s+unlimited|without\s+limit(?:ation)?|no\s+cap|all\s+damages\s+arising)\b/i;
+      const cappedParties = [];
+      let mutualCap = false;
+      let firstCapAt = -1, firstCapLen = 0;
+      segs.forEach(seg => {
+        if(!/\bliabilit|liable\b/i.test(seg.t)) return;
+        if(CAP_RE.test(seg.t)){
+          checked++;
+          if(firstCapAt < 0){ firstCapAt = seg.at; firstCapLen = seg.t.length; }
+          if(MUTUAL_RE.test(seg.t)){ mutualCap = true; return; }
+          const p = partyOf(seg.t);
+          if(p && p.n.length >= 4 && cappedParties.indexOf(p.n) === -1 && cappedParties.length < 4) cappedParties.push(p.n);
+        } else if(UNLIM_RE.test(seg.t)){
+          checked++;
+          if(items.length < 4){
+            const p = partyOf(seg.t);
+            items.push({
+              label: (p && p.n.length >= 4) ? ('“' + p.raw + '” carries unlimited liability') : 'Liability is uncapped somewhere in this document',
+              why: 'No dollar ceiling — if something goes wrong, everything is on the table. Ask for a mutual cap tied to the fees paid under the agreement; twelve months of fees is the common landing point.',
+              start: seg.at,
+              end: seg.at + seg.t.length
+            });
+          }
+        }
+      });
+      // One-way cap: exactly one named party is protected and nothing
+      // caps the other side — a risk dump, not a risk allocation.
+      if(!items.length && !mutualCap && cappedParties.length === 1 && firstCapAt >= 0){
+        checked++;
+        items.push({
+          label: 'Only one side has a liability cap',
+          why: 'The document caps “' + cappedParties[0] + '” and caps no one else. Ask for the same ceiling in both directions — a cap that protects only one party shifts every risk onto yours.',
+          start: firstCapAt,
+          end: firstCapAt + firstCapLen
+        });
+      }
+      return { items: items.slice(0, 4), checked: checked, capped: cappedParties.length };
+    }
+
+    function renderLiabBlock(result){
+      if(!liabBlock || !liabList || !result) return;
+      if(!result.items.length){ liabBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-lb-start="' + Math.max(0, it.start) + '" data-lb-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">🛡️</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      liabList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' liability sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.capped + ' part' + (result.capped === 1 ? 'y' : 'ies') + ' capped</span></div>';
+      liabBlock.hidden = false;
+      if(liabNote){
+        liabNote.innerHTML = '<span class="riskNote-lead">Liability symmetry</span> ' +
+          'Who carries a dollar ceiling on things going wrong — and who faces unlimited exposure. Mutual caps tied to fees paid are the norm; a cap that protects only one side is a risk dump.';
+      }
+      if(!liabList._lbWired){
+        liabList._lbWired = true;
+        const jumpToLiab = (row) => {
+          const s = parseInt(row.getAttribute('data-lb-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-lb-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Liability language highlighted in your document');
+        };
+        liabList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-lb-start]');
+          if(row) jumpToLiab(row);
+        });
+        liabList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-lb-start]');
+          if(row){ e.preventDefault(); jumpToLiab(row); }
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -19205,6 +19316,12 @@
         renderNoticeBlock(detectNotices(raw));
       } else if(noticeBlock) {
         noticeBlock.hidden = true;
+      }
+      // Cycle #375 — liability symmetry: who is capped, who isn't.
+      if(liabBlock && typeof detectLiability === 'function'){
+        renderLiabBlock(detectLiability(raw));
+      } else if(liabBlock) {
+        liabBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
@@ -22929,6 +23046,8 @@
         addSection('Rebalance the workload', 'Rebalance these duties (or pay for the extra load): ', readAll('#balanceList .gap-label', 4));
         // Cycle #373 — notice mechanics belong in the sent list too.
         addSection('Put notice mechanics in writing', 'Set out how formal notice works: ', readAll('#noticeList .gap-label', 4));
+        // Cycle #375 — liability symmetry does as well.
+        addSection('Cap the liability', 'Ask for a mutual ceiling: ', readAll('#liabList .gap-label', 4));
         if(!sections.length) return null;
         const fp = (_fpState && _fpState.short) ? _fpState.short : '';
         const mdLines = ['# My negotiation asks', '',
@@ -23450,6 +23569,13 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          // Cycle #375 — liability symmetry does too.
+          const liabLines = (function(){
+            const rows = document.querySelectorAll('#liabList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -23479,6 +23605,7 @@
               (balanceLines ? '<div class="cheat-section"><div class="cheat-section-title">Obligation balance (who carries the duties)</div><ul style="padding-left:18px;margin:0">' + balanceLines + '</ul></div>' : '') +
               (figuresLines ? '<div class="cheat-section"><div class="cheat-section-title">Split figures (words vs digits)</div><ul style="padding-left:18px;margin:0">' + figuresLines + '</ul></div>' : '') +
               (noticeLines ? '<div class="cheat-section"><div class="cheat-section-title">Notice mechanics (how it becomes official)</div><ul style="padding-left:18px;margin:0">' + noticeLines + '</ul></div>' : '') +
+              (liabLines ? '<div class="cheat-section"><div class="cheat-section-title">Liability symmetry (who carries the risk)</div><ul style="padding-left:18px;margin:0">' + liabLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +
