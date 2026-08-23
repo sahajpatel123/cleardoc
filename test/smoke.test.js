@@ -16941,6 +16941,31 @@ test("sample docs: three examples ship, each exercising real lenses", () => {
   assert.match(css, /\.sample-row\{[^}]*flex-wrap/, "chip row wraps responsively");
 });
 
+// Cycle #364 — deep links: the landing hero hands users straight to a
+// full sample reading via analyze.html#sample=<key>.
+test("sample deep link: hero links through and the hash auto-runs", () => {
+  const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  const css = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
+
+  // The storefront advertises exactly one deep link — a real sample key.
+  const firstHash = html.indexOf("#sample=");
+  assert.ok(firstHash > 0 && html.indexOf("#sample=", firstHash + 1) === -1,
+    "the hero carries a single sample deep link");
+  assert.match(html.slice(firstHash), /#sample=consulting/, "it points at the consulting example");
+
+  // The handler parses #sample=, yields to an existing analysis, and
+  // reuses the chip click so toast/fill/run all happen.
+  assert.match(appSrc, /#sample=\(\[a-z\]\+\)/, "hash parsing present");
+  assert.match(appSrc, /panel\.hidden/, "deep link yields to a restored analysis");
+  assert.match(appSrc, /chip\.click\(\);/, "deep link reuses the chip path");
+  assert.match(appSrc, /history\.replaceState\(null, '', location\.pathname \+ location\.search\)/,
+    "the consumed hash is cleaned from the URL");
+  assert.match(appSrc, /SAMPLE_DOCS\[hm\[1\]\]/, "unknown hash keys are ignored");
+
+  assert.match(css, /\.hero-sample a\{color:var\(--accent-text\)/, "the link uses the word-safe accent token");
+});
+
 // Cycle #359 — behavioral: the REAL parser converts number words and
 // flags only genuine words-vs-digits disagreements.
 test("figure check: catches split amounts, stays silent on agreement", () => {

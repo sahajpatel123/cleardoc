@@ -26043,6 +26043,18 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
         if(ab) ab.click();
         if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📄 Sample loaded — running the full read');
       });
+      // Cycle #364 — deep link: analyze.html#sample=consulting loads and
+      // runs that example on arrival, so the landing page can hand users
+      // straight to a full reading. Skipped when an analysis is already
+      // showing (a restored snapshot wins), and the hash is cleaned up.
+      try {
+        const hm = (location.hash || '').match(/^#sample=([a-z]+)/);
+        if(hm && SAMPLE_DOCS[hm[1]] && (!panel || panel.hidden)){
+          const chip = sampleRow.querySelector('[data-sample="' + hm[1] + '"]');
+          if(chip) chip.click();
+          try { history.replaceState(null, '', location.pathname + location.search); } catch(_){ /* ignore */ }
+        }
+      } catch(_){ /* ignore */ }
     }
     // Cycle 48 — rewrite text size (WCAG 1.4.4): A−/A+ adjust the
     // plain-English rewrite font size in ±2px steps via the data-size

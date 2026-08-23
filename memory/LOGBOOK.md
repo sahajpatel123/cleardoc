@@ -6477,3 +6477,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #363 of the autonomous loop (polish — last cycle fed all lenses into the ask list): kill the blank-page cold start — every new visitor is one click from seeing the whole bench fire. Next polish-cycle candidate: sample-chip polish (per-lens "what to watch for" captions), or landing-page interaction polish.
+
+## 2026-08-23 07:5x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #364 — POLISH: sample deep links connect the storefront to the bench.** The #363 samples were discoverable only after arriving at the analyzer with an empty state:
+  - **`analyze.html#sample=<key>`** — on load the handler parses the hash, reuses the chip click path (fill → sync → auto-run → toast), yields to a restored analysis (panel visible wins), ignores unknown keys, and cleans the consumed hash via history.replaceState so reloads don't re-trigger.
+  - **Landing hero link** — "Prefer a whole document? read a sample consulting agreement →" under the clarify form hands visitors straight to a full reading; styled with the word-safe accent token.
+- Tests: pins for single real-key deep link in index.html, hash parsing, panel guard, chip-path reuse, replaceState cleanup, unknown-key rejection, and the accent-token link style.
+- Gate: unit 490/490 · smoke 317 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #364 of the autonomous loop (polish — last cycle added the example chips): one continuous path from hero to full reading. Next add-cycle candidate: TBD — scope incumbents first (the pattern that keeps paying).

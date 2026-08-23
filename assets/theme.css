@@ -110,6 +110,9 @@
   .actions button[aria-busy="true"]{background:var(--accent-text);cursor:progress}
   .hero-msg{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);margin-top:var(--s2);min-height:1.3em;color:var(--ink-soft)}
   .hero-msg.err{color:var(--danger)}
+  /* Cycle #364 — deep link from hero to a full sample reading */
+  .hero-sample{font-family:'JetBrains Mono';font-size:var(--t-meta-sm);margin-top:6px;color:var(--ink-soft)}
+  .hero-sample a{color:var(--accent-text);font-weight:700;text-underline-offset:3px}
   .hero-msg .chiptry{border:2px solid var(--ink);padding:3px 8px;margin-left:6px;cursor:pointer;background:none;font:inherit;text-transform:uppercase;font-size:var(--t-micro)}
   .hero-msg .chiptry:hover{background:var(--ink);color:var(--paper)}
 
