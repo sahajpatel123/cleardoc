@@ -17065,10 +17065,10 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
   assert.match(html, /id="checksTitle"/, "it is labelled for assistive tech");
 
   // The grid advertises exactly the shipped lenses — no vaporware.
-  // Cycle #377 — exit-rights lens joins the storefront.
+  // Cycle #379 — breach-notice lens joins the storefront.
   const lenses = ["Missing clauses", "Open terms", "Broken references", "Undefined terms",
                   "Undated obligations", "Execution check", "Obligation balance", "Figure check",
-                  "Notice mechanics", "Liability caps", "Exit rights"];
+                  "Notice mechanics", "Liability caps", "Exit rights", "Breach notice"];
   lenses.forEach(name => {
     assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
   });
@@ -17480,4 +17480,63 @@ test("exit rights: one-way walk-away rights speak up", () => {
     "the landing checklist advertises the new lens");
   assert.ok(appSrc.indexOf("polish: not all windows are equal") !== -1,
     "notice-window sanity ships inside the detector");
+});
+
+test("breach notice: leak-alert clocks are graded against the 72-hour norm", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectDataBreaches");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, clocked: clocked };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectDataBreaches };";
+  const { detectDataBreaches } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // Vague clock ("promptly") on a breach duty → named and challenged.
+  const vagueDoc = "The Processor shall maintain safeguards for all personal data it processes under this Agreement. In the event of a security incident affecting such personal data, Processor shall notify Client promptly after becoming aware of it.";
+  const vague = detectDataBreaches(vagueDoc);
+  assert.equal(vague.items.length, 1, "a weasel-word clock is flagged");
+  assert.match(vague.items[0].label, /romptly.*not a breach deadline/, "the weasel word is quoted in the headline");
+
+  // Slow but numeric clock ("within ten days") → graded against the norm.
+  const slowDoc = "Processor shall protect customer information with reasonable care throughout the term. Following confirmation of a data breach, Processor shall notify Client within ten business days of discovery thereof.";
+  const slow = detectDataBreaches(slowDoc);
+  assert.equal(slow.items.length, 1, "a day-count clock that exceeds 72 hours is flagged");
+  assert.match(slow.items[0].label, /within ten business days/, "the raw window is quoted");
+
+  // Proper 72-hour clause → quiet.
+  const goodDoc = "Processor applies technical measures to all personal data processed hereunder. If a data breach occurs, Processor shall notify Client within seventy-two hours of becoming aware.";
+  assert.equal(detectDataBreaches(goodDoc).items.length, 0, "a compliant clock never fires");
+
+  // Handles personal data but silent on breach alerts → missing provision.
+  const silentDoc = "The Company collects personal information from users of the service for billing and account administration purposes, and shares limited account records with payment processors as needed to complete transactions. The Company may engage additional vendors and subcontractors from time to time to assist with service delivery, hosting, and customer support operations across regions. Except as expressly stated elsewhere in this document, this Agreement governs the parties' respective roles, responsibilities, and expectations in full for the entire term stated above.";
+  const silent = detectDataBreaches(silentDoc);
+  assert.equal(silent.items.length, 1, "data-handling without alerting speaks up");
+  assert.match(silent.items[0].label, /Nothing promises to tell you/, "the missing-provision headline lands");
+  assert.equal(silent.items[0].start, -1, "…with no span to jump to");
+
+  // No data handling at all → fully quiet.
+  assert.equal(detectDataBreaches("Tenant shall pay rent on the first day of each month. Landlord may inspect the premises upon twenty-four hours notice.").items.length, 0,
+    "documents without data language stay quiet");
+
+  // Full house equipment ships.
+  assert.match(html, /id="breachBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="breachList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("breachBlock=$('#breachBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectDataBreaches === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-br-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_brWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Breach-notice language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#breachList .gap-label") !== -1 &&
+            appSrc.indexOf("Breach alerting (if data leaks)") !== -1,
+    "the printed brief includes the breach section");
+  assert.ok(appSrc.indexOf("'Pin the breach clock'") !== -1, "the sent ask list includes the breach ask");
+  assert.ok(indexHtml.indexOf("Breach notice") !== -1,
+    "the landing checklist advertises the new lens");
 });

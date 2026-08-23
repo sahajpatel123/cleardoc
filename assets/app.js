@@ -4497,6 +4497,7 @@
           noticeBlock=$('#noticeBlock'),noticeNote=$('#noticeNote'),noticeList=$('#noticeList'),
           liabBlock=$('#liabBlock'),liabNote=$('#liabNote'),liabList=$('#liabList'),
           termBlock=$('#termBlock'),termNote=$('#termNote'),termList=$('#termList'),
+          breachBlock=$('#breachBlock'),breachNote=$('#breachNote'),breachList=$('#breachList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -18308,6 +18309,141 @@
       }
     }
 
+    // Cycle #379 — breach alerting: if personal data leaks, how fast must
+    // the other side tell you? The 72-hour norm (GDPR) is the yardstick.
+    function detectDataBreaches(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, clocked: 0 };
+      const items = [];
+      let checked = 0;
+      // Only documents that actually handle data speak here; a lease
+      // with no privacy language stays quiet.
+      const HANDLES_RE = /\b(?:personal\s+(?:data|information|info)|personally\s+identifiable|\bpii\b|user\s+(?:data|information)|customer\s+(?:data|information)|confidential\s+information|data\s+(?:processing|protection)|privacy\b)/i;
+      const BREACH_RE = /\b(?:security\s+(?:breach|incident)|data\s+breach|breach\s+of\s+(?:the\s+)?(?:security|data)|unauthorized\s+(?:access|use|acquisition|disclosure))/i;
+      const TELL_RE = /\bnotif(?:y|ies|ied|ication)|\binform\b|\breport(?:s|ed)?\b|\bdisclose[ds]?\b/i;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      const NUM_WORDS = {
+        'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6, 'seven': 7,
+        'ten': 10, 'twelve': 12, 'fourteen': 14, 'fifteen': 15, 'twenty': 20,
+        'twenty four': 24, 'seventy two': 72, 'forty eight': 48,
+        'thirty': 30, 'forty five': 45, 'sixty': 60, 'ninety': 90,
+        'one hundred twenty': 120, 'one hundred and twenty': 120
+      };
+      const clockHoursOf = (seg) => {
+        // Returns { hours, raw } or null. Compound word-forms come before
+        // bare numbers so "twenty four" never parses as just "twenty".
+        const cm = seg.match(/\bwithin\s+(\d{1,3}|seventy[- ]?two|forty[- ]?eight|twenty[- ]?four|one\s+hundred\s+(?:and\s+)?twenty|two|three|four|five|six|seven|ten|twelve|fourteen|fifteen|twenty|thirty|forty[- ]?five|sixty|ninety)\s*(hours?|business\s+days?|days?)\b/i);
+        if(!cm) return null;
+        const key = cm[1].toLowerCase().replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+        let n;
+        if(/^\d{1,3}$/.test(key)) n = parseInt(key, 10);
+        else {
+          n = NUM_WORDS[key];
+          if(typeof n !== 'number') return null;
+        }
+        if(/day/i.test(cm[2])) n *= 24;
+        return { hours: n, raw: ('within ' + cm[1] + ' ' + cm[2]).toLowerCase().replace(/\s+/g, ' ') };
+      };
+      const VAGUE_RE = /\b(without\s+undue\s+delay|promptly|as\s+soon\s+as\s+practicable|expeditiously|in\s+a\s+timely\s+(?:manner|fashion))\b/i;
+      let hasBreachTalk = false;
+      let clocked = 0;
+      let firstGapAt = -1, firstGapLen = 0, firstGapKind = '', firstGapRaw = '';
+      segs.forEach(seg => {
+        if(!BREACH_RE.test(seg.t) || !TELL_RE.test(seg.t)) return;
+        checked++;
+        hasBreachTalk = true;
+        let gapKind = '', gapRaw = '';
+        const ch = clockHoursOf(seg.t);
+        if(ch){
+          if(ch.hours <= 72){ clocked++; return; }
+          gapKind = 'slow'; gapRaw = ch.raw;
+        } else {
+          const vm = seg.t.match(VAGUE_RE);
+          if(vm){ gapKind = 'vague'; gapRaw = vm[1].toLowerCase(); }
+          else { gapKind = 'none'; }
+        }
+        if(firstGapAt < 0){
+          firstGapAt = seg.at; firstGapLen = seg.t.length;
+          firstGapKind = gapKind; firstGapRaw = gapRaw;
+        }
+      });
+      if(HANDLES_RE.test(text) && !hasBreachTalk && text.length >= 500){
+        checked++;
+        items.push({
+          label: 'Nothing promises to tell you if your data leaks',
+          why: 'The document handles personal or confidential information but never says who alerts whom after a security incident — or how fast. Ask for it in writing: “Provider shall notify Client of any confirmed data breach within 72 hours of discovery.”',
+          start: -1,
+          end: -1
+        });
+      } else if(firstGapAt >= 0 && items.length < 4){
+        checked++;
+        const slowWhy = firstGapKind === 'slow'
+          ? 'It allows “' + firstGapRaw + '” before disclosure. The working standard for personal-data incidents is 72 hours or less — every extra day is evidence gone and exposure compounding. Ask to shorten it.'
+          : (firstGapKind === 'vague'
+            ? 'Alerting rides on “' + firstGapRaw + '”, which has no edge. A deadline you cannot count is a deadline they can argue about. Ask for a hard clock: “within 72 hours of discovery.”'
+            : 'A breach is described, but no notification deadline appears anywhere near it. Ask for one: “within 72 hours of discovery.”');
+        items.push({
+          label: firstGapKind === 'slow'
+            ? 'Too slow to admit a leak: “' + firstGapRaw + '”'
+            : (firstGapKind === 'vague'
+              ? '“' + firstGapRaw.charAt(0).toUpperCase() + firstGapRaw.slice(1) + '” is not a breach deadline'
+              : 'Breach talk with no deadline attached'),
+          why: slowWhy,
+          start: firstGapAt,
+          end: firstGapAt + firstGapLen
+        });
+      }
+      return { items: items.slice(0, 4), checked: checked, clocked: clocked };
+    }
+
+    function renderBreachBlock(result){
+      if(!breachBlock || !breachList || !result) return;
+      if(!result.items.length){ breachBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-br-start="' + Math.max(0, it.start) + '" data-br-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">🔔</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      breachList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' breach-notice sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.clocked + ' on the 72-hour standard</span></div>';
+      breachBlock.hidden = false;
+      if(breachNote){
+        breachNote.innerHTML = '<span class="riskNote-lead">If your data leaks</span> ' +
+          'When something spills, the clock matters as much as the cleanup. Seventy-two hours is the working norm for personal-data incidents; “promptly” is not a number.';
+      }
+      if(!breachList._brWired){
+        breachList._brWired = true;
+        const jumpToBreach = (row) => {
+          const s = parseInt(row.getAttribute('data-br-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-br-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Breach-notice language highlighted in your document');
+        };
+        breachList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-br-start]');
+          if(row) jumpToBreach(row);
+        });
+        breachList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-br-start]');
+          if(row){ e.preventDefault(); jumpToBreach(row); }
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -19448,6 +19584,12 @@
         renderTermBlock(detectTermRights(raw));
       } else if(termBlock) {
         termBlock.hidden = true;
+      }
+      // Cycle #379 — breach alerting: how fast must a leak reach you.
+      if(breachBlock && typeof detectDataBreaches === 'function'){
+        renderBreachBlock(detectDataBreaches(raw));
+      } else if(breachBlock) {
+        breachBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
@@ -23175,6 +23317,7 @@
         // Cycle #375 — liability symmetry does as well.
         addSection('Cap the liability', 'Ask for a mutual ceiling: ', readAll('#liabList .gap-label', 4));
         addSection('Make the exit mutual', 'Ask for an even way out: ', readAll('#termList .gap-label', 4));
+        addSection('Pin the breach clock', 'Ask for a hard deadline to be told about leaks: ', readAll('#breachList .gap-label', 4));
         if(!sections.length) return null;
         const fp = (_fpState && _fpState.short) ? _fpState.short : '';
         const mdLines = ['# My negotiation asks', '',
@@ -23709,6 +23852,12 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          const breachLines = (function(){
+            const rows = document.querySelectorAll('#breachList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -23740,6 +23889,7 @@
               (noticeLines ? '<div class="cheat-section"><div class="cheat-section-title">Notice mechanics (how it becomes official)</div><ul style="padding-left:18px;margin:0">' + noticeLines + '</ul></div>' : '') +
               (liabLines ? '<div class="cheat-section"><div class="cheat-section-title">Liability symmetry (who carries the risk)</div><ul style="padding-left:18px;margin:0">' + liabLines + '</ul></div>' : '') +
               (termLines ? '<div class="cheat-section"><div class="cheat-section-title">Exit rights (who can end this)</div><ul style="padding-left:18px;margin:0">' + termLines + '</ul></div>' : '') +
+              (breachLines ? '<div class="cheat-section"><div class="cheat-section-title">Breach alerting (if data leaks)</div><ul style="padding-left:18px;margin:0">' + breachLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +
