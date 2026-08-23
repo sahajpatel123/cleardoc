@@ -17445,6 +17445,16 @@ test("exit rights: one-way walk-away rights speak up", () => {
   assert.equal(wordy.items.length, 1, "the word-number exit still fires");
   assert.match(wordy.items[0].why, /sixty days/, "spelled-out windows are read");
 
+  // Cycle #378 — polish: window quality is spoken to, not just quoted.
+  const shortDoc = "Company may terminate this Agreement for convenience upon 5 days' prior written notice during the term. Consultant shall deliver all work product pursuant to the schedule attached hereto.";
+  const shorty = detectTermRights(shortDoc);
+  assert.equal(shorty.items.length, 1, "the short-window exit still fires");
+  assert.match(shorty.items[0].why, /almost no warning/, "a five-day walk-away is called out as such");
+  const nowinDoc = "The Client may terminate this Agreement at any time and for any reason whatsoever. The Provider shall perform all obligations through the end of the then-current term.";
+  const nowin = detectTermRights(nowinDoc);
+  assert.equal(nowin.items.length, 1, "the windowless exit still fires");
+  assert.match(nowin.items[0].why, /no notice period stated/, "an unstated window says so plainly");
+
   // Mutual convenience: quiet.
   const mutual = detectTermRights("Either party may terminate this Agreement for convenience upon sixty days' written notice. The parties shall continue performing during the notice period.");
   assert.equal(mutual.items.length, 0, "mutual exits never fire");
@@ -17468,4 +17478,6 @@ test("exit rights: one-way walk-away rights speak up", () => {
   assert.ok(appSrc.indexOf("'Make the exit mutual'") !== -1, "the sent ask list includes exit asks");
   assert.ok(indexHtml.indexOf("Exit rights") !== -1,
     "the landing checklist advertises the new lens");
+  assert.ok(appSrc.indexOf("polish: not all windows are equal") !== -1,
+    "notice-window sanity ships inside the detector");
 });

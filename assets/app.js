@@ -18238,9 +18238,24 @@
       // and no either-party language softens it anywhere.
       if(!mutualExit && exits.length === 1 && firstAt >= 0){
         checked++;
+        // Cycle #378 — polish: not all windows are equal. A walk-away on
+        // five days' notice (or none stated) strands the other side
+        // mid-job; say so instead of reporting the window neutrally.
+        const DAYS_WORD = { ten: 10, fifteen: 15, twenty: 20, thirty: 30, 'forty five': 45, sixty: 60, ninety: 90 };
+        const daysIn = (w) => {
+          if(!w) return -1;
+          const key = String(w).replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+          const d = key.match(/^(\d{1,3})\b/);
+          if(d) return parseInt(d[1], 10);
+          return typeof DAYS_WORD[key] === 'number' ? DAYS_WORD[key] : -1;
+        };
+        const dn = daysIn(firstNotice);
+        const sharp = (dn >= 0 && dn <= 7)
+          ? ' — that is almost no warning; you can be dropped mid-job'
+          : (dn < 0 ? ', with no notice period stated at all' : '');
         items.push({
           label: 'Only “' + exits[0].raw + '” can walk away without cause',
-          why: 'The convenience exit belongs to one side' + (firstNotice ? ', on ' + firstNotice : '') + '. The other party is locked in until the term runs out. Ask to make it even — “either party may terminate for convenience on ' + (firstNotice || '30 days’ written notice') + '.”',
+          why: 'The convenience exit belongs to one side' + (firstNotice ? ', on ' + firstNotice : '') + sharp + '. The other party is locked in until the term runs out. Ask to make it even — “either party may terminate for convenience on ' + (firstNotice || '30 days’ written notice') + '.”',
           start: firstAt,
           end: firstAt + firstLen
         });
