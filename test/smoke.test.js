@@ -17691,7 +17691,7 @@ test("insurance duties: coverage promises without numbers speak up", () => {
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
 
   const start = appSrc.indexOf("function detectInsurance");
-  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, duties: dutyCount };", start);
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, duties: dutyCount, stated: statedCount };", start);
   assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
   const endMark = "\n    }";
   const end = appSrc.indexOf(endMark, retAt);
@@ -17704,9 +17704,16 @@ test("insurance duties: coverage promises without numbers speak up", () => {
   const openDoc = "Contractor shall maintain adequate insurance covering its obligations under this Agreement throughout the term. Client shall provide workspace access during normal business hours.";
   const openIns = detectInsurance(openDoc);
   assert.equal(openIns.items.length, 1, "an unnumbered coverage duty is flagged");
-  assert.match(openIns.items[0].label, /no number attached/, "the headline names the gap");
+  assert.match(openIns.items[0].label, /Contractor.*no number attached/, "the headline names the carrier and the gap");
   assert.match(openIns.items[0].why, /per occurrence/, "…and supplies a concrete ask");
   assert.ok(typeof openIns.items[0].start === "number", "…and points at the sentence");
+
+  // Cycle #386 — polish: stated-limit tally survives mixed documents.
+  const mixedDoc = "Contractor shall maintain commercial general liability insurance of not less than $1,000,000 per occurrence during the term. Contractor shall also maintain adequate professional liability insurance covering errors in the services.";
+  const mixed = detectInsurance(mixedDoc);
+  assert.equal(mixed.duties, 2, "both duties are counted");
+  assert.equal(mixed.stated, 1, "the numbered duty is tallied");
+  assert.equal(mixed.items.length, 1, "the unnumbered sibling still fires");
 
   // Stated limits (dollar figure or floor phrase) stay quiet.
   const statedDoc = "Contractor shall maintain commercial general liability insurance of not less than $1,000,000 per occurrence during the term. Client shall pay undisputed invoices within thirty days of receipt.";
@@ -17738,4 +17745,8 @@ test("insurance duties: coverage promises without numbers speak up", () => {
   assert.ok(appSrc.indexOf("'Pin down the insurance numbers'") !== -1, "the sent ask list includes the insurance ask");
   assert.ok(indexHtml.indexOf("Insurance") !== -1,
     "the landing checklist advertises the new lens");
+  assert.ok(appSrc.indexOf("polish: name the carrier") !== -1,
+    "carrier attribution ships inside the detector");
+  assert.ok(appSrc.indexOf("with stated limits") !== -1,
+    "the count line tallies numbered duties");
 });

@@ -18708,7 +18708,9 @@
     // is a promise to argue later. "Adequate" is whatever a court says.
     function detectInsurance(raw){
       const text = String(raw || '');
-      if(!text) return { items: [], checked: 0, duties: 0 };
+      if(!text) return { items: [], checked: 0, duties: 0, stated: 0 };
+      const normName = (s) => String(s || '').toLowerCase().replace(/\bthe\b/g, ' ')
+        .replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
       const items = [];
       let checked = 0;
       const segs = [];
@@ -18720,25 +18722,37 @@
       // limit vocabulary — anything countable beats "adequate".
       const STATED_RE = /\$\s?\d[\d,]{2,}|\bnot\s+less\s+than\b|\blimits?\s+of\b|\bper\s+occurrence\b|\bper\s+claim\b|\bcombined\s+single\s+limit\b/i;
       const MUTUAL_RE = /\b(?:each|either|both)\s+part(?:y|ies)\b/i;
-      let dutyCount = 0;
-      let firstGapAt = -1, firstGapLen = 0;
+      // Cycle #386 — polish: name the carrier. Every sibling lens names
+      // its party; an unnumbered duty should point at whoever owes it.
+      const partyOf = (seg) => {
+        const pm = seg.match(/\b([A-Z][A-Za-z&-]*(?:\s+[A-Z][A-Za-z&-]*){0,3})\s+(?:shall|must|will|agrees? to)\s+(?:maintain|carry|procure|obtain)\b/i);
+        return pm ? { n: normName(pm[1]), raw: pm[1].trim().replace(/[.,]$/, '') } : null;
+      };
+      let dutyCount = 0, statedCount = 0;
+      let firstGapAt = -1, firstGapLen = 0, firstParty = null;
       segs.forEach(seg => {
         if(!DUTY_RE.test(seg.t)) return;
         checked++;
         dutyCount++;
-        if(STATED_RE.test(seg.t) || MUTUAL_RE.test(seg.t)) return;
-        if(firstGapAt < 0){ firstGapAt = seg.at; firstGapLen = seg.t.length; }
+        const hasStated = STATED_RE.test(seg.t);
+        if(hasStated) statedCount++;
+        if(hasStated || MUTUAL_RE.test(seg.t)) return;
+        if(firstGapAt < 0){
+          firstGapAt = seg.at; firstGapLen = seg.t.length; firstParty = partyOf(seg.t);
+        }
       });
       if(firstGapAt >= 0){
         checked++;
         items.push({
-          label: 'An insurance duty with no number attached',
+          label: (firstParty && firstParty.n.length >= 4)
+            ? ('“' + firstParty.raw + '” owes coverage with no number attached')
+            : 'An insurance duty with no number attached',
           why: 'Someone must carry coverage, but no limit is stated — “adequate” or “sufficient” is whatever a dispute decides later. Ask for the figure: “commercial general liability insurance of not less than $1,000,000 per occurrence,” with certificates available on request.',
           start: firstGapAt,
           end: firstGapAt + firstGapLen
         });
       }
-      return { items: items.slice(0, 4), checked: checked, duties: dutyCount };
+      return { items: items.slice(0, 4), checked: checked, duties: dutyCount, stated: statedCount };
     }
 
     function renderInsBlock(result){
@@ -18759,7 +18773,8 @@
       insList.innerHTML = rows +
         '<div class="gap-controls"><span class="gap-count">' +
         result.checked + ' insurance sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
-        result.duties + ' dut' + (result.duties === 1 ? 'y' : 'ies') + ' found</span></div>';
+        result.duties + ' dut' + (result.duties === 1 ? 'y' : 'ies') + ' found' +
+        (result.duties > 0 ? ' · ' + result.stated + ' with stated limits' : '') + '</span></div>';
       insBlock.hidden = false;
       if(insNote){
         insNote.innerHTML = '<span class="riskNote-lead">Who carries the coverage</span> ' +
