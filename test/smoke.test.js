@@ -16720,11 +16720,13 @@ test("ask list: button exists, reads every lens in rank order, copies as asks", 
   // Ranking: execution problems are read before missing clauses, which are
   // read before open terms (source order of addSection calls). Figures —
   // a correctness issue — outrank posture asks like rebalancing.
-  const sigRead = appSrc.indexOf("'#sigList .gap-label'");
-  const gapRead = appSrc.indexOf("'#gapList .gap-label'");
-  const openRead = appSrc.indexOf("'#openTermsList .gap-label'");
-  const figuresRead = appSrc.indexOf("'#figuresList .gap-label'", appSrc.indexOf("getElementById('askListBtn')"));
-  const balanceRead = appSrc.indexOf("'#balanceList .gap-label'", appSrc.indexOf("getElementById('askListBtn')"));
+  const builderAt = appSrc.indexOf("const buildAskListMd");
+  assert.ok(builderAt > 0, "the shared builder exists to order");
+  const sigRead = appSrc.indexOf("'#sigList .gap-label'", builderAt);
+  const gapRead = appSrc.indexOf("'#gapList .gap-label'", builderAt);
+  const openRead = appSrc.indexOf("'#openTermsList .gap-label'", builderAt);
+  const figuresRead = appSrc.indexOf("'#figuresList .gap-label'", builderAt);
+  const balanceRead = appSrc.indexOf("'#balanceList .gap-label'", builderAt);
   assert.ok(sigRead < gapRead && gapRead < openRead, "deal-breakers rank first in build order");
   assert.ok(figuresRead < balanceRead, "correctness asks outrank workload-posture asks");
 
@@ -16736,6 +16738,22 @@ test("ask list: button exists, reads every lens in rank order, copies as asks", 
   assert.match(appSrc, /'Fix reference: '/, "broken refs become repair asks");
   assert.match(appSrc, /words and digits agree/, "figure splits become correction asks");
   assert.match(appSrc, /Rebalance these duties/, "load imbalance becomes a rebalancing ask");
+
+  // Cycle #365 — the same builder feeds a pre-filled email draft.
+  assert.match(html, /id="askEmailBtn"[^>]*hidden/, "the email button ships hidden beside copy");
+  const askCopyAt = html.indexOf('id="askListBtn"');
+  const askEmailAt = html.indexOf('id="askEmailBtn"');
+  assert.ok(askEmailAt > askCopyAt && askEmailAt - askCopyAt < 300, "email sits with its copy sibling");
+  assert.match(appSrc, /buildAskListMd/, "one shared builder behind both doors");
+  assert.match(appSrc, /getElementById\('askEmailBtn'\)/, "app wires the email button");
+  assert.match(appSrc, /_aeWired/, "email wiring is once-guarded");
+  assert.match(appSrc, /mailto:\?subject=' \+ encodeURIComponent\('My negotiation asks \(ClearDoc\)'\)/,
+    "the draft carries a ClearDoc subject");
+  const buildFnAt = appSrc.indexOf("const buildAskListMd");
+  const copyWiredAt = appSrc.indexOf("_alWired", appSrc.indexOf("getElementById('askListBtn')"));
+  const emailWiredAt = appSrc.indexOf("_aeWired");
+  assert.ok(buildFnAt > 0 && copyWiredAt > buildFnAt && emailWiredAt > buildFnAt,
+    "both buttons consume the shared builder — no duplicated list logic");
 
   // Header carries provenance; copy uses the house clipboard pattern.
   assert.match(appSrc, /'# My negotiation asks'/, "markdown header present");
@@ -16754,7 +16772,7 @@ test("ask list: button exists, reads every lens in rank order, copies as asks", 
   assert.match(appSrc, /title: 'Start here'/, "the headline demand gets its own first section");
   assert.match(appSrc, /' \+ s2\.lines\.length/, "section headings carry item counts");
   const startHereAt = appSrc.indexOf("title: 'Start here'");
-  const sigSectionAt = appSrc.indexOf("'#sigList .gap-label'", appSrc.indexOf("getElementById('askListBtn')"));
+  const sigSectionAt = appSrc.indexOf("'#sigList .gap-label'", appSrc.indexOf("const buildAskListMd"));
   assert.ok(startHereAt > 0 && sigSectionAt > startHereAt,
     "'Start here' is built before any category section — it ranks first");
 });

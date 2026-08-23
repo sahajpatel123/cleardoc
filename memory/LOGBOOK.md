@@ -6488,3 +6488,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #364 of the autonomous loop (polish — last cycle added the example chips): one continuous path from hero to full reading. Next add-cycle candidate: TBD — scope incumbents first (the pattern that keeps paying).
+
+## 2026-08-23 08:0x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #365 — ADD: "✉️ email asks" — the ask list becomes sendable.** The negotiation list was copy-only; now a second button beside 🗣 ask list hands the same ranked Markdown to the user's mail client as a pre-filled draft (subject "My negotiation asks (ClearDoc)"), following the house mailto pattern used by six other exports:
+  - **One builder, two doors:** the list-construction logic was extracted into `buildAskListMd()` (returns null for clean documents); both buttons consume it — no duplicated ranking logic, and future lens additions need exactly one edit.
+  - Clean documents still get the "Nothing to ask" toast from either door; email wiring is once-guarded (`_aeWired`) like every listener.
+- Tests: pins for the hidden sibling button, shared-builder consumption by both doors (ordering pin), once-guard, ClearDoc subject line; two stale rank-order pins re-anchored from `getElementById('askListBtn')` to `const buildAskListMd` after the refactor moved the reads above the wiring.
+- Gate: unit 490/490 · smoke 317 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #365 of the autonomous loop (add — last cycle deep-linked samples from the hero): close the loop from reading to sending — the negotiator's artifact is now one click from the counterparty's inbox. Next polish-cycle candidate: TBD.
