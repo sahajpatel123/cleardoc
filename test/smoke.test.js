@@ -18067,6 +18067,12 @@ test("indemnity: who covers whose losses speaks up", () => {
   assert.doesNotMatch(narrow.items[0].why, /howsoever caused/,
     "…without overstating its breadth");
 
+  // Cycle #394 — polish: fault-bounded duties get credit for it.
+  assert.match(narrow.items[0].why, /bounded to losses that party actually causes/,
+    "the fairer shape is acknowledged");
+  assert.doesNotMatch(broad.items[0].why, /fairer shape/,
+    "…while broad scopes earn no such credit");
+
   // Mutual indemnities are ordinary risk-sharing.
   const mutual = detectIndemnity("Each party shall indemnify and hold harmless the other party against third-party claims to the extent caused by the indemnifying party's negligence.");
   assert.equal(mutual.items.length, 0, "mutual indemnity never fires");
@@ -18090,4 +18096,6 @@ test("indemnity: who covers whose losses speaks up", () => {
   assert.ok(appSrc.indexOf("'Make indemnity mutual'") !== -1, "the sent ask list includes the indemnity ask");
   assert.ok(indexHtml.indexOf("Indemnity") !== -1,
     "the landing checklist advertises the new lens");
+  assert.ok(appSrc.indexOf("polish: credit fault-bounded indemnities") !== -1,
+    "the fault-bounded grading ships inside the detector");
 });

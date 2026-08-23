@@ -19196,7 +19196,11 @@
       // Breadth grading: "any and all claims howsoever caused" is a
       // different universe from "claims arising from X's own negligence".
       const BROAD_RE = /\bany\s+and\s+all\b|\bhowsoever\s+caused\b|\bincluding\s+(?:all\s+)?(?:attorneys?['’]?|legal)\s*fees\b|\bincluding[^.;]{0,60}\bharmlessness\b|\bwithout\s+limitation\b|\bwhatsoever\b/i;
-      let payerParty = null, firstAt = -1, firstLen = 0, broadScope = false;
+      // Cycle #394 — polish: credit fault-bounded indemnities. A duty
+      // limited to losses the payer actually causes is ordinary
+      // risk-sharing, not an open checkbook.
+      const FAULT_NEAR = /\bto\s+the\s+extent\b|\bin\s+proportion\s+to\b|\bsolely\s+(?:from|to\s+the\s+extent)\b|\barising\s+(?:out\s+of|from)\s+[^.;]{0,50}\bnegligen/i;
+      let payerParty = null, firstAt = -1, firstLen = 0, broadScope = false, faultBounded = false;
       segs.forEach(seg => {
         if(!INDEMN_RE.test(seg.t)) return;
         checked++;
@@ -19206,6 +19210,7 @@
         if(!p || p.n.length < 4) return;
         payerParty = p; firstAt = seg.at; firstLen = seg.t.length;
         broadScope = BROAD_RE.test(seg.t);
+        faultBounded = FAULT_NEAR.test(seg.t);
       });
       if(firstAt >= 0){
         checked++;
@@ -19214,6 +19219,7 @@
           label: '“' + who + '” covers the other side’s losses',
           why: 'An indemnity makes “' + who + '” pay for the other party’s legal battles' +
             (broadScope ? ' — “any and all”, however caused, legal fees included — before any court decides who was actually at fault.' : '.') +
+            (faultBounded && !broadScope ? ' This one is bounded to losses that party actually causes — the fairer shape.' : '') +
             ' Ask for a mutual indemnity capped at the value of the contract, excluding gross negligence and willful misconduct.',
           start: firstAt,
           end: firstAt + firstLen
