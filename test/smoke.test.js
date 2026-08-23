@@ -16776,7 +16776,7 @@ test("docx: real zip buffers extract to plain text", async () => {
   const start = appSrc.indexOf("async function extractDocxText");
   assert.ok(start >= 0, "the docx extractor must exist");
   const endMark = "\n    }";
-  const tEnd = appSrc.indexOf(endMark, appSrc.indexOf("return lines.join", start));
+  const tEnd = appSrc.indexOf(endMark, appSrc.indexOf("return lines.filter", start));
   assert.ok(tEnd > start, "both docx helpers must be present to extract");
   const src = appSrc.slice(start, tEnd + endMark.length) + "\n return { extractDocxText };";
   const { extractDocxText } = new Function(src)();
@@ -16827,7 +16827,10 @@ test("docx: real zip buffers extract to plain text", async () => {
   const xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
     '<w:p><w:r><w:t xml:space="preserve">Consulting services shall begin</w:t></w:r></w:p>' +
-    '<w:p><w:r><w:t>on the Effective Date &amp; continue for one year.</w:t></w:r></w:p>' +
+    // Cycle #370 — field codes and tracked deletions must NOT leak.
+    '<w:p><w:r><w:instrText>TOC \\h \\z \\u</w:instrText></w:r></w:p>' +
+    '<w:p><w:r><w:delText>struck from the record entirely</w:delText>' +
+    '<w:r><w:t>on the Effective Date &amp; continue for one year.</w:t></w:r></w:p>' +
     '</w:body></w:document>';
   const expected = "Consulting services shall begin\non the Effective Date & continue for one year.";
 
@@ -16835,6 +16838,12 @@ test("docx: real zip buffers extract to plain text", async () => {
     "deflate entries inflate through DecompressionStream and strip to paragraphs");
   assert.equal(await extractDocxText(toAb(makeZip(xml, 0))), expected,
     "stored entries read straight out of the archive");
+  assert.ok(!/TOC|PAGEREF|struck from the record/.test(expected),
+    "invisible text never reaches the extracted corpus");
+  assert.match(appSrc, /<w:instrText\[\\s\\S\]\*\?<\\\/w:instrText>/,
+    "field instruction runs are stripped");
+  assert.match(appSrc, /<w:delText\[\\s\\S\]\*\?<\\\/w:delText>/,
+    "tracked-change deletions are stripped");
 
   // Structural: routing, guard, fallback copy, and the advertised formats.
   assert.ok(appSrc.indexOf(".docx$/i.test(n)) readDocx(file,chip)") !== -1,

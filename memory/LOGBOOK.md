@@ -6549,3 +6549,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #369 of the autonomous loop (add — last cycle made wrong-entity findings name their twin): the advertised formats now actually work, on-device. Next cycle #370 is POLISH — candidates: DOCX edge polish (headers/footers text, w:instrText noise), or another surface TBD with scope-first grep.
+
+## 2026-08-23 08:5x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #370 — POLISH: the DOCX reader drops what Word never renders.** Field-instruction runs ("TOC \h \z \u", "PAGEREF _Toc1") and tracked-change deletions live as element CONTENT in word/document.xml, so the tag-stripper leaked them into the contract text:
+  - `<w:instrText>` and `<w:delText>` contents stripped before tag removal.
+  - Paragraphs left empty by that stripping no longer linger as stray blank lines (`lines.filter(Boolean)`).
+- Tests: fixture extended with a TOC field and a delText run — exact-output asserts prove neither reaches the corpus while surrounding real text survives; pins for both strip patterns; extraction anchor updated after the join-line change (caught by the suite).
+- Gate: unit 490/490 · smoke 320 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #370 of the autonomous loop (polish — last cycle added DOCX extraction): the reader now extracts the document a human actually sees. Next cycle #371 is ADD — candidates TBD with scope-incumbents-first grep.

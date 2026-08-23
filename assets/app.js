@@ -27600,9 +27600,13 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       throw new Error('word/document.xml not found');
     }
     function docxXmlToText(xml){
-      // Paragraph and line breaks become newlines BEFORE tags are stripped,
-      // so the text runs between them stay glued together as words.
+      // Cycle #370 — polish: drop text that Word never renders. Field
+      // instructions ("TOC \h", "PAGEREF _Toc1") and tracked-change
+      // deletions live as element CONTENT, so the plain tag-stripper
+      // below would leak them into the contract text.
       const s = String(xml || '')
+        .replace(/<w:instrText[\s\S]*?<\/w:instrText>/g, '')
+        .replace(/<w:delText[\s\S]*?<\/w:delText>/g, '')
         .replace(/<w:br\b[^>]*\/?>/g, '\n')
         .replace(/<w:tab\b[^>]*\/?>/g, '\t')
         .replace(/<\/w:p>/g, '\n')
@@ -27612,7 +27616,9 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
         .replace(/&#(\d+);/g, (_, d) => { try { return String.fromCodePoint(parseInt(d, 10)); } catch(_){ return ''; } })
         .replace(/&amp;|&lt;|&gt;|&quot;|&apos;/g, m => ents[m])
         .replace(/[ \t]+/g, ' ').trim());
-      return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+      // Cycle #370 — paragraphs that held only invisible text would
+      // otherwise linger as stray blank lines; drop them.
+      return lines.filter(Boolean).join('\n').replace(/\n{3,}/g, '\n\n').trim();
     }
     async function readDocx(file,chip){
       if(typeof DecompressionStream === 'undefined'){
