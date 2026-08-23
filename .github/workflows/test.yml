@@ -73,8 +73,11 @@ jobs:
         # (macOS-only, optional) is excluded from Linux CI.
         run: npm ci --no-audit --no-fund --ignore-scripts
 
-      - name: Audit dependencies for vulnerabilities
-        run: npm audit --audit-level=high --no-fund
+      - name: Audit production dependencies for vulnerabilities (blocking)
+        # Blocking gate scoped to runtime deps (--omit=dev) — the same policy
+        # the Security workflow enforces. Dev-only vulnerabilities surface
+        # through the advisory steps below instead of reddening Tests.
+        run: npm audit --audit-level=high --omit=dev --no-fund
 
       - name: Audit dependencies for moderate vulnerabilities (advisory)
         # Non-blocking: surfaces moderate+ vulnerabilities early in the
