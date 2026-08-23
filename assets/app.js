@@ -17568,7 +17568,14 @@
       // lines AND at least one that matches a named party.
       const normName = (s) => String(s || '').toLowerCase().replace(/\bthe\b/g, ' ')
         .replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
-      const parties = [];
+      const parties = [];        // normalized keys for matching
+      const partyRaw = [];       // original casing for display (Cycle #368)
+      const pushParty = (raw) => {
+        const n = normName(raw);
+        if(!n || parties.indexOf(n) !== -1 || parties.length >= 8) return;
+        parties.push(n);
+        partyRaw.push(String(raw).trim().replace(/[.,;:]+$/, ''));
+      };
       // (a) The between/among line — cut at the first sentence break so
       // the recitals don't leak in; split on "and" first (commas live
       // inside entity names like "Acme Labs, Inc."), comma as fallback.
@@ -17578,7 +17585,8 @@
         let chunks = seg.split(/\s+and\s+/i).map(s => s.trim()).filter(Boolean);
         if(chunks.length < 2) chunks = seg.split(/,/).map(s => s.trim()).filter(Boolean);
         if(chunks.length >= 2){
-          parties.push(normName(chunks[0]), normName(chunks[chunks.length - 1]));
+          pushParty(chunks[0]);
+          pushParty(chunks[chunks.length - 1]);
         }
       }
       // (b) Quoted names near the top are defined parties ("the "Client"").
@@ -17586,13 +17594,28 @@
       const qre = /["“]([A-Z][A-Za-z0-9&.,' -]{2,60})["”]/g;
       let qm;
       while((qm = qre.exec(head)) !== null && parties.length < 8){
-        parties.push(normName(qm[1]));
+        pushParty(qm[1]);
       }
       if(parties.length && slots.length >= 2){
         const isMatch = (label) => {
           const n = normName(label);
           if(n.length < 3) return true;               // too short to judge — stay quiet
           return parties.some(p => p && (p.indexOf(n) !== -1 || n.indexOf(p) !== -1));
+        };
+        // Cycle #368 — polish: when an impostor name shares distinctive
+        // words with a real party ("Acme Labs Holdings LLC" vs "Acme Labs
+        // Inc"), say which one it resembles — that's not a stranger, it's
+        // a swap. Tokens of 4+ chars keep "inc"/"llc" noise out.
+        const tokensOf = (n) => String(n || '').split(' ').filter(w => w.length >= 4);
+        const resemble = (label) => {
+          const lt = tokensOf(normName(label));
+          if(!lt.length) return null;
+          let best = null;
+          parties.forEach((p, i) => {
+            const shared = lt.filter(w => tokensOf(p).indexOf(w) !== -1).length;
+            if(shared > 0 && (!best || shared > best.shared)) best = { i, shared };
+          });
+          return best ? partyRaw[best.i] : null;
         };
         if(slots.some(s => isMatch(s.label))){
           slots.filter(s => !isMatch(s.label)).slice(0, 2).forEach(s => {
@@ -17605,9 +17628,12 @@
               while(re.exec(text) !== null){ n++; if(n > 1){ elsewhere = true; break; } }
             } catch(_){ /* ignore */ }
             if(elsewhere) return;
+            const close = resemble(s.label);
             items.push({
               label: '“' + s.label + '” signs, but no party by that name appears in the document',
-              why: 'The agreement introduces its parties up top, yet this line names someone else. Ask which entity is actually bound — signing with a differently named (or empty) entity can leave you holding a promise no one can keep.',
+              why: 'The agreement introduces its parties up top, yet this line names someone else. Ask which entity is actually bound — signing with a differently named (or empty) entity can leave you holding a promise no one can keep.' +
+                (close ? ' It looks close to “' + close + '” — confirm which entity actually means to be bound.' : '') +
+                (partyRaw.length ? ' The document names: ' + partyRaw.slice(0, 3).join(' · ') + '.' : ''),
               start: s.start,
               end: s.end
             });

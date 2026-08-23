@@ -16741,11 +16741,29 @@ test("signatures: foreign-entity signing lines get called out", () => {
   ].join("\n"));
   assert.equal(quiet.count, 0, "entities the document actually introduces are never flagged");
 
+  // Cycle #368 — polish: a near-miss name points at its twin.
+  const swap = detectSignatures([
+    "This Agreement is made between Acme Labs Inc and Jane Doe Consulting.",
+    "Consulting services shall be provided as described herein.",
+    "Acme Labs Inc: ____________________",
+    "Jane Doe Consulting: ____________________",
+    "Acme Labs Holdings LLC: ____________________",
+    "Date: ____________"
+  ].join("\n"));
+  assert.equal(swap.count, 1, "the near-miss entity is still flagged");
+  assert.match(swap.items[0].why, /looks close to “Acme Labs Inc”/,
+    "the finding names the party it resembles");
+  assert.match(swap.items[0].why, /The document names: Acme Labs Inc · Jane Doe Consulting\./,
+    "…and lists who the document does introduce");
+
   // Structural: the copy and the guards ship.
   assert.match(appSrc, /Cycle #367 — wrong-entity check/, "the check is annotated");
+  assert.match(appSrc, /Cycle #368 — polish/, "the resemblance layer is annotated");
   assert.match(appSrc, /signs, but no party by that name/, "finding copy exists");
   assert.match(appSrc, /const n = normName\(label\)/, "name normalization gates every comparison");
-  assert.match(appSrc, /parties\.length < 8/, "the party harvest is capped");
+  assert.match(appSrc, /parties\.length < 8|parties\.length >= 8/, "the party harvest is capped");
+  assert.match(appSrc, /w\.length >= 4/, "token filter keeps inc/llc noise out of resemblances");
+  assert.match(appSrc, /partyRaw\.slice\(0, 3\)/, "the introduced-names list is capped");
 });
 
 // Cycle #355 — "My asks": one button consolidates every lens's findings

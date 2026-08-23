@@ -6526,3 +6526,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #367 of the autonomous loop (add — last cycle guided sample readings): execution check now guards against signing with someone the contract never introduced. Next cycle #368 is POLISH of this feature — candidates: party-name harvest hardening (e.g., "by and between", "between … of even date"), or a per-finding "who is this?" hint row polish.
+
+## 2026-08-23 08:3x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #368 — POLISH: the wrong-entity check names the twin.** #367 flagged impostor signature lines as fully foreign; but "Acme Labs Holdings LLC" isn't a stranger — it's a swap of "Acme Labs Inc". Now:
+  - **Resemblance layer:** flagged labels sharing distinctive tokens (4+ chars, so inc/llc noise stays out) with an introduced party get "It looks close to "Acme Labs Inc" — confirm which entity actually means to be bound."
+  - **Introduced-names list:** every finding ends with "The document names: Acme Labs Inc · Jane Doe Consulting." (capped at 3, original casing preserved via a partyRaw parallel array, trailing punctuation stripped, deduped by normalized key through pushParty).
+- Tests: new behavioral corpus (near-miss entity still flagged + resemblance copy + introduced-list exact match); structural pins (annotation, token filter, cap). All #367 corpora re-verified against the enriched why.
+- Gate: unit 490/490 · smoke 319 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #368 of the autonomous loop (polish — last cycle added the wrong-entity check): findings now explain themselves instead of just alarming. Next cycle #369 is ADD — candidates TBD with scope-incumbents-first grep.
