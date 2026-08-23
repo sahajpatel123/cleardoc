@@ -17065,10 +17065,10 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
   assert.match(html, /id="checksTitle"/, "it is labelled for assistive tech");
 
   // The grid advertises exactly the shipped lenses — no vaporware.
-  // Cycle #379 — breach-notice lens joins the storefront.
+  // Cycle #381 — money-timing lens joins the storefront.
   const lenses = ["Missing clauses", "Open terms", "Broken references", "Undefined terms",
                   "Undated obligations", "Execution check", "Obligation balance", "Figure check",
-                  "Notice mechanics", "Liability caps", "Exit rights", "Breach notice"];
+                  "Notice mechanics", "Liability caps", "Exit rights", "Breach notice", "Money timing"];
   lenses.forEach(name => {
     assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
   });
@@ -17551,4 +17551,62 @@ test("breach notice: leak-alert clocks are graded against the 72-hour norm", () 
     "the landing checklist advertises the new lens");
   assert.ok(appSrc.indexOf("polish: parenthesized duplicates") !== -1,
     "paren-tolerant clock parsing ships inside the detector");
+});
+
+test("money timing: lopsided payment clocks and one-way late fees speak up", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectPayFlow");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, flows: flows.length };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectPayFlow };";
+  const { detectPayFlow } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // Two named payers a month apart → the gap is the finding.
+  const gapDoc = "Client shall pay all undisputed invoices within 15 days of receipt under this Agreement. Provider shall refund approved expense overpayments within 60 days of the written request therefor.";
+  const gap = detectPayFlow(gapDoc);
+  assert.equal(gap.items.length, 1, "a month-wide clock gap is flagged");
+  assert.match(gap.items[0].label, /two very different clocks/, "the headline names the shape");
+  assert.match(gap.items[0].why, /within 15 days/, "the fast clock is quoted");
+  assert.match(gap.items[0].why, /gets 60/, "the slow clock is quoted");
+  assert.ok(typeof gap.items[0].start === "number", "…and points at the slower sentence");
+
+  // Late fees touching exactly one of two payers → one-way cost.
+  const intDoc = "Client shall pay late interest at one percent per month on any amounts past due under this Agreement. Provider shall refund approved overpayments within 45 days of the written request without interest.";
+  const inty = detectPayFlow(intDoc);
+  assert.equal(inty.items.length, 1, "one-way interest is flagged");
+  assert.match(inty.items[0].label, /Being late only costs .Client/, "the paying party is named");
+  assert.match(inty.items[0].why, /without interest|owe nothing/, "the free rider is exposed too");
+  // The clock-gap verdict stays quiet here (only one clock exists).
+  assert.doesNotMatch(inty.items[0].label, /clocks/, "no fake gap verdict on a single clock");
+
+  // Matched clocks and no one-way interest → quiet.
+  const even = detectPayFlow("Client shall pay undisputed invoices within 30 days of receipt. Provider shall refund approved overpayments within 30 days of the written request.");
+  assert.equal(even.items.length, 0, "matched clocks never fire");
+
+  // Mutual payment duty and non-payment text stay out of it.
+  const mutual = detectPayFlow("Each party shall pay its own costs within 20 days of invoice under this Agreement. Consultant shall perform the services with professional care throughout.");
+  assert.equal(mutual.items.length, 0, "mutual and unrelated sentences stay quiet");
+
+  // Full house equipment ships.
+  assert.match(html, /id="payBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="payList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("payBlock=$('#payBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectPayFlow === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-mf-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_mfWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Payment timing highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#payList .gap-label") !== -1 &&
+            appSrc.indexOf("Money timing (who waits to be paid)") !== -1,
+    "the printed brief includes the money-timing section");
+  assert.ok(appSrc.indexOf("'Even out the money clocks'") !== -1, "the sent ask list includes the timing ask");
+  assert.ok(indexHtml.indexOf("Money timing") !== -1,
+    "the landing checklist advertises the new lens");
 });

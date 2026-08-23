@@ -4498,6 +4498,7 @@
           liabBlock=$('#liabBlock'),liabNote=$('#liabNote'),liabList=$('#liabList'),
           termBlock=$('#termBlock'),termNote=$('#termNote'),termList=$('#termList'),
           breachBlock=$('#breachBlock'),breachNote=$('#breachNote'),breachList=$('#breachList'),
+          payBlock=$('#payBlock'),payNote=$('#payNote'),payList=$('#payList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -18446,6 +18447,131 @@
       }
     }
 
+    // Cycle #381 — money timing: who pays whom on what clock, and
+    // whether late payment costs both sides the same.
+    function detectPayFlow(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, flows: 0 };
+      const normName = (s) => String(s || '').toLowerCase().replace(/\bthe\b/g, ' ')
+        .replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const items = [];
+      let checked = 0;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      const MUTUAL_RE = /\b(?:each|either|both)\s+part(?:y|ies)\b|\bmutually\b/i;
+      const partyOf = (seg) => {
+        // Same word-shape discipline as the other lenses: a loose class
+        // here attributes payments to "no later than".
+        const pm = seg.match(/\b([A-Z][A-Za-z&-]*(?:\s+[A-Z][A-Za-z&-]*){0,3})\s+(?:shall|must|will|agrees? to)\s+(?:pay|remit|refund|reimburse|return)\b/i);
+        return pm ? { n: normName(pm[1]), raw: pm[1].trim().replace(/[.,]$/, '') } : null;
+      };
+      const CLOCK_RE = /\bwithin\s+(\d{1,3})\s*(?:business\s+|calendar\s+)?days?\b/i;
+      const INTEREST_RE = /\b(?:interest|late\s+(?:fee|charge|penalty)|penalty\s+of)\b/i;
+      const NOINT_RE = /\bwithout\s+(?:any\s+)?interest\b|\binterest[- ]free\b/i;
+      // One flow per paying party; days keep the longest window seen and
+      // interest ORs across sentences ("without interest" clears it).
+      const flows = [];
+      segs.forEach(seg => {
+        if(!/\b(?:pay|payment|remit|refund|reimburse)\b/i.test(seg.t)) return;
+        if(MUTUAL_RE.test(seg.t)) return;
+        const p = partyOf(seg.t);
+        if(!p) return;
+        checked++;
+        const cm = seg.t.match(CLOCK_RE);
+        const hasInt = INTEREST_RE.test(seg.t) && !NOINT_RE.test(seg.t);
+        let ex = flows.find(x => x.n === p.n);
+        if(!ex){
+          ex = { n: p.n, raw: p.raw, days: null, interest: false, at: seg.at, len: seg.t.length };
+          flows.push(ex);
+        }
+        if(cm){
+          const d = parseInt(cm[1], 10);
+          if(ex.days === null || d > ex.days){ ex.days = d; ex.at = seg.at; ex.len = seg.t.length; }
+        }
+        if(hasInt){ ex.interest = true; ex.at = seg.at; ex.len = seg.t.length; }
+      });
+      const clocked = flows.filter(x => x.days !== null);
+      // Verdict 1 — two named payers on windows a month or more apart:
+      // the gap is free credit for one side and a cash-flow hole for you.
+      if(clocked.length >= 2){
+        const sorted = clocked.slice().sort((a, b) => a.days - b.days);
+        const fast = sorted[0], slow = sorted[clocked.length - 1];
+        if(slow.days - fast.days >= 30){
+          checked++;
+          items.push({
+            label: 'Money moves on two very different clocks',
+            why: '“' + fast.raw + '” pays within ' + fast.days + ' days, but “' + slow.raw + '” gets ' + slow.days + '. That gap is free credit for them and a cash-flow hole for whoever waits. Ask for one clock in both directions — net 30 is the common landing point.',
+            start: slow.at,
+            end: slow.at + slow.len
+          });
+        }
+      }
+      // Verdict 2 — exactly one party's late payments carry interest while
+      // another party pays too: the cost of being late runs one way.
+      const withInt = flows.filter(x => x.interest);
+      if(!items.length && flows.length >= 2 && withInt.length === 1){
+        const p = withInt[0];
+        const free = flows.find(x => !x.interest && x.n !== p.n);
+        if(free){
+          checked++;
+          items.push({
+            label: 'Being late only costs “' + p.raw + '”',
+            why: 'Interest or late charges attach to “' + p.raw + '”’s payments, but “' + free.raw + '” can pay late and owe nothing extra. Ask for the same interest clause both ways — or none either way.',
+            start: p.at,
+            end: p.at + p.len
+          });
+        }
+      }
+      return { items: items.slice(0, 4), checked: checked, flows: flows.length };
+    }
+
+    function renderPayBlock(result){
+      if(!payBlock || !payList || !result) return;
+      if(!result.items.length){ payBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-mf-start="' + Math.max(0, it.start) + '" data-mf-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">💰</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      payList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' payment sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.flows + ' paying part' + (result.flows === 1 ? 'y' : 'ies') + '</span></div>';
+      payBlock.hidden = false;
+      if(payNote){
+        payNote.innerHTML = '<span class="riskNote-lead">Money timing</span> ' +
+          'Cash flow is set by clocks, not intentions. When one side pays fast and gets paid slow — or late fees run only one way — the contract quietly lends someone money on your back.';
+      }
+      if(!payList._mfWired){
+        payList._mfWired = true;
+        const jumpToPay = (row) => {
+          const s = parseInt(row.getAttribute('data-mf-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-mf-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Payment timing highlighted in your document');
+        };
+        payList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-mf-start]');
+          if(row) jumpToPay(row);
+        });
+        payList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-mf-start]');
+          if(row){ e.preventDefault(); jumpToPay(row); }
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -19592,6 +19718,12 @@
         renderBreachBlock(detectDataBreaches(raw));
       } else if(breachBlock) {
         breachBlock.hidden = true;
+      }
+      // Cycle #381 — money timing: whose cash floats whose business.
+      if(payBlock && typeof detectPayFlow === 'function'){
+        renderPayBlock(detectPayFlow(raw));
+      } else if(payBlock) {
+        payBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
@@ -23320,6 +23452,7 @@
         addSection('Cap the liability', 'Ask for a mutual ceiling: ', readAll('#liabList .gap-label', 4));
         addSection('Make the exit mutual', 'Ask for an even way out: ', readAll('#termList .gap-label', 4));
         addSection('Pin the breach clock', 'Ask for a hard deadline to be told about leaks: ', readAll('#breachList .gap-label', 4));
+        addSection('Even out the money clocks', 'Ask for one clock both ways: ', readAll('#payList .gap-label', 4));
         if(!sections.length) return null;
         const fp = (_fpState && _fpState.short) ? _fpState.short : '';
         const mdLines = ['# My negotiation asks', '',
@@ -23860,6 +23993,12 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          const payLines = (function(){
+            const rows = document.querySelectorAll('#payList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -23892,6 +24031,7 @@
               (liabLines ? '<div class="cheat-section"><div class="cheat-section-title">Liability symmetry (who carries the risk)</div><ul style="padding-left:18px;margin:0">' + liabLines + '</ul></div>' : '') +
               (termLines ? '<div class="cheat-section"><div class="cheat-section-title">Exit rights (who can end this)</div><ul style="padding-left:18px;margin:0">' + termLines + '</ul></div>' : '') +
               (breachLines ? '<div class="cheat-section"><div class="cheat-section-title">Breach alerting (if data leaks)</div><ul style="padding-left:18px;margin:0">' + breachLines + '</ul></div>' : '') +
+              (payLines ? '<div class="cheat-section"><div class="cheat-section-title">Money timing (who waits to be paid)</div><ul style="padding-left:18px;margin:0">' + payLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +
