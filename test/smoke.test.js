@@ -17131,7 +17131,8 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
                   "Undated obligations", "Execution check", "Obligation balance", "Figure check",
                   "Notice mechanics", "Liability caps", "Exit rights", "Breach notice", "Money timing",
                   "Transfers", "Insurance", "Publicity", "Setoffs", "Rate changes", "Indemnity",
-                  "Non-compete"];
+                  "Non-compete",
+                  "Disclaimers"];
   lenses.forEach(name => {
     assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
   });
@@ -18193,5 +18194,82 @@ test("non-compete: where you can't work next speaks up", () => {
   assert.ok(appSrc.indexOf("// Cycle #396 — polish: pay while restrained; self-rewriting covenants.") !== -1,
     "the grading pass ships with its structural pin");
   assert.ok(indexHtml.indexOf("Non-compete") !== -1,
+    "the landing checklist advertises the new lens");
+});
+
+// Cycle #397 — disclaimers lens: what is NOT promised, and whether the
+// waiver would even hold.
+test("disclaimers: zero promises get named, graded, and argued", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectWarranty");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, disclaimed: disAt >= 0 ? 1 : 0 };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectWarranty };";
+  const { detectWarranty } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // A blanket disclaimer names its drafter and grades its conspicuousness.
+  const blanketDoc = "The services are provided AS IS and Company DISCLAIMS ALL WARRANTIES, express or implied.";
+  const blanket = detectWarranty(blanketDoc);
+  assert.equal(blanket.items.length, 1, "a blanket disclaimer is flagged once");
+  assert.match(blanket.items[0].label, /“Company” sells you everything/,
+    "the headline attributes the wipe-out to its drafter");
+  assert.match(blanket.items[0].why, /risk of it landed on you/,
+    "…names who eats the risk when things break");
+  assert.match(blanket.items[0].why, /drafted to be seen/,
+    "…and credits that capitals mean a court will likely honor it");
+  assert.match(blanket.items[0].why, /90-day workmanship/,
+    "…and asks for something concrete in its place");
+
+  // Buried lowercase "as is" draws the conspicuousness argument instead.
+  const buriedDoc = "the software is provided to you on an as is basis with no warranties of any kind, and buyer accepts all risk of failure.";
+  const buried = detectWarranty(buriedDoc);
+  assert.match(buried.items[0].label, /Everything here is sold/,
+    "an anonymous disclaimer stays generic");
+  assert.match(buried.items[0].why, /refused waivers that were not conspicuous/,
+    "a buried waiver earns the conspicuousness argument");
+
+  // An express promise elsewhere flips the ask: hold them to that list.
+  const expressDoc = "Contractor warrants that all work will be free from defects for ninety days. Except as stated, the services are provided AS IS and Company disclaims all other warranties.";
+  const express = detectWarranty(expressDoc);
+  assert.match(express.items[0].why, /hold them to that list rather than the wipe-out/,
+    "an express warranty redirects the ask away from demanding a new one");
+
+  // Implied warranties named-and-taken-away speak as their own finding.
+  const impliedDoc = "All goods are provided without warranty of merchantability, and any fitness for a particular purpose is expressly excluded.";
+  const implied = detectWarranty(impliedDoc);
+  assert.equal(implied.items.length, 1, "the implied-waiver speaks even alone");
+  assert.match(implied.items[0].label, /baseline promises are waived/,
+    "the law's floor being removed is the headline");
+
+  // False friends stay quiet: "as is customary" is not an "as is" sale,
+  // and documents without disclaimer language never trigger the lens.
+  assert.equal(detectWarranty("Prices adjust annually as is customary for services of this type. Client shall pay undisputed invoices within thirty days.").items.length, 0,
+    "'as is customary' never reads as a disclaimer");
+  assert.equal(detectWarranty("Consultant shall perform the services with professional care. Client shall pay undisputed invoices within thirty days.").items.length, 0,
+    "documents without disclaimer language stay quiet");
+
+  // Full house equipment ships.
+  assert.match(html, /id="warBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="warList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("warBlock=$('#warBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectWarranty === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-war-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_warWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Disclaimer language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#warList .gap-label") !== -1 &&
+            appSrc.indexOf("Disclaimers (what is NOT promised)") !== -1,
+    "the printed brief includes the disclaimer section");
+  assert.ok(appSrc.indexOf("'Add a 90-day warranty'") !== -1, "the sent ask list includes the warranty ask");
+  assert.ok(appSrc.indexOf("// Cycle #397 — warranty-disclaimer lens joins the storefront.") !== -1,
+    "the lens ships with its structural pin");
+  assert.ok(indexHtml.indexOf("Disclaimers") !== -1,
     "the landing checklist advertises the new lens");
 });

@@ -4506,6 +4506,7 @@
           rateBlock=$('#rateBlock'),rateNote=$('#rateNote'),rateList=$('#rateList'),
           indemBlock=$('#indemBlock'),indemNote=$('#indemNote'),indemList=$('#indemList'),
           ncBlock=$('#ncBlock'),ncNote=$('#ncNote'),ncList=$('#ncList'),
+          warBlock=$('#warBlock'),warNote=$('#warNote'),warList=$('#warList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -19407,6 +19408,131 @@
       }
     }
 
+    // Cycle #397 — warranty-disclaimer lens joins the storefront.
+    function detectWarranty(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, disclaimed: 0 };
+      const normName = (s) => String(s || '').toLowerCase().replace(/\bthe\b/g, ' ')
+        .replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const items = [];
+      let checked = 0;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      // "as is" travels with false friends ("as is customary"), so the
+      // lookahead keeps the gate honest.
+      const ASIS_RE = /\bas[\s-]is\b(?!\s+(?:customary|usual|typical|standard|stated|set|shown|listed|described|required))/i;
+      const WAR_RE = /\bdisclaim\w*\b|\bwhere[\s-]is\b|\bwith\s+all\s+faults?\b|(?:\bas[\s-]is\b(?!\s+(?:customary|usual|typical|standard|stated|set|shown|listed|described|required)))|\bno\s+(?:warrant\w*|guarantee\w*|representations?)\b|\bwaiv\w*[^.;]{0,30}\bwarrant\w*\b/i;
+      // Party attribution walks candidate names (mixed-case only, so
+      // shout-caps like "AS IS" can never pose as the drafter) and checks
+      // each following verb case-insensitively.
+      const partyOf = (seg) => {
+        const cre = /\b([A-Z][a-z][A-Za-z&-]*(?:\s+[A-Z][a-z][A-Za-z&-]*)?)\s+([^\s.,]+)/g;
+        let cm;
+        while((cm = cre.exec(seg)) !== null){
+          const verb = cm[2];
+          const rest = seg.slice(cm.index + cm[0].length);
+          if(/^(?:disclaims?)$/i.test(verb) ||
+             (/^makes$/i.test(verb) && /\bno\s+warrant/i.test(rest)) ||
+             (/^waives?$/i.test(verb) && /\b(?:all\s+)?warrant/i.test(rest))){
+            return { n: normName(cm[1]), raw: cm[1].trim().replace(/[.,]$/, '') };
+          }
+        }
+        return null;
+      };
+      // Two graders: implied warranties only die when named, and
+      // conspicuousness decides whether a court honors the waiver.
+      const IMPLIED_RE = /\bmerchantabilit\w*|\bfitness\s+for\s+(?:a\s+)?particular\s+purpose\b/i;
+      const EXPRESS_RE = /\bexpress\s+warrant\w*|\bwarrants?\s+that\b[^.;]{0,80}\b(?:workmanlike|free\s+from\s+defects?|conform)/i;
+      let disAt = -1, disLen = 0, disParty = null, capsSeen = false, buried = false;
+      let impliedAt = -1, impliedLen = 0, expressSeen = false;
+      segs.forEach(seg => {
+        if(WAR_RE.test(seg.t)){
+          checked++;
+          if(disAt < 0){
+            disAt = seg.at; disLen = seg.t.length;
+            disParty = partyOf(seg.t);
+            if(/\bAS\s+IS\b/.test(seg.t)) capsSeen = true;
+            else if(ASIS_RE.test(seg.t)) buried = true;
+          }
+        }
+        if(impliedAt < 0 && IMPLIED_RE.test(seg.t)){ impliedAt = seg.at; impliedLen = seg.t.length; }
+        if(!expressSeen && EXPRESS_RE.test(seg.t)) expressSeen = true;
+      });
+      if(disAt >= 0){
+        checked++;
+        const who = disParty ? disParty.raw : '';
+        const lookBit = capsSeen
+          ? ' It is set in capitals — drafted to be seen, so a court will likely hold every word.'
+          : (buried ? ' It sits lowercase mid-sentence — courts have refused waivers that were not conspicuous. Worth raising.' : '');
+        const askBit = expressSeen
+          ? ' They do promise some things elsewhere — hold them to that list rather than the wipe-out.'
+          : ' Ask for a 90-day workmanship warranty in its place.';
+        items.push({
+          label: who ? ('“' + who + '” sells you everything “as is”') : 'Everything here is sold “as is”',
+          why: 'This clause wipes out promises about quality, condition, and fitness before you even reach the price. Whatever breaks, the risk of it landed on you the moment you signed.' + lookBit + askBit,
+          start: disAt,
+          end: disAt + disLen
+        });
+      }
+      if(impliedAt >= 0){
+        checked++;
+        items.push({
+          label: 'Even the law’s baseline promises are waived',
+          why: 'Merchantability and fitness for a particular purpose are promises the law reads into every sale automatically — unless the contract names them and takes them away. This one does exactly that.',
+          start: impliedAt,
+          end: impliedAt + impliedLen
+        });
+      }
+      return { items: items.slice(0, 4), checked: checked, disclaimed: disAt >= 0 ? 1 : 0 };
+    }
+
+    function renderWarBlock(result){
+      if(!warBlock || !warList || !result) return;
+      if(!result.items.length){ warBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-war-start="' + Math.max(0, it.start) + '" data-war-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">🏷️</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      warList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' warranty sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.disclaimed + ' blanket disclaimer' + (result.disclaimed === 1 ? '' : 's') + '</span></div>';
+      warBlock.hidden = false;
+      if(warNote){
+        warNote.innerHTML = '<span class="riskNote-lead">What is NOT promised</span> ' +
+          'A disclaimer decides who eats the risk when things break. The law starts you with a floor of guarantees — sharp drafting can take that floor away, so check whether yours did.';
+      }
+      if(!warList._warWired){
+        warList._warWired = true;
+        const jumpToWar = (row) => {
+          const s = parseInt(row.getAttribute('data-war-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-war-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Disclaimer language highlighted in your document');
+        };
+        warList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-war-start]');
+          if(row) jumpToWar(row);
+        });
+        warList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-war-start]');
+          if(row){ e.preventDefault(); jumpToWar(row); }
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -20601,6 +20727,12 @@
         renderNcBlock(detectNoncompete(raw));
       } else if(ncBlock) {
         ncBlock.hidden = true;
+      }
+      // Cycle #397 — disclaimers: what is NOT promised.
+      if(warBlock && typeof detectWarranty === 'function'){
+        renderWarBlock(detectWarranty(raw));
+      } else if(warBlock) {
+        warBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
@@ -24337,6 +24469,7 @@
         addSection('Cap the rate hikes', 'Ask for a cap and an exit window: ', readAll('#rateList .gap-label', 4));
         addSection('Make indemnity mutual', 'Ask that indemnities run both ways, capped: ', readAll('#indemList .gap-label', 4));
         addSection('Shrink the non-compete', 'Ask for a shorter, narrower covenant: ', readAll('#ncList .gap-label', 4));
+        addSection('Add a 90-day warranty', 'Ask what is actually promised, in writing: ', readAll('#warList .gap-label', 4));
         if(!sections.length) return null;
         const fp = (_fpState && _fpState.short) ? _fpState.short : '';
         const mdLines = ['# My negotiation asks', '',
@@ -24925,6 +25058,12 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          const warLines = (function(){
+            const rows = document.querySelectorAll('#warList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -24965,6 +25104,7 @@
               (rateLines ? '<div class="cheat-section"><div class="cheat-section-title">Rate changes (who can raise the price)</div><ul style="padding-left:18px;margin:0">' + rateLines + '</ul></div>' : '') +
               (indemLines ? '<div class="cheat-section"><div class="cheat-section-title">Indemnification (who covers whose losses)</div><ul style="padding-left:18px;margin:0">' + indemLines + '</ul></div>' : '') +
               (ncLines ? '<div class="cheat-section"><div class="cheat-section-title">Restrictive covenants (where you can’t work next)</div><ul style="padding-left:18px;margin:0">' + ncLines + '</ul></div>' : '') +
+              (warLines ? '<div class="cheat-section"><div class="cheat-section-title">Disclaimers (what is NOT promised)</div><ul style="padding-left:18px;margin:0">' + warLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +
