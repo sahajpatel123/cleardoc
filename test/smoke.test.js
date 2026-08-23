@@ -17132,7 +17132,8 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
                   "Notice mechanics", "Liability caps", "Exit rights", "Breach notice", "Money timing",
                   "Transfers", "Insurance", "Publicity", "Setoffs", "Rate changes", "Indemnity",
                   "Non-compete",
-                  "Disclaimers"];
+                  "Disclaimers",
+                  "Confidentiality"];
   lenses.forEach(name => {
     assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
   });
@@ -18301,5 +18302,84 @@ test("disclaimers: zero promises get named, graded, and argued", () => {
   assert.ok(appSrc.indexOf("// Cycle #398 — polish: overpromises graded; waivers dated and weighed.") !== -1,
     "the grading pass ships with its structural pin");
   assert.ok(indexHtml.indexOf("Disclaimers") !== -1,
+    "the landing checklist advertises the new lens");
+});
+
+// Cycle #399 — confidentiality lens: who owes whose secrets, for how long.
+test("confidentiality: direction, duration, and breadth get weighed", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectConfid");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, secrets: covAt >= 0 ? 1 : 0 };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectConfid };";
+  const { detectConfid } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // A bound party plus a bounded survival term earns the fairness credit.
+  const boundDoc = "Recipient shall keep all Confidential Information strictly confidential. The confidentiality duties survive termination for three years.";
+  const bound = detectConfid(boundDoc);
+  assert.ok(bound.items.length >= 1, "a binding duty speaks up");
+  assert.match(bound.items[0].label, /“Recipient” is bound to silence/,
+    "the headline names who carries the duty");
+  assert.match(bound.items[0].why, /outlives signing by three years/,
+    "…and quotes the bounded survival term back");
+  assert.match(bound.items[0].why, /the fairer shape/,
+    "…with the house credit for a bounded term");
+
+  // Perpetual survival becomes its own finding with its own jump row.
+  const perpDoc = "Consultant shall keep all Confidential Information strictly confidential. These obligations of secrecy shall survive termination in perpetuity.";
+  const perp = detectConfid(perpDoc);
+  assert.equal(perp.items.length, 2, "the never-expiring duty speaks separately");
+  assert.match(perp.items[1].label, /silence never expires/,
+    "perpetuity is the headline of its own finding");
+  assert.match(perp.items[1].why, /cap it at three to five years/,
+    "…with the ceiling ask attached");
+  assert.ok(typeof perp.items[1].start === "number" && perp.items[1].start > perp.items[0].start,
+    "…and jumps to its own sentence");
+
+  // Mutual drafting earns the both-ways credit even without attribution.
+  const mutualDoc = "Each party shall keep the other's Confidential Information strictly confidential during and after the term.";
+  const mutual = detectConfid(mutualDoc);
+  assert.match(mutual.items[0].label, /confidentiality duty applies/,
+    "an unattributable duty stays generic, not invented");
+  assert.match(mutual.items[0].why, /runs both directions/,
+    "…and mutual duties earn the fairness credit");
+
+  // Breadth traps speak: oral disclosure with no marking requirement.
+  const broadDoc = "Buyer acknowledges that trade information may be disclosed orally or in writing, whether or not marked confidential. Buyer shall keep all such information strictly confidential.";
+  const broad = detectConfid(broadDoc);
+  assert.ok(broad.items.some(it => /Everything spoken becomes a secret/.test(it.label)),
+    "marking-free breadth gets named");
+  const broadHit = broad.items.find(it => /Everything spoken/.test(it.label));
+  assert.match(broadHit.why, /marked confidential, or clearly sensitive/,
+    "…with the narrowing ask attached");
+
+  // Documents without secrecy language stay quiet — payment terms are not
+  // confidentiality clauses no matter how many obligations they carry.
+  assert.equal(detectConfid("Client shall pay undisputed invoices within thirty days. The obligations in this paragraph continue until terminated.").items.length, 0,
+    "generic obligation language never triggers the lens");
+
+  // Full house equipment ships.
+  assert.match(html, /id="cfBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="cfList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("cfBlock=$('#cfBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectConfid === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-cf-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_cfWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 Confidentiality language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#cfList .gap-label") !== -1 &&
+            appSrc.indexOf("Confidentiality (who owes whose secrets)") !== -1,
+    "the printed brief includes the secrecy section");
+  assert.ok(appSrc.indexOf("'Cap the secrecy'") !== -1, "the sent ask list includes the secrecy ask");
+  assert.ok(appSrc.indexOf("// Cycle #399 — confidentiality lens joins the storefront.") !== -1,
+    "the lens ships with its structural pin");
+  assert.ok(indexHtml.indexOf("Confidentiality") !== -1,
     "the landing checklist advertises the new lens");
 });

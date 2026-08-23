@@ -4507,6 +4507,7 @@
           indemBlock=$('#indemBlock'),indemNote=$('#indemNote'),indemList=$('#indemList'),
           ncBlock=$('#ncBlock'),ncNote=$('#ncNote'),ncList=$('#ncList'),
           warBlock=$('#warBlock'),warNote=$('#warNote'),warList=$('#warList'),
+          cfBlock=$('#cfBlock'),cfNote=$('#cfNote'),cfList=$('#cfList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -19566,6 +19567,142 @@
       }
     }
 
+    // Cycle #399 — confidentiality lens joins the storefront.
+    function detectConfid(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, secrets: 0 };
+      const items = [];
+      let checked = 0;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      const CONF_RE = /\bconfidential\w*\b|\bnon[\s-]?disclosure\b|\bNDA\b|\btrade\s+secrets?\b/i;
+      // Two binding shapes: "shall keep … confidential" and
+      // "shall not disclose". Both name who carries the duty.
+      const partyOf = (seg) => {
+        // Case-sensitive names: an /i flag here lets lowercase nouns pose
+        // as parties ("party shall keep…").
+        let pm = seg.match(/\b([A-Z][a-z][A-Za-z&-]*)\s+(?:shall|will|must|agrees?\s+to)\s+(?:keep|hold|treat|maintain)\b[^.]{0,60}\b[Cc]onfidential/);
+        if(!pm) pm = seg.match(/\b([A-Z][a-z][A-Za-z&-]*)\s+(?:shall|will|must|agrees?\s+to)\s+not\s+(?:disclose|reveal|divulge|publish)/);
+        if(!pm){
+          const two = seg.match(/\b([A-Z][a-z][A-Za-z&-]*\s+[A-Z][a-z][A-Za-z&-]*)\s+(?:shall|will|must|agrees?\s+to)\s+(?:keep|hold|treat|maintain)\b[^.]{0,60}\b[Cc]onfidential/);
+          if(two) pm = two;
+        }
+        return pm ? { raw: pm[1].trim().replace(/[.,]$/, '') } : null;
+      };
+      const MUTUAL_RE = /\bmutual\b|\beach\s+party\s+(?:shall|will|agrees?\s+to)\s+(?:keep|hold|treat|maintain)/i;
+      // Survival and perpetuity sentences often stop saying "confidential"
+      // mid-draft ("these obligations shall survive…"), so those scans run
+      // document-wide; breadth patterns demand disclosure context instead.
+      const SURV_RE = /\bsurvives?\s+(?:the\s+)?termination\s+for\s+((?:\d{1,2}|two|three|four|five|ten)\s+years?)\b/i;
+      const PERP_RE = /\bin\s+perpetuity\b|\bperpetuall?y\b|\bsurvives?\s+(?:the\s+)?termination\s+(?:in\s+perpetuity\b|indefinitely\b|forever\b)|\bno\s+time\s+limit\b/i;
+      const BROAD_RE = /\b(?:disclos\w*|provided|shared|communicated)\s+(?:orally|verbally)\b|\bin\s+any\s+form\b(?=[^.;]{0,60}\b(?:disclos\w*|secret\w*))|\bwhether\s+or\s+not\s+marked\b|\bmarked\s+as\s+confidential\s+or\s+not\b/i;
+      let covAt = -1, covLen = 0, covParty = null, mutualSeen = false, survYears = '';
+      let perpAt = -1, perpLen = 0, broadAt = -1, broadLen = 0;
+      segs.forEach(seg => {
+        const isConf = CONF_RE.test(seg.t);
+        if(isConf) checked++;
+        if(covAt < 0 && isConf){
+          const p = partyOf(seg.t);
+          if(p){
+            covAt = seg.at; covLen = seg.t.length; covParty = p;
+          }
+        }
+        if(MUTUAL_RE.test(seg.t)) mutualSeen = true;
+        if(survYears === ''){
+          const svm = seg.t.match(SURV_RE);
+          if(svm) survYears = svm[1].toLowerCase();
+        }
+        if(perpAt < 0 && PERP_RE.test(seg.t)){ perpAt = seg.at; perpLen = seg.t.length; }
+        if(broadAt < 0 && BROAD_RE.test(seg.t)){ broadAt = seg.at; broadLen = seg.t.length; }
+      });
+      if(covAt >= 0 || mutualSeen || survYears){
+        checked++;
+        const who = covParty ? covParty.raw : '';
+        const anchor = covAt >= 0 ? covAt : firstConfidAt(segs);
+        items.push({
+          label: who ? ('“' + who + '” is bound to silence') : 'A confidentiality duty applies here',
+          why: 'This clause controls who may speak about what they learned here — and it usually outlives the contract itself.' +
+            (mutualSeen ? ' It runs both directions — mutual duties are the fairer shape.' : '') +
+            (survYears ? ' It outlives signing by ' + survYears + ' — a bounded term, the fairer shape.' :
+              (!perpAt ? ' Check how long it lasts after the deal ends — three to five years is the defensible ceiling.' : '')),
+          start: anchor,
+          end: anchor + (covAt >= 0 ? covLen : 80)
+        });
+      }
+      if(perpAt >= 0){
+        checked++;
+        items.push({
+          label: 'The silence never expires',
+          why: 'This confidentiality duty has no end date — it binds forever, past the life of the deal and possibly the relationship. Trade-secret law already protects genuinely valuable secrets indefinitely; everything else deserves a timer. Ask to cap it at three to five years.',
+          start: perpAt,
+          end: perpAt + perpLen
+        });
+      }
+      if(broadAt >= 0){
+        checked++;
+        items.push({
+          label: 'Everything spoken becomes a secret',
+          why: 'The duty reaches information shared orally, in any form, marked or not — so a hallway conversation can count as protected. That breadth makes accidental breach unavoidable. Ask that it cover only information marked confidential, or clearly sensitive by its nature.',
+          start: broadAt,
+          end: broadAt + broadLen
+        });
+      }
+      function firstConfidAt(list){
+        for(let i = 0; i < list.length; i++){
+          if(CONF_RE.test(list[i].t)) return list[i].at;
+        }
+        return 0;
+      }
+      return { items: items.slice(0, 4), checked: checked, secrets: covAt >= 0 ? 1 : 0 };
+    }
+
+    function renderCfBlock(result){
+      if(!cfBlock || !cfList || !result) return;
+      if(!result.items.length){ cfBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-cf-start="' + Math.max(0, it.start) + '" data-cf-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">🔒</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      cfList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' secrecy sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.secrets + ' binding duty' + (result.secrets === 1 ? '' : 's') + '</span></div>';
+      cfBlock.hidden = false;
+      if(cfNote){
+        cfNote.innerHTML = '<span class="riskNote-lead">Who owes whose secrets</span> ' +
+          'A confidentiality clause decides what you may never say, and for how long after the deal dies. Its weight is set by three dials — direction, duration, breadth — and every one of them is negotiable before you sign.';
+      }
+      if(!cfList._cfWired){
+        cfList._cfWired = true;
+        const jumpToCf = (row) => {
+          const s = parseInt(row.getAttribute('data-cf-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-cf-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Confidentiality language highlighted in your document');
+        };
+        cfList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-cf-start]');
+          if(row) jumpToCf(row);
+        });
+        cfList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-cf-start]');
+          if(row){ e.preventDefault(); jumpToCf(row); }
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -20766,6 +20903,12 @@
         renderWarBlock(detectWarranty(raw));
       } else if(warBlock) {
         warBlock.hidden = true;
+      }
+      // Cycle #399 — confidentiality: who owes whose secrets.
+      if(cfBlock && typeof detectConfid === 'function'){
+        renderCfBlock(detectConfid(raw));
+      } else if(cfBlock) {
+        cfBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
@@ -24503,6 +24646,7 @@
         addSection('Make indemnity mutual', 'Ask that indemnities run both ways, capped: ', readAll('#indemList .gap-label', 4));
         addSection('Shrink the non-compete', 'Ask for a shorter, narrower covenant: ', readAll('#ncList .gap-label', 4));
         addSection('Add a 90-day warranty', 'Ask what is actually promised, in writing: ', readAll('#warList .gap-label', 4));
+        addSection('Cap the secrecy', 'Ask for a term and a marking requirement: ', readAll('#cfList .gap-label', 4));
         if(!sections.length) return null;
         const fp = (_fpState && _fpState.short) ? _fpState.short : '';
         const mdLines = ['# My negotiation asks', '',
@@ -25097,6 +25241,12 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          const cfLines = (function(){
+            const rows = document.querySelectorAll('#cfList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -25138,6 +25288,7 @@
               (indemLines ? '<div class="cheat-section"><div class="cheat-section-title">Indemnification (who covers whose losses)</div><ul style="padding-left:18px;margin:0">' + indemLines + '</ul></div>' : '') +
               (ncLines ? '<div class="cheat-section"><div class="cheat-section-title">Restrictive covenants (where you can’t work next)</div><ul style="padding-left:18px;margin:0">' + ncLines + '</ul></div>' : '') +
               (warLines ? '<div class="cheat-section"><div class="cheat-section-title">Disclaimers (what is NOT promised)</div><ul style="padding-left:18px;margin:0">' + warLines + '</ul></div>' : '') +
+              (cfLines ? '<div class="cheat-section"><div class="cheat-section-title">Confidentiality (who owes whose secrets)</div><ul style="padding-left:18px;margin:0">' + cfLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +
