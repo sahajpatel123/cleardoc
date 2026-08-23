@@ -18827,21 +18827,36 @@
       // A consent fence in the sentence means the grant is not one-way.
       const APPROVAL_NEAR = /\b(?:prior\s+)?(?:written\s+)?(?:consent|approval|sign[- ]?off)\b|\bapproved\s+in\s+advance\b/i;
       const PERPETUAL_RE = /\bperpetual\b|\birrevocable\b|\bin\s+perpetuity\b|\bafter\s+(?:the\s+)?(?:expiration|termination|term)\b/i;
-      let grantParty = null, grantScope = '', grantForever = false;
+      // Cycle #388 — polish: enumerate the full grant. A clause that
+      // hands over "name, logo, and likeness" must not be reported as
+      // just "name" — collect every asset across every live sentence.
+      const ASSET_ALL = /\b(name|logos?|trademarks?|marks?|likeness|work\s+product|deliverables)\b/gi;
+      const CANON = { logos: 'logo', marks: 'mark', trademarks: 'trademark' };
+      const joinList = (arr) => arr.length === 1 ? arr[0]
+        : arr.length === 2 ? (arr[0] + ' and ' + arr[1])
+        : arr.slice(0, -1).join(', ') + ', and ' + arr[arr.length - 1];
+      let grantParty = null, grantForever = false;
       let firstAt = -1, firstLen = 0;
+      const scopeSeen = [];
       segs.forEach(seg => {
         const gm = seg.t.match(GRANT_A) || seg.t.match(GRANT_B);
         if(!gm) return;
         checked++;
         if(MUTUAL_RE.test(seg.t)) return;
         if(APPROVAL_NEAR.test(seg.t)) return;
+        ASSET_ALL.lastIndex = 0;
+        let am;
+        while((am = ASSET_ALL.exec(seg.t)) !== null){
+          const disp = CANON[am[1].toLowerCase()] || am[1].toLowerCase();
+          if(scopeSeen.indexOf(disp) === -1 && scopeSeen.length < 4) scopeSeen.push(disp);
+        }
         if(firstAt >= 0) return;
         const p = partyOf(seg.t);
         if(p && p.n.length >= 4){ grantParty = p; }
-        grantScope = gm[1].toLowerCase();
         grantForever = PERPETUAL_RE.test(seg.t);
         firstAt = seg.at; firstLen = seg.t.length;
       });
+      const grantScope = scopeSeen.length ? joinList(scopeSeen) : 'name, logo, or likeness';
       if(firstAt >= 0 && !grantParty){
         // A grant exists but no "X may use" shape — still worth a row.
         grantParty = { n: '', raw: '' };

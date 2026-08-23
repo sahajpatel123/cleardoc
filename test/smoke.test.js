@@ -17788,6 +17788,34 @@ test("publicity: one-way marketing rights over your name speak up", () => {
   assert.equal(anon.items.length, 1, "unattributed grants still speak up");
   assert.match(anon.items[0].label, /Your work can end up/, "…with the honest generic headline");
 
+  // Cycle #388 — polish: the whole grant is enumerated, not just the
+  // first asset the eye lands on. One sentence listing three assets.
+  const multiDoc = "Client may use Contractor's name, logo, and likeness in its advertising.";
+  const multi = detectPublicity(multiDoc);
+  assert.equal(multi.items.length, 1, "the multi-asset grant is flagged");
+  assert.match(multi.items[0].label, /Client.*your name, logo, and likeness/,
+    "the headline enumerates every asset handed over");
+
+  // Assets granted in separate sentences accumulate into one picture.
+  const spreadDoc = "Agency may publish Customer's name in its customer list. Agency may display Customer's trademark at industry conferences.";
+  const spread = detectPublicity(spreadDoc);
+  assert.match(spread.items[0].why, /your name and trademark/,
+    "assets granted across sentences are collected");
+
+  // The same asset granted twice is counted once.
+  const dupDoc = "Client may use Consultant's name in press releases. Client may use Consultant's name in trade show materials.";
+  const dup = detectPublicity(dupDoc);
+  assert.doesNotMatch(dup.items[0].why, /name and name|name, name/,
+    "duplicate grants collapse instead of compounding");
+
+  // The enumeration caps at four so the headline stays readable.
+  const wideDoc = "Client may use Contractor's name, logo, likeness, work product, and deliverables in any media whatsoever.";
+  const wide = detectPublicity(wideDoc);
+  assert.match(wide.items[0].label, /name, logo, likeness, and work product/,
+    "four assets read cleanly");
+  assert.doesNotMatch(wide.items[0].label, /deliverables/,
+    "…and the tail beyond the cap is dropped");
+
   // No publicity language → fully quiet.
   assert.equal(detectPublicity("Consultant shall perform the services with professional care. Client shall pay undisputed invoices within thirty days.").items.length, 0,
     "documents without publicity language stay quiet");
@@ -17807,4 +17835,6 @@ test("publicity: one-way marketing rights over your name speak up", () => {
   assert.ok(appSrc.indexOf("'Put approvals around publicity'") !== -1, "the sent ask list includes the publicity ask");
   assert.ok(indexHtml.indexOf("Publicity") !== -1,
     "the landing checklist advertises the new lens");
+  assert.ok(appSrc.indexOf("polish: enumerate the full grant") !== -1,
+    "the enumeration polish ships inside the detector");
 });
