@@ -25,6 +25,15 @@ const PORT_OPENROUTER = 4332;
 const PORT_GEMINI = 4333;
 const HOST = "127.0.0.1";
 
+// Cycle #382 — polish: content-visibility waits share a generous budget.
+// Back-to-back suite runs on a loaded machine have three times produced
+// 8s selector timeouts (compare table, action grid, decision block) that
+// pass cleanly when re-run alone — the wait, not the page, was the bug.
+// Short 2–4s budgets elsewhere are deliberate: they watch for state
+// changes after content is already visible, where a slow wait would hide
+// real regressions.
+const SEL_WAIT = 20000;
+
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -204,7 +213,7 @@ skip("integration: analyze flow renders AI verdict, deadlines, and next steps fr
   }, { timeout: 2000 });
 
   // Wait for results panel to appear
-  await page.waitForSelector("#resultPanel:not([hidden])", { timeout: 8000 });
+  await page.waitForSelector("#resultPanel:not([hidden])", { timeout: SEL_WAIT });
 
   // Verify the button is re-enabled after completion
   const isDisabledAfter = await page.$eval("#analyzeBtn", (el) => el.disabled);
@@ -284,14 +293,14 @@ skip("integration: reading list downloads a CSV tracker file", async () => {
   await page.goto(`http://127.0.0.1:${PORT_WEB}/analyze.html`, { waitUntil: "networkidle" });
   await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
   await page.click("#analyzeBtn");
-  await page.waitForSelector("#readingBlock:not([hidden]) .reading-row", { timeout: 8000 });
+  await page.waitForSelector("#readingBlock:not([hidden]) .reading-row", { timeout: SEL_WAIT });
 
   // Mark the first chunk done so the Status column mixes done + todo.
   await page.evaluate(() => document.querySelector("#readingBlock .reading-done").click());
   await page.waitForSelector("#readingBlock .reading-row-done", { timeout: 4000 });
 
   const [download] = await Promise.all([
-    page.waitForEvent("download", { timeout: 8000 }),
+    page.waitForEvent("download", { timeout: SEL_WAIT }),
     page.click("#readingCsvBtn"),
   ]);
   const dlPath = await download.path();
@@ -349,10 +358,10 @@ skip("integration: strategy board downloads a CSV tracker file", async () => {
   await page.goto(`http://127.0.0.1:${PORT_WEB}/analyze.html`, { waitUntil: "networkidle" });
   await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
   await page.click("#analyzeBtn");
-  await page.waitForSelector("#boardBlock:not([hidden]) .board-card", { timeout: 8000 });
+  await page.waitForSelector("#boardBlock:not([hidden]) .board-card", { timeout: SEL_WAIT });
 
   const [download] = await Promise.all([
-    page.waitForEvent("download", { timeout: 8000 }),
+    page.waitForEvent("download", { timeout: SEL_WAIT }),
     page.click("#boardCsvBtn"),
   ]);
   const dlPath = await download.path();
@@ -451,7 +460,7 @@ skip("integration: deadline reminder snoozes for a chosen horizon", async () => 
     await page.waitForFunction(() => {
       const el = document.getElementById("deadlineReminder");
       return el && !el.hidden;
-    }, { timeout: 8000 });
+    }, { timeout: SEL_WAIT });
     const visibleBefore = await page.$eval("#deadlineReminder", (el) => !el.hidden);
     assert.equal(visibleBefore, true, "a returning user with deadlines must see the reminder");
 
@@ -537,7 +546,7 @@ skip("integration: reading list speaks the remaining unread chunks", async () =>
     await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
     await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
     await page.click("#analyzeBtn");
-    await page.waitForSelector("#readingBlock:not([hidden]) .reading-row", { timeout: 8000 });
+    await page.waitForSelector("#readingBlock:not([hidden]) .reading-row", { timeout: SEL_WAIT });
 
     // Mark the first chunk done so "read left" covers only what remains.
     await page.evaluate(() => document.querySelector("#readingBlock .reading-done").click());
@@ -659,7 +668,7 @@ skip("integration: deadline list sorts by date and persists the choice", async (
     await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
     await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
     await page.click("#analyzeBtn");
-    await page.waitForSelector("#deadlineList .deadline-row", { timeout: 8000 });
+    await page.waitForSelector("#deadlineList .deadline-row", { timeout: SEL_WAIT });
 
     const firstDateBefore = await page.$eval("#deadlineList .deadline-row .deadline-date", (el) => el.textContent.trim().slice(0, 10));
     assert.equal(firstDateBefore, soonStr, "document order must list the sooner deadline first");
@@ -734,9 +743,9 @@ skip("integration: templates can be duplicated", async () => {
 
   try {
     await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
-    await page.waitForSelector("#tplBtn", { timeout: 8000 });
+    await page.waitForSelector("#tplBtn", { timeout: SEL_WAIT });
     await page.click("#tplBtn");
-    await page.waitForSelector("#tplList .tpl-item", { timeout: 8000 });
+    await page.waitForSelector("#tplList .tpl-item", { timeout: SEL_WAIT });
     const namesBefore = await page.$$eval("#tplList .tpl-name", (els) => els.map((e) => e.textContent.trim()));
     assert.deepEqual(namesBefore, ["Lease"], "the seeded template must render first");
 
@@ -808,7 +817,7 @@ skip("integration: currency only-big filter persists", async () => {
   const analyze = async () => {
     await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
     await page.click("#analyzeBtn");
-    await page.waitForSelector("#curOnlyBigBtn", { timeout: 8000 });
+    await page.waitForSelector("#curOnlyBigBtn", { timeout: SEL_WAIT });
   };
 
   try {
@@ -909,7 +918,7 @@ skip("integration: smoking-gun cards ask about the sentence", async () => {
     await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
     await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
     await page.click("#analyzeBtn");
-    await page.waitForSelector("#smokingGrid .smoking-card", { timeout: 8000 });
+    await page.waitForSelector("#smokingGrid .smoking-card", { timeout: SEL_WAIT });
 
     const sentence = await page.$eval("#smokingGrid .smoking-card [data-smoking-ask]", (el) => el.getAttribute("data-smoking-ask"));
     await page.click("#smokingGrid .smoking-card [data-smoking-ask]");
@@ -979,7 +988,7 @@ skip("integration: exposure cards ask about the exposure", async () => {
     await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
     await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
     await page.click("#analyzeBtn");
-    await page.waitForSelector("#exposureGrid .exposure-card", { timeout: 8000 });
+    await page.waitForSelector("#exposureGrid .exposure-card", { timeout: SEL_WAIT });
 
     const noteText = await page.$eval("#exposureNote", (el) => el.textContent || "");
     assert.match(noteText, /asks about one/, "the exposure note must document the ask action");
@@ -1044,7 +1053,7 @@ skip("integration: pressure cards ask about the clause", async () => {
     await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
     await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
     await page.click("#analyzeBtn");
-    await page.waitForSelector("#pressureGrid .pressure-card", { timeout: 8000 });
+    await page.waitForSelector("#pressureGrid .pressure-card", { timeout: SEL_WAIT });
 
     const noteText = await page.$eval("#pressureNote", (el) => el.textContent || "");
     assert.match(noteText, /asks about one/, "the pressure note must document the ask action");
@@ -1121,7 +1130,7 @@ skip("integration: r shortcut resumes the reading list", async () => {
     await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
     await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
     await page.click("#analyzeBtn");
-    await page.waitForSelector("#readingBlock:not([hidden]) .reading-row", { timeout: 8000 });
+    await page.waitForSelector("#readingBlock:not([hidden]) .reading-row", { timeout: SEL_WAIT });
 
     // Mark the first chunk done so resume targets something unread.
     await page.evaluate(() => document.querySelector("#readingBlock .reading-done").click());
@@ -1199,7 +1208,7 @@ skip("integration: freshness block copies all markers", async () => {
     await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
     await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
     await page.click("#analyzeBtn");
-    await page.waitForSelector("#freshBlock:not([hidden]) .fresh-row", { timeout: 8000 });
+    await page.waitForSelector("#freshBlock:not([hidden]) .fresh-row", { timeout: SEL_WAIT });
 
     const rowCount = await page.$$eval("#freshBlock .fresh-row", (els) => els.length);
     const noteText = await page.$eval("#freshNote", (el) => el.textContent || "");
@@ -1260,12 +1269,12 @@ skip("integration: signing checklist downloads a CSV tracker file", async () => 
     await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
     await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
     await page.click("#analyzeBtn");
-    await page.waitForSelector("#actionGrid .act-item", { timeout: 8000 });
+    await page.waitForSelector("#actionGrid .act-item", { timeout: SEL_WAIT });
 
     const itemCount = await page.$$eval("#actionGrid .act-item", (els) => els.length);
 
     const [download] = await Promise.all([
-      page.waitForEvent("download", { timeout: 8000 }),
+      page.waitForEvent("download", { timeout: SEL_WAIT }),
       page.click("#actCsvBtn"),
     ]);
     const dlPath = await download.path();
@@ -1315,10 +1324,10 @@ skip("integration: compare panel downloads a Markdown comparison file", async ()
     await page.click("#compareToggle");
     await page.evaluate((d) => { document.getElementById("docInputB").value = d; }, docB);
     await page.dispatchEvent("#docInputB", "input");
-    await page.waitForSelector("#compareStats table", { timeout: 8000 });
+    await page.waitForSelector("#compareStats table", { timeout: SEL_WAIT });
 
     const [download] = await Promise.all([
-      page.waitForEvent("download", { timeout: 8000 }),
+      page.waitForEvent("download", { timeout: SEL_WAIT }),
       page.click("#compareMdDownloadBtn"),
     ]);
     const dlPath = await download.path();
@@ -1400,7 +1409,7 @@ skip("integration: decision block hears the recommendation", async () => {
     await page.goto(`http://127.0.0.1:${WEB2}/analyze.html`, { waitUntil: "networkidle" });
     await page.evaluate((d) => { document.getElementById("docInput").value = d; }, doc);
     await page.click("#analyzeBtn");
-    await page.waitForSelector("#decisionBlock:not([hidden]) #decisionSpeakBtn", { timeout: 8000 });
+    await page.waitForSelector("#decisionBlock:not([hidden]) #decisionSpeakBtn", { timeout: SEL_WAIT });
 
     await page.click("#decisionSpeakBtn");
     await page.waitForTimeout(200);
