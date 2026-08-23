@@ -19598,8 +19598,13 @@
       const SURV_RE = /\bsurvives?\s+(?:the\s+)?termination\s+for\s+((?:\d{1,2}|two|three|four|five|ten)\s+years?)\b/i;
       const PERP_RE = /\bin\s+perpetuity\b|\bperpetuall?y\b|\bsurvives?\s+(?:the\s+)?termination\s+(?:in\s+perpetuity\b|indefinitely\b|forever\b)|\bno\s+time\s+limit\b/i;
       const BROAD_RE = /\b(?:disclos\w*|provided|shared|communicated)\s+(?:orally|verbally)\b|\bin\s+any\s+form\b(?=[^.;]{0,60}\b(?:disclos\w*|secret\w*))|\bwhether\s+or\s+not\s+marked\b|\bmarked\s+as\s+confidential\s+or\s+not\b/i;
+      // Cycle #400 — polish: exits, memories, and fair carve-outs graded.
+      const RET_RE = /\breturn\s+or\s+destroy\b|\b(?:return|destroy|deliver\s+up)\b[^.;]{0,60}\b(?:upon|on|following)\s+(?:the\s+)?(?:termination|expiration)\b/i;
+      const CARVE_RE = /\bpublic\s+domain\b|\bpublicly?\s+available\b|\bindependently\s+developed\b|\bindependently\s+acquired\b|\balready\s+known\b/i;
+      const RESID_RE = /\bunaided\b|\bretained\s+in\s+the\s+memory\b|\bresidual\w*[^.;]{0,60}\b(?:memory|knowledge)\b|\b(?:memory|knowledge)[^.;]{0,60}\bresidual/i;
       let covAt = -1, covLen = 0, covParty = null, mutualSeen = false, survYears = '';
       let perpAt = -1, perpLen = 0, broadAt = -1, broadLen = 0;
+      let carveSeen = false, retSeen = false, residAt = -1, residLen = 0;
       segs.forEach(seg => {
         const isConf = CONF_RE.test(seg.t);
         if(isConf) checked++;
@@ -19610,12 +19615,15 @@
           }
         }
         if(MUTUAL_RE.test(seg.t)) mutualSeen = true;
+        if(isConf && !carveSeen && CARVE_RE.test(seg.t)) carveSeen = true;
+        if(!retSeen && RET_RE.test(seg.t)) retSeen = true;
         if(survYears === ''){
           const svm = seg.t.match(SURV_RE);
           if(svm) survYears = svm[1].toLowerCase();
         }
         if(perpAt < 0 && PERP_RE.test(seg.t)){ perpAt = seg.at; perpLen = seg.t.length; }
         if(broadAt < 0 && BROAD_RE.test(seg.t)){ broadAt = seg.at; broadLen = seg.t.length; }
+        if(residAt < 0 && RESID_RE.test(seg.t)){ residAt = seg.at; residLen = seg.t.length; }
       });
       if(covAt >= 0 || mutualSeen || survYears){
         checked++;
@@ -19625,6 +19633,8 @@
           label: who ? ('“' + who + '” is bound to silence') : 'A confidentiality duty applies here',
           why: 'This clause controls who may speak about what they learned here — and it usually outlives the contract itself.' +
             (mutualSeen ? ' It runs both directions — mutual duties are the fairer shape.' : '') +
+            (carveSeen ? ' It carves out what was already public or self-made — the standard fair exclusions.' : '') +
+            (retSeen ? ' It also hands the materials back when the deal ends — return duties are the fairer shape.' : '') +
             (survYears ? ' It outlives signing by ' + survYears + ' — a bounded term, the fairer shape.' :
               (!perpAt ? ' Check how long it lasts after the deal ends — three to five years is the defensible ceiling.' : '')),
           start: anchor,
@@ -19647,6 +19657,15 @@
           why: 'The duty reaches information shared orally, in any form, marked or not — so a hallway conversation can count as protected. That breadth makes accidental breach unavoidable. Ask that it cover only information marked confidential, or clearly sensitive by its nature.',
           start: broadAt,
           end: broadAt + broadLen
+        });
+      }
+      if(residAt >= 0){
+        checked++;
+        items.push({
+          label: 'Whatever you remember is exempt',
+          why: 'This clause lets people keep using whatever stayed in their unaided memory. Memory is the whole asset for anyone who actually worked with the material — so this exemption quietly swallows most of the duty it sits inside. Ask to strike it, or limit it to general skills and know-how.',
+          start: residAt,
+          end: residAt + residLen
         });
       }
       function firstConfidAt(list){

@@ -18360,6 +18360,28 @@ test("confidentiality: direction, duration, and breadth get weighed", () => {
   assert.match(broadHit.why, /marked confidential, or clearly sensitive/,
     "…with the narrowing ask attached");
 
+  // Cycle #400 — residual-memory exemptions are named as their own finding.
+  const residDoc = "Recipient shall keep all Confidential Information strictly confidential. Nothing herein shall prevent Recipient from using information retained in the unaided memory of its employees.";
+  const resid = detectConfid(residDoc);
+  assert.equal(resid.items.length, 2, "the memory exemption speaks separately");
+  assert.match(resid.items[1].label, /remember is exempt/,
+    "the unaided-memory carve-out is the headline");
+  assert.match(resid.items[1].why, /swallows most of the duty/,
+    "…with the quiet-swallow called out");
+  assert.ok(typeof resid.items[1].start === "number" && resid.items[1].start > resid.items[0].start,
+    "…and jumps to its own sentence");
+
+  // Cycle #400 — return duties and fair carve-outs earn their credits.
+  const returnDoc = "Consultant shall keep all Confidential Information strictly confidential and shall return or destroy all materials upon termination of this agreement.";
+  assert.match(detectConfid(returnDoc).items[0].why, /hands the materials back/,
+    "a return duty is credited as the fairer shape");
+  const carveDoc = "Each party shall treat proprietary information as confidential, excluding anything in the public domain or independently developed.";
+  const carve = detectConfid(carveDoc);
+  assert.match(carve.items[0].why, /carves out what was already public/,
+    "standard exclusions earn their credit");
+  assert.match(carve.items[0].why, /runs both directions/,
+    "…and the mutual credit still lands beside it");
+
   // Documents without secrecy language stay quiet — payment terms are not
   // confidentiality clauses no matter how many obligations they carry.
   assert.equal(detectConfid("Client shall pay undisputed invoices within thirty days. The obligations in this paragraph continue until terminated.").items.length, 0,
@@ -18380,6 +18402,8 @@ test("confidentiality: direction, duration, and breadth get weighed", () => {
   assert.ok(appSrc.indexOf("'Cap the secrecy'") !== -1, "the sent ask list includes the secrecy ask");
   assert.ok(appSrc.indexOf("// Cycle #399 — confidentiality lens joins the storefront.") !== -1,
     "the lens ships with its structural pin");
+  assert.ok(appSrc.indexOf("// Cycle #400 — polish: exits, memories, and fair carve-outs graded.") !== -1,
+    "the grading pass ships with its structural pin");
   assert.ok(indexHtml.indexOf("Confidentiality") !== -1,
     "the landing checklist advertises the new lens");
 });
