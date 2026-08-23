@@ -6618,3 +6618,8 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #375 of the autonomous loop (add — last cycle polished notice drafting variants): signers now see who the risk dump favors before they sign. Next cycle #376 is POLISH of this lens — candidates: dollar-amount extraction from caps ("capped at $50,000" surfaced in the row), indemnity-vs-cap interaction, or TBD.
+
+## Cycle #376 — 2026-08-23 — POLISH
+**Changes Made:** Liability lens now surfaces the ceiling itself: detectLiability extracts the dollar figure from each cap sentence (AMT_RE: `$25,000` / `25,000 dollars` / `USD` forms) and folds it into the one-way-cap finding — "The document caps "Provider" at $25,000 and caps no one else." Fee-based caps ("the fees paid") stay number-free; nothing is invented. Cap 3 amounts, whitespace-normalized. Behavioral test gained a priced corpus (why must contain `$25,000`) and an unpriced corpus (must NOT gain an `at $` clause), plus a structural pin for the extraction comment.
+**Gate:** node --check ×2 ✓ · unit 490/490 · smoke 322 pass / 0 fail / 141 skipped · integration 16/16.
+**Prompt Intention:** Loop discipline held (add→polish). Next cycle #377 is ADD — scope-check incumbents first (grep before building); candidates considered this window: cap-vs-contract-value sanity (cross-detector coupling, skipped for now), indemnity-vs-cap interaction note, or a fresh surface entirely.

@@ -17379,6 +17379,15 @@ test("liability symmetry: one-way caps and unlimited exposure speak up", () => {
   assert.match(oneway.items[0].label, /Only one side has a liability cap/, "the headline says what is wrong");
   assert.match(oneway.items[0].why, /provider/i, "…and names who is protected");
 
+  // Cycle #376 — polish: a named ceiling appears in the finding itself.
+  const pricedDoc = "Consultant's aggregate liability shall not exceed $25,000 in any case under this agreement. The Client shall pay all undisputed invoices within thirty days of receipt.";
+  const priced = detectLiability(pricedDoc);
+  assert.equal(priced.items.length, 1, "the priced one-way cap still fires");
+  assert.match(priced.items[0].why, /\$25,000/, "the dollar ceiling is surfaced in the row");
+  const unpriced = detectLiability("Provider's total liability shall not exceed the fees paid under this agreement. The Client shall pay all amounts when due under this agreement without setoff or deduction.");
+  assert.equal(unpriced.items.length, 1, "fee-based caps still fire");
+  assert.doesNotMatch(unpriced.items[0].why, /at \$/, "…without inventing a number that isn't there");
+
   // Mutual cap: quiet.
   const mutual = detectLiability("Each party's aggregate liability shall not exceed twelve months of fees. The parties shall perform their obligations in good faith throughout the term.");
   assert.equal(mutual.items.length, 0, "mutual caps never fire");
@@ -17402,4 +17411,6 @@ test("liability symmetry: one-way caps and unlimited exposure speak up", () => {
   assert.ok(appSrc.indexOf("'Cap the liability'") !== -1, "the sent ask list includes liability asks");
   assert.ok(indexHtml.indexOf("Liability caps") !== -1,
     "the landing checklist advertises the new lens");
+  assert.ok(appSrc.indexOf("Cycle #376 — polish: surface the ceiling itself") !== -1,
+    "cap-amount extraction ships inside the detector");
 });

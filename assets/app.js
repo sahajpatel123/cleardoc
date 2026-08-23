@@ -18108,11 +18108,17 @@
       const cappedParties = [];
       let mutualCap = false;
       let firstCapAt = -1, firstCapLen = 0;
+      // Cycle #376 — polish: surface the ceiling itself. A cap row that
+      // names the number ("$25,000") answers more than one that doesn't.
+      const AMT_RE = /\$\s?\d[\d,]*(?:\.\d{1,2})?|\b\d[\d,]*(?:\.\d{1,2})?\s*(?:dollars|usd)\b/i;
+      const capAmounts = [];
       segs.forEach(seg => {
         if(!/\bliabilit|liable\b/i.test(seg.t)) return;
         if(CAP_RE.test(seg.t)){
           checked++;
           if(firstCapAt < 0){ firstCapAt = seg.at; firstCapLen = seg.t.length; }
+          const am = seg.t.match(AMT_RE);
+          if(am && capAmounts.indexOf(am[0]) === -1 && capAmounts.length < 3) capAmounts.push(am[0].replace(/\s+/g, ''));
           if(MUTUAL_RE.test(seg.t)){ mutualCap = true; return; }
           const p = partyOf(seg.t);
           if(p && p.n.length >= 4 && cappedParties.indexOf(p.n) === -1 && cappedParties.length < 4) cappedParties.push(p.n);
@@ -18135,7 +18141,7 @@
         checked++;
         items.push({
           label: 'Only one side has a liability cap',
-          why: 'The document caps “' + cappedParties[0] + '” and caps no one else. Ask for the same ceiling in both directions — a cap that protects only one party shifts every risk onto yours.',
+          why: 'The document caps “' + cappedParties[0] + '”' + (capAmounts.length ? ' at ' + capAmounts.join(' / ') : '') + ' and caps no one else. Ask for the same ceiling in both directions — a cap that protects only one party shifts every risk onto yours.',
           start: firstCapAt,
           end: firstCapAt + firstCapLen
         });
