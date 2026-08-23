@@ -16852,6 +16852,14 @@ test("figures block: ships hidden, wired like every lens", () => {
   assert.match(appSrc, /detectFigures === 'function'/, "guarded call site present");
   assert.match(appSrc, /const NUM_WORDS/, "number-word vocabulary defined");
   assert.match(appSrc, /Figures that disagree/, "note lead names the lens");
+
+  // Cycle #360 — rows jump to their span; the printed brief carries them.
+  assert.match(appSrc, /data-fg-start="/, "rows with spans are jump targets");
+  assert.match(appSrc, /_fgWired/, "jump wiring is once-guarded");
+  assert.match(appSrc, /Figure highlighted in your document/, "jump confirms with a toast");
+  const cheatFiguresAt = appSrc.indexOf("'#figuresList .gap-label'", appSrc.indexOf("const figuresLines"));
+  assert.ok(cheatFiguresAt > 0, "the printed brief reads the figures list");
+  assert.match(appSrc, /Split figures \(words vs digits\)/, "cheat-sheet section titled in plain words");
 });
 
 // Cycle #359 — behavioral: the REAL parser converts number words and

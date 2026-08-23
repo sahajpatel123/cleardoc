@@ -6429,3 +6429,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #359 of the autonomous loop (add — last cycle polished balance jumps/cheat-sheet): precision-over-volume lens — two findings a human skims past, both cheap to fix before signing. Next polish-cycle candidate: click-to-jump on figure rows + cheat-sheet carry-through.
+
+## 2026-08-23 07:1x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #360 — POLISH: figure rows jump and travel.** Completed the house pattern for the Cycle #359 figure-check lens:
+  - **Click-to-jump:** every split-figure finding carries its exact span, so every row is a keyboard-reachable jump target (`data-fg-start`/`data-fg-end`, delegated once-guarded `_fgWired` wiring, Enter/Space support, 📍 toast).
+  - **Cheat-sheet carry-through:** "Split figures (words vs digits)" section reads `#figuresList .gap-label` into the printed brief.
+- Tests: pins for jump attrs, once-guard wiring, toast text, cheat-sheet read and plain-word section title.
+- Gate: unit 490/490 · smoke 314 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean (another transient classifier outage delayed verification; full gate green once it cleared).
+
+**Prompt Intention:**
+- Cycle #360 of the autonomous loop (polish — last cycle added the figure check): the youngest lens now ships the full house equipment like its siblings. Next add-cycle candidate: TBD — scope against incumbents first (heatmap and calendar-export ideas already died on contact with existing features).

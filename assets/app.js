@@ -17811,19 +17811,44 @@
     function renderFiguresBlock(result){
       if(!figuresBlock || !figuresList || !result) return;
       if(!result.items.length){ figuresBlock.hidden = true; return; }
-      // Cycle #360 will wire these spans as click-to-jump targets.
-      figuresList.innerHTML = result.items.map(it =>
-        '<div class="gap-row">' +
+      // Cycle #360 — every finding carries a span, so every row is a
+      // keyboard-reachable jump target (same contract as _blWired).
+      figuresList.innerHTML = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number';
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-fg-start="' + Math.max(0, it.start) + '" data-fg-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
           '<span class="gap-glyph mono" style="color:var(--amber)">🔢</span>' +
           '<div class="gap-body">' +
             '<div class="gap-label">' + esc(it.label) + '</div>' +
             '<div class="gap-hint">' + esc(it.why) + '</div>' +
           '</div>' +
-        '</div>').join('');
+        '</div>';
+      }).join('');
       figuresBlock.hidden = false;
       if(figuresNote){
         figuresNote.innerHTML = '<span class="riskNote-lead">Figures that disagree</span> ' +
           'Amounts restated in words and digits — "Fifty Thousand Dollars ($50,000)", "thirty (30) days" — checked for agreement. When the pair splits, the digits usually win in court.';
+      }
+      // Delegated, once-guarded jump wiring.
+      if(!figuresList._fgWired){
+        figuresList._fgWired = true;
+        const jumpToFigure = (row) => {
+          const s = parseInt(row.getAttribute('data-fg-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-fg-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 Figure highlighted in your document');
+        };
+        figuresList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-fg-start]');
+          if(row) jumpToFigure(row);
+        });
+        figuresList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-fg-start]');
+          if(row){ e.preventDefault(); jumpToFigure(row); }
+        });
       }
     }
 
@@ -23149,6 +23174,13 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          // Cycle #360 — and split-figure findings.
+          const figuresLines = (function(){
+            const rows = document.querySelectorAll('#figuresList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -23176,6 +23208,7 @@
               (undatedLines ? '<div class="cheat-section"><div class="cheat-section-title">Undated obligations (ask for a deadline)</div><ul style="padding-left:18px;margin:0">' + undatedLines + '</ul></div>' : '') +
               (sigLines ? '<div class="cheat-section"><div class="cheat-section-title">Execution problems (fix before signing)</div><ul style="padding-left:18px;margin:0">' + sigLines + '</ul></div>' : '') +
               (balanceLines ? '<div class="cheat-section"><div class="cheat-section-title">Obligation balance (who carries the duties)</div><ul style="padding-left:18px;margin:0">' + balanceLines + '</ul></div>' : '') +
+              (figuresLines ? '<div class="cheat-section"><div class="cheat-section-title">Split figures (words vs digits)</div><ul style="padding-left:18px;margin:0">' + figuresLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +
