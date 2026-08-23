@@ -17513,6 +17513,16 @@ test("breach notice: leak-alert clocks are graded against the 72-hour norm", () 
   const goodDoc = "Processor applies technical measures to all personal data processed hereunder. If a data breach occurs, Processor shall notify Client within seventy-two hours of becoming aware.";
   assert.equal(detectDataBreaches(goodDoc).items.length, 0, "a compliant clock never fires");
 
+  // Cycle #380 — polish: parenthesized duplicates and dual forms.
+  // "Without undue delay AND in any event within seventy-two (72) hours"
+  // is a compliant clock — the hard bound governs, so it stays quiet.
+  const dualGood = detectDataBreaches("Processor applies technical safeguards to all personal data under this Agreement. Processor shall notify Client without undue delay, and in any event within seventy-two (72) hours of becoming aware of a data breach.");
+  assert.equal(dualGood.items.length, 0, "a vague phrase beside a hard 72-hour clock stays quiet");
+  // The parenthesized duplicate must not blind the parser in slow clocks either.
+  const dualSlow = detectDataBreaches("Processor shall safeguard customer information throughout the term. Upon confirmation of a data breach, Processor shall notify Client within thirty (30) days after discovery thereof.");
+  assert.equal(dualSlow.items.length, 1, "the parenthesized slow clock still fires");
+  assert.match(dualSlow.items[0].label, /thirty days/, "the normalized window is quoted");
+
   // Handles personal data but silent on breach alerts → missing provision.
   const silentDoc = "The Company collects personal information from users of the service for billing and account administration purposes, and shares limited account records with payment processors as needed to complete transactions. The Company may engage additional vendors and subcontractors from time to time to assist with service delivery, hosting, and customer support operations across regions. Except as expressly stated elsewhere in this document, this Agreement governs the parties' respective roles, responsibilities, and expectations in full for the entire term stated above.";
   const silent = detectDataBreaches(silentDoc);
@@ -17539,4 +17549,6 @@ test("breach notice: leak-alert clocks are graded against the 72-hour norm", () 
   assert.ok(appSrc.indexOf("'Pin the breach clock'") !== -1, "the sent ask list includes the breach ask");
   assert.ok(indexHtml.indexOf("Breach notice") !== -1,
     "the landing checklist advertises the new lens");
+  assert.ok(appSrc.indexOf("polish: parenthesized duplicates") !== -1,
+    "paren-tolerant clock parsing ships inside the detector");
 });

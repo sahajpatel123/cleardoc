@@ -18335,7 +18335,9 @@
       const clockHoursOf = (seg) => {
         // Returns { hours, raw } or null. Compound word-forms come before
         // bare numbers so "twenty four" never parses as just "twenty".
-        const cm = seg.match(/\bwithin\s+(\d{1,3}|seventy[- ]?two|forty[- ]?eight|twenty[- ]?four|one\s+hundred\s+(?:and\s+)?twenty|two|three|four|five|six|seven|ten|twelve|fourteen|fifteen|twenty|thirty|forty[- ]?five|sixty|ninety)\s*(hours?|business\s+days?|days?)\b/i);
+        // Cycle #380 — polish: parenthesized duplicates ("seventy-two (72)
+        // hours") are contract house style and must not blind the parser.
+        const cm = seg.match(/\bwithin\s+(\d{1,3}|seventy[- ]?two|forty[- ]?eight|twenty[- ]?four|one\s+hundred\s+(?:and\s+)?twenty|two|three|four|five|six|seven|ten|twelve|fourteen|fifteen|twenty|thirty|forty[- ]?five|sixty|ninety)\s*(?:\(\d{1,3}\))?\s*(hours?|business\s+days?|days?)\b/i);
         if(!cm) return null;
         const key = cm[1].toLowerCase().replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
         let n;
