@@ -18141,6 +18141,38 @@ test("non-compete: where you can't work next speaks up", () => {
   assert.match(light.items[0].why, /direct competitors/,
     "a short covenant asks only for scope-narrowing");
 
+  // Cycle #396 — garden leave earns credit: paying you while it binds you
+  // is the fairer shape, and the lens says so instead of treating every
+  // covenant identically.
+  const gardenDoc = "Employee shall not compete with Company for twelve months following termination of employment. Employee shall continue to receive base salary during the Restricted Period.";
+  const garden = detectNoncompete(gardenDoc);
+  assert.equal(garden.items.length, 1, "a paid covenant is still flagged once");
+  assert.match(garden.items[0].why, /keeps paying while it restrains/,
+    "garden leave is credited in the finding");
+  assert.match(garden.items[0].why, /the fairer shape/,
+    "…with the house fairness credit");
+  const unpaid = detectNoncompete(boundDoc);
+  assert.doesNotMatch(unpaid.items[0].why, /keeps paying/,
+    "an unpaid covenant earns no credit it did not ask for");
+
+  // Cycle #396 — the blue-pencil clause is named as its own finding: a court
+  // is told to shrink the covenant to the legal max instead of striking it.
+  const blueDoc = "Executive shall not compete with Company for twenty four months in any capacity whatsoever. If a court deems this covenant unenforceable, it shall be automatically reduced to the maximum extent permissible under applicable law.";
+  const blue = detectNoncompete(blueDoc);
+  assert.equal(blue.items.length, 2, "the self-rewriting clause speaks separately");
+  assert.match(blue.items[1].label, /rewrites itself/,
+    "the auto-substitution is the headline");
+  assert.match(blue.items[1].why, /harshest version enforced anyway/,
+    "…and read as intent, not boilerplate");
+  assert.ok(typeof blue.items[1].start === "number" && blue.items[1].start > blue.items[0].start,
+    "…and jumps to its own sentence");
+
+  // False-positive guard: a liability cap's "maximum extent permitted by
+  // law" is not a covenant clause — the lens stays quiet.
+  const liabilityDoc = "Company's total liability shall be limited to the maximum extent permitted by applicable law. Consultant shall perform the services professionally.";
+  assert.equal(detectNoncompete(liabilityDoc).items.length, 0,
+    "cap language outside covenant context never triggers the rewrite warning");
+
   // No covenant language → fully quiet.
   assert.equal(detectNoncompete("Consultant shall perform the services with professional care. Client shall pay undisputed invoices within thirty days.").items.length, 0,
     "documents without covenant language stay quiet");
@@ -18158,6 +18190,8 @@ test("non-compete: where you can't work next speaks up", () => {
             appSrc.indexOf("Restrictive covenants (where you can’t work next)") !== -1,
     "the printed brief includes the covenant section");
   assert.ok(appSrc.indexOf("'Shrink the non-compete'") !== -1, "the sent ask list includes the covenant ask");
+  assert.ok(appSrc.indexOf("// Cycle #396 — polish: pay while restrained; self-rewriting covenants.") !== -1,
+    "the grading pass ships with its structural pin");
   assert.ok(indexHtml.indexOf("Non-compete") !== -1,
     "the landing checklist advertises the new lens");
 });

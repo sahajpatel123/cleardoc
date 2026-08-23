@@ -19317,6 +19317,20 @@
         duration = durOf(seg.t);
         geoWide = GEO_RE.test(seg.t);
       });
+      // Cycle #396 — polish: pay while restrained; self-rewriting covenants.
+      // Two signals grade the shackle: garden leave (it pays you while it
+      // binds you — the fairer shape) and the blue-pencil clause (a court is
+      // told to shrink it to the legal max instead of striking it — read
+      // that as intent).
+      const RESTRICT_CTX = /\bnon[- ]?compet\w*|\brestrict\w*|\bcovenant\w*|\bcompet\w*|\bsolicit\w*/i;
+      const GARDEN_RE = /\bgarden\s*leave\b|\bcontinues?\s+to\s+(?:receive|be\s+paid)\b[^.;]{0,60}\b(?:salary|compensation|wages|pay)\b/i;
+      const BLUE_RE = /\bblue\s*pencil\w*|\b(?:reduced?|reformed?|construed?)\b[^.;]{0,60}\bmaximum\b|\bmaximum\s+(?:extent|period|duration)\s+(?:permissib|lawful|allow)\w*|\bto\s+the\s+extent\s+(?:such\s+)?(?:restriction|covenant|provision)\b/i;
+      let gardenSeen = false, blueAt = -1, blueLen = 0;
+      segs.forEach(seg => {
+        if(!(NC_RE.test(seg.t) || RESTRICT_CTX.test(seg.t))) return;
+        if(GARDEN_RE.test(seg.t)) gardenSeen = true;
+        if(blueAt < 0 && BLUE_RE.test(seg.t)){ blueAt = seg.at; blueLen = seg.t.length; }
+      });
       if(firstAt >= 0){
         checked++;
         const who = boundParty ? boundParty.raw : 'you';
@@ -19328,11 +19342,21 @@
           label: '“' + who + '” may not compete ' + durBit,
           why: 'This covenant restricts where “' + who + '” can work after this contract ends' + geoBit +
             '. Enforce or not in your state, it chills every future job offer.' +
+            (gardenSeen ? ' This one keeps paying while it restrains — garden leave, the fairer shape.' : '') +
             (!duration ? ' Ask for an end date — 6 to 12 months is the defensible ceiling.' :
               parseInt(duration, 10) > 12 ? ' Ask to shrink it to a year or less, limited to actual competitors.' :
               ' Ask that it apply only to direct competitors, never the whole industry.'),
           start: firstAt,
           end: firstAt + firstLen
+        });
+      }
+      if(blueAt >= 0){
+        checked++;
+        items.push({
+          label: 'Even if struck down, this covenant rewrites itself',
+          why: 'The contract tells a court to shrink this restriction to the maximum it can lawfully reach instead of striking it. Read that as intent — the drafter knows the reach is excessive and wants the harshest version enforced anyway.',
+          start: blueAt,
+          end: blueAt + blueLen
         });
       }
       return { items: items.slice(0, 4), checked: checked, covenants: firstAt >= 0 ? 1 : 0 };
