@@ -16710,17 +16710,23 @@ test("ask list: button exists, reads every lens in rank order, copies as asks", 
   assert.match(appSrc, /_alWired/, "wiring is once-guarded");
 
   // Every lens feeds the list — none left behind.
+  // Cycle #362: balance and figures joined after the builder shipped.
   for(const sel of ["#sigList .gap-label", "#gapList .gap-label", "#openTermsList .gap-label",
-                    "#undatedList .gap-row", "#termsList .gap-label", "#xrefList .gap-label"]){
+                    "#figuresList .gap-label", "#undatedList .gap-row", "#termsList .gap-label",
+                    "#xrefList .gap-label", "#balanceList .gap-label"]){
     assert.ok(appSrc.includes("'" + sel + "'"), "the builder reads " + sel);
   }
 
   // Ranking: execution problems are read before missing clauses, which are
-  // read before open terms (source order of addSection calls).
+  // read before open terms (source order of addSection calls). Figures —
+  // a correctness issue — outrank posture asks like rebalancing.
   const sigRead = appSrc.indexOf("'#sigList .gap-label'");
   const gapRead = appSrc.indexOf("'#gapList .gap-label'");
   const openRead = appSrc.indexOf("'#openTermsList .gap-label'");
+  const figuresRead = appSrc.indexOf("'#figuresList .gap-label'", appSrc.indexOf("getElementById('askListBtn')"));
+  const balanceRead = appSrc.indexOf("'#balanceList .gap-label'", appSrc.indexOf("getElementById('askListBtn')"));
   assert.ok(sigRead < gapRead && gapRead < openRead, "deal-breakers rank first in build order");
+  assert.ok(figuresRead < balanceRead, "correctness asks outrank workload-posture asks");
 
   // Each section is phrased AS AN ASK, not as a label.
   assert.match(appSrc, /'Ask them to add: '/, "missing clauses become requests to add");
@@ -16728,6 +16734,8 @@ test("ask list: button exists, reads every lens in rank order, copies as asks", 
   assert.match(appSrc, /'Put a deadline or exit on: '/, "forever duties get deadline asks");
   assert.match(appSrc, /'Define: '/, "undefined terms become definition asks");
   assert.match(appSrc, /'Fix reference: '/, "broken refs become repair asks");
+  assert.match(appSrc, /words and digits agree/, "figure splits become correction asks");
+  assert.match(appSrc, /Rebalance these duties/, "load imbalance becomes a rebalancing ask");
 
   // Header carries provenance; copy uses the house clipboard pattern.
   assert.match(appSrc, /'# My negotiation asks'/, "markdown header present");

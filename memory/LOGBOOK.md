@@ -6452,3 +6452,14 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #361 of the autonomous loop (add — last cycle polished figure jumps/cheat-sheet): turn built depth into visitor-visible truth — the checklist advertises only what actually ships, pinned by tests so it can never drift into vaporware. Next polish-cycle candidate: polish a neglected landing interaction, or deepen a lens.
+
+## 2026-08-23 07:3x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #362 — POLISH: the ask list now speaks for every lens.** The "🗣 My asks" builder shipped in #355 with six sources; the ⚖️ balance (#357) and 🔢 figures (#359) lenses landed after it and their findings never reached the negotiation list. Fixed:
+  - **"Correct the numbers"** section — split figures become correction asks ("Correct the figure so words and digits agree: …"), ranked with the pre-signing correctness group.
+  - **"Rebalance the workload"** section — duty imbalance becomes a posture ask ("Rebalance these duties (or pay for the extra load): …"), ranked last among categories (posture, not correctness).
+  - Rank-order pins extended: deal-breakers first still holds, plus a new pin that correctness asks outrank workload-posture asks; lens-coverage loop grew from six selectors to eight.
+- Gate: unit 490/490 · smoke 315 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #362 of the autonomous loop (polish — last cycle added the landing checklist): keep the flagship artifact complete as the lens family grows — a new lens that never reaches the sent list is only half shipped. Next add-cycle candidate: TBD, scope incumbents first.

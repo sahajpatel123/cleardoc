@@ -22687,13 +22687,17 @@
             const esText = (document.getElementById('execSummaryBody') || {}).textContent || '';
             const prioLine = esText.split('\n').map(s2 => s2.trim()).find(l => /^Top priority:/i.test(l));
             if(prioLine) sections.push({ title: 'Start here', lines: ['- ' + prioLine.replace(/^Top priority:\s*/i, '')] });
-            // Deal-breakers first, then completeness, then polish.
+            // Deal-breakers first, then correctness, then posture.
             addSection('Fix before anything else', 'Fix the signature block: ', readAll('#sigList .gap-label'));
             addSection('Missing clauses to request', 'Ask them to add: ', readAll('#gapList .gap-label', 8));
             addSection('Fill in before signing', 'Fill in: ', readAll('#openTermsList .gap-label', 8));
+            // Cycle #362 — the balance and figure lenses ship after this
+            // builder did; their findings belong in the sent list too.
+            addSection('Correct the numbers', 'Correct the figure so words and digits agree: ', readAll('#figuresList .gap-label', 4));
             addSection('Put deadlines on forever duties', 'Put a deadline or exit on: ', readFirstHints('#undatedList .gap-row', 4), t => t.replace(/^[“”"]+|[“”"]+$/g, ''));
             addSection('Define the vocabulary', 'Define: ', readAll('#termsList .gap-label', 6));
             addSection('Repair broken cross-references', 'Fix reference: ', readAll('#xrefList .gap-label', 6));
+            addSection('Rebalance the workload', 'Rebalance these duties (or pay for the extra load): ', readAll('#balanceList .gap-label', 4));
             if(!sections.length){
               if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✓ Nothing to ask — this document came back clean');
               return;
