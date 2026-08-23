@@ -27553,6 +27553,80 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       }catch(err){ console.error(err); setSub(chip,'warn','Could not read this PDF — paste the text instead'); }
     }
 
+    /* ---- Cycle #369 — pure-local DOCX extraction ----
+     * The banner promises DOCX support; until now a .docx attachment only
+     * said "paste the text". A .docx is a ZIP whose word/document.xml holds
+     * the text, so we parse the ZIP central directory by hand (no library),
+     * inflate the one entry we need with the browser's own
+     * DecompressionStream('deflate-raw'), and strip the XML down to plain
+     * paragraphs. Nothing leaves the device — same promise as every reader.
+     * Old browsers without DecompressionStream keep the paste-instead warn.
+     */
+    async function extractDocxText(buf){
+      const dv = new DataView(buf);
+      const u8 = new Uint8Array(buf);
+      // Find the End Of Central Directory record (scanning past any comment).
+      let eocd = -1;
+      for(let i = u8.length - 22; i >= Math.max(0, u8.length - 22 - 65536); i--){
+        if(dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
+      }
+      if(eocd < 0) throw new Error('not a zip');
+      const count = dv.getUint16(eocd + 10, true);
+      let p = dv.getUint32(eocd + 16, true);
+      const dec = new TextDecoder();
+      for(let i = 0; i < count; i++){
+        if(dv.getUint32(p, true) !== 0x02014b50) break;
+        const method = dv.getUint16(p + 10, true);
+        const csize = dv.getUint32(p + 20, true);
+        const nlen = dv.getUint16(p + 28, true);
+        const elen = dv.getUint16(p + 30, true);
+        const clen = dv.getUint16(p + 32, true);
+        const name = dec.decode(u8.subarray(p + 46, p + 46 + nlen));
+        if(name === 'word/document.xml'){
+          const lho = dv.getUint32(p + 42, true);          // local header offset
+          const lnlen = dv.getUint16(lho + 26, true);
+          const lelen = dv.getUint16(lho + 28, true);
+          const start = lho + 30 + lnlen + lelen;          // sizes come from the central dir,
+          const data = u8.subarray(start, start + csize);  // which is always authoritative
+          if(method === 0) return docxXmlToText(dec.decode(data));
+          if(method === 8){
+            const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+            return docxXmlToText(dec.decode(await new Response(stream).arrayBuffer()));
+          }
+          throw new Error('unsupported zip compression');
+        }
+        p += 46 + nlen + elen + clen;
+      }
+      throw new Error('word/document.xml not found');
+    }
+    function docxXmlToText(xml){
+      // Paragraph and line breaks become newlines BEFORE tags are stripped,
+      // so the text runs between them stay glued together as words.
+      const s = String(xml || '')
+        .replace(/<w:br\b[^>]*\/?>/g, '\n')
+        .replace(/<w:tab\b[^>]*\/?>/g, '\t')
+        .replace(/<\/w:p>/g, '\n')
+        .replace(/<[^>]+>/g, '');
+      const ents = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'" };
+      const lines = s.split('\n').map(l => l
+        .replace(/&#(\d+);/g, (_, d) => { try { return String.fromCodePoint(parseInt(d, 10)); } catch(_){ return ''; } })
+        .replace(/&amp;|&lt;|&gt;|&quot;|&apos;/g, m => ents[m])
+        .replace(/[ \t]+/g, ' ').trim());
+      return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    }
+    async function readDocx(file,chip){
+      if(typeof DecompressionStream === 'undefined'){
+        setSub(chip,'warn','DOCX reading needs a newer browser · paste the text to analyze'); return;
+      }
+      try{ setSub(chip,'work','Reading DOCX…');
+        const out = String(await extractDocxText(await file.arrayBuffer()) || '').trim();
+        if(!out){ setSub(chip,'warn','No readable text in this DOCX — paste it instead'); return; }
+        attachedText = out.slice(0,30000);
+        setSub(chip,'ok','Read '+out.length+' chars · press Analyze');
+        prepareForAttachment();
+      }catch(err){ console.error(err); setSub(chip,'warn','Could not read this DOCX — paste the text instead'); }
+    }
+
     /* ---- Lazy OCR (Tesseract.js) — only loaded when an image is attached ----
      * The 1MB+ Tesseract runtime + English language pack is loaded on-demand
      * from a CDN. Users who never attach an image pay nothing. If the load
@@ -27643,7 +27717,8 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
       if(PDF_EXT.test(n)) readPdf(file,chip);
       else if(IMG_EXT.test(n)) readImage(file,chip);
       else if(TEXT_EXT.test(n)||(file.type&&file.type.indexOf('text')===0)) readText(file,chip);
-      else if(/\.(docx?|odt|pages)$/i.test(n)) setSub(chip,'warn','Office doc attached · paste the text to analyze');
+      else if(/\.docx$/i.test(n)) readDocx(file,chip);
+      else if(/\.(doc|odt|pages)$/i.test(n)) setSub(chip,'warn','Office doc attached · paste the text to analyze');
       else readText(file,chip);
     }
     if(fileInput) fileInput.addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(f) handleFile(f); });

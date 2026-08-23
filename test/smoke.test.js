@@ -16766,6 +16766,88 @@ test("signatures: foreign-entity signing lines get called out", () => {
   assert.match(appSrc, /partyRaw\.slice\(0, 3\)/, "the introduced-names list is capped");
 });
 
+// Cycle #369 — behavioral: a REAL .docx buffer (a zip whose deflated
+// word/document.xml we build with zlib) extracts to clean paragraphs,
+// entirely locally — no library, no network.
+test("docx: real zip buffers extract to plain text", async () => {
+  const zlib = require("zlib");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("async function extractDocxText");
+  assert.ok(start >= 0, "the docx extractor must exist");
+  const endMark = "\n    }";
+  const tEnd = appSrc.indexOf(endMark, appSrc.indexOf("return lines.join", start));
+  assert.ok(tEnd > start, "both docx helpers must be present to extract");
+  const src = appSrc.slice(start, tEnd + endMark.length) + "\n return { extractDocxText };";
+  const { extractDocxText } = new Function(src)();
+  // The extractor must stay pure-local.
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "no network calls in the reader");
+
+  // crc32 — the one checksum the zip format demands of us.
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for(let n = 0; n < 256; n++){
+      let c = n;
+      for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  const crc32 = (buf) => {
+    let c = 0xFFFFFFFF;
+    for(let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  };
+
+  function makeZip(xml, method){
+    const name = Buffer.from("word/document.xml");
+    const raw = Buffer.from(xml, "utf8");
+    const body = method === 8 ? zlib.deflateRawSync(raw) : raw;
+    const crc = crc32(raw);
+    const lh = Buffer.alloc(30);
+    lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(20, 4); lh.writeUInt16LE(method, 8);
+    lh.writeUInt32LE(crc, 14); lh.writeUInt32LE(body.length, 18); lh.writeUInt32LE(raw.length, 22);
+    lh.writeUInt16LE(name.length, 26);
+    const cd = Buffer.alloc(46);
+    cd.writeUInt32LE(0x02014b50, 0); cd.writeUInt16LE(20, 4); cd.writeUInt16LE(20, 6);
+    cd.writeUInt16LE(method, 10);
+    cd.writeUInt32LE(crc, 16); cd.writeUInt32LE(body.length, 20); cd.writeUInt32LE(raw.length, 24);
+    cd.writeUInt16LE(name.length, 28);
+    cd.writeUInt32LE(0, 42);
+    const cdEntry = Buffer.concat([cd, name]);
+    const data = Buffer.concat([lh, name, body]);
+    const eocd = Buffer.alloc(22);
+    eocd.writeUInt32LE(0x06054b50, 0);
+    eocd.writeUInt16LE(1, 8); eocd.writeUInt16LE(1, 10);
+    eocd.writeUInt32LE(cdEntry.length, 12); eocd.writeUInt32LE(data.length, 16);
+    return Buffer.concat([data, cdEntry, eocd]);
+  }
+  const toAb = (b) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+
+  const xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
+    '<w:p><w:r><w:t xml:space="preserve">Consulting services shall begin</w:t></w:r></w:p>' +
+    '<w:p><w:r><w:t>on the Effective Date &amp; continue for one year.</w:t></w:r></w:p>' +
+    '</w:body></w:document>';
+  const expected = "Consulting services shall begin\non the Effective Date & continue for one year.";
+
+  assert.equal(await extractDocxText(toAb(makeZip(xml, 8))), expected,
+    "deflate entries inflate through DecompressionStream and strip to paragraphs");
+  assert.equal(await extractDocxText(toAb(makeZip(xml, 0))), expected,
+    "stored entries read straight out of the archive");
+
+  // Structural: routing, guard, fallback copy, and the advertised formats.
+  assert.ok(appSrc.indexOf(".docx$/i.test(n)) readDocx(file,chip)") !== -1,
+    ".docx attachments route to the reader");
+  assert.ok(appSrc.indexOf("typeof DecompressionStream === 'undefined'") !== -1,
+    "old browsers get a clear warn instead of a crash");
+  assert.ok(appSrc.indexOf("deflate-raw") !== -1, "inflation uses the browser's own decompressor");
+  assert.ok(appSrc.indexOf("Office doc attached · paste the text to analyze") !== -1,
+    "legacy office formats keep the paste-instead warn");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  assert.ok(html.indexOf(".docx") !== -1, "the file input still advertises .docx");
+});
+
 // Cycle #355 — "My asks": one button consolidates every lens's findings
 // into a single ranked, copy-ready negotiation demand list. It reads the
 // LIVE DOM (so it always matches what the user sees) in deal-breaker-first

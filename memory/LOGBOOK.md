@@ -6537,3 +6537,15 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #368 of the autonomous loop (polish — last cycle added the wrong-entity check): findings now explain themselves instead of just alarming. Next cycle #369 is ADD — candidates TBD with scope-incumbents-first grep.
+
+## 2026-08-23 08:4x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #369 — ADD: pure-local DOCX extraction.** The banner promises "PDF · DOCX · SCANS (OCR)" and the file input accepts .docx — but a .docx attachment only ever said "paste the text to analyze". Now it reads like every other attachment:
+  - **ZIP by hand:** `extractDocxText` parses the End-of-Central-Directory record, walks central-directory entries to find `word/document.xml` (sizes taken from the central dir, which stays authoritative even with data-descriptor locals), and inflates via the browser's own `DecompressionStream('deflate-raw')` — stored (method 0) and deflate (method 8) both handled. No library, nothing leaves the device.
+  - **XML to text:** `docxXmlToText` turns `<w:p>`/`<w:br>`/`<w:tab>` into newlines BEFORE stripping tags, decodes numeric + named entities, trims lines, collapses blank runs; `readDocx` follows the house reader shape (work chip → attachedText → ok chip → prepareForAttachment) with paste-instead warns on empty/old-browser/failure.
+  - Routing: `.docx` → reader; `.doc/.odt/.pages` keep the legacy warn.
+- Tests: behavioral with a REAL zip fixture built in-test (zlib.deflateRawSync + hand-rolled crc32) — deflate and stored paths both extract the exact expected paragraphs; structural pins for routing, DecompressionStream guard, legacy warn, purity (no fetch/beacon/XHR in the extracted slice), accept attr.
+- Gate: unit 490/490 · smoke 320 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #369 of the autonomous loop (add — last cycle made wrong-entity findings name their twin): the advertised formats now actually work, on-device. Next cycle #370 is POLISH — candidates: DOCX edge polish (headers/footers text, w:instrText noise), or another surface TBD with scope-first grep.
