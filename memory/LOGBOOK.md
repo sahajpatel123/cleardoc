@@ -6560,3 +6560,16 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 
 **Prompt Intention:**
 - Cycle #370 of the autonomous loop (polish — last cycle added DOCX extraction): the reader now extracts the document a human actually sees. Next cycle #371 is ADD — candidates TBD with scope-incumbents-first grep.
+
+## 2026-08-23 09:0x | Claude (ox-alpha)
+**Changes Made:**
+- **Cycle #371 — ADD: rate translation in the figure lens.** Contracts quote the cost of money in small-sounding pieces — "1.5% per month" is really 18% a year, which is the number usury law speaks in. detectFigures gained a third category:
+  - `RATE_RE` matches digits + % + per/a// + month/week/quarter/half-year forms (already-annual "per annum" rates are left alone); multipliers 12/52/4/2; one-decimal rounding.
+  - Row headline does the math: "1.5% a month is 18% a year"; hint explains the twelve-month charge and adds the usury push-back ask at ≥18%/yr. Spans ride along → jump rows, cheat-sheet section, and ask-list inclusion all automatic.
+  - Figures note copy now mentions rate translation.
+- Scoping: the recurring-payment engine annualizes dollar amounts only (Iter #185) — percentage rates were genuinely untranslated.
+- Tests: four behavioral corpora (monthly → exact label + span, weekly ×52, per-annum silence, ≥18% usury ask) + annotation pin through the real detector extraction.
+- Gate: unit 490/490 · smoke 320 pass / 0 fail / 141 skipped · integration 16/16 · syntax + JSON clean.
+
+**Prompt Intention:**
+- Cycle #371 of the autonomous loop (add — last cycle stripped invisible DOCX text): signers see the yearly cost of a rate before they sign. Next cycle #372 is POLISH — candidates: rate polish (word-number rates like "one and one-half percent", $-cap pairing), or TBD with scope-first grep.

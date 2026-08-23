@@ -17886,6 +17886,27 @@
           'The text says "' + m[1] + '" but the parenthetical says (' + m[2] + ') days. Courts often treat the digits as controlling — make both say the number you agreed to.',
           m.index, m[0].length);
       }
+      // 3. Cycle #371 — periodic percentage rates, translated to the
+      // yearly number. Late fees and default interest are quoted in
+      // small-sounding pieces ("1.5% per month"); the annual figure is
+      // what you actually pay, and it is what usury law speaks in.
+      const RATE_RE = /\b(\d{1,2}(?:\.\d+)?)\s*%\s*(?:per|a|\/)\s*(month(?:s|ly)?|week(?:s|ly)?|quarter(?:s|ly)?|half[- ]year(?:s)?|semi[- ]annual(?:ly)?)/gi;
+      RATE_RE.lastIndex = 0;
+      while((m = RATE_RE.exec(text)) && items.length < 10){
+        const v = parseFloat(m[1]);
+        const per = m[2].toLowerCase();
+        let mult = 0, kind = '';
+        if(per.indexOf('month') !== -1){ mult = 12; kind = 'a month'; }
+        else if(per.indexOf('week') !== -1){ mult = 52; kind = 'a week'; }
+        else if(per.indexOf('quarter') !== -1){ mult = 4; kind = 'a quarter'; }
+        else { mult = 2; kind = 'a half-year'; }
+        const annual = Math.round(v * mult * 10) / 10;
+        checked++;
+        pushItem(v + '% ' + kind + ' is ' + annual + '% a year',
+          'Rates are quoted in small-sounding pieces; over twelve months this clause charges ' + annual + '% of the balance' +
+          (annual >= 18 ? ' — high enough that several states treat it as usurious. Ask for a cap.' : '. Worth capping before you sign.'),
+          m.index, m[0].length);
+      }
       return { items: items.slice(0, 8), checked: checked };
     }
 
@@ -17909,7 +17930,7 @@
       figuresBlock.hidden = false;
       if(figuresNote){
         figuresNote.innerHTML = '<span class="riskNote-lead">Figures that disagree</span> ' +
-          'Amounts restated in words and digits — "Fifty Thousand Dollars ($50,000)", "thirty (30) days" — checked for agreement. When the pair splits, the digits usually win in court.';
+          'Amounts restated in words and digits — "Fifty Thousand Dollars ($50,000)", "thirty (30) days" — checked for agreement; periodic rates ("1.5% per month") translated to what they cost over a year. When a pair splits, the digits usually win in court.';
       }
       // Delegated, once-guarded jump wiring.
       if(!figuresList._fgWired){

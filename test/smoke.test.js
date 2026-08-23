@@ -17219,4 +17219,24 @@ test("figure check: catches split amounts, stays silent on agreement", () => {
   // Non-number words before (N) are skipped, not flagged.
   const junk = detectFigures("See Exhibit Twelve (12) for the schedule of days.");
   assert.equal(junk.items.length, 0, "'Exhibit Twelve (12)' without a days unit pattern is untouched");
+
+  // Cycle #371 — periodic rates translate to the yearly number.
+  const rateDoc = "Late charges accrue at 1.5% per month on any unpaid balance.";
+  const rate = detectFigures(rateDoc);
+  assert.equal(rate.items.length, 1, "a monthly rate is translated");
+  assert.match(rate.items[0].label, /^1\.5% a month is 18% a year$/,
+    "the label does the math in the headline");
+  assert.equal(rate.items[0].start, rateDoc.indexOf("1.5% per month"),
+    "the span points at the quoted rate");
+
+  const week = detectFigures("A service charge of 0.5% a week applies to overdue invoices.");
+  assert.match(week.items[0].label, /^0\.5% a week is 26% a year$/, "weekly rates use 52");
+
+  const annum = detectFigures("Interest accrues at 5% per annum on the principal.");
+  assert.equal(annum.items.length, 0, "already-annual rates are left alone");
+
+  const usury = detectFigures("Default interest of 2% per month applies after grace.");
+  assert.match(usury.items[0].why, /usurious/, "steep annual figures get the push-back ask");
+
+  assert.match(appSrc, /Cycle #371 — periodic percentage rates/, "the translation layer is annotated");
 });
