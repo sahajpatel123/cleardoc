@@ -18248,6 +18248,34 @@ test("disclaimers: zero promises get named, graded, and argued", () => {
   assert.match(implied.items[0].label, /baseline promises are waived/,
     "the law's floor being removed is the headline");
 
+  // Cycle #398 — absolute promises are their own finding: paired with the
+  // disclaimer next door, the drafter holds both cards.
+  const absDoc = "Company warrants that the platform service will be uninterrupted and completely secure at all times. Except as stated, the services are provided AS IS.";
+  const abs = detectWarranty(absDoc);
+  assert.equal(abs.items.length, 2, "the overpromise speaks alongside the disclaimer");
+  assert.match(abs.items[1].label, /absolute promise nobody can keep/,
+    "the perfect-results guarantee is named as impossible");
+  assert.match(abs.items[1].why, /holds both cards/,
+    "…with the two-sided drafting called out");
+  assert.match(abs.items[1].why, /99\.9% uptime/,
+    "…and the ask demands a measurable standard");
+
+  // Cycle #398 — express promises get dated: the shelf life is quoted back.
+  const durDoc = "Contractor warrants that all work will be free from defects for ninety days following acceptance. Except as stated above, all deliverables are provided AS IS.";
+  const dur = detectWarranty(durDoc);
+  assert.match(dur.items[0].why, /expire in ninety days/,
+    "the promise's shelf life makes the hold-them-to-it ask concrete");
+
+  // Cycle #398 — conspicuousness weighs the implied waiver too.
+  const impliedCapsDoc = "THE GOODS ARE PROVIDED AS IS AND ALL IMPLIED WARRANTIES OF MERCHANTABILITY ARE DISCLAIMED TO THE FULLEST EXTENT.";
+  const impliedCapsHit = detectWarranty(impliedCapsDoc).items.find(it => /baseline/.test(it.label));
+  assert.ok(impliedCapsHit && /shouted in capitals/.test(impliedCapsHit.why),
+    "an all-caps implied waiver reads as deliberate");
+  const impliedQuietDoc = "any implied warranty of merchantability is hereby waived to the extent permitted by law.";
+  const impliedQuietHit = detectWarranty(impliedQuietDoc).items.find(it => /baseline/.test(it.label));
+  assert.ok(impliedQuietHit && /same conspicuousness argument/.test(impliedQuietHit.why),
+    "a quiet lowercase implied waiver earns the burial argument");
+
   // False friends stay quiet: "as is customary" is not an "as is" sale,
   // and documents without disclaimer language never trigger the lens.
   assert.equal(detectWarranty("Prices adjust annually as is customary for services of this type. Client shall pay undisputed invoices within thirty days.").items.length, 0,
@@ -18270,6 +18298,8 @@ test("disclaimers: zero promises get named, graded, and argued", () => {
   assert.ok(appSrc.indexOf("'Add a 90-day warranty'") !== -1, "the sent ask list includes the warranty ask");
   assert.ok(appSrc.indexOf("// Cycle #397 — warranty-disclaimer lens joins the storefront.") !== -1,
     "the lens ships with its structural pin");
+  assert.ok(appSrc.indexOf("// Cycle #398 — polish: overpromises graded; waivers dated and weighed.") !== -1,
+    "the grading pass ships with its structural pin");
   assert.ok(indexHtml.indexOf("Disclaimers") !== -1,
     "the landing checklist advertises the new lens");
 });

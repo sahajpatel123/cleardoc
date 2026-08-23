@@ -19445,8 +19445,15 @@
       // conspicuousness decides whether a court honors the waiver.
       const IMPLIED_RE = /\bmerchantabilit\w*|\bfitness\s+for\s+(?:a\s+)?particular\s+purpose\b/i;
       const EXPRESS_RE = /\bexpress\s+warrant\w*|\bwarrants?\s+that\b[^.;]{0,80}\b(?:workmanlike|free\s+from\s+defects?|conform)/i;
+      // Cycle #398 — polish: overpromises graded; waivers dated and weighed.
+      // Absolute promises pair with the disclaimer next door so the drafter
+      // holds both cards; expiry dates make "some things" concrete.
+      const ABS_GATE = /\bwarrant\w*|\bguarantee\w*|\bpromis\w*/i;
+      const ABS_RE = /\berror[\s-]?free\b|\bdefects?[\s-]?free\b|\bbug[\s-]?free\b|\buninterrupted\b|\bflawless\b|\bwithout\s+errors?\b|\bcompletely\s+secure\b|(?:100\s*%|hundred\s+percent)\s*(?:secure|accurate|error[- ]?free|uptime|available)?/i;
+      const EXP_DUR_RE = /(?:for\s+)?((?:\d{1,3}|thirty|sixty|ninety|twelve|eighteen)(?:\s*\(\d{1,3}\))?\s*days?)\b/i;
       let disAt = -1, disLen = 0, disParty = null, capsSeen = false, buried = false;
-      let impliedAt = -1, impliedLen = 0, expressSeen = false;
+      let impliedAt = -1, impliedLen = 0, impliedCaps = false, impliedBuried = false;
+      let expressSeen = false, expressDur = '', absAt = -1, absLen = 0;
       segs.forEach(seg => {
         if(WAR_RE.test(seg.t)){
           checked++;
@@ -19457,8 +19464,21 @@
             else if(ASIS_RE.test(seg.t)) buried = true;
           }
         }
-        if(impliedAt < 0 && IMPLIED_RE.test(seg.t)){ impliedAt = seg.at; impliedLen = seg.t.length; }
-        if(!expressSeen && EXPRESS_RE.test(seg.t)) expressSeen = true;
+        if(impliedAt < 0 && IMPLIED_RE.test(seg.t)){
+          impliedAt = seg.at; impliedLen = seg.t.length;
+          impliedCaps = /\bAS\s+IS\b|\bDISCLAIMS?\b|\bWAIVES?\b/.test(seg.t);
+          impliedBuried = !impliedCaps && /\bas\s+is\b|\bwaiv\w*|\bexclud\w*/i.test(seg.t);
+        }
+        const isExpress = EXPRESS_RE.test(seg.t);
+        const isAbs = ABS_GATE.test(seg.t) && ABS_RE.test(seg.t);
+        if(isExpress || isAbs){
+          expressSeen = true;
+          if(expressDur === ''){
+            const dm = seg.t.match(EXP_DUR_RE);
+            if(dm) expressDur = dm[1].toLowerCase();
+          }
+        }
+        if(isAbs && absAt < 0){ absAt = seg.at; absLen = seg.t.length; }
       });
       if(disAt >= 0){
         checked++;
@@ -19467,7 +19487,9 @@
           ? ' It is set in capitals — drafted to be seen, so a court will likely hold every word.'
           : (buried ? ' It sits lowercase mid-sentence — courts have refused waivers that were not conspicuous. Worth raising.' : '');
         const askBit = expressSeen
-          ? ' They do promise some things elsewhere — hold them to that list rather than the wipe-out.'
+          ? (' They do promise some things elsewhere' +
+             (expressDur ? ' — but those promises expire in ' + expressDur : '') +
+             ' — hold them to that list rather than the wipe-out.')
           : ' Ask for a 90-day workmanship warranty in its place.';
         items.push({
           label: who ? ('“' + who + '” sells you everything “as is”') : 'Everything here is sold “as is”',
@@ -19480,9 +19502,20 @@
         checked++;
         items.push({
           label: 'Even the law’s baseline promises are waived',
-          why: 'Merchantability and fitness for a particular purpose are promises the law reads into every sale automatically — unless the contract names them and takes them away. This one does exactly that.',
+          why: 'Merchantability and fitness for a particular purpose are promises the law reads into every sale automatically — unless the contract names them and takes them away. This one does exactly that.' +
+            (impliedCaps ? ' It is shouted in capitals — drafted deliberately, so argue it before signing, not after.' :
+             impliedBuried ? ' It sits in quiet lowercase — the same conspicuousness argument applies here.' : ''),
           start: impliedAt,
           end: impliedAt + impliedLen
+        });
+      }
+      if(absAt >= 0){
+        checked++;
+        items.push({
+          label: 'An absolute promise nobody can keep',
+          why: 'The drafting guarantees perfect results — error-free, uninterrupted, always. Reality slips eventually, and when it does the drafter holds both cards: this promise made the sale, and the disclaimer next door avoids paying on it. Ask for a measurable standard instead — a 99.9% uptime target with a service credit attached beats “always” every time.',
+          start: absAt,
+          end: absAt + absLen
         });
       }
       return { items: items.slice(0, 4), checked: checked, disclaimed: disAt >= 0 ? 1 : 0 };
