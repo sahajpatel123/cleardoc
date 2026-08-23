@@ -32,7 +32,11 @@ const HOST = "127.0.0.1";
 // Short 2–4s budgets elsewhere are deliberate: they watch for state
 // changes after content is already visible, where a slow wait would hide
 // real regressions.
-const SEL_WAIT = 20000;
+// Cycle #388 — the 20s budget itself flaked twice running (#387 decision
+// block, #388 reading list) with observed in-gate waits near 23s; a
+// different test loses the lottery each run. 30s keeps the same
+// positive-content semantics with headroom over the observed worst case.
+const SEL_WAIT = 30000;
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
