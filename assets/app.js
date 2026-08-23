@@ -18601,7 +18601,13 @@
       const FREE_EXPLICIT = /\bmay\s+(?:freely\s+)?assign\b[^.]{0,90}?\bwithout\b[^.]{0,40}?\bconsent\b/i;
       const FREE_MODAL = /\bmay\s+(?:freely\s+)?assign/i;
       const BAN_RE = /\b(?:shall\s+not|may\s+not|will\s+not|cannot)\s+(?:assign|delegate)/i;
+      // Cycle #384 — polish: carve-out-scoped transfers. "May assign to
+      // an affiliate in a merger" is not a door open to anyone — grade
+      // it apart, and surface notice-only handoffs while here.
+      const SCOPE_RE = /\b(?:affiliat\w*|merger|acquisition|reorganization|successor)\b/i;
+      const NOTICE_NEAR = /\bupon\s+(?:written\s+)?notice|\bafter\s+(?:prior\s+)?written\s+notice|\bnotice\s+to\b/i;
       let freeParty = null, hasBan = false, mutualSeen = false;
+      let scopedFree = false, noticeGiven = false;
       let firstAt = -1, firstLen = 0;
       segs.forEach(seg => {
         if(!ASSIGN_RE.test(seg.t)) return;
@@ -18612,22 +18618,42 @@
         const p = partyOf(seg.t);
         if(!p || p.n.length < 4) return;
         if(FREE_EXPLICIT.test(seg.t)){
-          freeParty = p; firstAt = seg.at; firstLen = seg.t.length; return;
+          freeParty = p; firstAt = seg.at; firstLen = seg.t.length;
+          scopedFree = SCOPE_RE.test(seg.t); noticeGiven = NOTICE_NEAR.test(seg.t);
+          return;
         }
         const am = seg.t.match(FREE_MODAL);
         if(am && !CONSENT_NEAR.test(seg.t.slice(am.index + am[0].length, am.index + am[0].length + 120))){
           freeParty = p; firstAt = seg.at; firstLen = seg.t.length;
+          scopedFree = SCOPE_RE.test(seg.t); noticeGiven = NOTICE_NEAR.test(seg.t);
         }
       });
-      if(!mutualSeen && freeParty && firstAt >= 0){
+      // A scoped right only speaks when the other side is fenced —
+      // otherwise it's ordinary drafting, not an asymmetry worth noise.
+      if(!mutualSeen && freeParty && (!scopedFree || hasBan) && firstAt >= 0){
         checked++;
-        items.push({
-          label: 'Only “' + freeParty.raw + '” can hand off this contract',
-          why: (hasBan ? 'The other side needs written permission to do the same. ' : '') +
-            'An assignment right lets “' + freeParty.raw + '” transfer the whole deal — and every duty attached to it — to a buyer or affiliate you have never seen. Ask to make it even: “either party may assign on written notice,” or at minimum consent not to be unreasonably withheld.',
-          start: firstAt,
-          end: firstAt + firstLen
-        });
+        let why;
+        if(scopedFree){
+          why = '“' + freeParty.raw + '” may transfer this deal without asking — the right is carved down to mergers and affiliates, but it is theirs alone' +
+            (hasBan ? ', while the other side needs written permission to do anything at all.' : '.') +
+            ' Ask for the mirror image: the same carve-outs granted to both parties.';
+          items.push({
+            label: 'Their hand-off rights outrank yours',
+            why: why,
+            start: firstAt,
+            end: firstAt + firstLen
+          });
+        } else {
+          items.push({
+            label: 'Only “' + freeParty.raw + '” can hand off this contract',
+            why: 'An assignment right lets “' + freeParty.raw + '” transfer the whole deal — and every duty attached to it — to a buyer or affiliate you have never seen.' +
+              (noticeGiven ? ' It asks only for advance notice — your signature is not needed.' : '') +
+              (hasBan ? ' The other side needs written permission to do the same.' : '') +
+              ' Ask to make it even: “either party may assign on written notice,” or at minimum consent not to be unreasonably withheld.',
+            start: firstAt,
+            end: firstAt + firstLen
+          });
+        }
       }
       return { items: items.slice(0, 4), checked: checked, transfers: freeParty ? 1 : 0 };
     }

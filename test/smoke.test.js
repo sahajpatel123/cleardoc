@@ -17633,13 +17633,24 @@ test("transfer rights: one-way assignment freedoms speak up", () => {
   assert.equal(oneway.items.length, 1, "a one-way assignment right is flagged");
   assert.match(oneway.items[0].label, /Only .Company.*hand off/, "the headline names who holds the door");
   assert.match(oneway.items[0].why, /written permission/, "…and notes the other side is fenced");
+  assert.match(oneway.items[0].why, /advance notice/, "notice-only handoffs say so");
   assert.ok(typeof oneway.items[0].start === "number", "…and points at the sentence");
 
+  // Cycle #384 — polish: carve-out-scoped transfers grade apart.
+  const scopedDoc = "The Provider may assign this Agreement to an affiliate in connection with a merger. The Client shall not assign any of its rights hereunder without Provider's prior written consent.";
+  const scoped = detectXfer(scopedDoc);
+  assert.equal(scoped.items.length, 1, "a carve-out-scoped right plus a fence still fires");
+  assert.match(scoped.items[0].label, /outrank yours/, "the scoped asymmetry gets its own headline");
+  assert.match(scoped.items[0].why, /mergers and affiliates/, "the carve-out scope is spelled out");
+  // Scoped right with NO opposing fence → ordinary drafting, stay quiet.
+  const scopedQuiet = detectXfer("Client may assign this Agreement to an affiliate upon written notice. Company shall perform its obligations throughout the term.");
+  assert.equal(scopedQuiet.items.length, 0, "scoped freedom without an opposing fence makes no noise");
+
   // Unqualified "may assign" (no consent fence nearby) counts as free.
-  const quietFreeDoc = "The Provider may assign this Agreement to an affiliate in connection with a merger. The Client shall not assign any of its rights hereunder without Provider's prior written consent.";
-  const quietFree = detectXfer(quietFreeDoc);
-  assert.equal(quietFree.items.length, 1, "an unqualified assign right still fires");
-  assert.match(quietFree.items[0].label, /Provider/, "…attributed to the free party");
+  const plainFreeDoc = "Provider may assign this Agreement at its election to any third party of its choosing. Client shall not assign any of its rights hereunder without Provider's prior written consent.";
+  const plainFree = detectXfer(plainFreeDoc);
+  assert.equal(plainFree.items.length, 1, "an unqualified assign right still fires");
+  assert.match(plainFree.items[0].label, /Only .Provider.*hand off/, "…attributed to the free party");
 
   // A consent fence in the same sentence kills the free read.
   const fencedDoc = "Client may assign this Agreement with the prior written consent of Company in each instance. Company shall perform its obligations throughout the term.";
@@ -17671,4 +17682,6 @@ test("transfer rights: one-way assignment freedoms speak up", () => {
   assert.ok(appSrc.indexOf("'Even out transfer rights'") !== -1, "the sent ask list includes the transfer ask");
   assert.ok(indexHtml.indexOf("Transfers") !== -1,
     "the landing checklist advertises the new lens");
+  assert.ok(appSrc.indexOf("polish: carve-out-scoped transfers") !== -1,
+    "carve-out grading ships inside the detector");
 });
