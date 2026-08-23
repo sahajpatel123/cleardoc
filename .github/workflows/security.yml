@@ -202,7 +202,7 @@ jobs:
           # to introspect module source, and tests never ship to prod.
           # Single-quoted: inside double quotes bash expands `$[` as legacy
           # arithmetic, silently mangling the [:alnum:] class.
-          if grep -rE '(^|[^$[:alnum:]_.])(eval|Function)[[:space:]]*\(' --include='*.js' . 2>/dev/null | grep -v 'node_modules' | grep -v '// ' | grep -v '/test/'; then
+          if grep -rE '(^|[^$[:alnum:]_.])(eval|Function)[[:space:]]*\(' --include='*.js' . 2>/dev/null | grep -v 'node_modules' | grep -v '// ' | grep -vE '^(./)?test/'; then
             echo "::error::Potentially dangerous eval/Function usage detected"
             exit 1
           fi
