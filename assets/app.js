@@ -4508,6 +4508,7 @@
           ncBlock=$('#ncBlock'),ncNote=$('#ncNote'),ncList=$('#ncList'),
           warBlock=$('#warBlock'),warNote=$('#warNote'),warList=$('#warList'),
           cfBlock=$('#cfBlock'),cfNote=$('#cfNote'),cfList=$('#cfList'),
+          licBlock=$('#licBlock'),licNote=$('#licNote'),licList=$('#licList'),
           toneBlock=$('#toneBlock'),toneNote=$('#toneNote'),toneGrid=$('#toneGrid'),
           dateBlock=$('#dateBlock'),dateNote=$('#dateNote'),dateTimeline=$('#dateTimeline'),
           negotiateBlock=$('#negotiateBlock'),negotiateNote=$('#negotiateNote'),negotiateList=$('#negotiateList'),
@@ -19722,6 +19723,134 @@
       }
     }
 
+    // Cycle #401 — license-grant lens joins the storefront.
+    function detectLicense(raw){
+      const text = String(raw || '');
+      if(!text) return { items: [], checked: 0, grants: 0 };
+      const items = [];
+      let checked = 0;
+      const segs = [];
+      const sre = /[^.\n;]{25,400}(?:[.\n;]|$)/g;
+      let sm;
+      while((sm = sre.exec(text)) !== null) segs.push({ t: sm[0], at: sm.index });
+      // Moral-rights waivers travel without the word "license", so the
+      // gate carries them too.
+      const LIC_RE = /\blicen[cs]e[sd]?\b|\broyalty[- ]free\b|\bsublicens\w*\b|\bmoral\s+rights?\b|\bwaiv\w*[^.;]{0,40}\battribution\b/i;
+      const GRANT_THEM_RE = /\b(?:you|users?|members?|customers?|contributors?|suppliers?|consultants?|developers?)\s+(?:hereby\s+)?grants?\b|\bgrants?\s+(?:to\s+)?(?:us|the\s+(?:company|service|provider|operator))\b|\byour\s+(?:content|posts?|materials?|submissions?|feedback)\b[^.;]{0,80}\b(?:licen[cs]e|perpetual|worldwide)/i;
+      const ADJS = [
+        { k: 'worldwide', re: /\bworldwide\b|\bglobally\b|\baround\s+the\s+world\b|\ball\s+(?:over\s+)?the\s+world\b/i },
+        { k: 'perpetual', re: /\bperpetual\b|\bforever\b|\bin\s+perpetuity\b|\birrevocabl\w*/i },
+        { k: 'royalty-free', re: /\broyalty[- ]free\b|\bfree\s+of\s+charge\b|\bwithout\s+(?:any\s+)?(?:payment|compensation)\b/i },
+        { k: 'sublicensable', re: /\bsublicens\w*/i },
+        { k: 'exclusive', re: /(?<!non[-\s])\bexclusiv\w+/i },
+        { k: 'transferable', re: /(?<!non[-\s])\btransferab\w+/i }
+      ];
+      const PURPOSE_RE = /\b(?:operate|maintain|improve|provide|administer|host|deliver)\b[^.;]{0,40}\b(?:the\s+)?(?:service|services|platform|site|application)\b|\bsolely\s+to\b/i;
+      const MORAL_RE = /\bmoral\s+rights?\b|\bwaiv\w*[^.;]{0,40}\battribution\b|\bwithout\s+attribution\b|\battribution\s+not\s+required\b/i;
+      const SURV_DEL_RE = /\blicen[cs]es?\b[^.;]{0,80}\b(?:survives?|continues?|persists?)\b|\bafter\s+(?:you\s+)?(?:delete|remove)[^.]{0,80}\b(?:licen|rights?)/i;
+      const joinList = (arr) => arr.length === 1 ? arr[0]
+        : arr.length === 2 ? arr[0] + ' and ' + arr[1]
+        : arr.slice(0, -1).join(', ') + ', and ' + arr[arr.length - 1];
+      let grantAt = -1, grantLen = 0, grantWho = '', purposeSeen = false;
+      const adjSeen = [];
+      let moralAt = -1, moralLen = 0, survAt = -1, survLen = 0;
+      segs.forEach(seg => {
+        if(LIC_RE.test(seg.t)) checked++;
+        if(grantAt < 0 && GRANT_THEM_RE.test(seg.t)){
+          const gm = seg.t.match(/\b((?:you|users?|members?|customers?|contributors?|suppliers?|consultants?|developers?)(?:\s+[a-z][a-z]+)?)\s+(?:hereby\s+)?grants?\b/i);
+          grantWho = gm ? gm[1].toLowerCase() : '';
+          grantAt = seg.at; grantLen = seg.t.length;
+        }
+        if(purposeSeen === false && PURPOSE_RE.test(seg.t)) purposeSeen = true;
+        ADJS.forEach(a => {
+          if(adjSeen.indexOf(a.k) < 0 && adjSeen.length < 5 && a.re.test(seg.t)) adjSeen.push(a.k);
+        });
+        if(moralAt < 0 && MORAL_RE.test(seg.t)){ moralAt = seg.at; moralLen = seg.t.length; }
+        if(survAt < 0 && SURV_DEL_RE.test(seg.t)){ survAt = seg.at; survLen = seg.t.length; }
+      });
+      if(grantAt >= 0){
+        checked++;
+        const whoBit = grantWho === 'you' ? 'You license your work away'
+          : (grantWho ? '“' + grantWho.charAt(0).toUpperCase() + grantWho.slice(1) + '” license their work away'
+                      : 'Everything posted here gets licensed away');
+        items.push({
+          label: whoBit,
+          why: 'This clause takes a license to what people create here — posts, photos, code, drafts, feedback.' +
+            (adjSeen.length ? ' It runs ' + joinList(adjSeen) + ' — every direction open at once.' :
+              ' Check which directions it runs — worldwide, perpetual, and sublicensable are the heavy ones.') +
+            (purposeSeen ? ' This one is tied to running the service — a bounded purpose, the fairer shape.' :
+              ' No purpose is stated — read that as anywhere, for anything.') +
+            ' Ask to narrow it to what operating the service actually requires, ending when your content does.',
+          start: grantAt,
+          end: grantAt + grantLen
+        });
+      }
+      if(moralAt >= 0){
+        checked++;
+        items.push({
+          label: 'Your name comes off your work',
+          why: 'This clause strips attribution and waives moral rights — the personal stake creators keep in how their work is used. A piece you made can be edited, republished, and spread as someone else’s, unnamed. Ask that attribution follow the work wherever it travels.',
+          start: moralAt,
+          end: moralAt + moralLen
+        });
+      }
+      if(survAt >= 0){
+        checked++;
+        items.push({
+          label: 'The license outlives your delete button',
+          why: 'Even after content is removed or the account closed, the license keeps running. Copies already shared can legitimately persist — but forward-facing rights over deleted work should die with it. Ask for a cutoff: rights end when the content comes down, saved backups excepted.',
+          start: survAt,
+          end: survAt + survLen
+        });
+      }
+      return { items: items.slice(0, 4), checked: checked, grants: grantAt >= 0 ? 1 : 0 };
+    }
+
+    function renderLicBlock(result){
+      if(!licBlock || !licList || !result) return;
+      if(!result.items.length){ licBlock.hidden = true; return; }
+      const rows = result.items.map(it => {
+        const hasSpan = typeof it.start === 'number' && it.start >= 0;
+        return '<div class="gap-row"' + (hasSpan
+            ? ' role="button" tabindex="0" data-lic-start="' + Math.max(0, it.start) + '" data-lic-end="' + (it.end || 0) + '" title="Click to find this in your document"'
+            : '') + '>' +
+          '<span class="gap-glyph mono" style="color:var(--amber)">🎁</span>' +
+          '<div class="gap-body">' +
+            '<div class="gap-label">' + esc(it.label) + '</div>' +
+            '<div class="gap-hint">' + esc(it.why) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      licList.innerHTML = rows +
+        '<div class="gap-controls"><span class="gap-count">' +
+        result.checked + ' license sentence' + (result.checked === 1 ? '' : 's') + ' examined · ' +
+        result.grants + ' grant away from you' + (result.grants === 1 ? '' : 's') + '</span></div>';
+      licBlock.hidden = false;
+      if(licNote){
+        licNote.innerHTML = '<span class="riskNote-lead">What you hand over</span> ' +
+          'A license grant decides who owns the practical value of what you create here. Its weight is set by three dials — reach, purpose, and whether your name stays attached — and every one of them is negotiable before you sign.';
+      }
+      if(!licList._licWired){
+        licList._licWired = true;
+        const jumpToLic = (row) => {
+          const s = parseInt(row.getAttribute('data-lic-start'), 10) || 0;
+          const e = parseInt(row.getAttribute('data-lic-end'), 10) || (s + 60);
+          try { input.focus(); input.setSelectionRange(s, Math.min(e, (input.value || '').length)); } catch(_){ /* ignore */ }
+          try { input.scrollIntoView({ behavior: noMotion ? 'auto' : 'smooth', block: 'center' }); } catch(_){ /* ignore */ }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast('📍 License language highlighted in your document');
+        };
+        licList.addEventListener('click', (e) => {
+          const row = e.target.closest && e.target.closest('[data-lic-start]');
+          if(row) jumpToLic(row);
+        });
+        licList.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter' && e.key !== ' ') return;
+          const row = e.target.closest && e.target.closest('[data-lic-start]');
+          if(row){ e.preventDefault(); jumpToLic(row); }
+        });
+      }
+    }
+
     // Iter #102: signing checklist renderer (iter #103 polished)
     function renderActionsBlock(result){
       if(!actionBlock || !actionGrid || !result) return;
@@ -20928,6 +21057,12 @@
         renderCfBlock(detectConfid(raw));
       } else if(cfBlock) {
         cfBlock.hidden = true;
+      }
+      // Cycle #401 — license grants: what you hand over when you upload.
+      if(licBlock && typeof detectLicense === 'function'){
+        renderLicBlock(detectLicense(raw));
+      } else if(licBlock) {
+        licBlock.hidden = true;
       }
       // Iter #112: tone analyzer — three axes (trust / pressure /
       // clarity) measured by hand-tuned legalese lexicon.
@@ -24666,6 +24801,7 @@
         addSection('Shrink the non-compete', 'Ask for a shorter, narrower covenant: ', readAll('#ncList .gap-label', 4));
         addSection('Add a 90-day warranty', 'Ask what is actually promised, in writing: ', readAll('#warList .gap-label', 4));
         addSection('Cap the secrecy', 'Ask for a term and a marking requirement: ', readAll('#cfList .gap-label', 4));
+        addSection('Narrow the license', 'Ask for purpose limits and an end date: ', readAll('#licList .gap-label', 4));
         if(!sections.length) return null;
         const fp = (_fpState && _fpState.short) ? _fpState.short : '';
         const mdLines = ['# My negotiation asks', '',
@@ -25266,6 +25402,12 @@
             return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
               esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
           })();
+          const licLines = (function(){
+            const rows = document.querySelectorAll('#licList .gap-label');
+            if(!rows || !rows.length) return '';
+            return Array.from(rows).slice(0, 6).map(el => '<li class="cheat-li">' +
+              esc((el.textContent || '').trim().slice(0, 140)) + '</li>').join('');
+          })();
           const checklist = (function(){
             const r = document.querySelectorAll('#actionGrid .act-item');
             if(!r || !r.length) return '<li class="cheat-li"><i>No signing tasks detected.</i></li>';
@@ -25308,6 +25450,7 @@
               (ncLines ? '<div class="cheat-section"><div class="cheat-section-title">Restrictive covenants (where you can’t work next)</div><ul style="padding-left:18px;margin:0">' + ncLines + '</ul></div>' : '') +
               (warLines ? '<div class="cheat-section"><div class="cheat-section-title">Disclaimers (what is NOT promised)</div><ul style="padding-left:18px;margin:0">' + warLines + '</ul></div>' : '') +
               (cfLines ? '<div class="cheat-section"><div class="cheat-section-title">Confidentiality (who owes whose secrets)</div><ul style="padding-left:18px;margin:0">' + cfLines + '</ul></div>' : '') +
+              (licLines ? '<div class="cheat-section"><div class="cheat-section-title">License grants (what you hand over)</div><ul style="padding-left:18px;margin:0">' + licLines + '</ul></div>' : '') +
               '<div class="cheat-section"><div class="cheat-section-title">Signing checklist</div><ul style="padding-left:18px;margin:0">' + checklist + '</ul></div>' +
               '<div class="cheat-actions">' +
                 '<button type="button" class="ghost-btn cheat-btn" id="cheatPrintBtn">🖨 print / save PDF</button>' +

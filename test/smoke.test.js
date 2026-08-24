@@ -85,47 +85,53 @@ const skip = (name, fn) => test(name, { skip: true }, fn);
 
 let server, browser, context;
 
-test.before(async () => {
-  if (!HAS_BROWSER) return;
-  server = serveStatic();
-  browser = await chromium.launch({ headless: true });
-  // Block live service workers: sw.js's fetch handler forwards CDN
-  // requests itself, and worker-initiated requests can slip past
-  // context.route routing — re-opening the exact proxy-flake hole this
-  // setup exists to close. (SW behavior is asserted at source level.)
-  context = await browser.newContext({ serviceWorkers: "block" });
-  // Hermetic pages: the shipped HTML pulls GSAP / ScrollTrigger / Lenis
-  // from live CDNs with SRI hashes, plus Google Fonts. A proxy hiccup on
-  // any of those routes surfaces as a console error that strict
-  // zero-console-error tests trip over (the dark-mode flake family).
-  // Scripts are fetched once per run with retries and served from memory
-  // so their SRI digests still validate; everything else gets an empty
-  // local fulfillment.
-  const cdnScripts = [
-    "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js",
-    "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js",
-    "https://unpkg.com/lenis@1.1.13/dist/lenis.min.js",
-  ];
-  const cdnCache = new Map();
-  const fetchOnce = (url) => new Promise((resolve) => {
-    const mod = url.startsWith("https:") ? require("node:https") : require("node:http");
-    const req = mod.get(url, { timeout: 8000 }, (res) => {
-      if (res.statusCode !== 200) { res.resume(); resolve(null); return; }
-      const chunks = [];
-      res.on("data", (c) => chunks.push(c));
-      res.on("end", () => resolve(Buffer.concat(chunks)));
-    });
-    req.on("timeout", () => req.destroy());
-    req.on("error", () => resolve(null));
-  });
-  for (const url of cdnScripts) {
-    let body = null;
-    for (let i = 0; i < 3 && !body; i++) body = await fetchOnce(url);
-    // Cache even failures (null) so a hard-down CDN fails fast instead of
-    // hanging the run; the page will report the missing global loudly.
-    cdnCache.set(url, body);
+// Every browser context in this suite is hermetic. The shipped HTML pulls
+// GSAP / ScrollTrigger / Lenis from live CDNs with SRI hashes, plus Google
+// Fonts — a proxy hiccup on any of those routes surfaces as a console error
+// that strict zero-console-error tests trip over (the dark-mode flake
+// family). Scripts are fetched once per run with retries and served from
+// memory so their SRI digests still validate; everything else external gets
+// an empty local fulfillment. Service workers are blocked everywhere:
+// sw.js's fetch handler forwards CDN requests itself, and worker-initiated
+// requests slip past context.route routing (SW behavior is asserted at
+// source level only). Tests may layer extra routes on top after creation —
+// later routes win, so an /api/health mock overrides cleanly.
+const CDN_SCRIPTS = [
+  "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js",
+  "https://unpkg.com/lenis@1.1.13/dist/lenis.min.js",
+];
+const cdnCache = new Map();
+let cdnPriming = null;
+function primeCdnCache() {
+  if (!cdnPriming) {
+    cdnPriming = (async () => {
+      const fetchOnce = (url) => new Promise((resolve) => {
+        const mod = url.startsWith("https:") ? require("node:https") : require("node:http");
+        const req = mod.get(url, { timeout: 8000 }, (res) => {
+          if (res.statusCode !== 200) { res.resume(); resolve(null); return; }
+          const chunks = [];
+          res.on("data", (c) => chunks.push(c));
+          res.on("end", () => resolve(Buffer.concat(chunks)));
+        });
+        req.on("timeout", () => req.destroy());
+        req.on("error", () => resolve(null));
+      });
+      for (const url of CDN_SCRIPTS) {
+        let body = null;
+        for (let i = 0; i < 3 && !body; i++) body = await fetchOnce(url);
+        // Cache even failures (null) so a hard-down CDN fails fast instead
+        // of hanging the run; the page reports the missing global loudly.
+        cdnCache.set(url, body);
+      }
+    })();
   }
-  await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => {
+  return cdnPriming;
+}
+async function newHermeticContext(opts) {
+  const ctx = await browser.newContext(Object.assign({ serviceWorkers: "block" }, opts || {}));
+  await primeCdnCache();
+  await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => {
     const url = route.request().url();
     if (cdnCache.has(url)) {
       const buf = cdnCache.get(url);
@@ -139,6 +145,14 @@ test.before(async () => {
       body: "",
     });
   });
+  return ctx;
+}
+
+test.before(async () => {
+  if (!HAS_BROWSER) return;
+  server = serveStatic();
+  browser = await chromium.launch({ headless: true });
+  context = await newHermeticContext();
 });
 
 test.after(async () => {
@@ -205,7 +219,7 @@ skip("home: service status chip reports API health", async () => {
     "the status chip must record when it last checked");
   assert.match(cssSrc, /\.service-status\{/, "service status CSS must exist");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -254,7 +268,7 @@ skip("home: next-deadline chip shows soonest upcoming deadline", async () => {
   assert.match(appSrc, /function initHomeDeadline\(\)\{/, "app.js must define initHomeDeadline");
   assert.match(appSrc, /initHomeDeadline/, "initHomeDeadline must run on the home page");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   await page.addInitScript(() => {
     const d = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
@@ -420,7 +434,7 @@ test("analyze: privacy guard scans pasted text for personal identifiers before A
 // emails, phones, card-like numbers, and ID-like numbers in the input.
 skip("analyze: privacy mask button redacts personal identifiers", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -461,7 +475,7 @@ skip("analyze: privacy mask button redacts personal identifiers", async () => {
 // textarea (safe to paste into a lawyer chat, ticket, or notes).
 skip("analyzer: copy redacted pastes a masked copy while leaving the original intact", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -517,7 +531,7 @@ skip("analyzer: find in source counts matches and jumps between them", async () 
   assert.match(appSrc, /function wireSourceFind\(\)\{/, "app.js must define wireSourceFind");
   assert.match(appSrc, /analyze:\[analyzePage,privacyGuard,wireSourceFind/, "wireSourceFind must run on the analyze page");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -551,7 +565,7 @@ skip("analyzer: download redacted saves a masked .txt file", async () => {
   assert.match(appSrc, /buildRedactedText/, "app.js must reuse a shared redacted-text builder");
   assert.match(appSrc, /cleardoc-redacted-/, "the downloaded file must carry the redacted filename prefix");
 
-  const ctx = await browser.newContext({ acceptDownloads: true });
+  const ctx = await newHermeticContext({ acceptDownloads: true });
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -1730,7 +1744,7 @@ skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear but
   // Live: ask two questions on the analyze page (with a stubbed /api/chat that
   // returns deterministic answers). After each ask, a new .ask-q + .ask-a pair
   // should appear in #askThread. The Clear button should reset the thread.
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
 
   // Monkey-patch fetch so /api/chat returns instantly with a known answer.
@@ -2197,7 +2211,7 @@ skip("analyzer: pre-sign brief email button opens a pre-filled mail client", asy
   assert.match(html, /id="decisionEmailBtn"/, "analyze.html must expose the pre-sign brief email button");
   assert.match(appSrc, /decisionEmailBtn/, "app.js must wire the pre-sign brief email button");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -2242,7 +2256,7 @@ skip("analyzer: care plan exports an .ics calendar file", async () => {
   assert.match(html, /id="careIcsBtn"/, "analyze.html must expose the care plan .ics button");
   assert.match(appSrc, /cleardoc-care-plan-/, "the care plan export must use the care-plan filename prefix");
 
-  const ctx = await browser.newContext({ acceptDownloads: true });
+  const ctx = await newHermeticContext({ acceptDownloads: true });
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -2276,7 +2290,7 @@ skip("analyzer: care plan exports a CSV tracker file", async () => {
   assert.match(html, /id="careCsvBtn"/, "analyze.html must expose the care plan CSV button");
   assert.match(appSrc, /cleardoc-care-plan-/, "the care plan export must use the care-plan filename prefix");
 
-  const ctx = await browser.newContext({ acceptDownloads: true });
+  const ctx = await newHermeticContext({ acceptDownloads: true });
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -2316,7 +2330,7 @@ skip("analyzer: care plan next-dates digest copies dated items", async () => {
   assert.match(html, /id="careDatesBtn"/, "analyze.html must expose the next-dates button");
   assert.match(appSrc, /CLEARDOC NEXT DATES/, "app.js must build a next-dates digest");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -2369,7 +2383,7 @@ skip("analyzer: care plan copies as Markdown", async () => {
   assert.match(appSrc, /Cycle #289 — care plan Markdown export/, "app.js must wire the care plan Markdown export");
   assert.match(appSrc, /# Contract care plan/, "the Markdown export must carry a clear header");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -2417,7 +2431,7 @@ skip("analyzer: care plan deadline digest copies dated items", async () => {
   assert.match(appSrc, /Cycle #291 — care plan deadline digest/, "app.js must wire the care plan deadline digest");
   assert.match(appSrc, /CLEARDOC DEADLINE DIGEST —/, "the digest must carry a clear header");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -2471,7 +2485,7 @@ skip("analyzer: care plan email button opens a pre-filled mail client", async ()
   assert.match(appSrc, /Cycle #293 — care plan email/, "app.js must wire the care plan email button");
   assert.match(appSrc, /Contract care plan — what to watch next \(ClearDoc\)/, "the email subject must be pre-filled");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -2690,7 +2704,7 @@ skip("analyzer: document summary button copies a one-line summary", async () => 
   assert.match(html, /id="docSummaryBtn"/, "analyze.html must expose the document summary button");
   assert.match(appSrc, /Cycle #285 — one-line document summary copy/, "app.js must wire the document summary button");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -2734,7 +2748,7 @@ skip("analyzer: document summary button copies a one-line summary", async () => 
 
 skip("mobile viewport (375px): analyze renders without horizontal overflow", async () => {
   if (!HAS_BROWSER) return;
-  const mobile = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const mobile = await newHermeticContext({ viewport: { width: 375, height: 812 } });
   const page = await mobile.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
@@ -2929,7 +2943,7 @@ skip("home: two-press slider copies the plain-English version", async () => {
   assert.match(html, /id="tpCopyBtn"/, "index.html must expose the two-press copy button");
   assert.match(appSrc, /wireTwoPressCopy/, "app.js must wire the two-press copy button");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -3024,7 +3038,7 @@ skip("analyze: result-actions live inside the result panel and start hidden unti
 skip("analyze: restore banner appears when a non-expired snapshot is in localStorage", async () => {
   if (!HAS_BROWSER) return;
   // Fresh context — guarantees a clean localStorage for the storage write
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
 
   // Seed localStorage with a valid, in-TTL snapshot BEFORE the page's JS runs.
@@ -3078,7 +3092,7 @@ skip("analyze: restore banner appears when a non-expired snapshot is in localSto
 
 skip("analyze: stale (expired) snapshots are silently discarded, banner stays hidden", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
 
   // Seed with a snapshot that's 25h old — beyond the 24h TTL
@@ -3112,7 +3126,7 @@ skip("analyze: stale (expired) snapshots are silently discarded, banner stays hi
 
 skip("analyze: dismiss button clears storage and hides the banner", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
 
   await page.addInitScript(() => {
@@ -3200,7 +3214,7 @@ skip("share: native share sheet receives the analysis URL", async () => {
   assert.match(appSrc, /AbortError/,
     "a dismissed share sheet must not be treated as an error");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -3259,7 +3273,7 @@ skip("analyze: HTML report downloads a standalone analysis file", async () => {
   assert.ok(appSrc.includes("'<b>Verdict:</b> ' + esc(vLabel.textContent.trim())"),
     "the report summary must include the verdict when available");
 
-  const ctx = await browser.newContext({ acceptDownloads: true });
+  const ctx = await newHermeticContext({ acceptDownloads: true });
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -3311,7 +3325,7 @@ skip("analyze: HTML report copies as rich text to the clipboard", async () => {
   assert.match(appSrc, /el\.style\.fontFamily = "'Courier New',monospace";/,
     "the HTML body builder must inline the heading font");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -3376,7 +3390,7 @@ skip("analyze: risk table copies as Markdown for Notion/GitHub/Linear", async ()
   assert.match(appSrc, /\| - \[ \] \| /,
     "the Markdown table must include an unchecked Done column");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -3422,7 +3436,7 @@ skip("analyzer: copy-all bundle combines key facts, digests, and next steps", as
   assert.match(appSrc, /function buildAnalysisBundle\(\)\{/, "app.js must define buildAnalysisBundle");
   assert.match(appSrc, /async function copyAnalysisBundle\(\)\{/, "app.js must define copyAnalysisBundle");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -3490,7 +3504,7 @@ skip("analyzer: clean draft copies revised document without mutating the origina
   assert.match(appSrc, /function buildCleanDraft\(\)\{/, "app.js must define buildCleanDraft");
   assert.match(appSrc, /function copyCleanDraft\(\)\{/, "app.js must define copyCleanDraft");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -3543,7 +3557,7 @@ skip("analyzer: risk digest copies severity, clause, why, and counter for chat a
   assert.match(appSrc, /async function copyRiskChatDigest\(\)\{/, "app.js must define copyRiskChatDigest");
   assert.match(appSrc, /RISK DIGEST —/, "the digest must carry a clear header");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -3599,7 +3613,7 @@ skip("analyzer: risk summary button copies a compact summary", async () => {
   assert.match(appSrc, /Cycle #286 — compact risk summary copy/, "app.js must wire the risk summary button");
   assert.match(appSrc, /RISK SUMMARY —/, "the summary must carry a clear header");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -3647,7 +3661,7 @@ skip("analyzer: clean draft button copies a revised document", async () => {
   assert.match(appSrc, /CLEANDRAFT — revised document with top counter-suggestions applied/, "the draft must carry a clear header");
   assert.match(appSrc, /Original text was not modified/, "the draft must state the original was not modified");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -3699,7 +3713,7 @@ skip("analyze: response draft downloads as Markdown", async () => {
   assert.match(appSrc, /'⬇ Draft saved as Markdown'/,
     "the Markdown draft download must confirm with a toast");
 
-  const ctx = await browser.newContext({ acceptDownloads: true });
+  const ctx = await newHermeticContext({ acceptDownloads: true });
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -3748,7 +3762,7 @@ skip("analyze: response draft copies as Markdown", async () => {
   assert.match(appSrc, /'📋 Draft copied as Markdown'/,
     "the Markdown draft copy must confirm with a toast");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -3788,7 +3802,7 @@ skip("analyze: response draft copies as Markdown", async () => {
 
 skip("share: opening a #share= URL offers the shared analysis banner with a View button", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   // Pre-built shared URL: take a payload, encode it in the page itself, then navigate.
   const sharedUrl = await (async () => {
@@ -3832,7 +3846,7 @@ skip("share: opening a #share= URL offers the shared analysis banner with a View
 
 skip("share: malformed #share= token shows a clear error and does not crash", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/analyze.html#share=this_is_not_valid_base64url_at_all`, { waitUntil: "networkidle" });
   // No crash, no banner
@@ -3961,7 +3975,7 @@ skip("nav: back-to-top clears the sticky mobile Analyze CTA at ≤600px", async 
   );
 
   // Live at 375px: bottom edge must clear the sticky Analyze CTA bar
-  const mobile = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const mobile = await newHermeticContext({ viewport: { width: 375, height: 812 } });
   const page = await mobile.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
   await page.evaluate(() => window.scrollTo(0, 900));
@@ -3976,7 +3990,7 @@ skip("nav: back-to-top clears the sticky mobile Analyze CTA at ≤600px", async 
     `back-to-top must sit ~84px from the bottom on mobile, got ${btt.distFromViewportBottom}px`);
 
   // At desktop, the original 18px bottom must be used
-  const desktop = await browser.newContext({ viewport: { width: 1700, height: 900 } });
+  const desktop = await newHermeticContext({ viewport: { width: 1700, height: 900 } });
   const dpage = await desktop.newPage();
   await dpage.goto(`http://127.0.0.1:${PORT}/index.html`, { waitUntil: "networkidle" });
   await dpage.evaluate(() => window.scrollTo(0, 900));
@@ -4012,7 +4026,7 @@ skip("FAQ: keyword filter shows only matching questions + a 'no matches' hint", 
   assert.match(themeSrc, /\.faq-search input\[type="search"\]/, ".faq-search input CSS rule must exist");
 
   // Live: load the home page, type into the search input, assert filtering
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
   // Wait for the FAQ to render (GSAP auto-opens the first item)
@@ -4064,7 +4078,7 @@ skip("analyzer: AI failure shows a Retry button + categorizes the failure (rate-
   assert.match(themeSrc, /\.analyze-msg strong/, ".analyze-msg strong style must exist");
 
   // Live: stub /api/analyze to fail with 429, then run a fresh analysis
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   await page.addInitScript(() => {
     const origFetch = window.fetch ? window.fetch.bind(window) : null;
@@ -5187,7 +5201,7 @@ test("analyzer: deadline block filters to next-7-days or overdue", () => {
 
 skip("analyze: deadlines copy as Markdown", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -5231,7 +5245,7 @@ skip("analyzer: risk summary copy exports tally + top concern", async () => {
   assert.match(html, /id="riskSummaryCopyBtn"/, "analyze.html must expose the risk summary button");
   assert.match(appSrc, /RISK SUMMARY —/, "app.js must build a risk summary line");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -5276,7 +5290,7 @@ skip("analyzer: risk email button opens a pre-filled mail client", async () => {
   assert.match(html, /id="riskEmailBtn"/, "analyze.html must expose the risk email button");
   assert.match(appSrc, /RISK SUMMARY —/, "app.js must build a risk summary for the email");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -5316,7 +5330,7 @@ skip("analyzer: risk email button opens a pre-filled mail client", async () => {
 // Cycle #272 — chat-friendly deadline digest.
 skip("analyzer: deadline digest copies urgency-grouped deadlines", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -5364,7 +5378,7 @@ skip("analyzer: deadline digest copies urgency-grouped deadlines", async () => {
 // opens the mail client with the extracted deadlines pre-filled.
 skip("analyzer: deadline email button opens a pre-filled mail client", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -9068,7 +9082,7 @@ skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fr
   assert.match(themeSrc, /\.forget-toast/, "forget-toast CSS rule must exist");
 
   // Live: clicking the button on the home page clears a seeded snapshot.
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   // Seed localStorage with the snapshot key before the page loads
   await page.addInitScript(() => {
@@ -9124,7 +9138,7 @@ skip("draft autosave: textarea content survives reload, gets cleared on Analyze 
   assert.match(clearBtn[0], /clearDraft\(\)/, "clear button must call clearDraft");
 
   // Live: seed a draft, reload the page, expect the textarea to be restored
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   // Visit /analyze.html first to seed an in-progress draft (we can't seed via
   // addInitScript because draft restoration happens at page load).
@@ -9184,7 +9198,7 @@ skip("analyzer: clicking the verdict Copy button copies just the verdict + summa
 
   // Live: run an analysis, click Copy, assert the button text flashed
   // and that the clipboard contains the verdict + summary
-  const ctx = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"] });
+  const ctx = await newHermeticContext({ permissions: ["clipboard-read", "clipboard-write"] });
   const page = await ctx.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
   // The preloaded sample already has analysis via offline fallback — but
@@ -9299,7 +9313,7 @@ skip("analyzer (mobile): Analyze CTA becomes a sticky bottom bar at ≤900px so 
   );
 
   // Live: at 375px the run-row must be position:fixed to the viewport
-  const mobile = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const mobile = await newHermeticContext({ viewport: { width: 375, height: 812 } });
   const page = await mobile.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
   const sticky = await page.$eval(".work .run-row", (el) => {
@@ -9324,7 +9338,7 @@ skip("analyzer (mobile): Analyze CTA becomes a sticky bottom bar at ≤900px so 
   assert.ok(box && box.y > 0 && box.y < 812, `Analyze button must remain in viewport after scroll, y=${box && box.y}`);
 
   // At desktop width (≥1700px), the run-row MUST NOT be fixed — it stays in-flow
-  const desktop = await browser.newContext({ viewport: { width: 1700, height: 900 } });
+  const desktop = await newHermeticContext({ viewport: { width: 1700, height: 900 } });
   const dpage = await desktop.newPage();
   await dpage.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
   const desktopSticky = await dpage.$eval(".work .run-row", (el) => getComputedStyle(el).position);
@@ -9448,7 +9462,7 @@ skip("a11y: mobile drawer traps focus + returns focus to toggle on close", async
 
   // Live: at 375px, opening the drawer focuses the first link; Tab from the
   // last link wraps back to the first; Escape closes and focus returns to the toggle.
-  const mobile = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const mobile = await newHermeticContext({ viewport: { width: 375, height: 812 } });
   const page = await mobile.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
 
@@ -9712,7 +9726,7 @@ test("vercel.json: Strict-Transport-Security is preload-eligible", () => {
 test("every page response carries the strict Content-Security-Policy header", async () => {
   if (!HAS_BROWSER) return;
   for (const path of ["/", "/analyze.html", "/pricing.html", "/404.html"]) {
-    const ctx = await browser.newContext();
+    const ctx = await newHermeticContext();
     const page = await ctx.newPage();
     const resp = await page.goto(`http://127.0.0.1:${PORT}${path}`, { waitUntil: "domcontentloaded" });
     assert.ok(resp, `${path} must respond`);
@@ -9743,7 +9757,7 @@ test("CSP: inline <script> via page.evaluate() is blocked by the browser", async
   // our strict CSP. This test injects a script via the same DOM APIs that
   // would be used in an XSS payload and asserts it never runs.
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "domcontentloaded" });
 
@@ -9803,7 +9817,7 @@ skip("analyzer: local-fallback answer carries 'Sentence N of M' citation when no
   // the rendered answer is consistent with the AI path. This test stubs
   // globalThis.fetch so the Gemini call fails / is unavailable, forcing
   // the local-fallback path.
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   // Strip any AI keys so the analyzer short-circuits to local fallback.
   await page.addInitScript(() => {
@@ -9839,7 +9853,7 @@ skip("analyzer: local-fallback answer carries 'Sentence N of M' citation when no
 
 skip("faq: keyword filter narrows .qa items in real time", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -11185,7 +11199,7 @@ test("analyzer: Gap detector exports missing clauses as CSV", () => {
 
 skip("analyze: missing clauses copy as Markdown", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -11976,7 +11990,7 @@ test("analyzer: TL;DR polished with numbered sentences + sentiment arrow + next 
 
 skip("analyze: TL;DR copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -12301,7 +12315,7 @@ test("analyzer: Style profile measures voice + sentence shape + reading grade", 
 
 skip("analyze: style profile copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -12411,7 +12425,7 @@ test("analyzer: Clause index extracts numbered clauses with click-to-jump", () =
 
 skip("analyze: clause index copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -12501,7 +12515,7 @@ test("analyzer: Cost predictor shows expected / 90th / worst-case scenarios", ()
 
 skip("analyze: cost predictor copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -12953,7 +12967,7 @@ test("analyzer: reading list exports a CSV tracker file", () => {
 // file carries BOM + headers + per-chunk status.
 skip("analyzer: reading list downloads a CSV tracker file", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext({ acceptDownloads: true });
+  const ctx = await newHermeticContext({ acceptDownloads: true });
   const page = await ctx.newPage();
   const consoleErrors = [];
   page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text()); });
@@ -13108,7 +13122,7 @@ test("analyzer: Section risk map aggregates risk by clause category", () => {
 
 skip("analyze: section risk map copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -13493,7 +13507,7 @@ test("analyzer: Glossary quick-reference extracts legal terms with plain-English
 
 skip("analyze: glossary copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -13644,7 +13658,7 @@ test("analyzer: Obligation tracker exports a CSV with done status", () => {
 
 skip("analyze: obligations copy as Markdown", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -13684,7 +13698,7 @@ skip("analyze: obligations copy as Markdown", async () => {
 // Cycle #274 — chat-friendly obligations digest.
 skip("analyzer: obligations digest copies must/may groups with progress", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -13728,7 +13742,7 @@ skip("analyzer: obligations email button opens a pre-filled mail client", async 
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
   assert.match(appSrc, /actionEmailBtn/, "app.js must wire the obligations email button");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -13772,7 +13786,7 @@ skip("analyzer: chat share includes deadlines and jurisdiction", async () => {
   assert.match(appSrc, /deadline' \+ \(dlRows\.length === 1 \? '' : 's'\)/, "app.js must include the deadline count in chat share");
   assert.match(appSrc, /Governed by/, "app.js must include jurisdiction in chat share");
 
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   await page.addInitScript(() => {
     window.__copiedChatShare = null;
@@ -13834,7 +13848,7 @@ test("pwa: manifest registers a share target and the analyzer consumes it with a
 
 skip("analyzer: sharing text into ClearDoc prefills the input and scrubs the URL", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html?title=Lease%20clause&text=The%20tenant%20shall%20waive%20all%20rights.`, { waitUntil: "networkidle" });
@@ -13874,7 +13888,7 @@ test("analyzer: verdict card sharing has three tiers and shares the shared PNG b
 
 skip("analyzer: share-card button hands the PNG file to the share sheet", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   await page.addInitScript(() => {
     window.__sharedFiles = null;
@@ -13943,7 +13957,7 @@ test("analyzer: verdict card renders aggregate stats only and downloads as PNG",
 
 skip("analyzer: clicking the verdict-card button downloads without errors", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -13996,7 +14010,7 @@ skip("analyzer: deadline notifications fire when granted and opt-in from the ban
 
   // Phase 1 — permission already granted: a due stored deadline must
   // produce exactly one Notification and write its dedup key.
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   await page.addInitScript(() => {
     window.__notified = [];
@@ -14034,7 +14048,7 @@ skip("analyzer: deadline notifications fire when granted and opt-in from the ban
 
   // Phase 2 — snoozed reminder: even with permission granted, a snooze
   // recorded by the banner must silence notifications until it expires.
-  const ctxS = await browser.newContext();
+  const ctxS = await newHermeticContext();
   const pageS = await ctxS.newPage();
   await pageS.addInitScript(() => {
     window.__notified = [];
@@ -14063,7 +14077,7 @@ skip("analyzer: deadline notifications fire when granted and opt-in from the ban
 
   // Phase 3 — permission still 'default': the banner button appears and
   // one press requests permission, then the reminder fires immediately.
-  const ctx2 = await browser.newContext();
+  const ctx2 = await newHermeticContext();
   const page2 = await ctx2.newPage();
   await page2.addInitScript(() => {
     window.__notified = [];
@@ -14142,7 +14156,7 @@ skip("analyzer: native share button opens the device share sheet, clipboard fall
   if (!HAS_BROWSER) return;
 
   // Phase 1 — Web Share available: the payload must reach navigator.share.
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   await page.addInitScript(() => {
     window.__sharedPayload = null;
@@ -14170,7 +14184,7 @@ skip("analyzer: native share button opens the device share sheet, clipboard fall
   }
 
   // Phase 2 — no Web Share (desktop): must fall back to clipboard copy.
-  const ctx2 = await browser.newContext();
+  const ctx2 = await newHermeticContext();
   const page2 = await ctx2.newPage();
   await page2.addInitScript(() => {
     window.__copiedNativeFallback = null;
@@ -14301,7 +14315,7 @@ test("analyzer: Analysis confidence rates how reliable the result is", () => {
 
 skip("analyze: confidence summary copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -14844,7 +14858,7 @@ test("analyzer: Coverage index measures presence of standard contract sections",
 
 skip("analyze: coverage index copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -14934,7 +14948,7 @@ test("analyzer: Contact extract polish — filter chips + CSV export", () => {
 
 skip("analyze: contacts copy as Markdown table", async () => {
   if (!HAS_BROWSER) return;
-  const ctx = await browser.newContext();
+  const ctx = await newHermeticContext();
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -15943,7 +15957,17 @@ test("analyzer: Risk tally is surfaced in the browser tab title and reset on cle
 
 test("dark mode: toggle applies, persists, and survives reload without console errors", async () => {
   if (!HAS_BROWSER) return;
-  const page = await context.newPage();
+  // Hermetic context: /api/health is mocked so the service-status chip
+  // doesn't log a deterministic 404 console error on the static test
+  // server (the endpoint only exists in production). A fresh context
+  // keeps the route + localStorage isolated from other tests.
+  const ctx = await newHermeticContext();
+  await ctx.route("**/api/health", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, status: "ok", version: "test", uptimeSec: 1, providers: {} }),
+  }));
+  const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
   page.on("console", (m) => { if (m.type() === "error") errors.push(`console.error: ${m.text()}`); });
@@ -15987,6 +16011,7 @@ test("dark mode: toggle applies, persists, and survives reload without console e
   // Flip back to light so the shared context stays clean for other tests.
   await page.locator("#themeToggle").click({ force: true });
   await page.close();
+  await ctx.close();
   assert.deepEqual(errors, [], "dark mode toggle must not produce console errors");
 });
 
@@ -17133,7 +17158,8 @@ test("landing checklist: every advertised lens is a real shipped feature", () =>
                   "Transfers", "Insurance", "Publicity", "Setoffs", "Rate changes", "Indemnity",
                   "Non-compete",
                   "Disclaimers",
-                  "Confidentiality"];
+                  "Confidentiality",
+                  "License grants"];
   lenses.forEach(name => {
     assert.match(html, new RegExp('class="ck-name">' + name), "advertises: " + name);
   });
@@ -18405,5 +18431,77 @@ test("confidentiality: direction, duration, and breadth get weighed", () => {
   assert.ok(appSrc.indexOf("// Cycle #400 — polish: exits, memories, and fair carve-outs graded.") !== -1,
     "the grading pass ships with its structural pin");
   assert.ok(indexHtml.indexOf("Confidentiality") !== -1,
+    "the landing checklist advertises the new lens");
+});
+
+// Cycle #401 — license-grant lens: what you hand over when you upload.
+test("license grants: reach, purpose, and attribution get weighed", () => {
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+
+  const start = appSrc.indexOf("function detectLicense");
+  const retAt = appSrc.indexOf("return { items: items.slice(0, 4), checked: checked, grants: grantAt >= 0 ? 1 : 0 };", start);
+  assert.ok(start >= 0 && retAt > start, "detector code must be present to extract");
+  const endMark = "\n    }";
+  const end = appSrc.indexOf(endMark, retAt);
+  assert.ok(end > retAt, "closing brace must be findable");
+  const src = appSrc.slice(start, end + endMark.length) + "\n return { detectLicense };";
+  const { detectLicense } = new Function(src)();
+  assert.doesNotMatch(src, /fetch|sendBeacon|XMLHttpRequest/, "the detector is pure-local");
+
+  // A breadth-stacked grant is named, attributed, and enumerated.
+  const grabDoc = "You grant the Company a worldwide, royalty-free, sublicensable license to use, reproduce, and distribute your User Content.";
+  const grab = detectLicense(grabDoc);
+  assert.equal(grab.items.length, 1, "a content grab speaks once, loudly");
+  assert.match(grab.items[0].label, /license your work away/,
+    "the headline names who gives up what");
+  assert.match(grab.items[0].why, /royalty-free, and sublicensable/,
+    "…with the full breadth stack enumerated");
+  assert.match(grab.items[0].why, /No purpose is stated/,
+    "…and a missing purpose reads as anywhere, for anything");
+
+  // A purpose-bounded grant earns the fairness credit.
+  const purposeDoc = "Members grant the Service a non-exclusive license to host content solely to operate and improve the service.";
+  const purpose = detectLicense(purposeDoc);
+  assert.match(purpose.items[0].why, /tied to running the service/,
+    "a bounded purpose earns its credit");
+  assert.doesNotMatch(purpose.items[0].why, /every direction open/,
+    "…and non-exclusive drafting never counts as breadth");
+
+  // Moral-rights waivers speak even without the word "license".
+  const moralDoc = "By submitting feedback, you waive all moral rights in such submissions and agree publication without attribution is permitted.";
+  const moral = detectLicense(moralDoc);
+  assert.equal(moral.items.length, 1, "an attribution waiver speaks alone");
+  assert.match(moral.items[0].label, /name comes off your work/,
+    "stripping attribution is the headline");
+
+  // Post-deletion survival becomes its own finding.
+  const surviveDoc = "The licenses granted by you under these terms continue after you delete your content or close your account.";
+  const survive = detectLicense(surviveDoc);
+  assert.equal(survive.items.length, 1, "post-deletion survival speaks alone");
+  assert.match(survive.items[0].label, /outlives your delete button/,
+    "survival past deletion is the headline");
+
+  // Documents without license language stay quiet.
+  assert.equal(detectLicense("Client shall pay undisputed invoices within thirty days. This agreement may be terminated by either party upon notice.").items.length, 0,
+    "documents without license language stay quiet");
+
+  // Full house equipment ships.
+  assert.match(html, /id="licBlock"/, "analyze.html carries the block");
+  assert.match(html, /id="licList"/, "…and its list container");
+  assert.ok(appSrc.indexOf("licBlock=$('#licBlock')") !== -1, "element refs wired");
+  assert.match(appSrc, /detectLicense === 'function'/, "guarded call site present");
+  assert.match(appSrc, /data-lic-start=/, "findings carry jump spans");
+  assert.match(appSrc, /_licWired/, "jump wiring is once-guarded");
+  assert.ok(appSrc.indexOf("📍 License language highlighted in your document") !== -1,
+    "jumping confirms with the house toast");
+  assert.ok(appSrc.indexOf("#licList .gap-label") !== -1 &&
+            appSrc.indexOf("License grants (what you hand over)") !== -1,
+    "the printed brief includes the license section");
+  assert.ok(appSrc.indexOf("'Narrow the license'") !== -1, "the sent ask list includes the license ask");
+  assert.ok(appSrc.indexOf("// Cycle #401 — license-grant lens joins the storefront.") !== -1,
+    "the lens ships with its structural pin");
+  assert.ok(indexHtml.indexOf("License grants") !== -1,
     "the landing checklist advertises the new lens");
 });
