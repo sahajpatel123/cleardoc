@@ -19748,12 +19748,17 @@
       const PURPOSE_RE = /\b(?:operate|maintain|improve|provide|administer|host|deliver)\b[^.;]{0,40}\b(?:the\s+)?(?:service|services|platform|site|application)\b|\bsolely\s+to\b/i;
       const MORAL_RE = /\bmoral\s+rights?\b|\bwaiv\w*[^.;]{0,40}\battribution\b|\bwithout\s+attribution\b|\battribution\s+not\s+required\b/i;
       const SURV_DEL_RE = /\blicen[cs]es?\b[^.;]{0,80}\b(?:survives?|continues?|persists?)\b|\bafter\s+(?:you\s+)?(?:delete|remove)[^.]{0,80}\b(?:licen|rights?)/i;
+      // Cycle #402 — polish: both directions graded; marketing named.
+      const TO_YOU_RE = /\bgrants?\s+to\s+you\b|\bgrants?\s+you\b|\blicen[cs]es?\s+(?:to\s+)?you\b/i;
+      const REVOC_RE = /\brevocable\b|\bnon[- ]?transferable\b[^.;]{0,40}\blicen|\blimited\b[,\s]+(?:non[- ]?exclusive\b[,\s]*)*\s*licen|\blicen[cs]e\b[^.;]{0,60}\brevocabl/i;
+      const MARKETING_RE = /\bmarketing\s+(?:and|or)\s+(?:promot\w+|advertis\w+)|\bpromotional\s+purposes?\b|\bmarketing\s+purposes?\b|\badvertising\s+purposes?\b|\bto\s+promote\b[^.;]{0,40}\b(?:service|product|brand|platform)/i;
       const joinList = (arr) => arr.length === 1 ? arr[0]
         : arr.length === 2 ? arr[0] + ' and ' + arr[1]
         : arr.slice(0, -1).join(', ') + ', and ' + arr[arr.length - 1];
-      let grantAt = -1, grantLen = 0, grantWho = '', purposeSeen = false;
+      let grantAt = -1, grantLen = 0, grantWho = '', purposeSeen = false, marketingSeen = false;
       const adjSeen = [];
       let moralAt = -1, moralLen = 0, survAt = -1, survLen = 0;
+      let toYouAt = -1, toYouLen = 0;
       segs.forEach(seg => {
         if(LIC_RE.test(seg.t)) checked++;
         if(grantAt < 0 && GRANT_THEM_RE.test(seg.t)){
@@ -19762,11 +19767,15 @@
           grantAt = seg.at; grantLen = seg.t.length;
         }
         if(purposeSeen === false && PURPOSE_RE.test(seg.t)) purposeSeen = true;
+        if(MARKETING_RE.test(seg.t)) marketingSeen = true;
         ADJS.forEach(a => {
           if(adjSeen.indexOf(a.k) < 0 && adjSeen.length < 5 && a.re.test(seg.t)) adjSeen.push(a.k);
         });
         if(moralAt < 0 && MORAL_RE.test(seg.t)){ moralAt = seg.at; moralLen = seg.t.length; }
         if(survAt < 0 && SURV_DEL_RE.test(seg.t)){ survAt = seg.at; survLen = seg.t.length; }
+        if(toYouAt < 0 && LIC_RE.test(seg.t) && TO_YOU_RE.test(seg.t) && REVOC_RE.test(seg.t)){
+          toYouAt = seg.at; toYouLen = seg.t.length;
+        }
       });
       if(grantAt >= 0){
         checked++;
@@ -19778,7 +19787,8 @@
           why: 'This clause takes a license to what people create here — posts, photos, code, drafts, feedback.' +
             (adjSeen.length ? ' It runs ' + joinList(adjSeen) + ' — every direction open at once.' :
               ' Check which directions it runs — worldwide, perpetual, and sublicensable are the heavy ones.') +
-            (purposeSeen ? ' This one is tied to running the service — a bounded purpose, the fairer shape.' :
+            (marketingSeen ? ' Marketing is named as a purpose — your work can land in their ads.' :
+              purposeSeen ? ' This one is tied to running the service — a bounded purpose, the fairer shape.' :
               ' No purpose is stated — read that as anywhere, for anything.') +
             ' Ask to narrow it to what operating the service actually requires, ending when your content does.',
           start: grantAt,
@@ -19801,6 +19811,15 @@
           why: 'Even after content is removed or the account closed, the license keeps running. Copies already shared can legitimately persist — but forward-facing rights over deleted work should die with it. Ask for a cutoff: rights end when the content comes down, saved backups excepted.',
           start: survAt,
           end: survAt + survLen
+        });
+      }
+      if(toYouAt >= 0){
+        checked++;
+        items.push({
+          label: 'Their permission can be yanked back',
+          why: 'The license here runs toward you — permission to use their service — and it is drafted as revocable and non-transferable. In practice your access, and anything that only lives inside the service, ends on their say-so. Ask for an export path: your data leaves in a usable format before any access does.',
+          start: toYouAt,
+          end: toYouAt + toYouLen
         });
       }
       return { items: items.slice(0, 4), checked: checked, grants: grantAt >= 0 ? 1 : 0 };

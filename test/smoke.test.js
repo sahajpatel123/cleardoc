@@ -100,6 +100,10 @@ const CDN_SCRIPTS = [
   "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js",
   "https://unpkg.com/lenis@1.1.13/dist/lenis.min.js",
+  // analyze.html loads pdf.js with an SRI digest; serving it empty (the
+  // fallback for unlisted externals) trips the integrity check and logs a
+  // console error on every analyze page load.
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
 ];
 const cdnCache = new Map();
 let cdnPriming = null;
@@ -180,9 +184,52 @@ async function loadAndCheck(pagePath, checks) {
   return errors;
 }
 
+// Installs a canned /api/analyze response on the page before it loads.
+// The static test server only mocks /api/health — a real Analyze click
+// there falls back to the local regex scan, whose degraded render keeps
+// the verdict block collapsed (zero-size), so every post-analysis UI test
+// waits forever on buttons that never get a box. Same idiom as the
+// integration suite's addInitScript fetch patch.
+const MOCK_ANALYSIS = {
+  plainEnglishRewrite: "<b>This is a rewritten clause.</b> It says you must pay within 30 days.",
+  risks: [
+    { severity: "trap", clause: "Lessee shall indemnify in perpetuity.", explanation: "You cover losses forever.", impact: "Permanent liability." },
+    { severity: "watch", clause: "Auto-renews for successive terms.", explanation: "Auto-renews unless cancelled.", impact: "Could pay another term." },
+    { severity: "note", clause: "Governing law: California.", explanation: "CA law applies.", impact: "None directly." },
+  ],
+  verdict: { label: "Suspicious", summary: "Two clauses deserve attention before signing." },
+  deadlines: [
+    { date: "30 days", description: "Cancellation window for auto-renewal." },
+    { date: "60 days", description: "Notice period for lease termination." },
+  ],
+  nextSteps: [
+    "Read the indemnity clause carefully before signing.",
+    "Calendar the cancellation deadline.",
+    "Negotiate the notice period to 90 days.",
+    "Get all verbal promises in writing.",
+  ],
+  readingLevel: { before: 14, after: 8 },
+  jargonFound: 7,
+};
+function mockAnalyzeApi(page) {
+  return page.addInitScript((mockJson) => {
+    const origFetch = window.fetch.bind(window);
+    window.fetch = function patchedFetch(url, opts) {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (u.endsWith("/api/analyze")) {
+        return Promise.resolve(new Response(mockJson, {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return origFetch(url, opts);
+    };
+  }, JSON.stringify({ analysis: MOCK_ANALYSIS }));
+}
+
 // ── tests ───────────────────────────────────────────────────────────
 
-skip("home: loads without console errors and has expected landmarks", async () => {
+test("home: loads without console errors and has expected landmarks", async () => {
   const errors = await loadAndCheck("/", [
     ["nav", "primary nav"],
     ["#heroTitle", "hero headline"],
@@ -195,7 +242,7 @@ skip("home: loads without console errors and has expected landmarks", async () =
 });
 
 // Cycle #256 — live service status chip in the footer.
-skip("home: service status chip reports API health", async () => {
+test("home: service status chip reports API health", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -250,7 +297,7 @@ skip("home: service status chip reports API health", async () => {
     }));
     assert.equal(state.text, "● operational", "the chip must report operational");
     assert.match(state.cls, /\bok\b/, "the chip must carry the ok class");
-    assert.match(state.title, /^ClearDoc API is operational · Last checked \d{1,2}:\d{2}$/,
+    assert.match(state.title, /^ClearDoc API is operational · Last checked \d{1,2}:\d{2}(?: [AP]M)?$/,
       "the chip must explain the status and note when it was last checked");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
@@ -260,7 +307,7 @@ skip("home: service status chip reports API health", async () => {
 });
 
 // Cycle #292 — home page next-deadline chip.
-skip("home: next-deadline chip shows soonest upcoming deadline", async () => {
+test("home: next-deadline chip shows soonest upcoming deadline", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "index.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -432,7 +479,7 @@ test("analyze: privacy guard scans pasted text for personal identifiers before A
 
 // Cycle #257 — mask personal info before Analyze: one click replaces
 // emails, phones, card-like numbers, and ID-like numbers in the input.
-skip("analyze: privacy mask button redacts personal identifiers", async () => {
+test("analyze: privacy mask button redacts personal identifiers", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -473,7 +520,7 @@ skip("analyze: privacy mask button redacts personal identifiers", async () => {
 
 // Cycle #269 — copy the document with PII redacted without mutating the
 // textarea (safe to paste into a lawyer chat, ticket, or notes).
-skip("analyzer: copy redacted pastes a masked copy while leaving the original intact", async () => {
+test("analyzer: copy redacted pastes a masked copy while leaving the original intact", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -521,7 +568,7 @@ skip("analyzer: copy redacted pastes a masked copy while leaving the original in
 });
 
 // Cycle #271 — find in source: search the original document textarea.
-skip("analyzer: find in source counts matches and jumps between them", async () => {
+test("analyzer: find in source counts matches and jumps between them", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -557,7 +604,7 @@ skip("analyzer: find in source counts matches and jumps between them", async () 
 });
 
 // Cycle #270 — download the same redacted document as a .txt file.
-skip("analyzer: download redacted saves a masked .txt file", async () => {
+test("analyzer: download redacted saves a masked .txt file", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -636,7 +683,7 @@ test("analyze: selecting a passage offers a floating ask button that prefills th
   assert.match(cssSrc, /\.sel-ask:focus-visible\{/, "the floating button must have a focus ring");
 });
 
-skip("ticker: every public page rotates ≥6 distinct signals so the marquee feels like a news wire", async () => {
+test("ticker: every public page rotates ≥6 distinct signals so the marquee feels like a news wire", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -659,7 +706,7 @@ skip("ticker: every public page rotates ≥6 distinct signals so the marquee fee
   }
 });
 
-skip("ask: citation in local-fallback includes the matched sentence + a quote", async () => {
+test("ask: citation in local-fallback includes the matched sentence + a quote", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -674,7 +721,7 @@ skip("ask: citation in local-fallback includes the matched sentence + a quote", 
   assert.match(appSrc, /local\.citeFmt \|\| \(local\.cite/, "the Ask thread must prefer citeFmt over the raw fallback string");
 });
 
-skip("risk-detail copy: rd/rc buttons announce success via aria-label + toast (a11y parity)", async () => {
+test("risk-detail copy: rd/rc buttons announce success via aria-label + toast (a11y parity)", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -693,7 +740,7 @@ skip("risk-detail copy: rd/rc buttons announce success via aria-label + toast (a
   assert.match(appSrc, /showAnalyzeToast\(ok \? '📋 Match list copied' : '⚠ Couldn’t copy'\)/, "rd-copy must announce via toast like the rest of the app");
 });
 
-skip("risk rows: advertised 'e' expand + 'a' ask shortcuts both work (no dead guard)", async () => {
+test("risk rows: advertised 'e' expand + 'a' ask shortcuts both work (no dead guard)", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -731,7 +778,7 @@ skip("risk rows: advertised 'e' expand + 'a' ask shortcuts both work (no dead gu
     "every focused row action must be fully opaque");
 });
 
-skip("risk detail: Escape collapses the expanded panel and returns focus to the pill", async () => {
+test("risk detail: Escape collapses the expanded panel and returns focus to the pill", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -752,7 +799,7 @@ skip("risk detail: Escape collapses the expanded panel and returns focus to the 
   assert.match(handler, /e\.key !== 'Enter' && e\.key !== ' '/, "Enter/Space locate parity must be preserved");
 });
 
-skip("rewrite block: has a Copy button that copies just the plain-English rewrite", async () => {
+test("rewrite block: has a Copy button that copies just the plain-English rewrite", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -811,7 +858,7 @@ test("analyzer: rewrite block toggles original ↔ rewritten", () => {
   assert.match(cssSrc, /\.rewrite-toggle\[aria-pressed="true"\]\{/, "the pressed state must be visible");
 });
 
-skip("risk filter: 'showing X of Y' pill counts rows the CSS actually reveals", async () => {
+test("risk filter: 'showing X of Y' pill counts rows the CSS actually reveals", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -825,7 +872,7 @@ skip("risk filter: 'showing X of Y' pill counts rows the CSS actually reveals", 
 });
 
 // Cycle #278 — risk keyword filter.
-skip("analyzer: risk filter by keyword narrows the list", async () => {
+test("analyzer: risk filter by keyword narrows the list", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -858,7 +905,7 @@ skip("analyzer: risk filter by keyword narrows the list", async () => {
 
 // Cycle #267 — risk balance bar: stacked severity mix so the risk
 // summary reads at a glance (mostly traps vs mostly notes).
-skip("analyzer: risk balance bar renders severity proportions after analysis", async () => {
+test("analyzer: risk balance bar renders severity proportions after analysis", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
@@ -889,7 +936,7 @@ skip("analyzer: risk balance bar renders severity proportions after analysis", a
   await page.close();
 });
 
-skip("rewrite stats: word count is computed and displayed next to sentences + read time", async () => {
+test("rewrite stats: word count is computed and displayed next to sentences + read time", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -903,7 +950,7 @@ skip("rewrite stats: word count is computed and displayed next to sentences + re
   assert.match(appSrc, /rsWordS\.textContent = words === 1 \? '' : 's'/, "app.js must pluralize 'word/words'");
 });
 
-skip("focus mode: hides input + non-rewrite blocks and exits via Esc/Clear", async () => {
+test("focus mode: hides input + non-rewrite blocks and exits via Esc/Clear", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -920,21 +967,23 @@ skip("focus mode: hides input + non-rewrite blocks and exits via Esc/Clear", asy
   assert.match(themeSrc, /body\.focus-mode \.col\.in\{display:none\}/, "CSS must hide the input column in focus mode");
 });
 
-skip("theme.css: health-copy rules are defined once (no duplicate blocks)", async () => {
+test("theme.css: health-copy rules are defined once (no duplicate blocks)", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
   const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
-  assert.equal((themeSrc.match(/\.health-copy\{/g) || []).length, 1, ".health-copy base rule must be defined exactly once");
-  assert.equal((themeSrc.match(/\.health-copy:hover\{/g) || []).length, 1, ".health-copy:hover must be defined exactly once");
+  // theme.css keeps one rule per line, so anchor at line start — an unanchored
+  // match also counts `.health-check.danger .health-copy{` etc.
+  assert.equal((themeSrc.match(/^\.health-copy\{/gm) || []).length, 1, ".health-copy base rule must be defined exactly once");
+  assert.equal((themeSrc.match(/^\.health-copy:hover\{/m) || []).length, 1, ".health-copy:hover must be defined exactly once");
   for (const sev of ["low", "review", "negotiate", "danger"]) {
     const re = new RegExp("\\.health-check\\." + sev + " \\.health-copy\\{", "g");
     assert.equal((themeSrc.match(re) || []).length, 1, ".health-check." + sev + " .health-copy must be defined exactly once");
   }
 });
 
-skip("next steps: interactive done-tracking with persisted progress", async () => {
+test("next steps: interactive done-tracking with persisted progress", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -958,7 +1007,7 @@ skip("next steps: interactive done-tracking with persisted progress", async () =
   assert.match(themeSrc, /\.steps-progress\.steps-all-done\{/, "theme.css must style the all-done progress state");
 });
 
-skip("top concern: callout has a copy button that exports clause + why", async () => {
+test("top concern: callout has a copy button that exports clause + why", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -975,7 +1024,7 @@ skip("top concern: callout has a copy button that exports clause + why", async (
   assert.match(themeSrc, /\.tc-copy:focus-visible\{/, "theme.css must give .tc-copy a focus ring");
 });
 
-skip("ask thread: answered turns have a copy button that exports answer + citation", async () => {
+test("ask thread: answered turns have a copy button that exports answer + citation", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1022,7 +1071,7 @@ test("analyzer: ask question bubbles copy in one click", () => {
   assert.match(cssSrc, /\.ask-q-copy:focus-visible\{/, "the question-copy button must have a focus ring");
 });
 
-skip("keyboard: Ctrl/Cmd+Enter runs the analysis from anywhere", async () => {
+test("keyboard: Ctrl/Cmd+Enter runs the analysis from anywhere", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1037,7 +1086,7 @@ skip("keyboard: Ctrl/Cmd+Enter runs the analysis from anywhere", async () => {
   assert.match(appSrc, /<kbd>⌘<\/kbd><kbd>Enter<\/kbd><span>Run the analysis<\/span>/, "the help modal must document the shortcut");
 });
 
-skip("samples: eviction + debt-collection demo documents are offered", async () => {
+test("samples: eviction + debt-collection demo documents are offered", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1051,7 +1100,7 @@ skip("samples: eviction + debt-collection demo documents are offered", async () 
   assert.match(appSrc, /setFocusMode\(false\); input\.value=q\.dataset\.fill/, "loading a sample must exit focus mode so the document is visible");
 });
 
-skip("compare panel: copy button exports verdict + stats as plain text", async () => {
+test("compare panel: copy button exports verdict + stats as plain text", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1156,7 +1205,7 @@ test("analyzer: Compare panel downloads Markdown", () => {
     "the flash must revert the download button aria-label");
 });
 
-skip("ask: quick-question chips fill the input and ask immediately", async () => {
+test("ask: quick-question chips fill the input and ask immediately", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1295,7 +1344,7 @@ test("analyzer: Forget-me and history-clear purge saved Ask threads; restores an
     "the restored note must be styled");
 });
 
-skip("ask: copy-thread button exports the whole Q&A as text", async () => {
+test("ask: copy-thread button exports the whole Q&A as text", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1359,7 +1408,7 @@ test("analyzer: Ask thread copies as Markdown for note apps", () => {
     "saving must toast success");
 });
 
-skip("forget-me: exits focus mode so the wiped page is not left blank", async () => {
+test("forget-me: exits focus mode so the wiped page is not left blank", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1371,7 +1420,7 @@ skip("forget-me: exits focus mode so the wiped page is not left blank", async ()
   assert.match(handler, /setFocusMode\(false\);/, "forget-me must exit focus mode after wiping data");
 });
 
-skip("compare panel: swap button exchanges the two documents", async () => {
+test("compare panel: swap button exchanges the two documents", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1387,7 +1436,7 @@ skip("compare panel: swap button exchanges the two documents", async () => {
   assert.match(themeSrc, /\.compare-actions \.cmp-swap\{/, "theme.css must style .cmp-swap");
 });
 
-skip("voice mode: exits focus mode so it reads what is visible", async () => {
+test("voice mode: exits focus mode so it reads what is visible", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1400,7 +1449,7 @@ skip("voice mode: exits focus mode so it reads what is visible", async () => {
   assert.match(handler, /setFocusMode\(false\);/, "voice mode must exit focus mode before reading");
 });
 
-skip("keyboard: 'f' toggles focus mode when results are visible", async () => {
+test("keyboard: 'f' toggles focus mode when results are visible", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1515,7 +1564,7 @@ test("analyzer: paste button reads the clipboard into the input", () => {
     "permission failures must fall back gracefully");
 });
 
-skip("top concern: 'What if fixed?' previews the readiness score without the clause", async () => {
+test("top concern: 'What if fixed?' previews the readiness score without the clause", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1532,7 +1581,7 @@ skip("top concern: 'What if fixed?' previews the readiness score without the cla
   assert.match(themeSrc, /\.tc-fixed\{/, "theme.css must style the preview note");
 });
 
-skip("keyboard: 'c' copies the plain-text summary when results are visible", async () => {
+test("keyboard: 'c' copies the plain-text summary when results are visible", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1546,7 +1595,7 @@ skip("keyboard: 'c' copies the plain-text summary when results are visible", asy
   assert.match(appSrc, /<kbd>c<\/kbd><span>Copy the plain-text summary<\/span>/, "the help modal must document the c shortcut");
 });
 
-skip("last-analyzed: never renders 'Invalid Date' for corrupt timestamps", async () => {
+test("last-analyzed: never renders 'Invalid Date' for corrupt timestamps", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1559,7 +1608,7 @@ skip("last-analyzed: never renders 'Invalid Date' for corrupt timestamps", async
   assert.match(handler, /lastEl\.hidden = true;/, "invalid timestamps must hide the element");
 });
 
-skip("deadlines: each row has a copy button for a single deadline", async () => {
+test("deadlines: each row has a copy button for a single deadline", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1576,7 +1625,7 @@ skip("deadlines: each row has a copy button for a single deadline", async () => 
   assert.match(themeSrc, /\.deadline-copy:focus-visible\{/, "theme.css must give .deadline-copy a focus ring");
 });
 
-skip("voice mode: deadline narration skips the per-row copy buttons", async () => {
+test("voice mode: deadline narration skips the per-row copy buttons", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1593,7 +1642,7 @@ skip("voice mode: deadline narration skips the per-row copy buttons", async () =
   assert.match(handler, /querySelectorAll\('button'\)\.forEach\(b => b\.remove\(\)\)/, "risk-row narration must strip button labels");
 });
 
-skip("privacy: blur toggle hides sensitive content from onlookers", async () => {
+test("privacy: blur toggle hides sensitive content from onlookers", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1610,7 +1659,7 @@ skip("privacy: blur toggle hides sensitive content from onlookers", async () => 
   assert.match(themeSrc, /@media print\{body\.privacy-blur/, "print must never blur");
 });
 
-skip("privacy: Escape exits the blur like it exits focus mode", async () => {
+test("privacy: Escape exits the blur like it exits focus mode", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1622,7 +1671,7 @@ skip("privacy: Escape exits the blur like it exits focus mode", async () => {
   assert.match(handler, /setPrivacyBlur\(false\);/, "Escape must exit privacy blur");
 });
 
-skip("keyboard: Escape clears results when the Clear hint promises it", async () => {
+test("keyboard: Escape clears results when the Clear hint promises it", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1637,7 +1686,7 @@ skip("keyboard: Escape clears results when the Clear hint promises it", async ()
   assert.match(handler, /if\(e\.defaultPrevented\) return;/, "Escape must not clear when an overlay already consumed it");
 });
 
-skip("confirm modal: Escape closes without triggering the clear shortcut", async () => {
+test("confirm modal: Escape closes without triggering the clear shortcut", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1649,7 +1698,7 @@ skip("confirm modal: Escape closes without triggering the clear shortcut", async
   assert.match(handler, /if\(e\.key === 'Escape'\)\{ e\.preventDefault\(\); close\(false\); \}/, "confirm modal must preventDefault before closing");
 });
 
-skip("risk rows: ⚡ button previews the score if that clause is fixed", async () => {
+test("risk rows: ⚡ button previews the score if that clause is fixed", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1665,7 +1714,7 @@ skip("risk rows: ⚡ button previews the score if that clause is fixed", async (
   assert.match(themeSrc, /\.rrow-fix\{/, "theme.css must style .rrow-fix");
 });
 
-skip("next steps: copy chip exports the checklist with progress", async () => {
+test("next steps: copy chip exports the checklist with progress", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1714,7 +1763,7 @@ test("analyzer: Next Steps export a CSV with done/todo status", () => {
     "the CSV must open with a Progress metadata row (N of M done)");
 });
 
-skip("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
+test("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear button resets", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1845,7 +1894,7 @@ test("analyzer: Ask thread can be saved as a .txt file", () => {
     "the clipboard copy must stay plain (no header)");
 });
 
-skip("home: has OG / Twitter / canonical / favicon meta", async () => {
+test("home: has OG / Twitter / canonical / favicon meta", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
@@ -1860,7 +1909,7 @@ skip("home: has OG / Twitter / canonical / favicon meta", async () => {
   await page.close();
 });
 
-skip("OG image: every public page links the 1200x630 og-card", async () => {
+test("OG image: every public page links the 1200x630 og-card", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1882,7 +1931,7 @@ skip("OG image: every public page links the 1200x630 og-card", async () => {
   }
 });
 
-skip("JSON-LD: home has WebSite + Organization + SoftwareApplication + FAQPage", async () => {
+test("JSON-LD: home has WebSite + Organization + SoftwareApplication + FAQPage", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1920,7 +1969,7 @@ skip("JSON-LD: home has WebSite + Organization + SoftwareApplication + FAQPage",
   }
 });
 
-skip("JSON-LD: analyze page has WebPage + FAQPage with questions cited verbatim from the FAQ section", async () => {
+test("JSON-LD: analyze page has WebPage + FAQPage with questions cited verbatim from the FAQ section", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -1938,7 +1987,7 @@ skip("JSON-LD: analyze page has WebPage + FAQPage with questions cited verbatim 
   }
 });
 
-skip("JSON-LD: pricing page has Product with 3 Offer tiers + FAQPage", async () => {
+test("JSON-LD: pricing page has Product with 3 Offer tiers + FAQPage", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -2029,7 +2078,7 @@ test("pricing: plan cards are backed by a feature-comparison table", () => {
     "checkmarks must be styled");
 });
 
-skip("JSON-LD: every public page declares a BreadcrumbList with valid positions", async () => {
+test("JSON-LD: every public page declares a BreadcrumbList with valid positions", async () => {
   const fs = require("node:fs");
   const path = require("node:path");
   // analyze + pricing must declare a BreadcrumbList (404 is noindex; the home
@@ -2062,7 +2111,7 @@ skip("JSON-LD: every public page declares a BreadcrumbList with valid positions"
   }
 });
 
-skip("sitemap.xml: lists every public HTML page with a lastmod timestamp", async () => {
+test("sitemap.xml: lists every public HTML page with a lastmod timestamp", async () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const xml = fs.readFileSync(path.join(ROOT, "sitemap.xml"), "utf8");
@@ -2083,7 +2132,7 @@ skip("sitemap.xml: lists every public HTML page with a lastmod timestamp", async
   assert.match(robots, /Sitemap:\s*https:\/\/cleardoc\.app\/sitemap\.xml/, "robots.txt must reference the sitemap");
 });
 
-skip("analyze: loads without console errors and has new AI-backed sections", async () => {
+test("analyze: loads without console errors and has new AI-backed sections", async () => {
   const errors = await loadAndCheck("/analyze.html", [
     ["#docInput", "document input"],
     ["#analyzeBtn", "analyze button"],
@@ -2121,7 +2170,7 @@ skip("analyze: loads without console errors and has new AI-backed sections", asy
   assert.deepEqual(errors, [], "analyze: console errors");
 });
 
-skip("pricing: loads without console errors and has expected content", async () => {
+test("pricing: loads without console errors and has expected content", async () => {
   const errors = await loadAndCheck("/pricing.html", [
     ["nav", "primary nav"],
     ["footer", "footer"],
@@ -2129,7 +2178,7 @@ skip("pricing: loads without console errors and has expected content", async () 
   assert.deepEqual(errors, [], "pricing: console errors");
 });
 
-skip("analyze: clicking Analyze on the default sample runs the AI path", async () => {
+test("analyze: clicking Analyze on the default sample runs the AI path", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
@@ -2147,7 +2196,7 @@ skip("analyze: clicking Analyze on the default sample runs the AI path", async (
 
 // Cycle #265 — one-page pre-sign brief: recommendation + top risks +
 // deadlines + next steps in a single clipboard-friendly block.
-skip("analyzer: pre-sign brief copies the decision, risks, deadlines, and next steps", async () => {
+test("analyzer: pre-sign brief copies the decision, risks, deadlines, and next steps", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
@@ -2175,7 +2224,7 @@ skip("analyzer: pre-sign brief copies the decision, risks, deadlines, and next s
 });
 
 // Cycle #266 — contract care plan: what to watch after signing.
-skip("analyzer: contract care plan copies renewal + upcoming deadlines", async () => {
+test("analyzer: contract care plan copies renewal + upcoming deadlines", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
@@ -2204,7 +2253,7 @@ skip("analyzer: contract care plan copies renewal + upcoming deadlines", async (
 });
 
 // Cycle #300 — pre-sign brief email action.
-skip("analyzer: pre-sign brief email button opens a pre-filled mail client", async () => {
+test("analyzer: pre-sign brief email button opens a pre-filled mail client", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -2249,7 +2298,7 @@ skip("analyzer: pre-sign brief email button opens a pre-filled mail client", asy
 });
 
 // Cycle #281 — care plan calendar export.
-skip("analyzer: care plan exports an .ics calendar file", async () => {
+test("analyzer: care plan exports an .ics calendar file", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -2283,7 +2332,7 @@ skip("analyzer: care plan exports an .ics calendar file", async () => {
 });
 
 // Cycle #301 — care plan CSV export.
-skip("analyzer: care plan exports a CSV tracker file", async () => {
+test("analyzer: care plan exports a CSV tracker file", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -2323,7 +2372,7 @@ skip("analyzer: care plan exports a CSV tracker file", async () => {
 });
 
 // Cycle #282 — next dates digest from the care plan.
-skip("analyzer: care plan next-dates digest copies dated items", async () => {
+test("analyzer: care plan next-dates digest copies dated items", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -2374,7 +2423,7 @@ skip("analyzer: care plan next-dates digest copies dated items", async () => {
 });
 
 // Cycle #289 — care plan Markdown export.
-skip("analyzer: care plan copies as Markdown", async () => {
+test("analyzer: care plan copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -2422,7 +2471,7 @@ skip("analyzer: care plan copies as Markdown", async () => {
 });
 
 // Cycle #291 — care plan deadline digest.
-skip("analyzer: care plan deadline digest copies dated items", async () => {
+test("analyzer: care plan deadline digest copies dated items", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -2476,7 +2525,7 @@ skip("analyzer: care plan deadline digest copies dated items", async () => {
 });
 
 // Cycle #293 — care plan email.
-skip("analyzer: care plan email button opens a pre-filled mail client", async () => {
+test("analyzer: care plan email button opens a pre-filled mail client", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -2526,7 +2575,7 @@ skip("analyzer: care plan email button opens a pre-filled mail client", async ()
 
 // Cycle #273 — key facts snapshot: type, jurisdiction, currency, risks,
 // readiness, deadlines in one glanceable row.
-skip("analyzer: key facts snapshot renders after analysis", async () => {
+test("analyzer: key facts snapshot renders after analysis", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -2614,7 +2663,7 @@ skip("analyzer: key facts snapshot renders after analysis", async () => {
 });
 
 // Cycle #275 — analysis scoreboard: readiness, maturity, difficulty, tone.
-skip("analyzer: scoreboard renders headline scores and copies them", async () => {
+test("analyzer: scoreboard renders headline scores and copies them", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -2697,7 +2746,7 @@ skip("analyzer: scoreboard renders headline scores and copies them", async () =>
 });
 
 // Cycle #285 — one-line document summary copy.
-skip("analyzer: document summary button copies a one-line summary", async () => {
+test("analyzer: document summary button copies a one-line summary", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -2746,7 +2795,7 @@ skip("analyzer: document summary button copies a one-line summary", async () => 
   }
 });
 
-skip("mobile viewport (375px): analyze renders without horizontal overflow", async () => {
+test("mobile viewport (375px): analyze renders without horizontal overflow", async () => {
   if (!HAS_BROWSER) return;
   const mobile = await newHermeticContext({ viewport: { width: 375, height: 812 } });
   const page = await mobile.newPage();
@@ -2778,7 +2827,7 @@ skip("mobile viewport (375px): analyze renders without horizontal overflow", asy
   assert.deepEqual(errors, [], "mobile analyze: console errors");
 });
 
-skip("404 page: loads and shows the not-found message + CTAs", async () => {
+test("404 page: loads and shows the not-found message + CTAs", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
   const errors = [];
@@ -2795,7 +2844,7 @@ skip("404 page: loads and shows the not-found message + CTAs", async () => {
   assert.deepEqual(errors, [], "404: console errors");
 });
 
-skip("FAQ accordion: clicking a question toggles aria-expanded", async () => {
+test("FAQ accordion: clicking a question toggles aria-expanded", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
@@ -2817,7 +2866,7 @@ skip("FAQ accordion: clicking a question toggles aria-expanded", async () => {
   await page.close();
 });
 
-skip("FAQ: 'Expand all' / 'Collapse all' controls open and close every item", async () => {
+test("FAQ: 'Expand all' / 'Collapse all' controls open and close every item", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -2857,7 +2906,7 @@ skip("FAQ: 'Expand all' / 'Collapse all' controls open and close every item", as
   await page.close();
 });
 
-skip("hero clarifier: pasting legalese and clicking Clarify renders the plain-English rewrite", async () => {
+test("hero clarifier: pasting legalese and clicking Clarify renders the plain-English rewrite", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
@@ -2936,7 +2985,7 @@ test("home: hero clarifier card opens an email with the plain-English rewrite", 
 });
 
 // Cycle #302 — two-press slider copy button.
-skip("home: two-press slider copies the plain-English version", async () => {
+test("home: two-press slider copies the plain-English version", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "index.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -2995,7 +3044,7 @@ test("home: two-press slider opens an email with the plain-English version", () 
     "opening the email must toast the action");
 });
 
-skip("STRICT RULE: html/body overflow-x is 'clip', never 'hidden' (kills sticky)", async () => {
+test("STRICT RULE: html/body overflow-x is 'clip', never 'hidden' (kills sticky)", async () => {
   // Project rule #1: `overflow-x: hidden` on html/body breaks position:sticky
   // site-wide. `clip` is the safe equivalent. Lock it in so future edits
   // can't silently revert.
@@ -3010,7 +3059,7 @@ skip("STRICT RULE: html/body overflow-x is 'clip', never 'hidden' (kills sticky)
   assert.doesNotMatch(body, /overflow-x\s*:\s*hidden/i, `html,body must NEVER use overflow-x:hidden (kills position:sticky). Found: ${body}`);
 });
 
-skip("analyze: result-actions live inside the result panel and start hidden until analysis runs", async () => {
+test("analyze: result-actions live inside the result panel and start hidden until analysis runs", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
@@ -3035,7 +3084,7 @@ skip("analyze: result-actions live inside the result panel and start hidden unti
   await page.close();
 });
 
-skip("analyze: restore banner appears when a non-expired snapshot is in localStorage", async () => {
+test("analyze: restore banner appears when a non-expired snapshot is in localStorage", async () => {
   if (!HAS_BROWSER) return;
   // Fresh context — guarantees a clean localStorage for the storage write
   const ctx = await newHermeticContext();
@@ -3090,7 +3139,7 @@ skip("analyze: restore banner appears when a non-expired snapshot is in localSto
   await ctx.close();
 });
 
-skip("analyze: stale (expired) snapshots are silently discarded, banner stays hidden", async () => {
+test("analyze: stale (expired) snapshots are silently discarded, banner stays hidden", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -3124,7 +3173,7 @@ skip("analyze: stale (expired) snapshots are silently discarded, banner stays hi
   await ctx.close();
 });
 
-skip("analyze: dismiss button clears storage and hides the banner", async () => {
+test("analyze: dismiss button clears storage and hides the banner", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -3151,7 +3200,7 @@ skip("analyze: dismiss button clears storage and hides the banner", async () => 
   await ctx.close();
 });
 
-skip("share: buildShareUrl produces a gzipped+base64url URL that decodes back to the same shape", async () => {
+test("share: buildShareUrl produces a gzipped+base64url URL that decodes back to the same shape", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
   // CompressionStream is required; skip on browsers that lack it
@@ -3198,7 +3247,7 @@ skip("share: buildShareUrl produces a gzipped+base64url URL that decodes back to
 });
 
 // Cycle #258 — native device share sheet for the analysis link.
-skip("share: native share sheet receives the analysis URL", async () => {
+test("share: native share sheet receives the analysis URL", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -3250,7 +3299,7 @@ skip("share: native share sheet receives the analysis URL", async () => {
 });
 
 // Cycle #259 — standalone HTML report download.
-skip("analyze: HTML report downloads a standalone analysis file", async () => {
+test("analyze: HTML report downloads a standalone analysis file", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -3304,7 +3353,7 @@ skip("analyze: HTML report downloads a standalone analysis file", async () => {
 });
 
 // Cycle #260 — copy the same rich HTML report to the clipboard.
-skip("analyze: HTML report copies as rich text to the clipboard", async () => {
+test("analyze: HTML report copies as rich text to the clipboard", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -3371,7 +3420,7 @@ skip("analyze: HTML report copies as rich text to the clipboard", async () => {
 });
 
 // Cycle #261 — Markdown risk-table copy.
-skip("analyze: risk table copies as Markdown for Notion/GitHub/Linear", async () => {
+test("analyze: risk table copies as Markdown for Notion/GitHub/Linear", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -3428,7 +3477,7 @@ skip("analyze: risk table copies as Markdown for Notion/GitHub/Linear", async ()
 });
 
 // Cycle #279 — full analysis bundle copy.
-skip("analyzer: copy-all bundle combines key facts, digests, and next steps", async () => {
+test("analyzer: copy-all bundle combines key facts, digests, and next steps", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -3496,7 +3545,7 @@ test("analyzer: email-all bundle opens a pre-filled mail client", () => {
 });
 
 // Cycle #287 — clean draft: copy the document with counter-suggestions applied.
-skip("analyzer: clean draft copies revised document without mutating the original", async () => {
+test("analyzer: clean draft copies revised document without mutating the original", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -3547,7 +3596,7 @@ skip("analyzer: clean draft copies revised document without mutating the origina
 });
 
 // Cycle #268 — chat-friendly risk digest copy.
-skip("analyzer: risk digest copies severity, clause, why, and counter for chat apps", async () => {
+test("analyzer: risk digest copies severity, clause, why, and counter for chat apps", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -3604,7 +3653,7 @@ skip("analyzer: risk digest copies severity, clause, why, and counter for chat a
 });
 
 // Cycle #286 — compact risk summary copy.
-skip("analyzer: risk summary button copies a compact summary", async () => {
+test("analyzer: risk summary button copies a compact summary", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -3651,7 +3700,7 @@ skip("analyzer: risk summary button copies a compact summary", async () => {
 });
 
 // Cycle #287 — clean draft copy.
-skip("analyzer: clean draft button copies a revised document", async () => {
+test("analyzer: clean draft button copies a revised document", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -3698,7 +3747,7 @@ skip("analyzer: clean draft button copies a revised document", async () => {
 });
 
 // Cycle #262 — download the generated response draft as Markdown.
-skip("analyze: response draft downloads as Markdown", async () => {
+test("analyze: response draft downloads as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -3743,7 +3792,7 @@ skip("analyze: response draft downloads as Markdown", async () => {
 });
 
 // Cycle #263 — copy the response draft as Markdown.
-skip("analyze: response draft copies as Markdown", async () => {
+test("analyze: response draft copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -3800,7 +3849,7 @@ skip("analyze: response draft copies as Markdown", async () => {
   }
 });
 
-skip("share: opening a #share= URL offers the shared analysis banner with a View button", async () => {
+test("share: opening a #share= URL offers the shared analysis banner with a View button", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -3844,7 +3893,7 @@ skip("share: opening a #share= URL offers the shared analysis banner with a View
   await ctx.close();
 });
 
-skip("share: malformed #share= token shows a clear error and does not crash", async () => {
+test("share: malformed #share= token shows a clear error and does not crash", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -3857,7 +3906,7 @@ skip("share: malformed #share= token shows a clear error and does not crash", as
   await ctx.close();
 });
 
-skip("PWA manifest: all pages link to a valid site.webmanifest", async () => {
+test("PWA manifest: all pages link to a valid site.webmanifest", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -3877,7 +3926,7 @@ skip("PWA manifest: all pages link to a valid site.webmanifest", async () => {
   }
 });
 
-skip("pricing toggle: clicking Annually switches prices and reveals save cue", async () => {
+test("pricing toggle: clicking Annually switches prices and reveals save cue", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/pricing.html`, { waitUntil: "networkidle" });
@@ -3914,7 +3963,7 @@ skip("pricing toggle: clicking Annually switches prices and reveals save cue", a
   await page.close();
 });
 
-skip("BYOF: glossary lists each jargon term that was replaced + its plain-English meaning", async () => {
+test("BYOF: glossary lists each jargon term that was replaced + its plain-English meaning", async () => {
   if (!HAS_BROWSER) return;
   const path = require("node:path");
   const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
@@ -3962,7 +4011,7 @@ skip("BYOF: glossary lists each jargon term that was replaced + its plain-Englis
   await page.close();
 });
 
-skip("nav: back-to-top clears the sticky mobile Analyze CTA at ≤600px", async () => {
+test("nav: back-to-top clears the sticky mobile Analyze CTA at ≤600px", async () => {
   if (!HAS_BROWSER) return;
   const path = require("node:path");
   const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
@@ -4005,7 +4054,7 @@ skip("nav: back-to-top clears the sticky mobile Analyze CTA at ≤600px", async 
   await dpage.close(); await desktop.close();
 });
 
-skip("FAQ: keyword filter shows only matching questions + a 'no matches' hint", async () => {
+test("FAQ: keyword filter shows only matching questions + a 'no matches' hint", async () => {
   if (!HAS_BROWSER) return;
   const path = require("node:path");
   const fs = require("node:fs");
@@ -4057,7 +4106,7 @@ skip("FAQ: keyword filter shows only matching questions + a 'no matches' hint", 
   await ctx.close();
 });
 
-skip("analyzer: AI failure shows a Retry button + categorizes the failure (rate-limit / network / other)", async () => {
+test("analyzer: AI failure shows a Retry button + categorizes the failure (rate-limit / network / other)", async () => {
   if (!HAS_BROWSER) return;
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
@@ -4111,7 +4160,7 @@ skip("analyzer: AI failure shows a Retry button + categorizes the failure (rate-
   await ctx.close();
 });
 
-skip("analyzer: AI failure shows a Retry button + categorizes the failure (rate-limit / network / other)", async () => {
+test("analyzer: AI failure shows a Retry button + categorizes the failure (rate-limit / network / other)", async () => {
   if (!HAS_BROWSER) return;
   const path = require("node:path");
   const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
@@ -4163,7 +4212,7 @@ skip("analyzer: AI failure shows a Retry button + categorizes the failure (rate-
   await page.close();
 });
 
-skip("nav: back-to-top button appears after scroll, smooth-scrolls to top on click", async () => {
+test("nav: back-to-top button appears after scroll, smooth-scrolls to top on click", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -4209,7 +4258,7 @@ skip("nav: back-to-top button appears after scroll, smooth-scrolls to top on cli
   await page.close();
 });
 
-skip("nav: back-to-top button appears after scroll, smooth-scrolls to top on click", async () => {
+test("nav: back-to-top button appears after scroll, smooth-scrolls to top on click", async () => {
   if (!HAS_BROWSER) return;
   const path = require("node:path");
   const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
@@ -4261,7 +4310,7 @@ skip("nav: back-to-top button appears after scroll, smooth-scrolls to top on cli
   await page.close();
 });
 
-skip("pricing: each non-free card shows an annual hint (total + savings) that updates with the toggle", async () => {
+test("pricing: each non-free card shows an annual hint (total + savings) that updates with the toggle", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -4308,7 +4357,7 @@ skip("pricing: each non-free card shows an annual hint (total + savings) that up
   await page.close();
 });
 
-skip("sw: service worker file exists, parses, and registers without error", async () => {
+test("sw: service worker file exists, parses, and registers without error", async () => {
   if (!HAS_BROWSER) return;
   // 1. sw.js exists and parses
   const fs = require("node:fs");
@@ -4363,7 +4412,7 @@ skip("sw: service worker file exists, parses, and registers without error", asyn
   await page.close();
 });
 
-skip("sw: cache strategy uses network-first for HTML and cache-first for assets", async () => {
+test("sw: cache strategy uses network-first for HTML and cache-first for assets", async () => {
   if (!HAS_BROWSER) return;
   // Source-pattern checks lock in the caching intent — if a future refactor
   // quietly swaps strategies (e.g. cache-first for HTML), users would see
@@ -4391,7 +4440,7 @@ skip("sw: cache strategy uses network-first for HTML and cache-first for assets"
   assert.match(cdnBlock[0], /cache\.put/, "CDN strategy must refresh the cache in the background");
 });
 
-skip("OCR: image attachments lazy-load Tesseract.js with timeout + cancel", async () => {
+test("OCR: image attachments lazy-load Tesseract.js with timeout + cancel", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -4434,7 +4483,7 @@ skip("OCR: image attachments lazy-load Tesseract.js with timeout + cancel", asyn
   assert.match(readImageBlock[0], /too large for OCR/, "oversize image must produce a clear user-visible rejection");
 });
 
-skip("BYOF: reading level is computed live from the input (not hardcoded 12th→7th)", async () => {
+test("BYOF: reading level is computed live from the input (not hardcoded 12th→7th)", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -5199,7 +5248,7 @@ test("analyzer: deadline block filters to next-7-days or overdue", () => {
   assert.match(cssSrc, /\.deadline-empty\{/, "the empty state must be styled");
 });
 
-skip("analyze: deadlines copy as Markdown", async () => {
+test("analyze: deadlines copy as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -5238,7 +5287,7 @@ skip("analyze: deadlines copy as Markdown", async () => {
 });
 
 // Cycle #286 — compact risk summary copy.
-skip("analyzer: risk summary copy exports tally + top concern", async () => {
+test("analyzer: risk summary copy exports tally + top concern", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -5283,7 +5332,7 @@ skip("analyzer: risk summary copy exports tally + top concern", async () => {
 });
 
 // Cycle #296 — risk email action.
-skip("analyzer: risk email button opens a pre-filled mail client", async () => {
+test("analyzer: risk email button opens a pre-filled mail client", async () => {
   if (!HAS_BROWSER) return;
   const html = require("node:fs").readFileSync(require("node:path").join(ROOT, "analyze.html"), "utf8");
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
@@ -5328,7 +5377,7 @@ skip("analyzer: risk email button opens a pre-filled mail client", async () => {
 });
 
 // Cycle #272 — chat-friendly deadline digest.
-skip("analyzer: deadline digest copies urgency-grouped deadlines", async () => {
+test("analyzer: deadline digest copies urgency-grouped deadlines", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -5376,7 +5425,7 @@ skip("analyzer: deadline digest copies urgency-grouped deadlines", async () => {
 
 // Cycle #298 — deadline email: the deadline block has an email button that
 // opens the mail client with the extracted deadlines pre-filled.
-skip("analyzer: deadline email button opens a pre-filled mail client", async () => {
+test("analyzer: deadline email button opens a pre-filled mail client", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -9048,7 +9097,7 @@ test("analyzer: Risk severity legend polish — per-severity examples + copy che
     ".legend-actions style must exist for the copy button row");
 });
 
-skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
+test("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fragment", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -9118,7 +9167,7 @@ skip("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fr
   await ctx.close();
 });
 
-skip("draft autosave: textarea content survives reload, gets cleared on Analyze / Clear / Forget", async () => {
+test("draft autosave: textarea content survives reload, gets cleared on Analyze / Clear / Forget", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -9172,7 +9221,7 @@ skip("draft autosave: textarea content survives reload, gets cleared on Analyze 
   await ctx.close();
 });
 
-skip("analyzer: clicking the verdict Copy button copies just the verdict + summary", async () => {
+test("analyzer: clicking the verdict Copy button copies just the verdict + summary", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -9229,7 +9278,7 @@ skip("analyzer: clicking the verdict Copy button copies just the verdict + summa
   await page.close(); await ctx.close();
 });
 
-skip("analyzer: live text-stats bar shows word/char/level/cap and reacts to typing", async () => {
+test("analyzer: live text-stats bar shows word/char/level/cap and reacts to typing", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -9280,7 +9329,7 @@ skip("analyzer: live text-stats bar shows word/char/level/cap and reacts to typi
   await page.close();
 });
 
-skip("analyzer (mobile): Analyze CTA becomes a sticky bottom bar at ≤900px so it's always within thumb reach", async () => {
+test("analyzer (mobile): Analyze CTA becomes a sticky bottom bar at ≤900px so it's always within thumb reach", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -9348,7 +9397,7 @@ skip("analyzer (mobile): Analyze CTA becomes a sticky bottom bar at ≤900px so 
   await dpage.close(); await desktop.close();
 });
 
-skip("keyboard: ? opens the help modal and Esc closes it", async () => {
+test("keyboard: ? opens the help modal and Esc closes it", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -9411,7 +9460,7 @@ skip("keyboard: ? opens the help modal and Esc closes it", async () => {
   await page.close();
 });
 
-skip("keyboard: 'g a' navigates to analyze, 'g h' to home; '/' focuses the document input", async () => {
+test("keyboard: 'g a' navigates to analyze, 'g h' to home; '/' focuses the document input", async () => {
   if (!HAS_BROWSER) return;
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
@@ -9448,7 +9497,7 @@ skip("keyboard: 'g a' navigates to analyze, 'g h' to home; '/' focuses the docum
   await page.close();
 });
 
-skip("a11y: mobile drawer traps focus + returns focus to toggle on close", async () => {
+test("a11y: mobile drawer traps focus + returns focus to toggle on close", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -9782,7 +9831,7 @@ test("CSP: inline <script> via page.evaluate() is blocked by the browser", async
 
 // ── RFC 9116 security.txt ────────────────────────────────────────
 
-skip("security.txt: well-known/security.txt is served and well-formed", async () => {
+test("security.txt: well-known/security.txt is served and well-formed", async () => {
   if (!HAS_BROWSER) return;
   const fs = require("node:fs");
   const path = require("node:path");
@@ -9810,7 +9859,7 @@ skip("security.txt: well-known/security.txt is served and well-formed", async ()
 
 // ── FAQ keyword filter ─────────────────────────────────────────────
 
-skip("analyzer: local-fallback answer carries 'Sentence N of M' citation when no AI is available", async () => {
+test("analyzer: local-fallback answer carries 'Sentence N of M' citation when no AI is available", async () => {
   if (!HAS_BROWSER) return;
   // The analyzer's local fallback (no AI key configured) should produce
   // a citation in the standardized "Sentence N of M: \"quote\"" format so
@@ -9851,7 +9900,7 @@ skip("analyzer: local-fallback answer carries 'Sentence N of M' citation when no
   await ctx.close();
 });
 
-skip("faq: keyword filter narrows .qa items in real time", async () => {
+test("faq: keyword filter narrows .qa items in real time", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -11197,7 +11246,7 @@ test("analyzer: Gap detector exports missing clauses as CSV", () => {
     "theme.css must style .gap-csv");
 });
 
-skip("analyze: missing clauses copy as Markdown", async () => {
+test("analyze: missing clauses copy as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -11988,7 +12037,7 @@ test("analyzer: TL;DR polished with numbered sentences + sentiment arrow + next 
   assert.match(cssSrc, /\.tldr-next\b/, ".tldr-next style must exist");
 });
 
-skip("analyze: TL;DR copies as Markdown", async () => {
+test("analyze: TL;DR copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -12313,7 +12362,7 @@ test("analyzer: Style profile measures voice + sentence shape + reading grade", 
   assert.match(cssSrc, /\.style-controls\b/, ".style-controls style must exist");
 });
 
-skip("analyze: style profile copies as Markdown", async () => {
+test("analyze: style profile copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -12423,7 +12472,7 @@ test("analyzer: Clause index extracts numbered clauses with click-to-jump", () =
     "the row div must inherit font and color like a native control");
 });
 
-skip("analyze: clause index copies as Markdown", async () => {
+test("analyze: clause index copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -12513,7 +12562,7 @@ test("analyzer: Cost predictor shows expected / 90th / worst-case scenarios", ()
   assert.match(cssSrc, /\.cost-sliders\b/, ".cost-sliders style must exist");
 });
 
-skip("analyze: cost predictor copies as Markdown", async () => {
+test("analyze: cost predictor copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -12965,7 +13014,7 @@ test("analyzer: reading list exports a CSV tracker file", () => {
 
 // Cycle #226 — live: the reading-plan CSV actually downloads and the
 // file carries BOM + headers + per-chunk status.
-skip("analyzer: reading list downloads a CSV tracker file", async () => {
+test("analyzer: reading list downloads a CSV tracker file", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext({ acceptDownloads: true });
   const page = await ctx.newPage();
@@ -13120,7 +13169,7 @@ test("analyzer: Section risk map aggregates risk by clause category", () => {
   assert.match(cssSrc, /\.section-controls\b/, ".section-controls style must exist");
 });
 
-skip("analyze: section risk map copies as Markdown", async () => {
+test("analyze: section risk map copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -13505,7 +13554,7 @@ test("analyzer: Glossary quick-reference extracts legal terms with plain-English
   assert.match(cssSrc, /\.gloss-filter-active\b/, ".gloss-filter-active style must exist");
 });
 
-skip("analyze: glossary copies as Markdown", async () => {
+test("analyze: glossary copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -13656,7 +13705,7 @@ test("analyzer: Obligation tracker exports a CSV with done status", () => {
     "the Markdown obligation copy must use checkbox-style progress");
 });
 
-skip("analyze: obligations copy as Markdown", async () => {
+test("analyze: obligations copy as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -13696,7 +13745,7 @@ skip("analyze: obligations copy as Markdown", async () => {
 });
 
 // Cycle #274 — chat-friendly obligations digest.
-skip("analyzer: obligations digest copies must/may groups with progress", async () => {
+test("analyzer: obligations digest copies must/may groups with progress", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -13737,7 +13786,7 @@ skip("analyzer: obligations digest copies must/may groups with progress", async 
 });
 
 // Cycle #299 — obligations email action.
-skip("analyzer: obligations email button opens a pre-filled mail client", async () => {
+test("analyzer: obligations email button opens a pre-filled mail client", async () => {
   if (!HAS_BROWSER) return;
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
   assert.match(appSrc, /actionEmailBtn/, "app.js must wire the obligations email button");
@@ -13780,7 +13829,7 @@ skip("analyzer: obligations email button opens a pre-filled mail client", async 
 });
 
 // Cycle #284 — chat share now carries deadlines + jurisdiction.
-skip("analyzer: chat share includes deadlines and jurisdiction", async () => {
+test("analyzer: chat share includes deadlines and jurisdiction", async () => {
   if (!HAS_BROWSER) return;
   const appSrc = require("node:fs").readFileSync(require("node:path").join(ROOT, "assets", "app.js"), "utf8");
   assert.match(appSrc, /deadline' \+ \(dlRows\.length === 1 \? '' : 's'\)/, "app.js must include the deadline count in chat share");
@@ -13846,7 +13895,7 @@ test("pwa: manifest registers a share target and the analyzer consumes it with a
     "prefill must respect the textarea's own cap instead of assuming one");
 });
 
-skip("analyzer: sharing text into ClearDoc prefills the input and scrubs the URL", async () => {
+test("analyzer: sharing text into ClearDoc prefills the input and scrubs the URL", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -13886,7 +13935,7 @@ test("analyzer: verdict card sharing has three tiers and shares the shared PNG b
     "tier 4 must keep the .svg download fallback for broken canvas pipelines");
 });
 
-skip("analyzer: share-card button hands the PNG file to the share sheet", async () => {
+test("analyzer: share-card button hands the PNG file to the share sheet", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -13955,7 +14004,7 @@ test("analyzer: verdict card renders aggregate stats only and downloads as PNG",
     "the verdict card must embed only aggregate fields — never document text");
 });
 
-skip("analyzer: clicking the verdict-card button downloads without errors", async () => {
+test("analyzer: clicking the verdict-card button downloads without errors", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -14005,7 +14054,7 @@ test("analyzer: deadline notifications are opt-in, deduplicated per day, and nev
   assert.match(appSrc, /document\._dlNotifyVisWired/, "the visibility re-check must be wired exactly once");
 });
 
-skip("analyzer: deadline notifications fire when granted and opt-in from the banner button", async () => {
+test("analyzer: deadline notifications fire when granted and opt-in from the banner button", async () => {
   if (!HAS_BROWSER) return;
 
   // Phase 1 — permission already granted: a due stored deadline must
@@ -14152,7 +14201,7 @@ test("analyzer: native share button exists and is wired with sheet + clipboard f
   assert.match(appSrc, /_nativeShareWired/, "the handler must be guard-wired exactly once");
 });
 
-skip("analyzer: native share button opens the device share sheet, clipboard fallback on desktop", async () => {
+test("analyzer: native share button opens the device share sheet, clipboard fallback on desktop", async () => {
   if (!HAS_BROWSER) return;
 
   // Phase 1 — Web Share available: the payload must reach navigator.share.
@@ -14313,7 +14362,7 @@ test("analyzer: Analysis confidence rates how reliable the result is", () => {
   assert.match(cssSrc, /\.conf-controls\b/, ".conf-controls style must exist");
 });
 
-skip("analyze: confidence summary copies as Markdown", async () => {
+test("analyze: confidence summary copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -14856,7 +14905,7 @@ test("analyzer: Coverage index measures presence of standard contract sections",
     "iter #266 must include a missing-sections line when present");
 });
 
-skip("analyze: coverage index copies as Markdown", async () => {
+test("analyze: coverage index copies as Markdown", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -14946,7 +14995,7 @@ test("analyzer: Contact extract polish — filter chips + CSV export", () => {
   assert.match(cssSrc, /\.contact-email\b/, ".contact-email style must exist");
 });
 
-skip("analyze: contacts copy as Markdown table", async () => {
+test("analyze: contacts copy as Markdown table", async () => {
   if (!HAS_BROWSER) return;
   const ctx = await newHermeticContext();
   const page = await ctx.newPage();
@@ -18483,6 +18532,24 @@ test("license grants: reach, purpose, and attribution get weighed", () => {
   assert.match(survive.items[0].label, /outlives your delete button/,
     "survival past deletion is the headline");
 
+  // Cycle #402 — a revocable license running toward you is graded too.
+  const revocDoc = "Company grants you a limited, non-exclusive, non-transferable, revocable license to access and use the platform.";
+  const revoc = detectLicense(revocDoc);
+  assert.equal(revoc.items.length, 1, "a to-you license speaks on its own");
+  assert.match(revoc.items[0].label, /yanked back/,
+    "revocable access is named as pullable");
+  assert.match(revoc.items[0].why, /export path/,
+    "…with the export-path ask attached");
+
+  // Cycle #402 — marketing as a stated purpose is called out over
+  // generic purpose grading.
+  const mktDoc = "You grant us a worldwide license to use, display, and distribute your submissions for marketing and promotional purposes across our services.";
+  const mkt = detectLicense(mktDoc);
+  assert.match(mkt.items[0].why, /land in their ads/,
+    "marketing purposes get named, not buried in 'anywhere'");
+  assert.match(mkt.items[0].why, /worldwide/,
+    "…while breadth enumeration still lands beside it");
+
   // Documents without license language stay quiet.
   assert.equal(detectLicense("Client shall pay undisputed invoices within thirty days. This agreement may be terminated by either party upon notice.").items.length, 0,
     "documents without license language stay quiet");
@@ -18502,6 +18569,8 @@ test("license grants: reach, purpose, and attribution get weighed", () => {
   assert.ok(appSrc.indexOf("'Narrow the license'") !== -1, "the sent ask list includes the license ask");
   assert.ok(appSrc.indexOf("// Cycle #401 — license-grant lens joins the storefront.") !== -1,
     "the lens ships with its structural pin");
+  assert.ok(appSrc.indexOf("// Cycle #402 — polish: both directions graded; marketing named.") !== -1,
+    "the polish cycle pins its marker too");
   assert.ok(indexHtml.indexOf("License grants") !== -1,
     "the landing checklist advertises the new lens");
 });
