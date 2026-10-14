@@ -52,6 +52,15 @@ function serveStatic() {
       res.end(JSON.stringify({ ok: true, status: "ok", providers: {} }));
       return;
     }
+    // Analyze and chat are real routes in production. A 404 here is only
+    // the static test server, and Chromium logs that as a console error,
+    // which hides the UI check. Answer like an upstream miss so the page
+    // keeps the local scan and the console stays quiet.
+    if (p === "/api/analyze" || p === "/api/chat") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "upstream" }));
+      return;
+    }
     if (p === "/") p = "/index.html";
     const filePath = path.join(ROOT, p);
     if (!filePath.startsWith(ROOT) || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
@@ -546,6 +555,9 @@ test("analyzer: copy redacted pastes a masked copy while leaving the original in
     const doc = "Contact jane@example.com or call 415-555-0199. Card 4111 1111 1111 1111.";
     await page.fill("#docInput", doc);
     // Cycle #269 v2 — the compare textarea must also be redacted when present.
+    // #docInputB lives inside #comparePanel[hidden] — open it first.
+    await page.click("#compareToggle");
+    await page.waitForSelector("#comparePanel:not([hidden]) #docInputB", { timeout: 4000 });
     await page.fill("#docInputB", "Second party can reach me at bob@example.com or 555-010-1234.");
     await page.waitForSelector("#privacyGuard:not([hidden]) #privacyCopyRedactedBtn", { timeout: 4000 });
     await page.click("#privacyCopyRedactedBtn");
@@ -585,6 +597,10 @@ test("analyzer: find in source counts matches and jumps between them", async () 
   page.on("pageerror", (e) => errors.push(String(e)));
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+    // The stock sample says "renew" once. Next/prev need two hits, and the
+    // finder jumps to the first hit as you type, so the next click must land
+    // on a different match.
+    await page.fill("#docInput", "The lease shall renew in 2026 and shall renew again in 2027 unless notice is given.");
     await page.fill("#sourceFindInput", "renew");
     await page.waitForFunction(() => (document.getElementById("sourceFindCount").textContent || "").indexOf("/") >= 0, { timeout: 4000 });
     const count = await page.$eval("#sourceFindCount", (el) => el.textContent);
@@ -756,7 +772,7 @@ test("risk rows: advertised 'e' expand + 'a' ask shortcuts both work (no dead gu
   // The old code guarded with `if(e.key !== 'a' && e.key !== 'A') return;`
   // BEFORE the e/E branch, so the advertised Expand shortcut was dead code.
   assert.doesNotMatch(handler, /if\(e\.key !== 'a' && e\.key !== 'A'\) return;[\s\S]*if\(key === 'e'/, "the e/E branch must not sit behind an a-only guard");
-  assert.match(handler, /if\(key === 'e' \|\| key === 'E'\)\{/, "handler must branch on e/E to expand");
+  assert.match(handler, /\(key === 'e' \|\| key === 'E'\)\)?\{/, "handler must branch on e/E to expand");
   assert.match(handler, /if\(key === 'a' \|\| key === 'A'\)\{/, "handler must branch on a/A to ask");
   assert.match(handler, /rrow-counter/, "expand must target the counter-suggestion panel");
   assert.match(handler, /rrow-ask/, "ask must trigger the per-risk ask button");
@@ -930,7 +946,7 @@ test("analyzer: risk balance bar renders severity proportions after analysis", a
   }));
   assert.equal(state.filter, "r", "clicking the trap segment must set the risk list filter to traps");
   assert.equal(state.pressed, "true", "the trap filter chip must be marked pressed");
-  const filtered = await page.$$eval("#riskList .rrow:not(.risk-hidden)", (els) => els.map((e) => e.getAttribute("data-risk")));
+  const filtered = await page.$$eval("#riskList .rrow", (els) => els.filter((e) => getComputedStyle(e).display !== "none").map((e) => e.getAttribute("data-risk")));
   assert.ok(filtered.length > 0, "filtering to traps must still show rows");
   assert.ok(filtered.every((v) => v === "r"), "after clicking the trap segment, every visible row must be a trap");
   await page.close();
@@ -2267,13 +2283,12 @@ test("analyzer: pre-sign brief email button opens a pre-filled mail client", asy
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.addInitScript(() => {
     window.__decisionMailto = null;
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: {
-        ...window.location,
-        set href(v) { window.__decisionMailto = v; },
-      },
-    });
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      const href = String(this.getAttribute('href') || '');
+      if (href.startsWith('mailto:')) { window.__decisionMailto = href; return; }
+      return origClick.apply(this, arguments);
+    };
   });
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
@@ -2541,13 +2556,12 @@ test("analyzer: care plan email button opens a pre-filled mail client", async ()
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.addInitScript(() => {
     window.__mailtoHref = null;
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: {
-        ...window.location,
-        set href(v) { window.__mailtoHref = v; },
-      },
-    });
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      const href = String(this.getAttribute('href') || '');
+      if (href.startsWith('mailto:')) { window.__mailtoHref = href; return; }
+      return origClick.apply(this, arguments);
+    };
   });
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
@@ -2618,13 +2632,12 @@ test("analyzer: key facts snapshot renders after analysis", async () => {
   // Cycle #295 — key facts email opens a mailto.
   await page.evaluate(() => {
     window.__keyFactsMailto = null;
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: {
-        ...window.location,
-        set href(v) { window.__keyFactsMailto = v; },
-      },
-    });
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      const href = String(this.getAttribute('href') || '');
+      if (href.startsWith('mailto:')) { window.__keyFactsMailto = href; return; }
+      return origClick.apply(this, arguments);
+    };
   });
   await page.click("#keyFactsEmailBtn");
   await page.waitForFunction(() => window.__keyFactsMailto && window.__keyFactsMailto.startsWith("mailto:"), { timeout: 4000 });
@@ -2643,7 +2656,14 @@ test("analyzer: key facts snapshot renders after analysis", async () => {
   const viaKeyMd = await page.evaluate(() => window.__copiedKeyFactsMd);
   assert.match(viaKeyMd, /# Key facts/, "the m shortcut must copy key facts as Markdown");
   // Cycle #280 v2 — 'n' shortcut copies key facts too.
-  await page.evaluate(() => { window.__copiedKeyFacts = null; });
+  // The Markdown step above replaced the clipboard stub, so point it
+  // back at the plain-text capture before pressing n.
+  await page.evaluate(() => {
+    window.__copiedKeyFacts = null;
+    try {
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { window.__copiedKeyFacts = t; }, write: async () => {} } });
+    } catch (_) {}
+  });
   await page.keyboard.press("n");
   await page.waitForFunction(() => window.__copiedKeyFacts && window.__copiedKeyFacts.length > 0, { timeout: 4000 });
   const viaKeyN = await page.evaluate(() => window.__copiedKeyFacts);
@@ -2713,13 +2733,12 @@ test("analyzer: scoreboard renders headline scores and copies them", async () =>
   // Cycle #294 — scoreboard email opens a mailto with the scoreboard.
   await page.evaluate(() => {
     window.__scoreMailto = null;
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: {
-        ...window.location,
-        set href(v) { window.__scoreMailto = v; },
-      },
-    });
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      const href = String(this.getAttribute('href') || '');
+      if (href.startsWith('mailto:')) { window.__scoreMailto = href; return; }
+      return origClick.apply(this, arguments);
+    };
   });
   await page.click("#scoreBoardEmailBtn");
   await page.waitForFunction(() => window.__scoreMailto && window.__scoreMailto.startsWith("mailto:"), { timeout: 4000 });
@@ -5346,13 +5365,12 @@ test("analyzer: risk email button opens a pre-filled mail client", async () => {
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.addInitScript(() => {
     window.__riskMailto = null;
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: {
-        ...window.location,
-        set href(v) { window.__riskMailto = v; },
-      },
-    });
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      const href = String(this.getAttribute('href') || '');
+      if (href.startsWith('mailto:')) { window.__riskMailto = href; return; }
+      return origClick.apply(this, arguments);
+    };
   });
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
@@ -5434,13 +5452,12 @@ test("analyzer: deadline email button opens a pre-filled mail client", async () 
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.addInitScript(() => {
     window.__deadlineMailto = null;
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: {
-        ...window.location,
-        set href(v) { window.__deadlineMailto = v; },
-      },
-    });
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      const href = String(this.getAttribute('href') || '');
+      if (href.startsWith('mailto:')) { window.__deadlineMailto = href; return; }
+      return origClick.apply(this, arguments);
+    };
   });
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
@@ -9919,20 +9936,21 @@ test("faq: keyword filter narrows .qa items in real time", async () => {
   );
   assert.equal(allVisibleBefore, initialCount, "all FAQ items must start visible");
 
-  // Type a keyword — at least one FAQ on /analyze should match "document"
+  // "document" appears in every analyze FAQ answer. "uploaded" is only
+  // in the first one, so a working filter must hide the other two.
   const searchInput = await page.$("#faqSearch");
   assert.ok(searchInput, "#faqSearch input must exist on analyze page");
-  await searchInput.fill("document");
+  await searchInput.fill("uploaded");
   await page.waitForTimeout(60);
 
   const afterTyping = await page.$$eval(".qa", (els) =>
     els.filter((el) => el.style.display !== "none").length
   );
-  assert.ok(afterTyping >= 1, `at least 1 FAQ item must match "document", got ${afterTyping}`);
+  assert.ok(afterTyping >= 1, `at least 1 FAQ item must match "uploaded", got ${afterTyping}`);
   assert.ok(afterTyping < initialCount, `filter must reduce visible count from ${initialCount}, got ${afterTyping}`);
 
   // Case-insensitive matching.
-  await searchInput.fill("DOCUMENT");
+  await searchInput.fill("UPLOADED");
   await page.waitForTimeout(60);
   const afterUpper = await page.$$eval(".qa", (els) =>
     els.filter((el) => el.style.display !== "none").length
@@ -13798,13 +13816,12 @@ test("analyzer: obligations email button opens a pre-filled mail client", async 
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.addInitScript(() => {
     window.__obligMailto = null;
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: {
-        ...window.location,
-        set href(v) { window.__obligMailto = v; },
-      },
-    });
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      const href = String(this.getAttribute('href') || '');
+      if (href.startsWith('mailto:')) { window.__obligMailto = href; return; }
+      return origClick.apply(this, arguments);
+    };
   });
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });

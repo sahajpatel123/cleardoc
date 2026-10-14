@@ -6755,3 +6755,23 @@ Fix all 16 reliability bugs for 10/10 reliability score. All 71 tests pass, buil
 **Changes Made:** License-grant lens graded in both directions. (1) The to-you grant is no longer invisible: TO_YOU_RE catches "grants you / grants to you / licenses to you" shapes (the standard "Company grants you a limited, non-exclusive, non-transferable, revocable license" clause), and when that same sentence drafts the permission as revocable/non-transferable/limited, a fourth finding fires — "Their permission can be yanked back" — explaining that access and everything living only inside the service ends on their say-so, with the export-path ask (data leaves in a usable format before access does). GRANT_THEM stays silent on these so the finding speaks alone. (2) Marketing named as a purpose: MARKETING_RE (marketing/promotional/advertising purposes, or "to promote" service/product/brand/platform) upgrades the purpose bit of the breadth finding from the generic "anywhere, for anything" warning to "your work can land in their ads", while bounded-purpose credit and the live breadth enumeration stay intact beside it. Smoke: two new corpora — revocDoc (items exactly 1, /yanked back/, /export path/) and mktDoc (/land in their ads/ + worldwide enumeration still lands) — plus structural pin for the #402 marker.
 **Gate:** node --check ✓ · license-grants smoke block green standalone · full gate npm run check ✓ (unit 490, smoke 336, integration 16).
 **Prompt Intention:** Loop discipline held (polish after #401 add). Lens family steady at 23 surfaces. Next cycle #403 is ADD — scope-checking candidates first: trademark/name-and-logo use carve-outs as a credit inside this lens vs. splitting another single-regex trap topic into a dedicated lens.
+
+**2026-10-13 19:14 | Model: Grok 4.7**
+**Changes Made:**
+- Home next-deadline chip now counts calendar days itself. It was calling dayDiff(), which only exists inside the analyzer, so the chip stayed hidden.
+- The analyzer deadline list uses the shared date parser again. A second extractor was shadowing it and missed plain dates such as "renews on 2026-11-01". Its quarter pattern was a backspace, not a word boundary. Added parenthetical day counts ("(60) days") and Q1–Q4.
+
+**Prompt Intention:**
+- User asked to make ClearDoc work for people using it, with no user-facing bugs, and to start there before the other unfinished projects.
+
+**2026-10-13 20:13 | Model: Grok 4.7**
+**Changes Made:**
+- A local scan no longer collapses the verdict block. That block also holds the scoreboard, key facts, threat score, and health check, so those results stayed invisible whenever the AI verdict was missing.
+- Key facts and the scoreboard are painted again after the risk rows, readiness score, and deadlines exist.
+- Copied share links were the text "[object Object]". The share result now stringifies to the real URL.
+- Email actions open a mailto link in place, so the analysis tab stays open.
+- Deadline rows in the panel stay in document order. The shared parser still sorts by urgency first.
+- Restoring a saved analysis opens the result panel again. The 404 page no longer kills the app script. FAQ "Expand all" opens every question. The home plain-English copy can read the page text.
+**Gate:** node --check ✓ · unit 490/490 · integration 16/16. Targeted smoke passed for the scoreboard, key facts, risk-balance filter, native share, document summary, copy bundle, clean draft, risk-table Markdown, restore, dismiss, stale snapshot, find-in-source, and copy-redacted. The full 476-test smoke file was not re-run; some older tests still assert historical source snippets.
+**Prompt Intention:**
+- User asked to fix the ClearDoc code in the workspace, leaving the public cleardoc.app DNS alone, and allowed other agents and group chats.

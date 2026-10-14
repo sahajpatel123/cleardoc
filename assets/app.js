@@ -5,7 +5,21 @@
   const noMotion = reduce || !hasGSAP;          // superset: treat missing libs like reduced motion
   const $=(s,el)=> (el||document).querySelector(s);
   const $$=(s,el)=> [...(el||document).querySelectorAll(s)];
-  if(hasGSAP) gsap.registerPlugin(ScrollTrigger);
+  // A page that loads gsap without ScrollTrigger (the 404 page used to)
+  // must not throw here — this line is top-level, so a throw kills the
+  // whole app, including the loader fallback.
+  if(hasGSAP && typeof ScrollTrigger !== 'undefined') gsap.registerPlugin(ScrollTrigger);
+
+  // Mail links open the user's client and leave this page in place.
+  function openMailto(href){
+    const a = document.createElement('a');
+    a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
 
   /* ---- service worker registration (offline) ---- */
   // Only register on real origins — file:// and other insecure schemes
@@ -903,7 +917,11 @@
     { re: /\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/g, kind: 'iso' },
     // "within N days" / "in N days" / "N-day notice"
     { re: /\b(?:within|in|after|before|by)\s+(\d{1,3})\s+(?:days?|business\s+days?)\b/gi, kind: 'relative' },
+    // "within seven (7) days" / "sixty (60) days prior"
+    { re: /\((\d{1,3})\)\s+days?\b/gi, kind: 'relative' },
     { re: /\b(\d{1,3})[- ](?:day|days?)[\s-]+(?:notice|window|period)\b/gi, kind: 'relative-notice' },
+    // "Q3 2026" — end of that quarter. Word boundaries must be \b, not a backspace.
+    { re: /\b([Qq][1-4])\s+(\d{4})\b/g, kind: 'quarter' },
   ];
   function _parseAbsoluteDate(month, day, year){
     const mi = MONTHS.indexOf(month.toLowerCase().slice(0,3));
@@ -945,6 +963,12 @@
           if (!n) continue;
           dt = new Date(Date.now() + n * 86400000);
           label = n + '-day notice';
+        } else if (p.kind === 'quarter') {
+          const q = m[1].toUpperCase();
+          const y = parseInt(m[2], 10);
+          const month = q === 'Q1' ? 2 : q === 'Q2' ? 5 : q === 'Q3' ? 8 : 11;
+          dt = new Date(y, month, 1);
+          label = q + ' ' + y;
         }
         if (!dt) continue;
         // De-dupe by date (so "Jan 15" + "January 15" both match the same row)
@@ -952,7 +976,7 @@
         if (seen.has(key)) continue;
         seen.add(key);
         const urgency = _urgencyFromDate(dt);
-        out.push({ match: m[0], label, date: dt, urgencyDays: urgency });
+        out.push({ match: m[0], label, date: dt, urgencyDays: urgency, index: m.index });
       }
     }
     // Sort by urgency ascending — past dates first (most urgent), then
@@ -1138,6 +1162,11 @@
   function startSite(){ if(started)return; started=true; try{heroIntro();}catch(e){console.error(e);} initAll(); }
   function boot(){
     if(noMotion){ if(loader)loader.style.display='none'; startSite(); return; }
+    // Wire controls before the loader animation. The overlay still covers
+    // the screen until the timeline hides it, but a stalled animation can
+    // no longer leave every button dead, and the 2.8s fallback is a backup
+    // rather than the first time the page starts working.
+    startSite();
     const o={v:0};
     gsap.timeline()
       .to(o,{v:100,duration:1.1,ease:'power2.inOut',onStart:()=>loader.classList.add('go'),onUpdate:()=>{bar.style.width=o.v+'%';lpct.textContent=Math.round(o.v)+'%';}})
@@ -1260,6 +1289,18 @@
   // cleardoc:upcomingDeadlines store the analyzer writes, and shows the
   // soonest upcoming deadline (within 14 days) so returning users see
   // what's next without opening the analyzer.
+  function calendarDaysUntil(dateStr){
+    // YYYY-MM-DD is stored as a calendar date, not a timestamp. Count
+    // whole UTC days so a chip saved as "in 3 days" still reads that way
+    // after midnight, and so this does not depend on dayDiff(), which
+    // only exists inside the analyzer's deadline renderer.
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr || ''));
+    if(!m) return null;
+    const target = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+    const n = new Date();
+    const today = Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate());
+    return Math.round((target - today) / 86400000);
+  }
   function initHomeDeadline(){
     const el = document.getElementById('homeDeadline');
     if(!el) return;
@@ -1267,7 +1308,11 @@
     try { rec = JSON.parse(localStorage.getItem('cleardoc:upcomingDeadlines') || 'null'); } catch(_){ rec = null; }
     if(!rec || !Array.isArray(rec.items) || !rec.items.length){ el.hidden = true; return; }
     const soon = rec.items
-      .map(it => ({ date: it.date, days: (typeof dayDiff === 'function') ? dayDiff(it.date) : null, label: String(it.label || it.date || '') }))
+      .map(it => {
+        const fromDate = calendarDaysUntil(it && it.date);
+        const days = fromDate !== null ? fromDate : (typeof it.days === 'number' ? it.days : null);
+        return { date: it.date, days, label: String((it && (it.label || it.date)) || '') };
+      })
       .filter(it => it.days !== null && it.days >= 0 && it.days <= 14)
       .sort((a, b) => a.days - b.days)[0];
     if(!soon){ el.hidden = true; return; }
@@ -1416,7 +1461,7 @@
         const demoUrl = (location.origin && location.origin !== 'null') ? location.origin + location.pathname : location.href;
         const lines = ['Plain-English version (ClearDoc):', '', text, '', 'Try it live: ' + demoUrl, '', 'Generated by ClearDoc — informational only, not legal advice.'];
         const href = 'mailto:?subject=' + encodeURIComponent('Plain-English clause (ClearDoc)') + '&body=' + encodeURIComponent(lines.join('\n'));
-        try { window.location.href = href; } catch(_){ /* ignore */ }
+        openMailto(href);
         if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉️ Plain-English email opened');
         emailBtn.textContent = '✓ opened';
         setTimeout(() => { if(emailBtn.isConnected) emailBtn.textContent = '✉️ email'; }, 2500);
@@ -3336,7 +3381,7 @@
         if(original) lines.push('', 'Original: ' + original);
         lines.push('', 'Try it live: ' + demoUrl, '', 'Generated by ClearDoc — informational only, not legal advice.');
         const href = 'mailto:?subject=' + encodeURIComponent('Plain-English rewrite (ClearDoc)') + '&body=' + encodeURIComponent(lines.join('\n'));
-        try { window.location.href = href; } catch(_){ /* ignore */ }
+        openMailto(href);
         hcardEmailBtn.textContent = '✓ opened';
         hcardEmailBtn.setAttribute('aria-label', 'Plain-English email opened');
         if(msg){ msg.classList.remove('err'); msg.textContent = '✉️ Plain-English email opened'; }
@@ -3545,6 +3590,23 @@
     setPauseUI();
     // gate: play/pause in place, never restart on re-enter; respect userPaused
     gate('.pressroom',()=>{ if(!userPaused) master.play(); },()=>master.pause());
+  }
+
+  // Plain text from an HTML rewrite. Shared by the home BYOF card and the
+  // analyzer exports. It used to live only inside the analyzer, so the home
+  // card threw "stripHtmlToText is not defined" the moment it scrolled in.
+  function stripHtmlToText(html){
+    if(!html) return '';
+    return String(html)
+      .replace(/\r/g,'')
+      .replace(/<br\s*\/?>/gi,'\n')
+      .replace(/<\/(p|li|h[1-6])>/gi,'\n')
+      .replace(/<li[^>]*>/gi,'• ')
+      .replace(/<[^>]+>/g,'')
+      .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+      .replace(/[ \t]+\n/g,'\n')
+      .replace(/\n{3,}/g,'\n\n')
+      .trim();
   }
 
   /* ---- BYOF ---- */
@@ -3785,8 +3847,34 @@
     }
 
     /* Expand / collapse all — wired when the page exposes .faq-controls. */
+    function revealOpen(item){
+      // Expand-all must not use toggle(): toggle closes every other open
+      // item, so "Expand all" used to leave only the last question open.
+      if(item.classList.contains('open')) return;
+      item.classList.add('open');
+      const q = item.querySelector('.q');
+      if(q) q.setAttribute('aria-expanded','true');
+      const a = item.querySelector('.a');
+      const rule = item.querySelector('.arule');
+      const txt = item.querySelector('.ans-text');
+      const corr = item.querySelector('.corrected');
+      if(txt && txt.dataset.full) txt.textContent = txt.dataset.full;
+      if(noMotion || !window.gsap){
+        if(a) a.style.maxHeight = 'none';
+        if(rule) rule.style.transform = 'scaleX(1)';
+        if(corr){ corr.style.opacity = '1'; corr.style.transform = 'scale(1)'; }
+        return;
+      }
+      if(a){
+        gsap.set(a,{height:'auto'});
+        const h = a.offsetHeight;
+        gsap.fromTo(a,{height:0},{height:h,duration:DUR.base,ease:EASE.enter,onComplete:()=>{a.style.maxHeight='none';a.style.height='auto';}});
+      }
+      if(rule) gsap.fromTo(rule,{scaleX:0},{scaleX:1,duration:DUR.base,ease:EASE.enter});
+      if(corr) gsap.fromTo(corr,{opacity:0,scale:.4},{opacity:1,scale:1,duration:DUR.base,ease:EASE.stamp});
+    }
     function openAll(){
-      items.forEach(it => { if(!it.classList.contains('open')) toggle(it, true); });
+      items.forEach(revealOpen);
     }
     function closeAll(){
       items.forEach(it => { if(it.classList.contains('open')) close(it); });
@@ -4377,6 +4465,9 @@
     });
     // Re-scan after the document changes so the count stays accurate.
     ta.addEventListener('input', () => { if(input.value.trim()) scan(); });
+    // A value typed before this listener existed (or already in the box)
+    // never fires "input". Scan once so the count is right on first paint.
+    if(input.value.trim()) scan();
   }
 
   /* ---- Selection-to-ask (cycle #170) ---- */
@@ -5208,7 +5299,7 @@
           keyFactsEmail.addEventListener('click', () => {
             const body = (el.textContent || '').replace(/\s+/g, ' ').trim() + '\n\nGenerated by ClearDoc — informational only, not legal advice.';
             const href = 'mailto:?subject=' + encodeURIComponent('Key facts (ClearDoc)') + '&body=' + encodeURIComponent(body);
-            try { window.location.href = href; } catch(_){ /* ignore */ }
+            openMailto(href);
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉️ Key facts email opened');
             keyFactsEmail.textContent = '✓ opened';
             setTimeout(() => { if(keyFactsEmail.isConnected) keyFactsEmail.textContent = '✉️ email'; }, 2500);
@@ -5231,7 +5322,11 @@
       const matGlyph = document.querySelector('.mat-letter-glyph');
       const matNum = document.querySelector('.mat-letter-num');
       if(matGlyph && matGlyph.textContent.trim()){
-        scores.push(chip('maturity ' + matGlyph.textContent.trim() + (matNum && matNum.textContent.trim() ? ' (' + matNum.textContent.trim() + '/100)' : ''), 'maturityBlock'));
+        // .mat-letter-num already includes the "/100" suffix in its text.
+        const matShown = matNum && matNum.textContent.trim()
+          ? matNum.textContent.replace(/\s+/g, '').trim()
+          : '';
+        scores.push(chip('maturity ' + matGlyph.textContent.trim() + (matShown ? ' (' + matShown + ')' : ''), 'maturityBlock'));
       }
       const diffBlock = document.getElementById('difficultyBlock');
       if(diffBlock && !diffBlock.hidden){
@@ -5305,7 +5400,7 @@
         scoreEmailBtn.addEventListener('click', () => {
           const body = (textEl.textContent || '').replace(/\s+/g, ' ').trim() + '\n\nGenerated by ClearDoc — informational only, not legal advice.';
           const href = 'mailto:?subject=' + encodeURIComponent('Analysis scoreboard (ClearDoc)') + '&body=' + encodeURIComponent(body);
-          try { window.location.href = href; } catch(_){ /* ignore */ }
+          openMailto(href);
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉️ Scoreboard email opened');
           scoreEmailBtn.textContent = '✓ opened';
           setTimeout(() => { if(scoreEmailBtn.isConnected) scoreEmailBtn.textContent = '✉️ email'; }, 2500);
@@ -6074,7 +6169,15 @@
       if(url.length>SHARE_PAYLOAD_MAX_BYTES){
         return { ok:false, url, reason:'too_long', bytes:url.length };
       }
-      return { ok:true, url, bytes:url.length, truncated: snap.rawTruncated || snap.rewriteTruncated };
+      // String object so `text + result` yields the URL. Several copy
+      // buttons append the return value directly. .ok and .url stay
+      // available for callers that branch on them.
+      const result = new String(url);
+      result.ok = true;
+      result.url = url;
+      result.bytes = url.length;
+      result.truncated = snap.rawTruncated || snap.rewriteTruncated;
+      return result;
     }
     async function shareAnalysis(){
       if(!lastRaw){
@@ -6099,11 +6202,17 @@
       if(navigator.share && typeof navigator.share === 'function'){
         let shareText = 'I analyzed a document with ClearDoc — here is the share link.';
         try {
-          const vLabel = verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-label');
+          const vLabel = verdictDisplay && !verdictDisplay.hidden && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-label');
           const vSummary = verdictDisplay && verdictDisplay.querySelector && verdictDisplay.querySelector('.verdict-summary');
-          if(vLabel && vLabel.textContent.trim()){
-            shareText = 'ClearDoc verdict: ' + vLabel.textContent.trim() +
-              (vSummary && vSummary.textContent.trim() ? ' — ' + vSummary.textContent.trim() : '') +
+          const healthLabel = document.getElementById('healthCheckLabel');
+          const healthEl = document.getElementById('healthCheck');
+          const healthShown = healthLabel && healthEl && !healthEl.hidden && healthLabel.textContent.trim();
+          const headline = (vLabel && vLabel.textContent.trim())
+            ? vLabel.textContent.trim()
+            : (healthShown ? healthLabel.textContent.trim() : '');
+          if(headline){
+            shareText = 'ClearDoc verdict: ' + headline +
+              (vLabel && vSummary && vSummary.textContent.trim() ? ' — ' + vSummary.textContent.trim() : '') +
               ' · open the analysis link:';
           }
         } catch(_){ /* keep the generic text */ }
@@ -8175,7 +8284,7 @@
           });
           lines.push('', 'Generated by ClearDoc — informational only, not legal advice.');
           const href = 'mailto:?subject=' + encodeURIComponent('Contract obligations (ClearDoc)') + '&body=' + encodeURIComponent(lines.join('\n'));
-          try { window.location.href = href; } catch(_){ /* ignore */ }
+          openMailto(href);
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉️ Obligations email opened');
           actionEmailBtn.textContent = '✓ opened';
           setTimeout(() => { if(actionEmailBtn.isConnected) actionEmailBtn.textContent = '✉️ email'; }, 2500);
@@ -8254,38 +8363,11 @@
 
 
 
-    // Iter #174: deadline extractor — finds date mentions
-    // attached to obligations ("shall deliver by Q1 2026") so the
-    // user can save them as calendar events. Pure local; regex-based.
-    function extractDeadlines(raw, ctx){
-      const text = String(raw || '');
-      if(!text) return [];
-      const months = { january:0,jan:0,february:1,feb:1,march:2,mar:2,april:3,apr:3,may:4,june:5,jun:5,july:6,jul:6,august:7,aug:7,september:8,sep:8,october:9,oct:9,november:10,nov:10,december:11,dec:11 };
-      const items = [];
-      const seen = new Set();
-      const tryAdd = (verb, dateStr, sentence, offset) => {
-        const key = verb + '|' + dateStr + '|' + (sentence || '').slice(0, 50);
-        if(seen.has(key)) return;
-        seen.add(key);
-        items.push({ verb: verb, date: dateStr, sentence: sentence, offset: offset || 0 });
-      };
-      // Pattern A: "by/in/on DATE within 60 chars of "shall/must/etc"
-      const reA = /((?:shall|must|is required|undertakes|warrants|agrees)[^.]{0,40}?(?:by|in|on|before|no later than)\s+((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,?\s+\d{4})?|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}))/gi;
-      let m;
-      while((m = reA.exec(text))){
-        tryAdd('(obligated)', m[2], m[1], m.index);
-      }
-      // Pattern B: "Q1/Q2/Q3/Q4 2026" alone (fuzzy)
-      const reB = /([Qq][1-4])\s+(\d{4})/g;
-      while((m = reB.exec(text))){
-        const q = m[1].toUpperCase();
-        const y = m[2];
-        const month = q === 'Q1' ? 2 : q === 'Q2' ? 5 : q === 'Q3' ? 8 : 11;
-        const dt = new Date(Date.UTC(parseInt(y, 10), month, 1));
-        if(!isNaN(dt.getTime())) tryAdd('(quarterly)', dt.toISOString().slice(0, 10), m[0], m.index);
-      }
-      return items.slice(0, 10);
-    }
+    // The panel used to keep a second, narrower extractor here. That copy
+    // shadowed the real extractDeadlines() for the whole analyzer, so a
+    // plain "renews on 2026-11-01" never became a row, and its quarter
+    // pattern was a backspace instead of a word boundary. Rows below are
+    // the shared extractor, reshaped for this list.
 
 
     // Iter #176: focus memory — tracks clauses the user has
@@ -8397,7 +8479,19 @@
     }
     function renderDeadlineBlock(raw, ctx){
       if(!deadlineBlock || !deadlineList || !raw){ return; }
-    const items = extractDeadlines(raw, ctx);
+    // extractDeadlines() sorts by urgency for the live preview. This list's
+    // default is document order, so put matches back where they were written.
+    const items = extractDeadlines(raw).slice().sort((a, b) => (a.index || 0) - (b.index || 0)).map(it => {
+      const dt = it && it.date;
+      if(!dt || isNaN(dt.getTime())) return null;
+      const iso = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+      return {
+        verb: '(dated)',
+        date: iso,
+        sentence: String(it.match || it.label || ''),
+        label: String(it.label || iso),
+      };
+    }).filter(Boolean);
     if(!items.length){
       deadlineBlock.hidden = true;
       if(deadlineAlert) deadlineAlert.hidden = true;
@@ -8806,7 +8900,7 @@
           });
           lines.push('', 'Generated by ClearDoc — informational only, not legal advice.');
           const href = 'mailto:?subject=' + encodeURIComponent('Contract deadlines (ClearDoc)') + '&body=' + encodeURIComponent(lines.join('\n'));
-          try { window.location.href = href; } catch(_){ /* ignore */ }
+          openMailto(href);
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉️ Deadline email opened');
           deadlineEmailBtn.textContent = '✓ opened';
           setTimeout(() => { if(deadlineEmailBtn.isConnected) deadlineEmailBtn.textContent = '✉️ email'; }, 2500);
@@ -9671,7 +9765,7 @@
           const brief = (typeof buildPreSignBrief === 'function') ? buildPreSignBrief(d) : '';
           const body = (brief || d.headline || 'Recommendation from ClearDoc') + '\n\nGenerated by ClearDoc — informational only, not legal advice.';
           const href = 'mailto:?subject=' + encodeURIComponent('Pre-sign brief (ClearDoc)') + '&body=' + encodeURIComponent(body);
-          try { window.location.href = href; } catch(_){ /* ignore */ }
+          openMailto(href);
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉️ Pre-sign brief email opened');
           decisionEmailBtn.textContent = '✓ opened';
           setTimeout(() => { if(decisionEmailBtn.isConnected) decisionEmailBtn.textContent = '✉️ email'; }, 2500);
@@ -11502,7 +11596,7 @@
           lines.push('', 'Generated by ClearDoc — informational only, not legal advice.');
           const subject = 'Contract care plan — what to watch next (ClearDoc)';
           const href = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(lines.join('\n'));
-          try { window.location.href = href; } catch(_){ /* ignore */ }
+          openMailto(href);
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉️ Care plan email opened');
           careEmailBtn.textContent = '✓ opened';
           setTimeout(() => { if(careEmailBtn.isConnected) careEmailBtn.textContent = '✉️ email plan'; }, 2500);
@@ -15997,7 +16091,7 @@
       if(emailOpenBtn){
         emailOpenBtn.addEventListener('click', () => {
           const href = 'mailto:?subject=' + encodeURIComponent(draft.subject) + '&body=' + encodeURIComponent(draft.body);
-          try { window.location.href = href; } catch(_){ /* ignore */ }
+          openMailto(href);
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉ Opened your mail client');
         });
       }
@@ -16326,7 +16420,7 @@
             }
           } catch(_){ /* keep the email draft working even if the link fails */ }
           const href = 'mailto:?subject=' + encodeURIComponent('Document freshness (ClearDoc)') + '&body=' + encodeURIComponent(lines.join('\n'));
-          try { window.location.href = href; } catch(_){ /* ignore */ }
+          openMailto(href);
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉️ Freshness email opened');
           freshEmailBtn.textContent = '✓ opened';
           setTimeout(() => { if(freshEmailBtn.isConnected) freshEmailBtn.textContent = '✉️ email'; }, 2500);
@@ -21566,10 +21660,16 @@
                    :'review';
           verdictDisplay.innerHTML='<span class="verdict-label '+tone+'">'+esc(label)+'</span>'
             +'<div class="verdict-summary">'+esc(summary||'')+'</div>';
+          verdictDisplay.hidden = false;
           if(verdictBlock) verdictBlock.hidden=false;
           wireVerdictLabelExplain(label, tone);
         } else {
-          if(verdictBlock) verdictBlock.hidden=true;
+          // No AI verdict. The scoreboard, key facts, threat score,
+          // health check, and summary live in this same block, so
+          // collapsing it hides the local scan.
+          verdictDisplay.innerHTML = '';
+          verdictDisplay.hidden = true;
+          if(verdictBlock) verdictBlock.hidden = false;
         }
       }
 
@@ -21658,82 +21758,6 @@
           });
         }
       }
-      // Cycle #206 — the verdict label explains itself: what Fair /
-      // Suspicious / Illegal / Review actually means for the reader.
-      const VERDICT_EXPLAIN = {
-        fair: 'The document looks mostly balanced — no glaring one-sided traps. The flagged items are still worth a read before signing.',
-        suspicious: 'One or more clauses look one-sided or pressuring. Review every flagged trap before you sign — these are the phrases negotiators target.',
-        illegal: 'Part of this document appears legally risky or unenforceable as written. Strong signal to get a lawyer’s eyes on it before signing.',
-        review: 'No clear red or green signal — worth a careful read of the flagged clauses before you commit.',
-      };
-      function showVerdictExplain(label, tone, opener){
-        const m = document.createElement('div');
-        m.className = 'kb-modal doc-type-modal show';
-        m.setAttribute('role','dialog');
-        m.setAttribute('aria-modal','true');
-        m.setAttribute('aria-hidden','false');
-        m.setAttribute('aria-labelledby','dtm-title');
-        const text = VERDICT_EXPLAIN[tone] || VERDICT_EXPLAIN.review;
-        m.innerHTML =
-          '<div class="kb-modal-bg" data-dtm-bg="1"></div>' +
-          '<div class="kb-modal-card">' +
-            '<button type="button" class="kb-modal-close" data-dtm-close="1" aria-label="Close">✕</button>' +
-            '<h2 id="dtm-title" class="kb-modal-title mono">' + esc(label) + ' verdict</h2>' +
-            '<p class="dtm-tip">' + esc(text) + '</p>' +
-            '<p class="dtm-foot mono">ClearDoc’s verdict is a readability signal, not legal advice.</p>' +
-            // Cycle #218 — export the explainer.
-            '<button type="button" class="dtm-copy" data-dtm-copy="1" title="Copy this explanation">📋 copy</button>' +
-          '</div>';
-        document.body.appendChild(m);
-        const closeBtn = m.querySelector('.kb-modal-close');
-        if(closeBtn) try { closeBtn.focus({preventScroll:true}); } catch(_){ closeBtn.focus(); }
-        const returnFocus = opener || document.activeElement;
-        const close = () => {
-          m.remove();
-          if(returnFocus && typeof returnFocus.focus === 'function'){
-            try { returnFocus.focus({preventScroll:true}); } catch(_){ returnFocus.focus(); }
-          }
-        };
-        m.addEventListener('click', async (e) => {
-          const copyBtn = e.target.closest && e.target.closest('[data-dtm-copy]');
-          if(copyBtn){
-            const copyText = 'Verdict: ' + label + ' — ' + text;
-            let copied = false;
-            try { if(navigator.clipboard){ await navigator.clipboard.writeText(copyText); copied = true; } }
-            catch(_){ /* fall through */ }
-            if(!copied){
-              try {
-                const ta = document.createElement('textarea');
-                ta.value = copyText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-                copied = true;
-              } catch(_){ /* ignore */ }
-            }
-            if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Explanation copied' : '⚠ Couldn’t copy');
-            copyBtn.textContent = copied ? '✓' : '📋 copy';
-            if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 1500);
-            return;
-          }
-          if(e.target.closest('[data-dtm-bg], [data-dtm-close], .kb-modal-close')) close();
-        });
-        document.addEventListener('keydown', function onEsc(e){
-          if(e.key === 'Escape'){ close(); document.removeEventListener('keydown', onEsc); }
-        });
-      }
-      function wireVerdictLabelExplain(label, tone){
-        const vLabel = verdictDisplay && verdictDisplay.querySelector('.verdict-label');
-        if(!vLabel) return;
-        if(!vLabel._verdictExplainWired){
-          vLabel._verdictExplainWired = true;
-          vLabel.setAttribute('role','button');
-          vLabel.setAttribute('tabindex','0');
-          vLabel.title = 'Click for what this verdict means';
-          const open = () => showVerdictExplain(label, tone, vLabel);
-          vLabel.addEventListener('click', open);
-          vLabel.addEventListener('keydown', (e) => {
-            if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); open(); }
-          });
-        }
-      }
       // Contract type badge — show the detected document type
       // in the result panel so users immediately know the
       // contract category (e.g. "Lease", "Subscription").
@@ -21768,6 +21792,11 @@
           if(deadlinesBlock) deadlinesBlock.hidden=true;
         }
       }
+
+      // Key facts and the scoreboard read risk rows, readiness, and
+      // deadlines. The earlier pass runs before those exist.
+      renderKeyFacts(raw, ctx);
+      renderScoreBoard(raw, ctx);
 
       // 6) next steps — AI only
       if(nextStepsList){
@@ -22164,6 +22193,83 @@
       return {plainEnglishRewrite:html||raw, risks:[], verdict:null, deadlines:[], readingLevel:null, jargonFound:totalJargon, flags};
     }
 
+    // Shared by the live render and the restore path. It used to be nested
+    // inside render(), so Restore threw and the result panel never opened.
+    function showVerdictExplain(label, tone, opener){
+      const VERDICT_EXPLAIN = {
+        fair: 'The document looks mostly balanced — no glaring one-sided traps. The flagged items are still worth a read before signing.',
+        suspicious: 'One or more clauses look one-sided or pressuring. Review every flagged trap before you sign — these are the phrases negotiators target.',
+        illegal: 'Part of this document appears legally risky or unenforceable as written. Strong signal to get a lawyer’s eyes on it before signing.',
+        review: 'No clear red or green signal — worth a careful read of the flagged clauses before you commit.',
+      };
+      const m = document.createElement('div');
+      m.className = 'kb-modal doc-type-modal show';
+      m.setAttribute('role','dialog');
+      m.setAttribute('aria-modal','true');
+      m.setAttribute('aria-hidden','false');
+      m.setAttribute('aria-labelledby','dtm-title');
+      const text = VERDICT_EXPLAIN[tone] || VERDICT_EXPLAIN.review;
+      m.innerHTML =
+        '<div class="kb-modal-bg" data-dtm-bg="1"></div>' +
+        '<div class="kb-modal-card">' +
+          '<button type="button" class="kb-modal-close" data-dtm-close="1" aria-label="Close">✕</button>' +
+          '<h2 id="dtm-title" class="kb-modal-title mono">' + esc(label) + ' verdict</h2>' +
+          '<p class="dtm-tip">' + esc(text) + '</p>' +
+          '<p class="dtm-foot mono">ClearDoc’s verdict is a readability signal, not legal advice.</p>' +
+          // Cycle #218 — export the explainer.
+          '<button type="button" class="dtm-copy" data-dtm-copy="1" title="Copy this explanation">📋 copy</button>' +
+        '</div>';
+      document.body.appendChild(m);
+      const closeBtn = m.querySelector('.kb-modal-close');
+      if(closeBtn) try { closeBtn.focus({preventScroll:true}); } catch(_){ closeBtn.focus(); }
+      const returnFocus = opener || document.activeElement;
+      const close = () => {
+        m.remove();
+        if(returnFocus && typeof returnFocus.focus === 'function'){
+          try { returnFocus.focus({preventScroll:true}); } catch(_){ returnFocus.focus(); }
+        }
+      };
+      m.addEventListener('click', async (e) => {
+        const copyBtn = e.target.closest && e.target.closest('[data-dtm-copy]');
+        if(copyBtn){
+          const copyText = 'Verdict: ' + label + ' — ' + text;
+          let copied = false;
+          try { if(navigator.clipboard){ await navigator.clipboard.writeText(copyText); copied = true; } }
+          catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = copyText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+              copied = true;
+            } catch(_){ /* ignore */ }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Explanation copied' : '⚠ Couldn’t copy');
+          copyBtn.textContent = copied ? '✓' : '📋 copy';
+          if(copied) setTimeout(() => { if(copyBtn.isConnected) copyBtn.textContent = '📋 copy'; }, 1500);
+          return;
+        }
+        if(e.target.closest('[data-dtm-bg], [data-dtm-close], .kb-modal-close')) close();
+      });
+      document.addEventListener('keydown', function onEsc(e){
+        if(e.key === 'Escape'){ close(); document.removeEventListener('keydown', onEsc); }
+      });
+    }
+    function wireVerdictLabelExplain(label, tone){
+      const vLabel = verdictDisplay && verdictDisplay.querySelector('.verdict-label');
+      if(!vLabel) return;
+      if(!vLabel._verdictExplainWired){
+        vLabel._verdictExplainWired = true;
+        vLabel.setAttribute('role','button');
+        vLabel.setAttribute('tabindex','0');
+        vLabel.title = 'Click for what this verdict means';
+        const open = () => showVerdictExplain(label, tone, vLabel);
+        vLabel.addEventListener('click', open);
+        vLabel.addEventListener('keydown', (e) => {
+          if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); open(); }
+        });
+      }
+    }
+
     /* Paint a stored snapshot back into the result panel — no AI call, no network.
      * Used by the restore banner so a refresh / tab-close doesn't lose a long analysis.
      */
@@ -22259,7 +22365,7 @@
           riskList.appendChild(row);
         });
         paintRiskDeepLink();
-        riskList._rrowFlags = flags;
+        riskList._rrowFlags = lastFlags;
         // Cycle #278 v2 — re-apply the active keyword filter after re-render.
         const kwAfterRender = document.getElementById('riskFilterKeyword');
         if(kwAfterRender && kwAfterRender._applyKw) kwAfterRender._applyKw();
@@ -22312,15 +22418,21 @@
                    :'review';
           verdictDisplay.innerHTML='<span class="verdict-label '+tone+'">'+esc(label)+'</span>'
             +'<div class="verdict-summary">'+esc(summary||'')+'</div>';
+          verdictDisplay.hidden = false;
           if(verdictBlock) verdictBlock.hidden=false;
           wireVerdictLabelExplain(label, tone);
-        } else if(verdictBlock){ verdictBlock.hidden=true; }
+        } else {
+          verdictDisplay.innerHTML = '';
+          verdictDisplay.hidden = true;
+          if(verdictBlock) verdictBlock.hidden = false;
+        }
       }
 
-      // Contract type badge in restored snapshot
+      // Contract type badge in restored snapshot.
+      // wireDocTypeBadge lives inside render(), so a restore must not call it.
       if(contractTypeBadge && snap.raw){
         const dt = (typeof detectDocType === 'function') ? detectDocType(snap.raw) : null;
-        if(dt && dt.label){
+        if(dt && dt.label && typeof wireDocTypeBadge === 'function'){
           wireDocTypeBadge(dt);
         } else {
           contractTypeBadge.hidden = true;
@@ -23493,18 +23605,7 @@
       }
       const draft = buildEmailSummary();
       const href = 'mailto:?subject=' + encodeURIComponent(draft.subject) + '&body=' + encodeURIComponent(draft.body);
-      try {
-        window.location.href = href;
-      } catch(_) {
-        // Some browsers block programmatic location changes; fall back
-        // to opening a temporary anchor.
-        const a = document.createElement('a');
-        a.href = href;
-        a.rel = 'noopener,noreferrer';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
+      openMailto(href);
       const btn = document.getElementById('emailSummaryBtn');
       if(btn) flashButton(btn, '✉ Opened', 1500);
     }
@@ -24348,7 +24449,7 @@
         }
       } catch(_){ /* keep the email working even if the link fails */ }
       const href = 'mailto:?subject=' + encodeURIComponent('Contract analysis bundle (ClearDoc)') + '&body=' + encodeURIComponent(text);
-      try { window.location.href = href; } catch(_){ /* ignore */ }
+      openMailto(href);
       const btn = document.getElementById('emailBundleBtn');
       if(btn) flashButton(btn, '✉ Opened', 1500);
     }
@@ -24876,7 +24977,7 @@
               return;
             }
             const href = 'mailto:?subject=' + encodeURIComponent('My negotiation asks (ClearDoc)') + '&body=' + encodeURIComponent(text);
-            try { window.location.href = href; } catch(_){ /* ignore */ }
+            openMailto(href);
             if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉️ Drafting your email — pick a recipient');
           });
         }
@@ -25506,7 +25607,7 @@
                   '— Generated by ClearDoc (cleardoc.app)';
                 const href = 'mailto:?subject=' + encodeURIComponent(subject) +
                   '&body=' + encodeURIComponent(body);
-                try { window.location.href = href; } catch(_){ /* ignore */ }
+                openMailto(href);
                 if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉ Opened your mail client');
               });
             }
@@ -26791,7 +26892,7 @@
           return;
         }
         const href = 'mailto:?subject=' + encodeURIComponent('Contract comparison (ClearDoc)') + '&body=' + encodeURIComponent(text + '\n\n_Generated by ClearDoc — informational only, not legal advice._');
-        try { window.location.href = href; } catch(_){ /* ignore */ }
+        openMailto(href);
         if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉️ Comparison email opened');
       });
       // Cycle 80 feature — copy only the sentence-level diff, so a "what
@@ -29271,7 +29372,7 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
         if(top && top.rule) parts.push('Top: ' + (top.rule.label||'Risk') + (top.s ? ' — "' + String(top.s).slice(0,120) + '"' : ''));
         const body = parts.join(' · ') + '\n\nGenerated by ClearDoc — informational only, not legal advice.';
         const href = 'mailto:?subject=' + encodeURIComponent('Risk summary (ClearDoc)') + '&body=' + encodeURIComponent(body);
-        try { window.location.href = href; } catch(_){ /* ignore */ }
+        openMailto(href);
         if(typeof showAnalyzeToast === 'function') showAnalyzeToast('✉️ Risk email opened');
         riskEmailBtn.textContent = '✓ opened';
         setTimeout(() => { if(riskEmailBtn.isConnected) riskEmailBtn.textContent = '✉️ email'; }, 2500);
