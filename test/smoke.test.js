@@ -220,6 +220,11 @@ const MOCK_ANALYSIS = {
   readingLevel: { before: 14, after: 8 },
   jargonFound: 7,
 };
+// Dated + contact-rich fixture for deadline/clause/contact/care tests.
+// Time-robust by construction: the deadline is relative ("within 30 days")
+// so countdowns and 0–60-day care windows hold on any run date.
+const DATED_DOC = "Section 1. Tenant must vacate within 30 days of this notice or pay all costs of eviction. " +
+  "Section 4.2. Contact jane@example.com or call 415-555-0199 with questions about renewal.";
 function mockAnalyzeApi(page) {
   return page.addInitScript((mockJson) => {
     const origFetch = window.fetch.bind(window);
@@ -1113,7 +1118,7 @@ test("samples: eviction + debt-collection demo documents are offered", async () 
   assert.match(analyzeHtml, /try: Debt Collection/, "the sample row must offer a Debt Collection demo");
   assert.match(analyzeHtml, /data-fill="Tenant shall vacate the premises/, "the eviction sample must load realistic notice language");
   assert.match(analyzeHtml, /binding arbitration/, "the debt sample must include arbitration language that trips the risk radar");
-  assert.match(appSrc, /setFocusMode\(false\); input\.value=q\.dataset\.fill/, "loading a sample must exit focus mode so the document is visible");
+  assert.match(appSrc, /setFocusMode\(false\); setPrivacyBlur\(false\); input\.value=q\.dataset\.fill/, "loading a sample must exit focus mode so the document is visible");
 });
 
 test("compare panel: copy button exports verdict + stats as plain text", async () => {
@@ -1430,9 +1435,9 @@ test("forget-me: exits focus mode so the wiped page is not left blank", async ()
   const path = require("node:path");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
 
-  const hStart = appSrc.indexOf("function wireForgetMe");
-  assert.ok(hStart > -1, "wireForgetMe must exist");
-  const handler = appSrc.slice(hStart, hStart + 4000);
+  const hStart = appSrc.indexOf("async function forgetMyData");
+  assert.ok(hStart > -1, "forgetMyData must exist");
+  const handler = appSrc.slice(hStart, hStart + 3200);
   assert.match(handler, /setFocusMode\(false\);/, "forget-me must exit focus mode after wiping data");
 });
 
@@ -1461,7 +1466,7 @@ test("voice mode: exits focus mode so it reads what is visible", async () => {
   const marker = "voice-mode reader — read every visible analysis";
   const hStart = appSrc.indexOf(marker);
   assert.ok(hStart > -1, "voice-mode wiring must exist");
-  const handler = appSrc.slice(hStart, hStart + 3000);
+  const handler = appSrc.slice(hStart, hStart + 16000);
   assert.match(handler, /setFocusMode\(false\);/, "voice mode must exit focus mode before reading");
 });
 
@@ -1591,8 +1596,8 @@ test("top concern: 'What if fixed?' previews the readiness score without the cla
   assert.match(appSrc, /flags\.filter\(f => f !== top\)/, "the preview must drop the top concern from the flags");
   assert.match(appSrc, /\(total - traps\) \* 0\.5/, "the preview must use the readiness density penalty");
   assert.match(appSrc, /'✨ If you fix this clause: '/, "the preview must report the simulated score");
-  assert.match(appSrc, /levelOf\(sim\)/, "the preview must report the simulated severity band");
-  assert.match(appSrc, /' \? 'Low' : s >= 40 \? 'Medium' : s >= 20 \? 'High' : 'Critical'/, "severity bands must match the readiness thresholds");
+  assert.match(appSrc, /readinessLevelOf\(sim\)/, "the preview must report the simulated severity band");
+  assert.match(appSrc, /s >= 60 \? 'Low' : s >= 40 \? 'Medium' : s >= 20 \? 'High' : 'Critical'/, "severity bands must match the readiness thresholds");
   assert.match(themeSrc, /\.tc-fix\{/, "theme.css must style .tc-fix");
   assert.match(themeSrc, /\.tc-fixed\{/, "theme.css must style the preview note");
 });
@@ -1619,7 +1624,7 @@ test("last-analyzed: never renders 'Invalid Date' for corrupt timestamps", async
 
   const hStart = appSrc.indexOf("function setAnalyzedTimestamp");
   assert.ok(hStart > -1, "setAnalyzedTimestamp must exist");
-  const handler = appSrc.slice(hStart, hStart + 900);
+  const handler = appSrc.slice(hStart, hStart + 1500);
   assert.match(handler, /isNaN\(date\.getTime\(\)\)/, "the timestamp must be validated before rendering");
   assert.match(handler, /lastEl\.hidden = true;/, "invalid timestamps must hide the element");
 });
@@ -1650,7 +1655,7 @@ test("voice mode: deadline narration skips the per-row copy buttons", async () =
   const marker = "voice-mode reader — read every visible analysis";
   const hStart = appSrc.indexOf(marker);
   assert.ok(hStart > -1, "voice-mode wiring must exist");
-  const handler = appSrc.slice(hStart, hStart + 5000);
+  const handler = appSrc.slice(hStart, hStart + 18000);
   assert.match(handler, /dlEl\.querySelectorAll\('\.deadline-row'\)/, "deadline narration must read rows individually");
   assert.match(handler, /querySelector\('\.deadline-date'\)/, "deadline narration must use the date element");
   assert.match(handler, /querySelector\('\.deadline-desc'\)/, "deadline narration must use the description element");
@@ -1683,7 +1688,7 @@ test("privacy: Escape exits the blur like it exits focus mode", async () => {
 
   const hStart = appSrc.indexOf("function wireKeyboardShortcuts");
   assert.ok(hStart > -1, "wireKeyboardShortcuts must exist");
-  const handler = appSrc.slice(hStart, hStart + 6000);
+  const handler = appSrc.slice(hStart, hStart + 13000);
   assert.match(handler, /setPrivacyBlur\(false\);/, "Escape must exit privacy blur");
 });
 
@@ -1695,7 +1700,7 @@ test("keyboard: Escape clears results when the Clear hint promises it", async ()
 
   const hStart = appSrc.indexOf("function wireKeyboardShortcuts");
   assert.ok(hStart > -1, "wireKeyboardShortcuts must exist");
-  const handler = appSrc.slice(hStart, hStart + 6000);
+  const handler = appSrc.slice(hStart, hStart + 13000);
   assert.match(handler, /cl\.click\(\); return;/, "Escape must trigger the Clear button");
   assert.match(handler, /!isTypingTarget\(e\.target\)/, "Escape must not clear while typing");
   assert.match(handler, /rp && !rp\.hidden/, "Escape must only clear when results are visible");
@@ -1710,7 +1715,7 @@ test("confirm modal: Escape closes without triggering the clear shortcut", async
 
   const hStart = appSrc.indexOf("function showConfirmModal");
   assert.ok(hStart > -1, "showConfirmModal must exist");
-  const handler = appSrc.slice(hStart, hStart + 500);
+  const handler = appSrc.slice(hStart, hStart + 2000);
   assert.match(handler, /if\(e\.key === 'Escape'\)\{ e\.preventDefault\(\); close\(false\); \}/, "confirm modal must preventDefault before closing");
 });
 
@@ -1739,8 +1744,7 @@ test("next steps: copy chip exports the checklist with progress", async () => {
   const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
   assert.match(analyzeHtml, /id="stepsCopyBtn"/, "analyze.html must expose #stepsCopyBtn");
-  assert.match(appSrc, /'\[x\] ' \+ txt/, "done steps must export with [x]");
-  assert.match(appSrc, /'\[ \] ' \+ txt/, "pending steps must export with [ ]");
+  assert.match(appSrc, /\(done \? '\[x\] ' : '\[ \] '\) \+ txt/, "done steps must export with [x] and pending with [ ]");
   assert.match(appSrc, /'📋 Progress copied'/, "copy must toast on success");
   assert.match(appSrc, /doneCount \+ ' of ' \+ total \+ ' done'/, "the export must include the progress summary");
   assert.match(themeSrc, /\.steps-copy\{/, "theme.css must style .steps-copy");
@@ -1828,8 +1832,11 @@ test("ask: thread renders Q/A bubbles, sends history to /api/chat, and Clear but
   });
 
   await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
-  // Ask must be enabled after the preloaded sample renders
-  await page.waitForFunction(() => !document.getElementById('askBtn').disabled, { timeout: 5000 });
+  // Ask enables once an analysis has rendered — run one first (the
+  // /api/chat stub below only affects Ask, not Analyze).
+  await page.click(".qf[data-fill]:first-of-type");
+  await page.click("#analyzeBtn");
+  await page.waitForFunction(() => !document.getElementById('askBtn').disabled, { timeout: 8000 });
 
   await page.fill("#askInput", "Can I cancel early?");
   await page.click("#askBtn");
@@ -2327,7 +2334,7 @@ test("analyzer: care plan exports an .ics calendar file", async () => {
   page.on("pageerror", (e) => errors.push(String(e)));
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
-    await page.click(".qf[data-fill]:first-of-type");
+    await page.fill("#docInput", DATED_DOC);
     await page.click("#analyzeBtn");
     await page.waitForSelector("#careBlock:not([hidden]) #careIcsBtn", { timeout: 8000 });
     const [download] = await Promise.all([
@@ -2361,7 +2368,7 @@ test("analyzer: care plan exports a CSV tracker file", async () => {
   page.on("pageerror", (e) => errors.push(String(e)));
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
-    await page.click(".qf[data-fill]:first-of-type");
+    await page.fill("#docInput", DATED_DOC);
     await page.click("#analyzeBtn");
     await page.waitForSelector("#careBlock:not([hidden]) #careCsvBtn", { timeout: 8000 });
     const [download] = await Promise.all([
@@ -2371,8 +2378,8 @@ test("analyzer: care plan exports a CSV tracker file", async () => {
     assert.match(download.suggestedFilename(), /^cleardoc-care-plan-\d{4}-\d{2}-\d{2}\.csv$/, "the download must be cleardoc-care-plan-<date>.csv");
     const path = await download.path();
     const content = require("node:fs").readFileSync(path, "utf8");
-    assert.match(content, /Item,When,Detail/, "the CSV must carry the expected header");
-    assert.match(content, /Care item|Renewal|cancel/, "the CSV must include care plan items");
+    assert.match(content, /"Item","When","Detail"/, "the CSV must carry the expected header");
+    assert.match(content, /Deadline|Obligation to fulfill/, "the CSV must include care plan items");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
     // Cycle #301 v2 — 'y' shortcut downloads the same CSV.
     const [dl2] = await Promise.all([
@@ -2415,7 +2422,7 @@ test("analyzer: care plan next-dates digest copies dated items", async () => {
   });
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
-    await page.click(".qf[data-fill]:first-of-type");
+    await page.fill("#docInput", DATED_DOC);
     await page.click("#analyzeBtn");
     await page.waitForSelector("#careBlock:not([hidden]) #careDatesBtn", { timeout: 8000 });
     await page.click("#careDatesBtn");
@@ -2477,7 +2484,7 @@ test("analyzer: care plan copies as Markdown", async () => {
     assert.match(captured, /# Contract care plan/, "the copied Markdown must carry the header");
     assert.match(captured, /\| Item \| When \| Detail \|/, "the copied Markdown must include a table header");
     assert.match(captured, /http.*#share=/, "the copied Markdown must include a share link");
-    assert.match(captured, /_Generated by ClearDoc — informational only, not legal advice_/, "the copied Markdown must carry the disclaimer");
+    assert.match(captured, /_Generated by ClearDoc — informational only, not legal advice\._/, "the copied Markdown must carry the disclaimer");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
@@ -2516,7 +2523,7 @@ test("analyzer: care plan deadline digest copies dated items", async () => {
   });
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
-    await page.click(".qf[data-fill]:first-of-type");
+    await page.fill("#docInput", DATED_DOC);
     await page.click("#analyzeBtn");
     await page.waitForSelector("#careBlock:not([hidden]) #careDeadlineDigestBtn", { timeout: 8000 });
     await page.click("#careDeadlineDigestBtn");
@@ -3334,11 +3341,11 @@ test("analyze: HTML report downloads a standalone analysis file", async () => {
     "app.js must define downloadAnalysisHtml");
   assert.match(appSrc, /type:'text\/html;charset=utf-8'/,
     "the download must use text/html UTF-8");
-  assert.match(appSrc, /a\.download = 'cleardoc-analysis-' \+ stamp \+ '\.html'/,
+  assert.match(appSrc, /const filename = 'cleardoc-analysis-'\+stamp\+'\.html'/,
     "the filename must be cleardoc-analysis-<date>.html");
   assert.match(appSrc, /report-summary/,
     "the report must include a summary header style and block");
-  assert.ok(appSrc.includes("'<b>Verdict:</b> ' + esc(vLabel.textContent.trim())"),
+  assert.ok(appSrc.includes("'<b>Verdict:</b> '+esc(vLabel.textContent.trim())"),
     "the report summary must include the verdict when available");
 
   const ctx = await newHermeticContext({ acceptDownloads: true });
@@ -3346,6 +3353,9 @@ test("analyze: HTML report downloads a standalone analysis file", async () => {
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
   page.on("pageerror", (e) => errors.push(String(e)));
+  // The report carries the verdict on the AI path — install the canned
+  // analysis so the download has one to include (prod behavior).
+  await mockAnalyzeApi(page);
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
     await page.click(".qf[data-fill]:first-of-type");
@@ -3418,6 +3428,9 @@ test("analyze: HTML report copies as rich text to the clipboard", async () => {
       try { navigator.clipboard = { write: async () => {}, writeText: async () => {} }; } catch (_2) {}
     }
   });
+  // The verdict only renders on the AI path — install the canned analysis
+  // so the report builder has a verdict to include (prod behavior).
+  await mockAnalyzeApi(page);
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
     await page.click(".qf[data-fill]:first-of-type");
@@ -3774,7 +3787,7 @@ test("analyze: response draft downloads as Markdown", async () => {
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
   assert.match(html, /id="downloadDraftMdBtn"/,
     "analyze.html must expose the Markdown draft download button");
-  assert.match(appSrc, /cleardoc-response-draft\.md/,
+  assert.match(appSrc, /a\.download='cleardoc-response-draft'\+fp\+'\.md'/,
     "the Markdown draft download must use a .md filename");
   assert.match(appSrc, /type:'text\/markdown;charset=utf-8'/,
     "the Markdown draft download must use text/markdown UTF-8");
@@ -3817,7 +3830,7 @@ test("analyze: response draft copies as Markdown", async () => {
   const path = require("node:path");
   const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
-  assert.match(html, /id="copyDraftMdBtn" aria-label="Copy the response draft as Markdown"/,
+  assert.match(html, /id="copyDraftMdBtn" type="button" aria-label="Copy the response draft as Markdown"/,
     "analyze.html must expose the Markdown draft copy button");
   assert.match(appSrc, /function buildDraftMarkdown\(\)\{/,
     "app.js must define a shared Markdown draft builder");
@@ -3995,7 +4008,7 @@ test("BYOF: glossary lists each jargon term that was replaced + its plain-Englis
 
   // Source-pattern: renderGlossary emits a list-item with the term + plain-English meaning
   assert.match(appSrc, /function renderGlossary\(/, "renderGlossary must exist");
-  assert.match(appSrc, /matches\.map\(m =&gt;/, "renderGlossary must map matches into <li> rows");
+  assert.match(appSrc, /matches\.map\(m =>/, "renderGlossary must map matches into <li> rows");
   assert.match(appSrc, /esc\(m\.term\)/, "renderGlossary must escape the jargon term");
   assert.match(appSrc, /esc\(m\.plain\)/, "renderGlossary must escape the plain meaning");
 
@@ -4006,7 +4019,9 @@ test("BYOF: glossary lists each jargon term that was replaced + its plain-Englis
   // lists at least one entry with both a <code> term and a plain-English meaning.
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
-  // Wait for the BYOF auto-run to paint the glossary
+  // BYOF auto-runs on scroll into view (ScrollTrigger reveal) — scroll
+  // like a real user, then wait for it to paint the glossary.
+  await page.evaluate(() => { const b = document.querySelector(".byof"); if (b) b.scrollIntoView(); });
   await page.waitForFunction(() => {
     const g = document.getElementById("byofGlossary");
     return g && !g.hidden;
@@ -4192,7 +4207,7 @@ test("analyzer: AI failure shows a Retry button + categorizes the failure (rate-
 
   // Source-pattern: renderGlossary emits a list-item with the term + plain-English meaning
   assert.match(appSrc, /function renderGlossary\(/, "renderGlossary must exist");
-  assert.match(appSrc, /matches\.map\(m =&gt;/, "renderGlossary must map matches into <li> rows");
+  assert.match(appSrc, /matches\.map\(m =>/, "renderGlossary must map matches into <li> rows");
   assert.match(appSrc, /esc\(m\.term\)/, "renderGlossary must escape the jargon term");
   assert.match(appSrc, /esc\(m\.plain\)/, "renderGlossary must escape the plain meaning");
 
@@ -4203,7 +4218,9 @@ test("analyzer: AI failure shows a Retry button + categorizes the failure (rate-
   // lists at least one entry with both a <code> term and a plain-English meaning.
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
-  // Wait for the BYOF auto-run to paint the glossary
+  // BYOF auto-runs on scroll into view (ScrollTrigger reveal) — scroll
+  // like a real user, then wait for it to paint the glossary.
+  await page.evaluate(() => { const b = document.querySelector(".byof"); if (b) b.scrollIntoView(); });
   await page.waitForFunction(() => {
     const g = document.getElementById("byofGlossary");
     return g && !g.hidden;
@@ -4241,7 +4258,7 @@ test("nav: back-to-top button appears after scroll, smooth-scrolls to top on cli
   // Source-pattern: wireBackToTop must be in the 'always' init list and must
   // create the button lazily + toggle a .show class.
   assert.match(appSrc, /function wireBackToTop\(/, "wireBackToTop must exist");
-  assert.match(appSrc, /wireBackToTop\]/, "wireBackToTop must be in the 'always' init list");
+  assert.match(appSrc, /wireBackToTop,/, "wireBackToTop must be in the 'always' init list");
   assert.match(appSrc, /btn\.classList\.toggle\('show'/, "wireBackToTop must toggle a .show class on scroll");
   assert.match(appSrc, /lenis\.scrollTo\(0/, "wireBackToTop must use Lenis for smooth scroll");
   assert.match(appSrc, /window\.scrollTo\(\{ top: 0, behavior: 'smooth' \}\)/, "wireBackToTop must fall back to native smooth scroll when Lenis is unavailable");
@@ -4290,7 +4307,7 @@ test("nav: back-to-top button appears after scroll, smooth-scrolls to top on cli
 
   // Source-pattern: renderGlossary emits a list-item with the term + plain-English meaning
   assert.match(appSrc, /function renderGlossary\(/, "renderGlossary must exist");
-  assert.match(appSrc, /matches\.map\(m =&gt;/, "renderGlossary must map matches into <li> rows");
+  assert.match(appSrc, /matches\.map\(m =>/, "renderGlossary must map matches into <li> rows");
   assert.match(appSrc, /esc\(m\.term\)/, "renderGlossary must escape the jargon term");
   assert.match(appSrc, /esc\(m\.plain\)/, "renderGlossary must escape the plain meaning");
 
@@ -4301,7 +4318,9 @@ test("nav: back-to-top button appears after scroll, smooth-scrolls to top on cli
   // lists at least one entry with both a <code> term and a plain-English meaning.
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle" });
-  // Wait for the BYOF auto-run to paint the glossary
+  // BYOF auto-runs on scroll into view (ScrollTrigger reveal) — scroll
+  // like a real user, then wait for it to paint the glossary.
+  await page.evaluate(() => { const b = document.querySelector(".byof"); if (b) b.scrollIntoView(); });
   await page.waitForFunction(() => {
     const g = document.getElementById("byofGlossary");
     return g && !g.hidden;
@@ -4337,8 +4356,9 @@ test("pricing: each non-free card shows an annual hint (total + savings) that up
   const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
   const themeSrc = fs.readFileSync(path.join(ROOT, "assets", "theme.css"), "utf8");
 
-  // Every non-free card exposes a .yr-hint slot
-  const cards = pricingHtml.match(/<div class="ad[\s\S]+?<\/div>/g) || [];
+  // Every non-free card exposes a .yr-hint slot. Split on the card
+  // opener (the container is .ads, not .ad, so it never matches).
+  const cards = pricingHtml.split(/<div class="ad[" ]/).slice(1);
   assert.ok(cards.length === 3, `pricing.html must have 3 plan cards, got ${cards.length}`);
   // Reader has a static hint baked into HTML (no update needed); other two rely on JS
   for (const card of cards){
@@ -4396,8 +4416,11 @@ test("sw: service worker file exists, parses, and registers without error", asyn
     assert.fail(`sw.js must parse with node --check: ${err.message}`);
   }
 
-  // 3. SW registers in the browser without erroring
-  const page = await context.newPage();
+  // 3. SW registers in the browser without erroring. Hermetic contexts
+  // block service workers by default, so this test uses its own context
+  // with registration allowed (http://127.0.0.1 is a secure context).
+  const swCtx = await newHermeticContext({ serviceWorkers: "allow" });
+  const page = await swCtx.newPage();
   const regErrors = [];
   page.on("pageerror", (e) => regErrors.push(`pageerror: ${e.message}`));
   page.on("console", (m) => {
@@ -4429,6 +4452,7 @@ test("sw: service worker file exists, parses, and registers without error", asyn
   assert.equal(swErrors.length, 0, `sw registration should be silent; got: ${swErrors.join(', ')}`);
 
   await page.close();
+  await swCtx.close();
 });
 
 test("sw: cache strategy uses network-first for HTML and cache-first for assets", async () => {
@@ -4440,8 +4464,9 @@ test("sw: cache strategy uses network-first for HTML and cache-first for assets"
   const path = require("node:path");
   const swSrc = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
 
-  // HTML navigations must be network-first (with cache fallback)
-  const htmlBlock = swSrc.match(/isHTMLNavigation[\s\S]+?return;/);
+  // HTML navigations must be network-first (with cache fallback).
+  // Anchor on the fetch-handler usage site, not the helper definition.
+  const htmlBlock = swSrc.match(/if \(isHTMLNavigation\(request\)\) \{[\s\S]+?\n  \}/);
   assert.ok(htmlBlock, "HTML fetch handler must exist");
   assert.match(htmlBlock[0], /fetch\(request\)/, "HTML strategy must hit the network first");
   assert.match(htmlBlock[0], /cache\.match\(/, "HTML strategy must fall back to the cache");
@@ -4452,8 +4477,9 @@ test("sw: cache strategy uses network-first for HTML and cache-first for assets"
   assert.match(apiGuard[0], /\/api\//, "API guard must check for /api/ prefix");
   assert.match(apiGuard[0], /\breturn\b/, "API guard must short-circuit (return)");
 
-  // CDN strategy must be stale-while-revalidate
-  const cdnBlock = swSrc.match(/isCDNRequest[\s\S]+?return;/);
+  // CDN strategy must be stale-while-revalidate. Anchor on the
+  // fetch-handler usage site, not the helper definition.
+  const cdnBlock = swSrc.match(/if \(isCDNRequest\(url\)\) \{[\s\S]+?\n  \}/);
   assert.ok(cdnBlock, "CDN handler must exist");
   assert.match(cdnBlock[0], /cache\.match/, "CDN strategy must read from cache first");
   assert.match(cdnBlock[0], /cache\.put/, "CDN strategy must refresh the cache in the background");
@@ -4473,9 +4499,7 @@ test("OCR: image attachments lazy-load Tesseract.js with timeout + cancel", asyn
   assert.match(appSrc, /tesseract\.js@/, "Tesseract.js must come from a versioned CDN URL (not @latest)");
 
   // handleFile must route images through readImage
-  const handleFileBlock = appSrc.match(/function handleFile\([\s\S]+?IMG_EXT\.test/);
-  assert.ok(handleFileBlock, "handleFile must exist");
-  assert.match(handleFileBlock[0], /IMG_EXT\.test\(n\)\)\s*readImage/, "image attachments must trigger readImage");
+  assert.match(appSrc, /else if\(IMG_EXT\.test\(n\)\) readImage\(file,chip\);/, "image attachments must trigger readImage");
 
   // clearAttachments must cancel any in-flight OCR
   const clearBlock = appSrc.match(/function clearAttachments\(\)\{[\s\S]+?cancelActiveOcr\(\)/);
@@ -5290,14 +5314,14 @@ test("analyze: deadlines copy as Markdown", async () => {
   });
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
-    await page.click(".qf[data-fill]:first-of-type");
+    await page.fill("#docInput", DATED_DOC);
     await page.click("#analyzeBtn");
     await page.waitForSelector("#deadlineBlock:not([hidden]) #deadlineCopyMdBtn", { timeout: 8000 });
     await page.click("#deadlineCopyMdBtn");
     await page.waitForFunction(() => window.__copiedDeadlineMd && window.__copiedDeadlineMd.length > 0, { timeout: 8000 });
     const captured = await page.evaluate(() => window.__copiedDeadlineMd);
-    assert.match(captured, /^\| Date \| Countdown \| Type \| Clause \|/, "the copied deadlines must start with the Markdown header");
-    assert.match(captured, /\|---\|---\|---\|---\|/, "the copied deadlines must include the separator row");
+    assert.match(captured, /^\| Date \| Countdown \| Type \| Weekend \| Clause \|/, "the copied deadlines must start with the Markdown header");
+    assert.match(captured, /\|---\|---\|---\|---\|---\|/, "the copied deadlines must include the separator row");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
   } finally {
     await page.close();
@@ -5418,7 +5442,7 @@ test("analyzer: deadline digest copies urgency-grouped deadlines", async () => {
   });
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
-    await page.click(".qf[data-fill]:first-of-type");
+    await page.fill("#docInput", DATED_DOC);
     await page.click("#analyzeBtn");
     await page.waitForSelector("#deadlineDigestBtn", { timeout: 8000 });
     await page.click("#deadlineDigestBtn");
@@ -5430,10 +5454,10 @@ test("analyzer: deadline digest copies urgency-grouped deadlines", async () => {
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
 
     // Cycle #274 v2 — 'o' shortcut should copy the same digest.
-    await page.evaluate(() => { window.__copiedOblDigest = null; });
+    await page.evaluate(() => { window.__copiedDeadlines = null; });
     await page.keyboard.press("o");
-    await page.waitForFunction(() => window.__copiedOblDigest && window.__copiedOblDigest.length > 0, { timeout: 8000 });
-    const viaKey = await page.evaluate(() => window.__copiedOblDigest);
+    await page.waitForFunction(() => window.__copiedDeadlines && window.__copiedDeadlines.length > 0, { timeout: 8000 });
+    const viaKey = await page.evaluate(() => window.__copiedDeadlines);
     assert.match(viaKey, /OBLIGATIONS DIGEST —/, "the o shortcut must copy the obligations digest");
   } finally {
     await page.close();
@@ -5461,14 +5485,14 @@ test("analyzer: deadline email button opens a pre-filled mail client", async () 
   });
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
-    await page.click(".qf[data-fill]:first-of-type");
+    await page.fill("#docInput", DATED_DOC);
     await page.click("#analyzeBtn");
     await page.waitForSelector("#deadlineEmailBtn", { timeout: 8000 });
     await page.click("#deadlineEmailBtn");
     await page.waitForFunction(() => window.__deadlineMailto && window.__deadlineMailto.startsWith("mailto:"), { timeout: 8000 });
     const href = await page.evaluate(() => window.__deadlineMailto);
     assert.match(href, /^mailto:\?subject=/, "the deadline email must open a mailto link");
-    assert.match(href, /Contract deadlines/, "the deadline email subject must be clear");
+    assert.match(decodeURIComponent(href), /Contract deadlines/, "the deadline email subject must be clear");
     assert.match(href, /body=/, "the deadline email body must be pre-filled");
     assert.equal(errors.length, 0, `zero console errors, got: ${errors.join(" | ")}`);
 
@@ -9131,7 +9155,7 @@ test("privacy: 'Forget my data' button wipes localStorage, SW caches, and URL fr
   // wireForgetMe + forgetMyData must exist and be wired on every page
   assert.match(appSrc, /function wireForgetMe\(/, "wireForgetMe must exist");
   assert.match(appSrc, /function forgetMyData\(/, "forgetMyData must exist");
-  assert.match(appSrc, /wireForgetMe\]/, "wireForgetMe must be in the 'always' init list (every page)");
+  assert.match(appSrc, /wireForgetMe,/, "wireForgetMe must be in the 'always' init list (every page)");
 
   // The reset function must wipe all three privacy surfaces
   const forgetBlock = appSrc.match(/async function forgetMyData\(\)\{[\s\S]+?\n  \}/);
@@ -9197,9 +9221,9 @@ test("draft autosave: textarea content survives reload, gets cleared on Analyze 
   assert.match(appSrc, /function clearDraft\(/, "clearDraft helper must exist");
   assert.match(appSrc, /scheduleDraftSave/, "input must schedule a debounced draft save");
   // Successful render must clear the draft (snapshot supersedes it)
-  assert.match(appSrc, /clearDraft\(\);[\s\S]{0,80}A successful render/, "successful render must clear the draft");
+  assert.match(appSrc, /A successful render[\s\S]{0,300}?clearDraft\(\);/, "successful render must clear the draft");
   // Clear button must also clear the draft
-  const clearBtn = appSrc.match(/if\(clearBtn\) clearBtn\.addEventListener[\s\S]+?clearStoredSnapshot\(\);/);
+  const clearBtn = appSrc.match(/if\(clearBtn\) clearBtn\.addEventListener[\s\S]+?clearDraft\(\);/);
   assert.ok(clearBtn, "clear button handler must exist");
   assert.match(clearBtn[0], /clearDraft\(\)/, "clear button must call clearDraft");
 
@@ -9254,7 +9278,7 @@ test("analyzer: clicking the verdict Copy button copies just the verdict + summa
 
   // Source-pattern checks
   assert.match(appSrc, /verdictCopyBtn\s*=\s*\$\('#verdictCopyBtn'\)/, "verdictCopyBtn must be captured");
-  assert.match(appSrc, /verdictCopyBtn\)\.addEventListener\('click'/, "verdictCopyBtn must be wired to a click handler");
+  assert.match(appSrc, /verdictCopyBtn\.addEventListener\('click'/, "verdictCopyBtn must be wired to a click handler");
   // The handler reads the label + summary and writes to clipboard
   assert.match(appSrc, /querySelector\('\.verdict-label'\)/, "handler must read the verdict label");
   assert.match(appSrc, /querySelector\('\.verdict-summary'\)/, "handler must read the verdict summary");
@@ -9329,11 +9353,12 @@ test("analyzer: live text-stats bar shows word/char/level/cap and reacts to typi
   const initialWords = await page.$eval("#statWords", (el) => el.textContent || "");
   assert.ok(Number(initialWords.replace(/,/g, "")) >= 30, `preloaded sample should have ≥30 words, got ${initialWords}`);
 
-  // Clear the textarea and type a fresh sentence
-  await page.fill("#docInput", "Lessee shall indemnify lessor in perpetuity.");
+  // Clear the textarea and type a fresh sentence (9 words so the
+  // grade gate, which needs 8+ words for a meaningful score, passes)
+  await page.fill("#docInput", "Lessee shall indemnify lessor against all claims in perpetuity.");
   await page.dispatchEvent("#docInput", "input");
   const newWords = await page.$eval("#statWords", (el) => el.textContent || "");
-  assert.equal(newWords, "6", `short sentence should report 6 words, got "${newWords}"`);
+  assert.equal(newWords, "9", `short sentence should report 9 words, got "${newWords}"`);
   const newLevel = await page.$eval("#statLevel", (el) => el.textContent || "");
   assert.match(newLevel, /^\d+th$/, `reading level should be a grade like '12th', got "${newLevel}"`);
 
@@ -9430,8 +9455,9 @@ test("keyboard: ? opens the help modal and Esc closes it", async () => {
 
   // wireKeyboardShortcuts must exist and be wired in the always-init list
   assert.match(appSrc, /function wireKeyboardShortcuts\(/, "wireKeyboardShortcuts must exist");
-  assert.match(appSrc, /wireKeyboardShortcuts\]/, "wireKeyboardShortcuts must be in the 'always' init list (every page)");
-  assert.match(appSrc, /kbHint['"]\)\s*\.\s*addEventListener\(['"]click['"],\s*openHelp\)/, "footer hint must open the modal");
+  assert.match(appSrc, /wireKeyboardShortcuts,/, "wireKeyboardShortcuts must be in the 'always' init list (every page)");
+  assert.match(appSrc, /const hint = document\.getElementById\('kbHint'\);/, "footer hint element must be captured");
+  assert.match(appSrc, /hint\.addEventListener\('click', openHelp\)/, "footer hint must open the modal");
 
   // Theme must define .kb-modal styling
   assert.match(themeSrc, /\.kb-modal\{/, ".kb-modal CSS must exist");
@@ -9460,8 +9486,8 @@ test("keyboard: ? opens the help modal and Esc closes it", async () => {
   assert.match(modalText, /Copy Markdown/, "modal must document 'Copy Markdown' shortcut");
   assert.match(modalText, /JSON/, "modal must document 'JSON' shortcut");
   assert.match(modalText, /CSV/, "modal must document 'CSV' shortcut");
-  assert.match(modalText, /Checklist/, "modal must document 'Checklist' shortcut");
-  assert.match(modalText, /Share link/, "modal must document 'Share link' shortcut");
+  assert.match(modalText, /SIGNING CHECKLIST/, "modal must document the signing-checklist shortcuts");
+  assert.match(modalText, /share link/, "modal must document the share-link shortcut");
   assert.match(modalText, /chat-friendly/, "modal must document 'Share to chat' shortcut");
 
   // Pressing Escape closes the modal
@@ -9523,7 +9549,7 @@ test("a11y: mobile drawer traps focus + returns focus to toggle on close", async
   // toggles focus between the drawer and the toggle button.
   assert.match(appSrc, /function focusables\(\)/, "focusables() helper must exist");
   assert.match(appSrc, /e\.key === 'Tab'/, "Tab handler must be wired");
-  assert.match(appSrc, /first\.focus\(\);[\s\S]+?last\.focus\(\)/, "focus trap must wrap from last → first on Tab");
+  assert.match(appSrc, /last\.focus\(\);[\s\S]+?first\.focus\(\)/, "focus trap must wrap from last → first on Tab");
   assert.match(appSrc, /btn\.focus\(\{preventScroll:true\}\)/, "closing the drawer must return focus to the toggle button");
 
   // Live: at 375px, opening the drawer focuses the first link; Tab from the
@@ -9894,6 +9920,11 @@ test("analyzer: local-fallback answer carries 'Sentence N of M' citation when no
     window.fetch = async () => { throw new Error("forced: AI unavailable"); };
   });
   await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
+  // The Ask panel only enables after an analysis renders. Analyze first
+  // (fetch is stubbed to throw, so this exercises the local path), then ask.
+  await page.click(".qf[data-fill]:first-of-type");
+  await page.click("#analyzeBtn");
+  await page.waitForFunction(() => !document.getElementById('askBtn').disabled, { timeout: 8000 });
   // Type a question that triggers the local-fallback refund / deposit branch
   // (the analyze page has a preloaded sample document; if not, paste something).
   const input = await page.$("#askInput");
@@ -9903,16 +9934,14 @@ test("analyzer: local-fallback answer carries 'Sentence N of M' citation when no
 
   await input.fill("Can I get a refund?");
   await page.click("#askBtn");
-  // The local-fallback path renders synchronously into #askOut.
-  await page.waitForTimeout(200);
+  // askBtn re-enables when the turn completes (fetch throws instantly here,
+  // so the local fallback lands immediately).
+  await page.waitForFunction(() => !document.getElementById('askBtn').disabled, { timeout: 8000 });
 
-  // The answer should mention the citation format somewhere
-  const askOut = await page.$eval("#askOut", (el) => el.textContent || "");
-  assert.ok(askOut.length > 0, "askOut must have content after local-fallback answer");
-
-  // If a citation is shown, it should match "Sentence N of M" format OR
-  // (for short docs) include a quote. We just verify the output isn't
-  // empty — the exact format is covered by source-pattern unit tests.
+  // The answer renders into the Ask thread with a 'Sentence N of M' citation.
+  const thread = await page.$eval("#askThread", (el) => el.textContent || "");
+  assert.match(thread, /Can I get a refund\?/, "the thread must show the question");
+  assert.match(thread, /Sentence \d+ of \d+/, "the local-fallback answer must carry a 'Sentence N of M' citation");
   await page.close();
   await ctx.close();
 });
@@ -12076,6 +12105,9 @@ test("analyze: TL;DR copies as Markdown", async () => {
       try { navigator.clipboard = { writeText: async (txt) => { window.__copiedTldrMd = txt; }, write: async () => {} }; } catch (_2) {}
     }
   });
+  // The verdict only renders on the AI path — install the canned analysis
+  // so the TL;DR builder has a verdict to include (prod behavior).
+  await mockAnalyzeApi(page);
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
     await page.click(".qf[data-fill]:first-of-type");
@@ -12513,7 +12545,7 @@ test("analyze: clause index copies as Markdown", async () => {
   });
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
-    await page.click(".qf[data-fill]:first-of-type");
+    await page.fill("#docInput", DATED_DOC);
     await page.click("#analyzeBtn");
     await page.waitForSelector("#indexBlock:not([hidden]) #clauseCopyMdBtn", { timeout: 8000 });
     await page.click("#clauseCopyMdBtn");
@@ -14152,7 +14184,9 @@ test("analyzer: deadline notifications fire when granted and opt-in from the ban
       close(){}
     }
     FakeNotification.permission = "default";
-    FakeNotification.requestPermission = async () => "granted";
+    // Faithful mock: real browsers flip Notification.permission when the
+    // user decides, so the fake must too.
+    FakeNotification.requestPermission = async () => (FakeNotification.permission = "granted");
     Object.defineProperty(window, "Notification", { configurable: true, value: FakeNotification });
     localStorage.setItem("cleardoc:upcomingDeadlines", JSON.stringify({
       ts: Date.now(), fp: null, docName: "lease.pdf",
@@ -15035,7 +15069,7 @@ test("analyze: contacts copy as Markdown table", async () => {
   });
   try {
     await page.goto(`http://127.0.0.1:${PORT}/analyze.html`, { waitUntil: "networkidle" });
-    await page.click(".qf[data-fill]:first-of-type");
+    await page.fill("#docInput", DATED_DOC);
     await page.click("#analyzeBtn");
     await page.waitForSelector("#contactBlock:not([hidden]) #contactCopyMdBtn", { timeout: 8000 });
     await page.click("#contactCopyMdBtn");
@@ -18590,4 +18624,35 @@ test("license grants: reach, purpose, and attribution get weighed", () => {
     "the polish cycle pins its marker too");
   assert.ok(indexHtml.indexOf("License grants") !== -1,
     "the landing checklist advertises the new lens");
+});
+// Forge fix — curly quotes (U+201C/U+201D) inside HTML tags silently break
+// attributes (index.html footer once shipped class=”footer-link”, leaving
+// #forgetBtn and #kbHint unwirable). Text content may use them; tags may not.
+test("html: no curly quotes inside tags across public pages", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  for (const page of ["index.html", "analyze.html", "pricing.html", "404.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, page), "utf8");
+    const tags = html.match(/<[a-zA-Z][^>]*>/g) || [];
+    for (const tag of tags) {
+      assert.doesNotMatch(tag, /[“”]/, `${page} must not use curly quotes inside tags, got: ${tag.slice(0, 120)}`);
+    }
+  }
+});
+
+// Forge fix — the risk copy-actions row (Copy details / risk summary /
+// Risk digest / email / JSON) ships hidden and must be revealed with the
+// tally, with every button wired.
+test("analyzer: risk copy-actions row is revealed and fully wired", () => {
+  if (!HAS_BROWSER) return;
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(ROOT, "analyze.html"), "utf8");
+  const appSrc = fs.readFileSync(path.join(ROOT, "assets", "app.js"), "utf8");
+  for (const id of ["riskCopyDetailsBtn", "riskSummaryCopyBtn", "riskChatDigestBtn", "riskEmailBtn", "riskExportJsonBtn"]) {
+    assert.match(html, new RegExp(`id="${id}"`), `analyze.html must expose #${id}`);
+    assert.match(appSrc, new RegExp(`${id}\\.addEventListener\\('click'`), `${id} must be wired to a click handler`);
+  }
+  assert.match(appSrc, /riskCopyActions\) riskCopyActions\.hidden = false;/, "the copy-actions row must be revealed when risks render");
 });
