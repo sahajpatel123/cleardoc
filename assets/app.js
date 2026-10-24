@@ -9122,34 +9122,6 @@
           setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
         });
       }
-      const copyMdBtn = document.getElementById('glossCopyMdBtn');
-      if(copyMdBtn){
-        copyMdBtn.addEventListener('click', async () => {
-          const rows = visible.map(g => '| ' + String(g.term).replace(/\|/g, '\\|') + ' | ' + String(g.plain).replace(/\|/g, '\\|') + ' | ' + g.hits + ' |').join('\n');
-          const md = '| Term | Meaning | Hits |\n|---|---|---|\n' + rows +
-            (filter === 'multi' ? '\n\n_Showing multi-hit terms only._' : '');
-          let copied = false;
-          try {
-            if(navigator.clipboard && navigator.clipboard.writeText){
-              await navigator.clipboard.writeText(md);
-              copied = true;
-            }
-          } catch(_){ /* fall through */ }
-          if(!copied){
-            try {
-              const ta = document.createElement('textarea');
-              ta.value = md;
-              document.body.appendChild(ta);
-              ta.select();
-              copied = document.execCommand('copy');
-              document.body.removeChild(ta);
-            } catch(_2){ copied = false; }
-          }
-          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Glossary copied as Markdown' : '⚠ Couldn’t copy');
-          copyMdBtn.textContent = copied ? '✓ copied' : '# MD';
-          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '# MD'; }, 2500);
-        });
-      }
     }
 
     // Iter #178: cross-reference integrity checker — scans for internal
@@ -11359,6 +11331,24 @@
     // Pure local. Pulls the auto-renewal cancel-by window plus the next
     // deadlines from the DOM, so a signed contract doesn't go dark until
     // the next renewal surprise.
+    // Shared day-math for the care builders. renderDeadlineBlock keeps its
+    // own render-scoped copies; these twins exist because the care
+    // functions live outside that scope (calling the locals threw
+    // ReferenceError as soon as any dated item appeared).
+    function careDayDiff(dateStr){
+      const dt = new Date((dateStr || '') + 'T00:00:00Z');
+      if(isNaN(dt.getTime())) return null;
+      return Math.round((dt.getTime() - Date.now()) / 86400000);
+    }
+    function careCountdown(dateStr){
+      if(!dateStr) return '';
+      const dt = new Date(dateStr + 'T00:00:00Z');
+      if(isNaN(dt.getTime())) return '';
+      const days = Math.round((dt.getTime() - Date.now()) / 86400000);
+      if(days > 0) return 'in ' + days + ' day' + (days === 1 ? '' : 's');
+      if(days < 0) return (-days) + ' day' + (-days === 1 ? '' : 's') + ' ago';
+      return 'today';
+    }
     function buildCarePlan(raw, ctx){
       const items = [];
       const renewalBlock = document.getElementById('renewalBlock');
@@ -11372,7 +11362,7 @@
             const d = new Date(m[1]);
             if(!isNaN(d.getTime())){
               const iso = d.toISOString().slice(0, 10);
-              const days = dayDiff(iso);
+              const days = careDayDiff(iso);
               items.push({
                 date: iso,
                 label: 'Auto-renewal cancel-by window',
@@ -11383,15 +11373,23 @@
           }
         }
       }
-      const rows = (document.getElementById('deadlinesList') || { querySelectorAll: () => [] }).querySelectorAll('.deadline-row');
-      [...rows].slice(0, 8).forEach(row => {
+      // Read BOTH deadline lists: the AI block (#deadlinesList) and the
+      // local-scan block (#deadlineList). Local-only analyses never fill
+      // the AI list, so reading just it left every care export dateless.
+      const seenIso = new Set();
+      const dlLists = [document.getElementById('deadlinesList'), document.getElementById('deadlineList')];
+      const rows = [];
+      dlLists.forEach(l => { if(l) rows.push(...l.querySelectorAll('.deadline-row')); });
+      [...rows].slice(0, 12).forEach(row => {
         const dateEl = row.querySelector('.deadline-date');
-        const ctxEl = row.querySelector('.deadline-context');
+        const ctxEl = row.querySelector('.deadline-context') || row.querySelector('.deadline-desc');
         if(!dateEl) return;
         const dateTxt = (dateEl.textContent || '').trim();
         const iso = (dateTxt.match(/\d{4}-\d{2}-\d{2}/) || [''])[0];
-        const days = iso ? dayDiff(iso) : null;
+        if(!iso || seenIso.has(iso)) return;
+        const days = iso ? careDayDiff(iso) : null;
         if(days === null || days < 0 || days > 60) return;
+        seenIso.add(iso);
         const detail = ctxEl ? ctxEl.textContent.replace(/\s+/g, ' ').trim().slice(0, 160) : '';
         items.push({ date: iso, label: 'Deadline', detail: detail, urgent: days <= 14 });
       });
@@ -11434,7 +11432,7 @@
       if(!items.length){ careBlock.hidden = true; return; }
       careGrid.innerHTML = items.map(it => {
         const when = it.date
-          ? esc(it.date) + ' <span class="care-countdown">' + esc(countdown(it.date) || '') + '</span>'
+          ? esc(it.date) + ' <span class="care-countdown">' + esc(careCountdown(it.date) || '') + '</span>'
           : '<span class="care-countdown">review</span>';
         return '<div class="care-item' + (it.urgent ? ' care-urgent' : '') + '">' +
           '<span class="care-tag" data-label="' + esc(it.label) + '">' + esc(it.label) + '</span>' +
@@ -11449,11 +11447,11 @@
           const lines = ['CLEARDOC CONTRACT CARE PLAN'];
           items.forEach(it => {
             if(it.label === 'Auto-renewal cancel-by window'){
-              lines.push('• Renewal: cancel by ' + (it.date || '') + (it.date && countdown(it.date) ? ' (' + countdown(it.date) + ')' : ''));
+              lines.push('• Renewal: cancel by ' + (it.date || '') + (it.date && careCountdown(it.date) ? ' (' + careCountdown(it.date) + ')' : ''));
             } else if(it.label === 'Obligation to fulfill'){
               lines.push('• Obligation: ' + it.detail);
             } else {
-              lines.push('• ' + (it.date || '') + (it.date && countdown(it.date) ? ' (' + countdown(it.date) + ')' : '') + (it.detail ? ' — ' + it.detail : ''));
+              lines.push('• ' + (it.date || '') + (it.date && careCountdown(it.date) ? ' (' + careCountdown(it.date) + ')' : '') + (it.detail ? ' — ' + it.detail : ''));
             }
           });
           lines.push('_Generated by ClearDoc — informational only, not legal advice._');
@@ -11490,7 +11488,7 @@
           const dated = items.filter(it => it && it.date);
           const lines = ['CLEARDOC NEXT DATES'];
           dated.slice(0, 6).forEach(it => {
-            lines.push('• ' + it.date + (it.date && countdown(it.date) ? ' (' + countdown(it.date) + ')' : '') + ' — ' + (it.label || 'Deadline'));
+            lines.push('• ' + it.date + (it.date && careCountdown(it.date) ? ' (' + careCountdown(it.date) + ')' : '') + ' — ' + (it.label || 'Deadline'));
           });
           lines.push('_Generated by ClearDoc — informational only, not legal advice_');
           let text = lines.join('\n');
@@ -11524,7 +11522,7 @@
           const deadlines = items.filter(it => it && it.date && it.label !== 'Obligation to fulfill');
           const lines = ['CLEARDOC DEADLINE DIGEST — ' + deadlines.length + ' deadline' + (deadlines.length === 1 ? '' : 's')];
           deadlines.slice(0, 8).forEach(it => {
-            lines.push('• ' + it.date + (it.date && countdown(it.date) ? ' (' + countdown(it.date) + ')' : '') + (it.detail ? ' — ' + it.detail.slice(0, 120) : ''));
+            lines.push('• ' + it.date + (it.date && careCountdown(it.date) ? ' (' + careCountdown(it.date) + ')' : '') + (it.detail ? ' — ' + it.detail.slice(0, 120) : ''));
           });
           lines.push('_Generated by ClearDoc — informational only, not legal advice_');
           let text = lines.join('\n');
@@ -11555,7 +11553,7 @@
         careCopyMdBtn._careMdWired = true;
         careCopyMdBtn.addEventListener('click', async () => {
           const rows = items.map(it => {
-            const when = it.date ? (it.date + (it.date && countdown(it.date) ? ' (' + countdown(it.date) + ')' : '')) : 'review';
+            const when = it.date ? (it.date + (it.date && careCountdown(it.date) ? ' (' + careCountdown(it.date) + ')' : '')) : 'review';
             return '| ' + (it.label || 'Care item') + ' | ' + when + ' | ' + (it.detail ? it.detail.slice(0, 140) : '—') + ' |';
           }).join('\n');
           let md = '# Contract care plan\n\n| Item | When | Detail |\n|---|---|---|\n' + rows + '\n\n_Generated by ClearDoc — informational only, not legal advice._';
@@ -11590,7 +11588,7 @@
         careEmailBtn.addEventListener('click', () => {
           const lines = ['Hi,', '', 'Here is the ClearDoc care plan for this contract:', ''];
           items.forEach(it => {
-            const when = it.date ? (it.date + (it.date && countdown(it.date) ? ' (' + countdown(it.date) + ')' : '')) : 'review';
+            const when = it.date ? (it.date + (it.date && careCountdown(it.date) ? ' (' + careCountdown(it.date) + ')' : '')) : 'review';
             lines.push('• ' + (it.label || 'Care item') + ' — ' + when + (it.detail ? ': ' + it.detail.slice(0, 140) : ''));
           });
           lines.push('', 'Generated by ClearDoc — informational only, not legal advice.');
@@ -14063,39 +14061,6 @@
           setTimeout(() => { if(copyJsonBtn.isConnected) copyJsonBtn.textContent = '📋 copy JSON'; }, 2500);
         });
       }
-      const copyMdBtn = document.getElementById('confCopyMdBtn');
-      if(copyMdBtn){
-        copyMdBtn.addEventListener('click', async () => {
-          const md = '## Confidence: ' + c.overall + '/100 — ' + verdict + '\n\n' +
-            '| Metric | Score |\n|---|---|\n' +
-            '| Document length | ' + c.lenScore + ' |\n' +
-            '| Risk-pattern coverage | ' + c.riskScore + ' |\n' +
-            '| Tone signal strength | ' + c.toneScore + ' |\n' +
-            '| AI / fallback usage | ' + c.aiUsed + ' |' +
-            (c.caveats.length ? '\n\n**Notes:** ' + c.caveats.join(' · ') : '') +
-            '\n\n_Generated ' + new Date().toLocaleString() + ((_fpState && _fpState.short) ? ' · #' + _fpState.short : '') + '_';
-          let copied = false;
-          try {
-            if(navigator.clipboard && navigator.clipboard.writeText){
-              await navigator.clipboard.writeText(md);
-              copied = true;
-            }
-          } catch(_){ /* fall through */ }
-          if(!copied){
-            try {
-              const ta = document.createElement('textarea');
-              ta.value = md;
-              document.body.appendChild(ta);
-              ta.select();
-              copied = document.execCommand('copy');
-              document.body.removeChild(ta);
-            } catch(_2){ copied = false; }
-          }
-          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Confidence copied as Markdown' : '⚠ Couldn’t copy');
-          copyMdBtn.textContent = copied ? '✓ copied' : '# MD';
-          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '# MD'; }, 2500);
-        });
-      }
     }
 
     function renderContactBlock(raw, ctx){
@@ -14427,6 +14392,42 @@
           setTimeout(() => { if(copyJsonBtn.isConnected) copyJsonBtn.textContent = '📋 copy JSON'; }, 2500);
         });
       }
+      // Iter #159 — copy as Markdown. Lives here (not in renderHistBlock)
+      // so the button is always wired when this block renders, with this
+      // block's own c/verdict closure.
+      const copyMdBtn = document.getElementById('confCopyMdBtn');
+      if(copyMdBtn){
+        copyMdBtn.addEventListener('click', async () => {
+          const md = '## Confidence: ' + c.overall + '/100 — ' + verdict + '\n\n' +
+            '| Metric | Score |\n|---|---|\n' +
+            '| Document length | ' + c.lenScore + ' |\n' +
+            '| Risk-pattern coverage | ' + c.riskScore + ' |\n' +
+            '| Tone signal strength | ' + c.toneScore + ' |\n' +
+            '| AI / fallback usage | ' + c.aiUsed + ' |' +
+            (c.caveats.length ? '\n\n**Notes:** ' + c.caveats.join(' · ') : '') +
+            '\n\n_Generated ' + new Date().toLocaleString() + ((_fpState && _fpState.short) ? ' · #' + _fpState.short : '') + '_';
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Confidence copied as Markdown' : '⚠ Couldn’t copy');
+          copyMdBtn.textContent = copied ? '✓ copied' : '# MD';
+          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '# MD'; }, 2500);
+        });
+      }
     }
 
     function renderGlossBlock(raw, ctx){
@@ -14532,6 +14533,37 @@
           if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Glossary copied (' + all.length + ' terms)' : '⚠ Couldn’t copy');
           copyAllBtn.textContent = copied ? '✓ copied' : '📋 copy all';
           setTimeout(() => { if(copyAllBtn.isConnected) copyAllBtn.textContent = '📋 copy all'; }, 2500);
+        });
+      }
+      // Iter #157 — copy as Markdown. Lives here (not in renderDefBlock)
+      // so the button is always wired when this block renders, with this
+      // block's own visible/filter closure.
+      const copyMdBtn = document.getElementById('glossCopyMdBtn');
+      if(copyMdBtn){
+        copyMdBtn.addEventListener('click', async () => {
+          const rows = visible.map(g => '| ' + String(g.term).replace(/\|/g, '\\|') + ' | ' + String(g.plain).replace(/\|/g, '\\|') + ' | ' + g.hits + ' |').join('\n');
+          const md = '| Term | Meaning | Hits |\n|---|---|---|\n' + rows +
+            (filter === 'multi' ? '\n\n_Showing multi-hit terms only._' : '');
+          let copied = false;
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(md);
+              copied = true;
+            }
+          } catch(_){ /* fall through */ }
+          if(!copied){
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch(_2){ copied = false; }
+          }
+          if(typeof showAnalyzeToast === 'function') showAnalyzeToast(copied ? '📋 Glossary copied as Markdown' : '⚠ Couldn’t copy');
+          copyMdBtn.textContent = copied ? '✓ copied' : '# MD';
+          setTimeout(() => { if(copyMdBtn.isConnected) copyMdBtn.textContent = '# MD'; }, 2500);
         });
       }
     }
@@ -20954,10 +20986,17 @@
             }
           }
           riskSumWrap.hidden = false;
+          // The risk copy-actions row (Copy details / risk summary / Risk
+          // digest / email / JSON) must appear with the tally — it ships
+          // hidden and nothing else unhides it.
+          const riskCopyActions = document.getElementById('riskCopyActions');
+          if(riskCopyActions) riskCopyActions.hidden = false;
         } else {
           const riskBar = document.getElementById('riskBalance');
           if(riskBar) riskBar.hidden = true;
           riskSumWrap.hidden = true;
+          const riskCopyActions = document.getElementById('riskCopyActions');
+          if(riskCopyActions) riskCopyActions.hidden = true;
         }
       }
 
@@ -22404,6 +22443,9 @@
         paintDocFingerprint();
         paintReanalysisDelta();
         paintCounterSummary();
+        // Restored snapshots carry risks too — reveal the copy-actions row.
+        const riskCopyActions = document.getElementById('riskCopyActions');
+        if(riskCopyActions) riskCopyActions.hidden = !(lastFlags && lastFlags.length);
       }
 
       // Verdict
@@ -23807,7 +23849,7 @@
         console.warn('[verdict-card] PNG path failed, falling back to .svg', e);
       }
       try {
-        const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+        const url = URL.createObjectURL(new Blob([buildVerdictCardSvg()], { type: 'image/svg+xml;charset=utf-8' }));
         const a = document.createElement('a');
         a.href = url; a.download = 'cleardoc-verdict-' + stamp + '.svg';
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
@@ -29305,6 +29347,75 @@ if(comparePanel.hidden){compareVerdict&&(compareVerdict.hidden=true);compareStat
     if(copyEmailBundleBtn) copyEmailBundleBtn.addEventListener('click', copyAnalysisBundleEmail);
     const cleanDraftBtn = document.getElementById('cleanDraftBtn');
     if(cleanDraftBtn) cleanDraftBtn.addEventListener('click', copyCleanDraft);
+    // Iter #237 — risk "Copy details" + "JSON" buttons. They ship in the
+    // riskCopyActions row (revealed with the tally) but were never wired.
+    const riskCopyDetailsBtn = document.getElementById('riskCopyDetailsBtn');
+    if(riskCopyDetailsBtn) riskCopyDetailsBtn.addEventListener('click', async () => {
+      if(!lastFlags || !lastFlags.length){
+        if(msg){msg.textContent='No risks found — copy risk details when the analysis has flagged items.'; msg.className='analyze-msg';}
+        return;
+      }
+      const lines = ['RISK DETAILS — ' + lastFlags.length + ' flagged (ClearDoc)', ''];
+      lastFlags.forEach((f, i) => {
+        const label = (f && f.rule && f.rule.label) || 'Risk';
+        const clause = f && f.s ? String(f.s).slice(0, 160) : '';
+        const why = f && f.rule && f.rule.why ? String(f.rule.why).slice(0, 200) : '';
+        const counter = f && f.rule && f.rule.counter ? String(f.rule.counter).slice(0, 200) : '';
+        lines.push((i + 1) + '. [' + label + '] ' + clause);
+        if(why) lines.push('   Why: ' + why);
+        if(counter) lines.push('   Counter: ' + counter);
+      });
+      let text = lines.join('\n');
+      try {
+        if(typeof buildShareUrl === 'function'){
+          const shareUrl = await buildShareUrl();
+          if(shareUrl) text += '\n' + shareUrl;
+        }
+      } catch(_){ /* keep the copy working even if the link fails */ }
+      let ok = false;
+      try {
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok = document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      } catch(_){}
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Risk details copied' : '⚠ Couldn’t copy');
+      riskCopyDetailsBtn.textContent = ok ? '✓ copied' : '📋 Copy details';
+      setTimeout(() => { if(riskCopyDetailsBtn.isConnected) riskCopyDetailsBtn.textContent = '📋 Copy details'; }, 2500);
+    });
+    const riskExportJsonBtn = document.getElementById('riskExportJsonBtn');
+    if(riskExportJsonBtn) riskExportJsonBtn.addEventListener('click', async () => {
+      if(!lastFlags || !lastFlags.length){
+        if(msg){msg.textContent='No risks found — copy risks as JSON when the analysis has flagged items.'; msg.className='analyze-msg';}
+        return;
+      }
+      const json = JSON.stringify((lastFlags || []).map(f => ({
+        severity: (f && f.rule && f.rule.label) || 'Risk',
+        clause: f && f.s ? String(f.s).slice(0, 300) : '',
+        why: f && f.rule && f.rule.why ? String(f.rule.why) : '',
+        counter: f && f.rule && f.rule.counter ? String(f.rule.counter) : '',
+      })), null, 2);
+      let ok = false;
+      try {
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(json);
+          ok = true;
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = json; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.appendChild(ta); ta.select();
+          ok = document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      } catch(_){}
+      if(typeof showAnalyzeToast === 'function') showAnalyzeToast(ok ? '📋 Risks copied as JSON' : '⚠ Couldn’t copy');
+      riskExportJsonBtn.textContent = ok ? '✓ copied' : '📋 JSON';
+      setTimeout(() => { if(riskExportJsonBtn.isConnected) riskExportJsonBtn.textContent = '📋 JSON'; }, 2500);
+    });
     // Cycle #268 — chat-friendly risk digest copy.
     const riskChatDigestBtn = document.getElementById('riskChatDigestBtn');
     if(riskChatDigestBtn) riskChatDigestBtn.addEventListener('click', copyRiskChatDigest);
